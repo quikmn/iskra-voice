@@ -17,6 +17,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 6. [Troubleshooting](#6-troubleshooting)
 7. [Rules for agents](#7-rules-for-agents)
 8. [Uptime monitoring](#8-uptime-monitoring)
+9. [CI results in Iskra](#9-ci-results-in-iskra)
 
 ## 1. Overview
 
@@ -54,9 +55,17 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
                     ├─ site ....... wrangler → Pages iskra-hero-page → https://iskra.foo  (checks the new links and every page)
                     ├─ webapp ..... client build → Pages iskra-webclient → https://app.iskra.foo (checks the new index asset)
                     └─ server ..... ssh root@DROPLET_HOST X → iskra-update X → https://chat.iskra.foo (checks it answers)
+ ⑤ phones (where mobile/store.json says; docs/store/README.md)
+        ├─► mobile-ios.yml (ref vX, upload) ... build, cloud-sign, upload, then scripts/appstore.mjs: processing,
+        │                                       What to test, TestFlight groups, Beta App Review (phase B: + App Store
+        │                                       version, listing, screenshots, App Review, automatic release)
+        └─ scripts/play-upload.mjs X ......... the AAB from ③ → Google Play track (phase A: closed testing "alpha";
+                                                phase B: production + listing), release notes en-US/sv-SE
+ ⑥ final checks; a phone problem ends with STOP [phones] (-Resume retries only that)
 
  DEPLOY ONLY: deploy.yml by hand (workflow_dispatch: ref, site, webapp, server_version)
- iOS APP: mobile-ios.yml by hand (workflow_dispatch: ref, upload) ──► TestFlight (not part of a release yet)
+ iOS APP ALONE: mobile-ios.yml by hand (workflow_dispatch: ref, upload, store)
+ RESULTS: ci.yml (main) and release-finalize.yml post pass/fail to an Iskra channel when ISKRA_CI_WEBHOOK is set (section 9)
 ```
 
 | File | What it does |
@@ -82,6 +91,11 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
 | `mobile/scripts/build-android.ps1` | Signed Android APK (+ AAB) from the Capacitor shell ([Android](#android)) |
 | `.github/workflows/mobile-ios.yml` | iPhone/iPad app: build, cloud-sign, upload to TestFlight ([iOS app](#ios-app)) |
 | `scripts/mobile-version.mjs` | The phone app's version and build numbers (tested by the root `npm test`) |
+| `mobile/store.json` | Where the phone apps go each release: iOS mode (testflight, appstore, upload), TestFlight groups, Play track, rollout, listing ([docs/store/README.md](store/README.md)) |
+| `scripts/appstore.mjs` | App Store Connect after each iOS upload (run by mobile-ios.yml): processing, export compliance, What to test, TestFlight groups, Beta App Review; phase B the App Store version, listing, screenshots, App Review. Tests against a fake API: `scripts/appstore.test.mjs` |
+| `scripts/play-upload.mjs` | The Android app bundle to Google Play (Android Publisher API; run by release-all.ps1): track, release notes, listing, data safety. `--list-tracks`, `--dry-run`, `--check`. Tests against a fake API: `scripts/play-upload.test.mjs` |
+| `scripts/ci-notify.mjs` | CI and release results to an Iskra channel ([section 9](#9-ci-results-in-iskra)) |
+| `docs/store/` | Store texts, forms and graphics: `play/` (Google Play), `appstore/` (App Store), `README.md` (phases and the owner's one-time steps) |
 | `.github/workflows/uptime.yml`, `scripts/uptime-check.sh` | Uptime checks and outage issues ([section 8](#8-uptime-monitoring)) |
 | `server/deploy/iskra-update-guard` | Shipped in the Linux server tarball (release.yml): undoes a server self-update that doesn't start (docs/hosting.md) |
 
@@ -142,7 +156,17 @@ signing certificate, workflows) and prints every step without changing anything.
    app.iskra.foo serves the new bundle, chat.iskra.foo answers, GitHub's Latest is vX, the downloads resolve.
    release-all.ps1 then checks them once more itself (Latest, every file and SHA256SUMS.txt, iskra.foo links,
    app.iskra.foo's bundle has the version, chat.iskra.foo/health reports it).
-6. Afterwards: `git checkout main`.
+6. **Phones.** Once finalize published the release: release-all.ps1 starts `mobile-ios.yml` on the tag with upload on
+   (its run is titled "Mobile iOS vX (TestFlight)", so a resumed release finds it instead of building twice), uploads
+   `mobile\release\Iskra-X.aab` (built by release-windows.ps1 together with the APK) with `scripts/play-upload.mjs`,
+   then waits for the iOS run, which ends with `scripts/appstore.mjs` doing everything App Store Connect needs.
+   Where they go is `mobile/store.json` (phase A: TestFlight internal and external groups + Beta App Review, Play's
+   closed testing track; phase B: the App Store and Play production; [docs/store/README.md](store/README.md)).
+   No Play key (`D:\Development_Projects\devkeys\google-play-service-account.json`): the Play upload is skipped with a
+   note. A phone problem doesn't stop the final checks; the run then ends with `STOP [phones]` and `-Resume` retries only
+   what isn't done (a version already on the Play track or a TestFlight run that succeeded is left alone).
+   `-SkipPhones` leaves the stores alone, `-PlayTrack <track>` overrides the track once.
+7. Afterwards: `git checkout main`.
 
 The user's own server updates through finalize. Other standalone servers look for new releases themselves (owner
 setting, Settings → Updates: off / tell me / install automatically on Linux with systemd; docs/hosting.md "Updating").
@@ -247,11 +271,19 @@ with every release and every rebuild. App Store Connect rejects a build number i
 rerun. Once a `2.0.0` build is approved for the App Store, that version is closed: the next builds must be a higher
 version (the next release bump does that).
 
-**Running it.** `gh workflow run mobile-ios.yml [-f ref=vX] [-f upload=false]` (default: main, upload). The run summary
-names the version and build; Apple then processes the build (5–30 min) and TestFlight shows it to the internal group.
-Wiring it into releases later: add a job to `release-finalize.yml` after `publish`:
-`ios: { needs: publish, uses: ./.github/workflows/mobile-ios.yml, with: { ref: <tag> }, secrets: inherit }`
-(the caller's `permissions` must include `contents: read`).
+**Running it.** Every release runs it (release-all.ps1, step 6 of [Releasing](#2-releasing)). By hand:
+`gh workflow run mobile-ios.yml [-f ref=vX] [-f upload=false] [-f store=auto|testflight|appstore|upload]` (default:
+main, upload, the mode in `mobile/store.json`). After the upload, the step "TestFlight groups and reviews" runs
+`scripts/appstore.mjs`: it waits for Apple's processing (up to an hour; the job's timeout is 120 minutes), answers
+export compliance, sets What to test from the release notes, keeps TestFlight's test information and the review
+contact current, adds the build to the internal groups and the external groups in `mobile/store.json` (the public link
+`r4tMgn3D`) and submits it for Beta App Review; in phase B it also fills and submits the App Store version. Every step
+looks first, so reruns don't submit twice. The run summary names the build and what App Store Connect did.
+
+| Also used by the store step | Where | Notes |
+|---|---|---|
+| `APPSTORE_REVIEW_PHONE` (secret, optional) | The review contact's phone | Apple requires a phone for App Review; set once with `gh secret set APPSTORE_REVIEW_PHONE` |
+| `REVIEW_INVITE_URL` (variable) | An invite to the review server (Iskra Review, chat.iskra.foo:8443) for the review notes | **Expires after 30 days at most**: renew it (refresh calendar). Phase B refuses to submit without it |
 
 ### Cloudflare
 
@@ -321,7 +353,8 @@ goes to CI; CI (`ci.yml` job `android`) only runs an unsigned build.
 |---|---|---|
 | Release keystore | `D:\Development_Projects\devkeys\iskra-android.keystore` (PKCS12, alias `iskra`), password in `iskra-android-keystore.txt` | Valid ~27 years. Its SHA-256 fingerprint is in `client/public/.well-known/assetlinks.json`; the build script refuses an APK whose signer isn't listed there |
 | Toolchain | `devtools\android-sdk` (platform 36, build-tools 36.1.0, licenses accepted), JDK 21 (`devtools\jdk-21` or `C:\Program Files\Java\jdk-21`) | Gradle 8.14.3 comes from the wrapper. The old Bubblewrap and JDK 17 in devtools are no longer needed |
-| Play Console | Developer account "From a Spark", contact spark@iskra.foo | Not published yet. The AAB is built for it |
+| Play Console | Developer account "From a Spark", contact spark@iskra.foo | Every release uploads the AAB ([Google Play uploads](#google-play-uploads)) |
+| Play service account key | `D:\Development_Projects\devkeys\google-play-service-account.json` (JSON key of `iskra-play-publisher@…`), read only by `scripts/play-upload.mjs` at release time | No expiry. Missing: Play uploads are skipped with a note. Setup: [docs/store/README.md](store/README.md#google-play-service-account-for-the-uploads) |
 
 **Losing the keystore means installed APKs can never be updated** (Android requires the same key); everyone would
 have to uninstall and reinstall. Keep an offline copy (encrypted USB stick and a password manager entry with the
@@ -329,6 +362,23 @@ password). Plan: enrol in Play App Signing when publishing on Play; Google then 
 key can be replaced, and could live in CI. New personal Play accounts need a closed test with 12 testers for 14
 days before production. If Play signs the app, add Play's app-signing fingerprint to assetlinks.json. Play also asks
 for a declaration of the foreground service types (microphone, media playback: "voice chat in the background").
+
+#### Google Play uploads
+
+`scripts/play-upload.mjs <version>` (release-all.ps1 runs it after publishing) does one Android Publisher API edit:
+`edits.insert`, `bundles.list` (Play never takes a version code twice: a code already there from the same file isn't
+uploaded again; from a different file it stops and says to rebuild with `-Rebuild n`), `bundles.upload`, `tracks.get`
+/ `tracks.update` to the track in `mobile/store.json` (`alpha` is the API name of Play's closed testing track; a custom
+closed track goes by its own name, and an unknown name stops with the list of the app's tracks), release notes
+en-US + sv-SE from `docs/releases` (Play's 500 characters: the headlines and a link to the full notes), status
+`completed` (or `inProgress` with `userFraction` when `rollout` < 1), and in phase B the listing (`edits.listings`,
+`edits.images`, only changed graphics) in the same edit, then `edits.commit`; `"dataSafety": true` also sends
+`docs/store/play/data-safety.csv` (`applications.dataSafety`, Play Console's CSV format). A version already on the track
+changes nothing. Two answers Play gives are handled: an app that was never published takes only **draft** releases
+(the release is added as a draft; publish it once in Play Console), and managed publishing commits with
+`changesNotSentForReview` (send them for review in Play Console). Auth: google-auth-library (mobile/devDependencies)
+with the service account key; the script never prints it. Read only: `node scripts/play-upload.mjs --list-tracks`.
+Dry run: `node scripts/play-upload.mjs <version> --dry-run`.
 
 Version codes continue the old Trusted Web Activity's scheme (last: 2.0.0-alpha.7 = 20000107), so its installs update
 to the Capacitor app in place. The TWA project is gone from the tree (`android/README.md`, git history).
@@ -338,8 +388,9 @@ to the Capacitor app in place. The TWA project is gone from the tree (`android/R
 - The `gh` CLI on the Windows PC is logged in as the owner (`gh auth status`); release-windows.ps1 uses it.
 - Workflows use the automatic `GITHUB_TOKEN` with per-job permissions; no personal tokens are stored.
 - Secrets (repo level): `CLOUDFLARE_API_TOKEN`, `DROPLET_SSH_KEY`, `MAC_CERT_P12_BASE64`, `MAC_CERT_PASSWORD`,
-  `APPSTORE_API_KEY_BASE64`, `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`. Variables: `CLOUDFLARE_ACCOUNT_ID`,
-  `DROPLET_HOST`, `DROPLET_KNOWN_HOSTS`, `MAC_IDENTITY`.
+  `APPSTORE_API_KEY_BASE64`, `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`; optional `APPSTORE_REVIEW_PHONE` (App Review
+  contact) and `ISKRA_CI_WEBHOOK` ([section 9](#9-ci-results-in-iskra)). Variables: `CLOUDFLARE_ACCOUNT_ID`,
+  `DROPLET_HOST`, `DROPLET_KNOWN_HOSTS`, `MAC_IDENTITY`, `REVIEW_INVITE_URL` (the review server invite for App Review notes).
 - Environment `release` (Settings → Environments → New environment). Used by release-finalize.yml and deploy.yml.
   Options worth setting:
   - **Required reviewers**: the owner approves each publish and each deploy (finalize asks twice: once to publish,
@@ -364,6 +415,7 @@ many of them (branch protection, review) are owner settings too. Click-by-click 
 | When | What | Do |
 |---|---|---|
 | Every Windows release | SimplySign session | Log in with the phone code before `release-windows.ps1` |
+| Every 30 days | `REVIEW_INVITE_URL` (review server invite for App Review) | New 30-day invite on Iskra Review (chat.iskra.foo:8443), then `gh variable set REVIEW_INVITE_URL --body "<link>"` |
 | Weekly (Mondays) | Dependabot PRs, CodeQL, Scorecard and secret scans | Merge green Dependabot PRs; look at new code-scanning alerts (Security tab: CodeQL and Scorecard) and secret-scanning alerts |
 | Continuous | Droplet OS updates | Automatic (unattended-upgrades); reboot now and then (`ssh … reboot` with the admin key) when `/var/run/reboot-required` exists |
 | Every ~60 days, automatic | chat.iskra.foo HTTPS certificate | The server renews it itself; port 80 must stay open |
@@ -395,7 +447,7 @@ traces included); each failing shard also keeps its `playwright-results-<n>` fol
 way: `node ../scripts/e2e-shards.mjs list 2 4 shard.txt`, then `npx playwright test --test-list shard.txt` (in
 `client/`). LiveKit (`.tools/livekit-server`) and the captions model are cached on their pins.
 
-**Fewer jobs per push.** GitHub runs 20 jobs at once on this plan (40 on Pro); one push to main starts 16 (14 CI + the
+**Fewer jobs per push.** GitHub runs 20 jobs at once on this plan (40 on Pro); one push to main starts 17 (15 CI, counting the small `report to Iskra` job, + the
 secrets scan; pushes skip macOS, CodeQL and Scorecard, which run on PRs, nightly or weekly). A newer push to the same
 branch cancels the older CI run (`concurrency` in ci.yml), so a burst of pushes doesn't queue. Never cancelled: the
 "Version X" commit's run (its own group: release finalize waits for CI to pass on exactly that commit; if one was
@@ -430,6 +482,17 @@ run CI as pull requests only.
 | `outage` issue opened | See [section 8](#8-uptime-monitoring) and playbook J. The issue closes itself when the checks pass |
 | Deploy `server`: "doesn't answer as X" | `/health` reports another version: `iskra-update` rolled back, or the build wasn't stamped with its version (prepare-server.mjs). `curl https://chat.iskra.foo/health` |
 | build-android.ps1: "fingerprint isn't in assetlinks.json" | It found a different keystore. Never ship that APK: installed apps couldn't update. Point `ISKRA_ANDROID_KEYSTORE` at the real one |
+| `STOP [phones]` from release-all.ps1 | The release is out; a phone part isn't. The line names it. TestFlight failed: the iOS rows here and the run's log. Play: the rows below. Then `release-all.ps1 X -Resume` |
+| Play upload: "401" / "403 The caller does not have permission" | The service account isn't invited in Play Console, lacks the release permissions for Iskra, or was added less than ~24 h ago ([docs/store/README.md](store/README.md#google-play-service-account-for-the-uploads)) |
+| Play upload: "Play has no track 'x'" | `android.track` in mobile/store.json doesn't match; the message lists the app's tracks (also `node scripts/play-upload.mjs --list-tracks`) |
+| Play upload: "already has version code … from a different file" | That code was uploaded from another build. Rebuild with the next rebuild number (`build-android.ps1 -Rebuild 1`) and `-Resume` |
+| Play upload: "Package not found" / "APK/AAB must be uploaded in Play Console first" | The app's first bundle goes through Play Console once (playbook L.4); after that the API works |
+| Play release added as a **draft** | The app has never been published on any track; publish the first release in Play Console once |
+| App Store Connect stopped: "couldn't process build … (INVALID)" | Apple rejected the binary (email to the account holder, TestFlight shows why). Fix and release again |
+| App Store Connect: "no external TestFlight group with the public link …" | The group or its public link was removed or renamed: fix `ios.externalGroups` in mobile/store.json |
+| App Store Connect: "already approved or on sale" | The App Store version (numeric part of the app version) is taken: the next release needs a higher version |
+| App Store Connect warns "age rating not set through the API" | Apple renamed a questionnaire field: answer once from docs/store/appstore/age-rating.md, update age-rating.json |
+| Beta App Review / App Review rejected for access | `REVIEW_INVITE_URL` expired (30 days): new invite, `gh variable set REVIEW_INVITE_URL`, rerun |
 | Universal Links open Safari instead of the app | `curl -sI https://app.iskra.foo/.well-known/apple-app-site-association` must be 200 `application/json` with no redirect; Apple's CDN caches it (up to a day): reinstall the app later |
 
 **Undoing a release:** don't delete or move the tag. Fix forward with the next version. To pull a broken release
@@ -445,6 +508,8 @@ migration ran in between (migrations are forward-only); otherwise restore from a
 - Public text (release notes, site, docs): the product is just "Iskra". Never "Iskra 2", never "rebuilt", never v1.
 - Releases are published as Latest, not prerelease.
 - Tests and local servers listen on localhost only (no firewall prompts).
+- Agents never call the App Store Connect or Google Play APIs themselves and never open the Play key; the release
+  scripts do it at release time. Tests use fake APIs only.
 - Needs the human: the SimplySign phone code, the Apple developer portal and App Store Connect (app record, TestFlight testers, API keys), the Play Console,
   the Cloudflare dashboard (new tokens), DigitalOcean, approving `release` environment runs, anything that costs money.
 
@@ -475,3 +540,23 @@ check itself broke (e.g. GitHub's API), which CI failure emails cover.
 `VOICE_PORT`, `CERT_WARN_DAYS`, `TRIES`, `PAUSE`). Try it locally without touching issues:
 `DRY_RUN=1 TRIES=1 bash scripts/uptime-check.sh`. There's no public status page; the open `outage` issue is the
 status (the repo is public, so keep issue text to what the checks say).
+
+## 9. CI results in Iskra
+
+Optional: CI and release results as messages in an Iskra channel, through an incoming webhook
+(`scripts/ci-notify.mjs`, tested by the root `npm test`).
+
+- **ci.yml**, job `report to Iskra`: after the test jobs, for runs on **main** only (pushes, nightly, by hand; never
+  pull requests or other branches, and not for a run a newer push cancelled). Message: "CI passed on main" or "CI failed
+  on main", the short commit, the failed jobs' names, and the run's link.
+- **release-finalize.yml**, job `report to Iskra`: "Release vX published and deployed" or "Release vX: failed" with the
+  tag's commit, the failed jobs and the run's link.
+- Only when the secret `ISKRA_CI_WEBHOOK` is set; otherwise the job ends in a second without checking anything out.
+  Nothing else is sent (no logs, no commit messages). A failed post is a warning, never a red run, and the URL is never
+  printed. The URL must be `https://…/hooks/<id>/<secret>` (HTTPS, an Iskra webhook).
+
+**Set it up (once):** in Iskra, on the server and channel that should get the results (e.g. chat.iskra.foo, a private
+`#ci` channel): Server settings → **Bots and webhooks → Webhooks → New webhook**, name `CI`, "Posts in" that channel → **Create webhook** → copy the URL (it is shown once).
+Then `gh secret set ISKRA_CI_WEBHOOK` and paste it at the prompt. To stop: `gh secret delete ISKRA_CI_WEBHOOK` (or delete
+the webhook in Iskra; posts then fail quietly). Regenerate the webhook's secret in Iskra if the URL ever leaks, then set
+the secret again.
