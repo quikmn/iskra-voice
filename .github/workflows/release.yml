@@ -75,7 +75,7 @@ jobs:
           node desktop/scripts/prepare-server.mjs linux-arm64
           install -m 755 server/deploy/iskra-update-guard desktop/build/server-linux-arm64/iskra-update-guard
           tar -czf "desktop/release/iskra-server-$v-linux-arm64.tar.gz" -C desktop/build/server-linux-arm64 .
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: linux
           if-no-files-found: error
@@ -210,7 +210,7 @@ jobs:
           v="${TAG#v}"
           grep -qx "version: $v" desktop/release/latest-mac.yml || { echo "::error::latest-mac.yml isn't for $v"; exit 1; }
           mv desktop/release/latest-mac.yml "desktop/release/latest-mac-$ARCH.part.yml"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mac-${{ matrix.arch }}
           if-no-files-found: error
