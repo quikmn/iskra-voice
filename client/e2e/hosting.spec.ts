@@ -115,7 +115,7 @@ test('owner opens the server to the internet; without port 80 nothing plain HTTP
   await expect(step(owner, 'https')).toHaveAttribute('data-state', 'problem')
   await expect(step(owner, 'https')).toContainText('port 80')
   await expect(step(owner, 'reachable')).toContainText('Not confirmed from outside')
-  await expect(owner.locator('.internet-summary')).toHaveText(/^Waiting for HTTPS/)
+  await expect(owner.locator('.internet-summary:not(.p2p-section .internet-summary)')).toHaveText(/^Waiting for HTTPS/)
 
   // What Iskra found out, in plain words: a public address, and the router said no to port 80.
   const findings = owner.getByTestId('host-findings')
@@ -177,7 +177,7 @@ test('carrier-grade NAT gets a clear explanation and a rented server as the quic
   await expect(owner.getByTestId('manual-forwards')).toHaveCount(0)
   const overflow = await owner.locator('.internet').evaluate((el) => el.scrollWidth - el.clientWidth)
   expect(overflow).toBeLessThanOrEqual(0)
-  await owner.locator('.internet-callout').scrollIntoViewIfNeeded()
+  await owner.locator('.internet-callout:not(.p2p-section)').scrollIntoViewIfNeeded()
   await owner.screenshot({ path: join(SHOTS, 'hosting-cgnat-phone.png') })
 
   // Rent a small server: plain steps, the setup text to paste, and the owner key that only this app knows.
