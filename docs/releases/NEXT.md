@@ -19,6 +19,8 @@
 - **Message a bot**: DMs with bots are end-to-end encrypted, its commands work right in the DM, and you choose whether bots may write to you first.
 - **Music bot** (an example bot you can run): plays the songs your group uploads, with a queue, volume and a DJ role. Never YouTube or Spotify.
 
+- **Invites that never expire**: admins can make a standing link to the server. Every active invite is listed in the Invite dialog, and any of them can be revoked with one click.
+
 ### Fixes
 
 - Rent a server: "Connect to DigitalOcean" now finishes signing in (it stopped at the last step with "authorization grant is invalid").

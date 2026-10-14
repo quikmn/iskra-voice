@@ -64,7 +64,7 @@ In order; each item once. Details in [../README.md](../README.md#phase-a--phase-
 1. [ ] App Privacy answered from [privacy-label.md](privacy-label.md), then **Publish**.
 2. [ ] Pricing and Availability: **Free**; countries: all except China mainland (CallKit) and, until the ANSSI question is
        settled, France.
-3. [ ] Business → **EU trader status** declared (address, phone, email verified by Apple), or the app stays out of the EU.
+3. [ ] Business → **EU trader status** declared (not a trader: nothing published; trader: address, phone and email shown on EU listings, so use separate ones), or the app stays out of the EU.
 4. [ ] App Information: category **Social Networking**, content rights answered.
 5. [ ] `gh secret set APPSTORE_REVIEW_PHONE` and `gh variable set REVIEW_INVITE_URL` (a member invite to the review
        server that never expires; set once, see [../README.md](../README.md)).

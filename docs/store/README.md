@@ -84,9 +84,11 @@ The APIs can't do these; each is done **once** in the browser. Then flip `mobile
    answer it once from [appstore/age-rating.md](appstore/age-rating.md).
 3. **Pricing and availability**: Price **Free (0)**, all countries except as noted (China mainland: CallKit isn't
    allowed there, leave it out; France: the ANSSI note). App Store Connect → Pricing and Availability.
-4. **EU Digital Services Act trader status**: Business → **Trader status** (a trader: an individual selling or offering
-   apps as a business, even free). Choose **trader** if Iskra is offered as part of "From a Spark"; Apple then shows
-   the address, phone and email on EU listings, verified by Apple. Without a status, the app isn't available in the EU.
+4. **EU Digital Services Act trader status**: Business → **Trader status**. A status must be declared or the app isn't
+   available in the EU. **Not a trader** (a free, non-commercial project: no sales, no ads) publishes nothing. **Trader**
+   (offering apps as a business, even free) makes Apple show an address, phone and email on EU listings, verified by
+   Apple: use a separate number and a business or P.O. box address, not a private one. The owner's call (not legal
+   advice); donations make it a judgement call.
 5. **App Store category**: Social Networking (primary), Productivity or none (secondary). App Information.
 6. **Content rights**: "Does your app contain, show, or access third-party content?" **Yes** (people's own content
    and embeds they choose to load), "I have the necessary rights" (the Terms). App Information.
