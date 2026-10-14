@@ -5,7 +5,7 @@
 // A post that fails is a warning, never a red run.
 //
 //   node scripts/ci-notify.mjs ci        # ci.yml: NEEDS = toJSON(needs)
-//   node scripts/ci-notify.mjs release   # release-finalize.yml: NEEDS = toJSON(needs), TAG = the release tag
+//   node scripts/ci-notify.mjs release   # release-finalize.yml, release-all.yml: NEEDS = toJSON(needs), TAG = the release tag
 //
 // Reads GITHUB_REF_NAME, GITHUB_SHA, GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT; a release
 // gives its tag's commit in COMMIT (finalize itself runs on main).
@@ -43,7 +43,8 @@ export function payload({ kind, needs, env }) {
   let title
   if (kind === 'release') {
     const tag = env.TAG || env.GITHUB_REF_NAME
-    const deployed = needs?.deploy?.result === 'success'
+    // release-finalize.yml has a deploy job; the Release workflow (release-all.yml) deploys inside its finalize job.
+    const deployed = needs?.deploy?.result === 'success' || needs?.finalize?.result === 'success'
     title = result === 'success' ? `Release ${tag} published${deployed ? ' and deployed' : ''}` : `Release ${tag}: ${result === 'failure' ? 'failed' : result}`
   } else {
     const branch = env.GITHUB_REF_NAME || 'main'

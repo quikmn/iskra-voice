@@ -27,7 +27,8 @@ uploads by hand.
 
 | The human says | Section |
 |---|---|
-| "release V" / "send it" / "release the next one" | [A. Release](#a-release) |
+| "release V" / "send it" / "release the next one" | [A. Release](#a-release) (with the home PC runner set up: [A0](#a0-release-with-the-release-button)) |
+| "set up the Release button" / "the runner" / "the SimplySign seed" / "Play without a key" | [O. Owner: one-time setup](#o-owner-one-time-setup) |
 | "finalize V" / "publish V" / "do the Windows part of V" / a release stopped after the tag | [B. Resume a release](#b-resume-a-release) |
 | "redeploy the site" | [D. Redeploy site](#d-redeploy-the-site-iskrafoo) |
 | "redeploy the web app" | [E. Redeploy web app](#e-redeploy-the-web-app-appiskrafoo) |
@@ -44,6 +45,21 @@ Every mode of release.ps1 has two phases. The **check phase** runs every check a
 prints `N thing(s) to fix before ... (nothing was changed or sent):` with one `- [case] what to do` line each, and ends.
 If all is green it prints `ALL CHECKS GREEN - SENDING` and ships without a prompt or an approval. After that, a problem
 prints one `STOP [case] what to do` line. `-CheckOnly` (alias `-DryRun`) runs only the check phase.
+
+## A0. Release with the Release button
+
+The owner can press it themselves (GitHub → Actions → Release → Run workflow, also in GitHub Mobile). For an agent, once
+the home PC runner is set up ([O.2](#o-owner-one-time-setup)):
+1. **Notes**: as A.1 (they must be on main on GitHub: the workflow releases origin/main).
+2. **Check**: `pwsh -NoProfile -File scripts/release.ps1 -GitHub -CheckOnly` (or with `V`). It checks the runner is
+   online and the Actions setting, starts the workflow with `check_only`, and follows it.
+   ✔ `ok: the Release workflow succeeded (checks only: nothing was changed)`. Red: the run's summary lists each red
+   with its case: the decision table.
+3. **Release**: `pwsh -NoProfile -File scripts/release.ps1 -GitHub` (or with `V`), in the background (60-90 min).
+   ✔ `ok: the Release workflow succeeded: <url>`.
+4. `STOP [Release failure] Jobs: ...`: read the failed job (`gh run view <id> --log-failed`), find the case in the
+   decision table. Once fixed, re-run the failed jobs (`gh run rerun <id> --failed`) once; never press Release again
+   for a version whose tag exists.
 
 ## A. Release
 
@@ -208,11 +224,75 @@ Play's SHA-256 from Setup → App signing to `assetlinks.json` and redeploy the 
    "Bot SDK X", tags `bots-sdk-vX`, pushes, waits for bots-sdk.yml and checks npm.
    ✔ `ok: iskra-bots X is on npm, with provenance`.
 
+## O. Owner: one-time setup
+
+For the orchestrator, walking the owner through it. Each step that needs the owner's input runs in a PowerShell window
+opened for them in `D:\Development_Projects\Iskra` (CLAUDE.local.md): they never copy commands. Background:
+[ci-cd.md 2a and section 4](ci-cd.md#2a-the-release-button). Do them in this order; 1-3 make the Release button work,
+4-5 remove the Play key file and the release keystore from the routine path.
+
+1. **GitHub Actions setting** (owner, browser): github.com/quikmn/iskra-voice → Settings → Actions → General →
+   "Approval for running fork pull request workflows from contributors" → **Require approval for all external
+   contributors** → Save. (Today it is "first-time contributors".) Also check Settings → Environments → `release` still
+   has deployment branch `main` and no required reviewers.
+2. **The runner** (after this branch is merged and pushed): open a normal, not elevated window running
+   `scripts\runner-setup.ps1` (`Start-Process pwsh -WorkingDirectory D:\Development_Projects\Iskra -ArgumentList '-NoExit','-File','scripts\runner-setup.ps1'`).
+   The owner only watches; it needs gh logged in as the owner. ✔ "Runner 'iskra-home-…' is online on GitHub with the
+   label iskra-windows-signing." Then the owner sets Windows → Settings → System → Power → "When plugged in, put my
+   device to sleep after" → Never. Check: `gh api repos/quikmn/iskra-voice/actions/runners` lists it online.
+3. **The SimplySign seed** (when the owner has a new QR code from Certum; the way to get one is still open: re-adding
+   the phone in the SimplySign app / Certum's portal, or Certum support):
+   - In SimplySign Desktop: options → "show the login dialog on start" ticked.
+   - Open a window running `scripts\simplysign-setup.ps1`. The owner types the account e-mail, pastes the otpauth://
+     link (or the Base32 seed) at the hidden prompt, compares the code it shows with the phone app and answers y.
+     The phone app should scan the same QR, so the phone keeps working too.
+   - First test, with the owner watching: the owner logs SimplySign Desktop out (tray → disconnect), then
+     `pwsh -NoProfile -File scripts/release.ps1 -CheckOnly` (local) or A0.2. Its first line should end
+     "SimplySign logged itself in". If the dialog method fails, run setup again with `-Method switches` (SimplySign's
+     own /otpauth + /autologin), test once more after 30 minutes (the pause after a failed login). Report which works.
+   - Also try once with the screen locked (the runner may log in while nobody is at the PC).
+4. **Google Play without a key file** (owner, Google Cloud console, project `iskra-play`; or the orchestrator writes the
+   gcloud lines into a .ps1 and opens it in Notepad for them):
+   1. APIs & Services → enable **IAM Service Account Credentials API** (and Security Token Service API if asked).
+   2. IAM & Admin → Workload Identity Federation → Create pool: name `github`. Add provider: OpenID Connect, name
+      `iskra-voice`, issuer `https://token.actions.githubusercontent.com`, audience: default. Attribute mapping:
+      `google.subject` = `assertion.sub`, `attribute.repository_id` = `assertion.repository_id`,
+      `attribute.environment` = `assertion.environment`. Attribute condition:
+      `assertion.repository_id == '1227290412' && assertion.sub == 'repo:quikmn/iskra-voice:environment:release'`.
+   3. IAM & Admin → Service accounts → `iskra-play-publisher` → Principals with access → Grant access: principal
+      `principalSet://iam.googleapis.com/projects/<project number>/locations/global/workloadIdentityPools/github/attribute.repository_id/1227290412`,
+      role **Workload Identity User**. Nothing changes in Play Console (the service account keeps its permissions).
+   4. The orchestrator (with the owner's OK) sets two repo variables (not secrets):
+      `GCP_WIF_PROVIDER` = `projects/<project number>/locations/global/workloadIdentityPools/github/providers/iskra-voice`,
+      `GCP_PLAY_SERVICE_ACCOUNT` = the service account's e-mail. From then on the `play` job uploads, not `play-pc`.
+   5. After one release whose `play` job is green: Cloud Console → the service account → Keys → delete the JSON key;
+      the owner deletes `devkeys\google-play-service-account.json` (agents never touch devkeys). Optional: org
+      policy "Disable service account key creation".
+5. **Android built on GitHub** (optional, after 4; Google's reset takes about two days):
+   1. Open a window that makes the upload key in the owner's devkeys folder: `keytool -genkeypair -alias upload -keyalg RSA
+      -keysize 4096 -validity 10000 -keystore upload.keystore` then `keytool -export -rfc -alias upload -keystore
+      upload.keystore -file upload_certificate.pem` (JDK 21's keytool; the owner types a new password and keeps it in
+      the password manager).
+   2. Play Console → Iskra → Test and release → App integrity → App signing → **Request upload key reset** → reason
+      "moving builds to CI" → upload `upload_certificate.pem`. Wait for Google's e-mail.
+   3. GitHub → Settings → Environments → New environment `signing`: deployment branches "Selected" → `main`, no
+      reviewers. Open a window for `gh secret set ANDROID_UPLOAD_KEYSTORE_PASSWORD --env signing` (paste the password)
+      and one that sets `ANDROID_UPLOAD_KEYSTORE_BASE64` from the file without showing it
+      (`[Convert]::ToBase64String([IO.File]::ReadAllBytes('<devkeys>\upload.keystore')) | gh secret set ANDROID_UPLOAD_KEYSTORE_BASE64 --env signing`).
+   4. Set the repo variable `ANDROID_BUILD` = `ci`. The next release builds the bundle on GitHub, puts it on Play first
+      and attaches Play's APK (signed with the same app key as before). Watch its `android-apk` job.
+   5. Once that worked: the release keystore goes to cold storage only (encrypted USB + password manager); it is no
+      longer needed for releases.
+
 ## Decision table
 
 | You see | Do |
 |---|---|
 | `STOP [SimplySign] Log in to SimplySign Desktop ...` | Tell the human that exact line; wait for their answer; run the same command again (`-Resume` if the tag is pushed). Never try to log in yourself |
+| `no home PC runner` / `home PC offline` (release.ps1 -GitHub) or the run's "The home PC didn't pick up its job in 10 minutes" | Tell the human: switch the home PC on and log in to Windows (or do O.2 if there's no runner). Nothing was changed |
+| `Actions setting` (release.ps1 -GitHub) | Tell the human: O.1 |
+| "SimplySign isn't logged in and the automatic login didn't help (...)" | Tell the human the line; they log in by hand. "last SimplySign login failed": also tell them to check the seed (O.3). Never run the login or setup scripts yourself |
+| A home PC job fails at "Set up runner" with "Refused: ..." | The run wasn't started by the owner on main with Run workflow. Start it with A0 (or the owner presses the button) |
 | `N thing(s) to fix before ...` (check phase) | Nothing was changed. Each `- [case]` line is a row below; fix what you may, report the rest to the human, then run the same command again |
 | `STOP [<case>]` from release.ps1 | The row below whose text matches the case; then `-Resume` once the cause is fixed (if the tag is pushed) |
 | `CI not done` | Wait for CI on main to finish, then run the check again |

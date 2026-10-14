@@ -34,8 +34,18 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
  every 15 min ──► uptime.yml ....... iskra.foo, app.iskra.foo, chat.iskra.foo (+ /health), voice port, TLS expiry
                                      ──► GitHub issue labelled "outage" on a change of state (section 8)
 
- ONE COMMAND: scripts/release.ps1 on this Windows PC (SimplySign Desktop logged in). Check phase first (every check,
- all reds at once, nothing changed), then "ALL CHECKS GREEN - SENDING" and the steps below without prompts or approvals.
+ THE RELEASE BUTTON: GitHub → Actions → Release → Run workflow (github.com or GitHub Mobile), or
+ scripts/release.ps1 -GitHub. Needs only the home PC switched on (section 2a). release-all.yml:
+ ⓪ checks (ubuntu: release-preflight.mjs release) + home PC checks (SimplySign test signature, logging itself in once;
+    build tools; Android keystore; Play key) ── any red: the run stops, nothing changed. PC off for 10 min: run cancelled
+ ① version commit + tag (GITHUB_TOKEN push), draft release
+ ② ci.yml called on that commit │ release.yml called (Linux, macOS) │ Windows on the home PC (release-windows.ps1)
+ ③ release-finalize.yml called (gate: this run's CI jobs) → publish → deploy.yml (site, webapp, server)
+ ④ phones: mobile-ios.yml dispatched and followed; Google Play (workload identity, or the home PC's key) ⑤ report
+
+ THE LOCAL WAY: scripts/release.ps1 on this Windows PC (SimplySign Desktop logged in, or a stored seed). Check phase
+ first (every check, all reds at once, nothing changed), then "ALL CHECKS GREEN - SENDING" and the steps below without
+ prompts or approvals.
  RELEASE = scripts/release.ps1 [X] (default X: the next alpha after the latest release)
  ⓪ check phase ....................... SimplySign test signature first, then git/main/CI, version, notes, links.ts/site,
                                         file list, build tools, Android prerequisites, Play key, mobile/store.json,
@@ -74,14 +84,17 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
  RESULTS: ci.yml (main) and release-finalize.yml post pass/fail to an Iskra channel when ISKRA_CI_WEBHOOK is set (section 9)
 ```
 
-**Steps.** Only `scripts/release.ps1` is run by a person or an agent. Everything below ships something only as a step
-of it (each file's header says so); none of them is run by hand to ship.
+**Steps.** Only the Release button (`release-all.yml`) and `scripts/release.ps1` are started by a person or an agent.
+Everything below ships something only as a step of them (each file's header says so); none of them is run by hand to ship.
 
 | Step | Called by | What it does |
 |---|---|---|
-| `scripts/release-checks.psm1` | release.ps1, release-windows.ps1 | SimplySign's test signature (certificate in the store, a signed scratch file) and the Android build prerequisites (presence only). Tests: `release-checks.test.mjs` (fake certificates and signer) |
-| `scripts/release-preflight.mjs` | release.ps1 (check phase) | The next version, `mobile/store.json` validity, the GitHub secret and variable names the release needs, environments with reviewers. Tests: `release-preflight.test.mjs` |
-| `scripts/ci-gate.mjs` | release.ps1 (check phase), release-finalize.yml | Exits 0 only when a push run of ci.yml concluded success on the given commit (waits up to `--wait-minutes`) |
+| `.github/workflows/release-all.yml` ("Release") | The owner (Run workflow), `release.ps1 -GitHub` | The whole release on GitHub ([2a](#2a-the-release-button)) |
+| `scripts/release-checks.psm1` | release.ps1, release-windows.ps1, release-pc-checks.ps1 | SimplySign's test signature (certificate in the store, a signed scratch file), `Confirm-Signing` (the test signature, then the automatic login once), the Android build prerequisites (presence only). Tests: `release-checks.test.mjs` (fake certificates, signer and login) |
+| `scripts/release-pc-checks.ps1` | release-all.yml (home PC checks) | The checks only the home PC can answer, before anything changes |
+| `scripts/simplysign.psm1`, `simplysign-login.ps1` | Confirm-Signing | SimplySign logging itself in ([SimplySign auto-login](#simplysign-auto-login)). Tests: `simplysign.test.mjs` (RFC 6238 vectors, DPAPI round trip, the attempt ledger) |
+| `scripts/release-preflight.mjs` | release.ps1 (check phase), release-all.yml (`release` subcommand) | The next version, `mobile/store.json` validity, the GitHub secret and variable names the release needs, environments with reviewers; on GitHub also the version, notes, links/site, file list and CI on main. Tests: `release-preflight.test.mjs` |
+| `scripts/ci-gate.mjs` | release.ps1 (check phase), release-preflight.mjs, release-finalize.yml | Exits 0 only when a push run of ci.yml concluded success on the given commit (waits up to `--wait-minutes`); `--run <id>`: the Release run's own `ci / …` jobs passed. Tests: `ci-gate.test.mjs` |
 | `scripts/release-notes.mjs` | release.ps1 ① | Writes docs/releases/X.md from docs/releases/NEXT.md (headline, sections, "Get started" from the previous notes) and empties NEXT.md; refuses lines that already shipped. `--dry-run` in the check phase |
 | `scripts/release-version.mjs` | release.ps1 ① | Version bump in desktop/package.json(+lock), links.ts, site/index.html; commit "Version X"; tag vX. `--dry-run` in the check phase |
 | `scripts/release-lib.mjs` | the .mjs steps, release-finalize.yml | Version checks, version replacement, asset list, latest.yml parsing and merging, notes from NEXT.md, the CI verdict (`release-lib.test.mjs`) |
@@ -91,8 +104,9 @@ of it (each file's header says so); none of them is run by hand to ship.
 | `mobile/scripts/build-android.ps1`, `scripts/mobile-version.mjs` | release-windows.ps1 (③), mobile-ios.yml | Signed Android APK + AAB from the Capacitor shell ([Android](#android)); the phone app's version and build numbers |
 | `scripts/play-upload.mjs` | release.ps1 ⑤ | The AAB to Google Play (track, notes, listing, data safety); `--check` (key presence) in the check phase. Tests against a fake API |
 | `scripts/appstore.mjs` | mobile-ios.yml (started by release.ps1 ⑤) | App Store Connect after each iOS upload: processing, What to test, TestFlight groups, Beta App Review; phase B the App Store version, listing, screenshots, App Review. Tests against a fake API |
-| `.github/workflows/release.yml` | the `v*` tag pushed by release.ps1 ② | Linux and macOS builds, server tarballs, draft release |
-| `.github/workflows/release-finalize.yml` | release.ps1 ④, `-Redeploy checksums` | CI gate, publish + deploy |
+| `.github/workflows/release.yml` ("Release builds") | the `v*` tag pushed by release.ps1 ②; called by release-all.yml | Linux and macOS builds, server tarballs, draft release |
+| `.github/workflows/release-finalize.yml` | release.ps1 ④, `-Redeploy checksums`; called by release-all.yml | CI gate, publish + deploy |
+| `scripts/runner-setup.ps1`, `runner-job-guard.ps1` | The owner, once | The home PC as the release runner, and the guard it runs before every job ([The home PC runner](#the-home-pc-runner)). Tests: `runner.test.mjs`, `workflows.test.mjs` (also actionlint) |
 | `.github/workflows/deploy.yml` | release-finalize.yml, `release.ps1 -Redeploy site/webapp/server` | Site, web app and server deploys with checks |
 | `.github/workflows/mobile-ios.yml` | release.ps1 ⑤ and `-Phones` | iPhone/iPad app: build, cloud-sign, upload ([iOS app](#ios-app)); by hand only for a test build without upload |
 | `.github/workflows/bots-sdk.yml` | the `bots-sdk-v*` tag pushed by `release.ps1 -BotSdk` | The bot SDK on npm as `iskra-bots` ([npm](#npm-bot-sdk)) |
@@ -141,15 +155,59 @@ Versions are `x.y.z` or `x.y.z-alpha.n`; tags are `v` + version. Alphas are publ
 Latest (a prerelease never becomes GitHub's Latest, and people are told to "get the latest release"). The desktop
 apps update themselves from the release (`latest*.yml`), with `allowPrerelease` on during the alpha.
 
+Two ways, the same checks and the same result: the **Release button** on GitHub ([2a](#2a-the-release-button), the
+usual one: from anywhere, the home PC only has to be on), or `scripts/release.ps1` on the Windows PC (below; the
+local alternative, and what `-Resume` picks up).
+
+### 2a. The Release button
+
+GitHub → quikmn/iskra-voice → **Actions → Release → Run workflow** (in GitHub Mobile: the repo → Actions → Release →
+Run workflow), on `main`. Inputs: `version` (empty: the next alpha after the latest release), `phones` (TestFlight and
+Google Play, on by default), `check_only` (only the checks). From a PC: `.\scripts\release.ps1 -GitHub [<version>]
+[-CheckOnly] [-SkipPhones]` presses it and follows the run (it first checks the home PC runner is online and the fork
+approval setting). Only the repo owner can start it, only from main; one release at a time (a second press waits).
+
+What it needs: the release notes in `docs/releases/NEXT.md` on main (editable in GitHub's web editor), and the **home
+PC switched on and logged in to Windows** (the runner starts at logon; a locked screen is fine, sleep isn't). SimplySign
+needs nothing when a seed is stored ([SimplySign auto-login](#simplysign-auto-login)); without one, log in to
+SimplySign Desktop on the PC before pressing the button, as before.
+
+Jobs (`release-all.yml`), in order; everything that changes something comes after every check:
+
+| Job | Runs on | What it does |
+|---|---|---|
+| `checks` | GitHub (ubuntu), environment `release` | `release-preflight.mjs release`: workflows active, version (tag and release unused, newer), notes ready, links.ts/site, file list, mobile/store.json, the secret names (set or not; never values) and variables, CI green on main's head (waits up to 30 min). Reds go to the run summary, one per line with its case |
+| `pc-checks` | home PC | `release-pc-checks.ps1`: SimplySign test signature (logs itself in once if needed), git/node/npm/gh/dotnet, 10 GB free, Android JDK/SDK/keystore (presence), the Play key file when there's no workload identity |
+| `pc-online` | GitHub | If the home PC hasn't picked up `pc-checks` within 10 minutes, it cancels the run: "switch it on and log in". Nothing changed |
+| `version` | GitHub | Main is still where the checks were; `release-notes.mjs`, `release-version.mjs` (commit "Version X" as the owner, tag vX); `git push --atomic` with the job's token; creates the draft release |
+| `ci` | GitHub | `ci.yml` called on the version commit (a GITHUB_TOKEN push starts no workflows, so this workflow runs CI itself) |
+| `builds` | GitHub | `release.yml` called: Linux, Mac x64/arm64 (an ad-hoc signed Mac build fails here) |
+| `windows` | home PC | `release-windows.ps1`: signed Windows apps, server zip, Android APK + AAB with the release key; uploads; keeps the AAB as an artifact (7 days) |
+| `finalize` | GitHub, environment `release` | `release-finalize.yml` called: the CI gate reads this run's `ci / …` jobs (`ci-gate.mjs --run`), then checks, SBOMs, sums, attestations (signed by `release-finalize.yml@refs/heads/main`, which servers accept), publish, deploys |
+| `ios` | GitHub | Dispatches `mobile-ios.yml` (ref vX, upload) as its own run, so its build numbers keep counting as before, and follows it; a run for the tag that succeeded or still runs is reused |
+| `play` / `play-pc` | GitHub with workload identity / else the home PC with its key file | `play-upload.mjs` with the AAB artifact |
+| `report` | GitHub | A table of every job in the run summary; the result to Iskra when `ISKRA_CI_WEBHOOK` is set |
+
+A failed job after the tag: fix the cause, then **Re-run failed jobs** on the same run (each step looks before it
+acts: a published release isn't published again, a TestFlight run for the tag is reused, a version already on the Play
+track is left alone). `scripts/release.ps1 -Resume` on the PC works too (it reads the tag, not the run).
+
+**Not on GitHub's runners (yet):** Windows signing (Certum allows no CI seed; RELEASE_ANYWHERE design note), so the home
+PC does it. The Android build moves to GitHub once the Play upload key is reset ([Android built on
+GitHub](#android-built-on-github-prepared)).
+
+### 2b. The local way: scripts/release.ps1
+
 **One command:** `.\scripts\release.ps1` (or `.\scripts\release.ps1 <version>`; without one it takes the next alpha
-after the latest release) on the Windows PC, from `main` at origin/main, with SimplySign Desktop logged in. Nothing
-asks for anything after it starts: no prompts, no approvals in GitHub, no phone.
+after the latest release) on the Windows PC, from `main` at origin/main, with SimplySign Desktop logged in (or a seed
+stored: it logs itself in once). Nothing asks for anything after it starts: no prompts, no approvals in GitHub, no phone.
 
 **Phase 1, checks (nothing changes).** In this order:
 
 1. **SimplySign first**: the certificate is in the store and not expired, and a test signature on a scratch file works
-   (with Certum's timestamp). Not logged in: it stops at once with one line, *Log in to SimplySign Desktop (6-digit code
-   from the app), then run scripts/release.ps1 again.* (An expiry within 30 days is a warning.)
+   (with Certum's timestamp). Not logged in and a seed stored: it logs itself in once and signs again. Still not
+   logged in: it stops at once with one line, *Log in to SimplySign Desktop (6-digit code from the app), then run
+   scripts/release.ps1 again.* (An expiry within 30 days is a warning.)
 2. git, gh, node, npm on PATH; gh logged in; GitHub reachable (these stop at once too).
 3. Then everything else, every red collected: the workflows `ci`, `release`, `release-finalize`, `deploy`
    (`mobile-ios` too unless `-SkipPhones`) are active; on `main`, clean (only the notes files may be uncommitted), exactly
@@ -182,7 +240,8 @@ Any red: it lists all of them (`N thing(s) to fix ... (nothing was changed or se
    (`branches: ['**']`): the tag's commit is main's, tested once.
 4. **Windows + Android.** `scripts/release-windows.ps1 X`. It test-signs a scratch file again, builds (`sign.ps1` fails
    instead of leaving a file unsigned), checks every signature (valid, right publisher, timestamped), builds the server
-   zip, APK and AAB, prints SHA256s, uploads and checks sizes on GitHub. SimplySign logging out mid-build ends with
+   zip, APK and AAB, prints SHA256s, uploads and checks sizes on GitHub. SimplySign logging out mid-build: with a
+   stored seed (and this run's one login unused) it logs in and builds once more; otherwise it ends with
    `STOP [SimplySign] Log in ..., then run scripts/release.ps1 -Resume`.
 5. **Finalize.** release.ps1 waits for `release.yml` (and checks both Macs were notarized), checks all 23 files are there
    and starts `release-finalize.yml`. The `release` environment has no required reviewers, so nothing waits for a click:
@@ -251,16 +310,97 @@ Set a secret from a file without echoing it: `gh secret set NAME < file`.
 | What | Code-signing certificate "Open Source Developer Viktor Lundgren" (Certum Open Source Code Signing), key in Certum's cloud HSM, used through **SimplySign Desktop** on the Windows PC |
 | Valid | 2026-05-12 → **2027-05-12** |
 | Used by | `npm run dist` (electron-builder `win.signtoolOptions`, certificate looked up by subject in CurrentUser\My), `desktop/scripts/sign.ps1` (server exe), `scripts/release-checks.psm1` (test signature before a release) |
-| Login | SimplySign Desktop → log in with the 6-digit code from the SimplySign phone app before every Windows build; the session times out after a while |
+| Login | Automatic when the TOTP seed is stored on the home PC ([SimplySign auto-login](#simplysign-auto-login)); otherwise SimplySign Desktop → log in with the 6-digit code from the SimplySign phone app before a release. The session times out after a while |
 | Lost/expired | No signed Windows builds. Already-signed releases stay valid (they're timestamped) |
 
 **Renewal** (start a month early): order the renewal in the Certum shop with the same identity, verify as Certum
 asks, activate it in SimplySign. Check the new certificate's subject. The apps refuse an update whose signer
-doesn't match `publisherName` in `desktop/package.json` (electron-updater checks it), so:
-- same CN "Open Source Developer Viktor Lundgren": nothing else to change;
-- different CN: first ship a release whose `win.signtoolOptions.publisherName` lists **both** names (it accepts a
-  list), signed with the old certificate, then switch. Otherwise installed apps stop auto-updating and people must
-  reinstall by hand. Update `certificateSubjectName`, `sign.ps1` and `$script:Subject` in scripts/release-checks.psm1 too.
+doesn't match `publisherName` in `desktop/package.json` (electron-updater checks it). It already lists two names:
+today's CN `Open Source Developer Viktor Lundgren` and the distinguished name `CN=Viktor Lundgren, C=SE` (a future
+certificate in the owner's own name, e.g. Certum Standard or SSL.com IV; as a DN both CN and country must match), so
+every install that updated since it was added accepts either. Then:
+- same CN, or `CN=Viktor Lundgren` in Sweden: nothing else to change in the updater;
+- any other subject: first ship a release whose `publisherName` also lists the new one, signed with the old
+  certificate, then switch. Otherwise installed apps stop auto-updating and people must reinstall by hand.
+Either way update `certificateSubjectName`, `sign.ps1` and `$script:Subject` in scripts/release-checks.psm1 when the CN
+changes (the test in release-checks.test.mjs keeps `publisherName[0]` equal to the signing subject).
+
+#### SimplySign auto-login
+
+On the home PC, releases log SimplySign Desktop in by themselves, so nobody types the phone code.
+
+- **The seed**: the TOTP seed of the SimplySign account (the otpauth:// link or Base32 seed behind the QR code Certum
+  shows when the phone app is added). `scripts/simplysign-setup.ps1` (the owner, once, in their own window) asks for the
+  account e-mail and the link or seed with a hidden prompt, shows the current code to compare with the phone app, and
+  stores it with **DPAPI for the owner's Windows account** (with a context string) in `%LOCALAPPDATA%\Iskra\simplysign.dat`.
+  It is never printed, logged, committed or sent to GitHub. `-Remove` deletes it. Risk accepted by the owner
+  (2026-10-13): anyone who can run code as this Windows account can sign as Iskra, like the devkeys on this PC.
+- **The login** (`scripts/simplysign-login.ps1`, called by `Confirm-Signing` only when a test signature fails):
+  - TOTP per RFC 6238 with .NET's HMAC (tested against the RFC's vectors), a code with at least 8 seconds left.
+  - Method `dialog` (default): opens SimplySign Desktop's login dialog (restarting SimplySign, which isn't logged in at
+    that point, so the dialog shows on start; option "show the login dialog on start" must stay on) and fills it through
+    UI Automation (`LoginForm`: `tUserName`, `tPassword`, `bOk`). Method `switches` (`simplysign-setup.ps1 -Method
+    switches`): SimplySign's own undocumented `/otpauth "<link>"` then `/autologin` switches (it parses a seed and has
+    a seed login built in). Which one works with Certum's link is checked once with the owner (owner steps).
+  - **At most one attempt per release run** (GitHub run + attempt, or release.ps1's run), and **none for 30 minutes
+    after a failed one**, so a wrong seed can't lock the Certum account. The ledger is
+    `%LOCALAPPDATA%\Iskra\simplysign-attempts.json` (times and results only).
+  - Then the certificate must appear in CurrentUser\My and a test signature on a scratch file must pass.
+- Without a stored seed nothing changes: the release stops with "Log in to SimplySign Desktop ...".
+- Unverified until the owner's first run: UI Automation with the screen locked (the runner starts at logon; a locked
+  session should still answer UI Automation, but if the login only works unlocked, keep the PC unlocked or use
+  `switches`).
+
+#### The home PC runner
+
+The Release workflow's Windows jobs (`pc-checks`, `windows`, `play-pc`) run on the owner's PC as a GitHub Actions
+self-hosted runner with the label `iskra-windows-signing` (only that label: no `self-hosted`/`Windows` labels).
+
+- **Set up once**: `scripts/runner-setup.ps1` in the owner's normal (not elevated) PowerShell, logged in to gh as the
+  owner. It downloads the official runner (pinned version, SHA-256 checked before unpacking) into
+  `D:\Development_Projects\iskra-runner`, registers it with a one-hour token from `gh api`, installs the job guard and a
+  logon task "Iskra release runner" that starts it hidden as the owner (not a service: it needs the owner's DPAPI key,
+  the CurrentUser certificate store and SimplySign Desktop in the owner's session). `-Remove` stops it, unregisters it
+  on GitHub and deletes the folder and the task.
+- **Firewall**: the runner only connects out to GitHub over HTTPS and listens on no port; Windows Firewall only prompts
+  for programs that accept incoming connections, so no rule is needed. Nothing in the release jobs starts a server.
+- **Public repo safety**:
+  - Only `release-all.yml` names the label, and each of those jobs runs only when `github.event_name ==
+    'workflow_dispatch' && github.ref == 'refs/heads/main' && github.actor == github.repository_owner &&
+    github.triggering_actor == github.repository_owner` (never for pull requests; `workflows.test.mjs` checks this).
+  - The runner's own job guard (`runner-job-guard.ps1`, copied into the runner folder at setup and run before every
+    job via `ACTIONS_RUNNER_HOOK_JOB_STARTED`) refuses any job that isn't exactly this repository (by id), this
+    workflow on main, workflow_dispatch, started and re-run by the owner, one of those three jobs. A workflow file
+    changed on a branch or in a fork can't get past it. Changing the guard needs `runner-setup.ps1` again.
+  - Repo setting (owner): Settings → Actions → General → "Approval for running fork pull request workflows from
+    contributors" → **Require approval for all external contributors**. `release.ps1 -GitHub` checks it.
+  - Fork pull requests can't reach the runner anyway (their jobs fail at the guard), and nothing on the PC is shared
+    with other workflows: the checkout is cleaned (`git clean -ffdx`) at the start of each job.
+- **When the PC is off**: `pc-online` cancels the run after 10 minutes with "switch it on and log in"; nothing changed.
+
+#### Android built on GitHub (prepared)
+
+Off until the owner's steps are done; the default is the home PC building and signing with the release key.
+- Set the repo variable `ANDROID_BUILD` to `ci` to switch: `android-ci` builds the AAB on GitHub and signs it with a
+  separate **upload key** (environment `signing`: `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_KEYSTORE_PASSWORD`;
+  alias `upload`). `android-apk` uploads it to Play **before** finalize (Play takes only the upload key after the reset),
+  then downloads the universal APK Play generated and signed with the app signing key (`play-upload.mjs --universal-apk`,
+  `generatedApks`), checks its signer is in `assetlinks.json` and its version code, and attaches it to the draft. The
+  release key then leaves the routine path (cold storage). Needs workload identity federation (below).
+- Unverified until the first run: that Play has the generated APK right after the commit (it should for the closed
+  track); in phase B a failure after the Play commit leaves Play ahead of GitHub (RELEASE_ANYWHERE §2.3).
+
+#### Google Play without a key file
+
+The Release workflow's `play` (and `android-apk`) jobs get a short-lived access token for `iskra-play-publisher` through
+Google **workload identity federation** (`google-github-actions/auth`, `token_format: access_token`, scope
+androidpublisher) and pass it to `play-upload.mjs` as `ISKRA_PLAY_ACCESS_TOKEN`. No key file anywhere. Repo variables
+`GCP_WIF_PROVIDER` (`projects/<number>/locations/global/workloadIdentityPools/github/providers/iskra-voice`) and
+`GCP_PLAY_SERVICE_ACCOUNT` (`iskra-play-publisher@iskra-play.iam.gserviceaccount.com`) switch it on; until both are set,
+`play-pc` uploads from the home PC with the JSON key, as release.ps1 does. The provider's attribute condition pins this
+repository and the `release` environment, so only jobs in that environment on main can get a token. The owner's
+Google Cloud steps are in docs/ci-cd-playbook.md, "Owner: one-time setup". After one green upload this way, delete the
+JSON key in Cloud Console and the devkeys file.
 
 Windows SmartScreen reputation builds per certificate, so expect warnings again for a while after a change.
 
@@ -336,13 +476,13 @@ looks first, so reruns don't submit twice. The run summary names the build and w
 
 | Item | Where | Notes |
 |---|---|---|
-| `CLOUDFLARE_API_TOKEN` (GitHub secret) | Token "iskra-github-ci" in Cloudflare → My Profile → API Tokens | Account permissions Cloudflare Pages: Edit + Workers Scripts: Edit, one account, no TTL |
+| `CLOUDFLARE_API_TOKEN` (secret of the `release` environment) | Token "iskra-github-ci" in Cloudflare → My Profile → API Tokens | Account permissions Cloudflare Pages: Edit + Workers Scripts: Edit, one account, no TTL |
 | `CLOUDFLARE_ACCOUNT_ID` (GitHub variable) | Cloudflare dashboard sidebar | Not secret |
 | Local token "iskra-deploy-cf" | Encrypted on the Windows PC, used by `D:\Development_Projects\IskraHeroPage\deploy-hero.ps1` | Fallback deploys. Never print it |
 | Pages projects | `iskra-hero-page` → iskra.foo, `iskra-webclient` → app.iskra.foo (production branch main) | |
 | DNS (zone iskra.foo) | `chat` A 146.190.236.187, DNS only (grey cloud: the server does its own HTTPS); Email Routing `spark@iskra.foo` → the owner's mailbox; `send.iskra.foo` records belong to Resend (email sending) | Don't proxy `chat` |
 
-**Rotate the CI token:** create a new token with the same permissions → `gh secret set CLOUDFLARE_API_TOKEN`
+**Rotate the CI token:** create a new token with the same permissions → `gh secret set CLOUDFLARE_API_TOKEN --env release`
 (paste at the prompt) → run deploy.yml with `site` → delete the old token. If the token leaks, roll it first
 (Cloudflare → token → Roll), then update the secret. Lost: deploys fail; nothing that's live breaks.
 
@@ -356,7 +496,7 @@ a nightly `iskra-review-restart.timer` picks up renewals and new versions), voic
 | Item | Where | Notes |
 |---|---|---|
 | Admin SSH key | `~/.ssh/iskrapersonalvoip` on the Windows PC (root) | Full access. Back it up; DigitalOcean's web console is the fallback |
-| CI SSH key | `D:\Development_Projects\devkeys\iskra-droplet-ci` (+ `.pub`), GitHub secret `DROPLET_SSH_KEY` | ed25519. In root's authorized_keys with a forced command `/usr/local/bin/iskra-update-ci`, which accepts only a version and runs `/usr/local/bin/iskra-update <version>` |
+| CI SSH key | `D:\Development_Projects\devkeys\iskra-droplet-ci` (+ `.pub`), secret `DROPLET_SSH_KEY` of the `release` environment | ed25519. In root's authorized_keys with a forced command `/usr/local/bin/iskra-update-ci`, which accepts only a version and runs `/usr/local/bin/iskra-update <version>` |
 | `DROPLET_HOST`, `DROPLET_KNOWN_HOSTS` (variables) | The IP and its host keys | Refresh after rebuilding the droplet: `ssh-keyscan -t ed25519,ecdsa,rsa 146.190.236.187` → `gh variable set DROPLET_KNOWN_HOSTS < file` (check the fingerprints against the DigitalOcean console first) |
 
 Layout: binaries in `/opt/iskra/app`, the world (database, keys, uploads, backups) in `/opt/iskra/world`, systemd
@@ -388,7 +528,12 @@ is in the server's settings (admins add it in the app), also per server.
 
 **Rotate the CI key:** `ssh-keygen -t ed25519 -f iskra-droplet-ci -C iskra-github-ci -N ""` → on the server, replace
 the old line in `/root/.ssh/authorized_keys` keeping the `command="/usr/local/bin/iskra-update-ci",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty`
-options → `gh secret set DROPLET_SSH_KEY < iskra-droplet-ci` → run deploy.yml with the current `server_version`.
+options → `gh secret set DROPLET_SSH_KEY --env release < iskra-droplet-ci` → run deploy.yml with the current `server_version`.
+
+**Not done: chat.iskra.foo updating itself instead of the SSH deploy.** It would remove `DROPLET_SSH_KEY`, but a
+server checks for new releases only every 6 hours (Updates/UpdateService.cs), so the deploy job couldn't confirm the
+new version within the release; a "check now" trigger would need a new authenticated server endpoint. The SSH key is
+low risk already (forced command, published and checksummed versions only), so the deploy stays as it is.
 
 ### Android
 
@@ -432,23 +577,30 @@ to the Capacitor app in place. The TWA project is gone from the tree (`android/R
 
 ### GitHub
 
-- The `gh` CLI on the Windows PC is logged in as the owner (`gh auth status`); release.ps1 and its steps use it.
-- Workflows use the automatic `GITHUB_TOKEN` with per-job permissions; no personal tokens are stored.
-- Secrets (repo level): `CLOUDFLARE_API_TOKEN`, `DROPLET_SSH_KEY`, `MAC_CERT_P12_BASE64`, `MAC_CERT_PASSWORD`,
-  `APPSTORE_API_KEY_BASE64`, `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`; optional `APPSTORE_REVIEW_PHONE` (App Review
-  contact) and `ISKRA_CI_WEBHOOK` ([section 9](#9-ci-results-in-iskra)). Variables: `CLOUDFLARE_ACCOUNT_ID`,
-  `DROPLET_HOST`, `DROPLET_KNOWN_HOSTS`, `MAC_IDENTITY`, `REVIEW_INVITE_URL` (the review server invite for App Review notes).
-- Environment `release` (Settings → Environments → New environment). Used by release-finalize.yml and deploy.yml.
-  Options:
-  - **No required reviewers** (owner decision 2026-10-15): a release is one command and nothing waits for a click in
-    GitHub. The automatic gate is finalize's first step (CI passed on the tagged commit) plus release.ps1's check
-    phase, which warns if an environment gets reviewers again (Settings → Environments → release → untick "Required
-    reviewers").
+- The `gh` CLI on the Windows PC is logged in as the owner (`gh auth status`); release.ps1 and its steps use it, and
+  `runner-setup.ps1` gets the runner's registration token with it. The Release workflow doesn't need it.
+- Workflows use the automatic `GITHUB_TOKEN` with per-job permissions; no personal tokens are stored. The Release
+  workflow pushes the version commit and tag with it (main has no branch protection; if it gets one, allow the
+  workflow to push, or the `version` job fails before anything else changes).
+- Repo secrets: `MAC_CERT_P12_BASE64`, `MAC_CERT_PASSWORD`, `APPSTORE_API_KEY_BASE64`, `APPSTORE_KEY_ID`,
+  `APPSTORE_ISSUER_ID`; optional `APPSTORE_REVIEW_PHONE` (App Review contact) and `ISKRA_CI_WEBHOOK`
+  ([section 9](#9-ci-results-in-iskra)).
+- Environment `release` secrets: **`CLOUDFLARE_API_TOKEN` and `DROPLET_SSH_KEY`** (moved there from repo level; only
+  jobs in that environment, on main, can read them).
+- Variables: `CLOUDFLARE_ACCOUNT_ID`, `DROPLET_HOST`, `DROPLET_KNOWN_HOSTS`, `MAC_IDENTITY`, `REVIEW_INVITE_URL` (the
+  review server invite for App Review notes); for the Release workflow, when set up: `GCP_WIF_PROVIDER`,
+  `GCP_PLAY_SERVICE_ACCOUNT` ([Google Play without a key file](#google-play-without-a-key-file)), `ANDROID_BUILD`
+  (`ci` only after the upload-key reset).
+- Environment `signing` (only for `ANDROID_BUILD=ci`): deployment branch `main`, secrets
+  `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_KEYSTORE_PASSWORD`.
+- Environment `release` (Settings → Environments). Used by release-finalize.yml, deploy.yml and the Release
+  workflow's `checks`, `play` and `android-apk` jobs. Options:
+  - **No required reviewers** (owner decision 2026-10-15): a release is one button or command and nothing waits for a
+    click in GitHub. The automatic gates are the checks and finalize's CI gate; release.ps1's check phase warns if an
+    environment gets reviewers again (Settings → Environments → release → untick "Required reviewers").
   - **Deployment branches and tags**: "Selected" → branch `main`. Manually started workflows run on `main` (they
     check out the tag themselves), so don't restrict it to tags.
-  - **Environment secrets**: move `CLOUDFLARE_API_TOKEN` and `DROPLET_SSH_KEY` here (add them to the environment,
-    then delete the repo-level ones). Recommended: then only the release/deploy jobs on main can read them, not
-    every workflow on every branch. The Apple secrets stay at repo level (release.yml's tag build uses them).
+- Actions settings for the self-hosted runner: [The home PC runner](#the-home-pc-runner).
 
 ### npm (bot SDK)
 
@@ -480,7 +632,8 @@ many of them (branch protection, review) are owner settings too. Click-by-click 
 
 | When | What | Do |
 |---|---|---|
-| Every release | SimplySign session | Log in to SimplySign Desktop with the phone code before `release.ps1` (its first check says so) |
+| Every release | SimplySign session | Nothing with a stored seed (it logs itself in); otherwise log in to SimplySign Desktop with the phone code first (the first check says so) |
+| Every release | The home PC | Switched on and logged in to Windows for the Release button (the runner starts at logon) |
 | Weekly (Mondays) | Dependabot PRs, CodeQL, Scorecard and secret scans | Merge green Dependabot PRs; look at new code-scanning alerts (Security tab: CodeQL and Scorecard) and secret-scanning alerts |
 | Continuous | Droplet OS updates | Automatic (unattended-upgrades); reboot now and then (`ssh … reboot` with the admin key) when `/var/run/reboot-required` exists |
 | Every ~60 days, automatic | chat.iskra.foo HTTPS certificate | The server renews it itself; port 80 must stay open |
@@ -521,7 +674,12 @@ run CI as pull requests only.
 
 | Symptom | Cause and fix |
 |---|---|
-| `STOP [SimplySign] Log in to SimplySign Desktop ...` (at the start, or mid-build: "No provider was specified", "SignTool Error", "Signing failed") | SimplySign Desktop is logged out (it times out). Log in with the phone code, then run release.ps1 again (`-Resume` once the tag is pushed) |
+| `STOP [SimplySign] Log in to SimplySign Desktop ...` (at the start, or mid-build: "No provider was specified", "SignTool Error", "Signing failed") | SimplySign Desktop is logged out (it times out) and there's no stored seed, or its one automatic login this run is used. Log in with the phone code, then run release.ps1 again (`-Resume` once the tag is pushed); on GitHub re-run the failed jobs |
+| "the automatic login didn't help (...)" | The reason is in the brackets. "the last SimplySign login failed at HH:mm": a wrong seed or a changed dialog; log in by hand, then check the seed with `simplysign-setup.ps1` (it shows the code to compare). "login dialog's fields weren't found": SimplySign Desktop changed; report it |
+| Release run: "The home PC didn't pick up its job in 10 minutes" | The PC is off, asleep or not logged in (the runner starts at logon), or the runner is gone (Settings → Actions → Runners). Switch it on, log in, press Release again. Nothing was changed |
+| Release run: a job on the home PC fails at "Set up runner" with "Refused: ..." | The runner's job guard refused it: the run wasn't started by the owner on main with Run workflow. Start it that way |
+| Release run: `version` "main moved since the checks" | Something was pushed to main during the checks: press Release again |
+| Release run: `checks` red | The run summary lists every red with its case (the same as release.ps1's); fix, press Release again |
 | sign.ps1 found no certificate in PowerShell 7 although it's installed | Fixed: `-CodeSigningCert` is missing when PSModulePath points at PowerShell 7's modules, so sign.ps1 filters on the code-signing EKU (1.3.6.1.5.5.7.3.3) itself. Keep that filter if you touch it |
 | macOS: `security: SecKeychainItemImport` / codesign "errSecInternalComponent" / keychain won't unlock | Fixed in release.yml: we import the p12 into our own keychain and run `set-key-partition-list` (electron-builder's temporary keychain fails on current runners). Keep that step |
 | Notarization failed or hangs | The electron-builder log shows the submission id. On a Mac with the .p8: `xcrun notarytool log <id> --key AuthKey.p8 --key-id <id> --issuer <issuer>` (or `notarytool history`) lists the rejected files. Common: an unsigned nested binary, missing hardened runtime, expired membership or agreement waiting in App Store Connect |
@@ -575,9 +733,11 @@ migration ran in between (migrations are forward-only); otherwise restore from a
 - Tests and local servers listen on localhost only (no firewall prompts).
 - Agents never call the App Store Connect or Google Play APIs themselves and never open the Play key; the release
   scripts do it at release time. Tests use fake APIs only.
-- Ship only with `scripts/release.ps1` (release, `-Resume`, `-Redeploy`, `-Phones`, `-BotSdk`); never run its steps or
-  `gh workflow run` for release, finalize, deploy or iOS uploads by hand.
-- Needs the human: the SimplySign login (phone code) before a release, the Apple developer portal and App Store Connect (app record, TestFlight testers, API keys), the Play Console,
+- Ship only with `scripts/release.ps1` (release, `-GitHub` for the Release button, `-Resume`, `-Redeploy`, `-Phones`,
+  `-BotSdk`); never run its steps or `gh workflow run` for release-all, release, finalize, deploy or iOS uploads by hand.
+- Never run `simplysign-login.ps1`, `simplysign-setup.ps1` or `runner-setup.ps1` yourself: the first runs inside a
+  release, the other two are the owner's (in a window opened for them).
+- Needs the human: the SimplySign login (phone code) before a release when no seed is stored, the Apple developer portal and App Store Connect (app record, TestFlight testers, API keys), the Play Console,
   the Cloudflare dashboard (new tokens), DigitalOcean, anything that costs money.
 
 ## 8. Uptime monitoring

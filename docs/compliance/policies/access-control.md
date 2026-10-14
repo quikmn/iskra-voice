@@ -22,7 +22,8 @@ devkeys backup. Step-by-step: [owner-actions.md](../owner-actions.md#1-turn-on-m
 | Google (Play Console "From a Spark") | Android app listing | Yes |
 | Cloudflare | DNS for iskra.foo, Pages for iskra.foo and app.iskra.foo, email routing | Yes |
 | DigitalOcean | The chat.iskra.foo droplet and its console | Yes |
-| Certum / SimplySign | Windows code-signing certificate | Yes (SimplySign phone code per session) |
+| Certum / SimplySign | Windows code-signing certificate | Yes (TOTP per session: the phone app, or the seed stored with DPAPI for the owner's Windows account on the home PC, docs/ci-cd.md "SimplySign auto-login") |
+| Home PC release runner | Runs the Release workflow's Windows jobs (signing) | Only the owner's own workflow_dispatch runs on main; a job guard on the PC refuses everything else (docs/ci-cd.md "The home PC runner") |
 | Domain registrar for iskra.foo | Domain ownership | Yes |
 | Email mailbox receiving spark@iskra.foo | Password resets for everything above, security reports | Yes |
 | KLIPY Partner Panel, Resend (if used), Ko-fi, PayPal | Lower impact | Yes where offered |

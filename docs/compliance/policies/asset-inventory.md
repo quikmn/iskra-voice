@@ -22,6 +22,7 @@ write a secret value here.
 | Signing and release keys (Apple Developer ID p12, Android keystore, CI SSH key) | Secret | `D:\Development_Projects\devkeys` + offline copy; GitHub secrets | Owner |
 | Admin SSH key `~/.ssh/iskrapersonalvoip` | Secret | Owner's PC + offline copy | Owner |
 | Windows code-signing key | Secret | Certum cloud HSM (SimplySign) — not exportable | Owner |
+| SimplySign TOTP seed (when stored) | Secret | Owner's Windows account on the home PC, DPAPI (`%LOCALAPPDATA%\Iskra\simplysign.dat`); never in GitHub | Owner |
 | Security reports, incident log, data-request emails | Confidential | spark@iskra.foo mailbox, private advisories | Owner |
 
 Classification levels: **Public** (anyone), **Internal** (owner and future team), **Confidential** (need-to-know;
@@ -51,7 +52,7 @@ Droplet ports: 22, 80, 443, 7881/tcp, 7882/udp (ufw).
 
 | Device | Use | Required protection |
 |---|---|---|
-| Owner's Windows PC | Development, Windows/Android release builds, admin SSH, `devkeys` | Full-disk encryption (BitLocker), screen lock, automatic updates, MFA-protected accounts |
+| Owner's Windows PC | Development, Windows/Android release builds (also as the Release workflow's self-hosted runner), admin SSH, `devkeys`, the SimplySign seed | Full-disk encryption (BitLocker), screen lock, automatic updates, MFA-protected accounts; the runner runs as the owner without admin rights and listens on no port |
 | Owner's phone | SimplySign codes, authenticator, passkeys | Screen lock, OS updates |
 | Offline backup media (encrypted USB) | Copies of `devkeys`, admin SSH key, recovery codes | Encrypted, stored apart from the PC |
 

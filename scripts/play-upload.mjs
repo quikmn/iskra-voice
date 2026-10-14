@@ -1,25 +1,31 @@
 #!/usr/bin/env node
-// Step of scripts/release.ps1 (the one release command); don't run it by hand.
-// Uploads the Android app bundle to Google Play with the Android Publisher API (scripts/release.ps1 runs it after a
-// release is published; docs/ci-cd.md "Google Play uploads"). One edit: upload the bundle (unless Play already has that
-// version code), put it on a track with release notes in English and Swedish, commit. Running it again for a version
-// that is already on the track changes nothing, so a resumed release can call it again.
+// Step of scripts/release.ps1 (the one release command) and of the Release workflow (release-all.yml); don't run it by
+// hand. Uploads the Android app bundle to Google Play with the Android Publisher API (after a release is published;
+// docs/ci-cd.md "Google Play uploads"). One edit: upload the bundle (unless Play already has that version code), put it
+// on a track with release notes in English and Swedish, commit. Running it again for a version that is already on the
+// track changes nothing, so a resumed release can call it again.
 //
 //   node scripts/play-upload.mjs <version> [--aab mobile/release/Iskra-<version>.aab] [--track alpha] [--rollout 1]
-//        [--listing | --no-listing] [--status completed] [--rebuild 0] [--key <service-account.json>] [--dry-run | --check]
+//        [--listing | --no-listing] [--status completed] [--rebuild 0] [--key <service-account.json>]
+//        [--universal-apk <out.apk>] [--dry-run | --check]
 //   node scripts/play-upload.mjs --list-tracks      # the app's track names on Play (read only)
 //
 // Defaults come from mobile/store.json ("android": track, rollout, listing, dataSafety); options override them.
-// --check only looks for the key (exit 0 found, 2 missing); --dry-run also checks the bundle and prints the notes.
+// --check only looks for the credentials (exit 0 found, 2 missing); --dry-run also checks the bundle and prints the notes.
 // With listing on, the store listing text and graphics come from docs/store/play (graphics only where the screenshot
 // spec made them) and go into the same edit; with dataSafety on, docs/store/play/data-safety.csv goes to Play after it.
+// --universal-apk: after the upload, downloads the universal APK Play generated from the bundle and signed with the app
+// signing key (for the GitHub release when the bundle is built on GitHub with the upload key; docs/ci-cd.md, "Android
+// built on GitHub").
 //
-// Auth: a Google Cloud service account's JSON key at D:\Development_Projects\devkeys\google-play-service-account.json
-// (ISKRA_PLAY_KEY overrides). The key file is only read by
-// google-auth-library (mobile/node_modules) and never printed. No key: prints why and exits 2 (a skip, not a failure).
+// Auth, the first that is there: ISKRA_PLAY_ACCESS_TOKEN (an OAuth access token for the service account, from Google
+// workload identity federation in the Release workflow: no key file anywhere), else a Google Cloud service account's
+// JSON key at D:\Development_Projects\devkeys\google-play-service-account.json (ISKRA_PLAY_KEY overrides). The key file
+// is only read by google-auth-library (mobile/node_modules); neither is ever printed. Neither: prints why and exits 2
+// (a skip, not a failure).
 // Exit 0: the version is on the track. Exit 1: it isn't (one "Play upload stopped: ..." line says why).
 import { createHash } from 'node:crypto'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -124,13 +130,14 @@ export function releaseNotesFor(version, dir = join(root, 'docs', 'releases')) {
  */
 export function playApi({ token, fetchImpl = fetch, base = API, packageName = PACKAGE }) {
   const app = `/androidpublisher/v3/applications/${encodeURIComponent(packageName)}`
-  async function call(method, path, { json, body, contentType, query, upload = false } = {}) {
+  async function call(method, path, { json, body, contentType, query, upload = false, binary = false } = {}) {
     const url = new URL(`${upload ? '/upload' : ''}${app}${path}`, base)
     for (const [k, v] of Object.entries(query ?? {})) url.searchParams.set(k, String(v))
     const headers = { authorization: `Bearer ${await token()}` }
     if (json !== undefined) { headers['content-type'] = 'application/json'; body = JSON.stringify(json) }
     else if (contentType) headers['content-type'] = contentType
     const res = await fetchImpl(url.href, { method, headers, body })
+    if (binary && res.ok) return Buffer.from(await res.arrayBuffer())
     const text = await res.text()
     let data = null
     try { data = text ? JSON.parse(text) : null } catch { data = null }
@@ -147,6 +154,9 @@ export function playApi({ token, fetchImpl = fetch, base = API, packageName = PA
     deleteEdit: (edit) => call('DELETE', `/edits/${edit}`),
     listBundles: (edit) => call('GET', `/edits/${edit}/bundles`),
     uploadBundle: (edit, bytes) => call('POST', `/edits/${edit}/bundles`, { upload: true, body: bytes, contentType: 'application/octet-stream', query: { uploadType: 'media' } }),
+    // Outside edits: the APKs Play generated from a committed bundle, signed with the app signing key.
+    generatedApks: (versionCode) => call('GET', `/generatedApks/${encodeURIComponent(versionCode)}`),
+    downloadGeneratedApk: (versionCode, id) => call('GET', `/generatedApks/${encodeURIComponent(versionCode)}/downloads/${encodeURIComponent(id)}:download`, { query: { alt: 'media' }, binary: true }),
     listTracks: (edit) => call('GET', `/edits/${edit}/tracks`),
     getTrack: (edit, track) => call('GET', `/edits/${edit}/tracks/${encodeURIComponent(track)}`),
     updateTrack: (edit, track, releases) => call('PUT', `/edits/${edit}/tracks/${encodeURIComponent(track)}`, { json: { track, releases } }),
@@ -276,6 +286,19 @@ export async function publishToPlay({ api, bytes, versionCode, version, track = 
   }
 }
 
+/**
+ * The universal APK Play generated from the committed bundle with this version code, signed with Play's app signing
+ * key (the same key as every earlier APK, so installed copies update). Throws when Play has none (yet).
+ */
+export async function downloadUniversalApk(api, versionCode) {
+  const apks = (await api.generatedApks(String(versionCode)))?.generatedApks ?? []
+  const universal = apks.map((a) => a?.generatedUniversalApk?.downloadId).find(Boolean)
+  if (!universal) throw new PlayError(`Play has no universal APK for version code ${versionCode} (yet): it makes one from a committed bundle`)
+  const bytes = await api.downloadGeneratedApk(String(versionCode), universal)
+  if (!bytes?.length || bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new PlayError(`the universal APK Play gave for version code ${versionCode} isn't an APK (zip) file`)
+  return bytes
+}
+
 /** The tracks Play has for this app (a read-only edit, thrown away). */
 export async function listTracks(api) {
   const edit = (await api.insertEdit()).id
@@ -322,6 +345,16 @@ export function defaultKeyPath(env = process.env) {
   return env.ISKRA_PLAY_KEY || KEY_PATH
 }
 
+/**
+ * How to log in: an access token from workload identity federation (ISKRA_PLAY_ACCESS_TOKEN) wins over a key file;
+ * { kind: 'token' | 'key' | null, key, describe }.
+ */
+export function playCredentials(env, keyOption) {
+  if (env.ISKRA_PLAY_ACCESS_TOKEN && !keyOption) return { kind: 'token', describe: 'an access token (workload identity federation)' }
+  const key = keyOption ?? defaultKeyPath(env)
+  return existsSync(key) ? { kind: 'key', key, describe: `service-account key found (${key})` } : { kind: null, key }
+}
+
 async function googleToken(keyFile) {
   const require = createRequire(join(root, 'mobile', 'package.json'))
   let lib
@@ -350,6 +383,7 @@ function parseArgs(argv, config) {
     else if (a === '--no-listing') { args.listing = false; args.dataSafety = false }
     else if (a === '--rebuild') args.rebuild = Number(next())
     else if (a === '--key') args.key = next()
+    else if (a === '--universal-apk') args.universalApk = next()
     else if (a === '--dry-run') args.dryRun = true
     else if (a === '--check') args.check = true
     else if (a === '--list-tracks') args.listTracks = true
@@ -361,10 +395,11 @@ function parseArgs(argv, config) {
 export async function main(argv, { env = process.env, fetchImpl = fetch, tokenFor = googleToken, print = console.log, config = storeConfig(), listingDir } = {}) {
   try {
     const args = parseArgs(argv, config)
-    const key = args.key ?? defaultKeyPath(env)
+    const cred = playCredentials(env, args.key)
+    const token = async () => (cred.kind === 'token' ? async () => env.ISKRA_PLAY_ACCESS_TOKEN : tokenFor(cred.key))
     if (args.listTracks) {
-      if (!existsSync(key)) { print(`Play: no service-account key at ${key}`); return 2 }
-      const api = playApi({ token: await tokenFor(key), fetchImpl, base: env.ISKRA_PLAY_API || API })
+      if (!cred.kind) { print(`Play: no service-account key at ${cred.key}`); return 2 }
+      const api = playApi({ token: await token(), fetchImpl, base: env.ISKRA_PLAY_API || API })
       print(`Play tracks for ${PACKAGE}: ${(await listTracks(api)).join(', ')}`)
       return 0
     }
@@ -374,12 +409,12 @@ export async function main(argv, { env = process.env, fetchImpl = fetch, tokenFo
     const status = args.status ?? roll.status
     const versionCode = androidVersionCode(args.version, args.rebuild)
     const aab = resolve(args.aab ?? join(root, 'mobile', 'release', `Iskra-${args.version}.aab`))
-    if (!existsSync(key)) {
-      print(`Play upload skipped: no service-account key at ${key} (docs/ci-cd.md, "Google Play uploads", sets one up). Upload ${aab} in Play Console instead.`)
+    if (!cred.kind) {
+      print(`Play upload skipped: no service-account key at ${cred.key} and no workload identity federation (docs/ci-cd.md, "Google Play uploads"). Upload ${aab} in Play Console instead.`)
       return 2
     }
     if (args.check) {
-      print(`Play upload: service-account key found (${key})`)
+      print(`Play upload: ${cred.describe}`)
       return 0
     }
     const notes = releaseNotesFor(args.version)
@@ -394,7 +429,7 @@ export async function main(argv, { env = process.env, fetchImpl = fetch, tokenFo
       if (args.dataSafety) print(`  data safety: ${existsSync(csvFile) ? csvFile : 'no data-safety.csv, left as it is'}`)
       return 0
     }
-    const api = playApi({ token: await tokenFor(key), fetchImpl, base: env.ISKRA_PLAY_API || API })
+    const api = playApi({ token: await token(), fetchImpl, base: env.ISKRA_PLAY_API || API })
     const result = await publishToPlay({
       api, bytes: readFileSync(aab), versionCode, version: args.version, track: args.track, status, userFraction: roll.userFraction, notes, listing,
       log: (line) => print(`  ${line}`),
@@ -405,6 +440,11 @@ export async function main(argv, { env = process.env, fetchImpl = fetch, tokenFo
     }
     const review = result.committedForReview === false ? '; send it for review in Play Console' : ''
     print(`Play: Iskra ${args.version} (version code ${result.versionCode}) is on the '${args.track}' track (${result.status})${result.unchanged ? ', already' : ''}${review}`)
+    if (args.universalApk) {
+      const apk = await downloadUniversalApk(api, versionCode)
+      writeFileSync(resolve(args.universalApk), apk)
+      print(`Play: the universal APK (signed by Play with the app signing key) is ${resolve(args.universalApk)} (${(apk.length / 1048576).toFixed(1)} MB)`)
+    }
     return 0
   } catch (e) {
     print(`Play upload stopped: ${e instanceof PlayError ? e.message : (e?.message ?? String(e))}`)

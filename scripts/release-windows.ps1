@@ -7,10 +7,15 @@
 #   release-windows.ps1 <version>              # build, sign, check, upload
 #   release-windows.ps1 <version> -SkipBuild   # upload files already in desktop\release and mobile\release
 #
-# Runs on the release commit (the vX tag), with SimplySign Desktop logged in. It never prints secrets or asks anything.
+#   release-windows.ps1 <version> -SkipAndroid # without the Android app (the Release workflow builds it on GitHub)
+#
+# Runs on the release commit (the vX tag), on this PC (scripts/release.ps1) or the home PC's runner (the Release
+# workflow, release-all.yml). SimplySign Desktop must be logged in; when it isn't, the stored seed logs it in once
+# (scripts/simplysign-login.ps1). It never prints secrets or asks anything.
 param(
   [Parameter(Mandatory)][string]$Version,
-  [switch]$SkipBuild
+  [switch]$SkipBuild,
+  [switch]$SkipAndroid
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -56,7 +61,7 @@ try {
     # Signing goes through SimplySign Desktop (Certum's cloud key). Sign a scratch file first so a logged-out
     # SimplySign fails here, in seconds, instead of after the whole build.
     Step 'Checking the code-signing certificate (SimplySign)'
-    $signing = Test-Signing
+    $signing = Confirm-Signing
     if (-not $signing.Ok) { Stop-Release $signing.Message }
     $cert = $signing.Certificate
     if ($signing.ExpiresSoon) { Write-Host "Warning: the code-signing certificate expires on $($cert.NotAfter.ToString('yyyy-MM-dd')). Renew it soon (docs/ci-cd.md)." -ForegroundColor Yellow }
@@ -68,19 +73,26 @@ try {
     $env:ISKRA_REQUIRE_SIGNING = '1'
     if (-not (Test-Path client\node_modules)) { Native 'npm ci (client)' { npm --prefix client ci } }
     if (-not (Test-Path desktop\node_modules)) { Native 'npm ci (desktop)' { npm --prefix desktop ci } }
-    Remove-Item -Recurse -Force desktop\release -ErrorAction SilentlyContinue
     $log = Join-Path ([IO.Path]::GetTempPath()) "iskra-dist-$Version.log"
-    Push-Location desktop
-    try {
-      npm run dist 2>&1 | Tee-Object -FilePath $log
-      $code = $LASTEXITCODE
-    } finally { Pop-Location }
-    if ($code -ne 0) {
+    # SimplySign can log out during the build (its session times out): then it logs itself in again once (when a seed
+    # is stored and this run hasn't used its one login yet) and the build runs once more.
+    for ($try = 1; ; $try++) {
+      Remove-Item -Recurse -Force desktop\release -ErrorAction SilentlyContinue
+      Push-Location desktop
+      try {
+        npm run dist 2>&1 | Tee-Object -FilePath $log
+        $code = $LASTEXITCODE
+      } finally { Pop-Location }
+      if ($code -eq 0) { break }
       $text = Get-Content $log -Raw
-      if ($text -match 'Signing failed|No provider was specified|No certificates were found|SignTool Error|Signing .* failed|cannot find the certificate|The specified PIN|smart card') {
+      if ($text -notmatch 'Signing failed|No provider was specified|No certificates were found|SignTool Error|Signing .* failed|cannot find the certificate|The specified PIN|smart card') {
+        Stop-Release "npm run dist failed (exit code $code). Build log: $log"
+      }
+      $again = if ($try -eq 1) { Confirm-Signing } else { $null }
+      if (-not $again -or -not $again.Ok -or -not $again.AutoLogin) {
         Stop-Release "signing failed during the build: SimplySign probably logged out (it does after a while). $(Get-SimplySignLoginLine) Build log: $log"
       }
-      Stop-Release "npm run dist failed (exit code $code). Build log: $log"
+      Write-Host 'SimplySign logged out during the build and logged itself in again: building once more.'
     }
     # The standalone server's peer-to-peer tunnel: one executable, signed like the server (the desktop app runs its own).
     $sidecarOut = node desktop\scripts\build-sidecar.mjs win-x64 2>&1 | ForEach-Object { Write-Host $_; "$_" }
@@ -113,14 +125,16 @@ try {
     Compress-Archive -Path 'desktop\build\server-win-x64\*', $sidecar, 'desktop\build\p2p-win-x64\iskra-p2p-licenses.txt' -DestinationPath $zip
     Write-Host "Built $zip"
 
-    Step 'Building the Android APK and app bundle (the Capacitor app, signed with the release key)'
-    Remove-Item $apk, "mobile\release\Iskra-$Version.aab" -ErrorAction SilentlyContinue
-    & .\mobile\scripts\build-android.ps1
-    if (-not (Test-Path $apk)) { Stop-Release "mobile\scripts\build-android.ps1 didn't produce $apk (see its output above)." }
+    if (-not $SkipAndroid) {
+      Step 'Building the Android APK and app bundle (the Capacitor app, signed with the release key)'
+      Remove-Item $apk, "mobile\release\Iskra-$Version.aab" -ErrorAction SilentlyContinue
+      & .\mobile\scripts\build-android.ps1
+      if (-not (Test-Path $apk)) { Stop-Release "mobile\scripts\build-android.ps1 didn't produce $apk (see its output above)." }
+    }
   }
 
   # ── Upload ──
-  $files = @($setup, "$setup.blockmap", $portable, 'desktop\release\latest.yml', $zip, $apk)
+  $files = @($setup, "$setup.blockmap", $portable, 'desktop\release\latest.yml', $zip) + $(if ($SkipAndroid) { @() } else { @($apk) })
   foreach ($f in $files) { if (-not (Test-Path $f)) { Stop-Release "$f is missing." } }
   $latest = Get-Content desktop\release\latest.yml -Raw
   if ($latest -notmatch "(?m)^version:\s*$([regex]::Escape($Version))\s*$") { Stop-Release "desktop\release\latest.yml isn't for $Version." }
