@@ -200,10 +200,17 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     await page.screenshot({ path: join(SHOTS, 'desktop-update.png'), animations: 'disabled' })
     await toast.getByRole('button', { name: 'Later' }).click()
     await expect(toast).toBeHidden()
+    // The green button at the top of the server rail stays until the update is installed: "Later" never hides it.
+    const railButton = page.getByTestId('update-rail')
+    await expect(railButton).toHaveAccessibleName('Update ready: restart into Iskra 9.9.9')
+    await send({ state: 'downloading', version: '9.9.9' })
+    await expect(railButton).toHaveAccessibleName('Downloading Iskra 9.9.9…')
     await send({ state: 'available', version: '9.9.10', url: 'https://github.com/quikmn/iskra-voice/releases/tag/v9.9.10' })
-    await expect(page.getByRole('link', { name: 'Download' })).toHaveAttribute('href', /releases\/tag\/v9\.9\.10$/)
+    await expect(page.getByRole('link', { name: 'Download', exact: true })).toHaveAttribute('href', /releases\/tag\/v9\.9\.10$/)
+    await expect(railButton).toHaveAttribute('href', /releases\/tag\/v9\.9\.10$/)
     await send({ state: 'available', version: '9.9.11', url: 'https://example.com/x.exe' }) // not a release page: ignored
     await expect(page.getByText('New version available')).toBeHidden()
+    await expect(railButton).toBeHidden()
 
     // Push-to-talk settings are available.
     await page.getByRole('button', { name: 'My settings', exact: true }).click()

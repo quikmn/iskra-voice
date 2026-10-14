@@ -38,7 +38,7 @@ export const compliance = {
     },
     updates: {
       who: 'GitHub (app updates)',
-      when: 'The desktop app checks GitHub for a new version shortly after it starts and every 4 hours, and downloads updates from there.',
+      when: 'The desktop app checks GitHub for a new version shortly after it starts, every hour, and when you come back to it after 15 minutes or more, and downloads updates from there.',
       off: "GitHub sees your IP address and the app version. Updates fix security problems, so it's on unless you turn it off here (desktop app).",
     },
     updateChecks: 'Check for updates automatically',

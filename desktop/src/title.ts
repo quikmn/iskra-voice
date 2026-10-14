@@ -16,9 +16,11 @@ export function readBuildCommit(file: string): string {
 /**
  * "Iskra" → "Iskra 2.0.0-alpha.14 · a89a580"; "(3) Iskra" → "(3) Iskra 2.0.0-alpha.14 · a89a580";
  * "My settings — Iskra" → "My settings — Iskra 2.0.0-alpha.14 · a89a580"; anything else gets " — Iskra …" added.
+ * With a note: "Iskra 2.0.0-alpha.14 · a89a580 · Update ready".
  */
-export function windowTitle(pageTitle: string, version: string, commit: string): string {
-  const build = `Iskra ${version} · ${commit}`
+export function windowTitle(pageTitle: string, version: string, commit: string, note?: string): string {
+  // A waiting update shows here too ("… · a89a580 · Update ready"), so it's visible even with the app in the background.
+  const build = `Iskra ${version} · ${commit}${note ? ` · ${note.slice(0, 40)}` : ''}`
   const page = pageTitle.trim().slice(0, 200)
   if (!page) return build
   if (page === 'Iskra') return build

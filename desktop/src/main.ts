@@ -95,7 +95,15 @@ const activity = new ActivityDetector((game) => window?.webContents.send('iskra:
 const updates = new Updates((status: UpdateStatus) => {
   window?.webContents.send('iskra:update', status)
   updateTray()
+  refreshTitle()
 })
+/** The page's own title (see page-title-updated); the window title adds the build and a waiting update. */
+let pageTitle = 'Iskra'
+function refreshTitle(): void {
+  const status = updates.current()
+  const note = status.state === 'ready' ? text().updates.titleReady : status.state === 'available' ? text().updates.titleAvailable : undefined
+  window?.setTitle(windowTitle(pageTitle, app.getVersion(), BUILD_COMMIT, note))
+}
 
 // A second launch (e.g. an iskra:// link) hands over to this one and quits before showing anything.
 const primaryInstance = app.requestSingleInstanceLock()
@@ -203,11 +211,15 @@ function createWindow(): void {
   // Started with the computer: stay in the tray until opened. Otherwise the splash shows it when everything's ready.
   window.webContents.once('dom-ready', () => launch?.page === 'loading' && launchChanged({ page: 'loaded' }))
   window.once('ready-to-show', () => launchChanged({ page: 'ready' }))
-  window.on('focus', () => window?.flashFrame(false))
+  window.on('focus', () => {
+    window?.flashFrame(false)
+    updates.checkSoon()
+  })
   // The page names what's open ("My settings — Iskra"); the window title adds the version and commit (title.ts).
   window.on('page-title-updated', (event, title) => {
     event.preventDefault()
-    window?.setTitle(windowTitle(title, app.getVersion(), BUILD_COMMIT))
+    pageTitle = title
+    refreshTitle()
   })
   void window.loadURL(DEV_URL ?? `${APP_ORIGIN}/index.html`)
 

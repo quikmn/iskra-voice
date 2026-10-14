@@ -199,6 +199,9 @@ export const app = {
     laterTitle: 'Later (installs when you quit)',
     updating: 'Updating Iskra to {{version}}…',
     updatingBody: 'It’ll be back in a few seconds.',
+    railDownloading: 'Downloading Iskra {{version}}…',
+    railReady: 'Update ready: restart into Iskra {{version}}',
+    railAvailable: 'Iskra {{version}} is out: download it',
   },
   upload: {
     tooBig: 'That file is too big for this server.',

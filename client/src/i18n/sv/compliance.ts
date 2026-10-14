@@ -40,7 +40,7 @@ export const compliance: Messages['compliance'] = {
     },
     updates: {
       who: 'GitHub (appuppdateringar)',
-      when: 'Skrivbordsappen kollar efter en ny version hos GitHub strax efter start och var fjärde timme, och hämtar uppdateringar därifrån.',
+      when: 'Skrivbordsappen kollar efter en ny version hos GitHub strax efter start, varje timme och när du kommer tillbaka till den efter minst 15 minuter, och hämtar uppdateringar därifrån.',
       off: 'GitHub ser din IP-adress och appens version. Uppdateringar täpper till säkerhetshål, så det är på om du inte stänger av det här (skrivbordsappen).',
     },
     updateChecks: 'Leta efter uppdateringar automatiskt',

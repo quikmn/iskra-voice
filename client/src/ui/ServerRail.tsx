@@ -17,6 +17,7 @@ import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './organize/OrgMen
 import { ServerMenu } from './organize/ServerMenu'
 import { FolderDialog } from './organize/FolderDialog'
 import { InboxButton } from './productivity/InboxButton'
+import { UpdateRailButton } from './UpdateToast'
 import { isMenuKey, treeKeys, useRoving } from './roving'
 import './organize/organize.css'
 
@@ -168,6 +169,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
 
   return (
     <nav className="server-rail" ref={railRef} aria-label={t('app.rail.servers')}>
+      <UpdateRailButton />
       <button
         className={`server-icon home ${active === null ? 'active' : ''}`}
         title={t('app.home.directMessages')}

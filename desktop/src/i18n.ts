@@ -33,6 +33,8 @@ const en = {
     failed: "Couldn't check for updates",
     failedDetail: 'Check your internet connection and try again.',
     ok: 'OK',
+    titleReady: 'Update ready',
+    titleAvailable: 'Update available',
   },
   screen: {
     message: 'Allow Iskra to share your screen',
@@ -112,6 +114,8 @@ const sv: DesktopText = {
     failed: 'Kunde inte söka efter uppdateringar',
     failedDetail: 'Kontrollera din internetanslutning och försök igen.',
     ok: 'OK',
+    titleReady: 'Uppdatering klar',
+    titleAvailable: 'Uppdatering finns',
   },
   screen: {
     message: 'Låt Iskra dela din skärm',

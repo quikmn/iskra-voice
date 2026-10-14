@@ -10,7 +10,9 @@ import { compareVersions, macSigning, newerRelease, updateMode, type GitHubRelea
 
 const REPO = 'quikmn/iskra-voice'
 const FIRST_CHECK_MS = 15_000
-const CHECK_EVERY_MS = 4 * 60 * 60 * 1000
+const CHECK_EVERY_MS = 60 * 60 * 1000
+/** Coming back to the window checks again if the last check is at least this old. */
+const RECHECK_ON_FOCUS_MS = 15 * 60 * 1000
 
 export type UpdateStatus = UpdateState
 
@@ -39,6 +41,7 @@ export class Updates {
   private automatic = true
   private timer: NodeJS.Timeout | null = null
   private started = false
+  private lastCheck = 0
 
   constructor(onChange: (status: UpdateStatus) => void) {
     this.onChange = onChange
@@ -58,7 +61,7 @@ export class Updates {
     if (this.mode === 'off') return 'off'
     if (this.status.state !== 'none') return 'found'
     await this.resolveMode()
-    const ok = this.mode === 'auto' ? await this.checkAuto() : await this.checkManually()
+    const ok = await this.checkNow()
     if (!ok) return 'failed'
     return this.status.state === 'none' ? 'up-to-date' : 'found'
   }
@@ -93,10 +96,22 @@ export class Updates {
     if (this.timer) clearInterval(this.timer)
     this.timer = null
     if (this.mode === 'off' || !this.started || !this.resolving || !on) return
-    const check = () => void (this.automatic && (this.mode === 'auto' ? this.checkAuto() : this.checkManually()))
+    const check = () => void (this.automatic && this.checkNow())
     setTimeout(check, FIRST_CHECK_MS).unref()
     this.timer = setInterval(check, CHECK_EVERY_MS)
     this.timer.unref()
+  }
+
+  /** The window came back to the front: check again if the last check is a while ago (and checks are on). */
+  checkSoon(): void {
+    if (this.mode === 'off' || !this.started || !this.automatic || !this.resolving) return
+    if (Date.now() - this.lastCheck < RECHECK_ON_FOCUS_MS) return
+    void this.checkNow()
+  }
+
+  private checkNow(): Promise<boolean> {
+    this.lastCheck = Date.now()
+    return this.mode === 'auto' ? this.checkAuto() : this.checkManually()
   }
 
   /** Restarts into a downloaded update. Returns false if there's nothing to install. */

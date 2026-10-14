@@ -13,6 +13,8 @@ test('the window title always ends with the version and commit', () => {
   assert.equal(windowTitle('My settings — Iskra', v, 'a89a580'), 'My settings — Iskra 2.0.0-alpha.14 · a89a580')
   assert.equal(windowTitle('Server settings', v, 'dev'), 'Server settings — Iskra 2.0.0-alpha.14 · dev')
   assert.equal(windowTitle('app://iskra/index.html', v, 'dev'), 'app://iskra/index.html — Iskra 2.0.0-alpha.14 · dev')
+  assert.equal(windowTitle('Iskra', v, 'a89a580', 'Update ready'), 'Iskra 2.0.0-alpha.14 · a89a580 · Update ready')
+  assert.equal(windowTitle('(3) Iskra', v, 'a89a580', ''), '(3) Iskra 2.0.0-alpha.14 · a89a580')
 })
 
 test('the commit comes from dist/build-info.json, or is "dev"', () => {

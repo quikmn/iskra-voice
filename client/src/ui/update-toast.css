@@ -26,6 +26,20 @@
   .update-toast { right: 16px; left: 16px; width: auto; bottom: calc(76px + var(--safe-bottom)); }
 }
 
+/* ── The update button at the top of the server rail (never dismissed) ── */
+.server-icon.update-rail { display: grid; place-items: center; background: var(--green-strong, var(--green)); color: #04210f; text-decoration: none; }
+.server-icon.update-rail:hover { background: var(--green); color: #04210f; }
+.server-icon.update-rail.ready, .server-icon.update-rail.available { animation: update-rail-glow 2s ease-in-out infinite; }
+.server-icon.update-rail.downloading { cursor: progress; animation: update-rail-pulse 1.4s ease-in-out infinite; }
+@keyframes update-rail-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); }
+}
+@keyframes update-rail-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) {
+  .server-icon.update-rail { animation: none !important; }
+}
+
 /* ── "Updating Iskra to X…" (just before the desktop app quits into an update) ── */
 /* The same dark look as the desktop splash that follows it, whatever the theme. */
 .updating-overlay {

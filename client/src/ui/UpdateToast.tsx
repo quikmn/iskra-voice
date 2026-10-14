@@ -15,18 +15,58 @@ function readDismissed(): string | null {
   }
 }
 
-/** Desktop only: "Update ready, restart" once an update has downloaded, or a download link for builds that can't update themselves. */
-export function UpdateToast() {
-  const { t } = useTranslation()
+/** The desktop app's update status, live ({ state: 'none' } outside the desktop app). */
+function useUpdateStatus(): UpdateStatus {
   const [status, setStatus] = useState<UpdateStatus>({ state: 'none' })
-  const [dismissed, setDismissed] = useState(readDismissed)
-  const [restarting, setRestarting] = useState(false)
-
   useEffect(() => {
     if (!desktop?.updates) return
     void desktop.updates.status().then((s) => setStatus(parseUpdateStatus(s)))
     return desktop.updates.onStatus((s) => setStatus(parseUpdateStatus(s)))
   }, [])
+  return status
+}
+
+/**
+ * Desktop only: a green button at the top of the server rail from the moment a new version is found until you're on
+ * it. It can't be dismissed: downloading (pulsing), then a click restarts into it, or opens the download page for
+ * builds that can't update themselves.
+ */
+export function UpdateRailButton() {
+  const { t } = useTranslation()
+  const status = useUpdateStatus()
+  const [restarting, setRestarting] = useState(false)
+  if (status.state === 'none') return null
+  const label = status.state === 'downloading' ? t('app.update.railDownloading', { version: status.version })
+    : status.state === 'ready' ? t('app.update.railReady', { version: status.version })
+      : t('app.update.railAvailable', { version: status.version })
+  const icon = (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 4v11" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M5 20h14" />
+    </svg>
+  )
+  if (status.state === 'available') {
+    return <a className={`server-icon update-rail ${status.state}`} href={status.url} target="_blank" rel="noreferrer" title={label} aria-label={label} data-testid="update-rail">{icon}</a>
+  }
+  async function restart() {
+    setRestarting(true)
+    if (!(await desktop?.updates.restart())) setRestarting(false)
+  }
+  return (
+    <button className={`server-icon update-rail ${status.state}`} title={label} aria-label={label} data-testid="update-rail"
+      aria-disabled={status.state === 'downloading' || restarting} onClick={() => status.state === 'ready' && !restarting && void restart()}>
+      {icon}
+    </button>
+  )
+}
+
+/** Desktop only: "Update ready, restart" once an update has downloaded, or a download link for builds that can't update themselves. */
+export function UpdateToast() {
+  const { t } = useTranslation()
+  const status = useUpdateStatus()
+  const [dismissed, setDismissed] = useState(readDismissed)
+  const [restarting, setRestarting] = useState(false)
 
   const notice = updateNotice(status, dismissed)
   if (!notice) return null
