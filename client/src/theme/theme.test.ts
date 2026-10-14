@@ -98,6 +98,9 @@ describe('applying themes', () => {
     const stored = (value: string) => ({ getItem: () => value })
     expect(loadThemeChoice(stored('{"id":"nord"}'))).toEqual({ id: 'nord' })
     expect(loadThemeChoice(stored('{"id":"made-up"}'))).toEqual({ id: 'iskra' })
+    // "Iskra Dark" (id "default") became Graphite: people who picked it keep it.
+    expect(loadThemeChoice(stored('{"id":"default"}'))).toEqual({ id: 'graphite' })
+    expect(loadThemeChoice(stored('{"id":"__proto__"}'))).toEqual({ id: 'iskra' })
     expect(loadThemeChoice(stored('{"custom":{"meta":{"name":"x"},"colors":{"bgDeep":"url(x)"}}}'))).toEqual({ id: 'iskra' })
     expect(loadThemeChoice(stored('garbage'))).toEqual({ id: 'iskra' })
     expect(loadThemeChoice(stored(JSON.stringify({ custom: valid })))).toEqual({ custom: valid })
@@ -187,10 +190,10 @@ describe('readable role colours', () => {
   })
 
   it('includes a hovered message, so a name stays readable under the mouse', () => {
-    const iskraDark = BUILT_IN_THEMES.find((t) => t.theme.meta.name === 'Iskra Dark')!.theme
+    const graphite = BUILT_IN_THEMES.find((t) => t.theme.meta.name === 'Graphite')!.theme
     // What CI's axe run saw: the owner colour on a hovered message read 4.3:1.
-    expect(nameSurfacesOf(iskraDark)).toContain('#36383d')
-    expect(contrast(readableColor('#9793ec', nameSurfacesOf(iskraDark)), '#36383d')).toBeGreaterThanOrEqual(4.5)
+    expect(nameSurfacesOf(graphite)).toContain('#36383d')
+    expect(contrast(readableColor('#9793ec', nameSurfacesOf(graphite)), '#36383d')).toBeGreaterThanOrEqual(4.5)
   })
 
   it('ignores what it cannot read', () => {

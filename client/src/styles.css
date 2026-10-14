@@ -569,6 +569,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .guide-option ol { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 4px; color: var(--text-2); }
 .guide-option .button { display: inline-block; text-decoration: none; }
 .guide-option p { margin: 10px 0 0; }
+.guide-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ── Members ────────────────────────────────────────────────────────── */
 .member-list { padding: 14px 8px; }

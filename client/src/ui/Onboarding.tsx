@@ -65,9 +65,12 @@ export function Onboarding() {
     )
   }
 
+  // The server's own name; its address only if it doesn't answer (never the address first, then the name).
   const invitedLine = pendingInvite && (serverName
     ? <Trans i18nKey="app.onboarding.invitedTo" values={{ server: serverName }} components={{ b: <strong /> }} />
-    : <Trans i18nKey="app.onboarding.invited" values={{ host: hostOf(pendingInvite.serverUrl) }} components={{ b: <strong /> }} />)
+    : serverName === undefined
+      ? t('app.onboarding.invitedAsking')
+      : <Trans i18nKey="app.onboarding.invited" values={{ host: hostOf(pendingInvite.serverUrl) }} components={{ b: <strong /> }} />)
 
   const invited = pendingInvite && (
     <>

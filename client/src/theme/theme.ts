@@ -1,7 +1,7 @@
 // Themes: a small JSON file of colours, radius, avatar shape and fonts.
 // Every value is checked against a strict pattern or allowlist and set one CSS variable at a time
 // (style.setProperty), so a theme can never inject CSS of its own.
-import { BUILT_IN_THEMES, DEFAULT_THEME_ID } from './themes'
+import { BUILT_IN_THEMES, DEFAULT_THEME_ID, RENAMED_THEME_IDS } from './themes'
 import { t } from '../i18n'
 
 export const COLOR_KEYS = [
@@ -456,7 +456,10 @@ export function themeFor(choice: ThemeChoice): ThemeFile | null {
 export function loadThemeChoice(storage: Pick<Storage, 'getItem'> = localStorage): ThemeChoice {
   try {
     const saved = JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null') as unknown
-    if (isPlainObject(saved) && typeof saved.id === 'string' && BUILT_IN_THEMES.some((t) => t.id === saved.id)) return { id: saved.id }
+    if (isPlainObject(saved) && typeof saved.id === 'string') {
+      const id = Object.hasOwn(RENAMED_THEME_IDS, saved.id) ? RENAMED_THEME_IDS[saved.id] : saved.id
+      if (BUILT_IN_THEMES.some((t) => t.id === id)) return { id }
+    }
     if (isPlainObject(saved) && 'custom' in saved) {
       const result = validateTheme(saved.custom)
       if (result.ok) return { custom: result.theme }

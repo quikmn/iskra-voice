@@ -100,7 +100,7 @@ export const moderation = {
       sound_delete: 'Sounds deleted',
       profile_page_remove: 'Profile pages removed',
       server_pages: 'Profile page setting',
-      server_internet: 'Internet hosting',
+      server_internet: 'Internet access',
       limits_update: 'Limits changed',
       buginbox_update: 'Bug inbox',
       afk_update: 'AFK channel',

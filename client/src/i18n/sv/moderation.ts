@@ -100,7 +100,7 @@ export const moderation: Messages['moderation'] = {
       sound_delete: 'Raderade ljud',
       profile_page_remove: 'Borttagna profilsidor',
       server_pages: 'Inställning för profilsidor',
-      server_internet: 'Öppen mot internet',
+      server_internet: 'Internetåtkomst',
       limits_update: 'Ändrade gränser',
       buginbox_update: 'Felrapporter',
       afk_update: 'AFK-kanal',
