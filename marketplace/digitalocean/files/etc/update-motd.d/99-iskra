@@ -1,0 +1,4 @@
+#!/bin/sh
+# Iskra's login message: the address and, until the server has an owner, its claim code.
+[ -x /usr/local/sbin/iskra-claim-screen ] && /usr/local/sbin/iskra-claim-screen --print
+exit 0

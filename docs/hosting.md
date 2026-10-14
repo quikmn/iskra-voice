@@ -10,7 +10,9 @@ There are three ways to run one:
 |---|---|---|
 | **The desktop app** (Windows, macOS and Linux) | Trying it out, LAN parties, friends at home or anywhere | Desktop app; any browser and phone once it's open to the internet |
 | **The standalone server** on your PC | Always-on server at home | Desktop app; any browser and phone once it's open to the internet |
-| **The standalone server on a VPS** (Linux) | Friends all over the place, 24/7, or when your home connection can't host ([rent one from the app](#rent-a-small-server)) | Desktop app and any browser (with HTTPS) |
+| **The standalone server on a VPS** (Linux) | Friends all over the place, 24/7, or when your home connection can't host ([rent one from the app](#rent-a-small-server), or [from the DigitalOcean Marketplace](#digitalocean-marketplace)) | Desktop app and any browser (with HTTPS) |
+
+Want a small always-on box at home (an old PC, a mini PC or a Raspberry Pi)? See [An Iskra box at home](home-server.md).
 
 ## 1. From the desktop app
 
@@ -22,7 +24,7 @@ Install Iskra, click **Create a server**, pick a name and a starting point (a [s
 
 ## 2. The standalone server
 
-Download `iskra-server` for [Windows, Linux or macOS](https://github.com/quikmn/iskra-voice/releases) and unpack it. Voice (LiveKit) is included.
+Download `iskra-server` for [Windows, Linux or macOS](https://github.com/quikmn/iskra-voice/releases) and unpack it: `win-x64`, `linux-x64`, `linux-arm64` (Raspberry Pi 4 and 5 with a 64-bit system, and other 64-bit ARM boards), `osx-arm64` or `osx-x64`. Voice (LiveKit) is included. For a box that runs it all the time, see [An Iskra box at home](home-server.md).
 
 ```sh
 iskra-server my-server        # Windows: iskra-server.exe my-server
@@ -136,6 +138,30 @@ The desktop app can rent and set up the server in **your own DigitalOcean accoun
 **SSH.** Closed by default: nobody needs to log in to run Iskra. To use SSH or DigitalOcean's Droplet Console, add an inbound rule for TCP 22 to the droplet's firewall (Networking → Firewalls); ufw on the droplet already allows it.
 
 **Cancelling.** Destroy the droplet in DigitalOcean (Droplets → the droplet → Destroy); a switched-off droplet still costs money. Then delete its firewall. Make a [backup](#backups) first if you want to keep the history.
+
+### DigitalOcean Marketplace
+
+Started on DigitalOcean's website rather than in the app? The Iskra 1-Click image makes the same kind of server without a terminal. You pay DigitalOcean directly (about $6 a month for the 1 GB droplet); Iskra charges nothing and never sees the server. DigitalOcean doesn't build or support Iskra.
+
+> The listing is on its way through DigitalOcean's review. Until it's live, [Rent a server on DigitalOcean](#rent-a-server-on-digitalocean-one-click) in the desktop app does the same in one go.
+
+1. Open Iskra in the DigitalOcean Marketplace and press **Create Iskra Droplet**.
+2. Pick a region near your group and the $6 size (1 GB). DigitalOcean asks for a password or an SSH key: pick either, you won't need it for Iskra. Create the droplet; it's ready in about a minute.
+3. Open the droplet's **Console** in DigitalOcean. It shows the server's address and a **claim code**:
+
+   ```text
+   Address:     https://203-0-113-7.sslip.io
+   Claim code:  7KQ2-ZM8P-X4TD-9HRA   (works once, until 2026-10-15 12:00 UTC)
+   ```
+
+   The same text is in `/root/iskra-claim.txt` and in the message you see when you log in.
+4. In the Iskra app (desktop, phone or [app.iskra.foo](https://app.iskra.foo)): **Join a server → Claim it**, enter the address and the code, and press **Check**. The app shows the server's name and key; **Join as owner** makes you its owner.
+
+**What the droplet runs.** Ubuntu 24.04 LTS with the Iskra server in `/opt/iskra` as the `iskra` user and the systemd service shown [below](#on-a-linux-vps-with-systemd), HTTPS for `<ip-with-dashes>.sslip.io`, [automatic updates](#updating) and daily backups on, security updates for Ubuntu (unattended-upgrades) on, and ufw letting in only `22/tcp`, `80/tcp`, `443/tcp`, `7881/tcp` and `7882/udp`. The image holds no keys: on first boot each droplet writes its own `server.json` (`/var/lib/cloud/scripts/per-instance/10-iskra-world`, log in `/var/log/iskra-setup.log`), and the server makes its keys and certificate itself.
+
+**The claim code.** The server makes it on its first start (`"OwnerClaim": "generate"` in `server.json`): 16 letters and digits (80 random bits), shown only on the console and kept in `owner-claim-code.txt` (owner-only). It works **once**, for **24 hours**. The app never sends the code anywhere: it derives a key from it and checks the server's proof, exactly like [Rent a small server](#rent-a-small-server) does with its owner key. Once you've joined, the code and the setting are gone and the console goes back to normal. If the code expired first, restart the server (DigitalOcean: **Power → Power cycle**, or `systemctl restart iskra` on the console) and a fresh one appears. Making a code is written to the security log; the code itself never is.
+
+**Changing things later.** Your own domain: point it at the droplet and set `Https.Domain` (and `PublicUrl`) in `/opt/iskra/world/server.json`, then `systemctl restart iskra`. Cancelling works as above: destroy the droplet.
 
 ### On a Linux VPS with systemd
 
@@ -470,7 +496,7 @@ iskra-server import-discord my-server export.zip              # add --read-only 
   "PublicUrl": null,                   // how friends reach the server; default http://localhost:<Port>, or https://<Domain>
   "AppUrl": "https://app.iskra.foo",   // the web app invite links open
   "Template": null,                    // starter template applied once to a new server: "gaming", "friends", "tabletop", "empty" or a .json path
-  "OwnerClaim": null,                  // one-time owner key from "Rent a small server"; moved out of this file on first start
+  "OwnerClaim": null,                  // one-time owner key from "Rent a small server" (moved out of this file on first start), or "generate" for a claim code (DigitalOcean Marketplace)
   "MaxUploadMb": 512,                  // largest file a member may upload (also in the app: Server settings → Limits)
   "UploadQuota": {                     // per account, over any 24 hours; 0 = no limit (admins and the owner have none)
     "MemberMbPerDay": 10240,           // members and trusted
@@ -550,7 +576,8 @@ iskra-server import-discord my-server export.zip              # add --read-only 
 | `vapid.json` | The server's push-notification key. Keep it with the folder: if it's lost, a new one is made and members turn notifications on again. |
 | `certs/` | HTTPS certificates and the Let's Encrypt account (when HTTPS is on, or open to the internet) |
 | `owner-invite.txt` | The one-time owner link, until the owner has joined |
-| `owner-claim` | The one-time owner key from "Rent a small server", until the owner has joined |
+| `owner-claim` | The one-time owner key from "Rent a small server" or a claim code, until the owner has joined |
+| `owner-claim-code.txt` | The claim code and when it expires (DigitalOcean Marketplace), until the owner has joined |
 | `p2p.key`, `p2p.port` | The key friends' invites carry for "Connect without port forwarding" (owner-only), and the port of the tunnel's listener on 127.0.0.1 (written at each start) |
 | `backups/` | Daily backups (`auto-YYYY-MM-DD.zip`, not encrypted) and, briefly, a backup being downloaded |
 | `moved.json` | The signed "this server moved" notice, after **Move this server** |

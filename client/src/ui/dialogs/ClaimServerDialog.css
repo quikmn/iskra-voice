@@ -1,0 +1,16 @@
+/* Claim a server */
+.claim-server .claim-code-input {
+  font-family: var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.claim-server .claim-code-input::placeholder {
+  text-transform: none;
+}
+
+.claim-server form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}

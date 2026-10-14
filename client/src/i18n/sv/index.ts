@@ -40,6 +40,7 @@ import { rental } from './rental'
 import { bugReport } from './bugReport'
 import { afk } from './afk'
 import { whatsNew } from './whatsNew'
+import { claim } from './claim'
 
 export const sv: Messages = {
   common,
@@ -82,4 +83,5 @@ export const sv: Messages = {
   bugReport,
   afk,
   whatsNew,
+  claim,
 }

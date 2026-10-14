@@ -52,7 +52,8 @@ public class UpdateTests
         Assert.Equal("osx-arm64", UpdatePicker.Rid(OSPlatform.OSX, Architecture.Arm64));
         Assert.Equal("osx-x64", UpdatePicker.Rid(OSPlatform.OSX, Architecture.X64));
         Assert.Equal("win-x64", UpdatePicker.Rid(OSPlatform.Windows, Architecture.X64));
-        Assert.Null(UpdatePicker.Rid(OSPlatform.Linux, Architecture.Arm64)); // not published
+        Assert.Equal("linux-arm64", UpdatePicker.Rid(OSPlatform.Linux, Architecture.Arm64)); // Raspberry Pi and other ARM boxes
+        Assert.Null(UpdatePicker.Rid(OSPlatform.Linux, Architecture.Arm)); // 32-bit: not published
         Assert.Equal("iskra-server-2.0.0-linux-x64.tar.gz", UpdatePicker.PackageName("2.0.0", "linux-x64"));
         Assert.Equal("iskra-server-2.0.0-osx-arm64.tar.gz", UpdatePicker.PackageName("2.0.0", "osx-arm64"));
         Assert.Equal("iskra-server-2.0.0-win-x64.zip", UpdatePicker.PackageName("2.0.0", "win-x64"));

@@ -1639,6 +1639,7 @@ SecurityEvent { "id": 12, "at": 1760000000000, "event": "auth.failed", "account"
 | `retention.update` | the owner | `{ from, to }` (Retention below) |
 | `data.export` | whose data | `{ by }` when the owner exported someone else's |
 | `security.log.export` | the owner | |
+| `owner.claim.created` | none | `{ expiresAt, renewed }`: a server image made its [claim code](#owner-claim-rented-servers) (never the code itself) |
 | `captions.model.download`, `captions.model.rejected` | none | `{ model, bytes }`: the server fetched the [captions model](#live-captions-model) / `{ model, file, reason: "hash" }`: what upstream sent wasn't the pinned file, so nothing was kept |
 
 - Never in it: message text, invite codes, passphrases, secrets of any kind.
@@ -2084,6 +2085,30 @@ members get it: the app asks for a short-lived link over its session, then downl
   (`Access-Control-Allow-Origin: *`, `Cache-Control: no-store`). `404` once there's an owner or no claim, `400` for a bad nonce.
 - The app checks `proof` with its own `C` and a fresh nonce before trusting `key` (no trust on first use), then joins
   with the invite `(https://<server>, key, code)`, the usual owner invite. Joining as owner deletes `owner-claim`.
+- The endpoint is limited per client address (IPv6: per /64): a burst of 30 requests, then one every 2 seconds; past
+  that `429` with `Retry-After`.
+
+**Generated claim codes (server images).** A server made from an image (the DigitalOcean Marketplace droplet) has no
+app to make `C`, so its `server.json` says `"OwnerClaim": "generate"` and the server makes a claim code itself, for
+whoever can open the machine's console (proof of owning the cloud account):
+
+- The code is 16 characters from Crockford's base32 alphabet `0123456789ABCDEFGHJKMNPQRSTVWXYZ` (80 random bits),
+  shown as `XXXX-XXXX-XXXX-XXXX`. Typed codes are normalized: upper case, spaces and `-` removed, `O` → `0`, `I`/`L` → `1`;
+  anything else that isn't 16 alphabet characters is not a code.
+- `C = SHA-256("iskra-claim-code-v1
+" + normalized code)`. From there everything is as above: `owner-claim`, the proof
+  endpoint, and the owner invite derived from `C`. The app derives `C` from the typed code; the code itself never goes
+  over the network.
+- The server writes `owner-claim` as `C` and, on the next line, when it expires (ms), and `owner-claim-code.txt`
+  (`code=…`, `expires=<UTC ISO time>`, `address=<public URL>`; owner-only like `server.key`) for the console screen.
+  The owner invite expires with it.
+- **Single use, 24 hours.** Joining as owner deletes both files and sets `OwnerClaim` back to null. After 24 hours the
+  endpoint answers `404` and the invite no longer works; the setting stays `"generate"`, so the next start of the
+  server makes a fresh code (revoking any other unused owner invite). A start within the 24 hours keeps the code. A
+  server that already has an owner drops the setting and makes nothing.
+- The security log records `owner.claim.created` (`{ expiresAt, renewed }`), never the code. Guessing is pointless:
+  80 bits online (each guess is a full signed handshake, logged as `auth.failed`), and offline against a proof
+  (`HMAC-SHA-256` keyed by `C`) within the code's 24 hours is far out of reach too.
 
 ## Profile sync
 

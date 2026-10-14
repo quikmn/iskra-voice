@@ -1,0 +1,26 @@
+// Claim a server: become the owner of a server made from an image (DigitalOcean Marketplace) with its claim code.
+export const claim = {
+  title: 'Claim a server',
+  entry: 'Made a server on DigitalOcean or your own machine and it shows a claim code? <a>Claim it</a>.',
+  intro: 'A new Iskra server made from the DigitalOcean Marketplace shows its address and a claim code on its console (DigitalOcean: your droplet → Console). Enter both here to become its owner.',
+  address: 'Server address',
+  addressPlaceholder: 'https://203-0-113-7.sslip.io',
+  addressHint: 'As shown on the console. An IP address works too.',
+  badAddress: "That doesn't look like a server address. Use the https:// address from the console.",
+  code: 'Claim code',
+  codePlaceholder: 'XXXX-XXXX-XXXX-XXXX',
+  codeHint: "16 letters and digits. Capitals, spaces and dashes don't matter.",
+  badCode: 'A claim code has 16 letters and digits, like 7KQ2-ZM8P-X4TD-9HRA.',
+  check: 'Check',
+  checking: 'Checking the server…',
+  found: 'This is your server. Join it as its owner?',
+  join: 'Join as owner',
+  back: 'Change',
+  errors: {
+    unreachable: "The server didn't answer. Check the address, and give a brand-new server a few minutes to start and get its certificate.",
+    noClaim: "This server isn't waiting for a claim: it already has an owner, or its code expired after 24 hours. To get a new code, restart the server (on the console: sudo systemctl restart iskra) and look again.",
+    wrongCode: "That code doesn't match this server. Check each letter against the console.",
+    busy: 'Too many tries from here. Wait a minute and try again.',
+  },
+  note: "The code stays on this device: the app only checks the server's proof that it holds the same code. It works once, for 24 hours.",
+} as const

@@ -25,6 +25,7 @@ public static class UpdatePicker
     public static string? Rid(OSPlatform os, Architecture arch) => (os, arch) switch
     {
         _ when os == OSPlatform.Linux && arch == Architecture.X64 => "linux-x64",
+        _ when os == OSPlatform.Linux && arch == Architecture.Arm64 => "linux-arm64",
         _ when os == OSPlatform.OSX && arch == Architecture.Arm64 => "osx-arm64",
         _ when os == OSPlatform.OSX && arch == Architecture.X64 => "osx-x64",
         _ when os == OSPlatform.Windows && arch == Architecture.X64 => "win-x64",

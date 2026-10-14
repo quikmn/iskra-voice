@@ -1,0 +1,7 @@
+[Unit]
+Description=Iskra claim screen (address and claim code on the console)
+After=iskra.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/iskra-claim-screen

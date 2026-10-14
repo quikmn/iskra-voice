@@ -39,6 +39,7 @@ import { rental } from './rental'
 import { bugReport } from './bugReport'
 import { afk } from './afk'
 import { whatsNew } from './whatsNew'
+import { claim } from './claim'
 
 export const en = {
   common,
@@ -81,4 +82,5 @@ export const en = {
   bugReport,
   afk,
   whatsNew,
+  claim,
 } as const

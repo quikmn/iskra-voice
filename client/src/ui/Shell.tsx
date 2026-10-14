@@ -6,6 +6,7 @@ import { ChannelSidebar } from './ChannelSidebar'
 import { ChatArea } from './chat/ChatArea'
 import { JoinDialog, useOpenJoinRequests } from './dialogs/JoinDialog'
 import { CreateServerDialog } from './dialogs/CreateServerDialog'
+import { ClaimServerDialog } from './dialogs/ClaimServerDialog'
 import { StartServerDialog } from './dialogs/StartServerDialog'
 import { desktop } from '../platform/desktop'
 import { MemberList } from './MemberList'
@@ -47,6 +48,7 @@ export function Shell() {
   const [joining, setJoining] = useState(false)
   useOpenJoinRequests(useCallback(() => setJoining(true), []))
   const [creating, setCreating] = useState(false)
+  const [claiming, setClaiming] = useState(false)
   const stage = useVoice((s) => s.stageOpen && s.session?.serverKey === server?.key && !s.session?.call && !s.session?.group)
   const stageChannel = useVoice((s) => s.session?.channelId)
   const isStageChannel = !!server?.channels.some((c) => c.id === stageChannel && c.kind === 'stage')
@@ -110,8 +112,9 @@ export function Shell() {
       <RulesLayer />
       <ProductivityLayer />
       <ClipLayer />
-      {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} />}
-      {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} />)}
+      {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} onClaim={() => { setJoining(false); setClaiming(true) }} />}
+      {claiming && <ClaimServerDialog onClose={() => setClaiming(false)} />}
+      {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} onClaim={() => { setCreating(false); setClaiming(true) }} />)}
     </div>
   )
 }
