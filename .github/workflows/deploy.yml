@@ -71,7 +71,7 @@ jobs:
         run: |
           out="$RUNNER_TEMP/site"
           mkdir -p "$out"
-          cp site/*.html site/*.css site/worker.js site/.assetsignore "$out/"
+          cp site/*.html site/*.css site/*.svg site/*.ico site/*.png site/worker.js site/.assetsignore "$out/"
           cp -r site/fonts site/.well-known "$out/"
           ls -la "$out"
           cd "$out"
