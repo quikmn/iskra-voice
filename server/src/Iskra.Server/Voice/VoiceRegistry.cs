@@ -6,8 +6,9 @@ using Iskra.Server.Storage;
 
 namespace Iskra.Server.Voice;
 
-/// <summary><see cref="Clips"/>: they have clips (saving the last seconds of the call) turned on, shown to everyone in the call.</summary>
-public sealed record VoiceMember(string AccountKey, bool Muted, bool Deafened, long JoinedAt, bool Clips = false);
+/// <summary><see cref="Clips"/>: they have clips (saving the last seconds of the call) turned on, shown to everyone in the call.
+/// <see cref="Priority"/>: a priority speaker talking with priority on (others are turned down for listeners).</summary>
+public sealed record VoiceMember(string AccountKey, bool Muted, bool Deafened, long JoinedAt, bool Clips = false, bool Priority = false);
 
 /// <summary>
 /// Who is in which voice channel. Joins and leaves come only from LiveKit's signed webhooks
@@ -31,8 +32,10 @@ public sealed class VoiceRegistry
         this.log = log;
         Stages = new StageRegistry(world, hub, backend, this);
         Watch = new WatchRegistry(world, hub, this, time);
+        Whisper = new WhisperRegistry(world, hub, backend, this, time);
         backend.AvailabilityChanged += available =>
         {
+            if (!available) Whisper.Clear();
             if (!available) _rooms.Clear(); // LiveKit restarted: everyone was dropped
             if (!available) _afkForced.Clear();
             if (!available) Stages.SyncAll(); // ...and every stage ended
@@ -48,6 +51,35 @@ public sealed class VoiceRegistry
 
     /// <summary>Watch parties: a shared play/pause/position clock per voice channel.</summary>
     public WatchRegistry Watch { get; }
+
+    /// <summary>Whispers: talking only to chosen people or another voice channel, each in its own LiveKit room.</summary>
+    public WhisperRegistry Whisper { get; }
+
+    /// <summary>Priority on or off for someone in voice (the caller checked the permission). False if they aren't in voice.</summary>
+    public bool SetPriority(string accountKey, bool on)
+    {
+        if (ChannelOfMember(accountKey) is not { } channelId || !_rooms.TryGetValue(channelId, out var room) || !room.TryGetValue(accountKey, out var current)) return false;
+        if (current.Priority == on) return true;
+        room[accountKey] = current with { Priority = on };
+        Publish(channelId);
+        return true;
+    }
+
+    /// <summary>After role changes: priority goes off for anyone who is no longer a priority speaker.</summary>
+    private void SyncPriority()
+    {
+        foreach (var (channelId, room) in _rooms)
+        {
+            var changed = false;
+            foreach (var (key, m) in room)
+            {
+                if (!m.Priority || world.Store.GetMember(key) is { } member && Permissions.Has(member, Perm.PrioritySpeaker)) continue;
+                room[key] = m with { Priority = false };
+                changed = true;
+            }
+            if (changed) Publish(channelId);
+        }
+    }
     /// <summary>Members a moderator muted on this server (kept until unmuted; a restart forgets them).</summary>
     private readonly ConcurrentDictionary<string, byte> _serverMuted = new();
 
@@ -165,6 +197,7 @@ public sealed class VoiceRegistry
         {
             accountKey = m.AccountKey, muted = m.Muted, deafened = m.Deafened, serverMuted = _serverMuted.ContainsKey(m.AccountKey), clips = m.Clips,
             afk = _afkForced.ContainsKey(m.AccountKey),
+            priority = m.Priority && !m.Muted && !_serverMuted.ContainsKey(m.AccountKey) && !_afkForced.ContainsKey(m.AccountKey),
         }),
     };
 
@@ -226,8 +259,10 @@ public sealed class VoiceRegistry
             }
         }
         SyncAfk();
+        SyncPriority();
         Stages.SyncAll();
         Watch.SyncAll();
+        Whisper.Sync();
     }
 
     /// <summary>After a timeout: out of every voice channel and call on this server.</summary>
@@ -248,6 +283,7 @@ public sealed class VoiceRegistry
         if (channel is not null) hub.BroadcastToReaders(channel, Frames.Event("voice.state", PublicState(channelId)));
         Stages.Sync(channelId);
         Watch.Sync(channelId);
+        Whisper.Sync();
     }
 
     /// <summary>Handles a verified LiveKit webhook body.</summary>
@@ -264,6 +300,11 @@ public sealed class VoiceRegistry
         if (GroupCallRegistry.IsRoom(room))
         {
             GroupCalls.HandleWebhook(type, room!, identity);
+            return;
+        }
+        if (WhisperRegistry.IsRoom(room))
+        {
+            Whisper.HandleWebhook(type, room!, identity);
             return;
         }
         if (ChannelOf(room) is not { } channelId) return;

@@ -8,7 +8,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits, [restarts](#restarts-and-reconnecting)) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
-- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel)
+- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
@@ -1061,7 +1061,7 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 - `hoist`: shown as its own group in the member list. Name colour: the highest role with a colour. Both are client-side choices.
 - `Member` gains `roles: [roleId]` (highest first); members can hold several. `Channel` gains `overrides: [{ roleId, allow: [ChannelPerm], deny: [ChannelPerm] }]`.
 
-**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`, `manageAutoMod` ([AutoMod](#automod) settings). Clients offer a "Moderator" preset with all of them. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
+**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`, `manageAutoMod` ([AutoMod](#automod) settings), `prioritySpeaker` ([priority speaker](#whisper-and-priority-speakers)). Clients offer a "Moderator" preset with all of them. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
 
 **Hierarchy**: the owner, then admins, then members with custom roles by their highest role's position, then trusted, member, guest. Kicking, banning, timing out, deleting someone's message, managing someone's roles, muting and moving work only on people strictly below you. Members holding the same highest role are equal.
 
@@ -2719,7 +2719,8 @@ BaseRole { "id": "trusted", "color": "#5b9bd5" | null,
            "adjustable": { "abilities": [...], "permissions": [...] } }                 // what may be changed for it
 ```
 
-Abilities and the lowest role that has them **by default**: `invite` (invite guests and members), `events` (member);
+Abilities and the lowest role that has them **by default**: `invite` (invite guests and members), `events`, `whisper`
+([whisper](#whisper-and-priority-speakers)) (member);
 `pin`, `mentionEveryone`, `uploadSounds` (soundboard) (trusted); `giveBaseRoles` (`member.setRole`, invites and bot
 invites into roles below your own), `bots` (bot invites, voice bots, built-in bots), `organize` (categories, the
 default notification level), `rules`, `stickers`, `gifs`, `stageModerators`, `forumTags`, `profilePages`,
@@ -2730,7 +2731,7 @@ permission and ability.
 
 | type | body | result | who |
 |---|---|---|---|
-| `role.base.update` | `role` (a built-in role); any of `color` (`#rrggbb`; `""` clears), `abilities` (the whole set, ≤ 17 names), `permissions` (the whole set, ≤ 13 names), `reset: true` (back to the default powers; not with `abilities`/`permissions`) | `{ baseRole: BaseRole }` | `manageRoles`. Colour: the owner may change any, everyone else only `trusted`, `member` and `guest` (`forbidden`, key `rank_base_roles`). Powers: see below. Rate limited (30, then 2 a second) |
+| `role.base.update` | `role` (a built-in role); any of `color` (`#rrggbb`; `""` clears), `abilities` (the whole set, ≤ 18 names), `permissions` (the whole set, ≤ 14 names), `reset: true` (back to the default powers; not with `abilities`/`permissions`) | `{ baseRole: BaseRole }` | `manageRoles`. Colour: the owner may change any, everyone else only `trusted`, `member` and `guest` (`forbidden`, key `rank_base_roles`). Powers: see below. Rate limited (30, then 2 a second) |
 
 Safety rules for powers, all checked on the server before anything changes:
 
@@ -2741,7 +2742,7 @@ Safety rules for powers, all checked on the server before anything changes:
   and `guest`; only the owner changes `admin`.
 - Only powers you have yourself, to give or to take (`forbidden`, key `base_power_not_yours`), so nobody lifts a role
   past their own.
-- `guest` and `member` only get everyday powers: `invite`, `events`, `pin`, `mentionEveryone`, `uploadSounds` and the
+- `guest` and `member` only get everyday powers: `invite`, `events`, `whisper`, `pin`, `mentionEveryone`, `uploadSounds` and the
   permission `mentionEveryone` (`bad_request`, key `base_power_not_allowed`, args `{ role }`). `trusted` and `admin` may
   get any ability but the owner's and any permission.
 - Unknown names → `bad_request`.
@@ -2912,3 +2913,73 @@ make the same changes (built-in role powers included).
   and settings still at their defaults. It never deletes, renames or changes existing channels, roles, members or
   messages. Without `--apply` it only prints what it would add. It refuses while the server runs (its port answers on
   localhost). Security log `server.template.merge`.
+
+## Whisper and priority speakers
+
+**Whisper** (as in TeamSpeak): while you hold a whisper key, your voice goes only to the people on one of your whisper
+lists, or to everyone in another voice channel ("whisper to channel"), instead of to your own channel. Apps keep up to
+three lists, each with its own key; the lists are kept on the device.
+
+Each whisper is its **own LiveKit room** (`whisper-<id>`, `id` 16 random base64url characters), so routing is enforced
+by LiveKit, not by volume in the apps: the whisperer's token may publish one microphone track there and never
+subscribe; listeners' tokens may only subscribe; and the server hands listener tokens only to the people the whisper
+reaches right now. Both tokens are valid for joining for 5 minutes. LiveKit's signed webhooks report who joins a whisper
+room, and anyone the whisper doesn't reach at that moment (an old token, someone who dropped out) is removed at once.
+
+| type | body | result | who |
+|---|---|---|---|
+| `whisper.start` | `slot` (1–3, the list), and either `targets` (1–25 account keys, ≤ 64 chars each) or `channelId` (a voice channel) | `{ id, url, token, room, reached: [accountKey] }` | see below. Rate limited (10, then 2 a second) |
+| `whisper.join` | `id` (≤ 32 chars) | `{ url, token, room }` (listen-only) | someone the whisper reaches now (else `not_found`). Rate limited (20, then 4 a second) |
+| `whisper.stop` | `id` | | the whisperer (else `not_found`) |
+| `voice.priority` | `on` (bool) | | turning on: a priority speaker in voice who can talk there. Rate limited (20, then 4 a second) |
+
+**Who may whisper** (checked on every `whisper.start`, and again after every change in voice, roles, mutes or blocks:
+a whisperer who no longer qualifies has the room closed, `whisper.ended` to everyone in it):
+
+- the `whisper` ability ([built-in roles](#built-in-roles); on for members and up by default, adjustable, guests can
+  be given it). Bots never whisper. Otherwise `forbidden`, key `whisper_not_allowed`.
+- in a voice channel right now, per LiveKit's webhooks (`bad_request`, key `whisper_not_in_voice`). Not on a stage
+  (`bad_request`, key `whisper_stage`): stages keep their speaker rules. Not in an
+  [encrypted](#end-to-end-encrypted-channels) voice channel (`bad_request`, key `whisper_e2ee`): whisper audio isn't
+  end-to-end encrypted, so it's off there rather than quietly weaker.
+- not server-muted and not forced quiet by the [AFK channel](#afk-channel) (`forbidden`, key `whisper_muted`).
+- to a channel: one you can see (else `not_found`), a `voice` channel (a stage: key `whisper_stage`; other kinds:
+  key `whisper_voice_only`; encrypted: key `whisper_e2ee`), where you may speak (`speak`: the channel's `writeRole` and
+  overrides; else `forbidden`, key `whisper_channel`). So "only leads can whisper to Leads" is the Leads channel's
+  speak permission.
+- `targets` empty after leaving yourself out: `bad_request`, key `whisper_no_targets`. Both or neither of `targets` and
+  `channelId`: `bad_request`.
+
+**Who a whisper reaches**, worked out again after every change: the targets (or everyone in the target channel) who are
+in a `voice` channel on this server that the whisperer can see, except the whisperer, bots, people the AFK channel
+deafens, and anyone either of the two has [blocked](#blocking). Nobody hears more than 8 whispers at once (further
+ones skip them). Someone joining the target channel, or a listed person joining voice, is reached from then on;
+someone who leaves, moves where the whisperer can't see, or blocks is removed from the room.
+
+- One whisper per list: `whisper.start` again with the same targets freshens it (same `id` and room, `reached` worked
+  out again, a new token); other targets on that list close the old one first. Apps call it on every key press.
+- A whisper nobody started again for 10 minutes is closed. Apps stop theirs after 30 s without whispering, and keep
+  the room up until then so the next press is instant.
+- While whispering, apps stop sending to their own channel and publish the same processed microphone (noise
+  suppression, the same settings) into the whisper room. The soundboard isn't part of a whisper (sounds play to the
+  channel, as always).
+- Whisper rooms are kept in memory only; LiveKit going down ends them all.
+
+| event | body | sent to |
+|---|---|---|
+| `whisper.incoming` | `{ id, from, channelId }` (`channelId`: the target channel, or null for a list) | each person the whisper now reaches. Their app joins with `whisper.join` and shows "X is whispering to you" while X's track there is live |
+| `whisper.ended` | `{ id }` | listeners who are no longer reached, everyone when it closes, and the whisperer when the server closed it |
+| `whisper.reach` | `{ id, reached }` | the whisperer, when who it reaches changes |
+
+**Priority speaker**: the permission `prioritySpeaker` ([roles](#roles-and-permissions); admins have it by default,
+the starter templates' Moderator roles too, and any custom role or `trusted` can be given it). While a priority
+speaker holds their priority key (or always, if they choose that), their app sends `voice.priority { on: true }`, and
+`voice.state` participants show `priority: true` (never while they're muted, server-muted or forced quiet by the AFK
+channel). Listeners' apps turn everyone else down while a participant with `priority` is speaking (by 12 dB unless the
+listener picked another amount) and show a badge. That part is on each device; the server only says who has priority.
+
+- `voice.priority { on: true }`: without the permission `forbidden`, key `priority_not_allowed`; not in voice
+  `bad_request`, key `priority_not_in_voice`; where you can't talk (no `speak`, a stage audience, server-muted, the AFK
+  channel) `forbidden`, key `priority_cant_talk`. `on: false` always works. Losing the permission turns it off.
+- `voice.join` answers gain `whisper` (you may whisper from this channel) and `priority` (you're a priority speaker),
+  for what the app offers; every use is checked again.

@@ -9,6 +9,7 @@ public enum BaseAbility
     Pin, MentionEveryone, UploadSounds,
     GiveBaseRoles, Bots, Organize, Rules, Stickers, Gifs, StageModerators, ForumTags, ProfilePages, ResolveDisputes,
     RunServer, TransferOwnership,
+    Whisper,
 }
 
 /// <summary>
@@ -25,6 +26,7 @@ public static class BaseRoles
     [
         (BaseAbility.Invite, "invite", Roles.Member),                 // invite friends as guests or members
         (BaseAbility.Events, "events", Roles.Member),                 // schedule events
+        (BaseAbility.Whisper, "whisper", Roles.Member),               // whisper to people or a voice channel (WhisperFeature)
         (BaseAbility.Pin, "pin", Roles.Trusted),                      // pin messages where they can post
         (BaseAbility.MentionEveryone, "mentionEveryone", Roles.Trusted),
         (BaseAbility.UploadSounds, "uploadSounds", Roles.Trusted),    // add soundboard sounds
@@ -47,7 +49,7 @@ public static class BaseRoles
 
     /// <summary>What guests and members can be given: everyday things, nothing that acts on other people.</summary>
     public static readonly BaseAbility[] Everyday =
-        [BaseAbility.Invite, BaseAbility.Events, BaseAbility.Pin, BaseAbility.MentionEveryone, BaseAbility.UploadSounds];
+        [BaseAbility.Invite, BaseAbility.Events, BaseAbility.Pin, BaseAbility.MentionEveryone, BaseAbility.UploadSounds, BaseAbility.Whisper];
     public const Perm EverydayPerms = Perm.MentionEveryone;
 
     public static readonly Perm AllPerms = Enum.GetValues<Perm>().Aggregate(Perm.None, (all, p) => all | p);

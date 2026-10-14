@@ -81,6 +81,7 @@ public static class ModerationFeature
             foreach (var other in s.Hub.Sessions.Where(o => o.AccountKey == me.AccountKey && o != s)) other.Send(frame);
             // Calls with someone you just blocked end (they can't ring you again either).
             foreach (var key in newlyBlocked) s.Voice.Calls.EndWhere(c => c.Involves(me.AccountKey) && c.Involves(key));
+            if (newlyBlocked.Count > 0) s.Voice.Whisper.Sync(); // ...and so do whispers between you
         }
         return new { blocks = list.Select(PublicBlock) };
     }
