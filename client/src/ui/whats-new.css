@@ -1,0 +1,34 @@
+/* ── "What's new" card, once after an update ───────────────────────── */
+.whats-new {
+  position: fixed; right: 16px; bottom: calc(84px + var(--safe-bottom)); z-index: var(--z-toast); /* like the update toast */
+  display: flex; flex-direction: column; gap: 10px;
+  width: min(400px, calc(100vw - 32px)); max-height: calc(100dvh - 120px - var(--safe-bottom)); overflow-y: auto;
+  padding: 14px 10px 14px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 1.2);
+  box-shadow: var(--shadow-pop);
+  animation: whats-new-in 0.25s ease-out;
+}
+.whats-new-head { display: flex; align-items: center; gap: 10px; }
+.whats-new-mark {
+  flex: none; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+  color: var(--on-accent); background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+.whats-new h2 { flex: 1; min-width: 0; margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; }
+.whats-new-lines { margin: 0; padding: 0 6px 0 20px; font-size: 13.5px; line-height: 1.4; color: var(--text-2); }
+.whats-new-lines li + li { margin-top: 6px; }
+.whats-new-lines li::marker { color: var(--accent); }
+.whats-new-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding-right: 4px; }
+.whats-new-link { font-size: 13px; }
+.whats-new .button { padding: 7px 14px; }
+@keyframes whats-new-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .whats-new { animation: none; }
+}
+@media (max-width: 760px) {
+  .whats-new { right: 16px; left: 16px; width: auto; bottom: calc(76px + var(--safe-bottom)); }
+}

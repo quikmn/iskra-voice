@@ -38,6 +38,7 @@ import { builtinBots } from './builtinBots'
 import { rental } from './rental'
 import { bugReport } from './bugReport'
 import { afk } from './afk'
+import { whatsNew } from './whatsNew'
 
 export const en = {
   common,
@@ -79,4 +80,5 @@ export const en = {
   rental,
   bugReport,
   afk,
+  whatsNew,
 } as const
