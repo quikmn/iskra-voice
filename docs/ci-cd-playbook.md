@@ -291,7 +291,7 @@ Play's SHA-256 from Setup → App signing to `assetlinks.json` and redeploy the 
 | `Host key verification failed` | Stop. The droplet's host key changed; the human must check it |
 | `STOP [phones]` | The release is out. Read which part: `TestFlight build failed` → the mobile-ios.yml rows below; `Google Play upload failed` → ci-cd.md troubleshooting (Play rows). Fixed by the human (or a flake): `-Resume` once |
 | `note: the Google Play upload is skipped` | Fine (no Play key yet). Mention it in the report |
-| `App Store Connect stopped: …` in mobile-ios.yml | Report the line. `couldn't process build` / `no external TestFlight group` / `already approved` / `REVIEW_INVITE_URL`: the human (ci-cd.md troubleshooting) |
+| `App Store Connect stopped: …` in mobile-ios.yml | Report the line. `couldn't process build` / `no external TestFlight group` / `already approved` / `REVIEW_INVITE_URL` (unset or revoked: a one-time never-expiring invite, docs/store/README.md): the human (ci-cd.md troubleshooting) |
 | mobile-ios.yml: `Cloud signing permission error`, `No profiles for 'foo.iskra.app'`, `No Account for Team`, `agreement` | Stop. The human must fix the Apple side (ci-cd.md, "iOS app" and troubleshooting) |
 | mobile-ios.yml archive fails on signing | Rerun once with `-f archive_signing=automatic`. Fails again: stop and report |
 | mobile-ios.yml upload: `bundle version` / `redundant binary` | `gh run rerun <id>` once (the build number rises with the attempt) |

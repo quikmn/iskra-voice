@@ -193,7 +193,7 @@ Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "cre
           "poll": Poll | null,                                          // Polls
           "webhook": WebhookInfo | null,                                // Webhooks
           "cards": [Card] | null }                                      // Bot commands and cards
-Invite  { "code": "<b64u 16>", "role": "member", "createdBy": "<accountKey>", "createdAt": 0, "expiresAt": 0, "maxUses": null, "uses": 0 }
+Invite  { "code": "<b64u 16>", "role": "member", "createdBy": "<accountKey>", "createdAt": 0, "expiresAt": 0 | null, "maxUses": null, "uses": 0 }
 ```
 
 Roles, lowest to highest: `guest < member < trusted < admin < owner`.
@@ -217,9 +217,11 @@ Roles, lowest to highest: `guest < member < trusted < admin < owner`.
 | `member.ban` | `accountKey, reason?` | | same as above |
 | `member.unban` | `accountKey` | | admin+ |
 | `member.bans` | | `{ bans }` | admin+ |
-| `invite.create` | `role? (default member), maxUses? (1–1000), expiresInMs? (1 min – 30 days, default 7 days)` | `{ invite }` | member+ for guest/member invites; higher roles need the right to grant them |
+| `invite.create` | `role? (default member), maxUses? (1–1000), expiresInMs? (1 min – 30 days, default 7 days), neverExpires? (true: no expiry, can't be combined with expiresInMs)` | `{ invite }` | member+ for guest/member invites; higher roles need the right to grant them; `neverExpires` admin+ (`forbidden`, key `invite_never`) |
 | `invite.list` | | `{ invites }` | admins see all, others their own |
 | `invite.revoke` | `code` | | the creator or admin+ |
+
+An invite with `expiresAt: null` never expires (Discord's "Never"): it works until it's revoked or its `maxUses` run out. Only admins and owners can create one, and `invite.list` shows it like any other. Invite links carry no expiry, so the link format doesn't change. A server from before `neverExpires` ignores the field and returns a 7-day invite; clients show the `expiresAt` they got back, not the option they asked for.
 
 Writing in a channel requires being able to read it (`writeRole` ≥ `readRole`). `chat.history` with `around` is described under [Jumping to a message](#jumping-to-a-message).
 

@@ -140,6 +140,7 @@ export const errors: Messages['errors'] = {
     post_tags: 'Du kan inte ändra taggarna på det här inlägget.',
     docs_start_page: 'Du kan inte välja sidan Börja här.',
     invite_role: 'Du kan inte skapa inbjudningar för den rollen.',
+    invite_never: 'Bara administratörer kan skapa inbjudningar som aldrig går ut.',
     clip_notice_delete: 'Du kan inte ta bort meddelandet om att du sparade ett klipp.',
     not_to_moderator: 'Du kan inte göra så mot en annan moderator.',
     docs_edit: 'Du kan inte redigera sidor i den här kanalen.',

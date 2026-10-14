@@ -287,7 +287,7 @@ looks first, so reruns don't submit twice. The run summary names the build and w
 | Also used by the store step | Where | Notes |
 |---|---|---|
 | `APPSTORE_REVIEW_PHONE` (secret, optional) | The review contact's phone | Apple requires a phone for App Review; set once with `gh secret set APPSTORE_REVIEW_PHONE` |
-| `REVIEW_INVITE_URL` (variable) | An invite to the review server (Iskra Review, chat.iskra.foo:8443) for the review notes | **Expires after 30 days at most**: renew it (refresh calendar). Phase B refuses to submit without it |
+| `REVIEW_INVITE_URL` (variable) | A never-expiring member invite to the review server (Iskra Review, chat.iskra.foo:8443) for the review notes | One-time setup (docs/store/README.md): **Invite friends → Expires after: Never**. Nothing to renew; only if it's revoked, make a new one and set the variable again. Phase B refuses to submit without it |
 
 ### Cloudflare
 
@@ -436,7 +436,6 @@ many of them (branch protection, review) are owner settings too. Click-by-click 
 | When | What | Do |
 |---|---|---|
 | Every Windows release | SimplySign session | Log in with the phone code before `release-windows.ps1` |
-| Every 30 days | `REVIEW_INVITE_URL` (review server invite for App Review) | New 30-day invite on Iskra Review (chat.iskra.foo:8443), then `gh variable set REVIEW_INVITE_URL --body "<link>"` |
 | Weekly (Mondays) | Dependabot PRs, CodeQL, Scorecard and secret scans | Merge green Dependabot PRs; look at new code-scanning alerts (Security tab: CodeQL and Scorecard) and secret-scanning alerts |
 | Continuous | Droplet OS updates | Automatic (unattended-upgrades); reboot now and then (`ssh … reboot` with the admin key) when `/var/run/reboot-required` exists |
 | Every ~60 days, automatic | chat.iskra.foo HTTPS certificate | The server renews it itself; port 80 must stay open |
@@ -514,7 +513,7 @@ run CI as pull requests only.
 | App Store Connect: "no external TestFlight group with the public link …" | The group or its public link was removed or renamed: fix `ios.externalGroups` in mobile/store.json |
 | App Store Connect: "already approved or on sale" | The App Store version (numeric part of the app version) is taken: the next release needs a higher version |
 | App Store Connect warns "age rating not set through the API" | Apple renamed a questionnaire field: answer once from docs/store/appstore/age-rating.md, update age-rating.json |
-| Beta App Review / App Review rejected for access | `REVIEW_INVITE_URL` expired (30 days): new invite, `gh variable set REVIEW_INVITE_URL`, rerun |
+| Beta App Review / App Review rejected for access | `REVIEW_INVITE_URL` doesn't work: was it revoked, or made with an expiry (an old 30-day invite)? Open Invite friends on Iskra Review, check **Active invites**, make a **Never** invite, `gh variable set REVIEW_INVITE_URL`, rerun |
 | Universal Links open Safari instead of the app | `curl -sI https://app.iskra.foo/.well-known/apple-app-site-association` must be 200 `application/json` with no redirect; Apple's CDN caches it (up to a day): reinstall the app later |
 
 **Undoing a release:** don't delete or move the tag. Fix forward with the next version. To pull a broken release

@@ -111,4 +111,94 @@ public class InviteTests
         Assert.Equal("bad_request", (await member.RequestAsync("invite.create", new { expiresInMs = 999L * 24 * 3600 * 1000 })).ErrorCode());
         Assert.Equal("bad_request", (await member.RequestAsync("invite.create", new { maxUses = 0 })).ErrorCode());
     }
+
+    private static async Task<string> NeverExpiringInvite(User client, object? extra = null)
+    {
+        var reply = await client.RequestAsync("invite.create", extra ?? new { neverExpires = true });
+        var invite = reply.Body().GetProperty("invite");
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, invite.GetProperty("expiresAt").ValueKind);
+        return invite.GetProperty("code").GetString()!;
+    }
+
+    [Fact]
+    public async Task Only_admins_and_owners_can_make_invites_that_never_expire()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var trusted = await server.JoinAsync("Trusted", "trusted");
+        using var member = await server.JoinAsync("Member");
+
+        await NeverExpiringInvite(owner);
+        await NeverExpiringInvite(admin);
+        foreach (var someone in new[] { trusted, member })
+        {
+            var reply = await someone.RequestAsync("invite.create", new { neverExpires = true });
+            Assert.Equal("forbidden", reply.ErrorCode());
+            Assert.Equal("invite_never", reply.Body().GetProperty("key").GetString());
+        }
+        // Either a lifetime or never, not both; and it's a real boolean.
+        Assert.Equal("bad_request", (await admin.RequestAsync("invite.create", new { neverExpires = true, expiresInMs = 3_600_000 })).ErrorCode());
+        Assert.Equal("bad_request", (await admin.RequestAsync("invite.create", new { neverExpires = "yes" })).ErrorCode());
+    }
+
+    [Fact]
+    public async Task A_never_expiring_invite_keeps_working_until_its_uses_run_out()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var code = await NeverExpiringInvite(admin, new { neverExpires = true, maxUses = 2 });
+
+        var listed = (await admin.RequestAsync("invite.list")).Body().GetProperty("invites").EnumerateArray().Single(i => i.GetProperty("code").GetString() == code);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, listed.GetProperty("expiresAt").ValueKind);
+        Assert.Equal(2, listed.GetProperty("maxUses").GetInt32());
+
+        // Years from now it still works (the link itself carries no expiry).
+        var later = DateTimeOffset.UtcNow.AddYears(10).ToUnixTimeMilliseconds();
+        Assert.Equal("member", server.World.Store.TryUseInvite(code, later));
+        using (var friend = new TestIdentity())
+        using (var client = await server.ConnectAsync())
+            Assert.Equal("welcome", (await client.LoginAsync(friend, "Friend", code)).Type());
+        await AssertJoinRejected(server, code); // both uses taken
+    }
+
+    [Fact]
+    public async Task Never_expiring_invites_can_be_revoked_by_their_creator_or_an_admin()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var member = await server.JoinAsync("Member");
+
+        var byOwner = await NeverExpiringInvite(owner);
+        var byAdmin = await NeverExpiringInvite(admin);
+
+        Assert.Equal("forbidden", (await member.RequestAsync("invite.revoke", new { code = byAdmin })).ErrorCode());
+        Assert.Equal("result", (await admin.RequestAsync("invite.revoke", new { code = byOwner })).Type());
+        Assert.Equal("result", (await admin.RequestAsync("invite.revoke", new { code = byAdmin })).Type());
+
+        var codes = (await owner.RequestAsync("invite.list")).Body().GetProperty("invites").EnumerateArray().Select(i => i.GetProperty("code").GetString()).ToList();
+        Assert.DoesNotContain(byOwner, codes);
+        Assert.DoesNotContain(byAdmin, codes);
+        await AssertJoinRejected(server, byOwner);
+        await AssertJoinRejected(server, byAdmin);
+    }
+
+    [Fact]
+    public async Task Clients_that_dont_ask_for_never_still_get_the_usual_lifetimes()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var before = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        foreach (var body in new object[] { new { }, new { neverExpires = false }, new { neverExpires = (bool?)null } })
+        {
+            var invite = (await admin.RequestAsync("invite.create", body)).Body().GetProperty("invite");
+            var lifetime = invite.GetProperty("expiresAt").GetInt64() - invite.GetProperty("createdAt").GetInt64();
+            Assert.Equal((long)InviteFeature.DefaultLifetime.TotalMilliseconds, lifetime);
+            Assert.True(invite.GetProperty("createdAt").GetInt64() >= before);
+        }
+        var day = (await admin.RequestAsync("invite.create", new { expiresInMs = 86_400_000, neverExpires = false })).Body().GetProperty("invite");
+        Assert.Equal(86_400_000, day.GetProperty("expiresAt").GetInt64() - day.GetProperty("createdAt").GetInt64());
+    }
 }

@@ -66,8 +66,8 @@ In order; each item once. Details in [../README.md](../README.md#phase-a--phase-
        settled, France.
 3. [ ] Business → **EU trader status** declared (address, phone, email verified by Apple), or the app stays out of the EU.
 4. [ ] App Information: category **Social Networking**, content rights answered.
-5. [ ] `gh secret set APPSTORE_REVIEW_PHONE` and `gh variable set REVIEW_INVITE_URL` (a fresh 30-day invite to the review
-       server; renew it every 30 days).
+5. [ ] `gh secret set APPSTORE_REVIEW_PHONE` and `gh variable set REVIEW_INVITE_URL` (a member invite to the review
+       server that never expires; set once, see [../README.md](../README.md)).
 6. [ ] Flip `mobile/store.json` to `"mode": "appstore"` in a commit (with Play's flip if it's ready too).
 7. [ ] The next release submits the version. If the run warns about the age rating, answer it from
        [age-rating.md](age-rating.md) and rerun the iOS workflow's failed job (or `release-all.ps1 <version> -Resume`).

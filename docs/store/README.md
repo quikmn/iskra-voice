@@ -46,9 +46,12 @@ The `APPSTORE_*` secrets (Admin key) already build and upload. Also:
    Another external group: add `{ "name": "<group>" }` to `ios.externalGroups` in mobile/store.json.
 2. **Review contact phone** (Apple requires one for Beta App Review and App Review):
    `gh secret set APPSTORE_REVIEW_PHONE` and type it (e.g. `+46 70 123 45 67`). It never goes into the repo.
-3. **Review invite:** on the review server (`https://chat.iskra.foo:8443`) create an invite (role Member, no use
-   limit, 30 days) and `gh variable set REVIEW_INVITE_URL --body "<invite link>"`. **Renew it every 30 days** (invites
-   last at most 30 days); without it the review notes say to write to spark@iskra.foo, and phase B refuses to submit.
+3. **Review invite (once):** on the review server (`https://chat.iskra.foo:8443`), as its owner, open **Invite
+   friends**, set **Expires after** to **Never** (admins and owners only), leave **Single use** off, copy the link and
+   `gh variable set REVIEW_INVITE_URL --body "<invite link>"`. It never expires, so there is nothing to renew; it shows
+   as **Never expires** under **Active invites** in the same dialog, where it can be revoked (then make a new one and
+   set the variable again). Use the same link in Play's app access instructions. Without the variable the review notes
+   say to write to spark@iskra.foo, and phase B refuses to submit.
 
 ### CI results in a channel (optional)
 

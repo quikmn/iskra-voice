@@ -34,10 +34,18 @@ public static class InviteFeature
         if (!canInvite || s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("You can't create invites for that role.", "invite_role");
 
         var maxUses = (int?)body.OptionalLong("maxUses", min: 1, max: 1000);
-        var lifetimeMs = body.OptionalLong("expiresInMs", min: 60_000, max: (long)MaxLifetime.TotalMilliseconds)
-            ?? (long)DefaultLifetime.TotalMilliseconds;
+        var lifetimeMs = body.OptionalLong("expiresInMs", min: 60_000, max: (long)MaxLifetime.TotalMilliseconds);
+        long? expiresAt;
+        if (body.OptionalBool("neverExpires") == true)
+        {
+            // A standing link (say, for app reviewers): admins only, and it can still be revoked any time.
+            if (lifetimeMs is not null) throw RequestException.BadRequest("Use either 'expiresInMs' or 'neverExpires'.");
+            if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can create invites that never expire.", "invite_never");
+            expiresAt = null;
+        }
+        else expiresAt = s.Now + (lifetimeMs ?? (long)DefaultLifetime.TotalMilliseconds);
 
-        var invite = s.World.Store.CreateInvite(NewCode(), me.AccountKey, role, s.Now, s.Now + lifetimeMs, maxUses);
+        var invite = s.World.Store.CreateInvite(NewCode(), me.AccountKey, role, s.Now, expiresAt, maxUses);
         Audit.Record(s, "invite.create", details: new { role, maxUses, expiresAt = invite.ExpiresAt });
         return new { invite = PublicInvite(invite) };
     }

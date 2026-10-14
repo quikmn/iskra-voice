@@ -147,7 +147,7 @@ export interface Requests {
   'member.setRole': [{ accountKey: string; role: Role }, { member: Member }]
   'member.kick': [{ accountKey: string }, Record<string, never>]
   'member.ban': [{ accountKey: string; reason?: string }, Record<string, never>]
-  'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number }, { invite: Invite }]
+  'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
   'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean; canHear?: boolean; afk?: boolean }]

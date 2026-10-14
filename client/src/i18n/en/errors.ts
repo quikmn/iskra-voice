@@ -142,6 +142,7 @@ export const errors = {
     post_tags: "You can't change this post's tags.",
     docs_start_page: "You can't choose the Start here page.",
     invite_role: "You can't create invites for that role.",
+    invite_never: 'Only admins can create invites that never expire.',
     clip_notice_delete: "You can't delete the notice that you saved a clip.",
     not_to_moderator: "You can't do that to another moderator.",
     docs_edit: "You can't edit pages in this channel.",

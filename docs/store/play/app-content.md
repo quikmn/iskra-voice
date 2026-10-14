@@ -35,11 +35,11 @@ recommendation but are the owner's call.
 
 ### App access: instructions for reviewers
 
-Phones can't host a server, so a reviewer needs an invite to one. The review server exists since 2026-10-13: **Iskra Review** at `https://chat.iskra.foo:8443` on the droplet (docs/ci-cd.md). Before each review, create a fresh member invite there. How it was made: a review server (a server the
-owner runs, e.g. chat.iskra.foo, or a separate "Iskra Review" server open to the internet) with a sample text channel
-and voice channel, then create an invite link with **Server settings → Invite friends**, role Member, no use limit,
-the longest expiry (30 days). Invites expire after at most 30 days, so renew the link in the console before every
-review (or keep a calendar reminder).
+Phones can't host a server, so a reviewer needs an invite to one. The review server exists since 2026-10-13: **Iskra Review** at `https://chat.iskra.foo:8443` on the droplet (docs/ci-cd.md). The link is the same one as the
+repository variable `REVIEW_INVITE_URL`: a member invite made once by the owner with **Invite friends**, **Expires
+after: Never**, no use limit (see [../README.md](../README.md)). It keeps working until it's revoked in the same
+dialog's **Active invites** list, so paste it here once; only if it's ever revoked does it need a new link here and in
+the variable.
 
 Paste into "Add instructions" (name: `Review server`):
 
