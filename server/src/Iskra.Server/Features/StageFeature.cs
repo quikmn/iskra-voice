@@ -177,7 +177,7 @@ public static class StageFeature
     {
         var channel = StageChannel(s, me, body);
         var on = body.OptionalBool("on") ?? throw RequestException.BadRequest("'on' is required.");
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can choose stage moderators.", "admins_stage_mods");
+        if (!BaseRoles.Allows(me, BaseAbility.StageModerators)) throw RequestException.Forbidden("Only admins can choose stage moderators.", "admins_stage_mods");
         var key = body.String("accountKey", 64);
         if (on)
         {

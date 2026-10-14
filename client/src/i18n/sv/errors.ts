@@ -124,6 +124,8 @@ export const errors: Messages['errors'] = {
     stage_listen_only: 'Du kan bara lyssna på den här scenen.',
     rank_members: 'Du kan bara hantera medlemmar som står under dig.',
     rank_manage_roles: 'Du kan bara hantera roller under din egen högsta roll.',
+    rank_base_roles: 'Du kan bara ändra inbyggda roller under din egen.',
+    role_name_builtin: 'Det namnet tillhör en inbyggd roll.',
     rank_move_roles: 'Du kan bara flytta roller under din egen högsta roll.',
     rank_pages: 'Du kan bara ta bort sidor för medlemmar som står under dig.',
     post_tags: 'Du kan inte ändra taggarna på det här inlägget.',

@@ -259,6 +259,7 @@ public static class Cli
                 categories = t.Template.Categories.Select(c => new { name = c.Name, channels = c.Channels.Select(ChannelView) }),
                 channels = t.Template.Channels.Select(ChannelView),
                 roles = t.Template.Roles.Select(r => r.Name),
+                builtinRoles = t.Template.BuiltinRoles.ToDictionary(b => b.Key, b => new { color = b.Value.Color }),
                 rules = t.Template.Rules is not null,
             }), new JsonSerializerOptions(JsonSerializerDefaults.Web)));
             return 0;
@@ -273,6 +274,8 @@ public static class Cli
                 foreach (var c in category.Channels) Console.WriteLine($"      {Describe(c)}");
             }
             if (template.Roles.Length > 0) Console.WriteLine($"    Roles: {string.Join(", ", template.Roles.Select(r => r.Name))}");
+            if (template.BuiltinRoles.Count > 0)
+                Console.WriteLine($"    Built-in roles: {string.Join(", ", template.BuiltinRoles.Select(b => $"{b.Key} {b.Value.Color ?? "no colour"}"))}");
             if (template.Rules is not null) Console.WriteLine("    Rules: yes");
         }
         if (which is null) Console.WriteLine("Use one for a new server: iskra-server <world-folder> --template <name>, or \"Template\": \"<name>\" in server.json.");

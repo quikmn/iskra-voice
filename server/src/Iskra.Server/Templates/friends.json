@@ -23,6 +23,10 @@
   "roles": [
     { "name": "Moderator", "color": "#3fa66b", "hoist": true, "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] }
   ],
+  "builtinRoles": {
+    "owner": { "color": "#c27ce0" },
+    "admin": { "color": "#e5534b" }
+  },
   "rules": {
     "text": "1. Be kind. We're all friends here.\n2. Ask before sharing someone else's photos.\n3. Keep it legal and keep it fun.",
     "welcome": "Welcome! Pull up a chair in #general."

@@ -46,7 +46,7 @@ public static class Permissions
 
     /// <summary>You can hand out levels strictly below your own (admins up to trusted, the owner up to admin).</summary>
     public static bool CanGrant(Member actor, string role) =>
-        IsAdmin(actor) && Roles.Rank(role) < Roles.Rank(actor.Role);
+        BaseRoles.Allows(actor, BaseAbility.GiveBaseRoles) && Roles.Rank(role) < Roles.Rank(actor.Role);
 
     /// <summary>
     /// What the member may do in a channel: the read/write levels give the base (read: view and connect; write: send and speak),
@@ -92,7 +92,7 @@ public static class Permissions
 
     /// <summary>Pinning is a shared, channel-wide action: writers who are trusted+ or can manage messages.</summary>
     public static bool CanPin(Member member, Channel channel) =>
-        CanSend(member, channel) && (Roles.Rank(member.Role) >= Roles.Rank(Roles.Trusted) || Has(member, Perm.ManageMessages));
+        CanSend(member, channel) && (BaseRoles.Allows(member, BaseAbility.Pin) || Has(member, Perm.ManageMessages));
 
     /// <summary>Renaming or deleting a thread: whoever started it, or someone who can manage messages and outranks them.</summary>
     public static bool CanManageThread(Member actor, string creatorKey, Member? creator) =>
@@ -102,7 +102,7 @@ public static class Permissions
     public static bool CanModerateForum(Member member, Channel forum) => CanPin(member, forum);
 
     /// <summary>Scheduling events: members and above (not guests).</summary>
-    public static bool CanCreateEvent(Member member) => Roles.Rank(member.Role) >= Roles.Rank(Roles.Member);
+    public static bool CanCreateEvent(Member member) => BaseRoles.Allows(member, BaseAbility.Events);
 
     /// <summary>Editing or cancelling an event: whoever created it, or someone who can manage messages and outranks them.</summary>
     public static bool CanManageEvent(Member actor, string creatorKey, Member? creator) => CanManageThread(actor, creatorKey, creator);

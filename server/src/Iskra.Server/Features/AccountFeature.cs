@@ -84,7 +84,7 @@ public static class AccountFeature
 
     private static object? Transfer(Session s, Member me, Body body)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can hand over the server.", "owner_transfer");
+        if (!BaseRoles.Allows(me, BaseAbility.TransferOwnership)) throw RequestException.Forbidden("Only the owner can hand over the server.", "owner_transfer");
         var key = body.String("accountKey", 64);
         if (key == me.AccountKey) throw RequestException.BadRequest("You already own this server.", "already_owner");
         var target = s.World.Store.GetMember(key) ?? throw RequestException.NotFound("Member");

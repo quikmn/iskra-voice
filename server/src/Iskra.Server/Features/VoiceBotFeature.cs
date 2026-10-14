@@ -34,7 +34,7 @@ public static class VoiceBotFeature
 
     private static object Set(Session s, Member me, Body body)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can let a bot join voice.", "admins_bot_voice");
+        if (!BaseRoles.Allows(me, BaseAbility.Bots)) throw RequestException.Forbidden("Only admins can let a bot join voice.", "admins_bot_voice");
         var key = body.String("accountKey", 64);
         var bot = s.World.Store.GetMember(key);
         if (bot is null || !s.World.Store.IsBot(key)) throw RequestException.NotFound("Bot");

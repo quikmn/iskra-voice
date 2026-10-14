@@ -37,7 +37,7 @@ public static class SoundboardFeature
 
     public static List<object> List(Store store) => store.AllSounds().Select(x => Public(x, store.GetFile(x.FileId))).ToList();
 
-    private static bool CanUpload(Member me) => Roles.Rank(me.Role) >= Roles.Rank(Roles.Trusted) || Permissions.Has(me, Perm.ManageExpressions);
+    private static bool CanUpload(Member me) => BaseRoles.Allows(me, BaseAbility.UploadSounds) || Permissions.Has(me, Perm.ManageExpressions);
 
     private static bool CanManage(Member me, Sound sound) => sound.CreatedBy == me.AccountKey || Permissions.Has(me, Perm.ManageExpressions);
 

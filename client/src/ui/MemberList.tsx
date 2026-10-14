@@ -11,6 +11,7 @@ import { STATUS_LABELS } from '../state/presenceRules'
 import { CustomStatusLine } from './presence/Presence'
 import { TimeoutBadge } from './moderation/Moderation'
 import { useServerRoles } from '../state/roles'
+import { useServerBaseRoles } from '../state/baseRoles'
 import { hoistedRole, nameColor, rolesOf } from '../state/permissions'
 import { userMenuProps } from './people/userMenuProps'
 import { useReadableColor } from '../theme/useReadable'
@@ -19,13 +20,14 @@ export function MemberList({ server }: { server: ServerState }) {
   const { t } = useTranslation()
   const roleTitle = (role: Role) => t(`app.members.roleTitles.${role}`)
   const roles = useServerRoles(server.key)
+  const baseRoles = useServerBaseRoles(server.key)
   const members = Object.values(server.members).sort((a, b) => a.name.localeCompare(b.name))
   const online = members.filter((m) => m.online)
   const offline = members.filter((m) => !m.online)
   // Online people with a hoisted role are grouped under their highest one; the rest by level.
   const hoisted = new Map(online.map((m) => [m.accountKey, hoistedRole(m, roles)]))
   const row = (m: Member) => (
-    <MemberRow key={m.accountKey} serverKey={server.key} member={m} color={nameColor(m, roles)} icon={rolesOf(m, roles).find((r) => r.icon)?.icon ?? null}
+    <MemberRow key={m.accountKey} serverKey={server.key} member={m} color={nameColor(m, roles, baseRoles)} icon={rolesOf(m, roles).find((r) => r.icon)?.icon ?? null}
       onClick={(e) => openProfileCard(server.key, m.accountKey, e.currentTarget)} />
   )
 

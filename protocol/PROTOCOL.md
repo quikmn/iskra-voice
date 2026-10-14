@@ -13,7 +13,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
-- **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
+- **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Built-in roles](#built-in-roles) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
 - **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server) · [Passkeys and key transparency](#passkeys-and-key-transparency)
 
 ---
@@ -1064,7 +1064,7 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 
 | type | body | result | who |
 |---|---|---|---|
-| `role.list` | | `{ roles: [Role] }` (highest first) | anyone |
+| `role.list` | | `{ roles: [Role], baseRoles: [BaseRole] }` (highest first; [built-in roles](#built-in-roles)) | anyone |
 | `role.create` | `name` (1–32), `color?` (`#rrggbb`), `icon?` (one emoji, ≤ 16 chars), `hoist?`, `permissions?` | `{ role }` | `manageRoles`; ≤ 100 roles |
 | `role.update` | `id` and any of the above (`""` clears `color`/`icon`) | `{ role }` | `manageRoles`, the role below your highest |
 | `role.delete` | `id` | | same (takes it off everyone and removes its overrides) |
@@ -1075,7 +1075,7 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 | `voice.move` | `accountKey, channelId` (a voice channel you can see and they can join) | | `moveMembers`, same |
 
 - Only permissions you have yourself can be added to a role (admins: any). A permission the role already had can stay.
-- Event `roles` `{ roles }` to everyone after any role change. Membership and override changes send `member.updated`, a fresh `channels` list to everyone, and take people out of voice rooms they can no longer join.
+- Event `roles` `{ roles, baseRoles }` to everyone after any role change (custom or [built-in](#built-in-roles)). Membership and override changes send `member.updated`, a fresh `channels` list to everyone, and take people out of voice rooms they can no longer join.
 
 **Channel overrides** (`ChannelPerm`: `view`, `send`, `connect`, `speak`). The levels give the base: `readRole` grants view and connect, `writeRole` send and speak. Then, over all of the member's roles, denies are removed and allows added (an allow from any role wins over a deny). Without `view` nothing else applies, and `speak` needs `connect`. Threads follow their channel. This decides everything about a channel: the channel list, history, events and broadcasts, search, pushes, voice tokens (`canSpeak`, `voice.join` → `forbidden` without connect) and the LiveKit webhook check.
 
@@ -2650,3 +2650,37 @@ tighter grants; the audio itself goes from the bot straight to LiveKit, as for p
   (`{ channelId, channelName }`).
 - Apps show bots in voice like everyone, with the bot badge. Muting a bot for yourself is the usual per-person volume
   (on your device only); server mute and disconnect are the usual moderation.
+
+## Built-in roles
+
+The levels (`owner`, `admin`, `trusted`, `member`, `guest`) are the **built-in roles**: every server has them, every member
+holds exactly one, and channels' `readRole`/`writeRole` pick from them. Apps list them above custom roles, under the same
+names the channel "Who can" pickers use. What they can do is **fixed** and comes from one table on the server
+(`Sessions/BaseRoles.cs`), which the server's own checks use; `role.list` and the `roles` event send it, so the list never
+drifts from what's enforced. Only their colour can be changed.
+
+```jsonc
+BaseRole { "id": "trusted", "color": "#5b9bd5" | null,
+           "abilities": ["invite", "events", "pin", "mentionEveryone", "uploadSounds"],   // its own and those below it
+           "permissions": [] }                                                          // admin and owner: every permission
+```
+
+Abilities and the lowest role that has them: `invite` (invite guests and members), `events` (member); `pin`,
+`mentionEveryone`, `uploadSounds` (soundboard) (trusted); `giveBaseRoles` (`member.setRole`, invites and bot invites
+into roles below your own), `bots` (bot invites, voice bots, built-in bots), `organize` (categories), `rules`,
+`stickers`, `gifs`, `stageModerators`, `forumTags`, `profilePages`, `resolveDisputes` (admin); `runServer` (limits,
+updates, backups, moves, imports, security settings, connections, internet hosting) and `transferOwnership` (owner).
+Custom roles never grant these; they grant the [permissions](#roles-and-permissions), which admins and the owner
+always have.
+
+| type | body | result | who |
+|---|---|---|---|
+| `role.base.update` | `role` (a built-in role), `color` (`#rrggbb`; `""` clears) | `{ baseRole: BaseRole }` | `manageRoles`; the owner may change any, everyone else only `trusted`, `member` and `guest` (`forbidden`, key `rank_base_roles`). Rate limited (10, then 1 a second) |
+
+- Name colour (client-side): an owner's or admin's built-in colour comes first, then the highest custom role with a
+  colour, then the built-in colour of `trusted`, `member` or `guest`, following the [hierarchy](#roles-and-permissions).
+- Safety: built-in roles can't be created, renamed, deleted or reordered, and their powers can't be changed, so the
+  owner always has everything and there is always someone who can manage roles. Custom roles can't take a built-in
+  role's name (or `everyone`): `role.create`/`role.update` → `bad_request`, key `role_name_builtin`.
+- Starter templates set the colours with `builtinRoles` (`{ "admin": { "color": "#e5534b" } }`; see
+  docs/hosting.md). Stored in `base_role_styles` (migration `builtinroles-1`). Audit `role.base` `{ role, from, to }`.

@@ -41,7 +41,7 @@ public static class GifFeature
 
     private static object? Configure(Session s, Member me, Body body)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can set up GIFs.", "admins_gifs");
+        if (!BaseRoles.Allows(me, BaseAbility.Gifs)) throw RequestException.Forbidden("Only admins can set up GIFs.", "admins_gifs");
         var key = body.OptionalString("key", 256)?.Trim();
         var mode = body.OptionalString("mode", 16);
         if (key is null && mode is null) throw RequestException.BadRequest("Send 'key' (\"\" turns GIFs off) and/or 'mode'.");

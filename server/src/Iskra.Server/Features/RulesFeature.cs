@@ -75,7 +75,7 @@ public static class RulesFeature
 
     private static object Update(Session s, Member me, Body body)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can change the server rules.", "admins_rules");
+        if (!BaseRoles.Allows(me, BaseAbility.Rules)) throw RequestException.Forbidden("Only admins can change the server rules.", "admins_rules");
         var store = s.World.Store;
         var old = store.Rules();
         var text = Field(body, "text", MaxTextLength, old?.Text ?? "");

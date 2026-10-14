@@ -42,7 +42,7 @@ public static class ImportFeature
 
     private static void RequireOwner(Member me)
     {
-        if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can import.", "owner_import");
+        if (!BaseRoles.Allows(me, BaseAbility.RunServer)) throw RequestException.Forbidden("Only the owner can import.", "owner_import");
     }
 
     private static object Begin(ImportService imports, Member me, Body body)
