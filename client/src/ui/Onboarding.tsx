@@ -65,9 +65,12 @@ export function Onboarding() {
     )
   }
 
+  // The server's own name; its address only if it doesn't answer (never the address first, then the name).
   const invitedLine = pendingInvite && (serverName
     ? <Trans i18nKey="app.onboarding.invitedTo" values={{ server: serverName }} components={{ b: <strong /> }} />
-    : <Trans i18nKey="app.onboarding.invited" values={{ host: hostOf(pendingInvite.serverUrl) }} components={{ b: <strong /> }} />)
+    : serverName === undefined
+      ? t('app.onboarding.invitedAsking')
+      : <Trans i18nKey="app.onboarding.invited" values={{ host: hostOf(pendingInvite.serverUrl) }} components={{ b: <strong /> }} />)
 
   const invited = pendingInvite && (
     <>
@@ -87,17 +90,18 @@ export function Onboarding() {
           {invited || <p className="lead">{t('account.welcome.lead')}</p>}
           {!accepted && <TermsAgreement agreed={agreed} onChange={setAgreed} />}
           <p className="onboarding-question">{t('account.welcome.question')}</p>
+          {/* Right above the greyed-out choices, so it shows on a phone too. */}
+          {!accepted && !agreed && <p className="terms-hint" id="terms-hint">{t('safety.terms.tickFirst')}</p>}
           <div className="choice-list equal">
-            <button type="button" className="choice" disabled={!accepted && !agreed} onClick={pick('new')}>
+            <button type="button" className="choice" disabled={!accepted && !agreed} aria-describedby={!accepted && !agreed ? 'terms-hint' : undefined} onClick={pick('new')}>
               <strong>{t('account.welcome.new')}</strong>
               <span className="muted">{t('account.welcome.newHint')}</span>
             </button>
-            <button type="button" className="choice" disabled={!accepted && !agreed} onClick={pick('existing')}>
+            <button type="button" className="choice" disabled={!accepted && !agreed} aria-describedby={!accepted && !agreed ? 'terms-hint' : undefined} onClick={pick('existing')}>
               <strong>{t('account.welcome.existing')}</strong>
               <span className="muted">{t('account.welcome.existingHint')}</span>
             </button>
           </div>
-          {!accepted && !agreed && <p className="onboarding-note muted terms-hint">{t('safety.terms.tickFirst')}</p>}
           {pendingInvite && <p className="onboarding-note muted">{t('account.welcome.invitedTwice')}</p>}
         </div>
       </div>

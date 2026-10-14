@@ -129,6 +129,7 @@ export const app = {
     useRecoveryKeyHint: 'The ISKRA-… key you saved.',
     imNew: "I'm new here",
     invited: "You've been invited to a server at <b>{{host}}</b>.",
+    invitedAsking: "You've been invited to a server.",
     invitedTo: "You've been invited to <b>{{server}}</b>.",
     pickNameInvited: "Pick a name and you're in.",
     intro: 'Voice and text chat with your friends, on servers you own. Pick a name to get started.',

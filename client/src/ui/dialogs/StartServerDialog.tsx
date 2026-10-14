@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { desktopOs, isPhoneOrTablet, LINKS, type DesktopOs } from '../../links'
 import { Modal } from '../bits'
+import { RentServerDialog } from './RentServerDialog'
+
+const SITE_DOWNLOADS = 'https://iskra.foo/#download'
 
 const OS_NAME: Record<Exclude<DesktopOs, 'other'>, string> = { windows: 'Windows', mac: 'Mac', linux: 'Linux' }
 
@@ -54,14 +57,55 @@ function DesktopDownload({ os }: { os: DesktopOs }) {
   )
 }
 
+/** On a phone: the app goes on a computer (send yourself the link), or rent a small server from here. */
+function PhoneStart() {
+  const { t } = useTranslation()
+  const [copied, setCopied] = useState(false)
+  const [renting, setRenting] = useState(false)
+  const copy = () => {
+    void navigator.clipboard?.writeText(SITE_DOWNLOADS).then(() => setCopied(true), () => undefined)
+  }
+  return (
+    <>
+      <p className="dialog-note" role="note">{t('settings.start.needsComputer')}</p>
+      <section className="guide-option">
+        <h3>{t('settings.start.onComputer')}</h3>
+        <ol>
+          <li><Trans i18nKey="settings.start.phoneStep1" values={{ site: 'iskra.foo' }} components={{ b: <strong /> }} /></li>
+          <li><Trans i18nKey="settings.start.step2" components={{ b: <strong /> }} /></li>
+          <li><Trans i18nKey="settings.start.step3" components={{ b: <strong /> }} /></li>
+        </ol>
+        <div className="guide-actions">
+          <button type="button" className="button primary" onClick={copy}>{copied ? t('settings.start.linkCopied') : t('settings.start.copyLink')}</button>
+          <a className="button" href={LINKS.releases} target="_blank" rel="noopener noreferrer">{t('settings.start.allDownloads')}</a>
+        </div>
+      </section>
+      <section className="guide-option">
+        <h3>{t('settings.start.rentTitle')}</h3>
+        <p className="muted">{t('settings.start.rentText')}</p>
+        <div className="guide-actions">
+          <button type="button" className="button" onClick={() => setRenting(true)}>{t('hosting.cgnat.rentButton')}</button>
+        </div>
+      </section>
+      {renting && <RentServerDialog onClose={() => setRenting(false)} />}
+    </>
+  )
+}
+
 /** In the browser: how to start your own server (the desktop app can do it in one click). */
 export function StartServerDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const [os] = useState(visitorOs)
   const [phone] = useState(() => typeof navigator !== 'undefined' && isPhoneOrTablet(navigator.userAgent, navigator.platform, navigator.maxTouchPoints))
+  if (phone) {
+    return (
+      <Modal title={t('settings.start.title')} onClose={onClose}>
+        <PhoneStart />
+      </Modal>
+    )
+  }
   return (
     <Modal title={t('settings.start.title')} onClose={onClose}>
-      {phone && <p className="dialog-note" role="note">{t('settings.start.needsComputer')}</p>}
       <section className="guide-option">
         <h3>{os !== 'other' ? t('settings.start.easiestFor', { os: OS_NAME[os] }) : t('settings.start.easiest')}</h3>
         <ol>

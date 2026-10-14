@@ -50,7 +50,7 @@ export const settings = {
   room: {
     mine: 'My settings',
     title: '{{name}} · Server settings',
-    subtitle: 'Server settings · your role: {{role}}',
+    subtitle: 'Server settings · your role: <role>{{role}}</role>',
     closeHint: 'Close (Esc)',
     count: '{{n}} open',
     groups: { server: 'Server', safety: 'Members & safety', apps: 'Apps', hosting: 'Hosting & data' },
@@ -327,7 +327,13 @@ export const settings = {
   },
   start: {
     downloadFor: 'Download Iskra for {{os}}',
-    needsComputer: "A server runs on a computer that stays on, not on a phone. Open this page on the Windows, Mac or Linux computer that will host it. You can chat from your phone once it's running.",
+    needsComputer: "A server runs on a computer that stays on, not on a phone: your own Windows, Mac or Linux computer with the Iskra app, or a small rented server. You can chat from your phone once it's running.",
+    onComputer: 'On your computer: the Iskra app',
+    phoneStep1: 'On the computer, go to <b>{{site}}</b> and download Iskra.',
+    copyLink: 'Copy the download link',
+    linkCopied: 'Link copied',
+    rentTitle: 'Or rent a small server',
+    rentText: 'It runs all the time, even when your computer is off. A few euros a month, paid and owned by your group.',
     otherOs: 'The app runs on the Windows, Mac or Linux computer that will host your server.',
     allDownloads: 'All downloads',
     signed: 'Signed by Open Source Developer Viktor Lundgren. While the app is new, Windows may still ask once before running it.',

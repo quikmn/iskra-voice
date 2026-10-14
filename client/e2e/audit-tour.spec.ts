@@ -457,7 +457,7 @@ test('UX audit tour (browser)', async ({ browser }) => {
     await mead.getByRole('button', { name: 'Start a thread' }).click()
     await snap(owner, '21c-thread-create')
     await owner.getByRole('button', { name: 'Create thread' }).click()
-    const reply = owner.locator('.thread-panel').getByPlaceholder(/Reply in/)
+    const reply = owner.locator('.thread-panel').getByPlaceholder(/Reply (in|to) the/)
     await reply.fill('I will bring the flour too')
     await reply.press('Enter')
     await snap(owner, '21d-thread-panel')

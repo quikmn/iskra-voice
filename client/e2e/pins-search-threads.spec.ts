@@ -43,7 +43,7 @@ test('pin a message, talk in a thread, and search for it', async ({ browser }) =
   const panel = friend.locator('.thread-panel')
   await expect(panel.getByRole('heading', { name: 'Baking plans' })).toBeVisible()
   await expect(panel.locator('.thread-root')).toContainText('banana bread')
-  const reply = panel.getByPlaceholder('Reply in Baking plans')
+  const reply = panel.getByPlaceholder('Reply in the thread')
   await reply.fill('I will bring the flour')
   await reply.press('Enter')
   await expect(panel.locator('.message', { hasText: 'bring the flour' })).toBeVisible()

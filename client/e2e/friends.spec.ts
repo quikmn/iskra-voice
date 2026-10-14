@@ -118,7 +118,14 @@ test('on a phone, starting a server says it needs a computer', async ({ browser 
   const guide = page.getByRole('dialog', { name: 'Start your own server' })
   await expect(guide.getByRole('note')).toContainText('A server runs on a computer')
   await expect(guide.getByRole('link', { name: /^Download Iskra for/ })).toHaveCount(0)
+  // No Windows or server downloads on a phone: the app goes on a computer, or rent a server from here.
+  await expect(guide.getByRole('link', { name: /Windows|Linux|\.deb/ })).toHaveCount(0)
+  await expect(guide.getByRole('heading', { name: 'On your computer: the Iskra app' })).toBeVisible()
+  await expect(guide.getByRole('button', { name: 'Copy the download link' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   await expect(guide).toBeInViewport()
+  await page.waitForTimeout(350) // let the dialog finish appearing
   await page.screenshot({ path: join(SHOTS, 'start-server-phone.png') })
+  await guide.getByRole('button', { name: 'Rent a small server' }).click()
+  await expect(page.getByRole('dialog', { name: 'Rent a small server' })).toBeVisible()
 })

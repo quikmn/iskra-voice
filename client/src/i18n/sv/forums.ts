@@ -72,8 +72,8 @@ export const forums: Messages['forums'] = {
   },
   bar: {
     tags: 'Taggar',
-    unpin: 'Lossa inlägget',
-    pin: 'Fäst inlägget',
+    unpin: 'Lossa från toppen',
+    pin: 'Fäst överst',
     reopen: 'Öppna inlägget igen',
     close: 'Stäng inlägget',
     unlock: 'Lås upp',

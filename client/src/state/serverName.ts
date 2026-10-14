@@ -26,8 +26,8 @@ export function fetchServerName(serverUrl: string, timeoutMs = 5000, fetchImpl: 
     .catch(() => null)
 }
 
-/** The invited server's name, once it answers (null until then, or if it doesn't). */
-export function useServerName(serverUrl: string | null | undefined): string | null {
+/** The invited server's name: undefined while asking, null if it can't be reached or has none to show. */
+export function useServerName(serverUrl: string | null | undefined): string | null | undefined {
   const [name, setName] = useState<{ url: string; name: string | null } | null>(null)
   useEffect(() => {
     if (!serverUrl) return
@@ -42,5 +42,6 @@ export function useServerName(serverUrl: string | null | undefined): string | nu
     void pending.then((n) => { if (live) setName({ url: serverUrl, name: n }) })
     return () => { live = false }
   }, [serverUrl])
-  return name && name.url === serverUrl ? name.name : null
+  if (!serverUrl) return null
+  return name && name.url === serverUrl ? name.name : undefined
 }

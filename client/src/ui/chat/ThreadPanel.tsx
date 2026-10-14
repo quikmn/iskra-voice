@@ -173,7 +173,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
           />
           <TypingLine server={server} channelId={threadId} />
           {canWrite && thread && !blocked ? (
-            <Composer server={server} channelId={threadId} channelName={thread.name} thread placeholder={t('chat.threads.replyIn', { name: short(thread.name) })} />
+            <Composer server={server} channelId={threadId} channelName={thread.name} thread placeholder={isPost ? t('chat.threads.replyPost') : t('chat.threads.replyThread')} />
           ) : (
             <div className="composer read-only">{blocked ?? (thread ? t('chat.threads.cannotReply') : <Spinner />)}</div>
           )}
@@ -182,8 +182,6 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
     </section>
   )
 }
-
-const short = (name: string) => (name.length > 28 ? `${name.slice(0, 27).trimEnd()}…` : name)
 
 /** The message the thread started from, at the top of the thread. */
 function ThreadStart({ server, root, createdBy, post }: { server: ServerState; root: Message | null | undefined; createdBy?: string; post?: boolean }) {
