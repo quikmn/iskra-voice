@@ -156,6 +156,15 @@ public sealed class FakeVoiceBackend : IVoiceBackend
         lock (Muted) Muted.Add((room, identity));
         return Task.CompletedTask;
     }
+
+    /// <summary>Publish and subscribe changes together (the AFK channel), in order.</summary>
+    public List<(string Room, string Identity, bool CanPublish, bool CanSubscribe)> FullPermissions { get; } = [];
+
+    public Task<bool> SetPermissionsAsync(string room, string identity, bool canPublish, bool canSubscribe)
+    {
+        lock (FullPermissions) FullPermissions.Add((room, identity, canPublish, canSubscribe));
+        return Task.FromResult(true);
+    }
 }
 
 public sealed record User(TestIdentity Identity, TestClient Client, JsonElement Welcome) : IDisposable

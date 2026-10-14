@@ -58,6 +58,12 @@ public class TemplateTests : IDisposable
         Assert.False(world.Store.Rules()!.Required);
         Assert.Equal("gaming", world.Store.AppliedTemplate()!.Value.Name);
         Assert.Single(world.Store.SecurityEvents("server.template", null, null, 10));
+        // The AFK channel, 30 minutes, owner and admins can talk there.
+        var afk = world.Store.Afk();
+        Assert.Equal(channels.Single(c => c.Name == "AFK").Id, afk.ChannelId);
+        Assert.Equal(30, afk.IdleMinutes);
+        Assert.Equal(["owner", "admin"], afk.TalkLevels);
+        Assert.Empty(afk.TalkRoles);
 
         // Again (a restart with the same setting): nothing changes.
         Assert.Equal(ServerTemplates.Outcome.AlreadyApplied, ServerTemplates.ApplyOnStart(world, "gaming", 2000));
@@ -122,11 +128,43 @@ public class TemplateTests : IDisposable
     [InlineData("""{ "name": "x", "rules": { "required": true } }""", "'rules.required' needs 'rules.text'")]
     [InlineData("""{ "name": "" }""", "'name' must be 1–60 characters")]
     [InlineData("""{ "name": "x", """, "isn't valid")]
+    [InlineData("""{ "name": "x", "afk": { "channel": "AFK" } }""", "'afk.channel': there's no channel called 'AFK'")]
+    [InlineData("""{ "name": "x", "channels": [ { "name": "AFK" } ], "afk": { "channel": "AFK" } }""", "'afk.channel': 'AFK' isn't a voice channel")]
+    [InlineData("""{ "name": "x", "channels": [ { "name": "AFK", "kind": "voice" }, { "name": "afk", "kind": "voice" } ], "afk": { "channel": "AFK" } }""", "more than one channel is called 'AFK'")]
+    [InlineData("""{ "name": "x", "channels": [ { "name": "AFK", "kind": "voice" } ], "afk": { "channel": "AFK", "minutes": 10 } }""", "'afk.minutes' must be 0 (never move anyone), 5, 15, 30 or 60")]
+    [InlineData("""{ "name": "x", "channels": [ { "name": "AFK", "kind": "voice" } ], "afk": { "channel": "AFK", "canTalk": ["Mods"] } }""", "'afk.canTalk': 'Mods' is neither a level")]
+    [InlineData("""{ "name": "x", "channels": [ { "name": "AFK", "kind": "voice" } ], "afk": { "channel": "AFK", "mins": 5 } }""", "unknown field at $.afk.mins")]
     public void Invalid_templates_are_rejected_with_a_clear_error(string json, string expected)
     {
         var error = Assert.Throws<TemplateException>(() => ServerTemplates.Parse(json, "test.json"));
         Assert.StartsWith("Template 'test.json'", error.Message);
         Assert.Contains(expected, error.Message);
+    }
+
+    [Fact]
+    public void A_template_sets_the_AFK_channel_with_levels_and_its_own_roles()
+    {
+        var template = ServerTemplates.Parse("""
+            {
+              "name": "Squad",
+              "categories": [ { "name": "Voice", "channels": [ { "name": "Lobby", "kind": "voice" }, { "name": "Sleeping", "kind": "voice" } ] } ],
+              "roles": [ { "name": "Raid lead" } ],
+              "afk": { "channel": "sleeping", "minutes": 5, "canTalk": ["Owner", "raid lead"] }
+            }
+            """, "squad.json");
+        Assert.Equal("Sleeping", template.Afk!.Channel);
+        Assert.Equal(["owner", "Raid lead"], template.Afk.CanTalk);
+        using var world = World.OpenOrCreate(_path);
+        ServerTemplates.Apply(world, template, "squad.json", 1000);
+        var afk = world.Store.Afk();
+        Assert.Equal(world.Store.AllChannels().Single(c => c.Name == "Sleeping").Id, afk.ChannelId);
+        Assert.Equal(5, afk.IdleMinutes);
+        Assert.Equal(["owner"], afk.TalkLevels);
+        Assert.Equal([world.Store.AllRoles().Single().Id], afk.TalkRoles);
+        // Without "afk" a template leaves it off (older templates stay valid).
+        using var plain = World.OpenOrCreate(Path.Combine(_path, "plain"));
+        ServerTemplates.Apply(plain, ServerTemplates.Parse("""{ "name": "x", "channels": [ { "name": "a", "kind": "voice" } ] }""", "x.json"), "x.json", 1000);
+        Assert.Null(plain.Store.Afk().ChannelId);
     }
 
     [Fact]

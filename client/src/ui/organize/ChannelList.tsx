@@ -28,6 +28,8 @@ import { isFull, limitLabel } from '../../state/voiceRulesLogic'
 import '../rules/rules.css'
 import './organize.css'
 import { userMenuProps } from '../people/userMenuProps'
+import { useAfkChannel } from '../../state/afk'
+import '../afk/afk.css'
 import { VoiceChatRowButton } from '../clips/VoiceChatRowButton'
 import { ClipsMark } from '../clips/ClipControls'
 import { BotBadge } from '../chat/BotBits'
@@ -301,6 +303,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
   const bypass = has(server.me, useServerRoles(server.key), 'moveMembers')
   const limit = limitLabel(participants.length, channel.userLimit)
   const full = !here && isFull(participants.length, channel.userLimit, bypass)
+  const afk = useAfkChannel(server.key) === channel.id
   return (
     <div className="voice-channel">
       <div {...rowProps}>
@@ -317,6 +320,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
           <span className="hash"><Volume size={16} /></span>
           <span className="channel-name">{channel.name}</span>
           <LockBadge channel={channel} />
+          {afk && <span className="afk-badge" title={t('afk.channelHint')}>{t('afk.badge')}</span>}
           {here && voiceSession.state !== 'connected' && <span className="pill">…</span>}
           {limit && (
             <span className={`voice-limit ${full ? 'full' : ''}`} aria-label={t(full ? 'organize.list.countFull' : 'organize.list.count', { people: participants.length, limit: channel.userLimit ?? 0 })}>{limit}</span>
@@ -344,7 +348,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
                   {member?.bot && <BotBadge />}
                   <ClipsMark on={p.clips} />
                 </button>
-                {p.serverMuted ? <span className="voice-flag server-muted" title={t('organize.list.serverMuted')}><MicOff size={14} /></span> : p.deafened ? <span className="voice-flag" title={t('organize.list.deafened')}><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title={t('organize.list.muted')}><MicOff size={14} /></span> : null}
+                {p.afk ? <span className="voice-flag server-muted" title={t('afk.participantForced')}><HeadphonesOff size={14} /></span> : p.serverMuted ? <span className="voice-flag server-muted" title={t('organize.list.serverMuted')}><MicOff size={14} /></span> : p.deafened ? <span className="voice-flag" title={t('organize.list.deafened')}><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title={t('organize.list.muted')}><MicOff size={14} /></span> : null}
               </li>
             )
           })}

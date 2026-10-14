@@ -80,6 +80,7 @@ public sealed class Router
         BotScope.Register(this);
         InteractionFeature.Register(this);
         VoiceBotFeature.Register(this);
+        AfkFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

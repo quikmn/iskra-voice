@@ -26,13 +26,13 @@ public static class LiveKitTokens
         return Sign(claims, apiSecret);
     }
 
-    /// <summary>A token to join one voice room.</summary>
-    public static string ForRoom(string apiKey, string apiSecret, string identity, string name, string room, bool canPublish, DateTimeOffset now) =>
+    /// <summary>A token to join one voice room (<paramref name="canSubscribe"/> false: hears no one, the AFK channel).</summary>
+    public static string ForRoom(string apiKey, string apiSecret, string identity, string name, string room, bool canPublish, DateTimeOffset now, bool canSubscribe = true) =>
         Create(apiKey, apiSecret, identity, name, new JsonObject
         {
             ["room"] = room,
             ["roomJoin"] = true,
-            ["canSubscribe"] = true,
+            ["canSubscribe"] = canSubscribe,
             ["canPublish"] = canPublish,
             ["canPublishData"] = canPublish,
         }, TimeSpan.FromHours(6), now);

@@ -37,6 +37,7 @@ import { hosting } from './hosting'
 import { outhooks } from './outhooks'
 import { builtinBots } from './builtinBots'
 import { rental } from './rental'
+import { afk } from './afk'
 
 export const sv: Messages = {
   common,
@@ -76,4 +77,5 @@ export const sv: Messages = {
   outhooks,
   builtinBots,
   rental,
+  afk,
 }

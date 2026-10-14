@@ -85,6 +85,8 @@ builder.Services.AddSingleton<EventScheduler>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<EventScheduler>());
 builder.Services.AddHostedService<ModerationSweeper>();
 builder.Services.AddHostedService<ProductivityScheduler>();
+builder.Services.AddSingleton<AfkSweeper>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AfkSweeper>());
 builder.Services.AddPush(world);
 builder.Services.AddSingleton<LinkRelay>();
 builder.Services.Configure<LinkSettings>(builder.Configuration.GetSection("Link"));

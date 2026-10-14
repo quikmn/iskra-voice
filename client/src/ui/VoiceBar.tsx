@@ -7,6 +7,7 @@ import { openGroup, titleOf, useGroups } from '../state/groups'
 import { clearVoiceError, leaveVoice, setStageOpen, toggleDeafen, toggleMute, useVoice } from '../state/voice'
 import { Close, Headphones, HeadphonesOff, Mic, MicOff, PhoneOff } from './icons'
 import { SoundboardButton } from './expressions/Soundboard'
+import './afk/afk.css'
 
 /** Shown above your name while you're in voice (or when joining failed). */
 export function VoiceBar() {
@@ -53,7 +54,8 @@ export function VoiceBar() {
           {session.group ? t('voice.bar.encrypted', { name: group ? titleOf(group) : t('voice.bar.group') })
             : peer ? t('voice.bar.encrypted', { name: nameOf(peer) }) : `${channel?.name ?? t('voice.bar.voice')} · ${server?.name}`}
         </button>
-        {!session.canSpeak && session.state === 'connected' && <span className="muted">{t('voice.bar.listeningOnly')}</span>}
+        {session.afk && session.state === 'connected' && <span className="afk-forced" data-testid="afk-forced">{t('afk.forced')}</span>}
+        {!session.canSpeak && !session.afk && session.state === 'connected' && <span className="muted">{t('voice.bar.listeningOnly')}</span>}
         {error && <span className="error-text">{error}</span>}
       </div>
       <div className="voice-controls">
@@ -65,9 +67,13 @@ export function VoiceBar() {
             {muted ? <MicOff /> : <Mic />}
           </button>
         )}
-        <button className={`icon-button ${deafened ? 'off' : ''}`} onClick={() => void toggleDeafen()} aria-pressed={deafened} aria-label={deafened ? t('voice.undeafen') : t('voice.deafen')} title={deafened ? t('voice.undeafen') : t('voice.deafen')}>
-          {deafened ? <HeadphonesOff /> : <Headphones />}
-        </button>
+        {session.afk ? (
+          <button className="icon-button off" disabled aria-label={t('afk.forced')} title={t('afk.forcedHint')}><HeadphonesOff /></button>
+        ) : (
+          <button className={`icon-button ${deafened ? 'off' : ''}`} onClick={() => void toggleDeafen()} aria-pressed={deafened} aria-label={deafened ? t('voice.undeafen') : t('voice.deafen')} title={deafened ? t('voice.undeafen') : t('voice.deafen')}>
+            {deafened ? <HeadphonesOff /> : <Headphones />}
+          </button>
+        )}
         <SoundboardButton variant="bar" />
         <button
           className="icon-button hang-up"

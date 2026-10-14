@@ -85,6 +85,9 @@ public sealed class Session
     /// <summary>This session reported no activity for a while (see PresenceFeature).</summary>
     public bool Idle { get; set; }
 
+    /// <summary>Since when this session's device has had no input and no speaking (voice.idle; null = active). See AfkFeature.</summary>
+    public long? VoiceIdleSince { get; set; }
+
     public World World => _world;
     public Hub Hub => _hub;
     public VoiceRegistry Voice => _voice;

@@ -24,6 +24,8 @@ public interface IVoiceBackend
     Task MuteMicrophoneAsync(string room, string identity);
     /// <summary>The same for a bot: keeps its narrower grants (audio only, never subscribing).</summary>
     Task<bool> SetBotCanPublishAsync(string room, string identity, bool canPublish) => SetCanPublishAsync(room, identity, canPublish);
+    /// <summary>Publishing and subscribing together (the AFK channel mutes and deafens through LiveKit).</summary>
+    Task<bool> SetPermissionsAsync(string room, string identity, bool canPublish, bool canSubscribe);
 }
 
 /// <summary>
@@ -337,6 +339,9 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
     public Task<bool> SetCanPublishAsync(string room, string identity, bool canPublish) =>
         // The permission replaces the old one as a whole, so subscribing is spelled out too.
         UpdatePermissionAsync(room, identity, new { canSubscribe = true, canPublish, canPublishData = canPublish });
+
+    public Task<bool> SetPermissionsAsync(string room, string identity, bool canPublish, bool canSubscribe) =>
+        UpdatePermissionAsync(room, identity, new { canSubscribe, canPublish, canPublishData = canPublish });
 
     public Task<bool> SetBotCanPublishAsync(string room, string identity, bool canPublish) =>
         UpdatePermissionAsync(room, identity, new { canSubscribe = false, canPublish, canPublishData = false, canPublishSources = new[] { "MICROPHONE" } });

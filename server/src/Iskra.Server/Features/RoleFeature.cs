@@ -305,9 +305,7 @@ public static partial class RoleFeature
         if (to.Id == from.Id) return null;
         if (!Permissions.CanConnect(target, to)) throw RequestException.Forbidden("They can't join that channel.", "they_cant_join");
 
-        s.Voice.GrantMovePass(target.AccountKey, to.Id, s.Now + VoiceLimitFeature.MovePassMs); // moving fills a full channel too
-        s.Hub.SendToAccount(target.AccountKey, Frames.Event("voice.moved", new { channelId = to.Id }));
-        s.Voice.Disconnect(target.AccountKey);
+        s.Voice.Move(target.AccountKey, to.Id, s.Now); // moving fills a full channel too
         Audit.Record(s, "voice.move", target.AccountKey, details: new { from = from.Name, to = to.Name, channelId = to.Id });
         return null;
     }

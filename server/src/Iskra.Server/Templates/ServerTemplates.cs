@@ -46,6 +46,18 @@ public sealed record TemplateRules
 }
 
 /// <summary>
+/// The AFK channel: a voice channel of the template, by name. Idle people are moved there after <see cref="Minutes"/>
+/// (0 = never), and only levels and template roles in <see cref="CanTalk"/> can talk and hear in it.
+/// </summary>
+public sealed record TemplateAfk
+{
+    public string Channel { get; init; } = "";
+    public int Minutes { get; init; } = 30;
+    /// <summary>Levels (owner, admin, trusted, member, guest) and names of the template's roles.</summary>
+    public string[] CanTalk { get; init; } = [Sessions.Roles.Owner, Sessions.Roles.Admin];
+}
+
+/// <summary>
 /// A starter template (server/src/Iskra.Server/Templates/*.json, or your own file; format in docs/hosting.md):
 /// categories with channels, uncategorized channels, custom roles and rules. Applied once, to a new server.
 /// </summary>
@@ -58,6 +70,7 @@ public sealed record ServerTemplate
     public TemplateChannel[] Channels { get; init; } = [];
     public TemplateRole[] Roles { get; init; } = [];
     public TemplateRules? Rules { get; init; }
+    public TemplateAfk? Afk { get; init; }
 }
 
 public static partial class ServerTemplates
@@ -197,7 +210,27 @@ public static partial class ServerTemplates
             rules = new TemplateRules { Text = text, Welcome = welcome, Required = given.Required };
         }
 
-        return new ServerTemplate { Name = name, Description = description, Categories = categories, Channels = channels, Roles = roles, Rules = rules };
+        var afk = t.Afk is { } wanted ? CheckAfk(wanted, channels.Concat(categories.SelectMany(c => c.Channels)).ToArray(), roles, Fail) : null;
+
+        return new ServerTemplate { Name = name, Description = description, Categories = categories, Channels = channels, Roles = roles, Rules = rules, Afk = afk };
+    }
+
+    private static TemplateAfk CheckAfk(TemplateAfk afk, TemplateChannel[] channels, TemplateRole[] roles, Func<string, string> fail)
+    {
+        var named = channels.Where(c => c.Name.Equals(afk.Channel.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (afk.Channel.Trim().Length == 0) fail("'afk.channel' must name one of the template's voice channels.");
+        if (named.Length == 0) fail($"'afk.channel': there's no channel called '{afk.Channel}'.");
+        if (named.Length > 1) fail($"'afk.channel': more than one channel is called '{afk.Channel}'.");
+        if (named[0].Kind != "voice") fail($"'afk.channel': '{named[0].Name}' isn't a voice channel.");
+        if (!AfkFeature.Minutes.Contains(afk.Minutes)) fail("'afk.minutes' must be 0 (never move anyone), 5, 15, 30 or 60.");
+        var canTalk = afk.CanTalk.Select(who =>
+        {
+            var key = who.Trim();
+            if (Sessions.Roles.IsValid(key.ToLowerInvariant())) return key.ToLowerInvariant();
+            return roles.FirstOrDefault(r => r.Name.Equals(key, StringComparison.OrdinalIgnoreCase))?.Name
+                ?? fail($"'afk.canTalk': '{who}' is neither a level (owner, admin, trusted, member, guest) nor one of the template's roles.");
+        }).Distinct().ToArray();
+        return new TemplateAfk { Channel = named[0].Name, Minutes = afk.Minutes, CanTalk = canTalk };
     }
 
     /// <summary>What happened when a template was asked for.</summary>
@@ -216,6 +249,7 @@ public static partial class ServerTemplates
 
         // The starting #general becomes the template's first text channel, so there's never an extra one.
         var starter = store.AllChannels().FirstOrDefault();
+        var voiceIds = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         long? Place(TemplateChannel c, long? categoryId)
         {
             Channel channel;
@@ -227,6 +261,7 @@ public static partial class ServerTemplates
             }
             else channel = store.CreateChannel(c.Name, c.Kind, c.ReadRole, c.WriteRole ?? c.ReadRole, now);
             if (c.UserLimit > 0) store.SetUserLimit(channel.Id, c.UserLimit);
+            if (c.Kind == "voice") voiceIds[c.Name] = channel.Id;
             store.MoveChannel(channel.Id, categoryId, beforeId: null);
             return channel.Id;
         }
@@ -238,12 +273,17 @@ public static partial class ServerTemplates
             foreach (var channel in category.Channels) Place(channel, created.Id);
         }
         // Listed highest first; each new role starts at the bottom, below the ones before it.
+        var roleIds = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         foreach (var role in template.Roles)
         {
             var perms = role.Permissions.Aggregate(Perm.None, (all, p) => all | RoleFeature.PermNames[p]);
             var created = store.CreateRole(role.Name, role.Color, role.Icon, role.Hoist, perms, now);
             if (role.Mentionable) store.UpdateRole(created with { Mentionable = true });
+            roleIds[role.Name] = created.Id;
         }
+        if (template.Afk is { } afk && voiceIds.TryGetValue(afk.Channel, out var afkId))
+            store.SaveAfk(new AfkSettings(afkId, afk.Minutes,
+                afk.CanTalk.Where(Sessions.Roles.IsValid).ToArray(), afk.CanTalk.Where(roleIds.ContainsKey).Select(n => roleIds[n]).ToArray()));
         if (template.Rules is { } rules && (rules.Text.Length > 0 || rules.Welcome.Length > 0))
             store.SaveRules(new ServerRules(rules.Text, rules.Welcome, rules.Required, rules.Required ? 1 : 0, now, ""));
 

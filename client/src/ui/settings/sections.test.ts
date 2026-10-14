@@ -3,7 +3,7 @@ import { mySections, serverSections } from './sections'
 
 const ids = (role: Parameters<typeof serverSections>[0], can?: Parameters<typeof serverSections>[1]) => serverSections(role, can).map((s) => s.id)
 const mine = ['profile', 'appearance', 'language', 'devices', 'recovery', 'security', 'notifications', 'voice', 'video', 'blocked', 'account', 'privacy', 'about']
-const admin = ['overview', 'channels', 'emoji', 'gifs', 'sounds', 'pages', 'rules', 'members', 'roles', 'reports', 'automod', 'audit', 'integrations', 'internet']
+const admin = ['overview', 'channels', 'serverVoice', 'emoji', 'gifs', 'sounds', 'pages', 'rules', 'members', 'roles', 'reports', 'automod', 'audit', 'integrations', 'internet']
 
 describe('My settings', () => {
   it('holds only things about you, never a server section', () => {
@@ -27,7 +27,7 @@ describe('server settings', () => {
     expect(ids('trusted')).toEqual(['sounds'])
     expect(ids('admin')).toEqual(admin)
     expect(ids('owner')).toEqual([
-      'overview', 'channels', 'emoji', 'gifs', 'sounds', 'pages', 'rules',
+      'overview', 'channels', 'serverVoice', 'emoji', 'gifs', 'sounds', 'pages', 'rules',
       'members', 'roles', 'reports', 'automod', 'audit', 'securityLog',
       'integrations',
       'internet', 'limits', 'backup', 'import', 'updates',
@@ -43,7 +43,7 @@ describe('server settings', () => {
 
   it('groups the sections as Server, Members & safety, Apps, Hosting & data', () => {
     const groups = serverSections('owner').map((s) => `${s.group}:${s.id}`)
-    expect(groups.filter((g) => g.startsWith('server:'))).toEqual(['server:overview', 'server:channels', 'server:emoji', 'server:gifs', 'server:sounds', 'server:pages', 'server:rules'])
+    expect(groups.filter((g) => g.startsWith('server:'))).toEqual(['server:overview', 'server:channels', 'server:serverVoice', 'server:emoji', 'server:gifs', 'server:sounds', 'server:pages', 'server:rules'])
     expect(groups.filter((g) => g.startsWith('safety:'))).toEqual(['safety:members', 'safety:roles', 'safety:reports', 'safety:automod', 'safety:audit', 'safety:securityLog'])
     expect(groups.filter((g) => g.startsWith('apps:'))).toEqual(['apps:integrations'])
     expect(groups.filter((g) => g.startsWith('hosting:'))).toEqual(['hosting:internet', 'hosting:limits', 'hosting:backup', 'hosting:import', 'hosting:updates'])

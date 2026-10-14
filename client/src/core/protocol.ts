@@ -150,7 +150,7 @@ export interface Requests {
   'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
-  'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean }]
+  'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean; canHear?: boolean; afk?: boolean }]
   'voice.state': [{ muted: boolean; deafened: boolean; clips?: boolean }, Record<string, never>]
   'dm.devices': [{ accountKey: string }, DeviceBundle]
   // ── signing out ──
@@ -1085,7 +1085,7 @@ export interface VoiceParticipant {
 
 export interface Events {
   roles: { roles: ServerRole[] }
-  'voice.moved': { channelId: number }
+  'voice.moved': { channelId: number; reason?: 'afk' }
 }
 
 export interface Requests {
@@ -2021,4 +2021,34 @@ export interface Events {
 export interface Requests {
   'bot.voice.set': [{ accountKey: string; voice: boolean }, { member: Member }]
   'voice.disconnect': [{ accountKey: string }, Record<string, never>]
+}
+
+// ── AFK channel ──
+
+export type AfkMinutes = 0 | 5 | 15 | 30 | 60
+
+export interface AfkSettings {
+  /** A voice channel, or null (no AFK channel). */
+  channelId: number | null
+  /** Move people idle in voice this long (0 = never). */
+  idleMinutes: AfkMinutes
+  /** Levels that can talk and hear in it. */
+  talkLevels: Role[]
+  /** Custom roles that can. */
+  talkRoles: number[]
+}
+
+export interface VoiceParticipant {
+  /** Muted and deafened by the server in the AFK channel. */
+  afk?: boolean
+}
+
+export interface Events {
+  afk: { afk: AfkSettings }
+}
+
+export interface Requests {
+  'afk.get': [Record<string, never>, { afk: AfkSettings }]
+  'afk.update': [Partial<AfkSettings>, { afk: AfkSettings }]
+  'voice.idle': [{ idle: boolean; idleMs?: number }, Record<string, never>]
 }

@@ -7,7 +7,7 @@ export type MySectionId =
   | 'profile' | 'appearance' | 'language' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'video' | 'blocked' | 'desktop' | 'account' | 'privacy' | 'about'
 
 export type ServerSectionId =
-  | 'overview' | 'channels' | 'emoji' | 'gifs' | 'sounds' | 'pages' | 'rules'
+  | 'overview' | 'channels' | 'serverVoice' | 'emoji' | 'gifs' | 'sounds' | 'pages' | 'rules'
   | 'members' | 'roles' | 'reports' | 'automod' | 'audit' | 'securityLog'
   | 'integrations'
   | 'internet' | 'limits' | 'backup' | 'import' | 'updates'
@@ -34,6 +34,7 @@ const MODERATION: Permission[] = ['manageMessages', 'timeoutMembers', 'kickMembe
 const SERVER: { id: ServerSectionId; group: ServerGroup; min: Role; perms?: Permission[] }[] = [
   { id: 'overview', group: 'server', min: 'admin' },
   { id: 'channels', group: 'server', min: 'admin', perms: ['manageChannels'] },
+  { id: 'serverVoice', group: 'server', min: 'admin' },
   { id: 'emoji', group: 'server', min: 'admin', perms: ['manageExpressions'] },
   { id: 'gifs', group: 'server', min: 'admin' },
   { id: 'sounds', group: 'server', min: 'trusted', perms: ['manageExpressions'] },

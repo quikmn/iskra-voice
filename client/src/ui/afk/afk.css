@@ -1,0 +1,23 @@
+/* ── AFK channel: Server settings → Voice, the forced mute/deafen note, the AFK badge ── */
+.afk-settings .afk-channel-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.afk-settings .afk-channel-row .field { flex: 1 1 220px; min-width: 0; }
+.afk-settings select { max-width: 100%; }
+.afk-settings .afk-talk { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px 12px; margin: 12px 0 0; min-width: 0; }
+.afk-settings .afk-talk legend { padding: 0 4px; font-weight: 600; }
+.afk-settings .afk-talk-group { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; }
+.afk-settings .afk-talk-group + .afk-talk-group { padding-top: 8px; border-top: 1px solid var(--border); }
+
+.afk-forced {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: var(--text);
+}
+.afk-forced-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 auto 8px; padding: 8px 12px; max-width: min(520px, calc(100% - 32px));
+  border-radius: var(--radius); background: var(--warning-bg); border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent); font-size: 13px;
+}
+.afk-forced-banner strong { white-space: nowrap; }
+.afk-forced-banner span { flex: 1 1 240px; min-width: 0; color: var(--text-2); }
+.channel .afk-badge {
+  flex: none; margin-left: 4px; padding: 0 6px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border);
+}

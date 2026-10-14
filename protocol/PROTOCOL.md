@@ -8,7 +8,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits, [restarts](#restarts-and-reconnecting)) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
-- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots)
+- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
@@ -167,6 +167,7 @@ Rate limits are token buckets per connection. Every request takes from the gener
 | `watch.clock` | 2/s | 10 |
 | `link.create` | 1 every 10 s | 3 |
 | `account.rotate` | 1 every 5 s | 10 |
+| `voice.idle` | 1 every 2 s | 10 |
 
 Some limits are per account, shared by all of its sessions, so opening more connections doesn't buy more:
 
@@ -2650,3 +2651,48 @@ tighter grants; the audio itself goes from the bot straight to LiveKit, as for p
   (`{ channelId, channelName }`).
 - Apps show bots in voice like everyone, with the bot badge. Muting a bot for yourself is the usual per-person volume
   (on your device only); server mute and disconnect are the usual moderation.
+
+## AFK channel
+
+One voice channel can be the server's AFK channel. People who have been idle in another voice channel for a while are
+moved there, and in it everyone is muted and deafened by the server, except members with a role picked under
+"can talk here".
+
+```jsonc
+Afk { "channelId": 7 | null,               // a voice channel (never a stage); null = no AFK channel
+      "idleMinutes": 30,                   // 0 (never move anyone), 5, 15, 30 or 60
+      "talkLevels": ["owner", "admin"],    // levels that can talk and hear in it
+      "talkRoles": [3] }                   // custom roles that can (≤ 100)
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `afk.get` | | `{ afk: Afk }` | anyone |
+| `afk.update` | any of `channelId` (a voice channel id, or `null` to turn it off), `idleMinutes`, `talkLevels`, `talkRoles` | `{ afk: Afk }` | admin+ (others: `forbidden`, key `admins_afk`) |
+| `voice.idle` | `idle` (bool), `idleMs?` (0–3 600 000: how long this device has already been idle) | | anyone |
+
+- Without a stored setting, `afk.get` answers `{ channelId: null, idleMinutes: 30, talkLevels: ["owner", "admin"], talkRoles: [] }`.
+- `afk.update`: `channelId` must be a `voice` channel (`bad_request`, key `afk_voice_only`); `idleMinutes` one of the
+  values above (key `afk_minutes`); `talkLevels` valid levels (key `afk_levels`); `talkRoles` existing roles (key
+  `afk_roles`). Event `afk { afk }` to everyone. Deleting the channel turns it off; deleting a role takes it out of
+  `talkRoles`. Audit `afk.update` (`{ channelId, idleMinutes }`).
+- **Forced mute and deafen.** In the AFK channel, a member who has none of the talk levels or roles gets a LiveKit token
+  with `canPublish: false` and `canSubscribe: false`: LiveKit neither takes their audio nor sends them anyone else's,
+  whatever their app does. `voice.join` answers `{ ..., canSpeak: false, canHear: false, afk: true }` (elsewhere
+  `canHear: true`, `afk: false`). When the setting or someone's roles change while they're in it, the server changes
+  their LiveKit permissions (`UpdateParticipant`) to match; apps follow (an app whose subscribe permission changed
+  joins again). Server mutes never lift a forced mute. `voice.state` participants gain `afk: true` while forced.
+- **Idle.** Each session says when its device goes idle: `voice.idle { idle: true, idleMs }` once there has been no
+  input and no speaking for a minute, and `voice.idle { idle: false }` as soon as there is either. The server counts
+  someone as idle from `now - idleMs` (and only while every one of their sessions reports idle; a session that never
+  reported is active). What counts as input is up to the app:
+  the desktop app uses the system's idle time (any keyboard or mouse use on the computer), the browser and phone apps
+  input in the app while it's visible; speaking (the app's own voice activity detection) always counts.
+- **Moving.** About every 15 s the server moves people in a `voice` channel (not a stage, not the AFK channel itself,
+  never bots) who have been idle for `idleMinutes` and may join the AFK channel. A move is the same as a moderator's
+  `voice.move` (the move pass for full channels included): their sessions get `voice.moved { channelId, reason: "afk" }`
+  (apps show a notice and join it) and they leave the old room. At most 20 moves per sweep and one per person a minute.
+  Coming back is a normal `voice.join`.
+- Rate limits: `voice.idle` 1 every 2 s (burst 10); `afk.update` the general bucket.
+- Storage: `afk_settings` (one row) and `afk_talk_roles` (migration `afk-1`). Templates can set it up (`afk` in the
+  template format, see docs/hosting.md).

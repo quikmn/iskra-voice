@@ -22,6 +22,7 @@ import { ClipButton, ClipsMark, ClipsStrip } from './clips/ClipControls'
 import { setWatchedTile } from '../state/clips'
 import { BackgroundNotice, CaptionsButton, CaptionsOverlay } from './media/CallMedia'
 import { ResumeOffer } from './ResumeOffer'
+import './afk/afk.css'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
 export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -159,15 +160,22 @@ export function CallControls({ onLeave, extra, nameOf }: { onLeave?: () => void;
     <CaptionsOverlay nameOf={nameOf ?? (() => translate('common.someone'))} />
     <ClipsStrip />
     <ResumeOffer />
+    {session.afk && (
+      <p className="afk-forced-banner" role="status" data-testid="afk-forced-banner"><HeadphonesOff size={16} /><strong>{t('afk.forced')}</strong> <span>{t('afk.forcedHint')}</span></p>
+    )}
     <div className="call-controls" role="toolbar" aria-label={t('voice.stage.controls')}>
       {speak && (
         <button className={`call-button ${muted ? 'off' : ''} ${localSpeaking && !muted ? 'talking' : ''}`} onClick={() => void toggleMute()} aria-pressed={muted} aria-label={muted ? t('voice.unmute') : t('voice.mute')} title={muted ? t('voice.unmute') : t('voice.mute')}>
           {muted ? <MicOff /> : <Mic />}
         </button>
       )}
-      <button className={`call-button ${deafened ? 'off' : ''}`} onClick={() => void toggleDeafen()} aria-pressed={deafened} aria-label={deafened ? t('voice.undeafen') : t('voice.deafen')} title={deafened ? t('voice.undeafen') : t('voice.deafen')}>
-        {deafened ? <HeadphonesOff /> : <Headphones />}
-      </button>
+      {session.afk ? (
+        <button className="call-button off" disabled aria-label={t('afk.forced')} title={t('afk.forcedHint')}><HeadphonesOff /></button>
+      ) : (
+        <button className={`call-button ${deafened ? 'off' : ''}`} onClick={() => void toggleDeafen()} aria-pressed={deafened} aria-label={deafened ? t('voice.undeafen') : t('voice.deafen')} title={deafened ? t('voice.undeafen') : t('voice.deafen')}>
+          {deafened ? <HeadphonesOff /> : <Headphones />}
+        </button>
+      )}
       {speak && (
         <button className={`call-button ${camera ? 'on' : ''}`} onClick={() => void toggleCamera()} aria-pressed={camera} aria-label={camera ? t('voice.cameraOff') : t('voice.cameraOn')} title={camera ? t('voice.cameraOff') : t('voice.cameraOn')}>
           {camera ? <Camera /> : <CameraOff />}

@@ -151,6 +151,8 @@ export interface DesktopBridge {
   takeDeepLink(): Promise<string | null>
   /** The game running now, if activity status is on (only its name; never the program list). */
   activity(): Promise<string | null>
+  /** Seconds since the last keyboard or mouse input on the computer (older desktop apps don't have it). */
+  systemIdleSeconds?(): Promise<number | null>
   onActivity(callback: (game: string | null) => void): () => void
   onDeepLink(callback: (token: string) => void): () => void
   host: {

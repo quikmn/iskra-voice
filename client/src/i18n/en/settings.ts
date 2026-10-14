@@ -27,6 +27,7 @@ export const settings = {
     audit: 'Activity log',
     rules: 'Server rules',
     limits: 'Limits',
+    serverVoice: 'Voice',
     backup: 'Backup & move',
     import: 'Import from Discord',
     updates: 'Server updates',

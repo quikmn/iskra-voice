@@ -260,6 +260,7 @@ public static class Cli
                 channels = t.Template.Channels.Select(ChannelView),
                 roles = t.Template.Roles.Select(r => r.Name),
                 rules = t.Template.Rules is not null,
+                afk = t.Template.Afk is { } afk ? new { channel = afk.Channel, minutes = afk.Minutes, canTalk = afk.CanTalk } : null,
             }), new JsonSerializerOptions(JsonSerializerDefaults.Web)));
             return 0;
         }
@@ -274,6 +275,8 @@ public static class Cli
             }
             if (template.Roles.Length > 0) Console.WriteLine($"    Roles: {string.Join(", ", template.Roles.Select(r => r.Name))}");
             if (template.Rules is not null) Console.WriteLine("    Rules: yes");
+            if (template.Afk is { } afk)
+                Console.WriteLine($"    AFK channel: {afk.Channel} ({(afk.Minutes > 0 ? $"idle people moved after {afk.Minutes} min" : "nobody moved")}; can talk: {(afk.CanTalk.Length > 0 ? string.Join(", ", afk.CanTalk) : "nobody")})");
         }
         if (which is null) Console.WriteLine("Use one for a new server: iskra-server <world-folder> --template <name>, or \"Template\": \"<name>\" in server.json.");
         return 0;

@@ -30,6 +30,8 @@ export interface VoiceSession {
   group?: { key: string; callId: string }
   /** Our media is end-to-end encrypted (DM calls). */
   encrypted?: boolean
+  /** The AFK channel: the server mutes and deafens us here (LiveKit takes no audio from us and sends us none). */
+  afk?: boolean
 }
 
 /** One video on the call screen: someone's camera or screen share. */
@@ -471,7 +473,7 @@ export async function setCallKey(key: Uint8Array, index: number): Promise<void> 
 
 async function connect(
   session: VoiceSession,
-  target: () => Promise<{ url: string; token: string; canSpeak: boolean }>,
+  target: () => Promise<{ url: string; token: string; canSpeak: boolean; afk?: boolean }>,
   options: { e2eeKey?: Uint8Array; groupKey?: { key: Uint8Array; index: number } | 'later'; camera?: boolean; stageOpen?: boolean } = {},
 ): Promise<boolean> {
   useVoice.setState({
@@ -479,7 +481,7 @@ async function connect(
   })
 
   try {
-    const [{ url, token, canSpeak }, { Room, RoomEvent, Track, ConnectionState, RemoteAudioTrack, VideoPresets, ScreenSharePresets }] =
+    const [{ url, token, canSpeak, afk }, { Room, RoomEvent, Track, ConnectionState, RemoteAudioTrack, VideoPresets, ScreenSharePresets }] =
       await Promise.all([target(), loadLiveKit()])
     let encryption: RoomOptions['encryption']
     let worker: Worker | null = null
@@ -647,7 +649,7 @@ async function connect(
       await next.disconnect()
       return false
     }
-    useVoice.setState((s) => ({ session: s.session && { ...s.session, state: 'connected', canSpeak } }))
+    useVoice.setState((s) => ({ session: s.session && { ...s.session, state: 'connected', canSpeak, afk: !!afk } }))
 
     if (canSpeak) {
       if (!(await publishMic(next))) return false
@@ -746,6 +748,15 @@ useApp.subscribe((state, prev) => {
 async function permissionsChanged(current: Room): Promise<void> {
   const canSpeak = !!current.localParticipant.permissions?.canPublish
   const { session } = useVoice.getState()
+  // The AFK channel's forced deafen came or went (the setting or our roles changed): join again with a fresh token.
+  const forced = current.localParticipant.permissions?.canSubscribe === false
+  if (room === current && session && !session.call && !session.group && session.state === 'connected' && forced !== !!session.afk) {
+    const { serverKey, channelId } = session
+    const open = useVoice.getState().stageOpen
+    await leaveVoice()
+    await joinChannel(serverKey, channelId, open)
+    return
+  }
   if (room !== current || !session || session.call || session.canSpeak === canSpeak) return
   micDeferred = canSpeak
   if (canSpeak) {

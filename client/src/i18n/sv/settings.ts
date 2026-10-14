@@ -28,6 +28,7 @@ export const settings: Messages['settings'] = {
     audit: 'Aktivitetslogg',
     rules: 'Serverregler',
     limits: 'Gränser',
+    serverVoice: 'Röst',
     backup: 'Säkerhetskopia och flytt',
     import: 'Importera från Discord',
     updates: 'Serveruppdateringar',

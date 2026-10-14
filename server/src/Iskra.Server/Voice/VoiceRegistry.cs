@@ -34,6 +34,7 @@ public sealed class VoiceRegistry
         backend.AvailabilityChanged += available =>
         {
             if (!available) _rooms.Clear(); // LiveKit restarted: everyone was dropped
+            if (!available) _afkForced.Clear();
             if (!available) Stages.SyncAll(); // ...and every stage ended
             if (!available) Watch.SyncAll(); // ...and every watch party
             hub.Broadcast(Frames.Event("voice.available", new { available }));
@@ -58,10 +59,60 @@ public sealed class VoiceRegistry
         if (muted) _serverMuted[accountKey] = 0;
         else _serverMuted.TryRemove(accountKey, out _);
         if (ChannelOfMember(accountKey) is not { } channelId) return;
+        if (_afkForced.ContainsKey(accountKey))
+        {
+            Publish(channelId); // the AFK channel's forced mute stays
+            return;
+        }
         _ = world.Store.IsBot(accountKey)
             ? backend.SetBotCanPublishAsync(RoomName(channelId), accountKey, canPublish: !muted && canSpeak)
             : backend.SetCanPublishAsync(RoomName(channelId), accountKey, canPublish: !muted && canSpeak);
         Publish(channelId);
+    }
+
+    /// <summary>
+    /// Moves someone to another voice channel (a moderator, or the AFK sweeper with <paramref name="reason"/> "afk"): their
+    /// app joins it (even when it's full, for a short while) and they leave the old room.
+    /// </summary>
+    public void Move(string accountKey, long toChannelId, long now, string? reason = null)
+    {
+        GrantMovePass(accountKey, toChannelId, now + Features.VoiceLimitFeature.MovePassMs);
+        hub.SendToAccount(accountKey, Frames.Event("voice.moved", reason is null ? new { channelId = toChannelId } : new { channelId = toChannelId, reason }));
+        Disconnect(accountKey);
+    }
+
+    // ── AFK channel: muted and deafened by LiveKit ───────────────────────────
+
+    /// <summary>People in the AFK channel who may neither publish nor subscribe right now (what LiveKit was last told).</summary>
+    private readonly ConcurrentDictionary<string, byte> _afkForced = new();
+
+    public bool IsAfkForced(string accountKey) => _afkForced.ContainsKey(accountKey);
+
+    /// <summary>After the AFK setting or someone's roles change: tells LiveKit about everyone whose forced state changed.</summary>
+    public void SyncAfk()
+    {
+        var afk = world.Store.Afk();
+        foreach (var (channelId, room) in _rooms)
+        {
+            var changed = false;
+            foreach (var accountKey in room.Keys) changed |= ApplyAfk(afk, channelId, accountKey, force: false);
+            if (changed) Publish(channelId);
+        }
+    }
+
+    /// <summary>True if their forced state changed (or <paramref name="force"/>, on joining): LiveKit gets their permissions again.</summary>
+    private bool ApplyAfk(Storage.AfkSettings afk, long channelId, string accountKey, bool force)
+    {
+        if (world.Store.GetMember(accountKey) is not { } member || world.Store.GetChannel(channelId) is not { Kind: "voice" } channel) return false;
+        var forced = Features.AfkFeature.IsForced(afk, member, channelId);
+        if (!force && forced == _afkForced.ContainsKey(accountKey)) return false;
+        if (forced) _afkForced[accountKey] = 0;
+        else _afkForced.TryRemove(accountKey, out _);
+        var canPublish = !forced && Permissions.CanWrite(member, channel) && !IsServerMuted(accountKey);
+        _ = world.Store.IsBot(accountKey)
+            ? backend.SetBotCanPublishAsync(RoomName(channelId), accountKey, canPublish)
+            : backend.SetPermissionsAsync(RoomName(channelId), accountKey, canPublish, canSubscribe: !forced);
+        return true;
     }
 
     /// <summary>Takes someone out of whatever voice channel they're in (a move to another channel).</summary>
@@ -113,6 +164,7 @@ public sealed class VoiceRegistry
         participants = Participants(channelId).Select(m => new
         {
             accountKey = m.AccountKey, muted = m.Muted, deafened = m.Deafened, serverMuted = _serverMuted.ContainsKey(m.AccountKey), clips = m.Clips,
+            afk = _afkForced.ContainsKey(m.AccountKey),
         }),
     };
 
@@ -127,12 +179,18 @@ public sealed class VoiceRegistry
     {
         var room = _rooms.GetOrAdd(channelId, _ => new());
         room[accountKey] = new VoiceMember(accountKey, false, false, now);
+        // Into the AFK channel: LiveKit gets the forced state again (the setting may have changed since the token).
+        var afk = world.Store.Afk();
+        if (afk.ChannelId == channelId) ApplyAfk(afk, channelId, accountKey, force: true);
+        else _afkForced.TryRemove(accountKey, out _);
         Publish(channelId);
     }
 
     public void Left(long channelId, string accountKey)
     {
-        if (_rooms.TryGetValue(channelId, out var room) && room.TryRemove(accountKey, out _)) Publish(channelId);
+        if (!_rooms.TryGetValue(channelId, out var room) || !room.TryRemove(accountKey, out _)) return;
+        _afkForced.TryRemove(accountKey, out _);
+        Publish(channelId);
     }
 
     public void RoomFinished(long channelId)
@@ -167,6 +225,7 @@ public sealed class VoiceRegistry
                 Publish(channelId);
             }
         }
+        SyncAfk();
         Stages.SyncAll();
         Watch.SyncAll();
     }

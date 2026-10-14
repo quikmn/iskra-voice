@@ -19,6 +19,7 @@ import { IncomingCall } from './calls/Calls'
 import { IncomingGroupCall } from './groups/GroupCall'
 import { SoundToasts } from './expressions/Soundboard'
 import { OuthookToast } from './OuthookToast'
+import { AfkToast } from './afk/AfkToast'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { UserMenuLayer } from './people/UserMenu'
 import { ServerActionLayer } from './organize/ServerMenu'
@@ -95,6 +96,7 @@ export function Shell() {
 
       <SoundToasts />
       <OuthookToast />
+      <AfkToast />
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
       <IncomingCall />
       <IncomingGroupCall />

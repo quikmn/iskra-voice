@@ -12,6 +12,7 @@ import { startHotkeys } from './state/hotkeys'
 import { startTitleBadge } from './state/notify'
 import { startPush } from './state/push'
 import { startPresenceWatch } from './state/presence'
+import { startVoiceIdleWatch } from './state/afk'
 import './state/moves'
 import './state/accountDeletion'
 import './state/e2eeChannels'
@@ -75,6 +76,7 @@ export function App() {
     const stopTitle = startTitleBadge()
     const stopPush = startPush()
     const stopPresence = startPresenceWatch()
+    const stopVoiceIdle = startVoiceIdleWatch()
     const stopLinks = startDesktopLinks()
     const stopNative = startNativeShell()
     return () => {
@@ -85,6 +87,7 @@ export function App() {
       stopTitle()
       stopPush()
       stopPresence()
+      stopVoiceIdle()
       window.removeEventListener('hashchange', readInviteFromHash)
       window.removeEventListener('online', retryAll)
     }

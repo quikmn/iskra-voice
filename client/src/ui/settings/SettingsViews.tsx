@@ -34,6 +34,7 @@ import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { BackupSection } from './BackupSection'
 import { LimitsSection } from './LimitsSection'
+import { AfkSection } from '../afk/AfkSection'
 import { UpdatesSection } from './UpdatesSection'
 import { LanguageSection } from './LanguageSection'
 import { RulesSection } from '../rules/Rules'
@@ -321,6 +322,7 @@ function ServerSection({ id, server, onClose }: { id: ServerSectionId; server: S
     case 'sounds': return <SoundsSection server={server} />
     case 'pages': return <PagesSection server={server} />
     case 'rules': return <RulesSection server={server} />
+    case 'serverVoice': return <AfkSection server={server} />
     case 'members': return <MembersSection server={server} />
     case 'roles': return <RolesSection server={server} />
     case 'reports': return <ReportsSection server={server} onClose={onClose} />

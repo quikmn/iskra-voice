@@ -30,13 +30,15 @@ public static class VoiceFeature
 
         var room = VoiceRegistry.RoomName(channel.Id);
         // Everyone joins a stage listening; speaking is granted later through LiveKit's API (StageRegistry).
-        var canSpeak = channel.Kind == "voice" && Permissions.CanWrite(me, channel) && !s.Voice.IsServerMuted(me.AccountKey);
+        // The AFK channel mutes and deafens everyone without a talk level or role (AfkFeature).
+        var afk = channel.Kind == "voice" && AfkFeature.IsForced(s.World.Store, me, channel.Id);
+        var canSpeak = channel.Kind == "voice" && !afk && Permissions.CanWrite(me, channel) && !s.Voice.IsServerMuted(me.AccountKey);
         var token = bot
             ? LiveKitTokens.ForBot(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, room, canPublish: canSpeak, s.Time.GetUtcNow())
-            : LiveKitTokens.ForRoom(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, room, canPublish: canSpeak, s.Time.GetUtcNow());
+            : LiveKitTokens.ForRoom(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, room, canPublish: canSpeak, s.Time.GetUtcNow(), canSubscribe: !afk);
         // Over HTTPS (internet hosting) or Tailscale voice goes through the same address the client used.
         var url = LiveKitHost.ClientUrlFor(s.Origin, backend, s.World.Settings.Voice.ClientUrl, s.Tunnelled);
-        return new { url, token, room, canSpeak };
+        return new { url, token, room, canSpeak, canHear = !afk && !bot, afk };
     }
 
     private static object? State(Session s, Member me, Body body)

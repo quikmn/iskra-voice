@@ -78,6 +78,7 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   attention: (): Promise<void> => ipcRenderer.invoke('iskra:attention'),
   takeDeepLink: (): Promise<string | null> => ipcRenderer.invoke('iskra:take-deep-link'),
   activity: (): Promise<string | null> => ipcRenderer.invoke('iskra:activity'),
+  systemIdleSeconds: (): Promise<number | null> => ipcRenderer.invoke('iskra:system-idle'),
   onActivity: (callback: (game: string | null) => void): (() => void) => {
     const listener = (_e: IpcRendererEvent, game: string | null) => callback(typeof game === 'string' ? game : null)
     ipcRenderer.on('iskra:activity', listener)

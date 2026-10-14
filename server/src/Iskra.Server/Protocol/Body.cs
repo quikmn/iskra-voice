@@ -32,6 +32,10 @@ public readonly struct Body(JsonElement element)
     /// <summary>The field is present and not null.</summary>
     public bool Has(string name) => Field(name) is not null;
 
+    /// <summary>The field is there and is JSON null (as opposed to left out).</summary>
+    public bool IsNull(string name) =>
+        element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Null;
+
     public string String(string name, int maxLength) =>
         OptionalString(name, maxLength) ?? throw RequestException.BadRequest($"'{name}' is required.");
 

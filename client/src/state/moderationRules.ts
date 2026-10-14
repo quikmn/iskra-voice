@@ -105,7 +105,7 @@ export const AUDIT_ACTIONS = [
   'channel.create', 'channel.update', 'channel.delete', 'message.delete', 'thread.delete', 'message.pin', 'message.unpin',
   'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
   'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
-  'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'automod.block', 'automod.update',
+  'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'afk.update', 'automod.block', 'automod.update',
   'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
 ] as const
 
@@ -205,6 +205,7 @@ export function auditText(e: AuditEntry): string {
     case 'server.pages': return t(d.enabled ? 'moderation.audit.pagesOn' : 'moderation.audit.pagesOff', { actor })
     case 'server.internet': return t(d.enabled ? 'moderation.audit.internetOn' : 'moderation.audit.internetOff', { actor })
     case 'limits.update': return t('moderation.audit.limits', { actor })
+    case 'afk.update': return t('moderation.audit.afk', { actor })
     case 'automod.update': return t(d.enabled ? 'moderation.audit.automodUpdate' : 'moderation.audit.automodOff', { actor })
     case 'report.resolve': {
       const outcome = ['dismissed', 'deleted', 'timeout', 'kick', 'ban', 'other'].includes(str(d.outcome)) ? str(d.outcome) as 'other' : 'other'

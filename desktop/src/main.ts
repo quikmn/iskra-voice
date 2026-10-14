@@ -1,7 +1,7 @@
 // Iskra desktop: a thin, locked-down shell around the same web app.
 // It adds what browsers can't do: push-to-talk while a game has focus, a screen/window picker,
 // the tray, and a stable app:// origin for local storage.
-import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, session, shell, systemPreferences, Tray } from 'electron'
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, powerMonitor, safeStorage, screen, session, shell, systemPreferences, Tray } from 'electron'
 import { closeSync, existsSync, openSync, readSync } from 'node:fs'
 import path from 'node:path'
 import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
@@ -499,6 +499,8 @@ ipcMain.handle('iskra:relaunch', (event) => {
 })
 
 ipcMain.handle('iskra:activity', (event) => (fromApp(event) ? activity.game : null))
+// Seconds since the last keyboard or mouse input anywhere on the computer (the AFK channel's idle check).
+ipcMain.handle('iskra:system-idle', (event) => (fromApp(event) ? powerMonitor.getSystemIdleTime() : null))
 
 // iskra:// links that arrived before the page was ready.
 ipcMain.handle('iskra:take-deep-link', (event) => {

@@ -1,0 +1,27 @@
+// The AFK channel (English): its server setting, the forced mute and deafen, and the notice when you're moved. Keep in step with ../sv/afk.ts.
+export const afk = {
+  forced: 'AFK channel: muted and deafened',
+  forcedHint: "In the AFK channel the server mutes you and you can't hear anyone. Join another voice channel to talk again.",
+  badge: 'AFK',
+  channelHint: 'AFK channel',
+  participantForced: 'Muted and deafened (AFK channel)',
+  movedTitle: 'Moved to {{channel}}',
+  movedBody: 'You were idle in voice for {{minutes}} minutes, so {{server}} moved you to its AFK channel. Join any voice channel to come back.',
+  movedBodyShort: 'You were idle in voice, so {{server}} moved you to its AFK channel. Join any voice channel to come back.',
+  settings: {
+    intro: 'Give people who step away a place to go. Whoever is idle in a voice channel for a while is moved to the AFK channel, where they are muted and deafened.',
+    channel: 'AFK channel',
+    none: 'No AFK channel',
+    create: 'Create AFK channel',
+    defaultName: 'AFK',
+    idle: 'Move idle people after',
+    minutes: '{{n}} minutes',
+    never: 'Never',
+    idleHint: 'Idle means no typing, clicking or touching (anywhere on the computer in the desktop app, in Iskra on the web and phones) and not speaking, for the whole time. Someone who is talking is never moved.',
+    canTalk: 'Can talk here',
+    canTalkHint: 'Everyone else in the AFK channel is muted and deafened by the server, whatever their own settings.',
+    baseRoles: 'Base roles',
+    customRoles: 'Roles',
+    saved: 'Saved',
+  },
+}
