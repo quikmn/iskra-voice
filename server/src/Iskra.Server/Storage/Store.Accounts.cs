@@ -72,6 +72,7 @@ public sealed partial class Store
                 DELETE FROM inbox_items WHERE account_key = $k;
                 DELETE FROM message_edits WHERE message_id IN (SELECT id FROM messages WHERE author_key = $k);
                 UPDATE invites SET revoked = 1 WHERE created_by = $k;
+                UPDATE server_images SET set_by = '' WHERE set_by = $k; -- the server keeps its icon and banner, not who set them
                 UPDATE audit_log SET actor_name = '' WHERE actor = $k;
                 UPDATE audit_log SET target_name = NULL WHERE target = $k;
                 UPDATE security_log SET ip = NULL WHERE account_key = $k;

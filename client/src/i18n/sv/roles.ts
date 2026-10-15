@@ -52,6 +52,7 @@ export const roles: Messages['roles'] = {
       forumTags: 'Ändra ett forums taggar',
       profilePages: 'Slå på eller av profilsidor och ta bort dem',
       resolveDisputes: 'Avgöra omstridda konton',
+      serverImages: 'Ändra serverns ikon och banderoll',
       runServer: 'Driva servern: gränser, uppdateringar, säkerhetskopior, flytt, import, säkerhetsinställningar och internetåtkomst',
       transferOwnership: 'Lämna över servern till någon annan',
     },

@@ -1,11 +1,19 @@
-// A server's name before joining it: `GET /` answers `{ iskra: 1, name }` to any origin. Only for display.
+// A server's name (and icon) before joining it: `GET /` answers `{ iskra: 1, name, icon }` to any origin, and `GET /icon`
+// serves the icon alone. Only for display.
 import { useEffect, useState } from 'react'
 
 const NAME_MAX = 100
-const cache = new Map<string, Promise<string | null>>()
 
-/** Reads a server's name from its `GET /`; null if it can't be reached or doesn't look like Iskra. */
-export function fetchServerName(serverUrl: string, timeoutMs = 5000, fetchImpl: typeof fetch = fetch): Promise<string | null> {
+export interface ServerInfo {
+  name: string
+  /** The icon's address (`/icon?v=<stamp>` on the server), or null without one. */
+  icon: string | null
+}
+
+const cache = new Map<string, Promise<ServerInfo | null>>()
+
+/** Reads a server's name and icon from its `GET /`; null if it can't be reached or doesn't look like Iskra. */
+export function fetchServerInfo(serverUrl: string, timeoutMs = 5000, fetchImpl: typeof fetch = fetch): Promise<ServerInfo | null> {
   let url: URL
   try {
     url = new URL('/', serverUrl)
@@ -18,30 +26,44 @@ export function fetchServerName(serverUrl: string, timeoutMs = 5000, fetchImpl: 
       if (!response.ok) return null
       const body: unknown = await response.json()
       if (!body || typeof body !== 'object') return null
-      const { iskra, name } = body as { iskra?: unknown; name?: unknown }
+      const { iskra, name, icon } = body as { iskra?: unknown; name?: unknown; icon?: unknown }
       if (iskra !== 1 || typeof name !== 'string') return null
       const clean = name.replace(/\s+/g, ' ').trim().slice(0, NAME_MAX)
-      return clean || null
+      if (!clean) return null
+      // The stamp only ever names a version of the icon; anything else is ignored.
+      const iconUrl = typeof icon === 'string' && /^[0-9a-f]{16}$/.test(icon) ? new URL(`/icon?v=${icon}`, url).href : null
+      return { name: clean, icon: iconUrl }
     })
     .catch(() => null)
 }
 
-/** The invited server's name: undefined while asking, null if it can't be reached or has none to show. */
-export function useServerName(serverUrl: string | null | undefined): string | null | undefined {
-  const [name, setName] = useState<{ url: string; name: string | null } | null>(null)
+/** Reads a server's name from its `GET /`; null if it can't be reached or doesn't look like Iskra. */
+export function fetchServerName(serverUrl: string, timeoutMs = 5000, fetchImpl: typeof fetch = fetch): Promise<string | null> {
+  return fetchServerInfo(serverUrl, timeoutMs, fetchImpl).then((info) => info?.name ?? null)
+}
+
+/** The invited server's name and icon: undefined while asking, null if it can't be reached or has none to show. */
+export function useServerInfo(serverUrl: string | null | undefined): ServerInfo | null | undefined {
+  const [info, setInfo] = useState<{ url: string; info: ServerInfo | null } | null>(null)
   useEffect(() => {
     if (!serverUrl) return
     let live = true
     let pending = cache.get(serverUrl)
     if (!pending) {
-      pending = fetchServerName(serverUrl)
+      pending = fetchServerInfo(serverUrl)
       cache.set(serverUrl, pending)
       // A server that didn't answer may be up later.
       void pending.then((n) => { if (n === null) cache.delete(serverUrl) })
     }
-    void pending.then((n) => { if (live) setName({ url: serverUrl, name: n }) })
+    void pending.then((n) => { if (live) setInfo({ url: serverUrl, info: n }) })
     return () => { live = false }
   }, [serverUrl])
   if (!serverUrl) return null
-  return name && name.url === serverUrl ? name.name : undefined
+  return info && info.url === serverUrl ? info.info : undefined
+}
+
+/** The invited server's name: undefined while asking, null if it can't be reached or has none to show. */
+export function useServerName(serverUrl: string | null | undefined): string | null | undefined {
+  const info = useServerInfo(serverUrl)
+  return info === undefined ? undefined : info?.name ?? null
 }

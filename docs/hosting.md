@@ -57,7 +57,7 @@ A new server can start with channels of every kind, who can see and use them, ro
 
 - In the desktop app: the second step of **Create a server** (or **From a template file…**), with a preview.
 - Standalone: `iskra-server my-server --template gaming`, or `"Template": "gaming"` (or a `.json` path) in `server.json` before the first start.
-- Your own: **Server settings → Overview → Save as template**, or write one. Check a file with `iskra-server templates ./book-club.json`.
+- Your own: **Server settings → Overview → Save as template**, or write one (templates don't carry the server's icon and banner). Check a file with `iskra-server templates ./book-club.json`.
 - Add a template to a server already in use (additive only, stop the server first): `iskra-server templates apply my-server ./more-channels.json`, then again with `--apply`.
 
 The format, with an example, is in [templates.md](templates.md).
@@ -660,6 +660,12 @@ Uploads that nothing uses (no message, DM, avatar, emoji, sticker, sound, webhoo
 **Security log and retention:** the owner reads the server's security log in **Server settings → Sign-ins & security** (failed sign-ins, new members and devices, key changes, account deletions, backups, moves, data downloads; IP addresses only if you turn that on) and sets how long messages, files, the audit log and the security log are kept. Deleting happens every hour and can't be undone. Members download what the server keeps about them in **Settings → Privacy & data**; if someone asks you instead, use **Someone's data** in Server settings → Sign-ins & security.
 
 **Backups and moving:** see [Backups, moving and importing](#backups-moving-and-importing). Copying the stopped server's folder works too; it holds secrets (`server.key`, `vapid.json`, `livekit.key`, `certs/`, `backups/`), so keep copies private. **Updating:** see [Updating](#updating). Automatic updates keep their state in `.update/` next to `iskra-server`, not in the world folder.
+
+## Server icon and banner
+
+**Server settings → Overview → Icon and banner** (the owner and admins; a server can give or take that power per built-in role under **Roles**). The **icon** is square (at least 128×128 pixels, up to 1 MB) and shows in everyone's server list, the server's header and menu, and on invite links before people join. The **banner** is wide (2.5 to 4 times as wide as it is high, for example 960×360, up to 3 MB) and shows above the channel list. PNG, JPEG or WebP, still pictures only. The app lets you crop either before it uploads; everyone sees the change at once.
+
+The server checks every picture itself and takes out its metadata (EXIF with GPS positions, text, comments, thumbnails) before anyone sees it. Invite pages only ever get the icon, from `/icon` on your server: no banner, no names, no channels. Both are in your backups with the other uploads. The server's name still comes from `Name` in `server.json`.
 
 ## Roles and moderation
 

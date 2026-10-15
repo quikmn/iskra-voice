@@ -51,6 +51,7 @@ export const roles = {
       forumTags: "Change a forum's tags",
       profilePages: 'Turn profile pages on or off, and remove them',
       resolveDisputes: 'Settle disputed accounts',
+      serverImages: "Change the server's icon and banner",
       runServer: 'Run the server: limits, updates, backups, moving, imports, security settings and internet hosting',
       transferOwnership: 'Hand the server over to someone else',
     },

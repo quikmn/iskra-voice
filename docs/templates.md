@@ -134,7 +134,7 @@ run as code.
 `builtinRoles` sets a built-in role's `color` (`#rrggbb`, or `""` for none) and, optionally, what it can do:
 `abilities` and `permissions`, each the whole set (left out: the defaults, the same as in **Server settings → Roles**).
 Abilities: `invite`, `events`, `pin`, `mentionEveryone`, `uploadSounds`, `giveBaseRoles`, `bots`, `organize`, `rules`,
-`stickers`, `gifs`, `stageModerators`, `forumTags`, `profilePages`, `resolveDisputes`. The same safety rules apply as in
+`stickers`, `gifs`, `stageModerators`, `forumTags`, `profilePages`, `resolveDisputes`, `serverImages`. The same safety rules apply as in
 the app: the owner's powers never change, `runServer` and `transferOwnership` stay the owner's, and guests and members
 only get everyday powers (`invite`, `events`, `pin`, `mentionEveryone`, `uploadSounds`, and the permission
 `mentionEveryone`).

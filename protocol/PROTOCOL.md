@@ -6,7 +6,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 ## Contents
 
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits, [restarts](#restarts-and-reconnecting)) · [Objects](#objects)
-- **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
+- **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Server icon and banner](#server-icon-and-banner) · [Organizing a server](#organizing-a-server)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox) · [Disappearing messages](#disappearing-messages)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
@@ -80,7 +80,8 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
        "you": Member,
        "server": { "name": "Gaming", "key": "<b64u>", "appUrl": "https://app.iskra.foo",
                    "publicUrl": "https://..." | null,   // see Internet hosting
-                   "profilePages": true },              // see Profiles
+                   "profilePages": true,                // see Profiles
+                   "images": { "icon": File | null, "banner": File | null } },  // see Server icon and banner
        "channels": [Channel...],   // only the ones you can read
        "members": [Member...],
        "voice": [VoiceState...],   // non-empty voice channels you can read (see Voice)
@@ -271,7 +272,7 @@ A new world has no owner. On startup the server writes a single-use owner invite
 - Upload: `PUT <server>/upload/<ticket>` with the raw bytes (single use, 10 minutes, must not exceed the announced size) → `{ file }`.
 - **Upload in parts** (big files, so an app never holds the whole file in memory): `PUT <server>/upload/<ticket>?offset=<n>` with the next part, where `n` is the number of bytes the server already has (0 for the first part). Each part is 1 byte to `partBytes` (16 MiB, given by `upload.begin` and `dm.upload.begin`); parts come one at a time and in order; the first must start within 10 minutes of `upload.begin`, each later one within 10 minutes of the previous. The answer is `{ received }` until the server has exactly the announced `size`, then `{ file }` as above. A part that doesn't start at the server's count answers `409 { received }` (an app whose connection broke mid-part asks again from there; a part that was cut off is dropped whole). A part past the announced size or over `partBytes` is `413` and ends the upload. A ticket used for a plain `PUT` can't take parts and the other way round (`403`). An unfinished upload is dropped when its ticket expires.
 - Per-account rate limit and daily quota: see [Limits](#limits). Over the quota, `upload.begin` answers `rate_limited`.
-- Uploads nothing refers to after 24 hours (no message attachment, avatar, emoji, sound, webhook or webhook post avatar, nor a `/files/<id>` link in a profile page) are deleted by an hourly sweep.
+- Uploads nothing refers to after 24 hours (no message attachment, avatar, emoji, sound, webhook or webhook post avatar, server icon or banner, nor a `/files/<id>` link in a profile page) are deleted by an hourly sweep.
 - `File { id, name, size, type, width?, height?, url: "/files/<id>/<name>" }`. `type` comes from the file's first bytes, never the name: PNG, JPEG, GIF, WebP, MP4, WebM, Ogg, MP3 and WAV are served inline, anything else as a download. Every file response has `nosniff` and a sandboxing CSP. Identical content is stored once (`uploads/ab/<sha256>`).
 - Message gains `attachments: [File]`, `replyTo: { id, author, text, hasAttachments } | { id, deleted: true } | null` and `reactions: [{ emoji, accounts: [accountKey] }]`.
 - Event `chat.reactions` `{ id, channelId, reactions }` to channel readers.
@@ -777,7 +778,8 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 
 | Endpoint | What it is |
 |---|---|
-| `GET /` | `{ iskra: 1, name }`: identifies an Iskra server. Any origin may read it (`Access-Control-Allow-Origin: *`): invite landings show the name |
+| `GET /` | `{ iskra: 1, name, icon }`: identifies an Iskra server. Any origin may read it (`Access-Control-Allow-Origin: *`): invite landings show the name. `icon`: a stamp of the server icon (16 hex characters) or `null` ([Server icon and banner](#server-icon-and-banner)) |
+| `GET /icon` | The server icon alone, for invite landings before joining; `404` without one ([Server icon and banner](#server-icon-and-banner)) |
 | `GET /health` | Version, uptime and voice status for uptime monitors ([Health](#health)) |
 | `GET /ws` | The WebSocket ([Connection](#connection)) |
 | `PUT /upload/<ticket>` | Upload bytes for an `upload.begin` ticket ([Files](#files-replies-and-reactions)) |
@@ -1115,6 +1117,50 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 `dm.send` and `group.send` take the same `nonce?`, remembered per account and kind (DM or group) for a day: a repeat gets `{ message }` with the message already stored and nothing is relayed or pushed again (`not_found` if it was deleted since). For `group.send` the repeat is answered before the `version` check, so a retry still finds its message after the group changed.
 
 Clients make a nonce per message and, when the connection drops before the reply, send the same request again after reconnecting (before catching up on history). A retry from the "Couldn't send" state reuses the nonce too.
+
+## Server icon and banner
+
+A server can have an **icon** (square: the server list, the header, invites) and a **banner** (wide: the top of the
+channel list). Both are uploads ([Files](#files-replies-and-reactions)): upload the picture, then name it here.
+
+| type | body | result | who |
+|---|---|---|---|
+| `server.images.set` | `icon?`, `banner?`: the file id of your own upload (≤ 64 chars) sets it, `""` removes it, left out stays. At least one | `{ icon: File \| null, banner: File \| null }` | the `serverImages` ability ([built-in roles](#built-in-roles); admins by default), else `forbidden` with key `server_images_admins`. Rate limited (10, then 1 every 2 s) |
+
+| event | body | sent to |
+|---|---|---|
+| `server.images` | `{ icon: File \| null, banner: File \| null }` | everyone, after every change |
+
+`welcome.server.images` carries the same object. Servers from before this have neither (apps show initials).
+
+The server checks the picture by its bytes (never its name or the uploader's claim) and refuses it with `bad_request`:
+
+| | Icon | Banner |
+|---|---|---|
+| Type | PNG, JPEG or WebP (`server_image_type`); still pictures only (an animated WebP: `server_image_animated`; an animated PNG keeps its first frame) | same |
+| Size | ≤ 1 MB (`server_icon_size`, `args: { kb }`) | ≤ 3 MB (`server_banner_size`, `args: { mb }`) |
+| Pixels | ≥ 128×128 (`server_icon_small`, `args: { min }`), ≤ 4096 a side (`image_too_large`) | ≥ 480×120 (`server_banner_small`, `args: { width, height }`), ≤ 4096 a side |
+| Shape | square, sides within 5% of each other (`server_icon_square`) | 2.5 to 4 times as wide as high (`server_banner_shape`) |
+
+A picture that can't be read is `image_size_unreadable`. Both are checked before either changes.
+
+**Metadata is stripped.** The server keeps only what drawing the picture needs and stores that as a new file (the
+upload with its metadata is deleted at once unless something else uses it): PNG keeps `IHDR`, `PLTE`, `IDAT`, `IEND`,
+`tRNS`, `cHRM`, `gAMA`, `iCCP`, `sBIT`, `sRGB`, `cICP`, `bKGD` and `pHYs` (text, `eXIf`, `tIME` and animation chunks
+go); JPEG drops every `APPn` segment except the JFIF header (without its thumbnail), an ICC profile and Adobe's colour
+transform, and all comments; WebP drops `EXIF`, `XMP ` and unknown chunks and clears their flags in `VP8X`. Nothing is
+decoded or re-encoded, so the pixels are exactly the uploader's (apps crop and re-encode on the device before uploading
+anyway, which also drops everything). EXIF orientation goes with the rest, so apps upload pictures already upright.
+
+**Invites show the icon before joining.** `GET /` answers `icon`: the first 16 hex characters of the icon's SHA-256
+(or `null`), and `GET /icon` serves the icon itself: any origin may show it (`Access-Control-Allow-Origin: *`,
+`Cross-Origin-Resource-Policy: cross-origin`), `nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`,
+`Cache-Control: public, max-age=300` and an `ETag` (`304` for `If-None-Match`). Nothing else is in either answer: no
+banner, no members, no channels. Apps load `<server>/icon?v=<stamp>`, so a new icon is a new address.
+
+The icon and banner are kept by the upload sweep and retention, go into backups with the other uploads, and the
+`set_by` account appears in that member's [data export](#download-my-data) (`serverImagesSet`). Changes are in the
+[audit log](#audit-log) as `server.images` with `details: { icon, banner }` (`"set"`, `"removed"` or null).
 
 ## Organizing a server
 
@@ -2745,14 +2791,14 @@ Abilities and the lowest role that has them **by default**: `invite` (invite gue
 `pin`, `mentionEveryone`, `uploadSounds` (soundboard) (trusted); `giveBaseRoles` (`member.setRole`, invites and bot
 invites into roles below your own), `bots` (bot invites, voice bots, built-in bots), `organize` (categories, the
 default notification level), `rules`, `stickers`, `gifs`, `stageModerators`, `forumTags`, `profilePages`,
-`resolveDisputes` (admin); `runServer` (limits, updates, backups, moves, imports, security settings, connections,
+`resolveDisputes`, `serverImages` ([server icon and banner](#server-icon-and-banner)) (admin); `runServer` (limits, updates, backups, moves, imports, security settings, connections,
 internet hosting) and `transferOwnership` (owner). Custom roles never grant abilities; they grant the
 [permissions](#roles-and-permissions). By default admins have every permission; the owner always has every
 permission and ability.
 
 | type | body | result | who |
 |---|---|---|---|
-| `role.base.update` | `role` (a built-in role); any of `color` (`#rrggbb`; `""` clears), `abilities` (the whole set, ≤ 18 names), `permissions` (the whole set, ≤ 14 names), `reset: true` (back to the default powers; not with `abilities`/`permissions`) | `{ baseRole: BaseRole }` | `manageRoles`. Colour: the owner may change any, everyone else only `trusted`, `member` and `guest` (`forbidden`, key `rank_base_roles`). Powers: see below. Rate limited (30, then 2 a second) |
+| `role.base.update` | `role` (a built-in role); any of `color` (`#rrggbb`; `""` clears), `abilities` (the whole set, ≤ 19 names), `permissions` (the whole set, ≤ 14 names), `reset: true` (back to the default powers; not with `abilities`/`permissions`) | `{ baseRole: BaseRole }` | `manageRoles`. Colour: the owner may change any, everyone else only `trusted`, `member` and `guest` (`forbidden`, key `rank_base_roles`). Powers: see below. Rate limited (30, then 2 a second) |
 
 Safety rules for powers, all checked on the server before anything changes:
 

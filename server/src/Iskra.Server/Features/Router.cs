@@ -78,6 +78,7 @@ public sealed class Router
         Translate.TranslateFeature.Register(this, translations);
         OutgoingWebhookFeature.Register(this);
         BuiltinBotFeature.Register(this);
+        ServerImageFeature.Register(this);
         BotScope.Register(this);
         InteractionFeature.Register(this);
         VoiceBotFeature.Register(this);

@@ -27,6 +27,7 @@
 .room-tile {
   display: inline-grid; place-items: center; flex: none; color: #fff; font-weight: 800; user-select: none;
 }
+.room-tile:has(.server-picture) { overflow: hidden; }
 .room-tile.large { width: 68px; height: 68px; border-radius: calc(var(--radius) * 1.8); font-size: 24px; box-shadow: 0 0 0 3px rgb(255 255 255 / 0.22); }
 .room-tile.small { width: 24px; height: 24px; border-radius: 7px; font-size: 10px; }
 

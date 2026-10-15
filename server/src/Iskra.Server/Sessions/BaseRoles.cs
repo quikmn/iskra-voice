@@ -10,6 +10,7 @@ public enum BaseAbility
     GiveBaseRoles, Bots, Organize, Rules, Stickers, Gifs, StageModerators, ForumTags, ProfilePages, ResolveDisputes,
     RunServer, TransferOwnership,
     Whisper,
+    ServerImages,
 }
 
 /// <summary>
@@ -40,6 +41,7 @@ public static class BaseRoles
         (BaseAbility.ForumTags, "forumTags", Roles.Admin),
         (BaseAbility.ProfilePages, "profilePages", Roles.Admin),
         (BaseAbility.ResolveDisputes, "resolveDisputes", Roles.Admin),
+        (BaseAbility.ServerImages, "serverImages", Roles.Admin),     // the server's icon and banner
         (BaseAbility.RunServer, "runServer", Roles.Owner),            // limits, updates, backups, moves, imports, security, internet
         (BaseAbility.TransferOwnership, "transferOwnership", Roles.Owner),
     ];

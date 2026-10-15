@@ -32,6 +32,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Inbox items (mentions and replies) | 60 days, at most 500 per account | `ProductivityScheduler` (hourly) | No |
 | Key log (account keys shown, salted name hashes, key changes; key transparency) | Entries as long as the server: append-only and hash-chained by design, so members' apps can check it. The names beside them (and their salts) until the account is deleted; then only the key and an unopenable salted hash stay. Entries logged before name hashes (until 2026-10-13) keep the name inside the hashed entry | Account deletion (names) | No |
 | Uploaded files still in use | Until their message/avatar/etc. is deleted, or the retention period (files used by avatars, emoji, stickers, sounds, events and webhooks are kept) | `RetentionSweeper` | `Retention.UploadsDays` (0 = keep) |
+| Server icon and banner (the pictures, without their metadata, and which admin set each one and when) | The picture until an admin changes or removes it (the old file then goes with the 24-hour sweep); who set it until that account is deleted | `ServerImageFeature`; account deletion | No |
 | Uploads nothing uses | 24 hours | `UploadSweeper` | No |
 | Unfinished uploads in parts (part of a file, often encrypted DM ciphertext) | 10 minutes after the last part arrived, deleted with the next upload or the hourly sweep | `Uploads`, `UploadSweeper` | No |
 | Audit log (moderation and admin actions) | 90 days | `ModerationSweeper` | `Retention.AuditDays` (0 = keep) |
