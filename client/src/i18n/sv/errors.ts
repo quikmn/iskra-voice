@@ -219,7 +219,7 @@ export const errors: Messages['errors'] = {
     link_no_device: 'Ingen enhet väntar på den här länken.',
     nothing_to_change: 'Inget att ändra.',
     search_word_long: 'Ett av orden är för långt.',
-    e2ee_kinds: 'Bara text- och röstkanaler kan vara totalsträckskrypterade.',
+    e2ee_kinds: 'Bara text-, röst- och whiteboardkanaler kan vara totalsträckskrypterade.',
     hifi_voice_only: 'Bara röstkanaler kan tillåta hi-fi-ljud.',
     limit_voice_only: 'Bara röstkanaler har en gräns för antal personer.',
     poll_no_edit: 'Omröstningar kan inte redigeras.',

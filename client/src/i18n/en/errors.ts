@@ -221,7 +221,7 @@ export const errors = {
     link_no_device: 'No device is waiting on this link.',
     nothing_to_change: 'Nothing to change.',
     search_word_long: 'One of those words is too long.',
-    e2ee_kinds: 'Only text and voice channels can be end-to-end encrypted.',
+    e2ee_kinds: 'Only text, voice and whiteboard channels can be end-to-end encrypted.',
     hifi_voice_only: 'Only voice channels can allow hi-fi audio.',
     limit_voice_only: 'Only voice channels have a user limit.',
     poll_no_edit: "Polls can't be edited.",

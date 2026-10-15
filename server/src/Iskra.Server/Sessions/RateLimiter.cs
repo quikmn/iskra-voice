@@ -54,6 +54,12 @@ public sealed class RateLimiter(TimeProvider time)
         ["docs.page.restore"] = (5, 0.2),
         ["docs.page.move"] = (10, 1),
         ["docs.search"] = (10, 2),
+        ["wb.update"] = (20, 8),
+        ["wb.live"] = (10, 8),
+        ["wb.get"] = (20, 5),
+        ["wb.open"] = (5, 0.2),
+        ["wb.clear"] = (5, 0.2),
+        ["wb.snapshot"] = (5, 0.1),
         ["data.export"] = (2, 1 / 600.0), // "Download my data": two, then one every 10 minutes
         ["role.base.update"] = (30, 2), // ticking powers one by one
         ["notify.default.set"] = (10, 1),

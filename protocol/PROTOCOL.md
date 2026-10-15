@@ -11,7 +11,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages)
-- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
+- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Whiteboards](#whiteboards)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Built-in roles](#built-in-roles) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
 - **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server) · [Passkeys and key transparency](#passkeys-and-key-transparency)
@@ -186,7 +186,7 @@ Over the limit: `error` with `code: "rate_limited"`; the session stays open. HTT
 ```jsonc
 Member  { "accountKey": "<b64u>", "name": "Viktor", "role": "member", "online": true, "bot": false,
           ...profile fields (see Profiles) }
-Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "forum" | "stage" | "docs", "position": 0, "readRole": "member", "writeRole": "member" }
+Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "forum" | "stage" | "docs" | "whiteboard", "position": 0, "readRole": "member", "writeRole": "member" }
 Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "createdAt": 1760000000000, "editedAt": null,
           "attachments": [File], "replyTo": ..., "reactions": [...],   // Files, replies and reactions
           "pinned": false, "thread": Thread | null,                     // Pins, search and threads
@@ -208,7 +208,7 @@ Roles, lowest to highest: `guest < member < trusted < admin < owner`.
 | `chat.delete` | `id` | | the author, or an admin who outranks the author |
 | `chat.history` | `channelId, before? \| after? \| around?, limit? (1–100, default 50)` | `{ messages (oldest first), hasMore }` | channel readers |
 | `chat.typing` | `channelId` | | channel writers |
-| `channel.create` | `name, kind? (text\|voice\|stage), readRole?, writeRole?` | `{ channel }` | admin+ |
+| `channel.create` | `name, kind? (text\|voice\|forum\|stage\|docs\|whiteboard), readRole?, writeRole?` | `{ channel }` | admin+ |
 | `channel.update` | `id, name?, readRole?, writeRole?` | `{ channel }` | admin+ |
 | `channel.delete` | `id` | | admin+ |
 | `profile.update` | `name` and the fields in [Profiles](#profiles) | `{ member }` | anyone |
@@ -1913,7 +1913,7 @@ Home { "pageId": 12, "channelId": 7, "title": "Start here" }   // or null
 
 ## End-to-end encrypted channels
 
-A text or voice channel can be made **end-to-end encrypted** when it is created (never later, and never undone). It is
+A text, voice or whiteboard channel can be made **end-to-end encrypted** when it is created (never later, and never undone). It is
 meant for small private channels: at most **50** people (not bots) may be able to read it. The server stores only
 ciphertext and delivers it only to people who can read the channel; members' apps hold the keys. It reuses the
 [group DM](#group-dms-and-group-calls-end-to-end-encrypted) pieces: a signed membership chain, DM envelopes v2 for
@@ -1996,7 +1996,7 @@ Someone removed at version n keeps the epoch keys of the versions before n and t
 
 | type | body | result | who |
 |---|---|---|---|
-| `channel.create` | adds `e2ee?: { change, keys: [KeyEnvelope] }` (`kind` text or voice; a `create` change by you; ≥ 1 key envelope for version 1) | | `manageChannels`, and you must be able to read it; > 50 readers: `bad_request`; the readers changed meanwhile: `conflict` |
+| `channel.create` | adds `e2ee?: { change, keys: [KeyEnvelope] }` (`kind` text, voice or whiteboard; a `create` change by you; ≥ 1 key envelope for version 1) | | `manageChannels`, and you must be able to read it; > 50 readers: `bad_request`; the readers changed meanwhile: `conflict` |
 | `echan.get` | `channelId, since?` | `{ e2ee: { chain, version, head, members }, changes: [GroupChange + version] (after since), want: { add, remove, full } }` | channel readers |
 | `echan.change` | `channelId, change, keys` (1–64 key envelopes for the new version, ≤ 52 KB each) | `{ e2ee }` | readers who are in the chain (not bots), by the rules above; `conflict` if it changed meanwhile; shares the 10-a-minute `group.change` limit |
 | `echan.keys.add` | `channelId, version` (the current one), `keys` | | whoever made that change; ≤ 64 envelopes per version |
@@ -2016,7 +2016,7 @@ Someone removed at version n keeps the epoch keys of the versions before n and t
 
 ### How other features behave
 
-- **Not available** (refused with `bad_request`, so no plaintext ever reaches the server): webhooks, polls, scheduled messages, forwarding to or from the channel, clips, AutoMod alerts posted there, stickers and GIFs. Bots never count as readers and can't send there (they hold no keys). Docs, forum and stage channels can't be encrypted.
+- **Not available** (refused with `bad_request`, so no plaintext ever reaches the server): webhooks, polls, scheduled messages, forwarding to or from the channel, clips, AutoMod alerts posted there, stickers and GIFs. Bots never count as readers and can't send there (they hold no keys). Docs, forum and stage channels can't be encrypted; whiteboard channels can (see [Whiteboards](#encrypted-boards)).
 - **Threads** work, encrypted under the parent channel's chain and epoch keys; their name is always `"thread"` (`thread.update` is refused).
 - **Reactions, pins, replies, deletes and read state** work as usual; they are metadata the server sees (which emoji on which message, which message is pinned or replied to).
 - **Search:** the server leaves encrypted channels out; apps search the messages they decrypted, on the device.
@@ -2912,3 +2912,155 @@ make the same changes (built-in role powers included).
   and settings still at their defaults. It never deletes, renames or changes existing channels, roles, members or
   messages. Without `--apply` it only prints what it would add. It refuses while the server runs (its port answers on
   localhost). Security log `server.template.merge`.
+
+## Whiteboards
+
+A shared drawing board with an infinite canvas: pen, highlighter, eraser, lines, arrows, rectangles, ellipses, text,
+sticky notes and pictures from this server's uploads. A **whiteboard channel** (`channel.create` with
+`kind: "whiteboard"`) has one board that stays. A **voice channel** can have one board too: someone in the call opens
+it, and it stays (for this call and the next) until it's cleared. Viewing follows the channel's read access; drawing
+follows posting (`send`: a whiteboard channel's `writeRole`, a voice channel's text chat). Bots can't use whiteboards
+(`forbidden`). A whiteboard channel can be [end-to-end encrypted](#end-to-end-encrypted-channels) like a text channel,
+and a board in an encrypted voice channel is encrypted with that channel's keys.
+
+### The board model
+
+A board is a set of **objects**, each a flat record of fields. Every change is an **op**: an object id and the fields to
+set (`null` removes a field). Ops travel in **batches**; the server gives every batch the board's next `seq` and sends it
+to everyone viewing the board in that order, so every app applies the same ops in the same order and ends up with the
+same board. Each field is a last-writer-wins register (a register CRDT ordered by the server): a field set later wins,
+so two people moving and recolouring the same shape at once both take effect. An object is shown while it has a `kind`
+and `d` (deleted) isn't `true`. Undo is per person and kept in the app: it sends the fields an object had before (for a
+delete: all of them, with `d: false`), and redo sends them back.
+
+```jsonc
+Op { "id": "<8–24 chars of A–Z a–z 0–9 _ ->", "p": { "kind": "pen", "x": 10, "y": 20, … } }
+```
+
+| field | value |
+|---|---|
+| `kind` | `pen`, `hl` (highlighter), `line`, `arrow`, `rect`, `ellipse`, `text`, `note` (sticky note) or `image` |
+| `x`, `y` | position (a number, \|n\| ≤ 1,000,000) |
+| `w`, `h` | size; lines and arrows run from (x, y) to (x + w, y + h), so these may be negative (\|n\| ≤ 1,000,000) |
+| `pts` | pen and highlighter: whole numbers in tenths, relative to (x, y): the first point, then the step to each next one (`[x0, y0, dx1, dy1, …]`); 2–4000 numbers, an even count, \|n\| ≤ 10,000,000 |
+| `color` | `#rrggbb` (lowercase) |
+| `fill` | `#rrggbb` |
+| `size` | stroke width or font size, 1–200 |
+| `text` | text and notes: up to 2000 characters, newlines allowed |
+| `src` | pictures: `/files/<id>/<name>`, an image uploaded to this server |
+| `z` | stacking order (a number, \|n\| ≤ 1,000,000,000); ties go by `id` |
+| `d` | `true`: deleted |
+
+Unknown fields, wrong types and values out of range are refused (`bad_request`). A batch holds 1–200 ops and is at most
+48 KB as JSON. Apps draw text on the canvas (never as HTML).
+
+### Requests and events
+
+```jsonc
+Board { "channelId": 7, "id": "<b64u 12>",           // a new id whenever the board is cleared
+        "seq": 41,                                    // the newest batch (0: none yet)
+        "openedBy": "<accountKey>" | null, "openedAt": 1760000000000,
+        "encrypted": false }
+Batch { "seq": 41, "by": "<accountKey>", "at": 1760000000000,
+        "ops": [Op] }                                 // encrypted boards: "version": 3, "envelope": BoardEnvelope instead
+Snapshot { "seq": 40, "at": 1760000000000,
+           "objects": { "<id>": { …fields } } }       // encrypted boards: "by", "version", "envelope" instead of "objects"
+Live { "x": 120.5, "y": -40, "tool"?: "pen",
+       "draft"?: { "id", "kind", "color", "size", "from": 0, "pts": [...] } }   // the stroke being drawn
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `wb.boards` | | `{ boards: [Board] }` | anyone: the open boards of voice channels you can read |
+| `wb.open` | `channelId` (a voice channel) | `{ board }` | someone in the call who can post in its chat; answers the open board if there is one |
+| `wb.get` | `channelId, since?` (a `seq`) | `{ board, snapshot, batches, hasMore, viewers, wantSnapshot }` | readers |
+| `wb.leave` | `channelId` | | anyone |
+| `wb.update` | `channelId, boardId, cid?` (≤ 24 chars), `ops` and `live?`, or (encrypted) `version, envelope` | `{ seq }` | writers |
+| `wb.live` | `channelId, boardId, live` (encrypted: `version, envelope`) | | readers viewing the board |
+| `wb.snapshot` | `channelId, boardId, seq, version`, `envelope` or `file` | | encrypted boards only: writers in the channel's chain |
+| `wb.clear` | `channelId, boardId` | | writers who can [pin](#pins) there (trusted+ or `manageMessages`), or, on a voice channel's board, whoever opened it |
+
+- **Loading:** `wb.get` without `since` answers the latest snapshot (or `null`) and the batches after it, oldest first,
+  up to about 1 MB of them (`hasMore`: ask again with `since` = the last `seq`). With `since` it answers only batches
+  after it (and the snapshot too when `since` is older than the snapshot). A whiteboard channel always has a board (made
+  on the first `wb.get`); a voice channel without an open board answers `board: null`. `wb.get` also makes this session
+  a **viewer** of the board until `wb.leave`, a `wb.get` for another channel (one board per session) or disconnecting.
+- **Sending:** `wb.update` names the board's `id`; a cleared board's id is `not_found` (the app loads the new board).
+  The batch goes to every viewer as `wb.batch` (the sender's own sessions too, with its `cid`, so the app knows its own
+  batch arrived), in `seq` order. `live` goes on to the other viewers as a `wb.live`.
+- **Live cursors:** `wb.live` (≤ 8 KB) goes to the board's other viewers and isn't stored. `draft` carries the stroke
+  being drawn from point index `from` on (the app appends them to what it has). Apps send at most one of `wb.update`
+  and `wb.live` every 200 ms.
+- **Viewers:** `viewers` (and the event `wb.viewers`) lists the accounts viewing the board now.
+- **Compaction:** on a plain board the server folds older batches into the snapshot itself once 500 batches or 512 KB
+  have piled up since the last one; deleted objects are dropped then. Encrypted boards: see below.
+- **Size:** a board's snapshot plus the batches after it may be at most 6 MB; past that, batches that add anything are
+  refused (`bad_request`, key `wb_full`), while batches that only delete objects are taken (encrypted boards: see below). A plain snapshot holds at
+  most 20,000 objects and 4 MB; a compaction that would pass that leaves the batches as they are.
+- **Pictures:** `src` must name an image uploaded to this server (`bad_request` otherwise). The unused-upload sweep keeps
+  files a board refers to.
+- **Clearing** deletes the board's batches and snapshot. A whiteboard channel starts a new empty board (a new `id`); a
+  voice channel's board closes. Audit `wb.clear` `{ channelId, channelName }`.
+- **Safety:** AutoMod checks the `text` of every op on a plain board (`automod` with `what: "whiteboard"`); timed-out
+  members get `forbidden` and members who must still agree to the [rules](#server-rules) get `rules_required` for
+  `wb.open`, `wb.update`, `wb.live`, `wb.snapshot` and `wb.clear`.
+- **Rate limits:** `wb.update` 8/s (burst 20), `wb.live` 8/s (burst 10), `wb.get` 5/s (burst 20), `wb.open` and
+  `wb.clear` 1 every 5 s (burst 5), `wb.snapshot` 1 every 10 s (burst 5).
+
+| event | body | sent to |
+|---|---|---|
+| `wb.batch` | `{ channelId, boardId, batch: Batch, cid?, wantSnapshot? }` | the board's viewers who can read the channel |
+| `wb.live` | `{ channelId, boardId, accountKey, live }` (encrypted: `version, envelope` instead of `live`) | the board's other viewers |
+| `wb.viewers` | `{ channelId, viewers }` | the board's viewers |
+| `wb.snapshot` | `{ channelId, boardId, seq }` | the board's viewers (encrypted boards: a new snapshot arrived) |
+| `wb.board` | `{ channelId, board: Board \| null }` | readers of a voice channel (its board was opened or cleared) |
+| `wb.cleared` | `{ channelId, boardId }` | readers of the channel |
+
+### Encrypted boards
+
+In an encrypted channel the server never sees the board. Batches, snapshots and live cursors are **board envelopes**,
+sealed with the channel's current [epoch key](#epoch-keys) and signed by the sender's device, like channel messages:
+
+```jsonc
+BoardEnvelope { "v": 1, "kind": "wb",
+  "header": { "from": "<accountKey>", "chain": "<chain id>", "version": 3, "sentAt": 1760000000000, "id": "<b64u 12>",
+              "channel": 7, "board": "<board id>", "what": "ops" | "snapshot" | "live", "seq"?: 40 },
+  "sender": DeviceCert, "nonce": "<b64u 24>", "ct": "<b64u>", "sig": "<b64u 64>" }
+```
+
+- `ad = JSON.stringify(["iskra/wb/v1", from, chain, version, head, sentAt, id, channel, board, what, seq ?? 0])`
+  (`head` of that version, from the verified chain); `ct = XChaCha20-Poly1305(epochKey, nonce, content, ad)`;
+  `sig = Ed25519.sign(deviceSecret, "iskra/wb/v1" || 0x00 || u64be(len(ad)) || ad || u64be(24) || nonce || ct)`.
+- Content: `ops` → `{ "ops": [Op] }` (the same rules as a plain batch, checked by the apps); `snapshot` →
+  `{ "objects": { … } }` (the board after batch `seq`); `live` → a `Live`.
+- **The server** checks that the header's `from`, `chain`, `version` (the current one, else `conflict`), `channel`,
+  `board`, `what` and (snapshots) `seq` match the request, and that the sender is in the chain. An envelope is at most
+  48 KB (`ops`), 8 KB (`live`) or 6 MB (`snapshot`: bigger than a frame, so apps upload it with `upload.begin` and pass
+  `file`: their own upload, which the server reads; the unused-upload sweep deletes it a day later).
+- **Apps** check what they check for channel messages (chain, version, membership at that version, device certificate
+  and signature, and that `channel` and `board` are where it arrived), drop an envelope whose `id` they already applied,
+  and skip a batch they can't open (the board says some changes couldn't be opened).
+- **Snapshots:** the server can't fold encrypted batches, so the apps do. `wantSnapshot` (in `wb.get`, and on
+  `wb.batch`) is true once 300 batches or 512 KB have piled up since the last snapshot, or when the snapshot or a batch
+  after it is sealed under an older epoch than the current one (someone joined or left since, and newer members can't
+  read older epochs). A writer in the chain whose app has the whole board open then uploads a snapshot of it, after a
+  short random wait (another app may do it first: the `wb.snapshot` event). The server takes a snapshot only for a
+  `seq` newer than the current snapshot's and at most the board's, and deletes the batches up to it. With more than
+  4 MB of batches since the snapshot, `wb.update` answers `bad_request` with key `wb_compact` until one arrives (the app
+  makes one and sends again); the same goes for a board past 6 MB in all while it has batches since its snapshot (a
+  snapshot drops deleted objects), and `wb_full` once it has none. A board that nobody who can read its older epochs opens stays unreadable to newer members
+  until someone who can opens it.
+- **Not on encrypted boards:** pictures (the server could read them) and AutoMod.
+- **Limits:** as with channel messages, a removed member keeps the old epoch keys, and the server could replay an older
+  batch of the same board: apps drop envelope ids they've seen and batches signed more than 10 minutes before the
+  snapshot they started from.
+
+### Storage, your data and templates
+
+- Migration `whiteboard-1`: `wb_boards` (one per channel: id, seq, snapshot, who opened it), `wb_batches` (seq, author,
+  ops or envelope, epoch version) and `wb_files` (uploads a plain board refers to). They go with their channel.
+- **Your data:** `data.export` includes `whiteboardBatches`: the batches you sent that aren't folded into a snapshot yet
+  (plain ones with their ops, encrypted ones with their size only). Folded batches keep no author. **Deleting an
+  account** with `messages: true` removes the authorship of its unfolded batches (`by` becomes `""`); the drawing stays
+  on the board, as a docs page's text does. Boards aren't messages: retention doesn't delete them.
+- [Starter templates](#starter-templates) can create whiteboard channels (`"kind": "whiteboard"`; no slowmode).

@@ -84,6 +84,7 @@ public sealed class Router
         AfkFeature.Register(this);
         BotDmFeature.Register(this);
         TemplateFeature.Register(this);
+        WhiteboardFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

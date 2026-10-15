@@ -77,7 +77,7 @@ public static class E2eeChannelFeature
     {
         if (body.OptionalElement("e2ee") is not { } raw) return null;
         if (raw.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'e2ee' must be an object.");
-        if (kind is not ("text" or "voice")) throw RequestException.BadRequest("Only text and voice channels can be end-to-end encrypted.", "e2ee_kinds");
+        if (kind is not ("text" or "voice" or "whiteboard")) throw RequestException.BadRequest("Only text, voice and whiteboard channels can be end-to-end encrypted.", "e2ee_kinds");
         NotABot(s, me);
         var e2ee = new Body(raw);
         var (change, payloadText, sig, payload) = ParseChange(s, me, e2ee);
