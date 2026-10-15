@@ -42,7 +42,7 @@ export const teams: Messages['teams'] = {
   bringBack: 'Hämta tillbaka alla',
   menu: 'Dela upp i lag…',
   bar: {
-    onTeam: 'Du är i {{team}} ({{teams}})',
+    onTeam: 'Du är i {{team}}',
     split: 'Uppdelade i lag: {{teams}}',
   },
   command: {

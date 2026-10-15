@@ -41,7 +41,7 @@ export const teams = {
   bringBack: 'Bring everyone back',
   menu: 'Split into teams…',
   bar: {
-    onTeam: "You're in {{team}} ({{teams}})",
+    onTeam: "You're in {{team}}",
     split: 'Split into teams: {{teams}}',
   },
   command: {

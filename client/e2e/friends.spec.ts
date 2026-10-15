@@ -120,7 +120,8 @@ test('on a phone, starting a server says it needs a computer', async ({ browser 
   await expect(guide.getByRole('link', { name: /^Download Iskra for/ })).toHaveCount(0)
   // No Windows or server downloads on a phone: the app goes on a computer, or rent a server from here.
   await expect(guide.getByRole('link', { name: /Windows|Linux|\.deb/ })).toHaveCount(0)
-  await expect(guide.getByRole('heading', { name: 'On your computer: the Iskra app' })).toBeVisible()
+  // Renting leads; the computer comes second.
+  await expect(guide.getByRole('heading', { level: 3 })).toHaveText(['Rent a small server', 'Get Iskra on your computer'])
   await expect(guide.getByRole('button', { name: 'Copy the download link' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   await expect(guide).toBeInViewport()
@@ -128,4 +129,21 @@ test('on a phone, starting a server says it needs a computer', async ({ browser 
   await page.screenshot({ path: join(SHOTS, 'start-server-phone.png') })
   await guide.getByRole('button', { name: 'Rent a small server' }).click()
   await expect(page.getByRole('dialog', { name: 'Rent a small server' })).toBeVisible()
+})
+
+test('a phone whose browser asks for desktop sites still gets the phone choices, not a Windows download', async ({ browser }) => {
+  // Android Chrome's "Desktop site" (and some shells) send a desktop user agent; the narrow touch screen gives it away.
+  const page = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage()
+  expect(await page.evaluate(() => navigator.userAgent)).toContain('Windows')
+  await page.goto('/')
+  await agreeToTerms(page)
+  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await page.getByLabel('Your name').fill('Desktop site')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: 'Start your own server' }).click()
+  const guide = page.getByRole('dialog', { name: 'Start your own server' })
+  await expect(guide.getByRole('heading', { level: 3 }).first()).toHaveText('Rent a small server')
+  await expect(guide.getByRole('link', { name: /^Download Iskra for/ })).toHaveCount(0)
+  await expect(guide.getByRole('link', { name: /Windows|Linux|\.deb/ })).toHaveCount(0)
+  await expect(guide.getByRole('button', { name: 'Copy the download link' })).toBeVisible()
 })
