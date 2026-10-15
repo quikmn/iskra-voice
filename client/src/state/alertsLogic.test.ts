@@ -33,6 +33,10 @@ describe('alert words', () => {
   it('finds every place for marking', () => {
     expect(alertRanges(alertPattern(['pizza']), 'pizza and Pizza, pizzas')).toEqual([[0, 5], [10, 15]])
     expect(alertRanges(null, 'pizza')).toEqual([])
+    // The same shared pattern right after a test() still finds them all.
+    const shared = alertPattern(['pizza'])
+    expect(matchesAlert(shared, 'a pizza')).toBe(true)
+    expect(alertRanges(shared, 'a pizza')).toEqual([[2, 7]])
   })
 
   it('cleans and limits the list', () => {

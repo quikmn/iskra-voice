@@ -87,13 +87,13 @@ quietRules.now = () => quietNow()
 /** Whether quiet hours are on right now, checked again every 30 seconds. */
 export function useQuietNow(): boolean {
   const settings = useAlerts((s) => s.settings)
-  const [, setTick] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (!settings.quietOn) return
-    const timer = setInterval(() => setTick((n) => n + 1), 30_000)
+    const timer = setInterval(() => setNow(Date.now()), 30_000)
     return () => clearInterval(timer)
   }, [settings.quietOn])
-  return settings.quietOn && quietActive(settings.quiet, new Date())
+  return settings.quietOn && quietActive(settings.quiet, new Date(now))
 }
 
 // ── The servers' copies ─────────────────────────────────────────────────────

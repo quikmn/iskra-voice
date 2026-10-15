@@ -31,6 +31,8 @@ describe('inline math', () => {
     ['$a\nb$', []], // one line only
     ['$$x$$', []], // that's a block
     ['price $2x$ dollars', ['2x']],
+    ['Tickets are $5 and $10, and Euler: $e^{i} + 1 = 0$ ok', ['e^{i} + 1 = 0']],
+    ['from $5 to $x$', ['x']],
   ])('%s', (text, expected) => expect(spans(text)).toEqual(expected))
 })
 

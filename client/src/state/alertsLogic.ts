@@ -88,13 +88,16 @@ export function alertPattern(words: string[]): RegExp | null {
 export function matchesAlert(pattern: RegExp | null, text: string): boolean {
   if (!pattern || !text) return false
   pattern.lastIndex = 0
-  return pattern.test(text)
+  const found = pattern.test(text)
+  pattern.lastIndex = 0 // shared and global: matchAll elsewhere starts from here
+  return found
 }
 
 /** Where the words are in a piece of text, as [start, end) pairs. */
 export function alertRanges(pattern: RegExp | null, text: string): [number, number][] {
   if (!pattern || !text) return []
   const out: [number, number][] = []
+  pattern.lastIndex = 0
   for (const m of text.matchAll(pattern)) if (m[0]) out.push([m.index, m.index + m[0].length])
   return out
 }

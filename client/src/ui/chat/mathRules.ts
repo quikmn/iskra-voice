@@ -18,10 +18,8 @@ export function inlineMathAt(text: string, i: number): { tex: string; end: numbe
       j++
       continue
     }
-    if (c === '$') {
-      if (text[j + 1] === '$') return null // "$$" inside: not inline math
-      if (!isSpace(text[j - 1]) && !isDigit(text[j + 1])) return { tex: text.slice(i + 1, j), end: j + 1 }
-    }
+    // The first unescaped "$" closes it or nothing does ("$5 and $10, then $x$" has math only at the end).
+    if (c === '$') return !isSpace(text[j - 1]) && !isDigit(text[j + 1]) && text[j + 1] !== '$' ? { tex: text.slice(i + 1, j), end: j + 1 } : null
   }
   return null
 }
