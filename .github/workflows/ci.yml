@@ -131,6 +131,8 @@ jobs:
   # client/e2e/durations.json; a new spec counts as the median). Each shard keeps a blob report; the `end-to-end` job
   # below is the one check to require: it fails unless every shard and interop passed, and on a failure merges the
   # shards' blob reports into one HTML report (artifact playwright-report).
+  # On CI a failed test runs once more (playwright.config.ts): passing then makes it "flaky", listed in the summary and
+  # the #ci message; failing twice stays red. Each shard's JSON report feeds scripts/e2e-flaky.mjs.
   e2e-shard:
     name: end-to-end shard ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
@@ -188,14 +190,25 @@ jobs:
           path: client/.models
           key: models-${{ hashFiles('client/src/state/captions/model.json', 'client/src/state/translate/models.json') }}
       - run: node ../scripts/get-models.mjs --translate sv
-      - run: npm run test:e2e -- --test-list "$RUNNER_TEMP/e2e-shard.txt" --reporter=list,blob
+      - run: npm run test:e2e -- --test-list "$RUNNER_TEMP/e2e-shard.txt" --reporter=list,blob,json
         env:
           PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.shard }}.zip # one name per shard, for merge-reports
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ runner.temp }}/e2e-json/report-${{ matrix.shard }}.json
+      - name: Flaky and failed tests
+        if: ${{ !cancelled() }}
+        run: node ../scripts/e2e-flaky.mjs "$RUNNER_TEMP/e2e-json"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ !cancelled() }}
         with:
           name: blob-report-${{ matrix.shard }}
           path: client/blob-report
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: e2e-json-${{ matrix.shard }}
+          path: ${{ runner.temp }}/e2e-json
+          if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
@@ -247,6 +260,10 @@ jobs:
     needs: [e2e-shard, interop]
     if: ${{ always() }}
     runs-on: ubuntu-latest
+    # The tests that only passed on their retry (and those that failed twice), for the summary and the #ci message.
+    outputs:
+      flaky: ${{ steps.tests.outputs.flaky }}
+      failed: ${{ steps.tests.outputs.failed }}
     steps:
       - name: Every shard and interop passed
         id: result
@@ -258,6 +275,28 @@ jobs:
           if [ "$SHARDS" = success ] && [ "$INTEROP" = success ]; then exit 0; fi
           echo "failed=1" >> "$GITHUB_OUTPUT"
           echo "::error::end-to-end shards: $SHARDS, interop: $INTEROP (see the failing job; the merged report is the playwright-report artifact)"
+      # Best effort: a summary of every shard's flaky and failed tests; never changes the result.
+      - if: needs.e2e-shard.result != 'skipped'
+        continue-on-error: true
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+          path: flaky-tool
+          sparse-checkout: scripts/e2e-flaky.mjs
+          sparse-checkout-cone-mode: false
+      - if: needs.e2e-shard.result != 'skipped'
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: e2e-json-*
+          path: e2e-json
+          merge-multiple: true
+      - name: Flaky and failed tests
+        id: tests
+        if: needs.e2e-shard.result != 'skipped'
+        continue-on-error: true
+        run: node flaky-tool/scripts/e2e-flaky.mjs e2e-json
       # One HTML report from every shard's blob report, the standard Playwright way.
       - if: steps.result.outputs.failed == '1' && needs.e2e-shard.result != 'skipped'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -404,10 +443,10 @@ jobs:
           export JAVA_HOME="$JAVA_HOME_21_X64"
           ./gradlew assembleRelease --no-daemon --console=plain
 
-  # Optional: the result in an Iskra channel (scripts/ci-notify.mjs; docs/ci-cd.md "CI results in Iskra"). Only for main
-  # (pushes, nightly, by hand; not the Release workflow's call, which reports itself), only when the secret ISKRA_CI_WEBHOOK
-  # is set, and never for a run a newer push cancelled.
-  # Sends the branch, short commit, pass/fail with the failed jobs' names and the run link; nothing else.
+  # Optional: what GitHub's own workflow_run message doesn't say, in an Iskra channel (scripts/ci-notify.mjs; docs/ci-cd.md
+  # "CI results in Iskra"): on a failure the failed jobs and end-to-end tests, on a pass the flaky tests; a plain pass
+  # posts nothing. Only for main (pushes, nightly, by hand; not the Release workflow's call), only when the secret
+  # ISKRA_CI_WEBHOOK is set, and never for a run a newer push cancelled.
   report:
     name: report to Iskra
     needs: [server, client, desktop, end-to-end, scripts-and-drill, android]
@@ -433,3 +472,5 @@ jobs:
         env:
           ISKRA_CI_WEBHOOK: ${{ secrets.ISKRA_CI_WEBHOOK }}
           NEEDS: ${{ toJSON(needs) }}
+          E2E_FLAKY: ${{ needs.end-to-end.outputs.flaky }}
+          E2E_FAILED: ${{ needs.end-to-end.outputs.failed }}

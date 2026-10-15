@@ -108,6 +108,8 @@ public sealed class VoiceRegistry
     /// </summary>
     public void Move(string accountKey, long toChannelId, long now, string? reason = null, int removeAfterMs = 0)
     {
+        var move = Interlocked.Increment(ref _moves);
+        _lastMove[accountKey] = (move, toChannelId);
         GrantMovePass(accountKey, toChannelId, now + Features.VoiceLimitFeature.MovePassMs);
         hub.SendToAccount(accountKey, Frames.Event("voice.moved", reason is null ? new { channelId = toChannelId } : new { channelId = toChannelId, reason }));
         if (removeAfterMs <= 0 || ChannelOfMember(accountKey) is not { } from)
@@ -118,12 +120,20 @@ public sealed class VoiceRegistry
         // Many moves at once (teams): the apps switch rooms themselves, and LiveKit's removal from the old room follows a
         // moment later, so it can't end an app's voice session before the move reaches it.
         Left(from, accountKey);
-        _ = RemoveLaterAsync(from, accountKey, removeAfterMs);
+        _ = RemoveLaterAsync(from, accountKey, removeAfterMs, move);
     }
 
-    private async Task RemoveLaterAsync(long channelId, string accountKey, int delayMs)
+    /// <summary>Each person's latest move: its number and where to.</summary>
+    private readonly ConcurrentDictionary<string, (long Move, long To)> _lastMove = new();
+    private long _moves;
+
+    private async Task RemoveLaterAsync(long channelId, string accountKey, int delayMs, long move)
     {
         await Task.Delay(delayMs);
+        // Moved back into this channel since (teams: "Bring everyone back" within the delay): their app is on its way in
+        // with a new session, which LiveKit's removal by identity would end (before its join webhook makes them a
+        // Participant here).
+        if (_lastMove.TryGetValue(accountKey, out var last) && last.Move != move && last.To == channelId) return;
         if (Participant(channelId, accountKey) is null) await backend.RemoveParticipantAsync(RoomName(channelId), accountKey);
     }
 
@@ -326,6 +336,9 @@ public sealed class VoiceRegistry
             return;
         }
         if (ChannelOf(room) is not { } channelId) return;
+        if (log.IsEnabled(LogLevel.Debug))
+            log.LogDebug("LiveKit {Type} in {Room}: {Identity} ({Sid})", type, room, identity,
+                evt.TryGetProperty("participant", out var who) && who.TryGetProperty("sid", out var sid) ? sid.GetString() : null);
 
         switch (type)
         {

@@ -193,6 +193,33 @@ public class TeamsTests
     }
 
     [Fact]
+    public async Task Bringing_people_back_quickly_never_removes_them_from_the_channel_they_came_back_to()
+    {
+        // Regression (teams-lfg e2e under load): the split's delayed removal from the lounge (3 s later) fired after
+        // "Bring everyone back" had already moved them home, and LiveKit removed Friend's new lounge session.
+        using var server = new IskraServer();
+        var lounge = Lounge(server);
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var a = await server.JoinAsync("Alice");
+        foreach (var user in new[] { owner, a }) Voice(server).Joined(lounge, user.Key, Now);
+        var split = (await Split(owner, lounge, [[owner.Key], [a.Key]])).Body().GetProperty("split");
+        var ids = split.GetProperty("teams").EnumerateArray().Select(t => t.GetProperty("channelId").GetInt64()).ToArray();
+        await a.EventAsync("voice.moved");
+        Voice(server).Joined(ids[0], owner.Key, Now);
+        Voice(server).Joined(ids[1], a.Key, Now);
+        Assert.Equal(2, (await owner.RequestAsync("teams.end", new { id = split.GetProperty("id").GetInt64() })).Body().GetProperty("moved").GetInt32());
+
+        // The bring-back's own removals (from the team rooms) come after the split's (from the lounge): once they're
+        // done, the lounge's would have been too.
+        bool Removed(long channelId, string key) { lock (server.Voice.Removed) return server.Voice.Removed.Contains(($"voice-{channelId}", key)); }
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        while (!(Removed(ids[0], owner.Key) && Removed(ids[1], a.Key)) && DateTime.UtcNow < deadline) await Task.Delay(100);
+        Assert.True(Removed(ids[1], a.Key));
+        Assert.False(Removed(lounge, a.Key));
+        Assert.False(Removed(lounge, owner.Key));
+    }
+
+    [Fact]
     public async Task Bring_back_skips_people_above_you_and_keeps_their_channel()
     {
         using var server = new IskraServer();

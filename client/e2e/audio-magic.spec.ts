@@ -168,10 +168,11 @@ test('AI noise removal, Silero voice activity, cleaning up and leveling what you
   await channelSettings.getByLabel('Allow hi-fi audio').uncheck()
   await channelSettings.getByRole('button', { name: 'Save' }).click()
   await openSettings(host, 'Voice & audio')
-  // Restarting DeepFilterNet next to the friend's on a shared CI runner may fall back to RNNoise (by design, as above).
-  const backToAi = settings.getByText('Active: AI noise removal (DeepFilterNet3).')
-  await expect(process.env.CI ? settings.getByText(/Active: (AI noise removal \(DeepFilterNet3\)|Strong \(RNNoise\))\./) : backToAi)
-    .toBeVisible({ timeout: 20_000 })
+  // Restarting DeepFilterNet next to the friend's may fall back to RNNoise on a busy machine (a shared CI runner, or 4
+  // test workers here: 1 of 20 stress runs): by design, and then the app says AI was too heavy. Either, never neither.
+  await expect(settings.getByText(/Active: (AI noise removal \(DeepFilterNet3\)|Strong \(RNNoise\))\./)).toBeVisible({ timeout: 20_000 })
+  if (await settings.getByText('Active: Strong (RNNoise).').isVisible())
+    await expect(settings.getByText('AI noise removal was too heavy for this device, so RNNoise is used.', { exact: false })).toBeVisible()
   await host.keyboard.press('Escape')
   await expect.poll(() => receivedLevel(friend), { timeout: 20_000 }).toBeGreaterThan(-60)
 
@@ -185,6 +186,9 @@ test('AI noise removal, Silero voice activity, cleaning up and leveling what you
   expect(await violations(host)).toEqual([])
   expect(await violations(friend)).toEqual([])
   for (const line of log) console.log(line)
-  // Never "could not start"; "too slow" is the designed fallback, accepted only on a shared CI runner.
-  expect(log.some((l) => (process.env.CI ? /could not start/ : /too slow|could not start|can't keep up/).test(l))).toBe(false)
+  // Never "could not start". "Too slow" is the designed fallback when the machine is busy (a shared CI runner, or
+  // several of these specs at once here: most runs with 4 workers): it depends on the load, not the code, so it's noted.
+  expect(log.some((l) => /could not start/.test(l))).toBe(false)
+  if (log.some((l) => /too slow|can't keep up/.test(l)))
+    test.info().annotations.push({ type: 'warning', description: 'AI noise removal was too slow on this machine and fell back to RNNoise (by design)' })
 })

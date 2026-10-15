@@ -95,18 +95,22 @@ public class HttpsTests : IDisposable
     private async Task<X509Certificate2> PebbleCertificateOn(int port)
     {
         X509Certificate2? served = null;
-        for (var i = 0; i < 300 && served is null; i++)
+        // 30 s in all, and never more than 5 s per look: a connection the server accepts but doesn't answer (busy, or
+        // switching certificates) used to hang this loop for good (10m45s once in a full run under load).
+        var until = DateTime.UtcNow.AddSeconds(30);
+        while (served is null && DateTime.UtcNow < until)
         {
             try
             {
+                using var look = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 using var tcp = new TcpClient();
-                await tcp.ConnectAsync(IPAddress.Loopback, port);
+                await tcp.ConnectAsync(IPAddress.Loopback, port, look.Token);
                 using var ssl = new SslStream(tcp.GetStream(), false, (_, _, _, _) => true);
-                await ssl.AuthenticateAsClientAsync("localhost");
+                await ssl.AuthenticateAsClientAsync(new SslClientAuthenticationOptions { TargetHost = "localhost" }, look.Token);
                 var cert = new X509Certificate2(ssl.RemoteCertificate!);
                 if (cert.Issuer.Contains("Pebble", StringComparison.OrdinalIgnoreCase)) served = cert;
             }
-            catch (Exception e) when (e is SocketException or IOException or System.Security.Authentication.AuthenticationException) { }
+            catch (Exception e) when (e is SocketException or IOException or System.Security.Authentication.AuthenticationException or OperationCanceledException) { }
             if (served is null) await Task.Delay(100);
         }
         if (served is null) File.WriteAllLines(Path.Combine(Path.GetTempPath(), "iskra-https-last.log"), _log);

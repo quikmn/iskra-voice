@@ -24,8 +24,6 @@ on:
       deploy: { type: boolean, default: true }
       # The calling Release run's id: its "ci / ..." jobs tested the tagged commit.
       ci_run: { type: string, default: '' }
-      # Off when the Release workflow reports the whole release itself.
-      report: { type: boolean, default: true }
 
 permissions: {}
 
@@ -153,34 +151,3 @@ jobs:
       webapp: true
       server_version: ${{ needs.publish.outputs.version }}
     secrets: inherit
-
-  # Optional: the outcome in an Iskra channel (scripts/ci-notify.mjs; docs/ci-cd.md "CI results in Iskra"), only when the
-  # secret ISKRA_CI_WEBHOOK is set. Sends the tag, short commit, published/failed and the run link; nothing else.
-  report:
-    name: report to Iskra
-    needs: [publish, deploy]
-    if: ${{ !cancelled() && inputs.report != false }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    steps:
-      - name: Is the webhook set?
-        id: hook
-        env:
-          ISKRA_CI_WEBHOOK: ${{ secrets.ISKRA_CI_WEBHOOK }}
-        run: |
-          if [ -n "$ISKRA_CI_WEBHOOK" ]; then echo "set=1" >> "$GITHUB_OUTPUT"; else echo "No ISKRA_CI_WEBHOOK secret: not reporting."; fi
-      - if: steps.hook.outputs.set == '1'
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-          sparse-checkout: scripts/ci-notify.mjs
-          sparse-checkout-cone-mode: false
-      - if: steps.hook.outputs.set == '1'
-        run: node scripts/ci-notify.mjs release
-        env:
-          ISKRA_CI_WEBHOOK: ${{ secrets.ISKRA_CI_WEBHOOK }}
-          NEEDS: ${{ toJSON(needs) }}
-          TAG: ${{ inputs.tag }}
-          COMMIT: ${{ needs.publish.outputs.commit }}

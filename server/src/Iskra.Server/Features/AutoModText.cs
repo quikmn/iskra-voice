@@ -128,12 +128,19 @@ public sealed class WordMatcher
     }
 
     /// <summary>Where blocked words occur, as [start, end) in the folded text (empty if nowhere).</summary>
-    public List<(int Start, int End)> Find(FoldedText text)
+    public List<(int Start, int End)> Find(FoldedText text) => Find(text, out _);
+
+    /// <summary>
+    /// <see cref="Find(FoldedText)"/>, also giving the work it took: characters compared against patterns. Tests check
+    /// the matcher's speed with it, which (unlike a stopwatch) doesn't depend on the machine or how busy it is.
+    /// </summary>
+    internal List<(int Start, int End)> Find(FoldedText text, out long work)
     {
+        work = 0;
         var hits = new List<(int, int)>();
         if (IsEmpty) return hits;
         var words = Enumerable.Range(0, text.Words.Count).Select(text.Word).ToList();
-        Scan(words, text.Words, hits);
+        Scan(words, text.Words, hits, ref work);
         // Spelled out: three or more single letters in a row are also read as one word.
         var squeezed = new List<string>();
         var spans = new List<(int, int)>();
@@ -156,25 +163,26 @@ public sealed class WordMatcher
                 i++;
             }
         }
-        if (changed) Scan(squeezed, spans, hits);
+        if (changed) Scan(squeezed, spans, hits, ref work);
         return hits;
     }
 
     private static bool IsOneLetter(string word) => word.Length == 1 || (word.Length == 2 && char.IsSurrogatePair(word, 0));
 
-    private void Scan(List<string> words, List<(int Start, int End)> spans, List<(int, int)> hits)
+    private void Scan(List<string> words, List<(int Start, int End)> spans, List<(int, int)> hits, ref long work)
     {
         for (var i = 0; i < words.Count && hits.Count < MaxHits; i++)
         {
             var w = words[i];
-            if (_single.Contains(w) && !Allowed(words, i, 1)) Hit(spans, i, 1, hits);
+            work += w.Length; // the hash lookups
+            if (_single.Contains(w) && !Allowed(words, i, 1, ref work)) Hit(spans, i, 1, hits);
             if (_byFirst.TryGetValue(w, out var phrases))
                 foreach (var p in phrases)
-                    if (Matches(p, words, i) && !Allowed(words, i, p.Length)) Hit(spans, i, p.Length, hits);
+                    if (Matches(p, words, i, ref work) && !Allowed(words, i, p.Length, ref work)) Hit(spans, i, p.Length, hits);
             foreach (var key in (ReadOnlySpan<char>)[w[0], '*'])
                 if (_wild.TryGetValue(key, out var wild))
                     foreach (var p in wild)
-                        if (Matches(p, words, i) && !Allowed(words, i, p.Length)) Hit(spans, i, p.Length, hits);
+                        if (Matches(p, words, i, ref work) && !Allowed(words, i, p.Length, ref work)) Hit(spans, i, p.Length, hits);
         }
     }
 
@@ -184,29 +192,41 @@ public sealed class WordMatcher
         if (!hits.Contains(span)) hits.Add(span);
     }
 
-    private bool Allowed(List<string> words, int i, int count)
+    private bool Allowed(List<string> words, int i, int count, ref long work)
     {
         if (count == 1 && _allowedSingle.Contains(words[i])) return true;
         foreach (var p in _allowed)
-            if (p.Length == count && Matches(p, words, i)) return true;
+            if (p.Length == count && Matches(p, words, i, ref work)) return true;
         return false;
     }
 
-    private static bool Matches(string[] pattern, List<string> words, int at)
+    private static bool Matches(string[] pattern, List<string> words, int at, ref long work)
     {
+        work++;
         if (at + pattern.Length > words.Count) return false;
         for (var k = 0; k < pattern.Length; k++)
-            if (!Glob(pattern[k], words[at + k])) return false;
+            if (!Glob(pattern[k], words[at + k], ref work)) return false;
         return true;
     }
 
     /// <summary>Wildcard match where <c>*</c> is any run of characters (iterative, linear in practice).</summary>
     public static bool Glob(string pattern, string text)
     {
-        if (!pattern.Contains('*')) return pattern == text;
+        long work = 0;
+        return Glob(pattern, text, ref work);
+    }
+
+    private static bool Glob(string pattern, string text, ref long work)
+    {
+        if (!pattern.Contains('*'))
+        {
+            work += Math.Min(pattern.Length, text.Length) + 1;
+            return pattern == text;
+        }
         int p = 0, t = 0, star = -1, mark = 0;
         while (t < text.Length)
         {
+            work++;
             if (p < pattern.Length && pattern[p] == text[t]) { p++; t++; }
             else if (p < pattern.Length && pattern[p] == '*') { star = p++; mark = t; }
             else if (star >= 0) { p = star + 1; t = ++mark; }

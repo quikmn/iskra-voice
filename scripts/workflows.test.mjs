@@ -69,6 +69,26 @@ test('workflows called by the Release workflow accept the call', () => {
   assert.match(read('ci.yml'), /ref: \$\{\{ inputs\.ref \}\}/)
 })
 
+test('end-to-end flakes: one retry on CI only, flaky tests reported, the nightly stress run never red for flakes alone', () => {
+  const config = readFileSync(join(root, 'client', 'playwright.config.ts'), 'utf8')
+  assert.match(config, /retries: process\.env\.CI \? 1 : 0/)
+  assert.doesNotMatch(config, /failOnFlakyTests/)
+  const ci = read('ci.yml')
+  assert.match(jobs(ci)['e2e-shard'], /--reporter=list,blob,json/)
+  assert.match(jobs(ci)['end-to-end'], /flaky: \$\{\{ steps\.tests\.outputs\.flaky \}\}/)
+  assert.match(jobs(ci).report, /E2E_FLAKY: \$\{\{ needs\.end-to-end\.outputs\.flaky \}\}/)
+  const stress = read('e2e-stress.yml')
+  const on = stress.slice(stress.indexOf('\non:\n'), stress.indexOf('\npermissions:'))
+  assert.match(on, /^ {2}schedule:$/m)
+  assert.match(on, /^ {2}workflow_dispatch:$/m)
+  assert.doesNotMatch(on, /push:|pull_request/)
+  assert.match(jobs(stress).shard, /--repeat-each "\$REPEAT"/)
+  assert.match(jobs(stress).shard, /e2e-shards\.mjs list \$\{\{ matrix\.shard \}\} 4/)
+  assert.match(jobs(stress).report, /ci-notify\.mjs stress/)
+  // The report never turns the run red: only the shards' own results do.
+  assert.doesNotMatch(jobs(stress).report, /exit 1/)
+})
+
 const actionlint = spawnSync('actionlint', ['-version']).status === 0
 test('actionlint passes on every workflow', { skip: actionlint ? false : 'actionlint is not installed' }, () => {
   // shellcheck off: CI's runners have it and this machine doesn't; the result must not depend on where it runs.

@@ -112,17 +112,26 @@ test('presence: do not disturb, custom status, invisible; encrypted DM attachmen
   await host.getByRole('menuitemradio', { name: /^Online/ }).click()
   await expect(friend.locator('.member-list').getByRole('button', { name: /^Host,/ })).toHaveAttribute('aria-label', 'Host, Online')
 
+  const recordFrom = Date.now()
   await friend.getByRole('button', { name: 'Record a voice message' }).click()
   const bar = friend.getByRole('group', { name: 'Recording a voice message' })
   await expect(bar.getByRole('button', { name: 'Send voice message' })).toBeVisible()
-  await friend.waitForTimeout(1800)
-  await expect(bar.locator('.voice-rec-time')).not.toHaveText('0:00')
+  // A couple of seconds of the fake mic, by the recorder's own clock (not a fixed wait).
+  await expect(bar.locator('.voice-rec-time')).toHaveText(/^0:(0[2-9]|[1-5]\d)$/, { timeout: 15_000 })
   await friend.screenshot({ path: join(SHOTS, 'voice-recording.png') })
   await bar.getByRole('button', { name: 'Send voice message' }).click()
+  // The recording is as long as the test took to send it, which a busy machine stretches (0:03 under load): at least
+  // a second (the timer showed two), at most the time from Record to Send.
+  const recordedFor = Math.ceil((Date.now() - recordFrom) / 1000)
 
   const player = host.locator('.voice-player').last()
   await expect(player).toBeVisible()
-  await expect(player.locator('.voice-time')).toHaveText(/0:0[12]/)
+  await expect.poll(async () => {
+    const [m, s] = ((await player.locator('.voice-time').textContent()) ?? '').split(':').map(Number)
+    return m * 60 + s
+  }).toBeGreaterThanOrEqual(1)
+  const shown = ((await player.locator('.voice-time').textContent()) ?? '').split(':').map(Number)
+  expect(shown[0] * 60 + shown[1]).toBeLessThanOrEqual(recordedFor)
   await expect(player.locator('.voice-wave span.played')).toHaveCount(0)
   await player.getByRole('button', { name: 'Playback speed 1×' }).click()
   await expect(player.getByRole('button', { name: 'Playback speed 1.5×' })).toBeVisible()
