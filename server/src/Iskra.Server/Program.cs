@@ -165,13 +165,26 @@ if (https.Enabled)
         certificates.LoadExisting();
         kestrel.ListenLocalhost(world.Settings.Port); // internal: LiveKit webhooks and local tools
         ListenForTunnel(kestrel);
-        void Listen(int port, Action<Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions>? configure = null)
+        // Behind a reverse proxy on this machine (docs/hosting.md, "Two servers on one machine"): bind to one address,
+        // and take the client's address from a PROXY protocol header that only the proxy may send.
+        System.Net.IPAddress? bind = null;
+        if (https.BindAddress is { Length: > 0 } bindText && !System.Net.IPAddress.TryParse(bindText, out bind))
+            throw new InvalidDataException($"Https.BindAddress: \"{bindText}\" isn't an IP address.");
+        var trusted = https.ProxyProtocol || https.HttpProxyProtocol ? ProxyProtocol.Trusted(https.ProxyTrustedFrom) : [];
+        var proxyLog = kestrel.ApplicationServices.GetRequiredService<ILoggerFactory>().CreateLogger("Iskra.Server.Hosting.ProxyProtocol");
+        void Listen(int port, bool proxied, Action<Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions>? configure = null)
         {
-            if (world.Settings.LocalOnly) kestrel.ListenLocalhost(port, configure ?? (_ => { }));
-            else kestrel.ListenAnyIP(port, configure ?? (_ => { }));
+            void Configure(Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions listen)
+            {
+                if (proxied) listen.Use(ProxyProtocol.Middleware(trusted, proxyLog)); // before TLS: the header comes first
+                configure?.Invoke(listen);
+            }
+            if (world.Settings.LocalOnly) kestrel.ListenLocalhost(port, Configure);
+            else if (bind is not null) kestrel.Listen(bind, port, Configure);
+            else kestrel.ListenAnyIP(port, Configure);
         }
-        Listen(https.HttpPort);          // Let's Encrypt challenges, everything else redirects
-        Listen(https.Port, listen => listen.UseHttps(new Microsoft.AspNetCore.Server.Kestrel.Https.TlsHandshakeCallbackOptions
+        Listen(https.HttpPort, https.HttpProxyProtocol); // Let's Encrypt challenges, everything else redirects
+        Listen(https.Port, https.ProxyProtocol, listen => listen.UseHttps(new Microsoft.AspNetCore.Server.Kestrel.Https.TlsHandshakeCallbackOptions
         {
             // Asked on every handshake, so a renewed certificate is used right away.
             OnConnection = _ => ValueTask.FromResult(new System.Net.Security.SslServerAuthenticationOptions
@@ -209,6 +222,10 @@ SecurityHeaders.Use(app);
 if (https.Enabled)
 {
     var certificates = app.Services.GetRequiredService<Certificates>();
+    // Where plain HTTP goes: PublicUrl when it's https:// (behind a proxy, Https.Port is internal), else the domain on Https.Port.
+    var httpsUrl = world.Settings.PublicUrl is { } publicHttps && publicHttps.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+        ? publicHttps.TrimEnd('/')
+        : https.DefaultUrl;
     app.Use(async (context, next) =>
     {
         if (context.Connection.LocalPort == https.HttpPort)
@@ -221,8 +238,10 @@ if (https.Enabled)
                 await context.Response.WriteAsync(answer);
                 return;
             }
-            if (WebhookIngress.RefuseOverPlainHttp(context)) await WebhookIngress.WriteUseHttpsAsync(context);
-            else context.Response.Redirect($"{https.DefaultUrl}{context.Request.Path}{context.Request.QueryString}");
+            // Webhooks are refused even from 127.0.0.1 here: behind a proxy on port 80 everyone looks local, and a
+            // redirect would hide that the secret just crossed the network unencrypted.
+            if (context.Request.Path.StartsWithSegments("/hooks")) await WebhookIngress.WriteUseHttpsAsync(context);
+            else context.Response.Redirect($"{httpsUrl}{context.Request.Path}{context.Request.QueryString}");
             return;
         }
         if (context.Request.IsHttps) context.Response.Headers.StrictTransportSecurity = "max-age=31536000";
@@ -274,7 +293,7 @@ app.MapGet("/health", (IVoiceBackend voice, World w, Iskra.Server.Updates.Update
 app.MapPost("/internal/livekit-webhook", async (HttpContext context, IVoiceBackend backend, VoiceRegistry voice, TimeProvider time) =>
 {
     // LiveKit runs on this machine; nobody else has any business here.
-    if (context.Connection.RemoteIpAddress is { } ip && !System.Net.IPAddress.IsLoopback(ip)) return Results.NotFound();
+    if (Networks.IsElsewhere(context)) return Results.NotFound();
     const int maxBody = 64 * 1024;
     if (context.Request.ContentLength > maxBody) return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
     var buffer = new byte[maxBody + 1];
@@ -354,6 +373,8 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
 // Voice signaling (LiveKit's WebSocket and HTTP) on the same port as everything else.
 app.MapReverseProxy();
 
+if (!https.Enabled && (https.ProxyProtocol || https.HttpProxyProtocol || https.BindAddress is { Length: > 0 }))
+    app.Logger.LogWarning("Https.BindAddress, Https.ProxyProtocol and Https.HttpProxyProtocol only apply with Https.Mode \"acme\" or \"files\"; ignoring them.");
 app.Logger.LogInformation("World '{Name}' at {Path}, reachable at {Url}", world.Settings.Name, world.Path, world.Settings.EffectivePublicUrl);
 var ownerLink = OwnerSetup.EnsureOwnerInvite(world, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), out var claimed);
 if (ownerLink is not null && claimed && world.Settings.OwnerClaim == OwnerSetup.Generate)

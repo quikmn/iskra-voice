@@ -77,6 +77,16 @@ public sealed class PortMapper(ILogger<PortMapper> log) : IPortMapper
 
 public static class Networks
 {
+    /// <summary>
+    /// The request certainly isn't from this machine: a remote address, or relayed by the peer-to-peer tunnel or a
+    /// trusted proxy (whose clients are elsewhere even when the header names 127.0.0.1). Loopback-only endpoints and
+    /// loopback exemptions use this, never the bare address. No address at all (the in-memory test host) isn't "elsewhere".
+    /// </summary>
+    public static bool IsElsewhere(Microsoft.AspNetCore.Http.HttpContext context) =>
+        (context.Connection.RemoteIpAddress is { } ip && !IPAddress.IsLoopback(ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip))
+        || context.Features.Get<TunnelPeer>() is not null
+        || context.Features.Get<ProxiedPeer>() is not null;
+
     /// <summary>A private, shared (carrier-grade NAT), loopback or otherwise non-routable IPv4 address.</summary>
     public static bool IsNonPublic(IPAddress ip)
     {

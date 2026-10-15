@@ -35,7 +35,7 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
     /// </summary>
     public static bool RefuseOverPlainHttp(HttpContext context) =>
         !context.Request.IsHttps && context.Request.Path.StartsWithSegments("/hooks")
-        && context.Connection.RemoteIpAddress is { } ip && !System.Net.IPAddress.IsLoopback(ip);
+        && Hosting.Networks.IsElsewhere(context);
 
     public static Task WriteUseHttpsAsync(HttpContext context)
     {

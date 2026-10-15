@@ -182,7 +182,7 @@ Hosted services run at Cloudflare and DigitalOcean, whose data-centre controls a
 | 8.17 Clock synchronization | Ubuntu 24.04's default NTP client (systemd-timesyncd) on the droplet; not yet checked on the host (`timedatectl`) | CICD §4 "The server" | partial |
 | 8.18 Privileged utility programs | CLI commands (`backup`, `restore`, `move`, `import-discord`) need shell access to the world folder | [Cli.cs][cli] | met |
 | 8.19 Installation of software on operational systems | Only via `iskra-update` with SHA256SUMS verification and rollback; OS via unattended-upgrades | CICD §4 "The server" | met |
-| 8.20 Networks security | ufw allows 22, 80, 443, 7881/tcp, 7882/udp; LiveKit API bound to 127.0.0.1; internal webhook loopback-only | CICD §4, [Program.cs][program] | met |
+| 8.20 Networks security | ufw allows 22, 80, 443, 7881/tcp, 7882/udp; LiveKit API bound to 127.0.0.1; internal webhook loopback-only (never via the p2p tunnel or a proxy); behind a reverse proxy, PROXY protocol headers only from `Https.ProxyTrustedFrom` | CICD §4, [Program.cs][program] | met |
 | 8.21 Security of network services | TLS 1.2/1.3, HSTS and security headers, Let's Encrypt automation; Cloudflare-managed TLS for the sites | [Program.cs][program], [HttpsTests.cs][httpstests], [SecurityHeadersTests.cs][headertests] | met |
 | 8.22 Segregation of networks | Voice API local-only; test servers localhost-only (`LocalOnly`) | CLAUDE.md rules, HOST | met |
 | 8.23 Web filtering | Link-preview fetcher refuses private addresses; GIF proxy only KLIPY hosts; no corporate web filtering needed | [LinkPreviews.cs][previews] | met |

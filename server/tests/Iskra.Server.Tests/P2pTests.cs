@@ -120,7 +120,7 @@ public class P2pTests : IDisposable
         Assert.Equal(7900, new VoiceSettings { RtcUdpPort = 7882, TurnUdpPort = 7900 }.EffectiveTurnUdpPort);
     }
 
-    private static TunnelListener.Header Parse(byte[] bytes, out IPEndPoint? peer, out long consumed) =>
+    private static ProxyProtocol.Header Parse(byte[] bytes, out IPEndPoint? peer, out long consumed) =>
         TunnelListener.TryParse(new ReadOnlySequence<byte>(bytes), out consumed, out peer);
 
     private static byte[] ProxyV2(byte family, byte[] source, int sourcePort, byte[] destination, int destinationPort, byte command = 0x21)
@@ -138,21 +138,21 @@ public class P2pTests : IDisposable
     public void The_tunnel_listener_reads_proxy_v2_headers_and_refuses_anything_else()
     {
         var v4 = ProxyV2(0x11, [203, 0, 113, 9], 4321, [127, 0, 0, 1], 47070);
-        Assert.Equal(TunnelListener.Header.Ok, Parse([.. v4, .. "GET /"u8.ToArray()], out var peer, out var consumed));
+        Assert.Equal(ProxyProtocol.Header.Ok, Parse([.. v4, .. "GET /"u8.ToArray()], out var peer, out var consumed));
         Assert.Equal(new IPEndPoint(IPAddress.Parse("203.0.113.9"), 4321), peer);
         Assert.Equal(28, consumed);
 
         var v6 = ProxyV2(0x21, IPAddress.Parse("2001:db8::9").GetAddressBytes(), 5000, IPAddress.IPv6Loopback.GetAddressBytes(), 47070);
-        Assert.Equal(TunnelListener.Header.Ok, Parse(v6, out peer, out consumed));
+        Assert.Equal(ProxyProtocol.Header.Ok, Parse(v6, out peer, out consumed));
         Assert.Equal(new IPEndPoint(IPAddress.Parse("2001:db8::9"), 5000), peer);
         Assert.Equal(52, consumed);
 
-        Assert.Equal(TunnelListener.Header.Incomplete, Parse(v4[..10], out _, out _));
-        Assert.Equal(TunnelListener.Header.Incomplete, Parse(v4[..20], out _, out _));
-        Assert.Equal(TunnelListener.Header.Invalid, Parse("GET / HTTP/1.1\r\nHost: x\r\n\r\n"u8.ToArray(), out _, out _));
-        Assert.Equal(TunnelListener.Header.Invalid, Parse(ProxyV2(0x11, [203, 0, 113, 9], 1, [127, 0, 0, 1], 2, command: 0x20), out _, out _)); // LOCAL
-        Assert.Equal(TunnelListener.Header.Invalid, Parse(ProxyV2(0x12, [203, 0, 113, 9], 1, [127, 0, 0, 1], 2), out _, out _)); // UDP
-        Assert.Equal(TunnelListener.Header.Invalid, Parse(ProxyV2(0x31, [1, 2, 3, 4], 1, [5, 6, 7, 8], 2), out _, out _)); // AF_UNIX
+        Assert.Equal(ProxyProtocol.Header.Incomplete, Parse(v4[..10], out _, out _));
+        Assert.Equal(ProxyProtocol.Header.Incomplete, Parse(v4[..20], out _, out _));
+        Assert.Equal(ProxyProtocol.Header.Invalid, Parse("GET / HTTP/1.1\r\nHost: x\r\n\r\n"u8.ToArray(), out _, out _));
+        Assert.Equal(ProxyProtocol.Header.Invalid, Parse(ProxyV2(0x11, [203, 0, 113, 9], 1, [127, 0, 0, 1], 2, command: 0x20), out _, out _)); // LOCAL
+        Assert.Equal(ProxyProtocol.Header.Invalid, Parse(ProxyV2(0x12, [203, 0, 113, 9], 1, [127, 0, 0, 1], 2), out _, out _)); // UDP
+        Assert.Equal(ProxyProtocol.Header.Invalid, Parse(ProxyV2(0x31, [1, 2, 3, 4], 1, [5, 6, 7, 8], 2), out _, out _)); // AF_UNIX
     }
 
     [Fact]
