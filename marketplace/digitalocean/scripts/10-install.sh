@@ -61,6 +61,11 @@ APT::Periodic::Unattended-Upgrade "1";
 APT
 systemctl enable unattended-upgrades >/dev/null 2>&1 || true
 
+# DigitalOcean's agent comes with the build droplet; its image check refuses images that carry it (/opt/digitalocean).
+# Every droplet made from the image gets it again from DigitalOcean.
+apt-get -y purge droplet-agent >/dev/null 2>&1 || true
+rm -rf /opt/digitalocean
+
 # Nothing of a server in the image.
 if [ -e /opt/iskra/world ]; then echo "The image must not have a world folder"; exit 1; fi
 rm -rf "$SRC"
