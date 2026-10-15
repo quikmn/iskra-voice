@@ -165,7 +165,7 @@ describe('Iskra through the peer-to-peer tunnel', () => {
     const t = performance.now()
     const info = await (await fetch(`${tunnelUrl}/`)).json()
     report.firstHttpMs = +(performance.now() - t).toFixed(1)
-    expect(info).toEqual({ iskra: 1, name: 'P2P interop' })
+    expect(info).toEqual({ iskra: 1, name: 'P2P interop', icon: null }) // the root says only this (no server icon set here)
 
     // The owner comes in the front door and learns the secret in welcome.
     const ownerLink = parseInvite(readFileSync(join(world, 'owner-invite.txt'), 'utf8'))!

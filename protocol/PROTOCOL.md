@@ -1144,13 +1144,25 @@ The server checks the picture by its bytes (never its name or the uploader's cla
 
 A picture that can't be read is `image_size_unreadable`. Both are checked before either changes.
 
-**Metadata is stripped.** The server keeps only what drawing the picture needs and stores that as a new file (the
-upload with its metadata is deleted at once unless something else uses it): PNG keeps `IHDR`, `PLTE`, `IDAT`, `IEND`,
-`tRNS`, `cHRM`, `gAMA`, `iCCP`, `sBIT`, `sRGB`, `cICP`, `bKGD` and `pHYs` (text, `eXIf`, `tIME` and animation chunks
-go); JPEG drops every `APPn` segment except the JFIF header (without its thumbnail), an ICC profile and Adobe's colour
-transform, and all comments; WebP drops `EXIF`, `XMP ` and unknown chunks and clears their flags in `VP8X`. Nothing is
-decoded or re-encoded, so the pixels are exactly the uploader's (apps crop and re-encode on the device before uploading
-anyway, which also drops everything). EXIF orientation goes with the rest, so apps upload pictures already upright.
+**Metadata is stripped.** The server keeps an allowlist of what drawing the picture needs, drops everything else, and
+stores the result as a new file. The upload with its metadata is deleted once the whole request has succeeded, unless
+something else uses it; a refused request deletes nothing. The ICC colour profile is kept on purpose, so colours stay
+right. What stays:
+
+- **PNG:** the chunks `IHDR`, `PLTE`, `IDAT`, `IEND`, `tRNS`, `cHRM`, `gAMA`, `iCCP` (the ICC profile), `sBIT`, `sRGB`,
+  `cICP`, `bKGD` and `pHYs`. Everything else goes: text, `eXIf`, `tIME`, animation (`acTL`, `fcTL`, `fdAT`: an animated
+  PNG keeps its first frame) and unknown chunks.
+- **JPEG:** SOI; the frame headers SOF0–SOF15 (`C0`–`CF` except `C4`, `C8` and `CC`); DHT (`C4`), DAC (`CC`), DQT (`DB`),
+  DRI (`DD`); SOS (`DA`) with its scan data; RST0–RST7 (`D0`–`D7`); EOI (`D9`); and three application segments: the
+  JFIF header in `APP0` (its thumbnail removed), an ICC profile in `APP2` (`ICC_PROFILE`) and Adobe's colour transform in
+  `APP14`. Everything else goes: every other `APPn` (EXIF with GPS, XMP, Photoshop), comments (`FE`), JPG and JPGn
+  (`C8`, `F0`–`FD`), TEM, DNL and the hierarchical markers, and reserved or unknown markers. A second SOI is refused.
+- **WebP:** the chunks `VP8X` (with the EXIF and XMP flags cleared), `VP8 `, `VP8L`, `ALPH` and `ICCP` (the ICC
+  profile). `EXIF`, `XMP ` and unknown chunks go; `ANIM` or `ANMF` (animation) is refused.
+
+Nothing is decoded or re-encoded, so the pixels are exactly the uploader's (apps crop and re-encode on the device before
+uploading anyway, which also drops everything). EXIF orientation goes with the rest, so apps upload pictures already
+upright.
 
 **Invites show the icon before joining.** `GET /` answers `icon`: the first 16 hex characters of the icon's SHA-256
 (or `null`), and `GET /icon` serves the icon itself: any origin may show it (`Access-Control-Allow-Origin: *`,
