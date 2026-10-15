@@ -11,6 +11,7 @@ ours=(
   test.sh
   lint.sh
   scripts/10-install.sh
+  scripts/95-logs.sh
   files/usr/local/sbin/iskra-claim-screen
   files/var/lib/cloud/scripts/per-instance/10-iskra-world
   files/etc/update-motd.d/99-iskra

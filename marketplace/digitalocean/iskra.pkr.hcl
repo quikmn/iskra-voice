@@ -88,7 +88,8 @@ build {
     destination = "/tmp/iskra/files"
   }
 
-  # Install, then DigitalOcean's own cleanup and image check (vendor/, unchanged); the check must pass.
+  # Install, then DigitalOcean's own cleanup, the logs emptied again, and DigitalOcean's image check (vendor/, unchanged);
+  # the check must pass.
   provisioner "shell" {
     environment_vars = [
       "DEBIAN_FRONTEND=noninteractive",
@@ -98,6 +99,7 @@ build {
     scripts = [
       "${path.root}/scripts/10-install.sh",
       "${path.root}/vendor/90-cleanup.sh",
+      "${path.root}/scripts/95-logs.sh",
       "${path.root}/vendor/99-img-check.sh",
     ]
   }
