@@ -37,9 +37,9 @@ and a press of **Run workflow** (only people with write access to the repository
 
 1. In DigitalOcean, make a separate project (for example "Iskra image builds"): only build droplets and test droplets
    live there.
-2. API → Tokens → **Generate New Token**, 90 days, **Custom Scopes**: *droplet* (create, read, update, delete: update powers the build droplet off for the snapshot), *image* (read,
-   update), *snapshot* (read), *regions* (read), *sizes* (read), *ssh_key* (create, read, delete), *tag* (create,
-   read), *actions* (read). The build (Packer) and the test (`test.sh`) each make a temporary SSH key and droplet and
+2. API → Tokens → **Generate New Token**, 90 days, **Custom Scopes**: *droplet* (create, read, update, delete: update powers the build droplet off for the snapshot), *image* (create, read,
+   update: create makes the snapshot), *snapshot* (read), *regions* (read), *sizes* (read), *ssh_key* (create, read, delete), *tag* (create,
+   read), *actions* (read), *vpc* (read, added by DigitalOcean). The build (Packer) and the test (`test.sh`) each make a temporary SSH key and droplet and
    delete both afterwards. If a run fails on a missing scope (the log shows DigitalOcean's message), use full access
    for that run and delete the token right after.
 3. On GitHub: Settings → Environments → **New environment** `marketplace`, **no** required reviewers, and the secret
