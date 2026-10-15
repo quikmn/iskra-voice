@@ -35,8 +35,10 @@ describe("release notes for the What's new card", () => {
     expect(long.endsWith('…')).toBe(true)
   })
 
-  it("finds nothing without a What's new section", () => {
-    expect(whatsNewLines('### Fixes\n- **A fix.**\n')).toEqual([])
+  it("shows the fixes when a release has nothing new, and nothing without either section", () => {
+    expect(whatsNewLines('### Fixes\n- **A fix.** More.\n')).toEqual(['A fix.'])
+    expect(whatsNewLines("### What's new\n- **New.**\n\n### Fixes\n- **A fix.**\n")).toEqual(['New.'])
+    expect(whatsNewLines('### Good to know\n- **A note.**\n')).toEqual([])
     expect(whatsNewLines('')).toEqual([])
   })
 

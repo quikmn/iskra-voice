@@ -15,6 +15,8 @@ const MAX_LINE = 160
 
 const HEADING = /^#{1,6}\s+(.*)$/
 const WHATS_NEW = /^(what['’]s new|nytt|nyheter|vad är nytt)\b/i
+/** A release with only fixes shows those instead. */
+const FIXES = /^(fixes|fixed|rättelser|fixat|åtgärdat)\b/i
 
 /** Markdown to plain text: links keep their text; bold, italics and code marks go. */
 function plain(text: string): string {
@@ -33,17 +35,22 @@ function short(text: string): string {
 }
 
 /**
- * The highlights under "### What's new": each bullet's bold lead ("**Report a bug from inside the app.** Press…"
+ * The highlights under "### What's new" (or "### Fixes" when a release has nothing new): each bullet's bold lead ("**Report a bug from inside the app.** Press…"
  * → "Report a bug from inside the app."), or its first sentence when it has none.
  */
 export function whatsNewLines(markdown: string, max = MAX_LINES): string[] {
+  const lines = sectionLines(markdown, WHATS_NEW, max)
+  return lines.length ? lines : sectionLines(markdown, FIXES, max)
+}
+
+function sectionLines(markdown: string, section: RegExp, max: number): string[] {
   const lines: string[] = []
   let inSection = false
   for (const raw of markdown.split(/\r?\n/)) {
     const heading = HEADING.exec(raw.trim())
     if (heading) {
       if (inSection) break
-      inSection = WHATS_NEW.test(heading[1].trim())
+      inSection = section.test(heading[1].trim())
       continue
     }
     if (!inSection) continue
