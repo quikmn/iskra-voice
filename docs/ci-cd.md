@@ -279,6 +279,16 @@ attestations, so every release needs SHA256SUMS.txt (finalize makes it) and the 
 `iskra-update-guard` (release.yml adds it). Servers report their version at `/health`; release builds get it from
 `prepare-server.mjs` (`-p:Version=` from desktop/package.json), anything else says `0.0.0-dev` and never updates.
 
+Installed desktop apps (Windows installer, AppImage, signed Mac) check about 15 s after start, every hour, and when the
+window comes back after 15 minutes (tray → "Check for updates" any time). They pick the newest **published** release
+from the GitHub releases API and let electron-updater read that release's `latest*.yml`. They don't use the
+`releases.atom` feed: it also lists tags whose release is still a draft (a release finalize refused), and a draft has no
+`latest.yml`, so every check would fail until a newer release is out. Each app keeps a few KB of its latest checks in
+`logs/updates.log` in its data folder (Windows: `%APPDATA%\iskra-desktop\logs\updates.log`; macOS:
+`~/Library/Application Support/iskra-desktop/logs`; Linux: `~/.config/iskra-desktop/logs`): start, each check and what
+it found, downloads and errors (no links with tokens). The downloaded installer waits in
+`%LOCALAPPDATA%\iskra-desktop-updater\pending` on Windows; a leftover one there is harmless.
+
 ## 3. Deploying without a release
 
 `.\scripts\release.ps1 -Redeploy site` (iskra.foo from main; `-Ref <tag or branch>`), `-Redeploy webapp` (app.iskra.foo
@@ -755,6 +765,7 @@ run CI as pull requests only.
 | release.yml publish: "latest-mac.yml: … doesn't match its build's update file" / "the parts …" | The two Mac jobs' update files don't fit their zips or each other. Rerun release.yml's failed jobs; if it repeats, report |
 | Finalize: "missing (…)" | A build didn't upload. Check `release.yml`'s run for the tag, rerun its failed jobs (`gh run rerun <id> --failed`), then `release.ps1 -Resume` (it builds and uploads missing Windows files) |
 | Finalize: "latest.yml: … doesn't match" | A file was re-uploaded without the latest*.yml from the same build (or the other way round). Upload both from the same build |
+| An installed desktop app doesn't update by itself | Read its `logs/updates.log` (section 2, after "What can still fail"). `releases list: HTTP 403` is GitHub's rate limit for that address (60 an hour, shared by everything on it). `newer release X found` then an error: that release lacks the right `latest*.yml` or installer. Nothing logged for hours: the app wasn't running or checks are off (My settings → Privacy & data). Apps up to alpha.21 read the atom feed and find nothing while the newest tag's release is a draft; they update once the newest tag is a published release (or from tray → Check for updates at such a time) |
 | Checksums wrong after re-uploading assets | `release.ps1 -Redeploy checksums <version>`: finalize with deploy off regenerates SHA256SUMS.txt and the attestations |
 | Pages deploy fails | "Authentication error": token revoked/expired or wrong account id (section 4). "Project not found": project names in deploy.yml. The check step failing after a good deploy: Cloudflare cache; rerun |
 | Server update fails | `iskra-update` rolled back to the previous version (the server keeps running). Log in with the admin key: `journalctl -u iskra -n 200`. Host key mismatch in CI: the droplet was rebuilt, refresh `DROPLET_KNOWN_HOSTS` |

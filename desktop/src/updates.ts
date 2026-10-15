@@ -7,6 +7,7 @@ import path from 'node:path'
 import { app, net } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { compareVersions, macSigning, newerRelease, updateMode, type GitHubRelease, type MacSigning, type UpdateMode, type UpdateState } from './platform'
+import { autoFeed, errorLine, healState, UpdateLog } from './updateCheck'
 
 const REPO = 'quikmn/iskra-voice'
 const FIRST_CHECK_MS = 15_000
@@ -42,6 +43,10 @@ export class Updates {
   private timer: NodeJS.Timeout | null = null
   private started = false
   private lastCheck = 0
+  /** When the status last changed (a download that never finishes is given up on, see healState). */
+  private statusSince = Date.now()
+  /** userData/logs/updates.log: the latest checks, for diagnosing updates (no links with tokens, no personal data). */
+  private log: UpdateLog | null = null
 
   constructor(onChange: (status: UpdateStatus) => void) {
     this.onChange = onChange
@@ -59,6 +64,8 @@ export class Updates {
   /** A check right now (the tray's "Check for updates"). New versions show up in the status as usual. */
   async check(): Promise<CheckResult> {
     if (this.mode === 'off') return 'off'
+    this.log?.write('check from the tray')
+    this.heal()
     if (this.status.state !== 'none') return 'found'
     await this.resolveMode()
     const ok = await this.checkNow()
@@ -70,6 +77,8 @@ export class Updates {
     if (this.mode === 'off' || this.started) return
     this.started = true
     this.automatic = automatic
+    this.log = new UpdateLog(path.join(app.getPath('userData'), 'logs', 'updates.log'))
+    this.log.write(`started ${app.getVersion()} (${process.platform}, ${this.mode}, automatic checks ${automatic ? 'on' : 'off'})`)
     // The automatic checks start once we know how this copy updates (a moment on macOS, at once elsewhere).
     void this.resolveMode().then(() => this.setAutomatic(this.automatic))
   }
@@ -95,7 +104,9 @@ export class Updates {
     this.automatic = on
     if (this.timer) clearInterval(this.timer)
     this.timer = null
-    if (this.mode === 'off' || !this.started || !this.resolving || !on) return
+    if (this.mode === 'off' || !this.started || !this.resolving) return
+    this.log?.write(`automatic checks ${on ? 'on' : 'off'} (${this.mode})`)
+    if (!on) return
     const check = () => void (this.automatic && this.checkNow())
     setTimeout(check, FIRST_CHECK_MS).unref()
     this.timer = setInterval(check, CHECK_EVERY_MS)
@@ -109,9 +120,24 @@ export class Updates {
     void this.checkNow()
   }
 
-  private checkNow(): Promise<boolean> {
+  private async checkNow(): Promise<boolean> {
     this.lastCheck = Date.now()
-    return this.mode === 'auto' ? this.checkAuto() : this.checkManually()
+    this.heal()
+    const ok = await (this.mode === 'auto' ? this.checkAuto() : this.checkManually())
+    this.log?.write(`check ${ok ? 'done' : 'failed'}: ${this.describe()}`)
+    return ok
+  }
+
+  /** A status that no longer means anything (a download that never finished, an update we already run) is dropped. */
+  private heal(): void {
+    const healed = healState(this.status, this.statusSince, Date.now(), app.getVersion())
+    if (healed === this.status) return
+    this.log?.write(`reset stuck state ${this.describe()}`)
+    this.set(healed)
+  }
+
+  private describe(): string {
+    return 'version' in this.status ? `${this.status.state} ${this.status.version}` : this.status.state
   }
 
   /** Restarts into a downloaded update. Returns false if there's nothing to install. */
@@ -127,6 +153,7 @@ export class Updates {
 
   private set(status: UpdateStatus): void {
     this.status = status
+    this.statusSince = Date.now()
     this.onChange(status)
   }
 
@@ -137,10 +164,17 @@ export class Updates {
     autoUpdater.autoDownload = true
     autoUpdater.autoInstallOnAppQuit = true
     autoUpdater.logger = { info: () => undefined, warn: console.warn, error: console.error, debug: () => undefined }
-    autoUpdater.on('update-available', (info) => this.set({ state: 'downloading', version: info.version }))
-    autoUpdater.on('update-downloaded', (info) => this.set({ state: 'ready', version: info.version }))
+    autoUpdater.on('update-available', (info) => {
+      this.log?.write(`downloading ${info.version}`)
+      this.set({ state: 'downloading', version: info.version })
+    })
+    autoUpdater.on('update-downloaded', (info) => {
+      this.log?.write(`downloaded ${info.version}, ready to install`)
+      this.set({ state: 'ready', version: info.version })
+    })
     autoUpdater.on('error', (error) => {
       console.error('Update failed:', error)
+      this.log?.write(`error: ${errorLine(error)}`)
       // A download or signature check failed (on macOS also: Squirrel.Mac rejected the update's signature or can't
       // write where the app is): fall back to pointing at the release page.
       if (this.status.state === 'downloading') this.set({ state: 'available', version: this.status.version, url: releaseUrl(this.status.version) })
@@ -151,6 +185,13 @@ export class Updates {
   private async checkAuto(): Promise<boolean> {
     if (this.status.state === 'ready' || this.status.state === 'downloading') return true
     try {
+      // We pick the release (see autoFeed): the GitHub provider's own pick can be a tag whose release is a draft.
+      const releases = await this.fetchReleases()
+      if (!releases) return false
+      const feed = autoFeed(releases, app.getVersion(), REPO)
+      if (!feed) return true
+      this.log?.write(`newer release ${feed.version} found, checking its files`)
+      autoUpdater.setFeedURL({ provider: 'generic', url: feed.url })
       const result = await autoUpdater.checkForUpdates()
       // 'update-available' sets the status too; this covers a check that resolves first.
       const version = result?.updateInfo.version
@@ -158,23 +199,34 @@ export class Updates {
       return true
     } catch (error) {
       console.error('Update check failed:', error)
+      this.log?.write(`check error: ${errorLine(error)}`)
       return false
     }
   }
 
+  /** The latest published releases (the API leaves drafts out), or null if GitHub didn't answer. */
+  private async fetchReleases(): Promise<GitHubRelease[] | null> {
+    const response = await net.fetch(`https://api.github.com/repos/${REPO}/releases?per_page=20`, {
+      headers: { accept: 'application/vnd.github+json', 'user-agent': `Iskra/${app.getVersion()}` },
+    })
+    if (!response.ok) {
+      this.log?.write(`releases list: HTTP ${response.status}`)
+      return null
+    }
+    const releases = (await response.json()) as unknown
+    return Array.isArray(releases) ? (releases as GitHubRelease[]) : null
+  }
+
   private async checkManually(): Promise<boolean> {
     try {
-      const response = await net.fetch(`https://api.github.com/repos/${REPO}/releases?per_page=20`, {
-        headers: { accept: 'application/vnd.github+json', 'user-agent': `Iskra/${app.getVersion()}` },
-      })
-      if (!response.ok) return false
-      const releases = (await response.json()) as unknown
-      if (!Array.isArray(releases)) return false
-      const newer = newerRelease(releases as GitHubRelease[], app.getVersion())
+      const releases = await this.fetchReleases()
+      if (!releases) return false
+      const newer = newerRelease(releases, app.getVersion())
       if (newer && (this.status.state !== 'available' || this.status.version !== newer.version)) this.set({ state: 'available', ...newer })
       return true
     } catch (error) {
       console.error('Update check failed:', error)
+      this.log?.write(`check error: ${errorLine(error)}`)
       return false
     }
   }
