@@ -3,6 +3,8 @@
 # (scripts/simplysign-login.ps1; docs/ci-cd.md, "SimplySign auto-login"). The owner runs it in their own window.
 #
 #   simplysign-setup.ps1                      # asks for the e-mail and the otpauth:// link or Base32 seed (hidden)
+#   simplysign-setup.ps1 -FromClipboard       # reads the QR code from a screenshot on the clipboard (Win+Shift+S)
+#   simplysign-setup.ps1 -Image <file>        # reads the QR code from an image file (PNG/JPEG)
 #   simplysign-setup.ps1 -Method switches     # log in through SimplySign's own /otpauth + /autologin switches
 #   simplysign-setup.ps1 -Remove              # deletes the stored seed
 #
@@ -11,6 +13,8 @@
 # phone app too: the phone stays a way to log in by hand.
 param(
   [switch]$Remove,
+  [switch]$FromClipboard,
+  [string]$Image = '',
   [ValidateSet('dialog', 'switches')][string]$Method = 'dialog',
   [string]$Email = ''
 )
@@ -26,8 +30,28 @@ if (-not $IsWindows) { Write-Host 'This only works on the Windows PC that signs 
 
 if (Test-Path -LiteralPath $path) { Write-Host "A seed is stored already; this replaces it." }
 if (-not $Email) { $Email = (Read-Host 'SimplySign account e-mail').Trim() }
-$secure = Read-Host -AsSecureString 'Paste the otpauth:// link or the Base32 seed (hidden)'
-$text = [Net.NetworkCredential]::new('', $secure).Password
+if ($FromClipboard -or $Image) {
+  # The QR code is decoded offline (scripts/read-qr.mjs); its text is captured here and never shown.
+  $file = $Image
+  $snip = $null
+  if ($FromClipboard) {
+    Read-Host 'Snip the QR code with Win+Shift+S, then press Enter' | Out-Null
+    $snip = Join-Path ([IO.Path]::GetTempPath()) "iskra-qr-$([guid]::NewGuid().ToString('N')).png"
+    # Windows PowerShell 5.1 runs STA, which the clipboard needs; it saves the image and empties the clipboard.
+    powershell.exe -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms, System.Drawing; `$i = [Windows.Forms.Clipboard]::GetImage(); if (-not `$i) { exit 1 }; `$i.Save('$snip', [Drawing.Imaging.ImageFormat]::Png); [Windows.Forms.Clipboard]::Clear()"
+    if ($LASTEXITCODE -ne 0) { Write-Host 'Not stored: no picture on the clipboard. Snip the QR code with Win+Shift+S and try again.' -ForegroundColor Red; exit 1 }
+    $file = $snip
+  }
+  try {
+    $text = & node (Join-Path $PSScriptRoot 'read-qr.mjs') $file 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $text) { Write-Host 'Not stored: no QR code found in the picture. Snip a little wider around it and try again.' -ForegroundColor Red; exit 1 }
+  } finally {
+    if ($snip) { Remove-Item -LiteralPath $snip -Force -ErrorAction SilentlyContinue }
+  }
+} else {
+  $secure = Read-Host -AsSecureString 'Paste the otpauth:// link or the Base32 seed (hidden)'
+  $text = [Net.NetworkCredential]::new('', $secure).Password
+}
 try {
   $seed = ConvertFrom-SeedInput $text
 } catch {
