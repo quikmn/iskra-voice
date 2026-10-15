@@ -63,7 +63,7 @@ test('typing "/" suggests bot commands, and the bot answers with a card', async 
   await box.fill('/')
   const list = host.getByRole('listbox', { name: 'Bot commands' })
   await expect(list).toBeVisible()
-  await expect(list.getByRole('option')).toHaveCount(3) // roll, coin and the built-in help
+  await expect(list.getByRole('option')).toHaveCount(5) // roll, coin and the built-in help, plus the app's /teams and /lfg
   await expect(list.getByRole('option', { name: /\/roll/ })).toContainText('Rolls dice')
   await expect(list.getByRole('option', { name: /\/roll/ })).toContainText('Dice')
   await expect(box).toHaveAttribute('aria-controls', await list.getAttribute('id') as string)
