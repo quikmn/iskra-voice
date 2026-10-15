@@ -53,6 +53,9 @@ public static class ServerImageFeature
 
         Apply(s, Icon, icon, newIcon);
         Apply(s, Banner, banner, newBanner);
+        // Only now that both are in place: the uploads with their metadata go (unless something else uses them).
+        foreach (var (sent, used) in new[] { (icon, newIcon), (banner, newBanner) }.DistinctBy(p => p.Item1))
+            if (sent is { Length: > 0 } && used is not null && used.Id != sent) s.Uploads.DeleteIfUnused(sent);
         Audit.Record(s, "server.images", details: new { icon = Change(icon), banner = Change(banner) });
 
         var view = View(store);
@@ -126,10 +129,8 @@ public static class ServerImageFeature
                 throw RequestException.BadRequest("Banners must be wide: 2.5 to 4 times as wide as they are high.", "server_banner_shape");
         }
 
-        var stored = s.Uploads.StoreCopy(file, clean, sniffed.Type, w, h);
-        // The upload with its metadata goes at once (unless something else of yours uses it).
-        if (stored.Id != file.Id) s.Uploads.DeleteIfUnused(file.Id);
-        return stored;
+        // The upload with its metadata is deleted by Set, once the whole request has gone through.
+        return s.Uploads.StoreCopy(file, clean, sniffed.Type, w, h);
     }
 
     private static RequestException TooBig(bool isIcon, long maxBytes) => isIcon

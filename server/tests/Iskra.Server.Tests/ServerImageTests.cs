@@ -279,4 +279,96 @@ public class ServerImageTests
         Assert.Equal(HttpStatusCode.OK, (await http.GetAsync(icon)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await http.GetAsync(banner)).StatusCode);
     }
+
+    // ── Regressions (security review) ────────────────────────────────────────
+
+    [Fact]
+    public async Task A_failed_request_keeps_the_uploads_and_the_old_icon()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var other = await server.JoinAsync("Other", "admin");
+        var http = server.CreateClient();
+        var old = (await SetIcon(server, admin, Png(256, 256))).Body().GetProperty("icon").GetProperty("id").GetString();
+
+        // A good icon (with metadata, so it gets a cleaned copy) and a bad banner: nothing changes, nothing is deleted.
+        var iconUpload = await EmojiTests.Upload(server, other, Png(300, 300, Chunk("tEXt", [.. "Comment\0x"u8])), "icon.png");
+        var bannerUpload = await EmojiTests.Upload(server, other, Png(100, 100), "banner.png");
+        var failed = await other.RequestAsync("server.images.set", new { icon = iconUpload, banner = bannerUpload });
+        Assert.Equal("server_banner_small", Key(failed));
+        Assert.Equal(old, server.World.Store.GetServerImage("icon")!.Id);
+        Assert.Equal(HttpStatusCode.OK, (await http.GetAsync($"/files/{iconUpload}/icon.png")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await http.GetAsync($"/files/{bannerUpload}/banner.png")).StatusCode);
+
+        // The same upload as both: refused as a banner (not as an unknown file), and still there.
+        var both = await EmojiTests.Upload(server, other, Png(256, 256, Chunk("tEXt", [.. "Comment\0y"u8])), "both.png");
+        Assert.Equal("server_banner_small", Key(await other.RequestAsync("server.images.set", new { icon = both, banner = both })));
+        Assert.Equal(HttpStatusCode.OK, (await http.GetAsync($"/files/{both}/both.png")).StatusCode);
+
+        // It worked: now the original with its metadata goes.
+        Assert.Equal("result", (await other.RequestAsync("server.images.set", new { icon = iconUpload })).Type());
+        Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync($"/files/{iconUpload}/icon.png")).StatusCode);
+    }
+
+    [Fact]
+    public async Task DM_files_and_other_peoples_uploads_are_refused()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var other = await server.JoinAsync("Other", "admin");
+        var theirs = await EmojiTests.Upload(server, other, Png(256, 256), "theirs.png");
+        Assert.Equal("bad_request", (await admin.RequestAsync("server.images.set", new { icon = theirs })).ErrorCode());
+        var dm = await EmojiTests.Upload(server, admin, Png(256, 256), "dm.png");
+        server.World.Store.AddDmFile(dm, admin.Identity.AccountKey, [admin.Identity.AccountKey, other.Identity.AccountKey]);
+        Assert.Equal("bad_request", (await admin.RequestAsync("server.images.set", new { icon = dm })).ErrorCode());
+        Assert.Null(server.World.Store.GetServerImage("icon"));
+    }
+
+    [Fact]
+    public void Jpeg_keeps_only_what_drawing_needs()
+    {
+        var jpeg = JpegWithExif(300, 300);
+        // Unknown and reserved markers, JPG and JPGn segments carrying data, slipped in before the scan.
+        var sos = jpeg.AsSpan().IndexOf([(byte)0xFF, (byte)0xDA]);
+        byte[] sneaky = [.. Segment(0xF0, [.. "GPS!"u8]), .. Segment(0x05, [.. "GPS!"u8]), .. Segment(0xC8, [.. "GPS!"u8]),
+            .. Segment(0xFD, [.. "GPS!"u8]), .. Segment(0xBF, [.. "GPS!"u8])];
+        byte[] input = [.. jpeg[..sos], .. sneaky, .. jpeg[sos..]];
+        var clean = ImageMetadata.Strip(input, "image/jpeg");
+        Assert.True(clean.AsSpan().IndexOf("GPS"u8) < 0);
+        Assert.Equal((300, 300), FileSniffer.JpegSize(new MemoryStream(clean)));
+
+        // A second start of image is refused.
+        byte[] twice = [.. jpeg[..2], 0xFF, 0xD8, .. jpeg[2..]];
+        Assert.Throws<ImageMetadata.Refused>(() => ImageMetadata.Strip(twice, "image/jpeg"));
+    }
+
+    [Fact]
+    public void Malformed_and_truncated_pictures_are_refused_never_crash()
+    {
+        var samples = new (byte[] Bytes, string Type)[]
+        {
+            (Png(256, 256, Chunk("tEXt", [.. "Comment\0x"u8])), "image/png"),
+            (JpegWithExif(300, 300), "image/jpeg"),
+            (Webp(256, 256, 0x08, Vp8l(256, 256), RiffChunk("EXIF", [.. "GPS"u8])), "image/webp"),
+        };
+        var random = new Random(1234);
+        foreach (var (bytes, type) in samples)
+        {
+            // Cut short anywhere before the end: refused.
+            foreach (var cut in new[] { 3, 8, 13, 20, 33, bytes.Length / 2, bytes.Length - 3 })
+                Assert.Throws<ImageMetadata.Refused>(() => ImageMetadata.Strip(bytes[..Math.Min(cut, bytes.Length - 1)], type));
+            // Random damage: either refused or cleaned, never another exception.
+            for (var seed = 0; seed < 300; seed++)
+            {
+                var damaged = (byte[])bytes.Clone();
+                for (var k = 0; k < 3; k++) damaged[random.Next(damaged.Length)] = (byte)random.Next(256);
+                try { ImageMetadata.Strip(damaged, type); }
+                catch (ImageMetadata.Refused) { }
+            }
+        }
+        // A PNG chunk claiming to be huge.
+        var huge = Png(256, 256);
+        BinaryPrimitives.WriteUInt32BigEndian(huge.AsSpan(33), 0xFFFFFFF0);
+        Assert.Throws<ImageMetadata.Refused>(() => ImageMetadata.Strip(huge, "image/png"));
+    }
 }
