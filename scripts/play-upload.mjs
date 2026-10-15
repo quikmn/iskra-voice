@@ -144,7 +144,7 @@ export function playApi({ token, fetchImpl = fetch, base = API, packageName = PA
     if (!res.ok) {
       const err = data?.error
       const reason = err?.errors?.[0]?.reason ?? err?.status ?? ''
-      throw new PlayError(`${method} ${path || '/'}: ${res.status} ${err?.message ?? text.slice(0, 200)}`.trim(), { status: res.status, reason })
+      throw new PlayError(`${method} ${path || '/'}: ${res.status} ${err?.message ?? text.slice(0, 200)}${reason ? ` (${reason})` : ''}`.trim(), { status: res.status, reason })
     }
     return data
   }
@@ -362,6 +362,8 @@ async function googleToken(keyFile) {
     throw new PlayError('google-auth-library is missing: run npm ci in mobile/')
   }
   const auth = new lib.GoogleAuth({ keyFile, scopes: [SCOPE] })
+  // Which account this is (an e-mail, not a secret): the first thing to compare when Play says "permission denied".
+  try { const c = await auth.getCredentials(); if (c?.client_email) console.log(`Google Play: signing in as ${c.client_email}`) } catch { /* reported by the token call */ }
   return async () => {
     const t = await auth.getAccessToken()
     if (!t) throw new PlayError('Google gave no access token for the service account')
