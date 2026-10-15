@@ -27,7 +27,7 @@ import { bundleOf } from './dms'
 import { uploadDmFile } from './dmFiles'
 import { notifyChannelMessage } from './notify'
 import { knownThread } from './threads'
-import { connectionFor, onServerEvent, onWelcomeHook, patchServer, setChannelSender, uploadFile, useApp, type PendingMessage } from './store'
+import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, patchServer, setChannelSender, uploadFile, useApp, type PendingMessage } from './store'
 import { acceptStartOver, CHAIN_REPLACED, chainFor, receiveChain, type ChainState, type PastChain } from './e2eeStartOver'
 import { checkSeen, noteSeen, ROLLED_BACK, seenIndex, type Seen } from './e2eeIntegrity'
 import { setChannelVoiceKeys, setCallKey, useVoice } from './voice'
@@ -97,6 +97,8 @@ const keysOut = (keys: Map<number, Uint8Array>) => Object.fromEntries([...keys].
 const MAX_LOCAL = 5000
 const records = new Map<string, Rec>()
 const loading = new Map<string, Promise<Rec>>()
+/** How many times each slot was forgotten: a load that started before is thrown away (see forgetSlot). */
+const forgets = new Map<string, number>()
 
 export const slotOf = (serverKey: string, channelId: number) => `${serverKey}:${channelId}`
 
@@ -141,7 +143,9 @@ async function load(serverKey: string, channelId: number): Promise<Rec> {
   if (!running) {
     running = (async () => {
       const rec: Rec = { slot, serverKey, channelId, chain: null, changes: [], view: null, keys: new Map(), messages: new Map(), past: [], offer: null, restarts: [] }
-      const stored = await storage.loadE2ee<Stored>(slot).catch(() => undefined)
+      const generation = forgets.get(slot) ?? 0
+      let stored = await storage.loadE2ee<Stored>(slot).catch(() => undefined)
+      if ((forgets.get(slot) ?? 0) !== generation) stored = undefined // the channel went meanwhile
       if (stored?.chain) {
         try {
           rec.view = verifyChannelChain(stored.chain, stored.changes)
@@ -174,6 +178,26 @@ async function load(serverKey: string, channelId: number): Promise<Rec> {
 
 const dirty = new Set<string>()
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+
+/** A channel that's gone: its chain, keys and decrypted messages leave this device. */
+function forgetSlot(serverKey: string, channelId: number): void {
+  const slot = slotOf(serverKey, channelId)
+  forgets.set(slot, (forgets.get(slot) ?? 0) + 1)
+  records.delete(slot)
+  loading.delete(slot)
+  dirty.delete(slot)
+  useE2ee.setState((s) => {
+    if (!(slot in s.channels)) return s
+    const channels = { ...s.channels }
+    delete channels[slot]
+    return { channels }
+  })
+  void storage.deleteE2ee(slot).catch(() => undefined)
+}
+
+onChannelsGone((serverKey, channelIds) => {
+  for (const id of channelIds) forgetSlot(serverKey, id)
+})
 
 function persist(rec: Rec): void {
   dirty.add(rec.slot)

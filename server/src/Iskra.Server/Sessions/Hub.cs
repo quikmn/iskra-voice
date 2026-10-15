@@ -114,7 +114,7 @@ public sealed class Hub(World world, TimeProvider time)
     public static object PublicChannel(Channel c, int slowmode = 0, int userLimit = 0, object? e2ee = null, bool hifi = false, string topic = "") =>
         new
         {
-            id = c.Id, name = c.Name, kind = c.Kind, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole, slowmode, categoryId = c.CategoryId, userLimit,
+            id = c.Id, name = c.Name, kind = c.Kind, createdAt = c.CreatedAt, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole, slowmode, categoryId = c.CategoryId, userLimit,
             e2ee, hifi, topic,
             overrides = c.Overrides.Select(o => new
             {

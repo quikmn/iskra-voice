@@ -2,7 +2,8 @@
 // this only mirrors its state and sends requests.
 import { create } from 'zustand'
 import { roleRank, type Channel, type Events, type Requests, type StageState, type VoiceParticipant } from '../core/protocol'
-import { connectionFor, onServerEvent, onWelcomeHook, type ServerState } from './store'
+import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, type ServerState } from './store'
+import { withoutChannels } from './channelGone'
 import { t } from '../i18n'
 
 /** `${serverKey}:${channelId}` → the server's latest state of that stage. */
@@ -83,3 +84,7 @@ export const muteSpeaker = (serverKey: string, channelId: number, accountKey: st
 export const removeFromStage = (serverKey: string, channelId: number, accountKey: string) => send(serverKey, 'stage.remove', { channelId, accountKey })
 export const setStageModerator = (serverKey: string, channelId: number, accountKey: string, on: boolean) =>
   send(serverKey, 'stage.moderator', { channelId, accountKey, on })
+
+onChannelsGone((serverKey, channelIds) => {
+  useStages.setState((s) => ({ stages: withoutChannels(s.stages, serverKey, channelIds) }))
+})

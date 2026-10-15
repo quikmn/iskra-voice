@@ -128,9 +128,9 @@ public sealed partial class Store
         {
             var position = Convert.ToInt32(run("SELECT COALESCE(MAX(position), -1) + 1 FROM doc_pages WHERE channel_id = $ch AND parent_id IS $parent;",
                 [("$ch", channelId), ("$parent", parentId)]));
-            var id = Convert.ToInt64(run("""
-                INSERT INTO doc_pages (channel_id, parent_id, title, text, position, version, created_by, created_at, updated_by, updated_at)
-                VALUES ($ch, $parent, $title, $text, $pos, 1, $by, $now, $by, $now) RETURNING id;
+            var id = Convert.ToInt64(run($"""
+                INSERT INTO doc_pages (id, channel_id, parent_id, title, text, position, version, created_by, created_at, updated_by, updated_at)
+                VALUES ({NextId("doc_pages")}, $ch, $parent, $title, $text, $pos, 1, $by, $now, $by, $now) RETURNING id;
                 """, [("$ch", channelId), ("$parent", parentId), ("$title", title), ("$text", text), ("$pos", position), ("$by", author), ("$now", now)]));
             run("INSERT INTO doc_revisions (page_id, version, title, text, author, created_at) VALUES ($id, 1, $title, $text, $by, $now);",
                 [("$id", id), ("$title", title), ("$text", text), ("$by", author), ("$now", now)]);

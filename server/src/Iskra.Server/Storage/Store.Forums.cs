@@ -69,7 +69,7 @@ public sealed partial class Store
                     Run("UPDATE forum_tags SET name = $name, emoji = $emoji, position = $pos WHERE id = $id AND channel_id = $ch;",
                         ("$id", existing), ("$ch", channelId), ("$name", name), ("$emoji", emoji), ("$pos", i));
                 else
-                    Run("INSERT INTO forum_tags (channel_id, name, emoji, position) VALUES ($ch, $name, $emoji, $pos);",
+                    Run($"INSERT INTO forum_tags (id, channel_id, name, emoji, position) VALUES ({NextId("forum_tags")}, $ch, $name, $emoji, $pos);",
                         ("$ch", channelId), ("$name", name), ("$emoji", emoji), ("$pos", i));
             }
             tx.Commit();
@@ -93,9 +93,9 @@ public sealed partial class Store
                 INSERT INTO messages (channel_id, author_key, text, created_at, attachments) VALUES ($ch, $author, $text, $now, $att) RETURNING id;
                 """, ("$ch", forum.Id), ("$author", authorKey), ("$text", text), ("$now", now),
                 ("$att", attachments.Length == 0 ? null : System.Text.Json.JsonSerializer.Serialize(attachments))));
-            var id = Convert.ToInt64(Run("""
-                INSERT INTO channels (name, kind, position, read_role, write_role, created_at, parent_id)
-                VALUES ($name, 'thread', 0, $read, $write, $now, $parent) RETURNING id;
+            var id = Convert.ToInt64(Run($"""
+                INSERT INTO channels (id, name, kind, position, read_role, write_role, created_at, parent_id)
+                VALUES ({NextId("channels")}, $name, 'thread', 0, $read, $write, $now, $parent) RETURNING id;
                 """, ("$name", title), ("$read", forum.ReadRole), ("$write", forum.WriteRole), ("$now", now), ("$parent", forum.Id)));
             Run("INSERT INTO threads (channel_id, root_id, created_by, created_at) VALUES ($id, $root, $by, $now);",
                 ("$id", id), ("$root", rootId), ("$by", authorKey), ("$now", now));

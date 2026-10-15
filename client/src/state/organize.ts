@@ -2,7 +2,7 @@
 // levels and mutes (kept by the server for your account, so every device and push follow them), and nicknames.
 import { create } from 'zustand'
 import type { Category, Events, Member, NotifyDefault, NotifyLevel, NotifySetting } from '../core/protocol'
-import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
+import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, useApp } from './store'
 import { knownThread } from './threads'
 import { t } from '../i18n'
 import { defaultLevel, effectiveNotify, nextMuteEnd, notifyKey, type EffectiveNotify, type NotifyMap } from './organizeLogic'
@@ -57,6 +57,7 @@ function saveSetting(key: string, setting: NotifySetting): void {
 onWelcomeHook((key, welcome) => {
   useOrganize.setState((s) => ({
     categories: { ...s.categories, [key]: welcome.categories ?? [] },
+    collapsed: keepCollapsed(s.collapsed, key, welcome.categories ?? []),
     notify: { ...s.notify, [key]: toMap(welcome.notify ?? []) },
     serverDefaults: { ...s.serverDefaults, [key]: welcome.notifyDefault ?? 'auto' },
     clock: Date.now(),
@@ -67,7 +68,7 @@ onWelcomeHook((key, welcome) => {
 onServerEvent((key, type, body) => {
   if (type === 'channels') {
     const { categories } = body as Events['channels']
-    if (categories) useOrganize.setState((s) => ({ categories: { ...s.categories, [key]: categories } }))
+    if (categories) useOrganize.setState((s) => ({ categories: { ...s.categories, [key]: categories }, collapsed: keepCollapsed(s.collapsed, key, categories) }))
   }
   if (type === 'notify.updated') saveSetting(key, (body as Events['notify.updated']).setting)
   if (type === 'notify.default') {
@@ -120,6 +121,32 @@ export function useCategories(serverKey: string): Category[] {
 const NONE: Category[] = []
 
 // ── Collapsing (this device) ────────────────────────────────────────────────
+
+/** Forgets collapsed categories that are gone (ids are never reused, but this keeps the device's list honest). */
+function keepCollapsed(collapsed: Record<string, number[]>, serverKey: string, categories: Category[]): Record<string, number[]> {
+  const mine = collapsed[serverKey]
+  if (!mine) return collapsed
+  const kept = mine.filter((id) => categories.some((c) => c.id === id))
+  if (kept.length === mine.length) return collapsed
+  const next = { ...collapsed, [serverKey]: kept }
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify(next))
+  } catch {
+    /* private mode */
+  }
+  return next
+}
+
+// A channel that's gone: forget its notification setting here too (the server already did).
+onChannelsGone((serverKey, channelIds) => {
+  useOrganize.setState((s) => {
+    const mine = s.notify[serverKey]
+    if (!mine || !channelIds.some((id) => notifyKey(id) in mine)) return s
+    const next = { ...mine }
+    for (const id of channelIds) delete next[notifyKey(id)]
+    return { notify: { ...s.notify, [serverKey]: next } }
+  })
+})
 
 export function toggleCollapsed(serverKey: string, categoryId: number): void {
   useOrganize.setState((s) => {

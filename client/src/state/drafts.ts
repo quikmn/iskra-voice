@@ -48,4 +48,15 @@ export function setDraft(key: string, text: string): void {
   save()
 }
 
+/** Drops drafts (a channel that's gone: its unsent text goes with it). */
+export function forgetDrafts(keys: string[]): void {
+  if (!keys.some((k) => k in useDrafts.getState().drafts)) return
+  useDrafts.setState(({ drafts }) => {
+    const next = { ...drafts }
+    for (const k of keys) delete next[k]
+    return { drafts: next }
+  })
+  save()
+}
+
 export const useDraft = (key: string): string => useDrafts((s) => s.drafts[key]?.text ?? '')

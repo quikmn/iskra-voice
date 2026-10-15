@@ -23,7 +23,7 @@ public sealed partial class Store
         """;
 
     private const string ThreadAwareColumns =
-        "c.id, c.name, c.kind, c.position, COALESCE(p.read_role, c.read_role), COALESCE(p.write_role, c.write_role), c.category_id";
+        "c.id, c.name, c.kind, c.position, COALESCE(p.read_role, c.read_role), COALESCE(p.write_role, c.write_role), c.category_id, c.created_at";
 
     private const string ThreadSelect = """
         SELECT c.id, c.parent_id, t.root_id, c.name, t.created_by, t.created_at,
@@ -39,9 +39,9 @@ public sealed partial class Store
     {
         lock (_gate)
         {
-            var id = Convert.ToInt64(Scalar("""
-                INSERT INTO channels (name, kind, position, read_role, write_role, created_at, parent_id)
-                VALUES ($name, 'thread', 0, $read, $write, $now, $parent) RETURNING id;
+            var id = Convert.ToInt64(Scalar($"""
+                INSERT INTO channels (id, name, kind, position, read_role, write_role, created_at, parent_id)
+                VALUES ({NextId("channels")}, $name, 'thread', 0, $read, $write, $now, $parent) RETURNING id;
                 """, ("$name", name), ("$read", parent.ReadRole), ("$write", parent.WriteRole), ("$now", now), ("$parent", parent.Id)));
             Exec("INSERT INTO threads (channel_id, root_id, created_by, created_at) VALUES ($id, $root, $by, $now);",
                 ("$id", id), ("$root", rootId), ("$by", by), ("$now", now));

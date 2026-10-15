@@ -244,6 +244,7 @@ public class ForumTests
         Assert.Equal("forbidden", (await carol.RequestAsync("thread.delete", new { id })).ErrorCode());
         Assert.Equal("result", (await admin.RequestAsync("thread.delete", new { id })).Type());
         Assert.Equal(rootId, (await carol.EventAsync("chat.deleted")).Body().GetProperty("id").GetInt64());
+        Assert.Equal(id, (await carol.EventAsync("thread.deleted")).Body().GetProperty("id").GetInt64());
         Assert.Null(server.World.Store.GetMessage(rootId));
         Assert.Empty(Posts(await carol.RequestAsync("forum.posts", new { channelId = forum })));
 

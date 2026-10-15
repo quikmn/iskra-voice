@@ -2,7 +2,8 @@
 // A post is a thread (state/threads.ts), so opening one shows it in the thread panel.
 import { create } from 'zustand'
 import { roleRank, type Events, type ForumPost, type ForumSort, type ForumTag, type Thread } from '../core/protocol'
-import { connectionFor, onServerEvent, type ServerState } from './store'
+import { connectionFor, onChannelsGone, onServerEvent, type ServerState } from './store'
+import { withoutChannels } from './channelGone'
 import { openThread, rememberThreads } from './threads'
 import { trimSeen, upsertPost, type ForumSeen } from './forumLogic'
 import { t } from '../i18n'
@@ -274,5 +275,20 @@ onServerEvent((serverKey, type, body) => {
       const lists = Object.fromEntries(Object.entries(s.lists).filter(([k]) => !k.startsWith(`${serverKey}:`) || channels.some((c) => forumKey(serverKey, c.id) === k)))
       return Object.keys(lists).length === Object.keys(s.lists).length ? {} : { lists }
     })
+  }
+})
+
+// A forum that's gone: its posts, tags and what you'd seen there go.
+onChannelsGone((serverKey, channelIds) => {
+  useForums.setState((s) => ({
+    lists: withoutChannels(s.lists, serverKey, channelIds), tags: withoutChannels(s.tags, serverKey, channelIds),
+    posts: withoutChannels(s.posts, serverKey, channelIds), seen: withoutChannels(s.seen, serverKey, channelIds),
+  }))
+  for (const id of channelIds) {
+    try {
+      localStorage.removeItem(seenStorageKey(forumKey(serverKey, id)))
+    } catch {
+      /* private mode */
+    }
   }
 })

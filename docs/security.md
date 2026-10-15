@@ -148,6 +148,7 @@ When an admin creates a text or voice channel they can tick **End-to-end encrypt
 
 - Identity comes only from the signed handshake; every request and every broadcast is checked against your role *at that moment*.
 - Private channels never leak, not even their existence. Search only looks in channels you can read right now.
+- **Deleted means gone, everywhere.** Ids of channels, threads, categories, docs pages, events and forum tags are never handed out again, so nothing of a deleted channel (its messages, search entries, pins, settings, voice room, tokens or anything an app kept) can turn up in a later one. Deleting a channel removes everything in it on the server, including scheduled messages waiting for it and its place in webhooks and AutoMod settings, and apps drop what they kept for it (messages, threads, drafts, read state, decrypted messages and keys) as soon as it's deleted or you lose access to it.
 - Uploads are checked by content, never by name. Only real images, video and audio display inline; everything else is a download, served with headers that stop it from running as part of the site.
 - Link previews are fetched by the server so your IP isn't sent to every site, and the fetcher refuses private and internal addresses (also through redirects).
 - Rate limits, size limits and strict input validation on everything. Uploads, calls and new threads are limited per account, and each account has a daily upload allowance.
