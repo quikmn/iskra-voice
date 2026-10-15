@@ -43,6 +43,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Presence, voice state, IP addresses of connected clients | In memory while connected (stored in the security log only if the owner turns on `Retention.SecurityLogIps`, off by default) | Process memory | No |
 | Profiles (and the stamp of the newest profile edit, `profile_stamps`), memberships, roles, devices, push subscriptions | While the person is a member | Leaving, kick/ban, account deletion, device revocation | — |
 | Captions model (`models/`; no personal data) | Until the owner deletes it | The owner | `Captions.ModelDownload` (off: not fetched or served) |
+| Translation models (`models/translate/`; no personal data) | Until the owner deletes them | The owner | Server settings → Translation (off: not fetched or served) |
 | Owner claim of a rented server (`owner-claim`), or a server image's claim code (`owner-claim`, `owner-claim-code.txt`) | Until the owner joins; a claim code also stops working after 24 hours and is replaced on the next start | `OwnerSetup` | — |
 
 Account deletion (Settings → Account → Delete my account; `account.delete`) removes the profile, roles, settings,
@@ -94,3 +95,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-13 | Built-in bots (Dice, Polls, Reminders): their answers and /remind reminders |
 | 2026-10-14 | Bug reports (bug inbox) |
 | 2026-10-14 | Claim codes of server images (DigitalOcean Marketplace) |
+| 2026-10-15 | Message translation on the device (texts never leave it); translation models folder on the server |

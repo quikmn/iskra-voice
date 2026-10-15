@@ -98,21 +98,20 @@ public sealed class FolderModelUpstream(string folder) : IModelUpstream
 public sealed class ModelDownloadException(string message) : Exception(message);
 
 /// <summary>
-/// Keeps the captions model in the world folder (models/&lt;dir&gt;/), fetching it once from upstream the first time
-/// someone asks (every byte checked against the pinned SHA-256s) and serving it from disk after that.
-/// Concurrent requests share one download.
+/// Keeps one pinned model in a folder of the world (models/...), fetching it once from upstream the first time someone
+/// asks (every byte checked against the pinned SHA-256s) and serving it from disk after that. Concurrent requests share
+/// one download. The security log gets "&lt;logPrefix&gt;.download" and "&lt;logPrefix&gt;.rejected".
 /// </summary>
-public sealed class CaptionModelService(World world, IModelUpstream upstream, ModelManifest manifest, TimeProvider time, ILogger<CaptionModelService> log)
+public class PinnedModel(World world, IModelUpstream upstream, ModelManifest manifest, string folder, string logPrefix, TimeProvider time, ILogger log)
 {
     private readonly Lock _lock = new();
     private Task? _download;
 
     public ModelManifest Manifest { get; } = manifest;
 
-    /// <summary>The owner offers captions on this server (server.json Captions.ModelDownload).</summary>
-    public bool Enabled => world.Settings.Captions.ModelDownload;
+    public string Folder { get; } = folder;
 
-    public string Folder => Path.Combine(world.Path, "models", Manifest.Dir);
+    protected World World => world;
 
     /// <summary>The file on disk for a part the apps may ask for; null for anything else (other versions, paths, names).</summary>
     public string? PathOf(string dir, string part) =>
@@ -168,16 +167,16 @@ public sealed class CaptionModelService(World world, IModelUpstream upstream, Mo
         }
         if (fetched > 0)
         {
-            log.LogInformation("Downloaded the captions model ({Model}, {Bytes} bytes)", Manifest.Dir, fetched);
-            SecurityLog.Record(world.Store, time.GetUtcNow().ToUnixTimeMilliseconds(), "captions.model.download",
+            log.LogInformation("Downloaded a model ({Model}, {Bytes} bytes)", Manifest.Dir, fetched);
+            SecurityLog.Record(world.Store, time.GetUtcNow().ToUnixTimeMilliseconds(), $"{logPrefix}.download",
                 details: new { model = Manifest.Dir, bytes = fetched });
         }
     }
 
     private void Failed(string file, string reason)
     {
-        log.LogWarning("The captions model from upstream failed its check ({File})", file);
-        SecurityLog.Record(world.Store, time.GetUtcNow().ToUnixTimeMilliseconds(), "captions.model.rejected",
+        log.LogWarning("A model from upstream failed its check ({Model}, {File})", Manifest.Dir, file);
+        SecurityLog.Record(world.Store, time.GetUtcNow().ToUnixTimeMilliseconds(), $"{logPrefix}.rejected",
             details: new { model = Manifest.Dir, file, reason });
     }
 
@@ -190,4 +189,12 @@ public sealed class CaptionModelService(World world, IModelUpstream upstream, Mo
     }
 
     private static string Hex(byte[] hash) => Convert.ToHexStringLower(hash);
+}
+
+/// <summary>The captions model in models/&lt;dir&gt;/.</summary>
+public sealed class CaptionModelService(World world, IModelUpstream upstream, ModelManifest manifest, TimeProvider time, ILogger<CaptionModelService> log)
+    : PinnedModel(world, upstream, manifest, Path.Combine(world.Path, "models", manifest.Dir), "captions.model", time, log)
+{
+    /// <summary>The owner offers captions on this server (server.json Captions.ModelDownload).</summary>
+    public bool Enabled => World.Settings.Captions.ModelDownload;
 }

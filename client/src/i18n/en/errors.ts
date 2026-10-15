@@ -102,6 +102,7 @@ export const errors = {
     owner_transfer: 'Only the owner can hand over the server.',
     owner_import: 'Only the owner can import.',
     owner_updates: 'Only the owner can manage updates.',
+    owner_translate: 'Only the owner can change translation.',
     owner_move: 'Only the owner can move this server.',
     owner_internet: 'Only the owner can open the server to the internet.',
     owner_p2p: 'Only the owner can change how friends connect.',

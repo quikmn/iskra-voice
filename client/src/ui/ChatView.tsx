@@ -23,6 +23,9 @@ import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
 import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, Volume, WifiOff } from './icons'
 import { HeaderTools } from './chat/HeaderTools'
+import { AutoTranslateButton, TranslationBlock } from './translate/Translate'
+import { channelItem } from './translate/items'
+import { convKey } from '../state/translate'
 import { EncryptedBits, EncryptedWriteBlock, EncryptionButton, LockBadge, StartOverRecordLine, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
 import { editEncrypted, isEncrypted, uploadFor } from '../state/e2eeChannels'
 import { MessageActionSheet } from './chat/MessageActionSheet'
@@ -114,6 +117,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         )}
         <span className="spacer" />
         <HeaderTools key={channel?.id} server={server} channel={channel} />
+        {channel && channel.kind === 'text' && <AutoTranslateButton conv={convKey.channel(server.key, channel.id)} />}
         <EncryptionButton server={server} channel={channel} />
         <ChannelSettingsButton server={server} channel={channel} />
         <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label={t('chat.view.members')} title={t('chat.view.members')}>
@@ -312,6 +316,7 @@ function MessageRow({
   const longPress = useLongPress(() => setSheet(true), !message.tempId && !editing)
   const [error, setError] = useState<string | null>(null)
   const emojiLookup = useEmojiLookup(server.key)
+  const translateItem = message.tempId ? null : channelItem(server, message)
   const { t } = useTranslation()
 
   function jumpTo(id: number) {
@@ -381,6 +386,7 @@ function MessageRow({
             </div>
           )
         )}
+        {!editing && <TranslationBlock item={translateItem} />}
         {message.builtin && <BuiltinReply server={server} reply={message.builtin} />}
         {message.poll && <PollCard server={server} message={message} />}
         {message.automod && <AutoModAlertCard server={server} alert={message.automod} />}

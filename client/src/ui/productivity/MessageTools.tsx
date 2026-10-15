@@ -15,6 +15,8 @@ import { Copy } from '../icons'
 import { useLongPress } from '../chat/useLongPress'
 import { AlarmClock, Bookmark } from './icons'
 import { openRemindDialog, useMessageDialogs, type MessageTarget } from './RemindDialog'
+import { TranslateButton, TranslateMenuItem } from '../translate/Translate'
+import type { TranslateItem } from '../../state/translate'
 import './productivity.css'
 
 type Wrap = (doneLabel: string | null, action: () => void | Promise<unknown>) => () => void
@@ -61,7 +63,7 @@ export function DoneToast() {
  * Hover actions (desktop) and press-and-hold (phones) for a DM or group message row. Spread `rowProps` on the row and
  * render `tools` inside it.
  */
-export function usePrivateMessageTools(target: MessageTarget | null, text: string) {
+export function usePrivateMessageTools(target: MessageTarget | null, text: string, translate: TranslateItem | null = null) {
   const [sheet, setSheet] = useState(false)
   const longPress = useLongPress(() => setSheet(true), !!target)
   if (!target) return { rowProps: { className: '' }, tools: null }
@@ -69,14 +71,14 @@ export function usePrivateMessageTools(target: MessageTarget | null, text: strin
     rowProps: { ...longPress, className: sheet ? 'pressed' : '' },
     tools: (
       <>
-        <PrivateActions target={target} text={text} />
-        {sheet && <PrivateSheet target={target} text={text} onClose={() => setSheet(false)} />}
+        <PrivateActions target={target} text={text} translate={translate} />
+        {sheet && <PrivateSheet target={target} text={text} translate={translate} onClose={() => setSheet(false)} />}
       </>
     ),
   }
 }
 
-function PrivateActions({ target, text }: { target: MessageTarget; text: string }) {
+function PrivateActions({ target, text, translate }: { target: MessageTarget; text: string; translate: TranslateItem | null }) {
   const { t } = useTranslation()
   const saved = useIsSaved(target.ref)
   const [error, setError] = useState<string | null>(null)
@@ -94,12 +96,13 @@ function PrivateActions({ target, text }: { target: MessageTarget; text: string 
           <Copy size={15} />
         </button>
       )}
+      {translate && <TranslateButton item={translate} />}
       {error && <span className="error-text" role="alert">{error}</span>}
     </div>
   )
 }
 
-function PrivateSheet({ target, text, onClose }: { target: MessageTarget; text: string; onClose: () => void }) {
+function PrivateSheet({ target, text, translate, onClose }: { target: MessageTarget; text: string; translate: TranslateItem | null; onClose: () => void }) {
   const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
@@ -120,6 +123,7 @@ function PrivateSheet({ target, text, onClose }: { target: MessageTarget; text: 
         <div className="sheet-list" role="menu">
           <SaveRemindItems target={target} wrap={wrap} icons />
           {text && <button role="menuitem" onClick={wrap(null, () => navigator.clipboard.writeText(text))}><Copy /> {t('productivity.actions.copyText')}</button>}
+          <TranslateMenuItem item={translate} wrap={wrap} icon />
         </div>
         {error && <p className="error-text sheet-error" role="alert">{error}</p>}
       </div>

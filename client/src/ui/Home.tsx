@@ -34,6 +34,9 @@ import { KeyHistory } from './keys/KeyTransparency'
 import { messageListKeys, useAnnounceNew } from './a11y'
 import { useBotPeer } from '../state/botDms'
 import { BotBadge } from './chat/BotBits'
+import { AutoTranslateButton, TranslationBlock } from './translate/Translate'
+import { dmItem } from './translate/items'
+import { convKey } from '../state/translate'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -172,6 +175,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <span className="spacer" />
         {reachable && !peerBot.bot && <span className="dm-header-friend"><FriendButtons accountKey={peer} header /></span>}
         {!blocked && !peerBot.bot && <CallButtons peer={peer} />}
+        <AutoTranslateButton conv={convKey.dm(peer)} />
         <button className="button small" onClick={() => setVerify(true)}>{t('app.home.verify')}</button>
       </header>
       <CallPanel peer={peer} />
@@ -217,7 +221,8 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
 function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: string; mine: boolean }) {
   const { t } = useTranslation()
   const name = nameOf(dm.from)
-  const tools = usePrivateMessageTools(dm.pending || dm.error || asLog(dm.call) ? null : dmTarget(peer, dm), dm.text)
+  const translateItem = dm.pending || dm.error || asLog(dm.call) ? null : dmItem(peer, dm, (k) => nameOf(k))
+  const tools = usePrivateMessageTools(dm.pending || dm.error || asLog(dm.call) ? null : dmTarget(peer, dm), dm.text, translateItem)
   return (
     <div id={privateRowId(dm.from, dm.id)} {...tools.rowProps} data-dm-id={dm.id} className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''} ${tools.rowProps.className ?? ''}`}
       role="article" tabIndex={-1} aria-label={t('chat.a11y.message', { name, time: fullTime(dm.sentAt) })}>
@@ -239,6 +244,7 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
           <>
             {dm.forward && <ForwardedLine label={dm.forward.from} />}
             {dm.text && <div className="message-text">{renderMarkdown(dm.text, { nameOf: (k) => nameOf(k) })}</div>}
+            <TranslationBlock item={translateItem} />
             {dm.forward && dm.forward.files.length > 0 && <ForwardedFiles files={dm.forward.files} />}
             <DmAttachments files={dm.files} />
           </>

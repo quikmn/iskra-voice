@@ -12,7 +12,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
-- **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
+- **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Built-in roles](#built-in-roles) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
 - **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server) · [Passkeys and key transparency](#passkeys-and-key-transparency)
 
@@ -777,6 +777,7 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 | `GET /.well-known/acme-challenge/<token>`, `GET /.well-known/iskra-probe/<token>` | Let's Encrypt and the reachability probe ([Internet hosting](#internet-hosting)) |
 | `GET /.well-known/iskra-claim` | Proof of a pending owner claim ([Owner claim](#owner-claim-rented-servers)) |
 | `GET`, `HEAD /models/<dir>/<part>` | The live-captions model ([Live captions model](#live-captions-model)) |
+| `GET`, `HEAD /models/translate/<dir>/<part>` | Translation models ([Translation models](#translation-models)) |
 
 ## Forum channels
 
@@ -1643,6 +1644,8 @@ SecurityEvent { "id": 12, "at": 1760000000000, "event": "auth.failed", "account"
 | `security.log.export` | the owner | |
 | `owner.claim.created` | none | `{ expiresAt, renewed }`: a server image made its [claim code](#owner-claim-rented-servers) (never the code itself) |
 | `captions.model.download`, `captions.model.rejected` | none | `{ model, bytes }`: the server fetched the [captions model](#live-captions-model) / `{ model, file, reason: "hash" }`: what upstream sent wasn't the pinned file, so nothing was kept |
+| `translate.model.download`, `translate.model.rejected` | none | The same for a [translation model](#translation-models) (`model` is its `dir`) |
+| `translate.settings` | the owner | `{ offer }`: translation models offered to members, or not |
 
 - Never in it: message text, invite codes, passphrases, secrets of any kind.
 - **IP addresses** are recorded only if the owner turns on `securityLogIps` (off by default). Without it `ip` is null.
@@ -2912,3 +2915,40 @@ make the same changes (built-in role powers included).
   and settings still at their defaults. It never deletes, renames or changes existing channels, roles, members or
   messages. Without `--apply` it only prints what it would add. It refuses while the server runs (its port answers on
   localhost). Security log `server.template.merge`.
+
+## Translation models
+
+Members translate messages on their own device (Bergamot with Mozilla's Firefox Translations models,
+[docs/voice-processing.md](../docs/voice-processing.md#message-translation)), after decryption, so it works for
+end-to-end encrypted messages too; no message text is ever sent for translation. The models come from the group's own
+server, the same way as the [captions model](#live-captions-model), except that the owner turns it on, and each model
+is fetched only when a member first needs it.
+
+- **Pins.** `client/src/state/translate/models.json` (compiled into the app and the server; written by
+  `scripts/translate-pins.mjs`): one entry per model, always to or from English (`en-sv`, `sv-en`, ...; other pairs go
+  through English on the device). Each has a `dir` (`translate-<from><to>-<8 hex>`), the upstream `source` (Mozilla's
+  model storage) and three files (`model.bin.gz`, `lex.bin.gz`, `vocab.spm.gz`): each `from` (the path of Mozilla's
+  pinned training run), SHA-256 and size of the gzip file as served, SHA-256 and size `unpacked`, and parts of at most
+  20 MiB, each with its own SHA-256 and size. About 15-26 MB per model.
+- **`translate.models.link`** (request, any member, empty body; limit 10, then one a second) → `{ offered: false }`
+  unless the owner offers translation, else `{ offered: true, models: ["en-sv", ...], path: "/models/translate",
+  query: "a=<accountKey>&exp=<ms>&sig=<b64u>", expires }`. `sig` = HMAC-SHA-256 with a random per-process key over
+  `"iskra/translate-models-link/v1\0<accountKey>\0<exp>"`; valid for an hour, for every model.
+- **`GET /models/translate/<dir>/<part>?<query>`**, where `part` is `<file>.part<n>.bin`: as for the captions model.
+  Anything that isn't a pinned part is `404`, as is everything while the owner doesn't offer translation; without a
+  valid link (missing, wrong signature, expired or too far ahead, a captions link, or an account that is no longer a
+  member) `403` and nothing is fetched. The first linked request for a model makes the server fetch that model's files
+  once from `source` (HTTPS, size-capped), check every file and part against the pins and write them atomically to
+  `models/translate/<dir>/`; on a mismatch nothing is kept and the answer is `502`. Then `200`,
+  `application/octet-stream`, `Cache-Control: private, max-age=31536000, immutable`, byte ranges allowed. `HEAD`,
+  `OPTIONS` and `Access-Control-Allow-Origin: *` as for captions.
+- **Limits.** 40 requests at once per client address, then one every 2 seconds (`429`); a model is 3-4 parts.
+- **`translate.config`** (request, the owner: `forbidden`, key `owner_translate`; empty body) →
+  `{ offer, downloaded: ["en-sv", ...] }` (the models already on the server).
+- **`translate.configure`** (request, the owner; `{ offer: boolean }`, required; limit 10, then one a second) → the
+  same as `translate.config`. Saved to server.json `Translate.Offer` (default `false`). Security log `translate.settings`.
+- **Apps.** They detect a message's language on the device (ELD), ask for the link only when a model isn't on the
+  device yet, download only after the person agreed (the size is shown first), check every part, unpack (gzip), check
+  the unpacked file, and keep the parts on the device under a key that doesn't depend on the server or the link.
+- `Translate.ModelSource` (server.json, optional): a folder laid out like `scripts/get-models.mjs --translate` writes it
+  (`<folder>/<dir>/<part>`), used instead of `source` (development and tests; the same checks apply).

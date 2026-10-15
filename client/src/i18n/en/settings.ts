@@ -32,6 +32,7 @@ export const settings = {
     backup: 'Backup & move',
     import: 'Import from Discord',
     updates: 'Server updates',
+    translate: 'Translation',
     privacy: 'Privacy & data',
     securityLog: 'Sign-ins & security',
     members: 'Members',

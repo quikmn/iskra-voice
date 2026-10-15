@@ -70,14 +70,14 @@ export class ModelError extends Error {
 
 const CACHE = 'iskra-models'
 
-interface Store {
+export interface ModelStore {
   get(url: string): Promise<Uint8Array | null>
   put(url: string, data: Uint8Array): Promise<void>
   keys(): Promise<string[]>
   remove(url: string): Promise<void>
 }
 
-function cacheStore(cache: Cache): Store {
+function cacheStore(cache: Cache): ModelStore {
   return {
     get: async (url) => {
       const hit = await cache.match(url)
@@ -96,8 +96,8 @@ function request<T>(r: IDBRequest<T>): Promise<T> {
   })
 }
 
-async function idbStore(): Promise<Store> {
-  const open = indexedDB.open(CACHE, 1)
+async function idbStore(name: string): Promise<ModelStore> {
+  const open = indexedDB.open(name, 1)
   open.onupgradeneeded = () => open.result.createObjectStore('parts')
   const db = await request(open)
   const tx = (mode: IDBTransactionMode) => db.transaction('parts', mode).objectStore('parts')
@@ -112,13 +112,17 @@ async function idbStore(): Promise<Store> {
   }
 }
 
-let store: Promise<Store | null> | null = null
-/** Cache Storage where it takes the model's https:// addresses; IndexedDB otherwise; nothing in a locked-down browser. */
-function openStore(): Promise<Store | null> {
-  store ??= (async () => {
+const stores = new Map<string, Promise<ModelStore | null>>()
+/**
+ * Cache Storage where it takes the model's https:// addresses; IndexedDB otherwise; nothing in a locked-down browser.
+ * One store per kind of model (`name`), so each can drop what its own older versions left behind.
+ */
+export function openModelStore(name = CACHE): Promise<ModelStore | null> {
+  let store = stores.get(name)
+  if (!store) stores.set(name, store = (async () => {
     try {
       if (typeof caches === 'undefined') throw new Error('no Cache Storage')
-      const cache = await caches.open(CACHE)
+      const cache = await caches.open(name)
       // app:// and capacitor:// pages may not be able to keep anything here: find out before trusting it.
       const probe = 'https://models.iskra.invalid/.probe'
       await cache.put(probe, new Response('ok'))
@@ -126,18 +130,20 @@ function openStore(): Promise<Store | null> {
       return cacheStore(cache)
     } catch {
       try {
-        return typeof indexedDB === 'undefined' ? null : await idbStore()
+        return typeof indexedDB === 'undefined' ? null : await idbStore(name)
       } catch {
         return null
       }
     }
-  })()
+  })())
   return store
 }
 
+const openStore = () => openModelStore(CACHE)
+
 let pruned = false
 /** Drops models an older version of the app left behind. */
-async function prune(s: Store): Promise<void> {
+async function prune(s: ModelStore): Promise<void> {
   if (pruned) return
   pruned = true
   const keep = new Set(Object.values(captionParts(ANY)).flat().map(keyOf))
@@ -175,9 +181,12 @@ async function body(response: Response, onBytes: (n: number) => void): Promise<U
   return data
 }
 
-/** One checked part: from the store when it's there (and still right), otherwise downloaded, checked and kept. */
-async function part(p: ModelPart, s: Store | null, onBytes: (n: number) => void, signal?: AbortSignal): Promise<Uint8Array> {
-  const kept = await s?.get(keyOf(p)).catch(() => null)
+/**
+ * One checked part: from the store when it's there (and still right), otherwise downloaded, checked and kept (under
+ * `key(p)`, the same whichever server and link it came from).
+ */
+export async function checkedPart(p: ModelPart, s: ModelStore | null, onBytes: (n: number) => void, signal?: AbortSignal, key = keyOf): Promise<Uint8Array> {
+  const kept = await s?.get(key(p)).catch(() => null)
   if (kept && (await sha256Hex(kept)) === p.sha256) {
     onBytes(kept.length)
     return kept
@@ -199,11 +208,11 @@ async function part(p: ModelPart, s: Store | null, onBytes: (n: number) => void,
     throw new ModelError('download', `${p.url}: ${(e as Error).message}`)
   }
   if (data.length !== p.bytes || (await sha256Hex(data)) !== p.sha256) throw new ModelError('corrupt', `${p.url} isn't the expected file`)
-  await s?.put(keyOf(p), data).catch(() => undefined)
+  await s?.put(key(p), data).catch(() => undefined)
   return data
 }
 
-const join = (parts: Uint8Array[]) => {
+export const joinParts = (parts: Uint8Array[]) => {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
   let o = 0
   for (const p of parts) {
@@ -238,7 +247,7 @@ export async function loadCaptionModel(source: CaptionSource, onProgress?: (done
     if (!response.ok) throw new ModelError('download', `runtime: ${response.status}`)
     return body(response, onBytes)
   })()
-  const one = async (list: ModelPart[]) => join(await Promise.all(list.map((p) => part(p, s, onBytes, signal))))
+  const one = async (list: ModelPart[]) => joinParts(await Promise.all(list.map((p) => checkedPart(p, s, onBytes, signal))))
   const [encoder, decoder, vocab, wasm] = await Promise.all([one(files.encoder), one(files.decoder), one(files.vocab), runtime])
   return { runtime: wasm, encoder, decoder, vocab }
 }

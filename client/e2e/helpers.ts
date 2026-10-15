@@ -113,6 +113,8 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
       Voice: { Enabled: voice, Port: voicePort, RtcTcpPort: rtcTcp, RtcUdpPort: rtcUdp, LiveKitPath: voice ? LIVEKIT : null },
       // The captions model from the local copy (node scripts/get-models.mjs), never from the internet.
       Captions: { ModelSource: CAPTION_MODELS },
+      // Translation models too (node scripts/get-models.mjs --translate), when a test turns translation on.
+      Translate: { ModelSource: resolve(CAPTION_MODELS, 'translate') },
       ...settings,
     }),
   )

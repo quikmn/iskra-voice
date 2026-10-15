@@ -29,6 +29,9 @@ import { groupText } from './groupText'
 import { errorMessage } from '../../i18n/errors'
 import { userMenuProps } from '../people/userMenuProps'
 import { messageListKeys, useAnnounceNew } from '../a11y'
+import { AutoTranslateButton, TranslationBlock } from '../translate/Translate'
+import { groupItem } from '../translate/items'
+import { convKey } from '../../state/translate'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -424,6 +427,7 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
         <span className="e2e-badge" title={t('groups.onlyPeopleRead')}><Lock size={13} /> {t('groups.e2e')}</span>
         <span className="spacer" />
         {member && <GroupCallButtons groupKey={groupKey} />}
+        <AutoTranslateButton conv={convKey.group(groupKey)} />
         <button className="icon-button" onClick={() => setDialog('members')} aria-label={t('groups.groupMembers')} title={t('groups.membersTitle')}>
           <Users />
         </button>
@@ -483,7 +487,8 @@ function SystemLine({ text, at, icon }: { text: string; at: number; icon?: 'penc
 function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolean; groupKey: string; mine: boolean }) {
   const { t } = useTranslation()
   const name = knownName(m.from)
-  const tools = usePrivateMessageTools(m.pending || m.error || m.call ? null : groupTarget(groupKey, m), m.text)
+  const translateItem = m.pending || m.error || m.call ? null : groupItem(groupKey, m.id, m.text, (k) => knownName(k))
+  const tools = usePrivateMessageTools(m.pending || m.error || m.call ? null : groupTarget(groupKey, m), m.text, translateItem)
   return (
     <div id={privateRowId(m.from, m.id)} {...tools.rowProps} data-dm-id={m.id} className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''} ${tools.rowProps.className ?? ''}`}
       role="article" tabIndex={-1} aria-label={t('chat.a11y.message', { name, time: fullTime(m.sentAt) })}>
@@ -502,6 +507,7 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
         ) : (
           <>
             {m.text && <div className="message-text">{renderMarkdown(m.text, { nameOf: (k) => knownName(k) })}</div>}
+            <TranslationBlock item={translateItem} />
             <DmAttachments files={m.files} />
           </>
         )}
