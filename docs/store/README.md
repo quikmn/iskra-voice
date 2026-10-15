@@ -76,7 +76,8 @@ The APIs can't do these; each is done **once** in the browser. Then flip `mobile
 4. **Foreground service declaration** with the video (microphone and media playback).
 5. **Store settings**: category Communication, contact email, website (no API).
 6. **Closed test: 12 testers opted in for 14 days** (new personal accounts), then **Dashboard → Apply for production**
-   and wait for Google's answer.
+   and wait for Google's answer. The texts for a tester service and Play's feedback field are in
+   [testers-kit.md](testers-kit.md); testers follow [docs/testers.md](../testers.md).
 7. **Countries** for production (Production → Countries/regions). France: see the encryption note in
    [appstore/README.md](appstore/README.md).
 8. Play App Signing is set up with the first upload (playbook L.4), already done in phase A.

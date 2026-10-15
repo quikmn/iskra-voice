@@ -1,13 +1,15 @@
 # Server templates
 
 A template sets up a new Iskra server in one go: channels of every kind, who can see and use each one, roles, what the
-built-in roles can do, rules, the AFK channel and server settings. It's a small JSON file you can read and edit.
+built-in roles can do, rules, the AFK channel and server settings, and even some starting content: channel topics,
+welcome messages and docs pages. It's a small JSON file you can read and edit.
 
 - **In the desktop app:** **Create a server**, then pick a starting point: *Gaming group*, *Friends hangout*, *Board
   games and tabletop*, *Empty*, or **From a template file…**. You see everything a template sets up before anything is
   created.
-- **Save your own:** **Server settings → Overview → Save as template** (admins). The file has your channels, who can see
-  and use them, roles, rules and settings. It never has members, messages, files, invites or keys. Channels you can't
+- **Save your own:** **Server settings → Overview → Save as template** (admins). The file has your channels (with their
+  topics and disappearing-message timers), who can see and use them, roles, rules and settings. It never has members,
+  messages, docs pages, files, invites or keys. Channels you can't
   see yourself are left out. Encrypted channels are saved as ordinary channels, because a template can't hold keys:
   turn encryption on again after creating the server.
 - **Standalone server:** `iskra-server my-server --template gaming`, `--template ./book-club.json`, or
@@ -30,18 +32,25 @@ iskra-server templates apply <world-folder> <template.json> --apply   # adds it
 Stop the server first (the command refuses while it runs). This only **adds**: roles and categories the server doesn't
 have (by name), channels it doesn't have (by name and kind, anywhere on the server), and settings that are still at
 their defaults (a colour or powers for a built-in role nobody changed, rules if there are none, the AFK channel if none
-is set, the default notifications, limits, built-in bots, the bug inbox). It never deletes, renames or changes channels,
-roles, members or messages that are there. Running it twice adds nothing the second time.
+is set, the default notifications, limits, built-in bots, the bug inbox, translation). A channel it already has gets
+the template's starting content only where it has none yet: a topic if it has none, the template's messages if the
+template never posted there, docs pages whose titles it doesn't have, and a disappearing-messages timer if none was ever
+set. It never deletes, renames or changes channels, roles, members or messages that are there. Running it twice adds
+nothing the second time.
+
+The bug inbox is left off (the command says so) if the server's channel of that name can be read by more people than
+the template says: reports can hold email addresses.
 
 ## The format
 
 ```jsonc
 {
-  "version": 2,                                // 2 for this format; files without it are format 1 and still work
+  "version": 3,                                // 3 for this format; 2 and 1 (no version) still work
   "name": "Book club",                         // 1–60 characters
   "description": "Reading together.",          // optional, up to 300
   "channels": [                                // optional: outside any category, listed first
-    { "name": "welcome", "writeRole": "admin" }
+    { "name": "welcome", "writeRole": "admin", "topic": "Start here",
+      "messages": [{ "text": "# Welcome!\nGrab a book and say hi in **#now-reading**.", "pin": true }] }
   ],
   "categories": [                              // optional, up to 50
     {
@@ -53,7 +62,9 @@ roles, members or messages that are there. Running it twice adds nothing the sec
         { "name": "mod-room", "readRole": "admin",
           "overrides": [{ "role": "Moderator", "allow": ["view", "send"] }] },
         { "name": "reviews", "kind": "forum", "tags": [{ "name": "Fiction", "emoji": "📖" }, { "name": "Non-fiction" }] },
-        { "name": "reading-list", "kind": "docs" }
+        { "name": "reading-list", "kind": "docs",
+          "pages": [{ "title": "How we pick books", "text": "We vote every month…", "startHere": true }] },
+        { "name": "spoilers", "disappear": 86400 }
       ]
     },
     {
@@ -81,7 +92,8 @@ roles, members or messages that are there. Running it twice adds nothing the sec
     "notifyDefault": "auto",                   // "auto" (all messages under 15 people), "all" or "mentions"
     "limits": { "maxUploadMb": 512, "guestMbPerDay": 1024, "emojiMaxKb": 1024 },
     "builtinBots": ["dice", "polls", "reminders"],
-    "bugInbox": "mod-room"                     // a text channel of the template: bug reports land there
+    "bugInbox": "mod-room",                    // a text channel of the template: bug reports land there
+    "translation": true                        // offer message translation to members
   }
 }
 ```
@@ -102,8 +114,14 @@ version of Iskra says so. Files can be up to 256 KB, with up to 500 channels.
 | `hifi` | voice only: hi-fi audio allowed |
 | `slowmode` | seconds between messages per person: 0 (off), 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200 or 21600. Not for docs |
 | `tags` | forums only: up to 20, `{ "name": "Bug", "emoji": "🐛" }` |
+| `topic` | one line saying what the channel is for, shown at its top: up to 300 characters |
+| `messages` | text channels only: up to 10 messages, `{ "text": "...", "pin": true }`, posted once under the server's name. Markdown as in the app, up to 4000 characters each; mentions never ping |
+| `pages` | docs channels only: up to 20 pages, `{ "title": "...", "text": "...", "startHere": true }`. Markdown as in docs, up to 100 KB each. One page in the whole template can be the server's **Start here** page |
+| `disappear` | text and voice channels: messages disappear after this many seconds: 0 (off), 300, 3600, 28800, 86400, 604800 or 2419200. Not together with `messages` |
 
-The server's starting `#general` becomes the template's first text channel.
+The server's starting `#general` becomes the template's first text channel. A template has at most 100 messages and 50
+pages in all. Messages and pages are plain text in the app's Markdown: they're shown like any message or page, never
+run as code.
 
 ### Roles
 
@@ -136,6 +154,8 @@ only get everyday powers (`invite`, `events`, `pin`, `mentionEveryone`, `uploadS
 - `builtinBots`: built-in bots to turn on: `dice`, `polls`, `reminders`.
 - `bugInbox`: a text channel of the template where bug reports from Iskra apps land (normally only useful on the
   server that runs the bug inbox).
+- `translation`: `true` offers message translation to members (Server settings → Translation): the server fetches each
+  language's model from Mozilla the first time a member needs it.
 
 ## The built-in templates
 
