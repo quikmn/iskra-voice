@@ -66,7 +66,7 @@ export const settings = {
     edit: 'Edit {{name}}',
     renameCategory: 'Rename {{name}}',
     emptyCategory: 'No channels here yet.',
-    kinds: { text: 'Text', voice: 'Voice', forum: 'Forum', stage: 'Stage', docs: 'Docs' },
+    kinds: { text: 'Text', voice: 'Voice', forum: 'Forum', stage: 'Stage', docs: 'Docs', whiteboard: 'Whiteboard' },
   },
   overview: {
     name: 'Name',

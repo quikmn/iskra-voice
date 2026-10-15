@@ -136,7 +136,7 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
                 {t('organize.menu.markRead')}
               </MenuItem>
             )}
-            {channel.kind !== 'forum' && <NotifyRows server={server} channelId={channel.id} setView={setView} run={run} />}
+            {channel.kind !== 'forum' && channel.kind !== 'whiteboard' && <NotifyRows server={server} channelId={channel.id} setView={setView} run={run} />}
             {isAdmin && (
               <>
                 <div className="org-sep" role="separator" />
