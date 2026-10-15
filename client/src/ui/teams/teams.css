@@ -22,7 +22,7 @@
 .teams-card header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 .teams-card header strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .teams-card ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.teams-member { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 6px; border-radius: 6px; border: 0; background: transparent;
+.teams-member { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 6px; border-radius: calc(var(--radius) * 0.6); border: 0; background: transparent;
   color: var(--text); text-align: left; min-height: 36px; }
 button.teams-member:hover { background: var(--hover); }
 .teams-hint, .teams-empty { margin: 0; font-size: 13px; }

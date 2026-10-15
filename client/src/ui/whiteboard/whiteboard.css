@@ -11,7 +11,7 @@
 .wb-group:last-child { border-right: 0; padding-right: 0; }
 .wb-spacer { flex: 1; min-width: 4px; }
 .wb-tool {
-  width: 34px; height: 34px; border-radius: 8px; border: 0; background: none; color: var(--text-2);
+  width: 34px; height: 34px; border-radius: calc(var(--radius) * 0.8); border: 0; background: none; color: var(--text-2);
   display: grid; place-items: center; flex: none;
 }
 .wb-tool:hover:not(:disabled) { background: var(--hover); color: var(--text); }
