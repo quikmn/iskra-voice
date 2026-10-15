@@ -27,6 +27,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
                                     (one job; report kept as an artifact). A newer push to the branch cancels the older
                                     run, except a "Version X" commit's (the release gate needs it)
  PR / nightly on main ──► ci.yml ... the same plus desktop tests on macOS and the macOS LiveKit cache for releases
+ nightly / by hand ──► e2e-stress.yml .. the e2e suite 3 times over on the 4 shards; flaky tests reported, not red
  every push / PR / weekly ──► secrets.yml .. gitleaks over the whole git history
  PR / weekly / by hand ──► codeql.yml ... code scanning: JS/TS, C#, workflows
  PR / weekly / by hand ──► scorecard.yml ..... OpenSSF Scorecard → code scanning + scorecard.dev (the weekly run publishes)
@@ -665,6 +666,19 @@ traces included); each failing shard also keeps its `playwright-results-<n>` fol
 way: `node ../scripts/e2e-shards.mjs list 2 4 shard.txt`, then `npx playwright test --test-list shard.txt` (in
 `client/`). LiveKit (`.tools/livekit-server`) and the captions and English/Swedish translation models (`get-models.mjs --translate sv`) are cached on their pins.
 
+**Flaky end-to-end tests.** On CI (`CI` set) a failed test runs once more (`retries: 1` in `client/playwright.config.ts`;
+locally never). Passing on the retry makes it *flaky*: the run stays green, and `scripts/e2e-flaky.mjs` lists it from
+each shard's JSON report in the job summary (each shard's and the `end-to-end` job's), and the #ci message says
+"CI passed on main, 2 flaky" with the tests' names (section 9). A test that fails twice stays red. A flaky test is a bug
+to fix at its cause, not a pass: its trace is in the shard's `playwright-results-<n>` only when the shard failed, so
+reproduce it locally with `--repeat-each 20 --workers 4` (see the nightly stress run's `stress-results-<n>` artifact,
+which keeps the traces of every test that failed once).
+
+**Nightly end-to-end stress** (`e2e-stress.yml`, 04:17 UTC and by hand with a repeat count): the whole suite three times
+over on the same four shards (`--repeat-each 3`, one retry as in CI). Flaky and failed tests go to the summary and to the
+#ci channel ("Nightly end-to-end stress passed on main, 1 flaky"). Flaky-only stays green, so it never emails; a test
+that fails twice turns it red.
+
 **Fewer jobs per push.** GitHub runs 20 jobs at once on this plan (40 on Pro); one push to main starts 17 (15 CI, counting the small `report to Iskra` job, + the
 secrets scan; pushes skip macOS, CodeQL and Scorecard, which run on PRs, nightly or weekly). A newer push to the same
 branch cancels the older CI run (`concurrency` in ci.yml), so a burst of pushes doesn't queue. Never cancelled: the
@@ -770,17 +784,20 @@ status (the repo is public, so keep issue text to what the checks say).
 
 ## 9. CI results in Iskra
 
-Optional: CI and release results as messages in an Iskra channel, through an incoming webhook
-(`scripts/ci-notify.mjs`, tested by the root `npm test`).
+Optional: what GitHub's own messages don't say, in an Iskra channel, through an incoming webhook
+(`scripts/ci-notify.mjs`, tested by the root `npm test`). The channel already gets GitHub's `workflow_run` and release
+events (Iskra turns them into a pass/fail line), so these post only the details:
 
-- **ci.yml**, job `report to Iskra`: after the test jobs, for runs on **main** only (pushes, nightly, by hand; never
-  pull requests or other branches, and not for a run a newer push cancelled). Message: "CI passed on main" or "CI failed
-  on main", the short commit, the failed jobs' names, and the run's link.
-- **release-finalize.yml**, job `report to Iskra`: "Release vX published and deployed" or "Release vX: failed" with the
-  tag's commit, the failed jobs and the run's link.
+- **ci.yml**, job `report to Iskra`: for runs on **main** only (pushes, nightly, by hand; never pull requests or other
+  branches, the Release workflow's call, or a run a newer push cancelled). On a failure: "CI failed on main", the short
+  commit, the failed jobs' names and the end-to-end tests that failed twice. On a pass with flaky end-to-end tests:
+  "CI passed on main, 2 flaky" and their names (the first five). A plain pass posts nothing.
+- **e2e-stress.yml**, job `report`: only when it found failed or flaky tests ("Nightly end-to-end stress passed on main,
+  1 flaky", or "... failed on main"), with the same lists.
+- Releases post nothing of their own: GitHub's release and `workflow_run` events cover them.
 - Only when the secret `ISKRA_CI_WEBHOOK` is set; otherwise the job ends in a second without checking anything out.
-  Nothing else is sent (no logs, no commit messages). A failed post is a warning, never a red run, and the URL is never
-  printed. The URL must be `https://…/hooks/<id>/<secret>` (HTTPS, an Iskra webhook).
+  Nothing else is sent (no logs, no commit messages; test names only). A failed post is a warning, never a red run, and
+  the URL is never printed. The URL must be `https://…/hooks/<id>/<secret>` (HTTPS, an Iskra webhook).
 
 **Set it up (once):** in Iskra, on the server and channel that should get the results (e.g. chat.iskra.foo, a private
 `#ci` channel): Server settings → **Bots and webhooks → Webhooks → New webhook**, name `CI`, "Posts in" that channel → **Create webhook** → copy the URL (it is shown once).

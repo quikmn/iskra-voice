@@ -1,0 +1,128 @@
+name: End-to-end stress
+
+# Nightly (and by hand): the whole end-to-end suite three times over, on the same four shards as CI, to catch tests that
+# fail only sometimes before they turn a push red. A test that fails and then passes on its retry is "flaky": listed in
+# the summary and the #ci message, but the run stays green (no email). Only a test that fails twice makes the run red.
+# docs/ci-cd.md "End-to-end stress".
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+    inputs:
+      repeat:
+        description: 'Runs of each test'
+        type: number
+        default: 3
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-stress-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  shard:
+    name: stress shard ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            desktop/package-lock.json
+            bots/package-lock.json
+      # As in ci.yml's e2e-shard: the desktop app's tunnel (p2p spec) and the Jukebox example bot (voice-bots spec).
+      - run: npm ci --ignore-scripts
+        working-directory: desktop
+      - run: npm ci
+        working-directory: bots
+      - run: npm ci
+      - name: This shard's specs
+        run: node ../scripts/e2e-shards.mjs list ${{ matrix.shard }} 4 "$RUNNER_TEMP/e2e-shard.txt"
+      - run: npx playwright install --with-deps chromium
+      - id: livekit
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .tools/livekit-server
+          key: livekit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
+      - if: steps.livekit.outputs.cache-hit != 'true'
+        run: bash ../scripts/get-livekit.sh
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: client/.models
+          key: models-${{ hashFiles('client/src/state/captions/model.json', 'client/src/state/translate/models.json') }}
+      - run: node ../scripts/get-models.mjs --translate sv
+      # CI is set on the runner, so a failed test gets its one retry (playwright.config.ts).
+      - run: npm run test:e2e -- --test-list "$RUNNER_TEMP/e2e-shard.txt" --repeat-each "$REPEAT" --reporter=list,json
+        env:
+          REPEAT: ${{ inputs.repeat || 3 }}
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ runner.temp }}/e2e-json/report-${{ matrix.shard }}.json
+      - name: Flaky and failed tests
+        if: ${{ !cancelled() }}
+        run: node ../scripts/e2e-flaky.mjs "$RUNNER_TEMP/e2e-json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: e2e-json-${{ matrix.shard }}
+          path: ${{ runner.temp }}/e2e-json
+          if-no-files-found: ignore
+          retention-days: 14
+      # Traces and the servers' logs of every test that failed at least once (flaky ones included).
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: stress-results-${{ matrix.shard }}
+          path: client/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # One summary over the shards, and the result in the #ci channel when ISKRA_CI_WEBHOOK is set. Never fails itself:
+  # the shards' own results make the run red or green.
+  report:
+    name: report
+    needs: [shard]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/e2e-flaky.mjs
+            scripts/ci-notify.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        continue-on-error: true
+        with:
+          pattern: e2e-json-*
+          path: e2e-json
+          merge-multiple: true
+      - name: Flaky and failed tests
+        id: tests
+        continue-on-error: true
+        run: node scripts/e2e-flaky.mjs e2e-json
+      - name: Report to Iskra
+        env:
+          ISKRA_CI_WEBHOOK: ${{ secrets.ISKRA_CI_WEBHOOK }}
+          NEEDS: ${{ toJSON(needs) }}
+          E2E_FLAKY: ${{ steps.tests.outputs.flaky }}
+          E2E_FAILED: ${{ steps.tests.outputs.failed }}
+        run: node scripts/ci-notify.mjs stress

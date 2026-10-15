@@ -375,7 +375,6 @@ jobs:
       tag: ${{ needs.checks.outputs.tag }}
       deploy: true
       ci_run: ${{ github.run_id }}
-      report: false
     secrets: inherit
 
   # ── 5. Phones ──
@@ -482,7 +481,7 @@ jobs:
         shell: pwsh
         run: node scripts/play-upload.mjs $env:VERSION
 
-  # ── 6. Report: one table in the run's summary, and the result in an Iskra channel when ISKRA_CI_WEBHOOK is set ──
+  # ── 6. Report: one table in the run's summary (GitHub's own workflow_run webhook tells the Iskra channel) ──
   report:
     name: report
     needs: [checks, pc-checks, version, ci, builds, windows, android-ci, android-apk, finalize, ios, play, play-pc]
@@ -507,19 +506,3 @@ jobs:
             echo "$NEEDS" | jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"'
             if [ -n "$TAG" ] && [ "$CHECK_ONLY" != true ]; then echo; echo "Release: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG"; fi
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Is the webhook set?
-        id: hook
-        env:
-          ISKRA_CI_WEBHOOK: ${{ secrets.ISKRA_CI_WEBHOOK }}
-        run: |
-          if [ -n "$ISKRA_CI_WEBHOOK" ] && [ "$CHECK_ONLY" != true ]; then echo "set=1" >> "$GITHUB_OUTPUT"; else echo "Not reporting to Iskra (no ISKRA_CI_WEBHOOK, or checks only)."; fi
-      - if: steps.hook.outputs.set == '1'
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-          sparse-checkout: scripts/ci-notify.mjs
-          sparse-checkout-cone-mode: false
-      - if: steps.hook.outputs.set == '1'
-        run: node scripts/ci-notify.mjs release
-        env:
-          ISKRA_CI_WEBHOOK: ${{ secrets.ISKRA_CI_WEBHOOK }}
