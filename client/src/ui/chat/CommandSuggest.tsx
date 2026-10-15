@@ -40,7 +40,8 @@ export function useCommandSuggest(
   const [dismissed, setDismissed] = useState<string | null>(null)
   const query = commandQueryAt(text, caret)
   const botEntries = useChannelCommands(serverKey, channelId, query !== null, encrypted)
-  const entries = query ? [...appEntries(), ...botEntries] : botEntries
+  // The app's own /teams and /lfg aren't offered in encrypted channels: LFG posts aren't allowed there and encrypted voice can't be split.
+  const entries = query ? [...(encrypted ? [] : appEntries()), ...botEntries] : botEntries
   const hasBots = useBotCommands((s) => Object.keys(s.lists[serverKey] ?? {}).length > 0)
   const closed = dismissed === text
   const members = useApp((s) => s.servers[serverKey]?.members)
