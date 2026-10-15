@@ -176,7 +176,7 @@ public class KeyLogTests
         }
         // Nowhere in the server's log any more.
         foreach (var name in new[] { "Bobby Tables", "Robert", "Rob" })
-            Assert.DoesNotContain(server.World.Store.KeyLogEntries(0, 100), e => e.Name == name || e.Data.Contains(name));
+            Assert.DoesNotContain(server.World.Store.KeyLogEntries(0, 100), e => e.Name == name || e.Data.Contains($"\"{name}\"")); // quoted: random base64 in signatures can spell "Rob"
     }
 
     [Fact]
