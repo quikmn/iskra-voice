@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync, writeSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -61,16 +61,19 @@ export interface TestServer {
 }
 
 /**
- * Browser contexts that joined a server, by the spec file that made them. Specs don't close their contexts, so
+ * Browser contexts that joined a server, by the spec file run that made them. Specs don't close their contexts, so
  * without this every page of every earlier spec stays open in the worker's browser for the rest of the run, retrying
  * its stopped server (and, after a call, running its voice processing until LiveKit gives up): a few hundred pages by
  * the end, which starves the voice and screen-share specs that come late on a small CI machine.
+ * A file run is the file plus its --repeat-each copy: repeats of one file follow each other in a worker, and keeping
+ * every repeat's pages open made later repeats time out (servers slow to start, trace teardown over 60 s).
  */
 const opened: { context: BrowserContext; file: string }[] = []
 
 const currentFile = (): string | null => {
   try {
-    return test.info().file
+    const info = test.info()
+    return `${info.file}#${info.repeatEachIndex}`
   } catch {
     return null
   }
@@ -119,37 +122,54 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
     }),
   )
   const url = `http://localhost:${port}`
+  // The server's last lines of output, for the error when it doesn't come up (ISKRA_E2E_SERVER_LOG keeps all of it).
+  const tail: string[] = []
   const launch = () => {
     // stdin stays open: with ISKRA_STOP_ON_STDIN_CLOSE closing it is a clean stop (see restart).
-    const log = process.env.ISKRA_E2E_SERVER_LOG ? openSync(process.env.ISKRA_E2E_SERVER_LOG, 'a') : 'ignore'
-    const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: ['pipe', log, log], env: { ...process.env, ...env } })
+    const log = process.env.ISKRA_E2E_SERVER_LOG ? openSync(process.env.ISKRA_E2E_SERVER_LOG, 'a') : null
+    const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, ...env } })
+    const keep = (chunk: Buffer) => {
+      if (log !== null) writeSync(log, chunk)
+      tail.push(...chunk.toString().split(/\r?\n/).filter((l) => l.trim()))
+      tail.splice(0, Math.max(0, tail.length - 40))
+    }
+    proc.stdout?.on('data', keep)
+    proc.stderr?.on('data', keep)
     const run = { proc, exited: false }
     proc.once('exit', () => (run.exited = true))
     return run
   }
+  const startError = (what: string, last: string, run: { exited: boolean }) =>
+    new Error(`${what} did not start in 30 s (last answer: ${last}; the server ${run.exited ? 'exited' : 'is running'}). Its last output:\n${tail.join('\n')}`)
+  /** One look at a URL, never longer than 5 s (a stalled connection must not eat the test). */
+  const probe = async (target: string): Promise<{ ok: boolean; body: { iskra?: number; name?: string }; said: string }> => {
+    try {
+      const response = await fetch(target, { signal: AbortSignal.timeout(5_000) })
+      const body = (await response.json().catch(() => ({}))) as { iskra?: number; name?: string }
+      return { ok: response.ok, body, said: `${response.status}${body.name ? ` from "${body.name}"` : ''}` }
+    } catch (e) {
+      return { ok: false, body: {}, said: (e as Error).name === 'TimeoutError' ? 'no answer in 5 s' : 'refused' }
+    }
+  }
   const ready = async (run: { exited: boolean }): Promise<boolean> => {
-    for (let i = 0; ; i++) {
+    const until = Date.now() + 30_000
+    for (let last = 'none'; ; ) {
       if (run.exited) return false
-      try {
-        // This test's server, not another worker's that got the same port first.
-        const response = await fetch(url)
-        const body = (await response.json().catch(() => ({}))) as { iskra?: number; name?: string }
-        if (response.ok && body.iskra && body.name === name && !run.exited) break
-      } catch {
-        /* starting */
-      }
-      if (i > 300) throw new Error('server did not start')
+      // This test's server, not another worker's that got the same port first.
+      const { ok, body, said } = await probe(url)
+      last = said
+      if (ok && body.iskra && body.name === name && !run.exited) break
+      if (Date.now() > until) throw startError('The server', last, run)
       await new Promise((r) => setTimeout(r, 100))
     }
     if (voice) {
       // LiveKit starts a moment after the server.
-      for (let i = 0; ; i++) {
-        try {
-          if ((await fetch(`http://127.0.0.1:${voicePort}`)).ok) break
-        } catch {
-          /* starting */
-        }
-        if (i > 300) throw new Error('LiveKit did not start')
+      const lkUntil = Date.now() + 30_000
+      for (let last = 'none'; ; ) {
+        const { ok, said } = await probe(`http://127.0.0.1:${voicePort}`)
+        last = said
+        if (ok) break
+        if (Date.now() > lkUntil) throw startError('LiveKit', last, run)
         await new Promise((r) => setTimeout(r, 100))
       }
     }
