@@ -212,39 +212,78 @@ function Get-SimplySignExe {
   $script:DefaultExe
 }
 
-function Initialize-Uia {
-  Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+# SimplySign Desktop 7.6.90.0's login dialog is plain Win32 (WinForms) with no UI Automation names, so it's found and
+# filled with window messages: the visible window of SimplySignDesktop.exe that has a "Token:" label and an "&Ok"
+# button. The ID and token boxes are told apart by which label sits on their row.
+$script:Win32 = @'
+using System; using System.Text; using System.Collections.Generic; using System.Runtime.InteropServices;
+public static class IskraSimplySignWin {
+  delegate bool EnumProc(IntPtr h, IntPtr l);
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+  [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc p, IntPtr l);
+  [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr w, EnumProc p, IntPtr l);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr h, uint m, IntPtr w, string l);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr h, uint m, IntPtr w, StringBuilder l);
+  [DllImport("user32.dll")] static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+  const uint WM_SETTEXT = 0x000C, WM_GETTEXT = 0x000D, BM_CLICK = 0x00F5;
+
+  public static string Text(IntPtr h) { var s = new StringBuilder(512); SendMessage(h, WM_GETTEXT, (IntPtr)512, s); return s.ToString(); }
+  static string Cls(IntPtr h) { var s = new StringBuilder(256); GetClassName(h, s, 256); return s.ToString(); }
+  static List<IntPtr> Children(IntPtr w) { var r = new List<IntPtr>(); EnumChildWindows(w, (c, l) => { r.Add(c); return true; }, IntPtr.Zero); return r; }
+  static int MidY(IntPtr h) { RECT r; GetWindowRect(h, out r); return (r.Top + r.Bottom) / 2; }
+
+  // [window, id box, token box, ok button], or null.
+  public static IntPtr[] FindLogin(int[] pids) {
+    IntPtr[] found = null;
+    EnumWindows((h, l) => {
+      uint pid; GetWindowThreadProcessId(h, out pid);
+      if (Array.IndexOf(pids, (int)pid) < 0 || !IsWindowVisible(h)) return true;
+      IntPtr idLabel = IntPtr.Zero, tokenLabel = IntPtr.Zero, ok = IntPtr.Zero; var edits = new List<IntPtr>();
+      foreach (var c in Children(h)) {
+        string k = Cls(c), t = Text(c);
+        if (k.Contains(".STATIC.") && t == "ID:") idLabel = c;
+        else if (k.Contains(".STATIC.") && t == "Token:") tokenLabel = c;
+        else if (k.Contains(".BUTTON.") && t.Replace("&", "") == "Ok") ok = c;
+        else if (k.Contains(".EDIT.")) edits.Add(c);
+      }
+      if (idLabel == IntPtr.Zero || tokenLabel == IntPtr.Zero || ok == IntPtr.Zero || edits.Count != 2) return true;
+      IntPtr idBox = IntPtr.Zero, tokenBox = IntPtr.Zero;
+      foreach (var e in edits) {
+        int y = MidY(e);
+        if (Math.Abs(y - MidY(idLabel)) < Math.Abs(y - MidY(tokenLabel))) idBox = e; else tokenBox = e;
+      }
+      if (idBox == IntPtr.Zero || tokenBox == IntPtr.Zero) return true;
+      found = new[] { h, idBox, tokenBox, ok };
+      return false;
+    }, IntPtr.Zero);
+    return found;
+  }
+  public static void SetText(IntPtr h, string t) { SendMessage(h, WM_SETTEXT, IntPtr.Zero, t); }
+  public static void Click(IntPtr h) { PostMessage(h, BM_CLICK, IntPtr.Zero, IntPtr.Zero); }
+}
+'@
+
+function Initialize-Win32 {
+  if (-not ('IskraSimplySignWin' -as [type])) { Add-Type -TypeDefinition $script:Win32 }
 }
 
-# SimplySign Desktop's login window ("LoginForm"), or $null.
+# SimplySign Desktop's login dialog as @{ Window; IdBox; TokenBox; Ok } (window handles), or $null.
 function Find-LoginForm {
-  Initialize-Uia
-  $ids = @(Get-Process SimplySignDesktop -ErrorAction SilentlyContinue | ForEach-Object Id)
+  Initialize-Win32
+  $ids = [int[]]@(Get-Process SimplySignDesktop -ErrorAction SilentlyContinue | ForEach-Object Id)
   if (-not $ids.Count) { return $null }
-  $ae = [System.Windows.Automation.AutomationElement]
-  $cond = [System.Windows.Automation.PropertyCondition]::new($ae::AutomationIdProperty, 'LoginForm')
-  foreach ($w in $ae::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $cond)) {
-    if ($ids -contains $w.Current.ProcessId) { return $w }
-  }
-  $null
+  $h = [IskraSimplySignWin]::FindLogin($ids)
+  if (-not $h) { return $null }
+  [pscustomobject]@{ Window = $h[0]; IdBox = $h[1]; TokenBox = $h[2]; Ok = $h[3] }
 }
 
-function Find-Control($Window, [string]$Id) {
-  $ae = [System.Windows.Automation.AutomationElement]
-  $Window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.PropertyCondition]::new($ae::AutomationIdProperty, $Id))
-}
-
-function Set-ControlText($Element, [string]$Text) {
-  $pattern = $null
-  if ($Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern)) {
-    $pattern.SetValue($Text)
-    return
-  }
-  throw 'the field takes no text through UI Automation'
-}
-
-# Opens the login dialog: it shows when SimplySign Desktop starts ("show the login dialog on start", its default).
-# SimplySign isn't logged in when this runs, so restarting it loses nothing.
+# Opens the login dialog: it shows when SimplySign Desktop starts ("show the login dialog on start", its default),
+# and when a program asks SimplySign to sign while it isn't logged in. SimplySign isn't logged in when this runs, so
+# restarting it loses nothing.
 function Open-LoginForm {
   param([int]$TimeoutSeconds = 40)
   $form = Find-LoginForm
@@ -264,21 +303,13 @@ function Open-LoginForm {
 }
 
 # Fills the dialog (e-mail, then a fresh code) and presses OK. $Code is called right before typing, so the code is
-# never one that is about to change. Throws before anything is sent when a field can't be found.
+# never one that is about to change.
 function Submit-LoginForm {
   param([Parameter(Mandatory)]$Form, [Parameter(Mandatory)][string]$Email, [Parameter(Mandatory)][scriptblock]$Code)
-  $user = Find-Control $Form 'tUserName'
-  $token = Find-Control $Form 'tPassword'
-  $ok = Find-Control $Form 'bOk'
-  if (-not $user -or -not $token -or -not $ok) { throw "the login dialog's fields (tUserName, tPassword, bOk) weren't found: SimplySign Desktop changed; log in by hand and report it." }
-  $current = $null
-  $vp = $null
-  if ($user.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$vp)) { $current = $vp.Current.Value }
-  if ($current -ne $Email) { Set-ControlText $user $Email }
-  $invoke = $null
-  if (-not $ok.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$invoke)) { throw "the login dialog's OK button can't be pressed through UI Automation." }
-  Set-ControlText $token (& $Code)
-  $invoke.Invoke()
+  Initialize-Win32
+  if ([IskraSimplySignWin]::Text($Form.IdBox) -ne $Email) { [IskraSimplySignWin]::SetText($Form.IdBox, $Email) }
+  [IskraSimplySignWin]::SetText($Form.TokenBox, (& $Code))
+  [IskraSimplySignWin]::Click($Form.Ok)
 }
 
 Export-ModuleMember -Function Get-SimplySignFolder, Get-SimplySignSeedPath, Get-SimplySignLedgerPath, ConvertFrom-Base32, Get-Totp,

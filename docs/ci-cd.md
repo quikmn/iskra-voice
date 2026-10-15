@@ -340,10 +340,12 @@ On the home PC, releases log SimplySign Desktop in by themselves, so nobody type
 - **The login** (`scripts/simplysign-login.ps1`, called by `Confirm-Signing` only when a test signature fails):
   - TOTP per RFC 6238 with .NET's HMAC (tested against the RFC's vectors), a code with at least 8 seconds left.
   - Method `dialog` (default): opens SimplySign Desktop's login dialog (restarting SimplySign, which isn't logged in at
-    that point, so the dialog shows on start; option "show the login dialog on start" must stay on) and fills it through
-    UI Automation (`LoginForm`: `tUserName`, `tPassword`, `bOk`). Method `switches` (`simplysign-setup.ps1 -Method
+    that point, so the dialog shows on start; option "show the login dialog on start" must stay on; the dialog that
+    pops up when a program asks to sign works too) and fills it with window messages (7.6.90.0 has no UI Automation
+    names): the window with an "ID:" and a "Token:" label and an "&Ok" button, each box matched to its label's row.
+    Proven with Certum's link on 2026-10-15. Decline SimplySign's update offers until a new version is checked. Method `switches` (`simplysign-setup.ps1 -Method
     switches`): SimplySign's own undocumented `/otpauth "<link>"` then `/autologin` switches (it parses a seed and has
-    a seed login built in). Which one works with Certum's link is checked once with the owner (owner steps).
+    a seed login built in); not needed so far.
   - **At most one attempt per release run** (GitHub run + attempt, or release.ps1's run), and **none for 30 minutes
     after a failed one**, so a wrong seed can't lock the Certum account. The ledger is
     `%LOCALAPPDATA%\Iskra\simplysign-attempts.json` (times and results only).
