@@ -58,9 +58,24 @@ export const compliance = {
       when: "Let friends anywhere join (Internet access): your router (UPnP or NAT-PMP, on your own network), Let's Encrypt for the HTTPS certificate, and sslip.io for the free address if you have no domain. Captions: the server fetches the speech model once from Hugging Face. Server updates: GitHub.",
       off: "They see the server's address, not your members'. Internet hosting and server updates are switched in Server settings, the captions model in server.json.",
     },
+    previews: {
+      who: 'Websites you link to (link previews)',
+      when: 'When a message has a link, your server fetches the page text for the preview. Your device never contacts the site, and no images are fetched.',
+      off: "The site sees your server's address, not yours. Only text is fetched; there is no switch for it yet.",
+    },
+    translate: {
+      who: 'Mozilla translation models (Google Cloud Storage), via your server',
+      when: 'Only if an owner offers translation: your server fetches each language model once from Mozilla, the first time a member needs it. Your device downloads it from your server, after you say yes. Messages are translated on your device and never sent anywhere.',
+      off: "Mozilla's host sees your server's address, not yours. The owner switches it in Server settings → Translation.",
+    },
+    stun: {
+      who: "Google's STUN server (public address lookup), for servers open to the internet",
+      when: "Only for a server that is open to the internet when its router didn't report its address: the server's voice service asks a public STUN server (Google's by default) what its own address is. Your apps use no STUN or TURN servers.",
+      off: "It learns the server's address, not yours. A router with UPnP or NAT-PMP avoids it.",
+    },
     digitalOcean: {
       who: 'DigitalOcean (cloud.digitalocean.com, api.digitalocean.com)',
-      when: 'Only while you rent a server on DigitalOcean from the desktop app: you sign in there in your browser (or paste a token), and the app creates the server and its firewall, and deletes them if setup fails.',
+      when: 'Only while you rent a server on DigitalOcean from the desktop app: the button opens DigitalOcean with the Iskra referral link (Iskra gets a little credit), you sign in there in your browser (or paste a token), and the app creates the server and its firewall, and deletes them if setup fails. The new server downloads Iskra from GitHub, and the app checks it at its sslip.io address.',
       off: 'DigitalOcean sees your IP address and what the app creates in your account. The app keeps its key in memory only and forgets it after setup. Nothing happens unless you start it.',
     },
     bugReports: {

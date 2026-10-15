@@ -60,9 +60,24 @@ export const compliance: Messages['compliance'] = {
       when: 'Låt vänner var som helst gå med (Internetåtkomst): din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let’s Encrypt för HTTPS-certifikatet och sslip.io för den gratis adressen om du inte har en egen domän. Textning: servern hämtar talmodellen en gång från Hugging Face. Serveruppdateringar: GitHub.',
       off: 'De ser serverns adress, inte dina medlemmars. Internetvärd och serveruppdateringar slår du av och på i Serverinställningar, textningsmodellen i server.json.',
     },
+    previews: {
+      who: 'Webbplatser du länkar till (länkförhandsvisningar)',
+      when: 'När ett meddelande har en länk hämtar din server sidans text till förhandsvisningen. Din enhet kontaktar aldrig webbplatsen, och inga bilder hämtas.',
+      off: 'Webbplatsen ser serverns adress, inte din. Bara text hämtas; det finns ingen strömbrytare för det än.',
+    },
+    translate: {
+      who: 'Mozillas översättningsmodeller (Google Cloud Storage), via din server',
+      when: 'Bara om en ägare erbjuder översättning: din server hämtar varje språkmodell en gång från Mozilla, första gången en medlem behöver den. Din enhet hämtar den från din server, när du sagt ja. Meddelanden översätts på din enhet och skickas aldrig någonstans.',
+      off: 'Mozillas värd ser serverns adress, inte din. Ägaren slår av och på det i Serverinställningar → Översättning.',
+    },
+    stun: {
+      who: 'Googles STUN-server (slå upp publik adress), för servrar öppna mot internet',
+      when: 'Bara för en server som är öppen mot internet när routern inte uppgav dess adress: serverns röstdel frågar en publik STUN-server (som standard Googles) vilken adress den själv har. Dina appar använder inga STUN- eller TURN-servrar.',
+      off: 'Den får veta serverns adress, inte din. En router med UPnP eller NAT-PMP slipper det.',
+    },
     digitalOcean: {
       who: 'DigitalOcean (cloud.digitalocean.com, api.digitalocean.com)',
-      when: 'Bara medan du hyr en server hos DigitalOcean från skrivbordsappen: du loggar in där i webbläsaren (eller klistrar in en token), och appen skapar servern och dess brandvägg, och tar bort dem om uppsättningen misslyckas.',
+      when: 'Bara medan du hyr en server hos DigitalOcean från skrivbordsappen: knappen öppnar DigitalOcean med Iskras värvningslänk (Iskra får en liten tillgodohavande), du loggar in där i webbläsaren (eller klistrar in en token), och appen skapar servern och dess brandvägg, och tar bort dem om uppsättningen misslyckas. Den nya servern hämtar Iskra från GitHub, och appen kollar den på dess sslip.io-adress.',
       off: 'DigitalOcean ser din IP-adress och vad appen skapar i ditt konto. Appen håller sin nyckel bara i minnet och glömmer den efter uppsättningen. Inget händer om du inte startar det själv.',
     },
     bugReports: {
