@@ -72,6 +72,11 @@ public sealed class RateLimiter(TimeProvider time)
         ["builtin.bots.set"] = (10, 1),
         ["interaction.invoke"] = (5, 2),
         ["interaction.respond"] = (20, 5),
+        ["teams.created"] = (3, 0.1), // checked by TeamsFeature: only splits that go ahead count
+        ["teams.end"] = (5, 0.5),
+        ["lfg.created"] = (3, 1 / 30.0), // checked by LfgFeature: only posts that go ahead count
+        ["lfg.join"] = (10, 1),
+        ["lfg.leave"] = (10, 1),
         ["*"] = (40, 10),
     };
 

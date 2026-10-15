@@ -165,6 +165,9 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("botCommandsUsed", $"SELECT message_id, interaction_id, user_key, command FROM bot_interaction_messages WHERE user_key {Mine} ORDER BY message_id;");
         Section("pollVotes", $"SELECT message_id, account_key, option, created_at FROM poll_votes WHERE account_key {Mine};");
         Section("eventInterest", $"SELECT event_id, account_key, created_at FROM event_interest WHERE account_key {Mine};");
+        Section("lfgJoined", $"SELECT message_id, account_key, joined_at FROM lfg_members WHERE account_key {Mine} ORDER BY joined_at;");
+        Section("lfgNotify", $"SELECT account_key, created_at FROM lfg_notify WHERE account_key {Mine};");
+        Section("teamSplitsStarted", $"SELECT id, channel_id, game, created_by, created_at FROM team_splits WHERE created_by {Mine};");
         Section("uploads", $"SELECT id, name, size, type, sha256, uploader, created_at FROM files WHERE uploader {Mine} ORDER BY created_at;");
         Section("directMessages", $"SELECT id, from_key, to_key, created_at FROM dms WHERE from_key {Mine} OR to_key {Mine} ORDER BY id;");
         Section("botDmSetting", $"SELECT account_key, allow, at FROM bot_dm_prefs WHERE account_key {Mine};");
