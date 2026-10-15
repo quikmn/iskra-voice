@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.IO.Pipelines;
-using System.Buffers.Binary;
 using System.Net;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -20,7 +19,6 @@ public sealed class TunnelListener
 {
     public const string PortFile = "p2p.port";
     private static readonly TimeSpan HeaderTimeout = TimeSpan.FromSeconds(10);
-    private static ReadOnlySpan<byte> Signature => [0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A];
 
     /// <summary>The endpoint's options; Kestrel fills in the port it bound (TunnelPort 0 = any).</summary>
     public ListenOptions? Options { get; set; }
@@ -51,14 +49,14 @@ public sealed class TunnelListener
             }
             var buffer = result.Buffer;
             var outcome = TryParse(buffer, out var consumed, out var peer);
-            if (outcome == Header.Ok)
+            if (outcome == ProxyProtocol.Header.Ok)
             {
                 input.AdvanceTo(buffer.GetPosition(consumed));
                 context.RemoteEndPoint = peer;
                 context.Features.Set(new TunnelPeer(peer!));
                 break;
             }
-            if (outcome == Header.Invalid || result.IsCompleted)
+            if (outcome == ProxyProtocol.Header.Invalid || result.IsCompleted)
             {
                 input.AdvanceTo(buffer.Start, buffer.End);
                 context.Abort(new ConnectionAbortedException("Not a PROXY v2 header."));
@@ -69,34 +67,7 @@ public sealed class TunnelListener
         await next(context);
     };
 
-    internal enum Header { Ok, Incomplete, Invalid }
-
-    /// <summary>PROXY protocol v2, command PROXY, TCP over IPv4 or IPv6. Anything else is refused.</summary>
-    internal static Header TryParse(ReadOnlySequence<byte> buffer, out long consumed, out IPEndPoint? peer)
-    {
-        consumed = 0;
-        peer = null;
-        if (buffer.Length < 16) return Header.Incomplete;
-        Span<byte> head = stackalloc byte[16];
-        buffer.Slice(0, 16).CopyTo(head);
-        if (!head[..12].SequenceEqual(Signature) || head[12] != 0x21) return Header.Invalid;
-        var family = head[13];
-        var length = BinaryPrimitives.ReadUInt16BigEndian(head[14..16]);
-        int addressBytes;
-        switch (family)
-        {
-            case 0x11: addressBytes = 4; break;
-            case 0x21: addressBytes = 16; break;
-            default: return Header.Invalid;
-        }
-        if (length < addressBytes * 2 + 4) return Header.Invalid;
-        if (buffer.Length < 16 + length) return Header.Incomplete;
-        Span<byte> addresses = stackalloc byte[addressBytes * 2 + 4];
-        buffer.Slice(16, addresses.Length).CopyTo(addresses);
-        var source = new IPAddress(addresses[..addressBytes]);
-        var port = BinaryPrimitives.ReadUInt16BigEndian(addresses[(addressBytes * 2)..]);
-        peer = new IPEndPoint(source.IsIPv4MappedToIPv6 ? source.MapToIPv4() : source, port);
-        consumed = 16 + length;
-        return Header.Ok;
-    }
+    /// <summary>PROXY protocol v2 only (the tunnel never sends v1), parsed like the proxy listeners' (see <see cref="ProxyProtocol"/>).</summary>
+    internal static ProxyProtocol.Header TryParse(ReadOnlySequence<byte> buffer, out long consumed, out IPEndPoint? peer) =>
+        ProxyProtocol.TryParseV2(buffer, out consumed, out peer);
 }

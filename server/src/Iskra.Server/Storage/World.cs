@@ -241,6 +241,20 @@ public sealed record HttpsSettings
     /// <summary>Plain HTTP port: answers Let's Encrypt's challenge and redirects everything else to HTTPS.</summary>
     public int HttpPort { get; init; } = 80;
     public string AcmeDirectory { get; init; } = "https://acme-v02.api.letsencrypt.org/directory";
+    /// <summary>
+    /// The address <see cref="Port"/> and <see cref="HttpPort"/> listen on, e.g. "127.0.0.1" behind a reverse proxy on
+    /// this machine. Null: every interface (localhost with LocalOnly, which wins). PublicUrl is unaffected.
+    /// </summary>
+    public string? BindAddress { get; init; }
+    /// <summary>
+    /// <see cref="Port"/> takes only connections from <see cref="ProxyTrustedFrom"/> that start with a PROXY protocol
+    /// header (v1 or v2), e.g. nginx stream with proxy_protocol on: the client's real address comes from the header.
+    /// </summary>
+    public bool ProxyProtocol { get; init; }
+    /// <summary>The same for <see cref="HttpPort"/> (a stream proxy on port 80; nginx's http module can't send it).</summary>
+    public bool HttpProxyProtocol { get; init; }
+    /// <summary>Where a PROXY protocol header may come from (the proxy's own address). Default: this machine only.</summary>
+    public string[] ProxyTrustedFrom { get; init; } = ["127.0.0.1", "::1"];
 
     [System.Text.Json.Serialization.JsonIgnore]
     public bool Enabled => Mode is "acme" or "files";

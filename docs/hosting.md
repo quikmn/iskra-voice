@@ -320,6 +320,88 @@ On a VPS, or if you'd rather set things up yourself:
 
 Restart the server. It answers Let's Encrypt on port 80, stores the certificate in `certs/`, renews it automatically, and redirects plain HTTP to HTTPS. Have your own certificate? Use `"Mode": "files"` with `CertFile` and `KeyFile` (PEM).
 
+### Two servers on one machine (behind a proxy)
+
+Only one program can listen on ports 443 and 80. To run several Iskra servers on one VPS, each with its own domain, put a small reverse proxy in front: nginx reads the name the app asks for (TLS SNI) and passes the encrypted connection through untouched to that server on `127.0.0.1`. Each Iskra server still gets and renews its own Let's Encrypt certificate and does TLS itself; nginx never sees inside.
+
+So that the servers still see who's connecting (for rate limits, the security log and "is this from this machine?" checks), nginx starts each connection with a [PROXY protocol](https://www.haproxy.org/download/2.9/doc/proxy-protocol.txt) header naming the client's address. With `Https.ProxyProtocol` on, the server's HTTPS port takes connections **only** from `Https.ProxyTrustedFrom` (default `127.0.0.1` and `::1`) and **only** with that header (version 1 or 2); anything else is dropped. The address in the header is the client's address everywhere, and a client through the proxy never counts as this machine, even if the header says `127.0.0.1`. `Https.BindAddress` keeps both ports on `127.0.0.1`, so nobody can go around the proxy; `PublicUrl` stays the public address.
+
+Port 80 carries no server name, so it goes through nginx's `http` module, which picks the server by the `Host` header. That port only answers Let's Encrypt's check and redirects everything else to `PublicUrl` (webhooks sent there are refused, never redirected), so it doesn't need the client's address: leave `Https.HttpProxyProtocol` off for this layout. (Turn it on only if port 80 also comes through a `stream` proxy with `proxy_protocol on`, e.g. a single server behind HAProxy.)
+
+nginx (Ubuntu: `sudo apt install nginx libnginx-mod-stream`, then `sudo rm /etc/nginx/sites-enabled/default`). Add this at the top level of `/etc/nginx/nginx.conf`, outside `http { }`:
+
+```nginx
+stream {
+    # Which server gets the connection: by the name in the TLS handshake (SNI).
+    map $ssl_preread_server_name $iskra_upstream {
+        chat.example.com       127.0.0.1:9443;
+        community.example.com  127.0.0.1:8443;
+        default                127.0.0.1:9443;
+    }
+    server {
+        listen 443;
+        listen [::]:443;
+        ssl_preread on;          # read the name, don't decrypt
+        proxy_pass $iskra_upstream;
+        proxy_protocol on;       # tell the server who the client is (PROXY protocol v1)
+        proxy_timeout 10m;       # idle limit; Iskra pings every 20 seconds
+    }
+}
+```
+
+and `/etc/nginx/sites-available/iskra` (link it into `sites-enabled/`):
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name chat.example.com;
+    location / { proxy_pass http://127.0.0.1:9080; proxy_set_header Host $host; }
+}
+server {
+    listen 80;
+    listen [::]:80;
+    server_name community.example.com;
+    location / { proxy_pass http://127.0.0.1:8080; proxy_set_header Host $host; }
+}
+```
+
+The first server's `server.json`:
+
+```jsonc
+{
+  "Name": "Chat",
+  "Port": 47070,                       // internal, localhost only: each server needs its own
+  "PublicUrl": "https://chat.example.com",
+  "Https": {
+    "Mode": "acme", "Domain": "chat.example.com", "Email": "you@example.com",
+    "Port": 9443, "HttpPort": 9080,
+    "BindAddress": "127.0.0.1",
+    "ProxyProtocol": true
+  },
+  "Voice": { "Port": 7880, "RtcTcpPort": 7881, "RtcUdpPort": 7882 }
+}
+```
+
+The second one's:
+
+```jsonc
+{
+  "Name": "Community",
+  "Port": 47071,
+  "PublicUrl": "https://community.example.com",
+  "Https": {
+    "Mode": "acme", "Domain": "community.example.com", "Email": "you@example.com",
+    "Port": 8443, "HttpPort": 8080,
+    "BindAddress": "127.0.0.1",
+    "ProxyProtocol": true
+  },
+  "Voice": { "Port": 7890, "RtcTcpPort": 7891, "RtcUdpPort": 7892 }
+}
+```
+
+Each server needs its own folder, its own `Port`, HTTPS ports and voice ports (`Voice.Port` is LiveKit's local API). Voice media doesn't go through nginx: open each server's `RtcTcpPort`/tcp and `RtcUdpPort`/udp in the firewall (here `7881`, `7882`, `7891`, `7892`) along with `80/tcp` and `443/tcp`. Both domains must point straight at the machine (DNS only: a CDN proxy in front would end the TLS passthrough). Set `PublicUrl` to the public address without the internal port, or invites and redirects would name `:9443`. Start the servers, then `sudo nginx -t && sudo systemctl reload nginx`; each server gets its certificate through nginx on port 80 within a minute and renews it the same way. If the proxy is set up wrongly (no `proxy_protocol on`, or it connects from an address not in `ProxyTrustedFrom`), the server drops those connections and says so in its log, at most once a minute.
+
 ### Ports at a glance
 
 | Port | What | When |
@@ -504,7 +586,11 @@ iskra-server import-discord my-server export.zip              # add --read-only 
     "Email": null,
     "CertFile": null, "KeyFile": null, // PEM, for "files"
     "Port": 443,
-    "HttpPort": 80
+    "HttpPort": 80,                    // Let's Encrypt's check; everything else redirects to PublicUrl
+    "BindAddress": null,               // listen on this address only, e.g. "127.0.0.1" behind a proxy; null = every interface
+    "ProxyProtocol": false,            // Port takes only connections from ProxyTrustedFrom that start with a PROXY protocol header (v1 or v2)
+    "HttpProxyProtocol": false,        // the same for HttpPort (only behind a stream proxy on port 80)
+    "ProxyTrustedFrom": ["127.0.0.1", "::1"] // the proxy's addresses (see Two servers on one machine)
   },
   "Internet": {                        // "Let friends anywhere join" (Server settings → Internet access)
     "Enabled": false,
