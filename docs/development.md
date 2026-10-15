@@ -172,3 +172,15 @@ The detailed per-folder map (moved from CLAUDE.md).
 ### CI workflows
 
 CI (`.github/workflows/ci.yml`): server and client tests on Windows and Linux, desktop unit tests on Windows and Linux (macOS on PRs and nightly), interop and e2e (four shards balanced by `scripts/e2e-shards.mjs`, summed up by the `end-to-end` job) on Linux, a backup restore drill with the release-script tests, and an Android build; a newer push cancels a branch's older run (never a "Version X" commit's). `mobile-ios.yml` builds the iPhone app; `secrets.yml`, `scorecard.yml` and `uptime.yml` run too. `release-all.yml` ("Release") is the Release button: checks, version tag, CI (called), builds (release.yml called; Windows signed on the owner's home PC, a self-hosted runner with the label `iskra-windows-signing` that only its guarded jobs use), finalize (called), phones; `release.yml` builds the Linux and macOS apps (Mac x64 and arm64 in parallel) on a `v*` tag without waiting for CI; `release-finalize.yml` publishes and deploys, and refuses unless CI passed on the tagged commit; `deploy.yml` redeploys; `marketplace.yml` lints the Marketplace image (its build job is manual, behind an approval); CodeQL and Scorecard run on PRs and weekly, Dependabot weekly.
+
+## Quiet test output (for agents and scripts)
+
+Long test logs cost time and, for AI agents, tokens. These give the same result with a short summary:
+
+- Server: `dotnet test --no-progress --no-ansi` (add `--filter "FullyQualifiedName~SomeTests"` for one class). The
+  test runner is Microsoft.Testing.Platform (server/global.json): VSTest flags like `--logger "console;verbosity=minimal"`
+  don't apply, and `-v q`/`-clp:ErrorsOnly` on `dotnet test` stop it from running tests. Build quietly with
+  `dotnet build -v q -nologo -clp:ErrorsOnly`, then `dotnet test --no-build --no-progress --no-ansi`.
+- Client unit tests: `npx vitest run` is already short outside a terminal.
+- E2E: Playwright uses the `dot` reporter locally (CI keeps `list`); failures are listed in full at the end.
+- Write long runs to a log file and read only the summary and failures.

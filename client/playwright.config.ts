@@ -9,7 +9,8 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   timeout: 60_000,
   fullyParallel: false,
-  reporter: [['list']],
+  // One dot per test locally (agents read less); CI passes its own reporters on the command line.
+  reporter: process.env.CI ? [['list']] : [['dot']],
   // English (US) whatever the machine's language: the specs match the English text.
   use: { baseURL: `http://localhost:${APP_PORT}`, trace: 'retain-on-failure', locale: 'en-US' },
   projects: [
