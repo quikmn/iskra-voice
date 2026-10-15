@@ -106,11 +106,25 @@ public sealed class VoiceRegistry
     /// Moves someone to another voice channel (a moderator, or the AFK sweeper with <paramref name="reason"/> "afk"): their
     /// app joins it (even when it's full, for a short while) and they leave the old room.
     /// </summary>
-    public void Move(string accountKey, long toChannelId, long now, string? reason = null)
+    public void Move(string accountKey, long toChannelId, long now, string? reason = null, int removeAfterMs = 0)
     {
         GrantMovePass(accountKey, toChannelId, now + Features.VoiceLimitFeature.MovePassMs);
         hub.SendToAccount(accountKey, Frames.Event("voice.moved", reason is null ? new { channelId = toChannelId } : new { channelId = toChannelId, reason }));
-        Disconnect(accountKey);
+        if (removeAfterMs <= 0 || ChannelOfMember(accountKey) is not { } from)
+        {
+            Disconnect(accountKey);
+            return;
+        }
+        // Many moves at once (teams): the apps switch rooms themselves, and LiveKit's removal from the old room follows a
+        // moment later, so it can't end an app's voice session before the move reaches it.
+        Left(from, accountKey);
+        _ = RemoveLaterAsync(from, accountKey, removeAfterMs);
+    }
+
+    private async Task RemoveLaterAsync(long channelId, string accountKey, int delayMs)
+    {
+        await Task.Delay(delayMs);
+        if (Participant(channelId, accountKey) is null) await backend.RemoveParticipantAsync(RoomName(channelId), accountKey);
     }
 
     // ── AFK channel: muted and deafened by LiveKit ───────────────────────────
@@ -169,6 +183,10 @@ public sealed class VoiceRegistry
         foreach (var (key, expires) in _movePasses) if (expires < until - Features.VoiceLimitFeature.MovePassMs) _movePasses.TryRemove(key, out _);
         _movePasses[(accountKey, channelId)] = until;
     }
+
+    /// <summary>People moved to this channel a moment ago whose apps may still be on their way in.</summary>
+    public IReadOnlyList<string> MovedInto(long channelId, long now) =>
+        _movePasses.Where(p => p.Key.Channel == channelId && p.Value >= now).Select(p => p.Key.Account).ToList();
 
     public bool HasMovePass(string accountKey, long channelId, long now) =>
         _movePasses.TryGetValue((accountKey, channelId), out var until) && until >= now;

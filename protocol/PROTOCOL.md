@@ -11,7 +11,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages)
-- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels)
+- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Built-in roles](#built-in-roles) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
 - **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server) · [Passkeys and key transparency](#passkeys-and-key-transparency)
@@ -3027,3 +3027,96 @@ listener picked another amount) and show a badge. That part is on each device; t
   channel) `forbidden`, key `priority_cant_talk`. `on: false` always works. Losing the permission turns it off.
 - `voice.join` answers gain `whisper` (you may whisper from this channel) and `priority` (you're a priority speaker),
   for what the app offers; every use is checked again.
+
+## Game nights: teams and looking for group
+
+### Team splits
+
+Someone who can move members splits the people in a voice channel into 2–8 teams, each in its own temporary voice
+channel. The app makes the teams (random, balanced by a skill number set for that session, or picked by captains) and
+shows them for reshuffling; nothing reaches the server until "Go".
+
+```jsonc
+TeamSplit { "id": 4, "channelId": 7,              // the voice channel everyone came from
+            "game": "Valheim" | null, "createdBy": "<accountKey>", "createdAt": 0,
+            "teams": [{ "name": "team-1", "channelId": 12 }] }   // in team order; a team whose channel is gone is left out
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `teams.start` | `channelId` (a voice channel you can see), `teams` (2–8 lists of account keys, each 1–50 people), `names?` (one per team, 1–32 characters, channel name rules; default `team-1`, `team-2`, …), `game?` (1–50 characters) | `{ split }` | `moveMembers` (`forbidden`, key `teams_move`) |
+| `teams.end` | `id` | `{ moved }` (how many were moved back) | `moveMembers` (key `teams_move`), and you can see the split's voice channel, or one of its team channels once that's gone (`not_found` otherwise) |
+| `teams.list` | | `{ splits }` | anyone: the splits whose voice channel they can see |
+
+- **Who can be split:** everyone listed must be in that voice channel right now (who is in voice comes from LiveKit's
+  webhooks, as always; `bad_request`, key `teams_not_here`, args `{ name }`), be listed once (`teams_twice`), not be a
+  bot (`teams_bot`), and be yourself or ranked below you, as for `voice.move` (`forbidden`, key `rank_members`). Other
+  checks: a voice channel (`teams_voice_only`), 2–8 teams (`teams_count`, args `{ min, max }`), no empty team and ≤ 50
+  per team (`teams_size`, args `{ max }`), a game name of 1–50 characters (`teams_game`, args `{ max }`), one split at a time per voice channel (`teams_active`), ≤ 10 splits per
+  server (`teams_max`, args `{ max }`), not a team channel itself (`teams_nested`), and not an
+  [encrypted](#end-to-end-encrypted-channels) voice channel (`teams_encrypted`: its team channels couldn't be).
+- **The team channels** are ordinary voice channels the server creates, one per team: the voice channel's category,
+  read and write roles, role overrides and hi-fi setting (no user limit), placed right after it. So they follow the
+  voice channel's permissions; anyone who could join it can join them. Everyone listed is moved like a moderator's
+  `voice.move` (a full channel is no obstacle): their sessions get `voice.moved { channelId, reason: "teams" }` and
+  they count as gone from the old room at once; LiveKit removes them from it 3 seconds later if their app hasn't left
+  by itself (so the removal can't end an app's voice session before the move reaches it).
+- **Bring everyone back:** `teams.end` moves everyone in the team channels whom you may move (yourself and people
+  below you) back to the voice channel (`voice.moved` with `reason: "teams"`), then deletes the team channels that are
+  empty. If the voice channel was deleted meanwhile, nobody is moved.
+- **Cleanup:** about every 30 seconds the server deletes team channels that have been empty for 5 minutes (counted
+  from their creation, or from the server's start for older ones). A split ends when its last team channel is gone
+  (including one an admin deleted).
+- Events: `teams.split { split }` to readers of the voice channel when a split starts or loses a team channel;
+  `teams.ended { id }` to everyone when it ends. The usual `channels` events announce the team channels coming and going.
+- Audit `teams.start` (`{ channelId, name, teams, people }`) and `teams.end` (`{ channelId, name, moved }`).
+- Rate limits: splits that go ahead, 3, then 1 every 10 s (refused requests only count towards the general bucket);
+  `teams.end` 5, then 1 every 2 s.
+- Storage: `team_splits` and `team_channels` (migration `teams-1`).
+
+The app also offers `/teams` in the composer: an app command (listed with the bot commands, never sent) that opens the
+splitter for the voice channel you're in on that server.
+
+### Looking for group
+
+An LFG post ("Looking for 3 for Valheim, tonight 20:00, voice: lounge") is a message with an `lfg` field, in a text
+channel. People tap Join until the slots are filled.
+
+```jsonc
+// Message gains: "lfg": Lfg | null
+Lfg { "game": "Valheim", "slots": 3,              // how many more people the poster is looking for
+      "startAt": 0 | null, "voiceChannelId": 7 | null, "note": "Chill run" | null,
+      "joined": ["<accountKey>"],                 // in join order, current members only
+      "expiresAt": 0, "closedAt": 0 | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `lfg.create` | `channelId` (a text channel), `game` (1–100 characters), `slots` (1–20), `startAt?` (ms, from 5 minutes ago up to 7 days ahead), `voiceChannelId?` (a voice or stage channel you can see), `note?` (≤ 200 characters) | `{ message }` | channel writers |
+| `lfg.join` | `id` (the message) | `{ lfg }` | channel readers except the poster, while open and not full |
+| `lfg.leave` | `id` | `{ lfg }` | anyone who joined, while open |
+| `lfg.close` | `id` | | the poster, or someone who may delete their messages |
+| `lfg.notify.get` | | `{ on }` | anyone (their own) |
+| `lfg.notify.set` | `on` (bool) | `{ on }` | anyone (their own) |
+
+- The message `text` is plain English for any app ("Looking for 3 for Valheim"); apps show the post from `lfg`. LFG
+  posts can't be edited (`bad_request`, key `lfg_no_edit`); deleting the message deletes the post. Not in encrypted
+  channels (the server would have to read it). AutoMod checks the game and note; slowmode applies.
+- Refusals: `lfg_channel` (not a text channel), `lfg_game` (args `{ max }`), `lfg_slots` (args `{ min, max }`),
+  `lfg_time`, `lfg_voice` (not a voice or stage channel you can see), `lfg_note` (args `{ max }`), `lfg_closed`,
+  `lfg_full`, `lfg_own` (joining your own post).
+- **Expiry:** a post closes 2 hours after `startAt`, or 24 hours after it was posted when it has no time
+  (`expiresAt`); the server sets `closedAt` within a few seconds. Joining twice, or leaving when you haven't joined,
+  changes nothing.
+- **Notifications:** each join sends `lfg.joined { id, channelId, accountKey, lfg }` to the poster's sessions and a
+  [push](#push-notifications-web-push) of kind `lfg`. The first time a post fills up, the poster and everyone who
+  joined get `lfg.full { id, channelId, lfg }` and a push (apps show it with a "Join voice" button when the post names
+  a voice channel). A full post opens again if someone leaves, but doesn't ping again.
+- **Notify me for LFG** (per server, off by default): members who turn it on get `lfg.posted { id, channelId, author,
+  game }` and a push for new posts in channels they can read (never their own, nor from someone either of them blocked).
+- Pushes carry `kind: "lfg"`, `channelId` and `messageId`, with `text` titles `lfgJoined`, `lfgFull` and `lfgPosted`
+  and bodies `lfgIn` ("In #channel") and `lfgTime` (args `{ name, game, slots?, channel? }`).
+- Event `lfg.updated { id, channelId, lfg }` to channel readers after every join, leave, close and expiry.
+- Rate limits: posts that go ahead, 3, then 1 every 30 s; `lfg.join` and `lfg.leave` 10, then 1 a second.
+- Storage: `lfg_posts`, `lfg_members` and `lfg_notify` (migration `lfg-1`). Who joined which post and the notify
+  setting are in "Download my data" and deleted with the account.

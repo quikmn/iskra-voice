@@ -86,6 +86,8 @@ public sealed class Router
         TemplateFeature.Register(this);
         AlertFeature.Register(this);
         WhisperFeature.Register(this);
+        TeamsFeature.Register(this);
+        LfgFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

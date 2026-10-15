@@ -45,6 +45,8 @@ import { templates } from './templates'
 import { popout } from './popout'
 import { alerts } from './alerts'
 import { whisper } from './whisper'
+import { teams } from './teams'
+import { lfg } from './lfg'
 
 export const sv: Messages = {
   common,
@@ -92,4 +94,6 @@ export const sv: Messages = {
   popout,
   alerts,
   whisper,
+  teams,
+  lfg,
 }

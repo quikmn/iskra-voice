@@ -127,6 +127,7 @@ public static class ChatFeature
         if (message.AuthorKey != me.AccountKey) throw RequestException.Forbidden("You can only edit your own messages.", "own_messages_edit");
         if (E2eeChannelFeature.Sealed(s, me, channel, body) is { } sealedMsg) return E2eeChannelFeature.Edit(s, channel, message, sealedMsg);
         if (s.World.Store.GetPoll(message.Id) is not null) throw RequestException.BadRequest("Polls can't be edited.", "poll_no_edit");
+        if (LfgFeature.IsLfg(s.World.Store, message.Id)) throw RequestException.BadRequest("Looking-for-group posts can't be edited.", "lfg_no_edit");
         if (VoiceMessageFeature.IsVoice(s.World.Store, message.Id)) throw RequestException.BadRequest("Voice messages can't be edited.");
         ClipFeature.CheckEdit(s.World.Store, message);
         if (s.World.Store.GetMessageSticker(message.Id) is not null) throw RequestException.BadRequest("Stickers can't be edited.", "sticker_no_edit");
