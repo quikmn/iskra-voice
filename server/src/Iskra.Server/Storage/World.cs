@@ -171,6 +171,22 @@ public sealed record BackupSettings
     public int Keep { get; init; } = 7;
     /// <summary>Also copy uploads into each daily backup. Off by default: they stay in uploads/ and only grow.</summary>
     public bool IncludeUploads { get; init; }
+    /// <summary>
+    /// Also copy each daily backup into this folder (absolute, outside the world folder, e.g. a USB stick or a network
+    /// share), keeping the same number there. Null: no copies. The folder is never created: a stick that isn't
+    /// mounted shows up as a failed copy instead of filling the system disk.
+    /// </summary>
+    public string? CopyTo { get; init; }
+    /// <summary>
+    /// The passphrase the copies in <see cref="CopyTo"/> are encrypted with (the .iskrabackup format). It protects the
+    /// copy medium only: whoever can read this file can read the world and its key anyway. Never logged or sent.
+    /// </summary>
+    public string? CopyPassphrase { get; init; }
+
+    /// <summary>The settings without the passphrase (only whether there is one), for logs and the security log.</summary>
+    public object Redacted() => new { Enabled, Keep, IncludeUploads, CopyTo, CopyPassphraseSet = !string.IsNullOrEmpty(CopyPassphrase) };
+
+    public override string ToString() => $"BackupSettings {{ Enabled = {Enabled}, Keep = {Keep}, IncludeUploads = {IncludeUploads}, CopyTo = {CopyTo}, CopyPassphrase = {(string.IsNullOrEmpty(CopyPassphrase) ? "none" : "set")} }}";
 }
 
 /// <summary>Imports (Discord exports).</summary>

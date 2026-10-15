@@ -68,8 +68,10 @@ jobs:
         working-directory: desktop
       - run: npm run dist:linux
         working-directory: desktop
-      # The standalone server's peer-to-peer tunnel (one Node single executable; the desktop app runs its own).
-      - run: node scripts/build-sidecar.mjs linux-x64
+      # The standalone server's peer-to-peer tunnel (one Node single executable; the desktop app runs its own). The
+      # arm64 one is cross-built: Node's official linux-arm64 binary (checked against SHASUMS256.txt) with the addons'
+      # linux-arm64 prebuilds; the linux-arm64 job below runs it on an arm64 machine.
+      - run: node scripts/build-sidecar.mjs linux-x64 linux-arm64
         working-directory: desktop
       - name: Server bundle
         run: |
@@ -86,7 +88,13 @@ jobs:
           bash scripts/get-livekit.sh linux-arm64
           node desktop/scripts/prepare-server.mjs linux-arm64
           install -m 755 server/deploy/iskra-update-guard desktop/build/server-linux-arm64/iskra-update-guard
-          tar -czf "desktop/release/iskra-server-$v-linux-arm64.tar.gz" -C desktop/build/server-linux-arm64 .
+          # Every program in it must be for 64-bit ARM (a cross-build mix-up would only show on a Pi).
+          for exe in desktop/build/server-linux-arm64/iskra-server desktop/build/server-linux-arm64/livekit-server desktop/build/p2p-linux-arm64/iskra-p2p; do
+            file "$exe"
+            readelf -h "$exe" | grep -Eq 'Machine:[[:space:]]+AArch64' || { echo "::error::$exe isn't a 64-bit ARM program"; exit 1; }
+          done
+          tar -czf "desktop/release/iskra-server-$v-linux-arm64.tar.gz" -C desktop/build/server-linux-arm64 . -C "$PWD/desktop/build/p2p-linux-arm64" iskra-p2p iskra-p2p-licenses.txt
+          tar -tzf "desktop/release/iskra-server-$v-linux-arm64.tar.gz" | grep -x iskra-p2p > /dev/null || { echo "::error::the linux-arm64 server bundle has no iskra-p2p"; exit 1; }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: linux
@@ -96,7 +104,40 @@ jobs:
             desktop/release/*.deb
             desktop/release/*.rpm
             desktop/release/latest-linux.yml
-            desktop/release/iskra-server-*.tar.gz
+            desktop/release/iskra-server-*-linux-x64.tar.gz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: server-linux-arm64
+          if-no-files-found: error
+          path: desktop/release/iskra-server-*-linux-arm64.tar.gz
+
+  # The linux-arm64 server bundle, started on a real 64-bit ARM machine (as on a Raspberry Pi 4/5): the server, LiveKit
+  # and the peer-to-peer tunnel (which loads its native addons) must all run, or nothing is published.
+  linux-arm64:
+    needs: linux
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: server-linux-arm64
+          path: bundle
+      - name: Run the programs in the bundle
+        run: |
+          mkdir server
+          tar -xzf bundle/iskra-server-*-linux-arm64.tar.gz -C server
+          test -x server/iskra-update-guard
+          file server/iskra-server server/livekit-server server/iskra-p2p
+          server/iskra-server version
+          server/livekit-server --version
+          test "$(server/iskra-p2p --version)" = 1 || { echo "::error::iskra-p2p doesn't run on linux-arm64"; exit 1; }
+          # The tunnel itself, briefly (LocalOnly: no network): it starts its node (the native addons), reports a
+          # status and stops cleanly when stdin closes.
+          mkdir world
+          code=0
+          (sleep 3 | ISKRA_LOCAL_ONLY=1 timeout 30 server/iskra-p2p "$PWD/world" > p2p.out) || code=$?
+          cat p2p.out
+          test "$code" = 0 || { echo "::error::iskra-p2p exited with $code on linux-arm64"; exit 1; }
+          grep -q '^{"status":' p2p.out || { echo "::error::iskra-p2p reported no status on linux-arm64"; exit 1; }
 
   # One job per architecture, side by side: each builds, signs and notarizes its own dmg and zip. Their latest-mac.yml
   # files (one architecture each) are merged in `publish` into the one a two-architecture build writes.
@@ -243,7 +284,7 @@ jobs:
             desktop/release/iskra-server-*.tar.gz
 
   publish:
-    needs: [linux, mac]
+    needs: [linux, linux-arm64, mac]
     runs-on: ubuntu-latest
     permissions:
       contents: write # attach the files to the release
