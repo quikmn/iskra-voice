@@ -617,6 +617,12 @@
     line-height: 1.5;
   }
 
+  .guide-link {
+    display: inline-block; white-space: nowrap; color: var(--accent2); font-weight: 600; font-size: 0.92rem;
+    padding: 6px 14px; border: 1px solid rgba(124,111,255,0.3); border-radius: 999px; text-decoration: none;
+  }
+  .guide-link:hover { border-color: var(--accent2); }
+
   /* Profile Showcases */
   .showcases-section {
     position: relative;
@@ -1886,8 +1892,8 @@
 <section>
   <div class="reveal">
     <div class="section-label">Themes</div>
-    <h2 class="section-title">Looks exactly like yours.</h2>
-    <p class="section-desc">Pick one of eleven looks or write your own in JSON, with every color, corner radius, avatar shape and font a setting you control. Import and export them as files. No mods, no ToS violations, no BetterDiscord workarounds. Click around for a preview.</p>
+    <h2 class="section-title">Themes, your way.</h2>
+    <p class="section-desc">Pick one of eleven built-in themes or write your own. Every color, corner radius, avatar shape and font is yours to set, and themes are plain files you can share. Click one to preview it.</p>
   </div>
 
   <div class="theme-swatches reveal" id="theme-swatches">
@@ -2081,8 +2087,9 @@
   <div class="reveal" style="text-align:center; margin-bottom:0">
     <div class="section-label">Hosting</div>
     <h2 class="section-title">Pick your setup.</h2>
-    <p class="section-desc" style="margin:0 auto">Run a server from the desktop app, run the standalone server on Windows, Linux or macOS, or rent a small one. Voice runs alongside your server automatically, so there's no separate TURN server to set up and no shared public one to depend on. Step by step: the <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md" target="_blank" rel="noopener" style="color:var(--accent2)">hosting guide</a>.</p>
-    <p class="section-desc" style="margin:16px auto 0"><strong style="color:var(--text)">Your server, your choice.</strong> Iskra gets nothing from any of this: no hosting fees, no deals with providers. It's just a guide.</p>
+    <p class="section-desc" style="margin:0 auto">Run a server from the desktop app, run the standalone server on Windows, Linux, macOS or a Raspberry Pi, or rent a small one. Voice is built in, with nothing extra to set up.</p>
+    <p class="section-desc" style="margin:14px auto 0"><a class="guide-link" href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md" target="_blank" rel="noopener">Step-by-step hosting guide &rarr;</a></p>
+    <p class="section-desc" style="margin:16px auto 0"><strong style="color:var(--text)">Your server, your choice.</strong> Iskra charges nothing. If you rent a server through the app, it sends you to DigitalOcean with our referral link: Iskra gets a little DigitalOcean credit, and you pay DigitalOcean directly, never us.</p>
   </div>
 
   <div class="deploy-grid">
