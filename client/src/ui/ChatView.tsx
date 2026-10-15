@@ -66,6 +66,7 @@ import { messageListKeys, useAnnounceNew } from './a11y'
 import { useQueuedSend } from './chat/QueuedSend'
 import { JoinFailed } from './JoinFailed'
 import { useReadableColor } from '../theme/useReadable'
+import { ChannelPopoutButton } from './popout/PopoutButtons'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -116,6 +117,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         <HeaderTools key={channel?.id} server={server} channel={channel} />
         <EncryptionButton server={server} channel={channel} />
         <ChannelSettingsButton server={server} channel={channel} />
+        {channel?.kind === 'text' && <ChannelPopoutButton serverKey={server.key} channelId={channel.id} />}
         <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label={t('chat.view.members')} title={t('chat.view.members')}>
           <Users />
         </button>
