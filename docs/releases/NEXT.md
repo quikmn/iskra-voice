@@ -32,6 +32,8 @@
 
 - **Whiteboards**: draw together in a whiteboard channel or in any voice call. Pens, shapes, sticky notes and pictures, live cursors, undo and export to PNG, on desktop and phone. End-to-end encrypted in encrypted channels.
 
+- **Channel topics**: a line at the top of a channel saying what it's for. Templates can now set up a server with welcome messages, a guide in a docs channel and topics, so a new server is ready with no clicks.
+
 ### Fixes
 
 - Voice through Connect without port forwarding no longer keeps reconnecting after the owner turns it on.
