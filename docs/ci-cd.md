@@ -756,12 +756,11 @@ delay scheduled runs by a few minutes) and on demand (`gh workflow run uptime.ym
 
 Each check gets 3 tries, 20 s apart, so a blip isn't an outage. The run's summary shows a table of every check.
 
-**Alerts.** A failing check opens one issue labelled `outage` (the label is created if missing), titled after the first
-failure and **assigned to the repo owner**, so GitHub emails them (Settings → Notifications → "Assigned" / email must
-stay on). While it stays open the workflow only edits it and comments when the *set* of failing checks changes (not when
-details like "9 days left" do), and it closes the issue with a comment when everything passes again. The run itself
-stays green when it found an outage (the issue is the alert; a red run would send a second email). A red run means the
-check itself broke (e.g. GitHub's API), which CI failure emails cover.
+**Alerts.** Everything automatic reports to **one Iskra channel** (the `ISKRA_CI_WEBHOOK` webhook, the same one CI and
+releases use), and nothing e-mails the owner. A failing check posts "🔴 Outage" there and opens one issue labelled
+`outage` (not assigned, as a record); when the *set* of failing checks changes it posts "🟠" and comments, and when
+everything passes again it posts "🟢 Back up" and closes the issue. The run itself stays green when it found an outage;
+a red run means the check itself broke (e.g. GitHub's API).
 
 **Changing it:** hosts and thresholds are environment variables at the top of the script (`SITE`, `APP`, `CHAT`,
 `VOICE_PORT`, `CERT_WARN_DAYS`, `TRIES`, `PAUSE`). Try it locally without touching issues:
