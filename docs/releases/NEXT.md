@@ -21,6 +21,8 @@
 
 - **Invites that never expire**: admins can make a standing link to the server. Every active invite is listed in the Invite dialog, and any of them can be revoked with one click.
 
+- **Pop-outs**: pop the voice panel, a screen share or camera, or a text channel into its own small window, always on top over your game. In Chrome and Edge, the voice panel and videos can go picture-in-picture.
+
 ### Fixes
 
 - Voice through Connect without port forwarding no longer keeps reconnecting after the owner turns it on.
