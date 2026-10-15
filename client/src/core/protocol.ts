@@ -1400,7 +1400,7 @@ export interface WireScheduled {
   error: string | null
 }
 
-export type InboxKind = 'mention' | 'reply' | 'role' | 'everyone'
+export type InboxKind = 'mention' | 'reply' | 'role' | 'everyone' | 'keyword'
 
 export interface InboxItem {
   kind: InboxKind
@@ -2144,4 +2144,32 @@ export interface Events {
 export interface Requests {
   'dm.bots.get': [Record<string, never>, BotDmSetting]
   'dm.bots.set': [BotDmSetting, BotDmSetting]
+}
+
+// ── keyword alerts and quiet hours ──
+// See "Keyword alerts and quiet hours" in PROTOCOL.md.
+
+/** Quiet hours: on these days (bit 0 = Sunday), from/to in minutes after midnight, wall clock in timeZone. */
+export interface QuietHours {
+  days: number
+  from: number
+  to: number
+  timeZone: string
+  /** Let mentions, replies, alert words, DMs and calls through, silently. */
+  mentions: boolean
+}
+
+/** A server's copy, kept only where push needs it. */
+export interface ServerAlerts {
+  words: string[]
+  quiet: QuietHours | null
+}
+
+export interface Events {
+  'alerts.updated': { alerts: ServerAlerts }
+}
+
+export interface Requests {
+  'alerts.get': [Record<string, never>, { alerts: ServerAlerts }]
+  'alerts.set': [{ words: string[]; quiet: QuietHours | null }, { alerts: ServerAlerts }]
 }

@@ -117,6 +117,7 @@ export const productivity = {
       reply: 'replied to you',
       role: 'mentioned your role',
       everyone: 'pinged everyone',
+      keyword: 'used one of your alert words',
     },
     dm_one: '{{count}} new message',
     dm_other: '{{count}} new messages',

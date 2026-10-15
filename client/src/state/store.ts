@@ -437,7 +437,7 @@ function noteMissed(key: string, messages: Message[]): void {
     if (message.author === s.me?.accountKey || senderRules.ignored(message.author)) continue
     if (s.messages[message.channelId]?.some((m) => m.id === message.id && !m.tempId)) continue
     noteMessage(channelConv(key, message.channelId), { id: message.id, at: message.createdAt },
-      !message.forwarded && senderRules.mentionsMe(s, message))
+      !message.forwarded && senderRules.pingsMe(s, message))
   }
 }
 
@@ -469,7 +469,7 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
       const s = app.servers[key]
       if (s && message.author !== s.me?.accountKey && !senderRules.ignored(message.author)) {
         noteMessage(channelConv(key, message.channelId), { id: message.id, at: message.createdAt },
-          !!s.me && !message.forwarded && senderRules.mentionsMe(s, message))
+          !!s.me && !message.forwarded && senderRules.pingsMe(s, message))
       }
       return
     }

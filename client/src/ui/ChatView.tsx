@@ -18,6 +18,9 @@ import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/help
 import { Avatar, Spinner } from './bits'
 import { openProfileCard } from '../state/profile'
 import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
+import { useAlertPattern } from '../state/alerts'
+import { matchesAlert } from '../state/alertsLogic'
+import './alerts/alerts.css'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
 import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
@@ -312,6 +315,8 @@ function MessageRow({
   const longPress = useLongPress(() => setSheet(true), !message.tempId && !editing)
   const [error, setError] = useState<string | null>(null)
   const emojiLookup = useEmojiLookup(server.key)
+  const alerts = useAlertPattern(server.key)
+  const alerted = !mine && !message.forwarded && matchesAlert(alerts, message.text)
   const { t } = useTranslation()
 
   function jumpTo(id: number) {
@@ -331,7 +336,7 @@ function MessageRow({
     <>
     <div
       id={message.tempId ? undefined : `msg-${message.id}`}
-      className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''} ${sheet ? 'pressed' : ''}`}
+      className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''} ${sheet ? 'pressed' : ''} ${alerted ? 'alerted' : ''}`}
       role="article"
       tabIndex={-1}
       aria-label={t('chat.a11y.message', { name, time: fullTime(message.createdAt) })}
@@ -376,7 +381,7 @@ function MessageRow({
         ) : (
           (message.text || message.editedAt) && !message.poll && !message.builtin && (
             <div className="message-text">
-              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf, serverKey: server.key })}
+              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf, serverKey: server.key, alerts })}
               <EditedMark server={server} message={message} />
             </div>
           )

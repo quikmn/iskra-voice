@@ -66,9 +66,9 @@ public static class AlertFeature
 
     public static QuietHours ParseQuiet(Body body)
     {
-        var days = (int)(body.OptionalLong("days", 1, 127) ?? throw RequestException.BadRequest("'days' is required.", "alerts_quiet"));
-        var from = (int)(body.OptionalLong("from", 0, 1439) ?? throw RequestException.BadRequest("'from' is required.", "alerts_quiet"));
-        var to = (int)(body.OptionalLong("to", 0, 1439) ?? throw RequestException.BadRequest("'to' is required.", "alerts_quiet"));
+        var days = (int)(body.OptionalLong("days", 1, 127) ?? throw RequestException.BadRequest("Quiet hours need days, a start and an end.", "alerts_quiet"));
+        var from = (int)(body.OptionalLong("from", 0, 1439) ?? throw RequestException.BadRequest("Quiet hours need days, a start and an end.", "alerts_quiet"));
+        var to = (int)(body.OptionalLong("to", 0, 1439) ?? throw RequestException.BadRequest("Quiet hours need days, a start and an end.", "alerts_quiet"));
         var zone = body.String("timeZone", MaxTimeZoneLength);
         if (Zone(zone) is null) throw RequestException.BadRequest("That time zone isn't known here.", "alerts_time_zone");
         return new QuietHours(days, from, to, zone, body.OptionalBool("mentions") ?? false);

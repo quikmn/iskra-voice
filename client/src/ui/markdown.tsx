@@ -12,6 +12,7 @@ import { userMenuProps } from './people/userMenuProps'
 import { CUSTOM_EMOJI_SOURCE, isEmojiOnly } from './expressions/emoji'
 import { CodeBlock, MaskedLink, Timestamp } from './chat/RichText'
 import { TIMESTAMP_SOURCE, formatTimestamp, parseTimestamp, type TimestampStyle } from './chat/richTextRules'
+import { alertRanges } from '../state/alertsLogic'
 
 export interface MarkdownContext {
   /** Display name for a mentioned account, or null if unknown. */
@@ -24,6 +25,23 @@ export interface MarkdownContext {
   roleOf?: (id: number) => { name: string; color: string | null; mine: boolean } | null
   /** The server the text is on, for the people menu on mentions (none in DMs). */
   serverKey?: string
+  /** The viewer's alert words (state/alertsLogic.ts), marked where they appear. */
+  alerts?: RegExp | null
+}
+
+/** Plain text with the viewer's alert words marked. */
+function marked(text: string, alerts: RegExp | null | undefined, key: number): ReactNode[] {
+  const ranges = alertRanges(alerts ?? null, text)
+  if (!ranges.length) return [text]
+  const out: ReactNode[] = []
+  let at = 0
+  ranges.forEach(([start, end], n) => {
+    if (start > at) out.push(text.slice(at, start))
+    out.push(<mark key={`a${key}-${n}`} className="alert-word">{text.slice(start, end)}</mark>)
+    at = end
+  })
+  if (at < text.length) out.push(text.slice(at))
+  return out
 }
 
 const URL_PATTERN = /https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]]/y
@@ -60,7 +78,7 @@ function inline(text: string, ctx: MarkdownContext, depth = 0, links = true): Re
   let plain = ''
   let key = 0
   const flush = () => {
-    if (plain) out.push(plain)
+    if (plain) out.push(...marked(plain, ctx.alerts, key++))
     plain = ''
   }
 
