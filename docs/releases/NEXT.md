@@ -38,6 +38,10 @@
 
 ### Fixes
 
+- Bringing everyone back right after a team split could drop someone from voice. Fixed.
+- The internet access check could briefly show an old "router not found" after it had finished. Fixed.
+- The Jukebox example bot answers right away ("thinking…") instead of timing out on a busy server.
+
 - Voice through Connect without port forwarding no longer keeps reconnecting after the owner turns it on.
 - Leaving voice while it was reconnecting could put you back in; now you really leave.
 
