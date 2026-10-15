@@ -19,6 +19,8 @@ public static class TeamsFeature
     public const int MaxSplits = 10;
     public const int MaxGame = 50;
     public const long EmptyMs = 5 * 60_000;
+    /// <summary>How long a moved app has to leave its old room by itself before LiveKit removes it.</summary>
+    public const int RemoveAfterMs = 3_000;
 
     public static void Register(Router router)
     {
@@ -76,7 +78,7 @@ public static class TeamsFeature
             var name = store.DisplayName(target);
             if (!seen.Add(key)) throw RequestException.BadRequest($"{name} is in two teams.", "teams_twice", new { name });
             if (store.IsBot(key)) throw RequestException.BadRequest($"{name} is a bot. Bots stay where they are.", "teams_bot", new { name });
-            if (!here.Contains(key)) throw RequestException.BadRequest($"{name} isn't in {channel.Name} any more.", "teams_not_here", new { name });
+            if (!here.Contains(key)) throw RequestException.BadRequest($"{name} isn't in the voice channel any more.", "teams_not_here", new { name });
             if (key != me.AccountKey && !Permissions.Outranks(me, target))
                 throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
         }
@@ -106,7 +108,7 @@ public static class TeamsFeature
 
         for (var i = 0; i < teams.Count; i++)
             foreach (var key in teams[i])
-                s.Voice.Move(key, created[i], s.Now, reason: "teams");
+                s.Voice.Move(key, created[i], s.Now, reason: "teams", removeAfterMs: RemoveAfterMs);
 
         var view = View(store, split);
         s.Hub.BroadcastToReaders(channel, Frames.Event("teams.split", new { split = view }));
@@ -149,15 +151,19 @@ public static class TeamsFeature
         var moved = 0;
         if (origin is not null)
         {
-            foreach (var team in teamChannels)
-                foreach (var person in s.Voice.Participants(team.ChannelId))
-                {
-                    if (store.GetMember(person.AccountKey) is not { } target) continue;
-                    if (person.AccountKey != me.AccountKey && !Permissions.Outranks(me, target)) continue;
-                    if (!Permissions.CanConnect(target, origin)) continue;
-                    s.Voice.Move(person.AccountKey, origin.Id, s.Now, reason: "teams");
-                    moved++;
-                }
+            // Everyone in a team channel, and anyone moved there a moment ago whose app is still joining.
+            var people = teamChannels
+                .SelectMany(team => s.Voice.Participants(team.ChannelId).Select(p => p.AccountKey)
+                    .Concat(s.Voice.MovedInto(team.ChannelId, s.Now).Where(k => s.Voice.ChannelOfMember(k) is null)))
+                .Distinct().ToList();
+            foreach (var key in people)
+            {
+                if (store.GetMember(key) is not { } target) continue;
+                if (key != me.AccountKey && !Permissions.Outranks(me, target)) continue;
+                if (!Permissions.CanConnect(target, origin)) continue;
+                s.Voice.Move(key, origin.Id, s.Now, reason: "teams", removeAfterMs: RemoveAfterMs);
+                moved++;
+            }
         }
         Audit.Record(s, "teams.end", details: new { channelId = split.ChannelId, name = origin?.Name, moved });
         var deleted = teamChannels.Count(team => s.Voice.Participants(team.ChannelId).Count == 0 && DeleteChannel(store, team.ChannelId));

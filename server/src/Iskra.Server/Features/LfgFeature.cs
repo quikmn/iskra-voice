@@ -106,7 +106,7 @@ public static class LfgFeature
             if (store.EitherBlocked(key, me.AccountKey)) continue;
             s.Hub.SendToAccount(key, frame);
             s.Push.Notify(key, new PushNote("lfg", $"lfg:{post.MessageId}", $"{name} is looking for {post.Slots} for {post.Game}", $"In #{channel.Name}", name,
-                ChannelId: channel.Id, MessageId: post.MessageId, Coalesce: false, Text: new PushText("lfgPosted", null, new { name, game = post.Game, slots = post.Slots })));
+                ChannelId: channel.Id, MessageId: post.MessageId, Coalesce: false, Text: new PushText("lfgPosted", "lfgIn", new { name, game = post.Game, slots = post.Slots, channel = channel.Name })));
         }
     }
 
@@ -135,7 +135,7 @@ public static class LfgFeature
         var name = store.DisplayName(me);
         s.Hub.SendToAccount(message.AuthorKey, Frames.Event("lfg.joined", new { id = post.MessageId, channelId = channel.Id, accountKey = me.AccountKey, lfg }));
         s.Push.Notify(message.AuthorKey, new PushNote("lfg", $"lfg:{post.MessageId}", $"{name} joined your group for {post.Game}", $"In #{channel.Name}", name,
-            ChannelId: channel.Id, MessageId: post.MessageId, Text: new PushText("lfgJoined", null, new { name, game = post.Game })));
+            ChannelId: channel.Id, MessageId: post.MessageId, Text: new PushText("lfgJoined", "lfgIn", new { name, game = post.Game, channel = channel.Name })));
         if (firstFull) Full(s, message, channel, post, lfg);
         return new { lfg };
     }
@@ -150,7 +150,7 @@ public static class LfgFeature
         {
             s.Hub.SendToAccount(key, frame);
             s.Push.Notify(key, new PushNote("lfg", $"lfg:{post.MessageId}:full", $"Your group for {post.Game} is full", "Time to play!", poster,
-                ChannelId: channel.Id, MessageId: post.MessageId, Coalesce: false, Text: new PushText("lfgFull", null, new { name = poster, game = post.Game })));
+                ChannelId: channel.Id, MessageId: post.MessageId, Coalesce: false, Text: new PushText("lfgFull", "lfgTime", new { name = poster, game = post.Game })));
         }
     }
 

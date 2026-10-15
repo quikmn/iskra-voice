@@ -2944,7 +2944,8 @@ TeamSplit { "id": 4, "channelId": 7,              // the voice channel everyone 
   read and write roles, role overrides and hi-fi setting (no user limit), placed right after it. So they follow the
   voice channel's permissions; anyone who could join it can join them. Everyone listed is moved like a moderator's
   `voice.move` (a full channel is no obstacle): their sessions get `voice.moved { channelId, reason: "teams" }` and
-  they leave the old room.
+  they count as gone from the old room at once; LiveKit removes them from it 3 seconds later if their app hasn't left
+  by itself (so the removal can't end an app's voice session before the move reaches it).
 - **Bring everyone back:** `teams.end` moves everyone in the team channels whom you may move (yourself and people
   below you) back to the voice channel (`voice.moved` with `reason: "teams"`), then deletes the team channels that are
   empty. If the voice channel was deleted meanwhile, nobody is moved.
@@ -2999,7 +3000,7 @@ Lfg { "game": "Valheim", "slots": 3,              // how many more people the po
 - **Notify me for LFG** (per server, off by default): members who turn it on get `lfg.posted { id, channelId, author,
   game }` and a push for new posts in channels they can read (never their own, nor from someone either of them blocked).
 - Pushes carry `kind: "lfg"`, `channelId` and `messageId`, with `text` titles `lfgJoined`, `lfgFull` and `lfgPosted`
-  (args `{ name, game }`).
+  and bodies `lfgIn` ("In #channel") and `lfgTime` (args `{ name, game, slots?, channel? }`).
 - Event `lfg.updated { id, channelId, lfg }` to channel readers after every join, leave, close and expiry.
 - Rate limits: posts that go ahead, 3, then 1 every 30 s; `lfg.join` and `lfg.leave` 10, then 1 a second.
 - Storage: `lfg_posts`, `lfg_members` and `lfg_notify` (migration `lfg-1`). Who joined which post and the notify

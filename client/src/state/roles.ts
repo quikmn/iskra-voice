@@ -80,8 +80,9 @@ onServerEvent((serverKey, type, body) => {
     useRoles.setState({ [serverKey]: sorted(roles) })
     setBaseRoles(serverKey, baseRoles)
   }
-  if (type === 'voice.moved') {
-    // A moderator moved us: follow into the new channel if we're in voice on that server.
+  if (type === 'voice.moved' && !(body as Events['voice.moved']).reason) {
+    // A moderator moved us: follow into the new channel if we're in voice on that server (AFK and team moves are
+    // followed by afk.ts and teams.ts, at once).
     const { channelId } = body as Events['voice.moved']
     void import('./voice').then(({ joinVoice, useVoice }) => {
       const session = useVoice.getState().session

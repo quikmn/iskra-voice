@@ -69,6 +69,11 @@ public class TeamsTests
         Assert.Equal(ids[1], moved.GetProperty("channelId").GetInt64());
         Assert.Equal("teams", moved.GetProperty("reason").GetString());
         Assert.Equal(ids[0], (await a.EventAsync("voice.moved")).Body().GetProperty("channelId").GetInt64());
+        // LiveKit's removal from the old room follows a moment later (the apps leave by themselves first).
+        Assert.DoesNotContain(($"voice-{lounge}", c.Key), server.Voice.Removed);
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        bool Gone() { lock (server.Voice.Removed) return server.Voice.Removed.Contains(($"voice-{lounge}", c.Key)); }
+        while (!Gone() && DateTime.UtcNow < deadline) await Task.Delay(100);
         Assert.Contains(($"voice-{lounge}", c.Key), server.Voice.Removed);
         Assert.Empty(Voice(server).Participants(lounge));
         Assert.Equal(split.GetProperty("id").GetInt64(), (await c.EventAsync("teams.split")).Body().GetProperty("split").GetProperty("id").GetInt64());
@@ -169,6 +174,22 @@ public class TeamsTests
         Assert.Empty((await b.RequestAsync("teams.list")).Body().GetProperty("splits").EnumerateArray());
         Assert.Single(server.World.Store.Audit("teams.end", null, null, 10));
         Assert.Equal("not_found", (await owner.RequestAsync("teams.end", new { id })).ErrorCode());
+    }
+
+    [Fact]
+    public async Task Bring_back_also_catches_people_still_on_their_way_in()
+    {
+        using var server = new IskraServer();
+        var lounge = Lounge(server);
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var a = await server.JoinAsync("Alice");
+        foreach (var user in new[] { owner, a }) Voice(server).Joined(lounge, user.Key, Now);
+        var id = (await Split(owner, lounge, [[owner.Key], [a.Key]])).Body().GetProperty("split").GetProperty("id").GetInt64();
+        await a.EventAsync("voice.moved");
+        // Nobody's app has arrived yet (no webhook): they're still moved back, and the team channels go.
+        Assert.Equal(2, (await owner.RequestAsync("teams.end", new { id })).Body().GetProperty("moved").GetInt32());
+        Assert.Equal(lounge, (await a.EventAsync("voice.moved")).Body().GetProperty("channelId").GetInt64());
+        Assert.Empty(server.World.Store.TeamSplits());
     }
 
     [Fact]

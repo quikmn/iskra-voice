@@ -21,6 +21,9 @@ import { IncomingGroupCall } from './groups/GroupCall'
 import { SoundToasts } from './expressions/Soundboard'
 import { OuthookToast } from './OuthookToast'
 import { AfkToast } from './afk/AfkToast'
+import { LfgLayer, LfgToast } from './lfg/Lfg'
+import { TeamsBar } from './teams/TeamsBits'
+import { TeamsLayer } from './teams/TeamsDialog'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { UserMenuLayer } from './people/UserMenu'
 import { ServerActionLayer } from './organize/ServerMenu'
@@ -70,6 +73,7 @@ export function Shell() {
         <DisputeNotices />
         {server && <ServerUpdateNotice server={server} />}
         {server && <RestartBanner server={server} />}
+        {server && <TeamsBar server={server} />}
         <KtNotices />
         <ErrorBoundary variant="pane" resetKey={`${server?.key ?? ''}:${channelId ?? ''}:${stage}`}>
           {server && stage ? (
@@ -99,6 +103,9 @@ export function Shell() {
       <SoundToasts />
       <OuthookToast />
       <AfkToast />
+      <LfgToast />
+      <TeamsLayer />
+      <LfgLayer />
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
       <IncomingCall />
       <IncomingGroupCall />

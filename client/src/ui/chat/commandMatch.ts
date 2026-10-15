@@ -9,6 +9,8 @@ export interface CommandEntry {
   command: BotCommand
   /** The bot takes it as an interaction (sent with `interaction.invoke`, not as a message). */
   interactions?: boolean
+  /** Handled by the app itself (appCommands.ts), never sent. */
+  app?: boolean
 }
 
 /** What the composer text means for suggestions. */

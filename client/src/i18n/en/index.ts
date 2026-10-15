@@ -41,6 +41,8 @@ import { afk } from './afk'
 import { whatsNew } from './whatsNew'
 import { claim } from './claim'
 import { templates } from './templates'
+import { teams } from './teams'
+import { lfg } from './lfg'
 
 export const en = {
   common,
@@ -85,4 +87,6 @@ export const en = {
   whatsNew,
   claim,
   templates,
+  teams,
+  lfg,
 } as const

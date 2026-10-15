@@ -1,0 +1,21 @@
+/* ── Looking for group: the post in a message, its dialog and toasts ── */
+.lfg-card { margin-top: 4px; padding: 12px 14px; max-width: 460px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+  display: flex; flex-direction: column; gap: 6px; }
+.lfg-card.closed { opacity: 0.75; }
+.lfg-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lfg-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 99px; background: var(--accent-subtle);
+  color: var(--mention-text); border: 1px solid var(--border); white-space: nowrap; }
+.lfg-game { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; min-width: 0; }
+.lfg-meta { display: flex; flex-wrap: wrap; gap: 4px; color: var(--text-2); font-size: 14px; }
+.lfg-note { font-size: 14px; overflow-wrap: anywhere; }
+.lfg-slots { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.lfg-slot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.lfg-slot.free { border: 2px dashed var(--faint); }
+.lfg-names { font-size: 13px; }
+.lfg-footer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.lfg-footer .spacer { flex: 1; }
+.lfg-status { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.lfg-status.full { color: var(--green); }
+.lfg-status.closed { color: var(--muted); }
+.lfg-expiry { margin: 0; font-size: 13px; }
+.lfg-toast .button { flex-shrink: 0; }

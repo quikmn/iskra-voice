@@ -1085,7 +1085,7 @@ export interface VoiceParticipant {
 
 export interface Events {
   roles: { roles: ServerRole[]; baseRoles?: BaseRoleInfo[] }
-  'voice.moved': { channelId: number; reason?: 'afk' }
+  'voice.moved': { channelId: number; reason?: 'afk' | 'teams' }
 }
 
 export interface Requests {
@@ -2144,4 +2144,64 @@ export interface Events {
 export interface Requests {
   'dm.bots.get': [Record<string, never>, BotDmSetting]
   'dm.bots.set': [BotDmSetting, BotDmSetting]
+}
+
+// ── teams and looking for group ──
+
+export interface TeamSplit {
+  id: number
+  /** The voice channel everyone came from. */
+  channelId: number
+  game: string | null
+  createdBy: string
+  createdAt: number
+  /** In team order; a team whose channel is gone is left out. */
+  teams: { name: string; channelId: number }[]
+}
+
+export interface Lfg {
+  game: string
+  /** How many more people the poster is looking for. */
+  slots: number
+  startAt: number | null
+  voiceChannelId: number | null
+  note: string | null
+  /** In join order. */
+  joined: string[]
+  expiresAt: number
+  closedAt: number | null
+}
+
+export interface LfgCreate {
+  channelId: number
+  game: string
+  slots: number
+  startAt?: number
+  voiceChannelId?: number
+  note?: string
+}
+
+export interface Message {
+  lfg?: Lfg | null
+}
+
+export interface Events {
+  'teams.split': { split: TeamSplit }
+  'teams.ended': { id: number }
+  'lfg.updated': { id: number; channelId: number; lfg: Lfg }
+  'lfg.joined': { id: number; channelId: number; accountKey: string; lfg: Lfg }
+  'lfg.full': { id: number; channelId: number; lfg: Lfg }
+  'lfg.posted': { id: number; channelId: number; author: string; game: string }
+}
+
+export interface Requests {
+  'teams.start': [{ channelId: number; teams: string[][]; names?: string[]; game?: string }, { split: TeamSplit }]
+  'teams.end': [{ id: number }, { moved: number }]
+  'teams.list': [Record<string, never>, { splits: TeamSplit[] }]
+  'lfg.create': [LfgCreate, { message: Message }]
+  'lfg.join': [{ id: number }, { lfg: Lfg }]
+  'lfg.leave': [{ id: number }, { lfg: Lfg }]
+  'lfg.close': [{ id: number }, Record<string, never>]
+  'lfg.notify.get': [Record<string, never>, { on: boolean }]
+  'lfg.notify.set': [{ on: boolean }, { on: boolean }]
 }

@@ -35,6 +35,7 @@ import { decodeEmoji, encodeEmoji, insertAt } from './expressions/emoji'
 import { useEmojiLookup } from './expressions/useEmojiLookup'
 import { useEmojiSuggest } from './expressions/EmojiSuggest'
 import { PollCard, PollDialog } from './expressions/Polls'
+import { LfgCard } from './lfg/Lfg'
 import { PollIcon } from './expressions/icons'
 import { useServerEmojis } from '../state/expressions'
 import { VoiceMessage, VoiceRecordButton } from './chat/voice/VoiceMessages'
@@ -307,8 +308,8 @@ function MessageRow({
   const [picking, setPicking] = useState(false)
   const [sheet, setSheet] = useState(false)
   const [forwarding, setForwarding] = useState(false)
-  const canForward = !message.tempId && !message.poll && !message.e2ee && (!!message.text || message.attachments.length > 0)
-  const canEdit = mine && !!message.text && !message.poll
+  const canForward = !message.tempId && !message.poll && !message.lfg && !message.e2ee && (!!message.text || message.attachments.length > 0)
+  const canEdit = mine && !!message.text && !message.poll && !message.lfg
   const longPress = useLongPress(() => setSheet(true), !message.tempId && !editing)
   const [error, setError] = useState<string | null>(null)
   const emojiLookup = useEmojiLookup(server.key)
@@ -374,7 +375,7 @@ function MessageRow({
         {editing ? (
           <EditBox server={server} message={message} onDone={() => onEdit(false)} />
         ) : (
-          (message.text || message.editedAt) && !message.poll && !message.builtin && (
+          (message.text || message.editedAt) && !message.poll && !message.lfg && !message.builtin && (
             <div className="message-text">
               {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf, serverKey: server.key })}
               <EditedMark server={server} message={message} />
@@ -383,6 +384,7 @@ function MessageRow({
         )}
         {message.builtin && <BuiltinReply server={server} reply={message.builtin} />}
         {message.poll && <PollCard server={server} message={message} />}
+        {message.lfg && <LfgCard server={server} message={message} />}
         {message.automod && <AutoModAlertCard server={server} alert={message.automod} />}
         {message.sticker && <StickerMessage server={server} sticker={message.sticker} />}
         {message.gif && <GifMessage server={server} gif={message.gif} />}
