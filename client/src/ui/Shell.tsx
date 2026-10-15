@@ -37,6 +37,7 @@ import { RestartBanner } from './RestartBanner'
 import { ProductivityLayer } from './productivity/InboxButton'
 import { VoiceRoom } from './clips/VoiceRoom'
 import { ClipLayer } from './clips/ClipControls'
+import { PopoutLayer } from './popout/PopoutLayer'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -112,6 +113,7 @@ export function Shell() {
       <RulesLayer />
       <ProductivityLayer />
       <ClipLayer />
+      <PopoutLayer />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} onClaim={() => { setJoining(false); setClaiming(true) }} />}
       {claiming && <ClaimServerDialog onClose={() => setClaiming(false)} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} onClaim={() => { setCreating(false); setClaiming(true) }} />)}

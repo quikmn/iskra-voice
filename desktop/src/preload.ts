@@ -1,6 +1,6 @@
 // The only bridge between the web app and the desktop shell. Small on purpose:
 // push-to-talk and hotkeys, the screen picker, hosting (and restoring backups), renting a server on DigitalOcean, update notices,
-// saving backups and big files, a picture of this window for bug reports, and the OS keychain, nothing else.
+// saving backups and big files, a picture of this window for bug reports, the OS keychain, and pop-out windows, nothing else.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 export interface ScreenSource {
@@ -60,6 +60,11 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   },
   pickScreen: (id: string | null): void => ipcRenderer.send('iskra:screen-picked', typeof id === 'string' ? id : null),
   callAlert: (on: boolean): Promise<void> => ipcRenderer.invoke('iskra:call-alert', on === true),
+  // Pop-out windows (opened with window.open by name): always on top, click-through, and its handle.
+  popout: {
+    set: (name: string, patch: { alwaysOnTop?: boolean; clickThrough?: boolean; handle?: boolean }): Promise<unknown> =>
+      ipcRenderer.invoke('iskra:popout-set', name, patch),
+  },
 
   keychain: {
     status: (): Promise<string> => ipcRenderer.invoke('iskra:keychain-status'),

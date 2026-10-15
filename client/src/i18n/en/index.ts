@@ -41,6 +41,7 @@ import { afk } from './afk'
 import { whatsNew } from './whatsNew'
 import { claim } from './claim'
 import { templates } from './templates'
+import { popout } from './popout'
 
 export const en = {
   common,
@@ -85,4 +86,5 @@ export const en = {
   whatsNew,
   claim,
   templates,
+  popout,
 } as const

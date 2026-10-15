@@ -34,6 +34,8 @@ import { Splash } from './splash'
 import { captureAppPage } from './capture'
 import { readBuildCommit, windowTitle } from './title'
 import { pickerChoices, placeTestWindow, realScreenThumbnails, testWindowArea, thumbnailSize } from './testMode'
+import { PopoutWindows } from './popoutWindows'
+import { parsePopoutPatch } from './popouts'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
 /** Chromium's media::AudioDeviceDescription::kLoopbackWithoutChromeId: system audio minus this app's own. */
@@ -184,6 +186,12 @@ function showWindow(): void {
 
 const isAppUrl = (url: string) => isAppPage(url, APP_ORIGIN, DEV_URL)
 
+// Pop-outs (the voice panel, a stream, a text channel): the app's own page in a small window of its own (popouts.ts).
+const popouts = new PopoutWindows(isAppUrl, {
+  icon: ICON, backgroundColor: '#0b0b14', preload: path.join(__dirname, 'preload.js'), spellcheck: !spellcheckDownloadsDictionaries(process.platform),
+}, !!TEST_WINDOW_AREA)
+if (process.env.ISKRA_E2E) Object.assign(globalThis, { iskraPopouts: () => popouts.debug() }) // for the desktop e2e test
+
 function createWindow(): void {
   window = new BrowserWindow({
     width: 1280,
@@ -225,11 +233,15 @@ function createWindow(): void {
   })
   void window.loadURL(DEV_URL ?? `${APP_ORIGIN}/index.html`)
 
-  // Links open in the real browser; the app window never navigates away from the app.
-  window.webContents.setWindowOpenHandler(({ url }) => {
+  // Links open in the real browser; the app window never navigates away from the app. Its own pop-outs are the exception.
+  window.webContents.setWindowOpenHandler(({ url, frameName }) => {
+    const popout = popouts.options(url, frameName)
+    if (popout) return { action: 'allow', overrideBrowserWindowOptions: popout, outlivesOpener: false }
     if (/^https?:\/\//.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
+  window.webContents.on('did-create-window', (child, { frameName }) => popouts.adopt(child, frameName))
+  popouts.watch(window.webContents)
   window.webContents.on('will-navigate', (event, url) => {
     if (!isAppUrl(url)) event.preventDefault()
   })
@@ -474,6 +486,12 @@ ipcMain.handle('iskra:open-settings', (event, pane: unknown) => {
   if (!fromApp(event) || !MAC || typeof pane !== 'string' || !Object.hasOwn(MAC_SETTINGS, pane)) return
   if (pane === 'accessibility') systemPreferences.isTrustedAccessibilityClient(true) // puts Iskra in the list
   void shell.openExternal(MAC_SETTINGS[pane as SettingsPane])
+})
+
+// Pop-outs: always on top, click-through (the voice panel), and its handle while click-through is on.
+ipcMain.handle('iskra:popout-set', (event, name: unknown, raw: unknown) => {
+  const patch = parsePopoutPatch(raw)
+  return fromApp(event) && patch ? popouts.set(name, patch) : null
 })
 
 // Desktop settings.

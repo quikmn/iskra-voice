@@ -7,6 +7,7 @@ import { openGroup, titleOf, useGroups } from '../state/groups'
 import { clearVoiceError, leaveVoice, setStageOpen, toggleDeafen, toggleMute, useVoice } from '../state/voice'
 import { Close, Headphones, HeadphonesOff, Mic, MicOff, PhoneOff } from './icons'
 import { SoundboardButton } from './expressions/Soundboard'
+import { VoicePopoutButton } from './popout/PopoutButtons'
 import './afk/afk.css'
 
 /** Shown above your name while you're in voice (or when joining failed). */
@@ -75,6 +76,7 @@ export function VoiceBar() {
           </button>
         )}
         <SoundboardButton variant="bar" />
+        <VoicePopoutButton />
         <button
           className="icon-button hang-up"
           onClick={() => void (session.group ? leaveGroupCall() : peer ? hangUp() : leaveVoice())}
