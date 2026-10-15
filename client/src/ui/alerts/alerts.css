@@ -1,6 +1,7 @@
 /* ── Keyword alerts and quiet hours ─────────────────────────────────── */
 .alert-settings { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
 .alert-settings > p { margin: 4px 0 8px; }
+.alert-settings > p.muted { font-size: 14px; }
 .alert-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .alert-add input { flex: 1 1 180px; min-width: 0; }
 .alert-add select { flex: 0 1 180px; min-width: 0; }
@@ -12,13 +13,13 @@
 }
 .alert-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; color: var(--text-strong); }
 .alert-chip-where { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
-.alert-count, .alert-empty { font-size: 12px; margin: 4px 0; }
-.alert-privacy { font-size: 12px; }
+.alert-settings > p.alert-count, .alert-settings > p.alert-empty { font-size: 13px; margin: 4px 0; }
+.alert-settings p.alert-privacy { font-size: 13px; }
 
 .quiet-body { display: grid; gap: 8px; margin-top: 6px; }
 .quiet-times { display: flex; flex-wrap: wrap; gap: 12px; }
 .quiet-times input[type='time'] { min-width: 110px; }
-.quiet-note { font-size: 12px; margin: 0; }
+.quiet-note { font-size: 13px; margin: 0; }
 .quiet-days { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .quiet-days legend { padding: 0; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-2); }
 .quiet-day {

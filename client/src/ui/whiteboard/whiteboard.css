@@ -11,7 +11,7 @@
 .wb-group:last-child { border-right: 0; padding-right: 0; }
 .wb-spacer { flex: 1; min-width: 4px; }
 .wb-tool {
-  width: 34px; height: 34px; border-radius: 8px; border: 0; background: none; color: var(--text-2);
+  width: 34px; height: 34px; border-radius: calc(var(--radius) * 0.8); border: 0; background: none; color: var(--text-2);
   display: grid; place-items: center; flex: none;
 }
 .wb-tool:hover:not(:disabled) { background: var(--hover); color: var(--text); }
@@ -64,7 +64,17 @@
 .call-button.wb-waiting { box-shadow: 0 0 0 2px var(--accent); }
 
 @media (max-width: 720px) {
-  .wb-toolbar { padding: 4px 6px; gap: 4px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
+  /* One row that scrolls sideways; a shadow at either end says there are more tools that way. */
+  .wb-toolbar {
+    padding: 4px 6px; gap: 4px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
+    background:
+      linear-gradient(to right, var(--surface) 30%, transparent) left / 32px 100% no-repeat local,
+      linear-gradient(to left, var(--surface) 30%, transparent) right / 32px 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--text) 30%, transparent), transparent) left / 12px 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--text) 30%, transparent), transparent) right / 12px 100% no-repeat scroll,
+      var(--surface);
+  }
+  .wb-toolbar::-webkit-scrollbar { display: none; }
   .wb-tool { width: 38px; height: 38px; }
   .wb-swatch { width: 26px; height: 26px; }
   .wb-call { min-height: 60vh; }

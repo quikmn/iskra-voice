@@ -59,6 +59,7 @@ test('teams: split a voice channel into team channels, then bring everyone back'
   await expect(voiceChannel(friend, 'valheim-team-2')).toBeVisible()
   await expect(voiceChannel(host, 'lounge').locator('.voice-participants li')).toHaveCount(0, { timeout: 20_000 })
   await expect(friend.getByTestId('teams-bar')).toContainText(/You're in valheim-team-\d/, { timeout: 20_000 })
+  await expect(friend.getByTestId('teams-bar').locator('.teams-bar-text')).toHaveText(/^You're in valheim-team-\d$/) // just your team, not the list
   await expect(friend.getByTestId('teams-bar').getByRole('button')).toHaveCount(0) // no move power
   await expect(host.getByTestId('teams-bar')).toBeVisible()
   await host.screenshot({ path: join(SHOTS, 'teams-split.png') })

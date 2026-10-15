@@ -18,7 +18,7 @@ import { Avatar, Modal } from './bits'
 import { renderMarkdown } from './markdown'
 import { fingerprint } from '../core/connection'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
-import { Lock, Menu, Settings, Users } from './icons'
+import { Lock, Menu, Settings, ShieldCheck, Users } from './icons'
 import { openMySettings } from './settings/open'
 import { ForwardedFiles, ForwardedLine } from './organize/ForwardDialog'
 import type { Panel } from './Shell'
@@ -181,7 +181,9 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         {reachable && !peerBot.bot && <span className="dm-header-friend"><FriendButtons accountKey={peer} header /></span>}
         {!blocked && !peerBot.bot && <CallButtons peer={peer} />}
         <AutoTranslateButton conv={convKey.dm(peer)} />
-        <button className="button small" onClick={() => setVerify(true)}>{t('app.home.verify')}</button>
+        <button className="button small verify-button" onClick={() => setVerify(true)} aria-label={t('app.home.verify')} title={t('app.home.verify')}>
+          <ShieldCheck size={15} /><span className="verify-label">{t('app.home.verify')}</span>
+        </button>
       </header>
       <CallPanel peer={peer} />
       <DmKeyWarning peer={peer} />

@@ -87,14 +87,14 @@ export function LfgCard({ server, message }: { server: ServerState; message: Mes
           <button className="button primary small" disabled={busy} onClick={() => void run(() => joinLfg(server.key, message.id))}>{t('lfg.card.join')}</button>
         )}
         {status !== 'closed' && joined && (
-          <button className="link" disabled={busy} onClick={() => void run(() => leaveLfg(server.key, message.id))}>{t('lfg.card.leave')}</button>
+          <button className="button ghost small" disabled={busy} onClick={() => void run(() => leaveLfg(server.key, message.id))}>{t('lfg.card.leave')}</button>
         )}
         {voice && (mine || joined) && status !== 'closed' && !inVoice && (
           <button className={`button small ${status === 'full' ? 'primary' : ''}`} disabled={!server.voiceAvailable} onClick={() => void joinVoice(server.key, voice.id)}>
             {t('lfg.joinVoice')}
           </button>
         )}
-        {canClose && <button className="link danger-link" disabled={busy} onClick={() => void run(() => closeLfgPost(server.key, message.id))}>{t('lfg.card.close')}</button>}
+        {canClose && <button className="button ghost small" disabled={busy} onClick={() => void run(() => closeLfgPost(server.key, message.id))}>{t('lfg.card.close')}</button>}
       </div>
       {error && <div className="message-failed" role="alert">{error}</div>}
     </div>

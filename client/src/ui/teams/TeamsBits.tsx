@@ -24,7 +24,7 @@ export function TeamsBar({ server }: { server: ServerState }) {
   return (
     <div className="teams-bar" role="status" data-testid="teams-bar">
       <span className="teams-bar-text">
-        {mine ? t('teams.bar.onTeam', { team: mine.name, teams }) : t('teams.bar.split', { teams })}
+        {mine ? t('teams.bar.onTeam', { team: mine.name }) : t('teams.bar.split', { teams })}
       </span>
       {canSplit(server, roles) && (
         <button className="button small" onClick={() => openTeams(server.key, split.channelId)}>{t('teams.bringBack')}</button>
