@@ -168,10 +168,11 @@ test('AI noise removal, Silero voice activity, cleaning up and leveling what you
   await channelSettings.getByLabel('Allow hi-fi audio').uncheck()
   await channelSettings.getByRole('button', { name: 'Save' }).click()
   await openSettings(host, 'Voice & audio')
-  // Restarting DeepFilterNet next to the friend's on a shared CI runner may fall back to RNNoise (by design, as above).
-  const backToAi = settings.getByText('Active: AI noise removal (DeepFilterNet3).')
-  await expect(process.env.CI ? settings.getByText(/Active: (AI noise removal \(DeepFilterNet3\)|Strong \(RNNoise\))\./) : backToAi)
-    .toBeVisible({ timeout: 20_000 })
+  // Restarting DeepFilterNet next to the friend's may fall back to RNNoise on a busy machine (a shared CI runner, or 4
+  // test workers here: 1 of 20 stress runs): by design, and then the app says AI was too heavy. Either, never neither.
+  await expect(settings.getByText(/Active: (AI noise removal \(DeepFilterNet3\)|Strong \(RNNoise\))\./)).toBeVisible({ timeout: 20_000 })
+  if (await settings.getByText('Active: Strong (RNNoise).').isVisible())
+    await expect(settings.getByText('AI noise removal was too heavy for this device, so RNNoise is used.', { exact: false })).toBeVisible()
   await host.keyboard.press('Escape')
   await expect.poll(() => receivedLevel(friend), { timeout: 20_000 }).toBeGreaterThan(-60)
 
