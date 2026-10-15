@@ -156,7 +156,8 @@ public sealed partial class PushService
         var text = MentionToken().Replace(message.Text, m => "@" + (store.GetMember(m.Groups[1].Value) is { } who ? store.DisplayName(who) : "unknown"));
         text = RoleMention().Replace(text, m => "@" + (long.TryParse(m.Groups[1].Value, out var id) && store.GetRole(id) is { } r ? r.Name : "role"));
         // Encrypted channels: the server can't read the message, so the push only says where it is.
-        var encrypted = store.GetE2ee(channel.Id) is not null;
+        // Disappearing messages too: the text shouldn't outlive the message in a notification centre.
+        var encrypted = store.GetE2ee(channel.Id) is not null || Features.DisappearFeature.Expiring(store, message.Id);
         var body = encrypted ? "Open Iskra to read it." : text.Length == 0 ? "Sent an attachment" : Excerpt(text, 140);
         var settingsChannel = store.SettingsChannelOf(channel.Id);
         var now = _time.GetUtcNow().ToUnixTimeMilliseconds();

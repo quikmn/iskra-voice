@@ -14,7 +14,7 @@ namespace Iskra.Server.Tests;
 public class PushTests
 {
     /// <summary>A browser-shaped subscription: a P-256 public key and a 16-byte auth secret.</summary>
-    private static object Subscription(string endpoint)
+    internal static object Subscription(string endpoint)
     {
         using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var q = key.ExportParameters(false).Q;

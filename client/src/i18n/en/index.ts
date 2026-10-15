@@ -46,6 +46,7 @@ import { alerts } from './alerts'
 import { whisper } from './whisper'
 import { teams } from './teams'
 import { lfg } from './lfg'
+import { disappear } from './disappear'
 
 export const en = {
   common,
@@ -95,4 +96,5 @@ export const en = {
   whisper,
   teams,
   lfg,
+  disappear,
 } as const

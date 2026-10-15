@@ -404,6 +404,10 @@ export interface StoredDm {
   files?: unknown
   /** A checked friend action (core/friend.ts). */
   friend?: import('./friend').FriendAction
+  /** When it disappears from this device (Disappearing messages); dropped then, even if the app was closed. */
+  expiresAt?: number
+  /** A disappearing messages timer change line (seconds, 0 = off). */
+  disappear?: { seconds: number }
 }
 
 /** Decrypted DMs per conversation. Servers keep only envelopes, and old prekeys get deleted, so this is the history. */

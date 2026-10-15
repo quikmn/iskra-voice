@@ -9,7 +9,11 @@ public sealed record GroupRecord(string Id, string CreatedBy, long CreatedAt, lo
 /// <summary>One signed membership change, exactly as the member who made it sent it.</summary>
 public sealed record GroupChangeRecord(long Version, string Payload, string Sig, long CreatedAt);
 
-public sealed record GroupMessage(long Id, string GroupId, string From, long Version, string Envelope, long CreatedAt);
+public sealed record GroupMessage(long Id, string GroupId, string From, long Version, string Envelope, long CreatedAt)
+{
+    /// <summary>When it disappears (Disappearing messages), or null.</summary>
+    public long? ExpiresAt { get; init; }
+}
 
 public sealed partial class Store
 {
@@ -105,10 +109,10 @@ public sealed partial class Store
         Query("SELECT version, payload, sig, created_at FROM group_changes WHERE group_id = $id AND version > $after ORDER BY version;",
             r => new GroupChangeRecord(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetInt64(3)), ("$id", groupId), ("$after", afterVersion));
 
-    private const string GroupMessageColumns = "id, group_id, from_key, version, envelope, created_at";
+    private const string GroupMessageColumns = "id, group_id, from_key, version, envelope, created_at, expires_at";
 
     private static GroupMessage ReadGroupMessage(SqliteDataReader r) =>
-        new(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetInt64(3), r.GetString(4), r.GetInt64(5));
+        new(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetInt64(3), r.GetString(4), r.GetInt64(5)) { ExpiresAt = NullableLong(r, 6) };
 
     public GroupMessage AddGroupMessage(string groupId, string from, long version, string envelope, long now)
     {

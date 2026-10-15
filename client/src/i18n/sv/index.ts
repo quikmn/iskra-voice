@@ -47,6 +47,7 @@ import { alerts } from './alerts'
 import { whisper } from './whisper'
 import { teams } from './teams'
 import { lfg } from './lfg'
+import { disappear } from './disappear'
 
 export const sv: Messages = {
   common,
@@ -96,4 +97,5 @@ export const sv: Messages = {
   whisper,
   teams,
   lfg,
+  disappear,
 }

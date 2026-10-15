@@ -65,7 +65,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 | Control | How Iskra meets it | Evidence | Status |
 |---|---|---|---|
 | C1.1 Identify and protect confidential information | Classification in the asset inventory; E2EE for private conversations; secrets `0600`; private channels never leak | POL/asset-inventory, SEC | met |
-| C1.2 Disposal of confidential information | Configurable retention, account deletion, prekey deletion for forward secrecy | POL/data-retention, [RetentionSweeper.cs][retention] | met |
+| C1.2 Disposal of confidential information | Configurable retention, disappearing messages (per conversation, kept out of backups), account deletion, prekey deletion for forward secrecy | POL/data-retention, [RetentionSweeper.cs][retention], [DisappearFeature.cs][disappear] | met |
 
 ### Privacy
 
@@ -308,6 +308,7 @@ Details and evidence: [asvs-l2-self-assessment.md](asvs-l2-self-assessment.md).
 [backupsvc]: ../../server/src/Iskra.Server/Backups/BackupService.cs
 [seclog]: ../../server/src/Iskra.Server/Features/ComplianceFeature.cs
 [retention]: ../../server/src/Iskra.Server/Features/RetentionSweeper.cs
+[disappear]: ../../server/src/Iskra.Server/Features/DisappearFeature.cs
 [export]: ../../server/src/Iskra.Server/Features/DataExports.cs
 [permtests]: ../../server/tests/Iskra.Server.Tests/PermissionTests.cs
 [roletests]: ../../server/tests/Iskra.Server.Tests/RoleTests.cs

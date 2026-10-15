@@ -13,6 +13,7 @@ import { b64u, fromB64u, randomBytes, sign, signedPayload, verify } from './cryp
 import type { SignedPrekey } from './devices'
 import { checkText, DmError, openContent, revokedFor, sealContent, validDevices, type DmContent, type DmEnvelope, type EncryptOptions } from './dm'
 import { verifyDeviceCert, type DeviceCert, type Identity } from './identity'
+import { isExpiry } from './disappear'
 
 export const GROUP_CHANGE_CONTEXT = 'iskra/group-change/v1'
 export const MAX_GROUP_MEMBERS = 10
@@ -193,10 +194,13 @@ export interface GroupHeader {
   head: string
   sentAt: number
   id: string
+  /** v3: a disappearing message, gone this many seconds after it was sent (bound to the message). */
+  expires?: number
 }
 
 export interface GroupEnvelope extends Omit<DmEnvelope, 'header' | 'v'> {
-  v: 2
+  /** 3: with `expires` in the header (apps from before disappearing messages can't open it, so never keep it). */
+  v: 2 | 3
   kind: 'group'
   header: GroupHeader
 }
@@ -207,8 +211,10 @@ export interface MemberBundle {
   devices: DeviceCert[]
 }
 
-function groupAd(h: GroupHeader): Uint8Array {
-  return new TextEncoder().encode(JSON.stringify(['iskra/group-dm/v1', h.from, h.group, h.version, h.head, h.sentAt, h.id]))
+function groupAd(v: 2 | 3, h: GroupHeader): Uint8Array {
+  return new TextEncoder().encode(JSON.stringify(v === 3
+    ? ['iskra/group-dm/v2', h.from, h.group, h.version, h.head, h.sentAt, h.id, h.expires]
+    : ['iskra/group-dm/v1', h.from, h.group, h.version, h.head, h.sentAt, h.id]))
 }
 
 /**
@@ -231,8 +237,12 @@ export function encryptGroup(
     for (const d of validDevices(devices, bundle[0]?.accountKey ?? member, revoked)) if (!targets.some((t) => t.deviceKey === d.deviceKey)) targets.push(d)
   }
   if (!targets.some((t) => t.accountKey !== from)) throw new DmError("Nobody else in this group has a device we can encrypt to yet.")
-  const header: GroupHeader = { from, group: view.id, version: view.version, head: view.head, sentAt: now, id: b64u(randomBytes(12)) }
-  return { v: 2, kind: 'group', header, sender: identity.cert, ...sealContent(identity, groupAd(header), targets, content, now, options.prekeys) }
+  if (options.expires !== undefined && !isExpiry(options.expires)) throw new DmError('Unsupported message format.')
+  const v = options.expires !== undefined ? 3 : 2
+  const header: GroupHeader = {
+    from, group: view.id, version: view.version, head: view.head, sentAt: now, id: b64u(randomBytes(12)), ...(v === 3 ? { expires: options.expires } : {}),
+  }
+  return { v, kind: 'group', header, sender: identity.cert, ...sealContent(identity, groupAd(v, header), targets, content, now, options.prekeys) }
 }
 
 /**
@@ -243,9 +253,10 @@ export function encryptGroup(
 export function decryptGroup(
   identity: Identity, envelope: GroupEnvelope, routed: { group: string; from: string; version: number }, view: GroupView,
 ): DmContent & { header: GroupHeader } {
-  if (!envelope || envelope.v !== 2 || envelope.kind !== 'group' || !envelope.header || !envelope.sender || !Array.isArray(envelope.keys))
+  if (!envelope || (envelope.v !== 2 && envelope.v !== 3) || envelope.kind !== 'group' || !envelope.header || !envelope.sender || !Array.isArray(envelope.keys))
     throw new DmError('Unsupported message format.')
   const { header, sender } = envelope
+  if (envelope.v === 3 ? !isExpiry(header.expires) : header.expires !== undefined) throw new DmError('Unsupported message format.')
   if (header.group !== routed.group || header.group !== view.id) throw new DmError('This message belongs to another conversation.')
   if (header.from !== routed.from || header.version !== routed.version) throw new DmError("This message's sender or version doesn't match.")
   if (!isCount(header.version) || !isCount(header.sentAt) || typeof header.id !== 'string') throw new DmError('Unsupported message format.')
@@ -254,7 +265,7 @@ export function decryptGroup(
   if (!at || at.head !== header.head) throw new DmError("This message was sent to a member list this group never had.")
   if (!at.members.some((m) => sameKey(m, header.from))) throw new DmError("This message is from someone who wasn't in the group.")
   if (sender.accountKey !== header.from || !verifyDeviceCert(sender)) throw new DmError("The sender's device couldn't be verified.")
-  return { ...openContent(identity, { ...envelope, v: 2 }, groupAd(header)), header }
+  return { ...openContent(identity, { ...envelope, v: 2 }, groupAd(envelope.v, header)), header }
 }
 
 /** A rename inside a group message, or null if it isn't a well-formed one. "" clears the name. */

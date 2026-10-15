@@ -138,6 +138,7 @@ builder.Services.AddSingleton<Iskra.Server.Updates.UpdateService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Updates.UpdateService>());
 builder.Services.AddSingleton<DataExports>();
 builder.Services.AddHostedService<RetentionSweeper>();
+builder.Services.AddHostedService<DisappearSweeper>();
 
 var https = world.Settings.Https;
 // The peer-to-peer tunnel in the host's desktop app reaches us here (localhost only; see TunnelListener).

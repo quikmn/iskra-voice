@@ -1,4 +1,5 @@
 // Channel header tools: threads and pinned messages (popovers) and the search box.
+import { ChannelTimerButton } from '../disappear/Timers'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { prepareChannel, readable } from '../../state/e2eeChannels'
 import { useTranslation } from 'react-i18next'
@@ -30,6 +31,7 @@ export function HeaderTools({ server, channel }: { server: ServerState; channel:
 
   return (
     <div className="header-tools">
+      <ChannelTimerButton server={server} channel={channel} />
       {channel.kind === 'text' && (
         <button className={`icon-button ${open === 'threads' ? 'on' : ''}`} onClick={() => toggle('threads')} aria-label={t('chat.header.threads')} title={t('chat.header.threads')} aria-expanded={open === 'threads'}>
           <ThreadIcon />

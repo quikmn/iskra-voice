@@ -118,8 +118,11 @@ export function showNotification(serverKey: string, title: string, body: string,
   show(serverKey, title, body, onClick, ping)
 }
 
-/** `ping`: a mention, reply, alert word or DM, which quiet hours may let through (silently). */
-export function show(serverKey: string, title: string, body: string, onClick: () => void, ping = false): void {
+/**
+ * `ping`: a mention, reply, alert word or DM, which quiet hours may let through (silently). `expiresAt`: a disappearing
+ * message; its notification is taken away when the message goes.
+ */
+export function show(serverKey: string, title: string, body: string, onClick: () => void, ping = false, expiresAt?: number): void {
   if (pushActive.has(serverKey) && !document.hasFocus()) return
   if (isDoNotDisturb()) return // do not disturb: no sounds or notifications (unread badges still count)
   const quiet = quietRules.now()
@@ -133,6 +136,7 @@ export function show(serverKey: string, title: string, body: string, onClick: ()
     onClick()
     notification.close()
   }
+  if (typeof expiresAt === 'number') setTimeout(() => notification.close(), Math.min(Math.max(0, expiresAt - Date.now()), 2 ** 31 - 1))
 }
 
 const me = () => {
@@ -157,7 +161,7 @@ export function notifyChannelMessage(serverKey: string, message: Message): void 
   const author = message.webhook?.name ?? server.members[message.author]?.name ?? t('common.someone')
   show(serverKey, t('app.notify.authorIn', { author, where: conversationLabel(server, message.channelId) }), stripMarkdown(plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null })), () => {
     void jumpToMessage(serverKey, message.channelId, message.id)
-  }, pinged)
+  }, pinged, message.expiresAt ?? undefined)
 }
 
 onServerEvent((serverKey, type, body) => {
@@ -194,7 +198,7 @@ const dmServer = new Map<string, string>()
 void import('./dms').then(({ onDmOpened, nameOf, openConversation }) => onDmOpened((peer, dms, live) => {
   const dm = dms.at(-1)
   if (!live || !dm || dm.from === me() || dm.friend || isOnScreen(dmConv(peer))) return
-  show(dmServer.get(dm.from) ?? '', nameOf(dm.from), dm.error ? t('app.notify.newMessage') : (dm.text || t('app.notify.newMessage')), () => openConversation(peer), true)
+  show(dmServer.get(dm.from) ?? '', nameOf(dm.from), dm.error ? t('app.notify.newMessage') : (dm.text || t('app.notify.newMessage')), () => openConversation(peer), true, dm.expiresAt)
 }))
 
 let lastBadge = -1

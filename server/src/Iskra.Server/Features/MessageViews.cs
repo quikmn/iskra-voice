@@ -17,6 +17,7 @@ public static class MessageViews
                 : new { id = original.Id, author = original.AuthorKey, text = Excerpt(original.Text), hasAttachments = original.Attachments.Length > 0,
                     importedName = ImportFeature.AuthorName(store, original.AuthorKey) };
         }
+        var (expiresAt, notice) = store.MessageExpiry(m.Id);
         return new
         {
             id = m.Id,
@@ -45,6 +46,8 @@ public static class MessageViews
             components = BotComponents.View(store, m.Id),
             interaction = InteractionFeature.MessageView(store, m.Id),
             lfg = LfgFeature.View(store, m.Id),
+            expiresAt,
+            disappear = notice is { } seconds ? new { seconds } : null,
         };
     }
 
