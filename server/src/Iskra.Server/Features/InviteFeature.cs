@@ -35,6 +35,7 @@ public static class InviteFeature
 
         var maxUses = (int?)body.OptionalLong("maxUses", min: 1, max: 1000);
         var lifetimeMs = body.OptionalLong("expiresInMs", min: 60_000, max: (long)MaxLifetime.TotalMilliseconds);
+        var now = s.Now; // one reading, so the lifetime is exact
         long? expiresAt;
         if (body.OptionalBool("neverExpires") == true)
         {
@@ -43,9 +44,9 @@ public static class InviteFeature
             if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can create invites that never expire.", "invite_never");
             expiresAt = null;
         }
-        else expiresAt = s.Now + (lifetimeMs ?? (long)DefaultLifetime.TotalMilliseconds);
+        else expiresAt = now + (lifetimeMs ?? (long)DefaultLifetime.TotalMilliseconds);
 
-        var invite = s.World.Store.CreateInvite(NewCode(), me.AccountKey, role, s.Now, expiresAt, maxUses);
+        var invite = s.World.Store.CreateInvite(NewCode(), me.AccountKey, role, now, expiresAt, maxUses);
         Audit.Record(s, "invite.create", details: new { role, maxUses, expiresAt = invite.ExpiresAt });
         return new { invite = PublicInvite(invite) };
     }
