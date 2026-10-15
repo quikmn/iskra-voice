@@ -39,7 +39,7 @@
 <main class="doc">
   <div class="doc-kicker">Privacy</div>
   <h1>Privacy <span class="grad">Policy</span></h1>
-  <p class="updated">Last updated 14 October 2026</p>
+  <p class="updated">Last updated 15 October 2026</p>
 
   <p class="lead">Iskra is built so that as little as possible about you ends up anywhere. This page explains what is stored, where, who can see it, and how to get rid of it.</p>
 
@@ -91,6 +91,7 @@
     <li><strong>Noise removal, voice detection, camera background effects and live captions</strong> run on your device. No sound, picture or caption text is sent anywhere for processing, and captions are dropped from memory seconds after they're shown. The captions model is downloaded once from the server of the call you're in and kept on your device.</li>
     <li><strong>Clips</strong> (the last seconds of a call) are recorded on your device and stay there unless you save or share them. Turning clips on is shown to everyone in the call.</li>
     <li><strong>Catch up</strong> summaries are worked out on your device.</li>
+    <li><strong>Translating a message</strong> happens on your device, after it's decrypted, so no message text is ever sent anywhere to be translated. The language models come from your own server, only if its owner offers translation, and only after you agree to the download.</li>
   </ul>
 
   <h2 id="servers">3. On the servers you join</h2>
@@ -98,7 +99,7 @@
   <ul>
     <li><strong>Your account's public key</strong> (your identity) and the public keys and names of your devices.</li>
     <li><strong>Your profile:</strong> display name, avatar, bio, pronouns, profile colour, custom status, and your profile page if you make one. Plus your nickname, roles and when you joined, and which server rules you accepted.</li>
-    <li><strong>What you post:</strong> messages (with up to 20 earlier versions after edits, which you and the moderators can see), files, images, voice messages, reactions, polls and votes, pins, threads, forum posts, docs pages and their history, events you create or are interested in, emoji, stickers and sounds you add, and a notice when you save a clip.</li>
+    <li><strong>What you post:</strong> messages (with up to 20 earlier versions after edits, which you and the moderators can see), files, images, voice messages, reactions, polls and votes, pins, threads, forum posts, docs pages and their history, whiteboard drawings, events you create or are interested in, emoji, stickers and sounds you add, and a notice when you save a clip.</li>
     <li><strong>Reminders and scheduled messages</strong> you set: when they're due, and for server channels which message or what to send. What a reminder is about and its note are encrypted so the server can't read them; scheduled DMs and group messages are already encrypted. Your <strong>inbox</strong> lists the messages that mention or reply to you. Saved messages are a synced setting (see above).</li>
     <li><strong>The server's key log:</strong> every account key the server has shown, with the name it showed, and every key change, signed by the server so members' apps can check it (see <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md#key-transparency" target="_blank" rel="noopener">key transparency</a>). It only ever grows.</li>
     <li><strong>Settings for that server</strong>, such as notification levels, and your block list (so the server can stop DMs and calls from people you've blocked; nobody else sees it).</li>
@@ -106,13 +107,15 @@
     <li><strong>Your presence</strong> (online, idle, in voice) is kept in memory only while you're connected.</li>
   </ul>
   <p>Server channels, voice channels and files are <strong>not</strong> end-to-end encrypted, unless the channel is an encrypted channel (see below): whoever runs the server can read them, and so can the members allowed into each channel. Servers use HTTPS when the owner has turned it on (it's automatic with "Let friends anywhere join").</p>
-  <p>A server sees your <strong>IP address</strong> while you're connected, because it needs it to talk to you. Iskra's server doesn't store IP addresses in its database and doesn't log requests by default. Each server keeps a <strong>security log</strong> that only its owner can read: failed sign-ins, new members and devices, account key changes, account deletions, backups and data downloads, with the account key and time (never message text). It records IP addresses only if the owner turns that on. Servers also keep <strong>daily backups</strong> (the last 7 days by default) so the owner can undo mistakes.</p>
+  <p>A server sees your <strong>IP address</strong> while you're connected, because it needs it to talk to you. Iskra's server doesn't store IP addresses in its database and doesn't log requests by default. Each server keeps a <strong>security log</strong> that only its owner can read: failed sign-ins, new members and devices, account key changes, account deletions, backups and data downloads, with the account key and time (never message text). It records IP addresses only if the owner turns that on. Servers also keep <strong>daily backups</strong> (the last 7 days by default) so the owner can undo mistakes, and the owner can have an encrypted copy of each one written to another disk.</p>
   <p>Links in messages get a preview (title and description) that <strong>the server fetches</strong>, not your device, so the website sees the server's address instead of yours.</p>
   <p><strong>Bots</strong> on a server are programs an admin added; they show a BOT badge. A bot gets only its commands, button clicks and forms, and messages that mention it or reply to it, unless an admin lets it read all messages (you can see which bots can). The built-in bots (Dice, Polls, Reminders) run inside the server and read only their own commands. In an encrypted channel, a command you send to a bot goes to the server and the bot <strong>unencrypted</strong>; the app tells you before you send it, and the answer is shown only to you.</p>
 
   <h2 id="e2ee">4. Direct messages, group chats and calls</h2>
-  <p>Direct messages and group chats, including their pictures, files and voice messages, are <strong>end-to-end encrypted</strong>: only the people in the conversation can read them. Voice and video calls in DMs and group chats are end-to-end encrypted too, and so are <strong>encrypted channels</strong> (an option for small private channels, text and voice), which only the people who can see the channel can read. You can read the details in our <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">security notes</a>.</p>
+  <p>Direct messages and group chats, including their pictures, files and voice messages, are <strong>end-to-end encrypted</strong>: only the people in the conversation can read them. Voice and video calls in DMs and group chats are end-to-end encrypted too, and so are <strong>encrypted channels</strong> (an option for small private channels: text, voice and whiteboards), which only the people who can see the channel can read. You can read the details in our <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">security notes</a>.</p>
   <p>A server that carries them stores <strong>only the ciphertext and the metadata needed to deliver it</strong>: who sent what to whom, when, and how big it is, plus group and encrypted channel membership. It also knows who calls whom, when and for how long. It can't read the content or listen to the call.</p>
+  <p>A <strong>bot</strong> can be a DM partner too. The server still can't read those messages, but whoever runs the bot can: that's the point of writing to it, and the app says so. You can turn off DMs from bots in your settings.</p>
+  <p><strong>Disappearing messages:</strong> a conversation can make its new messages disappear after a set time (5 minutes to 4 weeks). The server deletes them when the time is up, and the apps delete their own copies too. Someone in the conversation can still copy or screenshot a message before then.</p>
 
   <h2 id="voice">5. Voice and video</h2>
   <p>Voice and video go through a voice service (LiveKit) that runs <strong>alongside each server, on the same machine</strong>, under the server owner's control. It sees your IP address while you're in a call. In voice channels and stages the audio and video aren't end-to-end encrypted (the server could in principle access them); in DM and group calls and encrypted voice channels they are. Iskra's servers don't record calls. Text written in a voice channel's chat is stored like any channel message.</p>
@@ -134,6 +137,7 @@
     <li><strong>DM and group chat notifications never contain the message</strong>, just "New message from&nbsp;X".</li>
     <li>Mentions and replies in server channels include the sender's name, the channel and a short excerpt (up to 140 characters).</li>
   </ul>
+  <p><strong>Alert words and quiet hours</strong> stay on your devices, and sync between them sealed so your servers can't read them; the app looks for your words itself, in encrypted channels and DMs too. Only if you tick "Also when Iskra is closed" do your servers get a readable copy of your words (matched only in channels that aren't encrypted), and only servers that send you push notifications get your quiet hours (days, times and time zone). Untick it, or turn quiet hours off, and those copies are deleted.</p>
   <p>On phones, the Iskra apps (Android, iPhone and iPad) show notifications while the app is open, straight from your servers. They don't use any push service, so nobody else learns when you get one. For notifications while Iskra is closed, use the web app in your phone's browser.</p>
 
   <h2 id="third">8. Who Iskra talks to</h2>
@@ -149,6 +153,8 @@
         <tr><td><strong>Push services</strong></td><td>Only if you turn notifications on (see <a href="#push">Notifications</a>).</td><td>That a notification was sent to your device, and when; not its content.</td><td><span class="path">My settings → Notifications</span>.</td></tr>
         <tr><td><strong>Cloudflare</strong> (app.iskra.foo)</td><td>Only the web app: Cloudflare delivers its files when you open it in a browser (see <a href="#sites">The websites</a>). The desktop and phone apps carry their own copy.</td><td>Your IP address, not your chats.</td><td>Use the desktop or phone app.</td></tr>
         <tr><td><strong>Iskra's bug inbox</strong> (chat.iskra.foo)</td><td>Only when you send a bug report (<span class="path">Report a bug</span>, in About &amp; legal or your status menu). "See what's included" shows exactly what goes before you send.</td><td>What you wrote, your screenshots, the email address you gave (optional), and, unless you untick "Include logs", technical logs: app version, OS and browser names, settings switches, connection and voice status, error names. Never your messages, file names, names, servers, keys, invite links or IP addresses. The server sees your IP address to limit abuse but doesn't store it.</td><td>Don't send one, or save the report as a file instead.</td></tr>
+        <tr><td><strong>DigitalOcean</strong> (renting a server)</td><td>Only while you rent a server on DigitalOcean from the desktop app: you sign in there in your browser (or paste a token), and the app creates the server and its firewall, and deletes them if setup fails. The app sends you there with Iskra's referral link: Iskra gets a little DigitalOcean credit that helps pay for our own server. You pay DigitalOcean directly; we never see your server or your card.</td><td>Your IP address and what the app creates in your account. The app keeps its key in memory only and forgets it after setup.</td><td>Nothing happens unless you start it.</td></tr>
+        <tr><td><strong>HyperDHT</strong> (a public peer-to-peer network), only for "Connect without port forwarding"</td><td>Only if a server's owner turned it on in the desktop app, and when you join such a server with the desktop app and its address can't be reached: the app talks to nodes of the public HyperDHT network (first the three bootstrap nodes Holepunch runs, then any node) to announce the server or find it, and then straight to the other computer.</td><td>Those nodes see your IP address and the key you announce or look up, never what it is or what you say.</td><td>The owner switches it in <span class="path">Server settings → Internet access</span>; leave the server to stop.</td></tr>
         <tr><td><strong>Profile pages</strong></td><td>Never. In the desktop app, a page's scripts run behind a wall where they can't reach the network (a page shows only pictures uploaded to its own server). Browsers and the phone apps show other people's pages without scripts.</td><td>Nothing: a page can't load anything from elsewhere, so its author can't learn your IP address.</td><td>Nothing to turn off.</td></tr>
       </tbody>
     </table>
@@ -158,20 +164,21 @@
   <p>Every server can also:</p>
   <ul>
     <li><strong>Fetch the live-captions model once from Hugging Face</strong> (at a fixed version, checked against a fingerprint built into Iskra), the first time a member turns captions on. Hugging Face sees only the server's address; members' apps then get the model from their own server. The owner can turn this off.</li>
+    <li><strong>Fetch translation models from Mozilla</strong> (Mozilla's Firefox Translations models, at fixed versions, checked against fingerprints built into Iskra), only if the owner offers translation, and only each model the first time a member needs it. Mozilla's storage (on Google Cloud) sees only the server's address; members' apps then get the models from their own server.</li>
     <li><strong>Send events to addresses its admins choose</strong> (outgoing webhooks), for example to a game server or home automation: new messages and reactions in chosen channels, people joining or leaving, events starting. That site gets what the event contains, such as message text and names, from the server's address, never yours. Nothing from encrypted channels, DMs or group chats is ever sent. Every member can see where their servers send things in <span class="path">My settings → Privacy &amp; data</span>.</li>
     <li><strong>Check GitHub for new server versions</strong> (standalone servers; the owner can turn it off, or let the server install updates by itself). GitHub sees the server's address. Servers started by the desktop app update with the app and never check by themselves.</li>
   </ul>
-  <p>If you <strong>rent a server</strong> with the app's setup text, the provider you pick runs that computer and can see what's on it, like any server you rent. The setup downloads Iskra from GitHub. Iskra has no deal with any provider and gets nothing from it.</p>
+  <p>If you <strong>rent a server</strong>, the provider you pick runs that computer and can see what's on it, like any server you rent. The setup downloads Iskra from GitHub. If you rent on DigitalOcean through the app, Iskra gets a little DigitalOcean credit from the referral link (see above); with any other provider, Iskra gets nothing.</p>
   <p>That's the complete list. The apps load no fonts, scripts or images from other sites, and contain no analytics, advertising or crash-reporting services. The on-device models for noise removal, voice detection and background effects ship inside the apps.</p>
 
   <h2 id="sites">9. The websites</h2>
   <p><strong>iskra.foo</strong> and <strong>app.iskra.foo</strong> are static sites hosted on <strong>Cloudflare Pages</strong>. Like any web host, Cloudflare processes your IP address and request details to deliver the pages and protect them from attacks, and keeps short-lived logs. We don't add analytics, cookies or trackers to either site.</p>
   <ul>
-    <li><strong>iskra.foo</strong> loads nothing from other sites. Its two showcase background videos come from YouTube only if you press their play button.</li>
+    <li><strong>iskra.foo</strong> loads nothing from other sites.</li>
     <li><strong>app.iskra.foo</strong> only delivers the web app's files. Once loaded, the app talks straight to the servers you join; Cloudflare doesn't see your chats.</li>
     <li>Links to Ko-fi, PayPal and GitHub take you to those sites, under their own privacy policies.</li>
   </ul>
-  <p>Some of these companies (Cloudflare, Google, GitHub, Hugging Face, and some push services) are based in the United States. They transfer data under the EU's approved safeguards, such as the EU–US Data Privacy Framework or standard contractual clauses.</p>
+  <p>Some of these companies (Cloudflare, Google, GitHub, Hugging Face, DigitalOcean, and some push services) are based in the United States. They transfer data under the EU's approved safeguards, such as the EU–US Data Privacy Framework or standard contractual clauses.</p>
 
   <h2 id="retention">10. How long things are kept</h2>
   <ul>
@@ -179,7 +186,8 @@
     <li><strong>Uploads that aren't used</strong> by any message, avatar or the like are deleted after 24 hours.</li>
     <li><strong>Encrypted DM envelopes</strong> stay on a server so your other devices can fetch them; deleting your account removes your copies. The short-lived keys that protect them are deleted about five weeks after use, after which old envelopes can't be decrypted even with your device keys.</li>
     <li><strong>Audit log entries</strong>: 90 days. <strong>Security log entries</strong>: 365 days. <strong>Resolved reports</strong>: 90 days after they're resolved. A server's owner can change these, and can also choose to delete messages and files after a set time.</li>
-    <li><strong>Daily server backups</strong>: 7 days by default (the owner can choose 1 to 30).</li>
+    <li><strong>Daily server backups</strong>: 7 days by default (the owner can choose 1 to 30); encrypted copies on another disk are kept for the same number of days.</li>
+    <li><strong>Disappearing messages</strong>: until their timer runs out, if the conversation has one.</li>
     <li><strong>Ended or cancelled events</strong>: 30 days.</li>
     <li><strong>Bug reports</strong> you send to Iskra: 12 months at most (see <a href="#bug-reports">Reports and moderation</a>).</li>
     <li><strong>Inbox entries</strong>: 60 days (at most 500). <strong>Reminders</strong>: 30 days after they're due. <strong>Scheduled messages</strong>: until they're sent or you delete them. <strong>Earlier versions</strong> of a message go with the message (at most 20); a docs page keeps its last 50 versions.</li>
@@ -193,7 +201,7 @@
     <li>deletes the server copies of your <strong>encrypted DMs and group chats</strong>;</li>
     <li>revokes all your devices, and wipes Iskra from the device you're using.</li>
   </ul>
-  <p>What isn't deleted: messages already on other people's devices (for example the DMs you sent them) stay with them. Moderators may keep reports and the audit log for safety, with your name removed, and the owner keeps the security log entries about your account (without IP addresses) until they expire. Servers that are offline at the time are reached by your other devices when they next connect, or you can ask their owners. See <a href="/delete-account">How to delete your account</a> for step-by-step instructions and what to do if you've lost your devices.</p>
+  <p>What isn't deleted: messages already on other people's devices (for example the DMs you sent them) stay with them. Moderators may keep reports and the audit log for safety, with your name removed, and the owner keeps the security log entries about your account (without IP addresses) until they expire. A server's backups (see <a href="#retention">How long things are kept</a>) still hold your data until they're replaced. Servers that are offline at the time are reached by your other devices when they next connect, or you can ask their owners. See <a href="/delete-account">How to delete your account</a> for step-by-step instructions and what to do if you've lost your devices.</p>
 
   <h2 id="children">12. Children</h2>
   <p>Iskra is for people aged 13 or over, or the age at which you can consent to online services yourself in your country if that's higher (13 in Sweden; up to 16 in some EU countries). Below that age, you may only use it with a parent's or guardian's permission where the law allows. If you believe a child's data is on a server we run without that permission, email <a href="mailto:spark@iskra.foo">spark@iskra.foo</a> and we'll delete it.</p>
