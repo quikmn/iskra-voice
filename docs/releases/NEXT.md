@@ -7,5 +7,5 @@
 - **What's new shows fixes too**: after an update with only fixes, the card lists those.
 
 ### Good to know
-- The first start after updating can take a little longer on servers with a lot of history: the server tidies up after deleted channels and rebuilds its search index once.
+- Servers with a lot of history take a little longer to start the first time after this update: they tidy up after deleted channels and rebuild their search index once.
 - alpha.20 wasn't published (a check caught a problem in the What's new card); its fix is in this release.
