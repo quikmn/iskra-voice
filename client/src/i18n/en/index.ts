@@ -42,6 +42,7 @@ import { whatsNew } from './whatsNew'
 import { claim } from './claim'
 import { templates } from './templates'
 import { popout } from './popout'
+import { alerts } from './alerts'
 
 export const en = {
   common,
@@ -87,4 +88,5 @@ export const en = {
   claim,
   templates,
   popout,
+  alerts,
 } as const

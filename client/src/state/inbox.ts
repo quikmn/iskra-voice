@@ -7,7 +7,8 @@ import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { channelConv, markConversationRead, noteMessage, useReads } from './readState'
 import { useFriends } from './friends'
 import { deleteReminder, splitReminders, useReminders } from './reminders'
-import { buildInbox, inboxBadge, mergeItems, missedItems, type InboxEntry, type InboxFilter } from './inboxLogic'
+import { buildInbox, inboxBadge, mergeItems, missedItems, withAlertHits, type InboxEntry, type InboxFilter } from './inboxLogic'
+import { useAlerts } from './alerts'
 
 const SEEN_KEY = 'iskra.inbox.seen'
 const EVERYONE_KEY = 'iskra.inbox.everyone'
@@ -74,7 +75,8 @@ const convOf = (server: string, item: InboxItem) => channelConv(server, item.cha
 export function inboxEntries(): InboxEntry[] {
   const { items, includeEveryone } = useInbox.getState()
   const servers = useApp.getState().servers
-  const pings = Object.entries(items).filter(([server]) => servers[server])
+  // Alert words this app matched (encrypted channels too) join the server's own list.
+  const pings = Object.entries(withAlertHits(items, useAlerts.getState().hits)).filter(([server]) => servers[server])
     .flatMap(([server, list]) => list.map((item) => ({ server, conv: convOf(server, item), item })))
   const requests = Object.entries(useFriends.getState().peers).filter(([, p]) => p.relation === 'incoming').map(([peer, p]) => ({ peer, at: p.since }))
   const reminders = splitReminders(useReminders.getState().all).due.map((r) => ({ server: r.server, id: r.id, firedAt: r.firedAt ?? r.dueAt }))
@@ -85,6 +87,7 @@ export function inboxEntries(): InboxEntry[] {
 export function useInboxEntries(): InboxEntry[] {
   useInbox((s) => s.items)
   useInbox((s) => s.includeEveryone)
+  useAlerts((s) => s.hits)
   useReads((s) => s.convs)
   useFriends((s) => s.peers)
   useReminders((s) => s.all)

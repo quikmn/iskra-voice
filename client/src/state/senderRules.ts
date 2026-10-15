@@ -15,4 +15,10 @@ export const senderRules = {
   /** Does the message mention me (directly, a group, or one of my roles)? */
   mentionsMe: (server: ServerState, message: Message): boolean =>
     !!server.me && mentions(message.text, server.me.accountKey, senderRules.canPingGroups(server, message), senderRules.hereCounts()),
+  /** Is one of my alert words in it? state/alerts.ts fills it in. */
+  alertsMe: (_server: ServerState, _message: Message): boolean => false,
+  /** A mention or an alert word: either counts and notifies like a mention. */
+  pingsMe: (server: ServerState, message: Message): boolean => senderRules.mentionsMe(server, message) || senderRules.alertsMe(server, message),
+  /** A message with one of my alert words arrived (for the inbox); state/alerts.ts fills it in. */
+  alerted: (_serverKey: string, _message: Message): void => undefined,
 }

@@ -114,6 +114,7 @@ function notificationFor(data, server) {
       badge: BADGE,
       timestamp: Number.isSafeInteger(data.at) ? data.at : Date.now(),
       requireInteraction: call,
+      silent: data.silent === true, // quiet hours: shown without a sound
       data: { route: routeFor(data) },
     },
   }

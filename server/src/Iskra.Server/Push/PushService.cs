@@ -13,7 +13,7 @@ namespace Iskra.Server.Push;
 /// <summary>What one push says. <see cref="Tag"/> groups pushes about the same conversation (they replace each other).</summary>
 public sealed record PushNote(string Kind, string Tag, string Title, string Body, string FromName,
     long? ChannelId = null, long? MessageId = null, string? Peer = null, bool Coalesce = true, int TtlSeconds = 24 * 3600, string? Group = null, long? Reminder = null,
-    PushText? Text = null);
+    PushText? Text = null, bool Silent = false);
 
 /// <summary>
 /// Names for a push's English title and body (and the values in them), so the app can show them in its own language.
@@ -145,6 +145,10 @@ public sealed partial class PushService
                 foreach (var key in store.MembersWithRole(roleId)) kinds[key] = "mention";
             }
         }
+        // Alert words people asked this server to watch for (Features/AlertFeature.cs) notify like a mention.
+        if (pings)
+            foreach (var key in Features.AlertFeature.KeywordTargets(store, channel, message))
+                if (!kinds.TryGetValue(key, out var was) || was == "message") kinds[key] = "keyword";
         kinds.Remove(message.AuthorKey);
         if (kinds.Count == 0) return;
 
@@ -203,6 +207,9 @@ public sealed partial class PushService
             ChannelId: channelId, Peer: caller.AccountKey, Coalesce: false, TtlSeconds: 30, Text: new PushText("calling", "tapToAnswer", new { name })));
     }
 
+    /// <summary>What quiet hours let through (silently) when the member allows mentions.</summary>
+    private static readonly HashSet<string> BreaksQuiet = ["mention", "reply", "keyword", "dm", "group", "call"];
+
     private static string Excerpt(string text, int max)
     {
         text = text.ReplaceLineEndings(" ");
@@ -229,6 +236,12 @@ public sealed partial class PushService
         try
         {
             if (Features.PresenceFeature.DoNotDisturb(_world.Store, accountKey)) return; // do not disturb: no pushes at all
+            // Quiet hours: nothing, or (if they let them through) mentions, replies, alert words, DMs and calls without a sound.
+            if (Features.AlertFeature.QuietOf(_world.Store, accountKey) is { } quiet && Features.AlertFeature.Active(quiet, _time.GetUtcNow()))
+            {
+                if (!quiet.Mentions || !BreaksQuiet.Contains(note.Kind)) return;
+                note = note with { Silent = true };
+            }
             subscriptions = _world.Store.PushSubscriptions(accountKey);
         }
         catch (ObjectDisposedException) { return; } // shutting down
@@ -349,6 +362,7 @@ public sealed partial class PushService
             reminder = note.Reminder,
             text = note.Text is null ? null : new { title = note.Text.Title, body = note.Text.Body, args = note.Text.Args },
             count,
+            silent = note.Silent ? true : (bool?)null, // quiet hours: show it without a sound
             at = _time.GetUtcNow().ToUnixTimeMilliseconds(),
         };
     }

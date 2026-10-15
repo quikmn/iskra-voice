@@ -43,6 +43,7 @@ import { whatsNew } from './whatsNew'
 import { claim } from './claim'
 import { templates } from './templates'
 import { popout } from './popout'
+import { alerts } from './alerts'
 
 export const sv: Messages = {
   common,
@@ -88,4 +89,5 @@ export const sv: Messages = {
   claim,
   templates,
   popout,
+  alerts,
 }

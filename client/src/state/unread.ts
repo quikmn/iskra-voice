@@ -121,7 +121,7 @@ export function markUnread(serverKey: string, channelId: number, messageId: numb
   if (!server || !message) return
   const counted = server.messages[channelId].filter((m) => !m.tempId && m.id >= messageId
     && m.author !== server.me?.accountKey && !senderRules.ignored(m.author))
-  const mentions = counted.filter((m) => !m.forwarded && senderRules.mentionsMe(server, m)).length
+  const mentions = counted.filter((m) => !m.forwarded && senderRules.pingsMe(server, m)).length
   markConversationUnread(channelConv(serverKey, channelId), { id: message.id, at: message.createdAt }, { unread: counted.length, mentions })
 }
 
