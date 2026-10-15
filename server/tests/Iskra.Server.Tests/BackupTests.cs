@@ -171,80 +171,114 @@ public class BackupTests
     }
 
     [Fact]
-    public async Task Daily_backups_are_copied_to_another_folder_with_the_same_retention()
+    public async Task Daily_backups_are_copied_encrypted_to_another_folder_with_the_same_retention()
     {
         using var server = new IskraServer();
         using var owner = await server.JoinAsync("Owner", "owner");
         var backups = server.Services.GetRequiredService<BackupService>();
+        backups.KdfCost = (1, 8 * 1024 * 1024);
         var copies = TempPath("copies");
         Directory.CreateDirectory(copies);
+        var restored = TempPath("copy-restored");
+        const string passphrase = "correct horse battery";
         try
         {
             Assert.True(backups.RunDaily());
-            var status = (await owner.RequestAsync("backup.settings", new { copyTo = copies })).Body();
+            var status = (await owner.RequestAsync("backup.settings", new { copyTo = copies, sealedCopyPassphrase = Sealed(server, passphrase) })).Body();
             Assert.Equal(Path.GetFullPath(copies), status.GetProperty("copyTo").GetString());
+            Assert.True(status.GetProperty("copyPassphraseSet").GetBoolean());
+            Assert.DoesNotContain(passphrase, status.GetRawText());
             Assert.Equal(Path.GetFullPath(copies), server.World.Settings.Backups.CopyTo);
+            Assert.Equal(passphrase, server.World.Settings.Backups.CopyPassphrase);
             await backups.LastCopyTask; // copied right away
 
-            var today = backups.LocalBackups()[0].Name;
-            Assert.Equal(File.ReadAllBytes(Path.Combine(backups.Folder, today)), File.ReadAllBytes(Path.Combine(copies, today)));
+            // An encrypted .iskrabackup, never the plain zip.
+            var today = BackupService.CopyName(backups.LocalBackups()[0].Name);
+            Assert.EndsWith(".iskrabackup", today);
+            var file = Path.Combine(copies, today);
+            Assert.True(BackupFile.LooksEncrypted(File.ReadAllBytes(file)));
+            Assert.Empty(Directory.EnumerateFiles(copies, "*.zip"));
             Assert.Empty(Directory.EnumerateFiles(copies, "*.tmp"));
             if (!OperatingSystem.IsWindows())
-                Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(Path.Combine(copies, today)));
+                Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(file));
             var copy = (await owner.RequestAsync("backup.status")).Body().GetProperty("copy");
             Assert.True(copy.GetProperty("ok").GetBoolean());
             Assert.Equal(today, copy.GetProperty("name").GetString());
 
+            // It restores with the existing restore flow, with the passphrase only.
+            Assert.Throws<CryptographicException>(() => BackupArchive.Restore(file, restored, () => "wrong passphrase!!"));
+            var result = BackupArchive.Restore(file, restored, () => passphrase);
+            Assert.Equal(Ed25519.ToB64u(server.World.ServerPublicKey), result.ServerKey);
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
             // Older copies beyond `Keep` go; anything else in the folder stays.
-            for (var day = 1; day <= 9; day++) File.WriteAllText(Path.Combine(copies, $"auto-2020-01-0{day}.zip"), "old");
+            for (var day = 1; day <= 9; day++) File.WriteAllText(Path.Combine(copies, $"auto-2020-01-0{day}.iskrabackup"), "old");
             File.WriteAllText(Path.Combine(copies, "notes.txt"), "mine");
-            File.WriteAllText(Path.Combine(copies, "auto-mine.zip"), "mine");
+            File.WriteAllText(Path.Combine(copies, "auto-mine.iskrabackup"), "mine");
             await owner.RequestAsync("backup.settings", new { keep = 3 });
             await backups.LastCopyTask;
-            Assert.Equal(new[] { today, "auto-2020-01-09.zip", "auto-2020-01-08.zip" },
-                Directory.EnumerateFiles(copies, "auto-*.zip").Select(p => Path.GetFileName(p)).Where(n => n != "auto-mine.zip")
+            Assert.Equal(new[] { today, "auto-2020-01-09.iskrabackup", "auto-2020-01-08.iskrabackup" },
+                Directory.EnumerateFiles(copies, "auto-*.iskrabackup").Select(p => Path.GetFileName(p)).Where(n => n != "auto-mine.iskrabackup")
                     .OrderByDescending(n => n, StringComparer.Ordinal).ToArray());
             Assert.True(File.Exists(Path.Combine(copies, "notes.txt")));
-            Assert.True(File.Exists(Path.Combine(copies, "auto-mine.zip")));
+            Assert.True(File.Exists(Path.Combine(copies, "auto-mine.iskrabackup")));
 
-            // A copy that went missing (or was cut off) is made again on the next hourly run.
-            File.WriteAllText(Path.Combine(copies, today), "cut off");
+            // A copy that went missing is made again on the next hourly run.
+            File.Delete(file);
             Assert.False(backups.RunDaily());
-            Assert.Equal(File.ReadAllBytes(Path.Combine(backups.Folder, today)), File.ReadAllBytes(Path.Combine(copies, today)));
+            Assert.True(File.Exists(file));
 
-            // Turning it off forgets the folder.
+            // The security log never holds the passphrase.
+            var log = (await owner.RequestAsync("security.log.list", new { })).Body().GetRawText();
+            Assert.DoesNotContain(passphrase, log);
+
+            // Turning it off forgets the folder and the passphrase.
             status = (await owner.RequestAsync("backup.settings", new { copyTo = "" })).Body();
             await backups.LastCopyTask;
             Assert.Equal(System.Text.Json.JsonValueKind.Null, status.GetProperty("copyTo").ValueKind);
+            Assert.False(status.GetProperty("copyPassphraseSet").GetBoolean());
             Assert.Null(server.World.Settings.Backups.CopyTo);
+            Assert.Null(server.World.Settings.Backups.CopyPassphrase);
             Assert.Null(backups.LastCopy);
         }
         finally
         {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             try { Directory.Delete(copies, true); } catch (IOException) { }
+            try { Directory.Delete(restored, true); } catch (IOException) { }
         }
     }
 
     [Fact]
-    public async Task Backup_copy_folders_must_be_full_paths_outside_the_server_folder()
+    public async Task Backup_copies_need_a_full_path_outside_the_server_folder_and_a_passphrase()
     {
         using var server = new IskraServer();
         using var owner = await server.JoinAsync("Owner", "owner");
-        async Task<string?> Refused(string copyTo)
+        var sealedPassphrase = Sealed(server, "correct horse battery");
+        async Task<string?> Refused(object body)
         {
-            var reply = await owner.RequestAsync("backup.settings", new { copyTo });
+            var reply = await owner.RequestAsync("backup.settings", body);
             Assert.Equal("bad_request", reply.ErrorCode());
-            return reply.Body().GetProperty("key").GetString();
+            return reply.Body().TryGetProperty("key", out var key) ? key.GetString() : null;
         }
-        Assert.Equal("backup_copy_relative", await Refused("backups-elsewhere"));
-        Assert.Equal("backup_copy_relative", await Refused(Path.Combine("..", "elsewhere")));
-        Assert.Equal("backup_copy_inside_world", await Refused(server.World.Path));
-        Assert.Equal("backup_copy_inside_world", await Refused(Path.Combine(server.World.Path, "backups")));
-        Assert.Equal("backup_copy_inside_world", await Refused(Path.Combine(server.World.Path, "uploads", "..", "x")));
-        Assert.Equal("backup_copy_not_found", await Refused(TempPath("not-there")));
+        Assert.Equal("backup_copy_relative", await Refused(new { copyTo = "backups-elsewhere", sealedCopyPassphrase = sealedPassphrase }));
+        Assert.Equal("backup_copy_relative", await Refused(new { copyTo = Path.Combine("..", "elsewhere"), sealedCopyPassphrase = sealedPassphrase }));
+        Assert.Equal("backup_copy_inside_world", await Refused(new { copyTo = server.World.Path, sealedCopyPassphrase = sealedPassphrase }));
+        Assert.Equal("backup_copy_inside_world", await Refused(new { copyTo = Path.Combine(server.World.Path, "backups"), sealedCopyPassphrase = sealedPassphrase }));
+        Assert.Equal("backup_copy_inside_world", await Refused(new { copyTo = Path.Combine(server.World.Path, "uploads", "..", "x"), sealedCopyPassphrase = sealedPassphrase }));
+        Assert.Equal("backup_copy_not_found", await Refused(new { copyTo = TempPath("not-there"), sealedCopyPassphrase = sealedPassphrase }));
+
+        // No passphrase, a short one, one in the clear or one sealed to something else: refused.
+        var folder = Path.GetTempPath();
+        Assert.Equal("backup_copy_passphrase", await Refused(new { copyTo = folder }));
+        Assert.Equal("backup_copy_passphrase", await Refused(new { copyTo = folder, sealedCopyPassphrase = Sealed(server, "short") }));
+        Assert.Null(await Refused(new { copyTo = folder, copyPassphrase = "correct horse battery" }));
+        Assert.Equal("passphrase_unreadable", await Refused(new { copyTo = folder, sealedCopyPassphrase = Sealed(server, "correct horse battery", "iskra/other/v1") }));
         Assert.Null(server.World.Settings.Backups.CopyTo);
+        Assert.Null(server.World.Settings.Backups.CopyPassphrase);
+
         // Only the owner.
-        Assert.Equal("forbidden", (await (await server.JoinAsync("Admin", "admin")).RequestAsync("backup.settings", new { copyTo = Path.GetTempPath() })).ErrorCode());
+        Assert.Equal("forbidden", (await (await server.JoinAsync("Admin", "admin")).RequestAsync("backup.settings", new { copyTo = folder, sealedCopyPassphrase = sealedPassphrase })).ErrorCode());
     }
 
     [Fact]
@@ -253,9 +287,10 @@ public class BackupTests
         using var server = new IskraServer();
         using var owner = await server.JoinAsync("Owner", "owner");
         var backups = server.Services.GetRequiredService<BackupService>();
+        backups.KdfCost = (1, 8 * 1024 * 1024);
         // A USB stick that isn't mounted (server.json edited by hand): never created, reported instead.
         var missing = TempPath("unplugged");
-        server.World.UpdateSettings(w => w with { Backups = w.Backups with { CopyTo = missing } });
+        server.World.UpdateSettings(w => w with { Backups = w.Backups with { CopyTo = missing, CopyPassphrase = "correct horse battery" } });
         Assert.True(backups.RunDaily());
         Assert.False(Directory.Exists(missing));
         Assert.False(backups.LastCopy!.Ok);
@@ -264,12 +299,19 @@ public class BackupTests
         Assert.False(copy.GetProperty("ok").GetBoolean());
         Assert.Equal("backup_copy_missing", copy.GetProperty("error").GetProperty("key").GetString());
 
-        // A copy that fails halfway (here: a folder in the way of the file) is reported and leaves no temp file.
         var broken = TempPath("broken");
-        Directory.CreateDirectory(Path.Combine(broken, backups.LocalBackups()[0].Name));
+        Directory.CreateDirectory(broken);
         try
         {
-            server.World.UpdateSettings(w => w with { Backups = w.Backups with { CopyTo = broken } });
+            // A hand-edited folder without a passphrase: nothing is copied unencrypted.
+            server.World.UpdateSettings(w => w with { Backups = w.Backups with { CopyTo = broken, CopyPassphrase = null } });
+            Assert.False(backups.RunDaily());
+            Assert.Equal("backup_copy_passphrase", backups.LastCopy!.Error!.Key);
+            Assert.Empty(Directory.EnumerateFileSystemEntries(broken));
+
+            // A copy that fails halfway (here: a folder in the way of the file) is reported and leaves no temp file.
+            Directory.CreateDirectory(Path.Combine(broken, BackupService.CopyName(backups.LocalBackups()[0].Name)));
+            server.World.UpdateSettings(w => w with { Backups = w.Backups with { CopyPassphrase = "correct horse battery" } });
             Assert.False(backups.RunDaily()); // no exception
             Assert.False(backups.LastCopy!.Ok);
             Assert.Equal("backup_copy_failed", backups.LastCopy.Error!.Key);

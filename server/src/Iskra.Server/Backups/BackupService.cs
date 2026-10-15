@@ -161,7 +161,7 @@ public sealed class BackupService(World world, TimeProvider time, ILogger<Backup
     /// <summary>How the last copy to <c>Backups.CopyTo</c> went, or null when there's no copy folder or no try yet.</summary>
     public BackupCopyResult? LastCopy { get; private set; }
 
-    private static readonly System.Text.RegularExpressions.Regex AutoName = new(@"^auto-\d{4}-\d{2}-\d{2}\.zip$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    private static readonly System.Text.RegularExpressions.Regex AutoName = new(@"^auto-\d{4}-\d{2}-\d{2}\.iskrabackup$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
     /// <summary>
     /// Checks a copy folder: a full path outside the world folder. Returns the problem (as the request error the owner
@@ -199,9 +199,19 @@ public sealed class BackupService(World world, TimeProvider time, ILogger<Backup
         return null;
     }
 
+    /// <summary>The passphrase problem for copies (none, or too short), as the request error the owner sees, or null.</summary>
+    public static RequestException? CheckCopyPassphrase(string? passphrase) =>
+        passphrase is null || passphrase.Trim().Length < BackupFile.MinPassphrase || passphrase.Length > BackupFile.MaxPassphrase
+            ? RequestException.BadRequest($"Choose a passphrase of at least {BackupFile.MinPassphrase} characters for the backup copies: they're encrypted with it.", "backup_copy_passphrase", new { min = BackupFile.MinPassphrase })
+            : null;
+
+    /// <summary>The name of a daily backup's encrypted copy: auto-YYYY-MM-DD.zip becomes auto-YYYY-MM-DD.iskrabackup.</summary>
+    public static string CopyName(string localName) => Path.ChangeExtension(localName, BackupFile.Extension);
+
     /// <summary>
-    /// Copies the newest daily backup into <c>Backups.CopyTo</c> unless it's there already (written to a temp file,
-    /// then renamed), and keeps the newest <c>Keep</c> there. Never throws: problems end up in <see cref="LastCopy"/>
+    /// Copies the newest daily backup into <c>Backups.CopyTo</c> unless it's there already, encrypted with
+    /// <c>Backups.CopyPassphrase</c> in the same format as downloaded backups (written to a temp file, then renamed),
+    /// and keeps the newest <c>Keep</c> there. Never throws: problems end up in <see cref="LastCopy"/>
     /// and the log. Call with <c>_busy</c> held.
     /// </summary>
     private void CopyNewest()
@@ -222,15 +232,21 @@ public sealed class BackupService(World world, TimeProvider time, ILogger<Backup
                 Failed(invalid);
                 return;
             }
+            if (CheckCopyPassphrase(settings.CopyPassphrase) is { } noPassphrase)
+            {
+                Failed(noPassphrase);
+                return;
+            }
             if (!Directory.Exists(folder))
             {
                 Failed(new RequestException("not_found", "The backup copy folder doesn't exist (is the disk or share connected?).", "backup_copy_missing"));
                 return;
             }
-            var target = Path.Combine(folder, newest.Name);
-            if (!File.Exists(target) || new FileInfo(target).Length != newest.Size)
+            var name = CopyName(newest.Name);
+            var target = Path.Combine(folder, name);
+            if (!File.Exists(target)) // only ever renamed into place once complete
             {
-                var temp = Path.Combine(folder, $".{newest.Name}.{Guid.NewGuid():N}.tmp");
+                var temp = Path.Combine(folder, $".{name}.{Guid.NewGuid():N}.tmp");
                 try
                 {
                     var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write };
@@ -238,7 +254,9 @@ public sealed class BackupService(World world, TimeProvider time, ILogger<Backup
                     using (var source = File.OpenRead(Path.Combine(Folder, newest.Name)))
                     using (var output = new FileStream(temp, options))
                     {
-                        source.CopyTo(output);
+                        using (var encrypted = BackupFile.Encrypt(output, settings.CopyPassphrase!, Ed25519.ToB64u(world.ServerPublicKey),
+                                   world.Settings.Name, newest.CreatedAt, KdfCost.Ops, KdfCost.Mem))
+                            source.CopyTo(encrypted);
                         output.Flush(flushToDisk: true); // a USB stick may be pulled out
                     }
                     File.Move(temp, target, overwrite: true);
@@ -250,7 +268,7 @@ public sealed class BackupService(World world, TimeProvider time, ILogger<Backup
                 }
             }
             var keep = Math.Clamp(settings.Keep, 1, 30);
-            var copies = Directory.EnumerateFiles(folder, "auto-*.zip")
+            var copies = Directory.EnumerateFiles(folder, $"auto-*{BackupFile.Extension}")
                 .Select(Path.GetFileName)
                 .Where(name => name is not null && AutoName.IsMatch(name))
                 .OrderByDescending(name => name, StringComparer.Ordinal);
@@ -260,7 +278,7 @@ public sealed class BackupService(World world, TimeProvider time, ILogger<Backup
             {
                 if (File.GetLastWriteTimeUtc(stale) < time.GetUtcNow().UtcDateTime.AddDays(-1)) TryDelete(stale);
             }
-            LastCopy = new BackupCopyResult(now, true, newest.Name, null);
+            LastCopy = new BackupCopyResult(now, true, name, null);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -271,7 +289,7 @@ public sealed class BackupService(World world, TimeProvider time, ILogger<Backup
         {
             // Once per new problem, not every hour.
             if (LastCopy?.Error?.Message != problem.Message) log.LogWarning("Daily backup not copied to {Folder}: {Problem}", settings.CopyTo, problem.Message);
-            LastCopy = new BackupCopyResult(now, false, newest.Name, problem);
+            LastCopy = new BackupCopyResult(now, false, CopyName(newest.Name), problem);
         }
     }
 

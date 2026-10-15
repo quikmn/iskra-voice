@@ -976,6 +976,8 @@ export interface BackupStatus {
   folder: string
   /** Where each daily backup is also copied (an absolute folder on the server's computer), or null. */
   copyTo: string | null
+  /** Whether the copies' passphrase is set (the passphrase itself never leaves the server). */
+  copyPassphraseSet: boolean
   /** How the last copy there went, or null before the first try. */
   copy: {
     at: number
@@ -996,7 +998,7 @@ export interface Requests {
   'backup.status': [Record<string, never>, BackupStatus]
   'limits.get': [Record<string, never>, ServerLimits]
   'limits.update': [Partial<ServerLimits>, ServerLimits]
-  'backup.settings': [{ enabled?: boolean; keep?: number; includeUploads?: boolean; copyTo?: string | null }, BackupStatus]
+  'backup.settings': [{ enabled?: boolean; keep?: number; includeUploads?: boolean; copyTo?: string | null; sealedCopyPassphrase?: string }, BackupStatus]
   'server.move': [{ url: string }, { notice: MoveNotice }]
   'server.move.cancel': [Record<string, never>, Record<string, never>]
   'import.begin': [{ size: number; readOnly?: boolean }, { url: string; maxBytes: number }]

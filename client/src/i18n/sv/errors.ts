@@ -97,6 +97,7 @@ export const errors: Messages['errors'] = {
     backup_copy_not_found: 'Mappen finns inte. Skapa den först (och anslut disken eller nätverksmappen).',
     backup_copy_missing: 'Mappen för kopior finns inte (är disken eller nätverksmappen ansluten?).',
     backup_copy_failed: 'Kopieringen av den dagliga säkerhetskopian misslyckades: {{reason}}',
+    backup_copy_passphrase: 'Välj en lösenfras på minst {{min}} tecken för kopiorna: de krypteras med den.',
     owner_limits: 'Bara ägaren kan ändra serverns gränser.',
     owner_bug_inbox: 'Bara ägaren kan ändra felrapportinkorgen.',
     bug_inbox_channel: 'Välj en kanal för felrapporter först.',

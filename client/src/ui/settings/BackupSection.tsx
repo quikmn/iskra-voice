@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { formatDate } from '../../i18n/format'
-import { createBackup, downloadFile, formatBytes, MIN_PASSPHRASE, passphraseStrength, useBackups } from '../../state/backups'
+import { createBackup, downloadFile, formatBytes, MIN_PASSPHRASE, passphraseStrength, sealPassphrase, useBackups } from '../../state/backups'
 import { connectionFor, type ServerState } from '../../state/store'
 import type { BackupStatus } from '../../core/protocol'
 import { Spinner } from '../bits'
@@ -105,7 +105,7 @@ function AutoBackups({ server }: { server: ServerState }) {
     connectionFor(server.key)?.request('backup.status', {}).then(setStatus).catch((e: Error) => setError(errorMessage(e)))
   }, [server.key])
 
-  async function change(patch: { enabled?: boolean; keep?: number; includeUploads?: boolean; copyTo?: string | null }) {
+  async function change(patch: { enabled?: boolean; keep?: number; includeUploads?: boolean; copyTo?: string | null; sealedCopyPassphrase?: string }) {
     setError(null)
     try {
       const next = await connectionFor(server.key)?.request('backup.settings', patch)
@@ -164,23 +164,41 @@ function AutoBackups({ server }: { server: ServerState }) {
         status.auto.enabled && <p className="muted">{t('settings.backup.firstSoon')}</p>
       )}
       <p className="muted backup-folder"><Trans i18nKey="settings.backup.inFolder" values={{ folder: status.folder }} components={{ code: <code /> }} /></p>
-      {status.auto.enabled && <CopyBackups status={status} change={change} />}
+      {status.auto.enabled && <CopyBackups server={server} status={status} change={change} />}
       {error && <p className="error-text">{error}</p>}
     </>
   )
 }
 
-/** "Also copy them to": a folder on another disk of the server's computer (Backups.CopyTo). */
-function CopyBackups({ status, change }: { status: BackupStatus; change: (patch: { copyTo: string | null }) => Promise<boolean> }) {
+/** "Also copy them to": a folder on another disk of the server's computer (Backups.CopyTo), encrypted with a passphrase. */
+function CopyBackups({ server, status, change }: {
+  server: ServerState
+  status: BackupStatus
+  change: (patch: { copyTo: string | null; sealedCopyPassphrase?: string }) => Promise<boolean>
+}) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState(status.copyTo ?? '')
+  const [passphrase, setPassphrase] = useState('')
+  const [again, setAgain] = useState('')
   const [busy, setBusy] = useState(false)
   const copy = status.copy
   const when = copy ? formatDate(copy.at, { dateStyle: 'medium', timeStyle: 'short' }) : ''
+  const strength = passphraseStrength(passphrase)
+  const mismatch = again.length > 0 && again !== passphrase
+  // A new passphrase is needed the first time; after that only to change it.
+  const passphraseOk = passphrase ? strength !== 'too-short' && again === passphrase : status.copyPassphraseSet
+  const folder = draft.trim()
+  const changed = folder !== (status.copyTo ?? '') || passphrase.length > 0
+  const ready = !busy && folder.length > 0 && changed && passphraseOk
 
   async function save(copyTo: string | null) {
     setBusy(true)
-    if (await change({ copyTo }) && copyTo === null) setDraft('')
+    const sealedCopyPassphrase = copyTo && passphrase ? sealPassphrase(server.key, passphrase) : undefined
+    if (await change({ copyTo, ...(sealedCopyPassphrase ? { sealedCopyPassphrase } : {}) })) {
+      setPassphrase('')
+      setAgain('')
+      if (copyTo === null) setDraft('')
+    }
     setBusy(false)
   }
 
@@ -188,11 +206,33 @@ function CopyBackups({ status, change }: { status: BackupStatus; change: (patch:
     <div className="backup-copy">
       <strong>{t('settings.backup.copyTitle')}</strong>
       <p className="muted">{t('settings.backup.copyHint')}</p>
-      <form className="copy-row" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) void save(draft.trim()) }}>
-        <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="/mnt/usb/iskra" maxLength={1024}
-          aria-label={t('settings.backup.copyFolder')} spellCheck={false} autoCapitalize="off" autoCorrect="off" disabled={busy} />
-        <button className="button" type="submit" disabled={busy || !draft.trim() || draft.trim() === status.copyTo}>{t('settings.backup.copySave')}</button>
-        {status.copyTo && <button className="button ghost" type="button" disabled={busy} onClick={() => void save(null)}>{t('settings.backup.copyStop')}</button>}
+      <form className="backup-copy-form" onSubmit={(e) => { e.preventDefault(); if (ready) void save(folder) }}>
+        <label className="field">
+          <span>{t('settings.backup.copyFolder')}</span>
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="/mnt/usb/iskra" maxLength={1024}
+            spellCheck={false} autoCapitalize="off" autoCorrect="off" disabled={busy} />
+        </label>
+        <label className="field">
+          <span>{t('settings.backup.copyPassphrase')}</span>
+          <input type="password" autoComplete="new-password" value={passphrase} maxLength={1024} disabled={busy}
+            onChange={(e) => setPassphrase(e.target.value)} aria-describedby={`copy-strength-${server.key}`} />
+        </label>
+        <p id={`copy-strength-${server.key}`} className={`backup-strength ${passphrase ? strength : ''}`}>
+          {passphrase ? t(`settings.backup.strength.${strength === 'too-short' ? 'tooShort' : strength}`, { min: MIN_PASSPHRASE })
+            : status.copyPassphraseSet ? t('settings.backup.copyPassphraseKept') : t('settings.backup.copyNeedsPassphrase')}
+        </p>
+        {passphrase && (
+          <label className="field">
+            <span>{t('settings.backup.again')}</span>
+            <input type="password" autoComplete="new-password" value={again} maxLength={1024} disabled={busy}
+              onChange={(e) => setAgain(e.target.value)} aria-invalid={mismatch} />
+          </label>
+        )}
+        {mismatch && <p className="error-text">{t('keys.appLock.mismatch')}</p>}
+        <div className="copy-row">
+          <button className="button" type="submit" disabled={!ready}>{t('settings.backup.copySave')}</button>
+          {status.copyTo && <button className="button ghost" type="button" disabled={busy} onClick={() => void save(null)}>{t('settings.backup.copyStop')}</button>}
+        </div>
       </form>
       {status.copyTo && (
         copy?.ok ? <p className="muted backup-copy-state" role="status">{t('settings.backup.copyOk', { name: copy.name, when })}</p>

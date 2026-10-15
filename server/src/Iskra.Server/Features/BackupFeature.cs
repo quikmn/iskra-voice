@@ -94,6 +94,7 @@ public static class BackupFeature
             local = backups.LocalBackups().Select(b => new { name = b.Name, size = b.Size, createdAt = b.CreatedAt }),
             folder = backups.Folder,
             copyTo = string.IsNullOrWhiteSpace(settings.CopyTo) ? null : settings.CopyTo,
+            copyPassphraseSet = !string.IsNullOrEmpty(settings.CopyPassphrase), // never the passphrase itself
             copy = backups.LastCopy is { } copy
                 ? new
                 {
@@ -128,7 +129,25 @@ public static class BackupFeature
                 copyTo = full;
             }
         }
-        var before = s.World.Settings.Backups;
+        // The copies' passphrase, sealed to the server key like backup.create's, never in the clear.
+        if (body.OptionalString("copyPassphrase", BackupFile.MaxPassphrase) is not null)
+            throw RequestException.BadRequest("Send the passphrase sealed to the server key ('sealedCopyPassphrase'), never in the clear.");
+        string? passphrase = null;
+        if (body.OptionalString("sealedCopyPassphrase", MaxSealedLength) is { } sealedCopy)
+        {
+            passphrase = OpenPassphrase(s.World, sealedCopy)
+                ?? throw RequestException.BadRequest("The passphrase couldn't be read. Reconnect and try again.", "passphrase_unreadable");
+            if (BackupService.CheckCopyPassphrase(passphrase) is { } weak) throw weak;
+        }
+        var current = s.World.Settings.Backups;
+        var nextCopyTo = copyToGiven ? copyTo : current.CopyTo;
+        // No folder, no passphrase; a folder needs one (given now or kept from before).
+        var nextPassphrase = string.IsNullOrWhiteSpace(nextCopyTo) ? null : passphrase ?? current.CopyPassphrase;
+        // (Checked when the copy settings change; a hand-edited server.json without one shows up as a failed copy.)
+        if ((copyToGiven || passphrase is not null) && !string.IsNullOrWhiteSpace(nextCopyTo) &&
+            BackupService.CheckCopyPassphrase(nextPassphrase) is { } missing) throw missing;
+
+        var before = current;
         s.World.UpdateSettings(w => w with
         {
             Backups = w.Backups with
@@ -136,15 +155,17 @@ public static class BackupFeature
                 Enabled = enabled ?? w.Backups.Enabled,
                 Keep = (int?)keep ?? w.Backups.Keep,
                 IncludeUploads = includeUploads ?? w.Backups.IncludeUploads,
-                CopyTo = copyToGiven ? copyTo : w.Backups.CopyTo,
+                CopyTo = nextCopyTo,
+                CopyPassphrase = nextPassphrase,
             },
         });
         var after = s.World.Settings.Backups;
         if (after != before)
         {
-            SecurityLog.Record(s, "backup.settings", details: new { from = before, to = after });
+            // Never the passphrase itself: only whether there is one.
+            SecurityLog.Record(s, "backup.settings", details: new { from = before.Redacted(), to = after.Redacted() });
             // Copy the newest daily backup there right away (or forget the old folder's status).
-            if (after.CopyTo != before.CopyTo || after.Keep != before.Keep) _ = backups.CopyNowAsync();
+            if (after.CopyTo != before.CopyTo || after.Keep != before.Keep || after.CopyPassphrase != before.CopyPassphrase) _ = backups.CopyNowAsync();
         }
         return Status(backups, s, me);
     }

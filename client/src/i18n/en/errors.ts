@@ -99,6 +99,7 @@ export const errors = {
     backup_copy_not_found: "That folder doesn't exist. Create it first (and connect the disk or share).",
     backup_copy_missing: "The backup copy folder doesn't exist (is the disk or share connected?).",
     backup_copy_failed: 'Copying the daily backup failed: {{reason}}',
+    backup_copy_passphrase: "Choose a passphrase of at least {{min}} characters for the backup copies: they're encrypted with it.",
     owner_limits: "Only the owner can change this server's limits.",
     owner_bug_inbox: 'Only the owner can change the bug inbox.',
     bug_inbox_channel: 'Pick a channel for bug reports first.',

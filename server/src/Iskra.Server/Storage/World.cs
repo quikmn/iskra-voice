@@ -177,6 +177,16 @@ public sealed record BackupSettings
     /// mounted shows up as a failed copy instead of filling the system disk.
     /// </summary>
     public string? CopyTo { get; init; }
+    /// <summary>
+    /// The passphrase the copies in <see cref="CopyTo"/> are encrypted with (the .iskrabackup format). It protects the
+    /// copy medium only: whoever can read this file can read the world and its key anyway. Never logged or sent.
+    /// </summary>
+    public string? CopyPassphrase { get; init; }
+
+    /// <summary>The settings without the passphrase (only whether there is one), for logs and the security log.</summary>
+    public object Redacted() => new { Enabled, Keep, IncludeUploads, CopyTo, CopyPassphraseSet = !string.IsNullOrEmpty(CopyPassphrase) };
+
+    public override string ToString() => $"BackupSettings {{ Enabled = {Enabled}, Keep = {Keep}, IncludeUploads = {IncludeUploads}, CopyTo = {CopyTo}, CopyPassphrase = {(string.IsNullOrEmpty(CopyPassphrase) ? "none" : "set")} }}";
 }
 
 /// <summary>Imports (Discord exports).</summary>
