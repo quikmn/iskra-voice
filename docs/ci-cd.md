@@ -663,7 +663,7 @@ for all of them and is green only when every one passed: it's the check to requi
 fails it merges the shards' blob reports into one HTML report, the artifact `playwright-report` (open `index.html`;
 traces included); each failing shard also keeps its `playwright-results-<n>` folder. Run one shard locally the same
 way: `node ../scripts/e2e-shards.mjs list 2 4 shard.txt`, then `npx playwright test --test-list shard.txt` (in
-`client/`). LiveKit (`.tools/livekit-server`) and the captions model are cached on their pins.
+`client/`). LiveKit (`.tools/livekit-server`) and the captions and English/Swedish translation models (`get-models.mjs --translate sv`) are cached on their pins.
 
 **Fewer jobs per push.** GitHub runs 20 jobs at once on this plan (40 on Pro); one push to main starts 17 (15 CI, counting the small `report to Iskra` job, + the
 secrets scan; pushes skip macOS, CodeQL and Scorecard, which run on PRs, nightly or weekly). A newer push to the same

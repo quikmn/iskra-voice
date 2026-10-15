@@ -38,6 +38,9 @@ import { KeyHistory } from './keys/KeyTransparency'
 import { messageListKeys, useAnnounceNew } from './a11y'
 import { useBotPeer } from '../state/botDms'
 import { BotBadge } from './chat/BotBits'
+import { AutoTranslateButton, TranslationBlock } from './translate/Translate'
+import { dmItem } from './translate/items'
+import { convKey } from '../state/translate'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -177,6 +180,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         {!peerBot.bot && <DmTimerButton peer={peer} canChange={reachable && !blocked} />}
         {reachable && !peerBot.bot && <span className="dm-header-friend"><FriendButtons accountKey={peer} header /></span>}
         {!blocked && !peerBot.bot && <CallButtons peer={peer} />}
+        <AutoTranslateButton conv={convKey.dm(peer)} />
         <button className="button small" onClick={() => setVerify(true)}>{t('app.home.verify')}</button>
       </header>
       <CallPanel peer={peer} />
@@ -223,8 +227,9 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
 function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: string; mine: boolean }) {
   const { t } = useTranslation()
   const name = nameOf(dm.from)
+  const translateItem = dm.pending || dm.error || asLog(dm.call) ? null : dmItem(peer, dm, (k) => nameOf(k))
   // No saving or reminders for disappearing messages: they would keep a copy of it.
-  const tools = usePrivateMessageTools(dm.pending || dm.error || asLog(dm.call) || dm.expiresAt ? null : dmTarget(peer, dm), dm.text)
+  const tools = usePrivateMessageTools(dm.pending || dm.error || asLog(dm.call) || dm.expiresAt ? null : dmTarget(peer, dm), dm.text, translateItem)
   const alerts = useAlertPattern(null)
   const alerted = !mine && matchesAlert(alerts, dm.text)
   return (
@@ -249,6 +254,7 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
           <>
             {dm.forward && <ForwardedLine label={dm.forward.from} />}
             {dm.text && <div className="message-text">{renderMarkdown(dm.text, { nameOf: (k) => nameOf(k), alerts })}</div>}
+            <TranslationBlock item={translateItem} />
             {dm.forward && dm.forward.files.length > 0 && <ForwardedFiles files={dm.forward.files} />}
             <DmAttachments files={dm.files} />
           </>

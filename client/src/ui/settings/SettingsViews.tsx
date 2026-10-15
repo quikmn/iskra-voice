@@ -39,6 +39,7 @@ import { LimitsSection } from './LimitsSection'
 import { BugInboxSection } from './BugInboxSection'
 import { AfkSection } from '../afk/AfkSection'
 import { UpdatesSection } from './UpdatesSection'
+import { TranslateServerSection } from '../translate/TranslateServerSection'
 import { LanguageSection } from './LanguageSection'
 import { RulesSection } from '../rules/Rules'
 import { ImportSection } from './ImportSection'
@@ -340,6 +341,7 @@ function ServerSection({ id, server, onClose }: { id: ServerSectionId; server: S
     case 'backup': return <BackupSection server={server} />
     case 'import': return <ImportSection server={server} />
     case 'updates': return <UpdatesSection server={server} />
+    case 'translate': return <TranslateServerSection server={server} />
   }
 }
 

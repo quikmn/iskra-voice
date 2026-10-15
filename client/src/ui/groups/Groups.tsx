@@ -33,6 +33,9 @@ import { groupText } from './groupText'
 import { errorMessage } from '../../i18n/errors'
 import { userMenuProps } from '../people/userMenuProps'
 import { messageListKeys, useAnnounceNew } from '../a11y'
+import { AutoTranslateButton, TranslationBlock } from '../translate/Translate'
+import { groupItem } from '../translate/items'
+import { convKey } from '../../state/translate'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -430,6 +433,7 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
         <span className="spacer" />
         <GroupTimerButton groupKey={groupKey} canChange={member && !reason} />
         {member && <GroupCallButtons groupKey={groupKey} />}
+        <AutoTranslateButton conv={convKey.group(groupKey)} />
         <button className="icon-button" onClick={() => setDialog('members')} aria-label={t('groups.groupMembers')} title={t('groups.membersTitle')}>
           <Users />
         </button>
@@ -489,8 +493,9 @@ function SystemLine({ text, at, icon }: { text: string; at: number; icon?: 'penc
 function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolean; groupKey: string; mine: boolean }) {
   const { t } = useTranslation()
   const name = knownName(m.from)
+  const translateItem = m.pending || m.error || m.call ? null : groupItem(groupKey, m.id, m.text, (k) => knownName(k))
   // No saving or reminders for disappearing messages: they would keep a copy of it.
-  const tools = usePrivateMessageTools(m.pending || m.error || m.call || m.expiresAt ? null : groupTarget(groupKey, m), m.text)
+  const tools = usePrivateMessageTools(m.pending || m.error || m.call || m.expiresAt ? null : groupTarget(groupKey, m), m.text, translateItem)
   const alerts = useAlertPattern(null)
   const alerted = !mine && matchesAlert(alerts, m.text)
   return (
@@ -512,6 +517,7 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
         ) : (
           <>
             {m.text && <div className="message-text">{renderMarkdown(m.text, { nameOf: (k) => knownName(k), alerts })}</div>}
+            <TranslationBlock item={translateItem} />
             <DmAttachments files={m.files} />
           </>
         )}

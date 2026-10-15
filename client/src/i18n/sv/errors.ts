@@ -100,6 +100,7 @@ export const errors: Messages['errors'] = {
     owner_transfer: 'Bara ägaren kan lämna över servern.',
     owner_import: 'Bara ägaren kan importera.',
     owner_updates: 'Bara ägaren kan hantera uppdateringar.',
+    owner_translate: 'Bara ägaren kan ändra översättning.',
     owner_move: 'Bara ägaren kan flytta servern.',
     owner_internet: 'Bara ägaren kan öppna servern mot internet.',
     owner_p2p: 'Bara ägaren kan ändra hur vänner ansluter.',

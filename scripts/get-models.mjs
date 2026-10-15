@@ -6,6 +6,7 @@
 //                                          the Whisper unit test and scripts/bench-captions.mjs read it)
 //   node scripts/get-models.mjs --out X  → somewhere else
 //   node scripts/get-models.mjs --blur   → also re-fetch the vendored Selfie Segmenter to check it
+//   node scripts/get-models.mjs --translate [sv|de,fr|all] → also message-translation models (models/translate/<dir>/)
 // Parts already there with the right hash are kept, so it's cheap to run again.
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -51,6 +52,28 @@ for (const f of MANIFEST.files) {
   console.log(`${f.name}: ${data.length} bytes in ${f.parts.length} part(s)`)
 }
 console.log(`Whisper base is in ${dir}`)
+
+// Message translation (client/src/state/translate/models.json): Swedish to and from English by default,
+// `--translate de,fr` for those languages, `--translate all` for every pinned pair.
+const translateArg = args.indexOf('--translate')
+if (translateArg >= 0) {
+  const pins = JSON.parse(readFileSync(join(ROOT, 'client/src/state/translate/models.json'), 'utf8'))
+  const wanted = args[translateArg + 1] && !args[translateArg + 1].startsWith('--') ? args[translateArg + 1] : 'sv'
+  const langs = wanted === 'all' ? null : new Set(wanted.split(','))
+  for (const model of pins.models) {
+    if (langs && !langs.has(model.from) && !langs.has(model.to)) continue
+    const target = join(out, 'models', 'translate', model.dir)
+    mkdirSync(target, { recursive: true })
+    for (const f of model.files) {
+      const paths = f.parts.map((_, i) => join(target, `${f.name}.part${i}.bin`))
+      if (paths.every((p, i) => existsSync(p) && sha256(readFileSync(p)) === f.parts[i].sha256)) continue
+      const data = await download(`${model.source}/${f.from}`)
+      if (sha256(data) !== f.sha256) throw new Error(`${model.name} ${f.name}: sha256 ${sha256(data)}, expected ${f.sha256}`)
+      f.parts.forEach((part, i) => writeFileSync(paths[i], data.subarray(i * PART, i * PART + part.bytes)))
+    }
+    console.log(`${model.name}: in ${target}`)
+  }
+}
 
 if (args.includes('--blur')) {
   // MediaPipe Selfie Segmenter, general model (Google, Apache-2.0), version 1: committed in client/vendor/mediapipe.

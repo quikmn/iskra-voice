@@ -2292,3 +2292,21 @@ export interface Requests {
   'disappear.set': [{ channelId?: number; accountKey?: string; groupId?: string; seconds: number }, { timer: DisappearTimer }]
   'disappear.list': [Record<string, never>, { timers: DisappearTimer[] }]
 }
+
+// ── translation models ──
+// See "Translation models" in PROTOCOL.md: translation runs on the device; the models come from the member's own server.
+
+/** A short-lived link to this server's translation models (members only). `models`: pair names like "en-sv". */
+export type TranslateModelsLink = { offered: false } | { offered: true; models: string[]; path: string; query: string; expires: number }
+
+/** Server settings → Translation (owner only). `downloaded`: the models already on the server. */
+export interface TranslateConfig {
+  offer: boolean
+  downloaded: string[]
+}
+
+export interface Requests {
+  'translate.models.link': [Record<string, never>, TranslateModelsLink]
+  'translate.config': [Record<string, never>, TranslateConfig]
+  'translate.configure': [{ offer: boolean }, TranslateConfig]
+}

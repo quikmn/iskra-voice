@@ -1,11 +1,11 @@
 # Voice processing
 
-How Iskra cleans up your microphone and what you hear, blurs or replaces your camera's background, and captions what
-people say. **Everything runs on your own device**: the models and engines ship inside the app (and the web app, from
+How Iskra cleans up your microphone and what you hear, blurs or replaces your camera's background, captions what
+people say, and translates messages. **Everything runs on your own device**: the models and engines ship inside the app (and the web app, from
 its own address), audio and video are processed in your browser or desktop app, and no sound, picture, transcript or
 model input is sent anywhere for processing. Nothing about it is logged or stored, apart from your settings on this
 device, the flags that remember when this device was too slow for AI noise removal or a background effect, and the
-speech model kept on the device so it's only downloaded once.
+speech and translation models kept on the device so they're only downloaded once.
 
 ## Your microphone
 
@@ -145,6 +145,48 @@ readers as a polite live region); the × or the button turns them off again.
 - **Privacy.** Getting the model is an ordinary file request to your own server. No audio, text or anything about
   the call goes with it, and the workers that run the models can't fetch anything at all.
 
+## Message translation
+
+**Translate** in a message's menu (channels, threads, DMs and group DMs; press and hold on a phone) shows the message
+in your language under the original: "Translated from Swedish · Show original". The translation button in a
+conversation's header turns on **Auto-translate messages not in my language** there, and picks the language to
+translate into (your app language unless you choose another; also in My settings → Language).
+
+- **On your device, after decryption.** It runs in a Web Worker on the text your app already shows, so it works for
+  end-to-end encrypted channels, DMs and groups too. No message text is sent anywhere: not to your server, not to any
+  translation service. Translations live only in the page's memory and are gone when the app closes.
+- **Which language.** [ELD](https://github.com/nitotm/efficient-language-detector-js) (n-grams, its smallest database,
+  under 1 MB, bundled) tells the language on the device. Links, mentions, emoji, code and numbers don't count; a few
+  letters ("lol", "ok") aren't enough, and auto-translate only acts when it's sure. On a close call between similar
+  languages (Swedish, Danish, Norwegian) your own language wins, so your own messages stay untouched.
+- **The engine.** [Bergamot](https://github.com/browsermt/bergamot-translator), the WebAssembly translation engine
+  of Firefox Translations (5 MB, bundled; `client/vendor/bergamot`, made by `scripts/vendor-bergamot.mjs` from the npm
+  release, checked by its SHA-512), runs Mozilla's [Firefox Translations models](https://mozilla.github.io/translations/firefox-models/)
+  on the CPU: a chat message takes 10-150 ms. Plain text in and out, never HTML.
+- **Languages.** English to and from Swedish, Danish, Norwegian (Bokmål), Finnish, German, French, Spanish, Italian,
+  Dutch, Portuguese, Polish and Ukrainian (`client/src/state/translate/models.json`, written by
+  `scripts/translate-pins.mjs` from Mozilla's model registry: released models only). Between two other languages it
+  goes through English (Swedish → English → German) in one step.
+- **Why Bergamot.** Its models are small because they're made for CPUs in browsers: 14-26 MB per direction as
+  downloaded (17-32 MB unpacked), against about 110 MB for an Opus-MT model run with Transformers.js and ONNX Runtime,
+  and they're faster. Mozilla keeps training and releasing them for Firefox. Code and models are MPL-2.0, so any
+  server owner may pass them on.
+- **Where the models come from: your own server.** They aren't part of the app and not in git. An owner offers them in
+  Server settings → Translation (off by default; it shows what each language weighs). The first time you translate
+  from a language this device doesn't have, the message says what it needs ("Translating from Swedish needs a one-time
+  15 MB download from your server", with a word about mobile data on a phone) and waits for **Download**. The parts
+  come from one of your servers that offers them (`GET /models/translate/<dir>/<part>`, with a short-lived
+  members-only link; [PROTOCOL.md](../protocol/PROTOCOL.md#translation-models)). That server fetched that one model
+  from Mozilla's storage the first time a member needed it, and keeps it in `models/translate/`: only languages
+  members use are ever fetched, and Mozilla only sees the server's address. If none of your servers offers
+  translation, **Translate** says so.
+- **Hash checks.** The server checks every file and part against the SHA-256s pinned in `models.json` (compiled into
+  both), the app checks every part again, unpacks it (gzip) and checks the unpacked file too. Anything that doesn't
+  match is refused and never used or kept.
+- **Kept on the device** in Cache Storage (`iskra-translate-models`), or IndexedDB where it can't (the desktop app),
+  under a key that doesn't depend on the server: one download per language and direction per device. Models of an
+  older version are removed.
+
 ## How transparent it is
 
 `node scripts/audio-quality.mjs` in `client/` runs the e2e speech fixture (a real recording: a quiet room, noise
@@ -233,6 +275,9 @@ phones are slower, which is what the fallback is for.
 | [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) (runs Whisper) | 1.30.0, `ort-wasm-simd-threaded.wasm` (sha256 `3398c10d…`) | npm | MIT |
 | [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) (runs the segmenter) | 0.10.35, `vision_wasm_module_internal.wasm` (sha256 `617b8e02…`) | npm | Apache-2.0 |
 | [MediaPipe Selfie Segmenter](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter) (model, general, float16) | version 1, `selfie_segmenter.tflite` (sha256 `191ac952…`) | `client/vendor/mediapipe/` | Apache-2.0 (`LICENSE`; per its model card) |
+| [Bergamot translator](https://github.com/browsermt/bergamot-translator) (WebAssembly build) | npm `@browsermt/bergamot-translator` 0.4.9 (sha512 `bNuuCwM/…`; built from commit `8cc5d049`) | `client/vendor/bergamot/` (glue wrapped as an ES module by `scripts/vendor-bergamot.mjs`) | MPL-2.0 (`LICENSE`, from the repository at that commit) |
+| [Firefox Translations models](https://mozilla.github.io/translations/firefox-models/) (Mozilla) | released models pinned in `client/src/state/translate/models.json` (training run path and SHA-256 per file) | fetched by each Iskra server whose owner offers translation, into `models/translate/`, then by apps from there; not in git | MPL-2.0 ("The model files are distributed under the MPL 2.0 license": [mozilla/translations README](https://github.com/mozilla/translations/blob/69455acaecbe8650cdba988dbcf7c10ca20e7c48/README.md)) |
+| [ELD](https://github.com/nitotm/efficient-language-detector-js) (Efficient Language Detector, extra-small database) | npm `eld` 2.1.0 | bundled (in the translate worker) | Apache-2.0 |
 
 DeepFilterNet's code was changed to build against tract 0.23 (`client/vendor/deepfilternet/tract-0.23.patch`; API
 updates only, the model is unchanged) and to let the app set its local SNR thresholds (`wasm-thresholds.patch`).

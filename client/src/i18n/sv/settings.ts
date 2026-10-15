@@ -33,6 +33,7 @@ export const settings: Messages['settings'] = {
     backup: 'Säkerhetskopia och flytt',
     import: 'Importera från Discord',
     updates: 'Serveruppdateringar',
+    translate: 'Översättning',
     privacy: 'Integritet och data',
     securityLog: 'Inloggningar och säkerhet',
     members: 'Medlemmar',

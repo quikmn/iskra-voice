@@ -15,7 +15,7 @@ public sealed class Router
     private readonly ILogger<Router> _log;
 
     public Router(ILogger<Router> log, Hosting.InternetHost internet, Backups.BackupService backups, Import.ImportService imports,
-        DataExports exports, Updates.UpdateService updates, Captions.CaptionModelService captions,
+        DataExports exports, Updates.UpdateService updates, Captions.CaptionModelService captions, Translate.TranslationModelService translations,
         Hosting.TunnelListener tunnel, Voice.LiveKitHost livekit, Hosting.P2pSidecar sidecar)
     {
         _log = log;
@@ -75,6 +75,7 @@ public sealed class Router
         E2eeChannelFeature.Register(this);
         BotCommandFeature.Register(this);
         Captions.CaptionModelFeature.Register(this, captions);
+        Translate.TranslateFeature.Register(this, translations);
         OutgoingWebhookFeature.Register(this);
         BuiltinBotFeature.Register(this);
         BotScope.Register(this);

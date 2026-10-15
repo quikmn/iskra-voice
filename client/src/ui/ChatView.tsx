@@ -27,6 +27,9 @@ import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
 import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, Volume, WifiOff } from './icons'
 import { HeaderTools } from './chat/HeaderTools'
+import { AutoTranslateButton, TranslationBlock } from './translate/Translate'
+import { channelItem } from './translate/items'
+import { convKey } from '../state/translate'
 import { EncryptedBits, EncryptedWriteBlock, EncryptionButton, LockBadge, StartOverRecordLine, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
 import { editEncrypted, isEncrypted, uploadFor } from '../state/e2eeChannels'
 import { MessageActionSheet } from './chat/MessageActionSheet'
@@ -120,6 +123,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         )}
         <span className="spacer" />
         <HeaderTools key={channel?.id} server={server} channel={channel} />
+        {channel && channel.kind === 'text' && <AutoTranslateButton conv={convKey.channel(server.key, channel.id)} />}
         <EncryptionButton server={server} channel={channel} />
         <ChannelSettingsButton server={server} channel={channel} />
         {channel?.kind === 'text' && <ChannelPopoutButton serverKey={server.key} channelId={channel.id} />}
@@ -323,6 +327,7 @@ function MessageRow({
   const emojiLookup = useEmojiLookup(server.key)
   const alerts = useAlertPattern(server.key)
   const alerted = !mine && !message.forwarded && matchesAlert(alerts, message.text)
+  const translateItem = message.tempId ? null : channelItem(server, message)
   const { t } = useTranslation()
 
   function jumpTo(id: number) {
@@ -393,6 +398,7 @@ function MessageRow({
             </div>
           )
         )}
+        {!editing && <TranslationBlock item={translateItem} />}
         {message.builtin && <BuiltinReply server={server} reply={message.builtin} />}
         {message.poll && <PollCard server={server} message={message} />}
         {message.lfg && <LfgCard server={server} message={message} />}

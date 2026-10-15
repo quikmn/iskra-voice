@@ -47,6 +47,7 @@ import { whisper } from './whisper'
 import { teams } from './teams'
 import { lfg } from './lfg'
 import { disappear } from './disappear'
+import { translate } from './translate'
 
 export const en = {
   common,
@@ -97,4 +98,5 @@ export const en = {
   teams,
   lfg,
   disappear,
+  translate,
 } as const
