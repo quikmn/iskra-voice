@@ -14,9 +14,12 @@ const hasPwsh = spawnSync('pwsh', ['-NoProfile', '-Command', 'exit 0']).status =
 const skip = hasPwsh ? false : 'pwsh is not installed'
 
 // Runs a PowerShell snippet with the module loaded; returns its JSON output.
-function ps(body) {
+function ps(body, env = {}) {
   const script = `$ErrorActionPreference = 'Stop'; Import-Module '${module.replaceAll("'", "''")}' -Force\n${body}`
-  const out = execFileSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8' })
+  // Run as on the PC (the login line differs inside GitHub Actions), unless a test says otherwise.
+  const base = { ...process.env }
+  delete base.GITHUB_ACTIONS
+  const out = execFileSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', env: { ...base, ...env } })
   return JSON.parse(out)
 }
 
@@ -62,6 +65,51 @@ test('the newest matching certificate is used, and an expiry within 30 days is f
   assert.equal(r.ExpiresSoon, true)
 })
 
+// Confirm-Signing: the test signature, then the automatic SimplySign login once (fakes for both).
+const okTest = "{ @{ Ok = $true; Message = 'signing works (x)' } }"
+const noCertTest = `{ @{ Ok = $false; Reason = 'no-cert'; Message = "SimplySign isn't logged in. $(Get-SimplySignLoginLine)" } }`
+const confirm = (test, login, env) => ps(`$r = Confirm-Signing -Test ${test} -Login ${login}; [pscustomobject]$r | Select-Object Ok, Reason, Message, AutoLogin | ConvertTo-Json -Compress`, env)
+
+test('Confirm-Signing: signing works, so no login is tried', { skip }, () => {
+  const r = confirm(okTest, "{ throw 'must not log in' }")
+  assert.equal(r.Ok, true)
+  assert.equal(r.AutoLogin, null)
+})
+
+test("Confirm-Signing: no seed stored keeps today's line (log in by hand); an expired certificate never tries a login", { skip }, () => {
+  const r = confirm(noCertTest, "{ @{ Code = 2; Line = 'no seed stored' } }")
+  assert.equal(r.Ok, false)
+  assert.match(r.Message, /Log in to SimplySign Desktop \(6-digit code from the app\), then run scripts\/release\.ps1 again\.$/)
+  const expired = confirm("{ @{ Ok = $false; Reason = 'expired'; Message = 'expired on 2026-10-14' } }", "{ throw 'must not log in' }")
+  assert.equal(expired.Reason, 'expired')
+})
+
+test('Confirm-Signing: the login works, the second test signature passes', { skip }, () => {
+  const r = confirm("{ if ($script:n++) { @{ Ok = $true; Message = 'signing works (x)' } } else { @{ Ok = $false; Reason = 'no-cert'; Message = 'not logged in' } } }", "{ @{ Code = 0; Line = 'logged in (dialog)' } }")
+  assert.equal(r.Ok, true)
+  assert.equal(r.AutoLogin, true)
+  assert.match(r.Message, /SimplySign logged itself in$/)
+})
+
+test('Confirm-Signing: a failed or refused login says why, with the line to log in by hand (on GitHub: re-run)', { skip }, () => {
+  const failed = confirm(noCertTest, `{ @{ Code = 1; Line = "the login (dialog) didn't work within 90 s" } }`)
+  assert.equal(failed.Ok, false)
+  assert.match(failed.Message, /automatic login didn't help \(the login \(dialog\) didn't work within 90 s\)\. Log in to SimplySign Desktop/)
+  const once = confirm(noCertTest, "{ @{ Code = 3; Line = 'SimplySign already had its one login attempt in this run' } }", { GITHUB_ACTIONS: 'true' })
+  assert.match(once.Message, /one login attempt in this run.*on the home PC .*re-run the failed jobs of this Release run\.$/)
+  const still = confirm("{ @{ Ok = $false; Reason = 'sign-failed'; Message = 'still no' } }", "{ @{ Code = 0; Line = 'logged in' } }")
+  assert.match(still.Message, /^SimplySign logged in, but the test signature still fails: still no/)
+})
+
+test("installed Windows apps accept updates signed by today's and a future publisher (electron-updater publisherName)", () => {
+  const pkg = JSON.parse(readFileSync(join(here, '../desktop/package.json'), 'utf8'))
+  const names = pkg.build.win.signtoolOptions.publisherName
+  assert.ok(Array.isArray(names))
+  assert.equal(names[0], pkg.build.win.signtoolOptions.certificateSubjectName, "today's certificate first")
+  assert.ok(names.includes('CN=Viktor Lundgren, C=SE'), "a future certificate in the owner's own name, pinned to Sweden (a DN, so the country must match too)")
+  assert.match(readFileSync(join(here, 'release-checks.psm1'), 'utf8'), new RegExp(`Subject = '${names[0]}'`))
+})
+
 test('Android prerequisites: all there, then each missing one named (presence only)', { skip }, () => {
   const dev = mkdtempSync(join(tmpdir(), 'iskra-android-'))
   try {
@@ -89,7 +137,7 @@ test('Android prerequisites: all there, then each missing one named (presence on
 })
 
 test('the PowerShell release scripts parse', { skip }, () => {
-  for (const f of ['release.ps1', 'release-windows.ps1', 'release-checks.psm1', '../desktop/scripts/sign.ps1', '../mobile/scripts/build-android.ps1']) {
+  for (const f of ['release.ps1', 'release-windows.ps1', 'release-checks.psm1', 'release-pc-checks.ps1', 'simplysign.psm1', 'simplysign-login.ps1', 'simplysign-setup.ps1', 'runner-setup.ps1', 'runner-job-guard.ps1', '../desktop/scripts/sign.ps1', '../mobile/scripts/build-android.ps1']) {
     const path = join(here, f).replaceAll("'", "''")
     const errors = ps(`$e = $null; $null = [System.Management.Automation.Language.Parser]::ParseFile('${path}', [ref]$null, [ref]$e); ConvertTo-Json -Compress -InputObject @($e | ForEach-Object { "$($_.Extent.StartLineNumber): $($_.Message)" })`)
     assert.deepEqual(errors, [], f)

@@ -6,6 +6,8 @@ name: Release finalize
 # Runs in the `release` environment, which has no required reviewers: nothing waits for a click.
 # Release builds start on the tag without waiting for CI, so this is the automatic gate: nothing is uploaded or published until the
 # CI workflow concluded success on the tagged commit (scripts/ci-gate.mjs; waits up to CI_WAIT_MINUTES, then fails).
+# The Release workflow (release-all.yml) calls it too, after running CI on the tagged commit in its own run: then the
+# gate checks that run's CI jobs (ci_run; scripts/ci-gate.mjs --run). A manual run can't set ci_run.
 on:
   workflow_dispatch:
     inputs:
@@ -16,6 +18,14 @@ on:
         description: 'Deploy the site and web app and update chat.iskra.foo after publishing'
         type: boolean
         default: true
+  workflow_call:
+    inputs:
+      tag: { type: string, required: true }
+      deploy: { type: boolean, default: true }
+      # The calling Release run's id: its "ci / ..." jobs tested the tagged commit.
+      ci_run: { type: string, default: '' }
+      # Off when the Release workflow reports the whole release itself.
+      report: { type: boolean, default: true }
 
 permissions: {}
 
@@ -58,9 +68,18 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
-      # Before anything changes on the release: a push run of ci.yml must have concluded success on exactly this commit.
+      # Before anything changes on the release: a push run of ci.yml must have concluded success on exactly this commit
+      # (or, called by the Release workflow, the CI it ran on this commit in the same run).
       - name: CI passed on the tagged commit
-        run: node scripts/ci-gate.mjs "$(git rev-parse HEAD)" --repo "$GH_REPO" --wait-minutes "$CI_WAIT_MINUTES"
+        env:
+          CI_RUN: ${{ inputs.ci_run }}
+        run: |
+          if [ -n "$CI_RUN" ]; then
+            test "$CI_RUN" = "$GITHUB_RUN_ID" || { echo "::error::ci_run $CI_RUN isn't this run ($GITHUB_RUN_ID)"; exit 1; }
+            node scripts/ci-gate.mjs "$(git rev-parse HEAD)" --run "$CI_RUN" --repo "$GH_REPO" --wait-minutes 5
+          else
+            node scripts/ci-gate.mjs "$(git rev-parse HEAD)" --repo "$GH_REPO" --wait-minutes "$CI_WAIT_MINUTES"
+          fi
       - name: Check the version and release notes
         run: |
           test "$(node -p "require('./desktop/package.json').version")" = "$VERSION" || { echo "::error::desktop/package.json at $TAG isn't $VERSION"; exit 1; }
@@ -140,7 +159,7 @@ jobs:
   report:
     name: report to Iskra
     needs: [publish, deploy]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && inputs.report != false }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

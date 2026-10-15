@@ -12,15 +12,24 @@ on:
   schedule:
     - cron: '37 2 * * *'
   workflow_dispatch:
+  # The Release workflow (release-all.yml) runs CI on its "Version X" commit itself: its own push (GITHUB_TOKEN) can't
+  # start this workflow, and finalize's gate then reads that run's "ci / ..." jobs (scripts/ci-gate.mjs --run).
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Commit to test (the release commit)'
+        type: string
+        required: true
 
 permissions:
   contents: read
 
 # A newer push to the same branch (or PR) cancels the older run: only the newest commit's result matters. Never a
 # "Version X" commit's run: it gets a group of its own, because release-finalize publishes only after CI passed on
-# exactly that commit (scripts/ci-gate.mjs). Tags don't run CI. Scheduled and manual runs are never cancelled.
+# exactly that commit (scripts/ci-gate.mjs). Tags don't run CI. Scheduled and manual runs are never cancelled, nor is
+# the Release workflow's call (its own group, by commit).
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}${{ (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Version ')) && format('-{0}', github.sha) || '' }}
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}${{ (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'Version ')) && format('-{0}', github.sha) || '' }}${{ inputs.ref && format('-release-{0}', inputs.ref) || '' }}
   cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
 
 jobs:
@@ -37,6 +46,8 @@ jobs:
         working-directory: server
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: '10.0.x'
@@ -71,6 +82,8 @@ jobs:
         working-directory: client
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
@@ -93,6 +106,8 @@ jobs:
       ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
@@ -129,6 +144,8 @@ jobs:
         working-directory: client
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: '10.0.x'
@@ -195,6 +212,8 @@ jobs:
         working-directory: client
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: '10.0.x'
@@ -243,6 +262,7 @@ jobs:
       - if: steps.result.outputs.failed == '1' && needs.e2e-shard.result != 'skipped'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - if: steps.result.outputs.failed == '1' && needs.e2e-shard.result != 'skipped'
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -283,6 +303,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
@@ -292,7 +314,20 @@ jobs:
       # scripts/appstore.mjs and play-upload.mjs load jose and google-auth-library from mobile/.
       - name: Release-script dependencies
         run: npm ci --prefix mobile --no-audit --no-fund --ignore-scripts
-      # Also the PowerShell release checks (scripts/release-checks.test.mjs, with pwsh from the runner image).
+      # actionlint for scripts/workflows.test.mjs (pinned, SHA-256 checked; outside the repo).
+      - name: actionlint
+        env:
+          ACTIONLINT: '1.7.7'
+          ACTIONLINT_SHA256: 023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
+        run: |
+          mkdir -p "$RUNNER_TEMP/actionlint"
+          cd "$RUNNER_TEMP/actionlint"
+          curl -fsSL -o actionlint.tar.gz "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT/actionlint_${ACTIONLINT}_linux_amd64.tar.gz"
+          echo "$ACTIONLINT_SHA256  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz actionlint
+          echo "$RUNNER_TEMP/actionlint" >> "$GITHUB_PATH"
+      # Also the PowerShell release checks (scripts/release-checks.test.mjs, with pwsh from the runner image), the
+      # SimplySign TOTP vectors (simplysign.test.mjs), the runner guard and the workflow rules (workflows.test.mjs).
       - name: Release-script tests
         run: npm test
       # Runs even when the script tests failed: two independent results.
@@ -323,6 +358,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       - id: livekit
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -349,6 +385,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
@@ -367,12 +405,13 @@ jobs:
           ./gradlew assembleRelease --no-daemon --console=plain
 
   # Optional: the result in an Iskra channel (scripts/ci-notify.mjs; docs/ci-cd.md "CI results in Iskra"). Only for main
-  # (pushes, nightly, by hand), only when the secret ISKRA_CI_WEBHOOK is set, and never for a run a newer push cancelled.
+  # (pushes, nightly, by hand; not the Release workflow's call, which reports itself), only when the secret ISKRA_CI_WEBHOOK
+  # is set, and never for a run a newer push cancelled.
   # Sends the branch, short commit, pass/fail with the failed jobs' names and the run link; nothing else.
   report:
     name: report to Iskra
     needs: [server, client, desktop, end-to-end, scripts-and-drill, android]
-    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && !inputs.ref }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -385,6 +424,7 @@ jobs:
       - if: steps.hook.outputs.set == '1'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
           sparse-checkout: scripts/ci-notify.mjs
           sparse-checkout-cone-mode: false

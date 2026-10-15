@@ -87,7 +87,10 @@
           "sha256"
         ],
         "rfc3161TimeStampServer": "http://time.certum.pl",
-        "publisherName": "Open Source Developer Viktor Lundgren"
+        "publisherName": [
+          "Open Source Developer Viktor Lundgren",
+          "CN=Viktor Lundgren, C=SE"
+        ]
       }
     },
     "nsis": {

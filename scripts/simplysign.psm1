@@ -1,0 +1,286 @@
+# Step module of scripts/simplysign-setup.ps1 and simplysign-login.ps1 (SimplySign Desktop logging itself in on the
+# home PC; docs/ci-cd.md, "SimplySign auto-login"). Not run by hand.
+#
+# - TOTP codes (RFC 6238 with .NET's HMAC; RFC 4648 Base32), from an otpauth:// URI or a Base32 seed.
+# - The seed, stored with DPAPI (CurrentUser) in %LOCALAPPDATA%\Iskra\simplysign.dat: only this Windows account can read
+#   it back. It is never printed or logged; nothing here writes it anywhere else.
+# - The attempt ledger: at most one login attempt per release run, and none for 30 minutes after one failed, so the
+#   Certum account can't get locked by a loop.
+# - The login itself: SimplySign Desktop's login dialog filled through UI Automation (default), or its /otpauth and
+#   /autologin switches.
+# Tested by scripts/simplysign.test.mjs (RFC 6238 vectors, a DPAPI round trip with a fake seed, the ledger).
+
+$script:FileHeader = 'ISKRA-SIMPLYSIGN-1'
+# DPAPI's optional entropy: a context string, so this blob can't be confused with any other DPAPI blob of the account.
+$script:Entropy = [Text.Encoding]::UTF8.GetBytes('iskra/simplysign-seed/v1')
+$script:Base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+$script:Cooldown = [TimeSpan]::FromMinutes(30)
+$script:DefaultExe = 'C:\Program Files\Certum\SimplySign Desktop\SimplySignDesktop.exe'
+
+function Get-SimplySignFolder {
+  if ($env:ISKRA_SIMPLYSIGN_DIR) { return $env:ISKRA_SIMPLYSIGN_DIR }
+  $base = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $HOME '.local/share' }
+  Join-Path $base 'Iskra'
+}
+function Get-SimplySignSeedPath { Join-Path (Get-SimplySignFolder) 'simplysign.dat' }
+function Get-SimplySignLedgerPath { Join-Path (Get-SimplySignFolder) 'simplysign-attempts.json' }
+
+# ── TOTP (RFC 6238) ──
+
+# RFC 4648 Base32 to bytes. Case, spaces, hyphens and '=' padding are ignored, as authenticator apps do.
+function ConvertFrom-Base32 {
+  param([Parameter(Mandatory)][AllowEmptyString()][string]$Text)
+  $clean = ($Text -replace '[\s-]', '').TrimEnd('=').ToUpperInvariant()
+  if (-not $clean) { throw 'The seed is empty.' }
+  $out = [System.Collections.Generic.List[byte]]::new()
+  $bits = 0
+  $value = 0
+  foreach ($c in $clean.ToCharArray()) {
+    $i = $script:Base32Alphabet.IndexOf($c)
+    if ($i -lt 0) { throw 'The seed is not Base32 (letters A-Z and digits 2-7).' }
+    $value = ($value -shl 5) -bor $i
+    $bits += 5
+    if ($bits -ge 8) {
+      $bits -= 8
+      $out.Add([byte](($value -shr $bits) -band 0xff))
+    }
+    $value = $value -band ((1 -shl $bits) - 1)
+  }
+  if ($out.Count -lt 10) { throw 'The seed is too short (under 80 bits): copy the whole of it.' }
+  , $out.ToArray()
+}
+
+# The TOTP code for $Time: HMAC over the 30-second counter, dynamic truncation, $Digits digits.
+function Get-Totp {
+  param(
+    [Parameter(Mandatory)][byte[]]$Secret,
+    [DateTimeOffset]$Time = [DateTimeOffset]::UtcNow,
+    [ValidateSet('SHA1', 'SHA256', 'SHA512')][string]$Algorithm = 'SHA1',
+    [ValidateRange(6, 8)][int]$Digits = 6,
+    [ValidateRange(1, 300)][int]$Period = 30
+  )
+  $counter = [long][Math]::Floor($Time.ToUnixTimeSeconds() / $Period)
+  $message = [BitConverter]::GetBytes($counter)
+  if ([BitConverter]::IsLittleEndian) { [Array]::Reverse($message) }
+  $hmac = switch ($Algorithm) {
+    'SHA1' { [System.Security.Cryptography.HMACSHA1]::new($Secret) }
+    'SHA256' { [System.Security.Cryptography.HMACSHA256]::new($Secret) }
+    'SHA512' { [System.Security.Cryptography.HMACSHA512]::new($Secret) }
+  }
+  try { $hash = $hmac.ComputeHash($message) } finally { $hmac.Dispose() }
+  $offset = $hash[$hash.Length - 1] -band 0x0f
+  $binary = (($hash[$offset] -band 0x7f) -shl 24) -bor (($hash[$offset + 1] -band 0xff) -shl 16) -bor (($hash[$offset + 2] -band 0xff) -shl 8) -bor ($hash[$offset + 3] -band 0xff)
+  ($binary % [int][Math]::Pow(10, $Digits)).ToString().PadLeft($Digits, '0')
+}
+
+# Seconds left before the current code changes.
+function Get-TotpSecondsLeft {
+  param([DateTimeOffset]$Time = [DateTimeOffset]::UtcNow, [int]$Period = 30)
+  $Period - ($Time.ToUnixTimeSeconds() % $Period)
+}
+
+# What the owner pasted: an otpauth://totp/... URI (from the QR) or a bare Base32 seed. Returns the TOTP parameters;
+# Raw keeps the URI as given for SimplySign's own /otpauth switch.
+function ConvertFrom-SeedInput {
+  param([Parameter(Mandatory)][AllowEmptyString()][string]$Text)
+  $t = $Text.Trim()
+  if (-not $t) { throw 'Nothing was pasted.' }
+  if ($t -notmatch '^otpauth://') {
+    $secret = ConvertFrom-Base32 $t
+    return [pscustomobject]@{ Secret = $secret; Base32 = ($t -replace '[\s-]', '').TrimEnd('=').ToUpperInvariant(); Algorithm = 'SHA1'; Digits = 6; Period = 30; Account = ''; Issuer = ''; Raw = '' }
+  }
+  try { $uri = [Uri]$t } catch { throw 'The otpauth:// link is not a valid URI.' }
+  if ($uri.Host -ne 'totp') { throw "Only time-based codes (otpauth://totp/...) are supported, not '$($uri.Host)'." }
+  $q = @{}
+  foreach ($pair in $uri.Query.TrimStart('?').Split('&', [StringSplitOptions]::RemoveEmptyEntries)) {
+    $k, $v = $pair.Split('=', 2)
+    $q[[Uri]::UnescapeDataString($k).ToLowerInvariant()] = if ($null -ne $v) { [Uri]::UnescapeDataString($v.Replace('+', ' ')) } else { '' }
+  }
+  if (-not $q['secret']) { throw 'The otpauth:// link has no secret= part.' }
+  $secret = ConvertFrom-Base32 $q['secret']
+  $algorithm = if ($q['algorithm']) { $q['algorithm'].ToUpperInvariant() } else { 'SHA1' }
+  if ($algorithm -notin 'SHA1', 'SHA256', 'SHA512') { throw "Unknown algorithm '$algorithm' in the otpauth:// link." }
+  $digits = if ($q['digits']) { [int]$q['digits'] } else { 6 }
+  if ($digits -lt 6 -or $digits -gt 8) { throw "digits=$digits in the otpauth:// link: 6 to 8 expected." }
+  $period = if ($q['period']) { [int]$q['period'] } else { 30 }
+  if ($period -lt 1 -or $period -gt 300) { throw "period=$period in the otpauth:// link: 1 to 300 seconds expected." }
+  $label = [Uri]::UnescapeDataString($uri.AbsolutePath.TrimStart('/'))
+  $issuer = if ($q['issuer']) { $q['issuer'] } elseif ($label -match '^([^:]+):') { $Matches[1] } else { '' }
+  $account = if ($label -match ':\s*(.+)$') { $Matches[1] } else { $label }
+  [pscustomobject]@{ Secret = $secret; Base32 = $q['secret'].ToUpperInvariant().TrimEnd('='); Algorithm = $algorithm; Digits = $digits; Period = $period; Account = $account; Issuer = $issuer; Raw = $t }
+}
+
+# ── The stored seed (DPAPI, CurrentUser) ──
+
+function Assert-Dpapi {
+  if (-not $IsWindows -and $PSVersionTable.PSEdition -eq 'Core') { throw 'DPAPI is Windows only: the SimplySign seed can only be stored on the Windows PC.' }
+  Add-Type -AssemblyName System.Security -ErrorAction SilentlyContinue
+}
+
+# Stores the seed for this Windows account. $Seed: ConvertFrom-SeedInput's result. Written atomically.
+function Save-SimplySignSeed {
+  param([Parameter(Mandatory)]$Seed, [Parameter(Mandatory)][string]$Email, [ValidateSet('dialog', 'switches')][string]$Method = 'dialog', [string]$Path = (Get-SimplySignSeedPath))
+  Assert-Dpapi
+  if ($Email -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') { throw "'$Email' doesn't look like the SimplySign account's e-mail address." }
+  $json = [ordered]@{ v = 1; email = $Email; method = $Method; secret = $Seed.Base32; algorithm = $Seed.Algorithm; digits = $Seed.Digits; period = $Seed.Period; uri = $Seed.Raw } | ConvertTo-Json -Compress
+  $plain = [Text.Encoding]::UTF8.GetBytes($json)
+  try {
+    $blob = [System.Security.Cryptography.ProtectedData]::Protect($plain, $script:Entropy, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
+  } finally { [Array]::Clear($plain, 0, $plain.Length) }
+  $dir = Split-Path $Path -Parent
+  New-Item -ItemType Directory -Force -Path $dir | Out-Null
+  $tmp = "$Path.$PID.tmp"
+  [IO.File]::WriteAllText($tmp, "$script:FileHeader`n$([Convert]::ToBase64String($blob))`n")
+  Move-Item -Force -Path $tmp -Destination $Path
+}
+
+# The stored seed, or $null when there is none. Throws when the file exists but this account can't read it.
+function Read-SimplySignSeed {
+  param([string]$Path = (Get-SimplySignSeedPath))
+  if (-not (Test-Path -LiteralPath $Path)) { return $null }
+  Assert-Dpapi
+  $lines = @(Get-Content -LiteralPath $Path)
+  if ($lines.Count -lt 2 -or $lines[0] -ne $script:FileHeader) { throw "$Path isn't a SimplySign seed file: run scripts/simplysign-setup.ps1 again." }
+  try {
+    $plain = [System.Security.Cryptography.ProtectedData]::Unprotect([Convert]::FromBase64String($lines[1]), $script:Entropy, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
+  } catch { throw "$Path can't be read by this Windows account (DPAPI): store the seed again with scripts/simplysign-setup.ps1." }
+  try { $d = [Text.Encoding]::UTF8.GetString($plain) | ConvertFrom-Json } finally { [Array]::Clear($plain, 0, $plain.Length) }
+  [pscustomobject]@{
+    Email = $d.email; Method = $(if ($d.method) { $d.method } else { 'dialog' }); Uri = $d.uri
+    Secret = ConvertFrom-Base32 $d.secret; Algorithm = $d.algorithm; Digits = [int]$d.digits; Period = [int]$d.period
+  }
+}
+
+function Remove-SimplySignSeed {
+  param([string]$Path = (Get-SimplySignSeedPath))
+  $had = Test-Path -LiteralPath $Path
+  if ($had) {
+    # Overwrite before deleting (best effort on an SSD; DPAPI is the real protection).
+    $len = (Get-Item -LiteralPath $Path).Length
+    [IO.File]::WriteAllBytes($Path, [byte[]]::new($len))
+    Remove-Item -LiteralPath $Path -Force
+  }
+  $had
+}
+
+# ── Attempt ledger: one login per run, a pause after a failure ──
+
+function Read-Ledger([string]$Path) {
+  if (-not (Test-Path -LiteralPath $Path)) { return @() }
+  try { @((Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json).attempts) } catch { @() }
+}
+
+# This run's key: the GitHub Actions run and attempt, else scripts/release.ps1's run id, else this process.
+function Get-LoginRunKey {
+  if ($env:GITHUB_RUN_ID) { return "gh-$($env:GITHUB_RUN_ID)-$($env:GITHUB_RUN_ATTEMPT)" }
+  if ($env:ISKRA_RELEASE_RUN) { return "local-$($env:ISKRA_RELEASE_RUN)" }
+  "pid-$PID"
+}
+
+# Whether a login may be tried now: @{ Ok; Reason }.
+function Test-LoginAllowed {
+  param([string]$RunKey = (Get-LoginRunKey), [DateTimeOffset]$Now = [DateTimeOffset]::UtcNow, [string]$Path = (Get-SimplySignLedgerPath))
+  $attempts = Read-Ledger $Path
+  if ($attempts | Where-Object { $_.key -eq $RunKey }) { return @{ Ok = $false; Reason = 'SimplySign already had its one login attempt in this run' } }
+  $failed = $attempts | Where-Object { $_.result -eq 'failed' } | Sort-Object { [DateTimeOffset]$_.at } | Select-Object -Last 1
+  if ($failed) {
+    $until = ([DateTimeOffset]$failed.at) + $script:Cooldown
+    if ($until -gt $Now) { return @{ Ok = $false; Reason = "the last SimplySign login failed at $(([DateTimeOffset]$failed.at).ToLocalTime().ToString('HH:mm')); no automatic login before $($until.ToLocalTime().ToString('HH:mm')) (so the account can't get locked)" } }
+  }
+  @{ Ok = $true }
+}
+
+# Records an attempt: result 'started' (before the code is sent), then 'ok', 'failed' or 'not-sent'.
+function Write-LoginAttempt {
+  param([Parameter(Mandatory)][ValidateSet('started', 'ok', 'failed', 'not-sent')][string]$Result, [string]$RunKey = (Get-LoginRunKey), [DateTimeOffset]$Now = [DateTimeOffset]::UtcNow, [string]$Path = (Get-SimplySignLedgerPath))
+  $attempts = [System.Collections.Generic.List[object]]::new()
+  foreach ($a in (Read-Ledger $Path)) { if ($a.key -ne $RunKey) { $attempts.Add($a) } }
+  $attempts.Add([pscustomobject]@{ key = $RunKey; at = $Now.ToString('o'); result = $Result })
+  $keep = @($attempts | Select-Object -Last 20)
+  New-Item -ItemType Directory -Force -Path (Split-Path $Path -Parent) | Out-Null
+  $tmp = "$Path.$PID.tmp"
+  [IO.File]::WriteAllText($tmp, (@{ attempts = $keep } | ConvertTo-Json -Depth 4))
+  Move-Item -Force -Path $tmp -Destination $Path
+}
+
+# ── SimplySign Desktop ──
+
+function Get-SimplySignExe {
+  $p = Get-Process SimplySignDesktop -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($p -and $p.Path) { return $p.Path }
+  if ($env:ISKRA_SIMPLYSIGN_EXE) { return $env:ISKRA_SIMPLYSIGN_EXE }
+  $script:DefaultExe
+}
+
+function Initialize-Uia {
+  Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+}
+
+# SimplySign Desktop's login window ("LoginForm"), or $null.
+function Find-LoginForm {
+  Initialize-Uia
+  $ids = @(Get-Process SimplySignDesktop -ErrorAction SilentlyContinue | ForEach-Object Id)
+  if (-not $ids.Count) { return $null }
+  $ae = [System.Windows.Automation.AutomationElement]
+  $cond = [System.Windows.Automation.PropertyCondition]::new($ae::AutomationIdProperty, 'LoginForm')
+  foreach ($w in $ae::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $cond)) {
+    if ($ids -contains $w.Current.ProcessId) { return $w }
+  }
+  $null
+}
+
+function Find-Control($Window, [string]$Id) {
+  $ae = [System.Windows.Automation.AutomationElement]
+  $Window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.PropertyCondition]::new($ae::AutomationIdProperty, $Id))
+}
+
+function Set-ControlText($Element, [string]$Text) {
+  $pattern = $null
+  if ($Element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern)) {
+    $pattern.SetValue($Text)
+    return
+  }
+  throw 'the field takes no text through UI Automation'
+}
+
+# Opens the login dialog: it shows when SimplySign Desktop starts ("show the login dialog on start", its default).
+# SimplySign isn't logged in when this runs, so restarting it loses nothing.
+function Open-LoginForm {
+  param([int]$TimeoutSeconds = 40)
+  $form = Find-LoginForm
+  if ($form) { return $form }
+  $exe = Get-SimplySignExe
+  if (-not (Test-Path -LiteralPath $exe)) { throw "SimplySign Desktop isn't installed ($exe)." }
+  Get-Process SimplySignDesktop -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+  Start-Sleep -Seconds 2
+  Start-Process -FilePath $exe | Out-Null
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  while ((Get-Date) -lt $deadline) {
+    Start-Sleep -Seconds 1
+    $form = Find-LoginForm
+    if ($form) { return $form }
+  }
+  throw "SimplySign Desktop's login dialog didn't open within $TimeoutSeconds s (SimplySign → options: tick 'show the login dialog on start')."
+}
+
+# Fills the dialog (e-mail, then a fresh code) and presses OK. $Code is called right before typing, so the code is
+# never one that is about to change. Throws before anything is sent when a field can't be found.
+function Submit-LoginForm {
+  param([Parameter(Mandatory)]$Form, [Parameter(Mandatory)][string]$Email, [Parameter(Mandatory)][scriptblock]$Code)
+  $user = Find-Control $Form 'tUserName'
+  $token = Find-Control $Form 'tPassword'
+  $ok = Find-Control $Form 'bOk'
+  if (-not $user -or -not $token -or -not $ok) { throw "the login dialog's fields (tUserName, tPassword, bOk) weren't found: SimplySign Desktop changed; log in by hand and report it." }
+  $current = $null
+  $vp = $null
+  if ($user.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$vp)) { $current = $vp.Current.Value }
+  if ($current -ne $Email) { Set-ControlText $user $Email }
+  $invoke = $null
+  if (-not $ok.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$invoke)) { throw "the login dialog's OK button can't be pressed through UI Automation." }
+  Set-ControlText $token (& $Code)
+  $invoke.Invoke()
+}
+
+Export-ModuleMember -Function Get-SimplySignFolder, Get-SimplySignSeedPath, Get-SimplySignLedgerPath, ConvertFrom-Base32, Get-Totp,
+  Get-TotpSecondsLeft, ConvertFrom-SeedInput, Save-SimplySignSeed, Read-SimplySignSeed, Remove-SimplySignSeed, Get-LoginRunKey,
+  Test-LoginAllowed, Write-LoginAttempt, Get-SimplySignExe, Find-LoginForm, Open-LoginForm, Submit-LoginForm
