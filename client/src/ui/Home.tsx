@@ -1,3 +1,5 @@
+import { DisappearLine, ExpiryBadge } from './disappear/Disappear'
+import { DmTimerButton } from './disappear/Timers'
 import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { b64u } from '../core/crypto'
@@ -170,6 +172,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <AccountStatusText accountKey={peer} className="muted dm-header-status" />
         <span className="e2e-badge" title={t('app.home.e2eTitle')}><Lock size={13} /> {t('app.home.e2e')}</span>
         <span className="spacer" />
+        {!peerBot.bot && <DmTimerButton peer={peer} canChange={reachable && !blocked} />}
         {reachable && !peerBot.bot && <span className="dm-header-friend"><FriendButtons accountKey={peer} header /></span>}
         {!blocked && !peerBot.bot && <CallButtons peer={peer} />}
         <button className="button small" onClick={() => setVerify(true)}>{t('app.home.verify')}</button>
@@ -186,9 +189,10 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         </div>
         {messages.map((dm, i) => {
           if (dm.notice) return <DmKeyNotice key={`${dm.from}:${dm.id}`} dm={dm} onVerify={() => setVerify(true)} />
+          if (dm.disappear && !dm.error) return <DisappearLine key={`${dm.from}:${dm.id}`} seconds={dm.disappear.seconds} name={nameOf(dm.from)} mine={dm.from === myKey} at={dm.sentAt} />
           if (dm.friend) return quietKind(dm.friend.kind) ? null : <FriendLine key={`${dm.from}:${dm.id}`} dm={dm} mine={dm.from === myKey} />
           const prev = messages[i - 1]
-          const grouped = !!prev && !prev.notice && !prev.friend && prev.from === dm.from && dm.sentAt - prev.sentAt < GROUP_WINDOW_MS && !prev.pending && !prev.error
+          const grouped = !!prev && !prev.notice && !prev.friend && !prev.disappear && prev.from === dm.from && dm.sentAt - prev.sentAt < GROUP_WINDOW_MS && !prev.pending && !prev.error
           return (
             <Fragment key={`${dm.from}:${dm.id}`}>
               {dm === firstNew && <UnreadDivider />}
@@ -217,18 +221,20 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
 function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: string; mine: boolean }) {
   const { t } = useTranslation()
   const name = nameOf(dm.from)
-  const tools = usePrivateMessageTools(dm.pending || dm.error || asLog(dm.call) ? null : dmTarget(peer, dm), dm.text)
+  // No saving or reminders for disappearing messages: they would keep a copy of it.
+  const tools = usePrivateMessageTools(dm.pending || dm.error || asLog(dm.call) || dm.expiresAt ? null : dmTarget(peer, dm), dm.text)
   return (
     <div id={privateRowId(dm.from, dm.id)} {...tools.rowProps} data-dm-id={dm.id} className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''} ${tools.rowProps.className ?? ''}`}
       role="article" tabIndex={-1} aria-label={t('chat.a11y.message', { name, time: fullTime(dm.sentAt) })}>
       <div className="message-gutter">
-        {grouped ? <time className="hover-time" title={fullTime(dm.sentAt)}>{clockTime(dm.sentAt)}</time> : <span {...userMenuProps(dm.from)}><Avatar name={name} accountKey={dm.from} /></span>}
+        {grouped ? <><time className="hover-time" title={fullTime(dm.sentAt)}>{clockTime(dm.sentAt)}</time>{dm.expiresAt && <ExpiryBadge expiresAt={dm.expiresAt} />}</> : <span {...userMenuProps(dm.from)}><Avatar name={name} accountKey={dm.from} /></span>}
       </div>
       <div className="message-body">
         {!grouped && (
           <div className="message-meta">
             <span className="author" style={{ color: `hsl(${hueFor(dm.from)} 70% var(--name-l))` }} {...userMenuProps(dm.from)}>{name}</span>
             <time title={fullTime(dm.sentAt)}>{messageTime(dm.sentAt)}</time>
+            <ExpiryBadge expiresAt={dm.expiresAt} />
           </div>
         )}
         {asLog(dm.call) && !dm.error ? (

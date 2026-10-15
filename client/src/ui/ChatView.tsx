@@ -1,3 +1,4 @@
+import { DisappearLine, ExpiryBadge } from './disappear/Disappear'
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../i18n/errors'
@@ -224,7 +225,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
     if (!messages) return null
     return messages.map((message, i) => {
       const prev = messages[i - 1]
-      const grouped = !!prev && sameSender(prev, message) && message.createdAt - prev.createdAt < GROUP_WINDOW_MS && !prev.pending
+      const grouped = !!prev && sameSender(prev, message) && message.createdAt - prev.createdAt < GROUP_WINDOW_MS && !prev.pending && !prev.disappear
       return { message, grouped }
     })
   }, [messages])
@@ -260,7 +261,9 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
       ) : (
         <Fragment key={message.tempId ?? message.id}>
           {message.id === firstUnread && !message.tempId && <UnreadDivider main={!thread} />}
-          {message.clip && !message.tempId ? <ClipNoticeRow server={server} message={message} /> : <BlockGate author={message.author}>
+          {message.clip && !message.tempId ? <ClipNoticeRow server={server} message={message} /> : message.disappear && !message.tempId ? (
+            <DisappearLine seconds={message.disappear.seconds} name={server.members[message.author]?.name ?? t('common.someone')} mine={message.author === server.me?.accountKey} at={message.createdAt} />
+          ) : <BlockGate author={message.author}>
             <MessageRow
               server={server}
               message={message}
@@ -339,7 +342,7 @@ function MessageRow({
     >
       <div className="message-gutter">
         {grouped ? (
-          <time className="hover-time" title={fullTime(message.createdAt)}>{clockTime(message.createdAt)}</time>
+          <><time className="hover-time" title={fullTime(message.createdAt)}>{clockTime(message.createdAt)}</time>{message.expiresAt && <ExpiryBadge expiresAt={message.expiresAt} />}</>
         ) : canOpenProfile ? (
           <button className="avatar-button" onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)} {...userMenuProps(message.author, server.key)} aria-label={t('chat.message.profileOf', { name })}>
             <AuthorAvatar server={server} author={shown} hueKey={message.author} />
@@ -360,6 +363,7 @@ function MessageRow({
             {shown.bot && <BotBadge builtin={shown.builtin} />}
             {message.imported && <ImportedBadge />}
             <time title={fullTime(message.createdAt)}>{messageTime(message.createdAt)}</time>
+            <ExpiryBadge expiresAt={message.expiresAt} />
             {message.pinned && <PinnedMark />}
           </div>
         )}

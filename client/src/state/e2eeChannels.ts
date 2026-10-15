@@ -13,6 +13,7 @@ import { b64u, fromB64u } from '../core/crypto'
 import { revokedSet } from '../core/devices'
 import { DmError } from '../core/dm'
 import type { DmFile } from '../core/dmFiles'
+import { isExpiry, localExpiry } from '../core/disappear'
 import {
   decryptChannelMessage, encryptChannelMessage, MAX_CHANNEL_MEMBERS, MissingKeyError, newChainId, newEpochKey, openEpochKey, sealEpochKey,
   signChannelChange, verifyChannelChain, voiceKey, voiceKeyIndex,
@@ -56,7 +57,12 @@ export interface LocalMessage extends Seen {
   author: string
   text: string
   at: number
+  /** When it disappears from this device (the sooner of the server's time and the signed header's). */
+  expiresAt?: number
 }
+
+/** Gone already (a disappearing message whose time is up). */
+const expired = (m: { expiresAt?: number | null }, now = Date.now()) => typeof m.expiresAt === 'number' && m.expiresAt <= now
 
 interface StoredPast {
   chain: string
@@ -142,7 +148,9 @@ async function load(serverKey: string, channelId: number): Promise<Rec> {
           rec.chain = stored.chain
           rec.changes = stored.changes
           rec.keys = keysIn(stored.keys)
-          for (const m of stored.messages ?? []) rec.messages.set(m.id, m)
+          // Disappearing messages whose time came while the app was closed aren't loaded (and leave storage with the next save).
+          for (const m of stored.messages ?? []) if (!expired(m)) rec.messages.set(m.id, m)
+          if ((stored.messages ?? []).some((m) => expired(m))) persist(rec)
           rec.restarts = stored.restarts ?? []
           for (const p of stored.past ?? []) {
             try {
@@ -175,7 +183,7 @@ function persist(rec: Rec): void {
       dirty.delete(slot)
       const r = records.get(slot)
       if (!r?.chain) continue
-      const messages = [...r.messages.values()].sort((a, b) => a.id - b.id).slice(-MAX_LOCAL)
+      const messages = [...r.messages.values()].filter((m) => !expired(m)).sort((a, b) => a.id - b.id).slice(-MAX_LOCAL)
       const stored: Stored = {
         chain: r.chain, changes: r.changes, keys: keysOut(r.keys), messages, restarts: r.restarts,
         past: r.past.map((p) => ({ chain: p.chain, changes: p.changes, keys: keysOut(p.keys), endedAt: p.endedAt, startedOver: p.startedOver })),
@@ -558,17 +566,23 @@ function decryptOne(serverKey: string, message: Shownable, lenient = false): Sho
     rec.envelopeIds ??= seenIndex(rec.messages.values())
     const problem = checkSeen(seen, (hid) => rec.envelopeIds!.get(hid), message.id, content.header, content.legacy)
     if (problem && !(lenient && problem === ROLLED_BACK)) throw new DmError(problem)
+    // An edit never moves the expiry: the sooner of every copy this device saw counts.
+    const expiresAt = [localExpiry(message.expiresAt, content.header, message.createdAt), seen?.expiresAt]
+      .filter((x): x is number => typeof x === 'number').reduce<number | undefined>((a, b) => (a === undefined ? b : Math.min(a, b)), undefined)
     if (!problem) {
       const noted = noteSeen(seen, content.header, content.legacy)
       for (const h of noted.hids ?? []) rec.envelopeIds.set(h, message.id)
       if (noted.origin) rec.envelopeIds.set(noted.origin, message.id)
-      rec.messages.set(message.id, { ...noted, id: message.id, channelId: message.channelId, author: message.author, text: content.text, at: message.createdAt })
+      rec.messages.set(message.id, {
+        ...noted, id: message.id, channelId: message.channelId, author: message.author, text: content.text, at: message.createdAt,
+        ...(expiresAt !== undefined ? { expiresAt } : {}),
+      })
       persist(rec)
     }
     const reply = message.replyTo && 'author' in message.replyTo && !message.replyTo.text ? rec.messages.get(message.replyTo.id) : undefined
     const flags = { ...(content.legacy ? { legacy: true } : {}), ...(content.afterRemoval !== undefined ? { afterRemoval: content.afterRemoval } : {}) }
     const out: Shownable = {
-      ...message, text: content.text, e2eeShown: { state: 'ok', ...(content.files ? { files: content.files } : {}), ...flags, checked: rec.view.version },
+      ...message, ...(expiresAt !== undefined ? { expiresAt } : {}), text: content.text, e2eeShown: { state: 'ok', ...(content.files ? { files: content.files } : {}), ...flags, checked: rec.view.version },
       ...(reply && message.replyTo && 'author' in message.replyTo ? { replyTo: { ...message.replyTo, text: reply.text.slice(0, 140) } } : {}),
     }
     const tag = `${serverKey}:${message.id}`
@@ -671,7 +685,26 @@ useApp.subscribe((state) => {
 /** Decrypted messages of an encrypted channel kept on this device (for search and catch-up), oldest first. */
 export async function localMessages(serverKey: string, channelId: number): Promise<LocalMessage[]> {
   const rec = await load(serverKey, channelId)
-  return [...rec.messages.values()].sort((a, b) => a.id - b.id)
+  return [...rec.messages.values()].filter((m) => !expired(m)).sort((a, b) => a.id - b.id)
+}
+
+/** Drops decrypted copies of disappearing messages whose time has come, from memory and from this device's storage. */
+export function purgeExpiredE2ee(now = Date.now()): void {
+  for (const rec of records.values()) {
+    let changed = false
+    for (const [id, m] of rec.messages) {
+      if (!expired(m, now)) continue
+      rec.messages.delete(id)
+      changed = true
+    }
+    if (changed) persist(rec)
+  }
+}
+
+/** The disappearing messages timer an encrypted channel sends with (state/disappearing.ts sets it; 0 = off). */
+let expiryFor: (serverKey: string, channelId: number) => number = () => 0
+export function setE2eeExpiry(fn: (serverKey: string, channelId: number) => number): void {
+  expiryFor = fn
 }
 
 /**
@@ -754,7 +787,8 @@ async function sendSealed(serverKey: string, channelId: number, body: { text: st
     const rec = await readyRec(serverKey, channel.id)
     const view = rec.view!
     const content = contentOf(body)
-    const envelope = encryptChannelMessage(identity, view, rec.keys.get(view.version)!, content, placeOf(channel, channelId))
+    const expires = expiryFor(serverKey, channel.id)
+    const envelope = encryptChannelMessage(identity, view, rec.keys.get(view.version)!, content, placeOf(channel, channelId), Date.now(), undefined, expires || undefined)
     try {
       const reply = await connection.request('chat.send', {
         channelId, version: view.version, envelope, replyTo: body.replyTo, nonce: body.nonce,
@@ -781,10 +815,12 @@ export async function editEncrypted(serverKey: string, message: Message, text: s
   // An edit names the message's first envelope (v2), so a server can't show it under another message.
   const header = (message.e2ee?.envelope as Partial<ChannelEnvelope> | undefined)?.header
   const first = header?.edit ?? header?.id
+  // An edit keeps the message's expiry (and its format: apps from before disappearing messages can't read either).
+  const expires = isExpiry(header?.expires) ? header.expires : undefined
   for (let attempt = 0; ; attempt++) {
     const rec = await readyRec(serverKey, channel.id)
     const view = rec.view!
-    const envelope = encryptChannelMessage(identity, view, rec.keys.get(view.version)!, contentOf({ text }, shownOf(message)?.files), placeOf(channel, message.channelId), Date.now(), first)
+    const envelope = encryptChannelMessage(identity, view, rec.keys.get(view.version)!, contentOf({ text }, shownOf(message)?.files), placeOf(channel, message.channelId), Date.now(), first, expires)
     try {
       await connectionFor(serverKey)!.request('chat.edit', { id: message.id, version: view.version, envelope } as never)
       return

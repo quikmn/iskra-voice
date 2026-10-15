@@ -11,6 +11,8 @@ export interface MergeableDm {
   sentAt: number
   pending?: string
   error?: string
+  /** When it disappears from this device (Disappearing messages). */
+  expiresAt?: number
 }
 
 export const dmKey = (m: { from: string; id: string }) => `${m.from}\n${m.id}`
@@ -23,7 +25,12 @@ export const dmKey = (m: { from: string; id: string }) => `${m.from}\n${m.id}`
 export function mergeDm<T extends MergeableDm>(list: T[], dm: T): T[] {
   const key = dmKey(dm)
   const index = list.findIndex((m) => dmKey(m) === key)
-  if (index >= 0 && (!list[index].error || (dm.error && !dm.pending))) return list
+  if (index >= 0 && (!list[index].error || (dm.error && !dm.pending))) {
+    // Another copy may know an earlier expiry (the server's, say): the sooner one counts.
+    const kept = list[index]
+    if (dm.expiresAt === undefined || (kept.expiresAt !== undefined && kept.expiresAt <= dm.expiresAt)) return list
+    return list.map((m, i) => (i === index ? { ...m, expiresAt: dm.expiresAt } : m))
+  }
   const without = index >= 0 ? list.filter((_, i) => i !== index) : list
   return [...without, dm].sort((a, b) => a.sentAt - b.sentAt || a.id.localeCompare(b.id))
 }

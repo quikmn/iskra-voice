@@ -11,6 +11,7 @@ import { ready } from '../src/core/crypto'
 import { b64u, fromB64u } from '../src/core/crypto'
 import { generatePrekey, revokedSet, signPrekey, signRevocation } from '../src/core/devices'
 import { decryptDm, encryptDm } from '../src/core/dm'
+import { localExpiry } from '../src/core/disappear'
 import { encryptedSize, FileDecryptor, FileEncryptor } from '../src/core/dmFiles'
 import {
   decryptChannelMessage, encryptChannelMessage, MOVED, newChainId, newEpochKey, openEpochKey, sealEpochKey, signChannelChange, verifyChannelChain,
@@ -234,6 +235,46 @@ describe('client ↔ server', () => {
     expect(() => decryptChannelMessage(threadMessage.e2ee!.envelope, routed(threadMessage, { channel: channel.id }), view, () => epochKey)).toThrow(MOVED)
     const misnamed = encryptChannelMessage(friend.identity, friendView, friendKeyFor(1)!, { text: 'x' }, { channel: channel.id })
     await expect(friend.connection.request('chat.send', { channelId: thread.id, version: 1, envelope: misnamed } as never)).rejects.toMatchObject({ code: 'bad_request' })
+  })
+
+  it('disappearing messages: the signed expiry and the server agree, and a stretched one is caught', async () => {
+    const [owner, friend] = users
+    const ownerKey = owner.welcome!.you.accountKey
+    const friendKey = friend.welcome!.you.accountKey
+    const chain = newChainId()
+    const create = signChannelChange(owner.identity, null, chain, 'create', [friendKey])
+    const view = verifyChannelChain(chain, [create])
+    const epochKey = newEpochKey()
+    const keys = sealEpochKey(owner.identity, view, epochKey, [
+      { accountKey: ownerKey, devices: [owner.identity.cert] }, { accountKey: friendKey, devices: [friend.identity.cert] },
+    ])
+    const { channel } = await owner.connection.request('channel.create', { name: 'vanishing', kind: 'text', e2ee: { change: create, keys } } as never)
+    const { timer } = await owner.connection.request('disappear.set', { channelId: channel.id, seconds: 86400 })
+    expect(timer).toMatchObject({ scope: 'channel', channelId: channel.id, seconds: 86400 })
+    expect((await friend.event('disappear.changed', (b) => b.timer.scope === 'channel')).timer.seconds).toBe(86400)
+    // The friend may look but not change it.
+    await expect(friend.connection.request('disappear.set', { channelId: channel.id, seconds: 0 })).rejects.toMatchObject({ code: 'forbidden' })
+
+    // A message that asks for 5 minutes: the sooner one wins on the server, and it is bound to the message.
+    const envelope = encryptChannelMessage(owner.identity, view, epochKey, { text: 'brief' }, { channel: channel.id }, Date.now(), undefined, 300)
+    const { message } = await owner.connection.request('chat.send', { channelId: channel.id, version: 1, envelope } as never) as { message: Message }
+    const received = (await friend.event('chat.message', (b) => b.message.id === message.id)).message
+    expect(received.expiresAt).toBe(received.createdAt + 300_000)
+    const routed = { from: received.author, version: 1, channel: channel.id, at: received.createdAt }
+    const opened = decryptChannelMessage(received.e2ee!.envelope, routed, view, () => epochKey)
+    expect(opened.text).toBe('brief')
+    expect(localExpiry(received.expiresAt, opened.header, received.createdAt)).toBeLessThanOrEqual(received.createdAt + 300_000)
+    // A server that stretched the header would break the signature.
+    const stretched = { ...received.e2ee!.envelope, header: { ...received.e2ee!.envelope.header, expires: 2419200 } }
+    expect(() => decryptChannelMessage(stretched, routed, view, () => epochKey)).toThrow('This message was tampered with.')
+
+    // A DM that disappears: v3, with the server's expiry next to it.
+    const bundle = await friend.connection.request('dm.devices', { accountKey: ownerKey })
+    const dmEnvelope = encryptDm(friend.identity, ownerKey, bundle.devices, [], { text: 'see you' }, Date.now(), { prekeys: bundle.prekeys, expires: 3600 })
+    const sent = await friend.connection.request('dm.send', { accountKey: ownerKey, envelope: dmEnvelope })
+    const dm = (await owner.event('dm.message', (b) => b.message.id === sent.message.id)).message
+    expect(dm.expiresAt).toBe(dm.createdAt + 3_600_000)
+    expect(decryptDm(owner.identity, dm.envelope, dm.from, dm.to).header.expires).toBe(3600)
   })
 
   it('syncs a profile between two devices: the newest wins, an old device cannot put its profile back', async () => {

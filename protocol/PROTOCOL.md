@@ -7,7 +7,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits, [restarts](#restarts-and-reconnecting)) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Organizing a server](#organizing-a-server)
-- **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox)
+- **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox) · [Disappearing messages](#disappearing-messages)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages)
@@ -1981,7 +1981,7 @@ it. It is wrapped for every valid, unrevoked device of every member of the new m
 - Receivers check: the header's `from` and `version` equal the message's `author` and `e2ee.version`; `channel` and `thread` equal where the message arrived (its `channelId`: the channel itself, or a thread of it); the version is in their verified chain and `from` was a member then; the certificate and signature; then decrypt. A message from before this device had a key shows as unreadable, never as text. A message moved to another channel or thread (or between a parent and its threads) is shown as moved, never as text.
 - **The server** checks a v2 envelope's `channel` and `thread` against the send (`bad_request`), like `from`, `chain` and `version`; it reads nothing else.
 - **What apps remember.** Each app keeps, per message, the envelope ids it showed (first envelope and edits) and the newest one's `sentAt`. It refuses an envelope whose `id` (or, for v2, whose `edit` or first `id`) belongs to another message (a replay or a moved edit), and an envelope older than the newest it showed for that message (an original after an edit, an edit older than one it showed, by `sentAt`): an edit can't be rolled back on a device that saw it. Copies kept elsewhere (pins, a thread's first message) may lag behind an edit and aren't refused for that.
-- **The older format (v1)**, sent before this version: no `channel`, `thread` or `edit`; `ad = JSON.stringify(["iskra/channel-msg/v1", from, chain, version, head, sentAt, id])` and the signature under `iskra/channel-msg/v1`. Apps still open v1 messages and mark them "older format" (a server could have moved them between a channel and its threads), and only send v2. The two contexts differ, so a v2 message can't be passed off as v1 (or back). Test vectors for both: `channel` in [vectors.json](vectors.json).
+- **The older format (v1)**, sent before this version: no `channel`, `thread` or `edit`; `ad = JSON.stringify(["iskra/channel-msg/v1", from, chain, version, head, sentAt, id])` and the signature under `iskra/channel-msg/v1`. Apps still open v1 messages and mark them "older format" (a server could have moved them between a channel and its threads), and only send v2. The two contexts differ, so a v2 message can't be passed off as v1 (or back). Test vectors for both (and for v3, [Disappearing messages](#disappearing-messages)): `channel` in [vectors.json](vectors.json).
 
 #### Messages from people who were removed
 
@@ -2912,3 +2912,71 @@ make the same changes (built-in role powers included).
   and settings still at their defaults. It never deletes, renames or changes existing channels, roles, members or
   messages. Without `--apply` it only prints what it would add. It refuses while the server runs (its port answers on
   localhost). Security log `server.template.merge`.
+
+## Disappearing messages
+
+A conversation can make its new messages disappear after a set time, as in Signal: **off, 5 minutes, 1 hour, 8 hours,
+1 day, 7 days or 4 weeks** (`seconds`: 0, 300, 3600, 28800, 86400, 604800, 2419200; anything else is `bad_request`, key
+`disappear_timer`). Each message gets its expiry when it is stored and keeps it; changing the timer only affects messages
+sent afterwards. The server deletes expired messages; apps delete their own copies at the same time, even after being
+offline (each copy keeps its deadline).
+
+```jsonc
+Disappear { "scope": "channel" | "dm" | "group", "channelId" | "accountKey" | "groupId": …, "seconds": 3600,
+            "setBy": "<accountKey>", "setAt": 1760000000000 }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `disappear.set` | one of `channelId`, `accountKey` (the other person in a DM, or yourself), `groupId`; `seconds` | `{ timer: Disappear }` | channels: `manageChannels` and able to read it (`not_found` otherwise), text, voice and stage channels only (`bad_request`, key `disappear_kind`; threads follow their channel); DMs: either person (not if either blocked the other); groups: any member (`not_found` for anyone else). 1/s, burst 10 |
+| `disappear.list` | | `{ timers: [Disappear] }`: channels you can read, your DMs (`accountKey` = the other person) and your groups | anyone |
+
+| event | body | sent to |
+|---|---|---|
+| `disappear.changed` | `{ timer }` | channels: its readers; DMs: both people (each sees the other as `accountKey`); groups: its members |
+
+- **Messages gain `expiresAt`** (ms, or null): `Message`, `dm.message`/`dm.history` and `GroupMessage`. It is set when the
+  message is stored: `createdAt` + the timer then (a thread's message: its channel's), or + the envelope header's
+  `expires` if that is sooner (below). Every way into a channel follows the timer (bots, webhooks, polls, clips), except
+  imported history. Edits never move it.
+- **The change line.** In channels the server adds a message whose `disappear: { seconds }` says what was set (by whom:
+  `author`); it never expires itself. Its `text` is an English line for apps from before disappearing messages, and `""`
+  in encrypted channels. In DMs and groups the app that changed the timer sends the line itself, encrypted: content
+  `{ "text": "<fallback for older apps>", "disappear": { "seconds": n } }` in a normal (v2) envelope that doesn't
+  expire. Apps send with the stricter (shorter, not off) of the servers' timer and the newest change line they read,
+  so a server can't quietly turn a DM's or group's timer off.
+- **Push** leaves the text of a disappearing channel message out ("Open Iskra to read it."), so it doesn't outlive the
+  message in a notification centre. Apps close their own notifications when the message goes, and don't offer saving
+  or reminders for disappearing messages (both keep a copy).
+
+### End-to-end encrypted messages carry their expiry
+
+An encrypted message names its expiry in its header as `expires` (seconds, one of the timers), bound to the message so a
+server can't stretch it. Apps delete their copy at the **sooner** of the server's `expiresAt` and
+`min(header.sentAt, createdAt) + expires`, so neither a server nor a sender's clock can make it last longer. These are new
+envelope versions, so apps from before disappearing messages can't open them ("couldn't be read") and never keep their
+text; messages without a timer keep the older versions everyone reads.
+
+- **DMs: envelope `v: 3`** = v2 with `header.expires`; associated data `JSON.stringify(["iskra/dm/v3", from, to, sentAt, id, expires])`.
+- **Group DMs: `v: 3, kind: "group"`** with `header.expires`; associated data `JSON.stringify(["iskra/group-dm/v2", from, group, version, head, sentAt, id, expires])`.
+- **Encrypted channels: `v: 3, kind: "channel"`** with `header.expires`; `ad = JSON.stringify(["iskra/channel-msg/v3", from, chain, version, head, sentAt, id, channel, thread ?? 0, edit ?? "", expires])`, signed under `iskra/channel-msg/v3`. An edit of a v3 message is v3 with the same `expires`.
+- Receivers refuse a v3 envelope without a valid `expires`, and an older envelope with one. The server reads `expires`
+  from the header (`bad_request`, key `disappear_timer`, if it isn't one of the timers) and stores the sooner expiry; it
+  never needs to read anything else.
+
+### Deletion
+
+- The server sweeps every 5 seconds. A channel message goes with its reactions, pins, poll, edit history, inbox entries
+  and search entry, and a thread started from it goes with the thread (`chat.deleted` and `thread.deleted` to readers).
+  DM and group envelopes go too. Files go with their messages, record and stored content, unless something else still
+  uses them (another message, an avatar, emoji, a profile page, a docs page, a bot card, an open report); encrypted
+  files lose their access list, so `dm.file.url` answers `not_found`. Deleted rows are overwritten in the database
+  (`secure_delete`; the search index too where SQLite supports it) and the write-ahead log is checkpointed.
+- **Backups never contain disappearing messages:** when a backup is made, messages with an expiry (and their threads and
+  files) are taken out of the copy, which is then rebuilt (`VACUUM`), so nothing of them is in it. Restoring or moving a
+  server from a backup doesn't bring them back.
+- `data.export` adds `disappearingTimers` (timers you set, and those of your DMs and groups). Messages that disappeared
+  are gone and not listed.
+- What disappearing messages can't do: stop people taking screenshots, copying text or saving files before the time is
+  up; delete copies on a device whose app is from before disappearing messages (plain channel messages: those apps drop
+  them when the server deletes them while they're open); or take back a reply's quote or a forward someone made.

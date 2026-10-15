@@ -125,7 +125,7 @@ public static class DisappearFeature
             || !header.TryGetProperty("expires", out var expires))
             return null;
         if (expires.ValueKind == JsonValueKind.Number && expires.TryGetInt32(out var seconds) && seconds > 0 && Allowed.Contains(seconds)) return seconds;
-        throw RequestException.BadRequest("The envelope's 'expires' isn't one of the disappearing message timers.", "disappear_timer");
+        throw RequestException.BadRequest("That isn't one of the disappearing message timers.", "disappear_timer");
     }
 
     private static int? EnvelopeExpires(string raw)

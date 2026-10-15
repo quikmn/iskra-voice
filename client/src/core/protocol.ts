@@ -2145,3 +2145,35 @@ export interface Requests {
   'dm.bots.get': [Record<string, never>, BotDmSetting]
   'dm.bots.set': [BotDmSetting, BotDmSetting]
 }
+
+// ── disappearing messages ──
+
+/** A disappearing-messages timer (seconds, 0 = off) of a channel, a DM (the other person) or a group DM. */
+export type DisappearTimer = { seconds: number; setBy: string; setAt: number } & (
+  | { scope: 'channel'; channelId: number }
+  | { scope: 'dm'; accountKey: string }
+  | { scope: 'group'; groupId: string })
+
+export interface Message {
+  /** When the message disappears (the server deletes it then), or null. */
+  expiresAt?: number | null
+  /** A timer change line (made by the server), not a message. */
+  disappear?: { seconds: number } | null
+}
+
+export interface WireDm {
+  expiresAt?: number | null
+}
+
+export interface WireGroupMessage {
+  expiresAt?: number | null
+}
+
+export interface Events {
+  'disappear.changed': { timer: DisappearTimer }
+}
+
+export interface Requests {
+  'disappear.set': [{ channelId?: number; accountKey?: string; groupId?: string; seconds: number }, { timer: DisappearTimer }]
+  'disappear.list': [Record<string, never>, { timers: DisappearTimer[] }]
+}

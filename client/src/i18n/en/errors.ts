@@ -213,6 +213,8 @@ export const errors = {
     event_future: 'Events have to start in the future.',
     group_members_here: 'Everyone in a group must be a person on this server.',
     gif_no_edit: "GIFs can't be edited.",
+    disappear_timer: "That isn't one of the disappearing message timers.",
+    disappear_kind: "Messages can't disappear in this kind of channel.",
     sounds_join_voice: 'Join a voice channel to use the soundboard.',
     stage_join_first: 'Join the stage first.',
     voice_join_first: 'Join the voice channel first.',

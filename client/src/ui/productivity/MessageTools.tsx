@@ -45,6 +45,8 @@ export function SaveRemindItems({ target, wrap, icons }: { target: MessageTarget
 
 /** For channel, thread and forum messages. */
 export function ChannelSaveRemind({ server, message, wrap, icons }: { server: ServerState; message: Message; wrap: Wrap; icons?: boolean }) {
+  // Disappearing messages can't be saved or reminded of: that would keep a copy of them.
+  if (typeof message.expiresAt === 'number') return null
   return <SaveRemindItems target={channelTarget(server, message)} wrap={wrap} icons={icons} />
 }
 

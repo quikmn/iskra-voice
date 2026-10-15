@@ -73,7 +73,9 @@ const plain = new TextEncoder().encode(JSON.stringify({ text: 'hej' }))
 const channelMessage = (v, header) => {
   const fields = v === 1
     ? ['iskra/channel-msg/v1', header.from, header.chain, header.version, head, header.sentAt, header.id]
-    : ['iskra/channel-msg/v2', header.from, header.chain, header.version, head, header.sentAt, header.id, header.channel, header.thread ?? 0, header.edit ?? '']
+    : v === 2
+      ? ['iskra/channel-msg/v2', header.from, header.chain, header.version, head, header.sentAt, header.id, header.channel, header.thread ?? 0, header.edit ?? '']
+      : ['iskra/channel-msg/v3', header.from, header.chain, header.version, head, header.sentAt, header.id, header.channel, header.thread ?? 0, header.edit ?? '', header.expires]
   const ad = new TextEncoder().encode(JSON.stringify(fields))
   const ct = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plain, ad, null, msgNonce, epochKey)
   const sig = sodium.crypto_sign_detached(payload(`iskra/channel-msg/v${v}`, u64be(ad.length), ad, u64be(msgNonce.length), msgNonce, ct), device.privateKey)
@@ -86,6 +88,8 @@ const channel = {
     { place: { channel: 42 }, ...channelMessage(1, base) },
     { place: { channel: 42 }, ...channelMessage(2, { ...base, channel: 42 }) },
     { place: { channel: 42, thread: 43 }, ...channelMessage(2, { ...base, id: 'DA0ODxAREhMUFRYX', channel: 42, thread: 43, edit: 'AAECAwQFBgcICQoL' }) },
+    // v3: a disappearing message (its expiry, in seconds, is bound to it).
+    { place: { channel: 42 }, ...channelMessage(3, { ...base, id: 'GBkaGxwdHh8gISIj', channel: 42, expires: 3600 }) },
   ],
 }
 writeFileSync(out, JSON.stringify({ v1, rotation, dmFile, channel }, null, 2) + '\n')

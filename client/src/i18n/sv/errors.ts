@@ -211,6 +211,8 @@ export const errors: Messages['errors'] = {
     event_future: 'Evenemang måste börja i framtiden.',
     group_members_here: 'Alla i en grupp måste vara personer på den här servern.',
     gif_no_edit: 'GIF:ar kan inte redigeras.',
+    disappear_timer: 'Det är inte en av tiderna för försvinnande meddelanden.',
+    disappear_kind: 'Meddelanden kan inte försvinna i den här sortens kanal.',
     sounds_join_voice: 'Gå med i en röstkanal för att använda ljudbrädan.',
     stage_join_first: 'Gå med på scenen först.',
     voice_join_first: 'Gå med i röstkanalen först.',

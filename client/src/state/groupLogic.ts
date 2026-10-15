@@ -17,6 +17,10 @@ export interface GroupMsg {
   group?: Record<string, unknown>
   /** End-to-end encrypted attachments (core/dmFiles.ts). */
   files?: import('../core/dmFiles').DmFile[]
+  /** When it disappears from this device (state/disappearing.ts deletes it then). */
+  expiresAt?: number
+  /** A disappearing messages timer change line (seconds, 0 = off). */
+  disappear?: { seconds: number }
 }
 
 /** One row of a group conversation: a message, or a membership change from the signed chain. */

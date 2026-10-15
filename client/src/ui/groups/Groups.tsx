@@ -1,4 +1,6 @@
 // Group DMs: the sidebar rows, the conversation, and the dialogs to make a group, add people and manage it.
+import { DisappearLine, ExpiryBadge } from '../disappear/Disappear'
+import { GroupTimerButton } from '../disappear/Timers'
 import { Fragment, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { b64u } from '../../core/crypto'
 import { asRename, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, ownerOf } from '../../core/group'
@@ -398,6 +400,7 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
       const who = m.from === me ? t('groups.you') : knownName(m.from)
       return <SystemLine key={`${m.from}:${m.id}`} icon="pencil" text={rename.name ? t('groups.namedGroup', { who, name: rename.name }) : t('groups.removedName', { who })} at={m.sentAt} />
     }
+    if (m.disappear && !m.error) return <DisappearLine key={`${m.from}:${m.id}`} seconds={m.disappear.seconds} name={knownName(m.from)} mine={m.from === me} at={m.sentAt} />
     const callLine = !m.error ? asGroupCallLine(m.call) : null
     if (callLine) {
       const who = m.from === me ? t('groups.you') : knownName(m.from)
@@ -405,7 +408,7 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
     }
     const prev = items[i - 1]
     const grouped = prev?.kind === 'message' && prev.message.from === m.from && m.sentAt - prev.message.sentAt < GROUP_WINDOW_MS
-      && !prev.message.pending && !prev.message.error && !prev.message.group && !prev.message.call && m !== firstNew
+      && !prev.message.pending && !prev.message.error && !prev.message.group && !prev.message.call && !prev.message.disappear && m !== firstNew
     return <GroupRow key={`${m.from}:${m.id}`} m={m} grouped={grouped} groupKey={groupKey} mine={m.from === me} />
   }
 
@@ -423,6 +426,7 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
         <h1 className="group-title">{title}</h1>
         <span className="e2e-badge" title={t('groups.onlyPeopleRead')}><Lock size={13} /> {t('groups.e2e')}</span>
         <span className="spacer" />
+        <GroupTimerButton groupKey={groupKey} canChange={member && !reason} />
         {member && <GroupCallButtons groupKey={groupKey} />}
         <button className="icon-button" onClick={() => setDialog('members')} aria-label={t('groups.groupMembers')} title={t('groups.membersTitle')}>
           <Users />
@@ -483,18 +487,20 @@ function SystemLine({ text, at, icon }: { text: string; at: number; icon?: 'penc
 function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolean; groupKey: string; mine: boolean }) {
   const { t } = useTranslation()
   const name = knownName(m.from)
-  const tools = usePrivateMessageTools(m.pending || m.error || m.call ? null : groupTarget(groupKey, m), m.text)
+  // No saving or reminders for disappearing messages: they would keep a copy of it.
+  const tools = usePrivateMessageTools(m.pending || m.error || m.call || m.expiresAt ? null : groupTarget(groupKey, m), m.text)
   return (
     <div id={privateRowId(m.from, m.id)} {...tools.rowProps} data-dm-id={m.id} className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''} ${tools.rowProps.className ?? ''}`}
       role="article" tabIndex={-1} aria-label={t('chat.a11y.message', { name, time: fullTime(m.sentAt) })}>
       <div className="message-gutter">
-        {grouped ? <time className="hover-time" title={fullTime(m.sentAt)}>{clockTime(m.sentAt)}</time> : <Avatar name={name} accountKey={m.from} />}
+        {grouped ? <><time className="hover-time" title={fullTime(m.sentAt)}>{clockTime(m.sentAt)}</time>{m.expiresAt && <ExpiryBadge expiresAt={m.expiresAt} />}</> : <Avatar name={name} accountKey={m.from} />}
       </div>
       <div className="message-body">
         {!grouped && (
           <div className="message-meta">
             <span className="author" style={{ color: `hsl(${hueFor(m.from)} 70% var(--name-l))` }}>{name}</span>
             <time title={fullTime(m.sentAt)}>{messageTime(m.sentAt)}</time>
+            <ExpiryBadge expiresAt={m.expiresAt} />
           </div>
         )}
         {m.error && !m.pending ? (

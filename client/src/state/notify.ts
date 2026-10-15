@@ -114,7 +114,8 @@ export function showNotification(serverKey: string, title: string, body: string,
   show(serverKey, title, body, onClick)
 }
 
-export function show(serverKey: string, title: string, body: string, onClick: () => void): void {
+/** `expiresAt`: a disappearing message; its notification is taken away when the message goes. */
+export function show(serverKey: string, title: string, body: string, onClick: () => void, expiresAt?: number): void {
   if (pushActive.has(serverKey) && !document.hasFocus()) return
   if (isDoNotDisturb()) return // do not disturb: no sounds or notifications (unread badges still count)
   playTone('message')
@@ -126,6 +127,7 @@ export function show(serverKey: string, title: string, body: string, onClick: ()
     onClick()
     notification.close()
   }
+  if (typeof expiresAt === 'number') setTimeout(() => notification.close(), Math.min(Math.max(0, expiresAt - Date.now()), 2 ** 31 - 1))
 }
 
 const me = () => {
@@ -147,7 +149,7 @@ export function notifyChannelMessage(serverKey: string, message: Message): void 
   const author = message.webhook?.name ?? server.members[message.author]?.name ?? t('common.someone')
   show(serverKey, t('app.notify.authorIn', { author, where: conversationLabel(server, message.channelId) }), stripMarkdown(plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null })), () => {
     void jumpToMessage(serverKey, message.channelId, message.id)
-  })
+  }, message.expiresAt ?? undefined)
 }
 
 onServerEvent((serverKey, type, body) => {
@@ -184,7 +186,7 @@ const dmServer = new Map<string, string>()
 void import('./dms').then(({ onDmOpened, nameOf, openConversation }) => onDmOpened((peer, dms, live) => {
   const dm = dms.at(-1)
   if (!live || !dm || dm.from === me() || dm.friend || isOnScreen(dmConv(peer))) return
-  show(dmServer.get(dm.from) ?? '', nameOf(dm.from), dm.error ? t('app.notify.newMessage') : (dm.text || t('app.notify.newMessage')), () => openConversation(peer))
+  show(dmServer.get(dm.from) ?? '', nameOf(dm.from), dm.error ? t('app.notify.newMessage') : (dm.text || t('app.notify.newMessage')), () => openConversation(peer), dm.expiresAt)
 }))
 
 let lastBadge = -1

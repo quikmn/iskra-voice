@@ -17,12 +17,15 @@ import sodium from 'libsodium-wrappers-sumo'
 import { b64u, fromB64u, randomBytes } from './crypto'
 import { currentPrekey, usablePrekeys, type SignedPrekey } from './devices'
 import { verifyDeviceCert, type DeviceCert, type Identity } from './identity'
+import { isExpiry, isTimer } from './disappear'
 
 export interface DmHeader {
   from: string
   to: string
   sentAt: number
   id: string
+  /** v3: the message disappears this many seconds after it was sent (bound to the message, so a server can't change it). */
+  expires?: number
 }
 
 /** Key slot wrapped to the device's long-term key (v1, or v2 without a prekey). */
@@ -40,7 +43,8 @@ export interface DmPrekeySlot {
 }
 
 export interface DmEnvelope {
-  v: 1 | 2
+  /** 3: v2 with a disappearing message's `expires` in the header (apps from before it can't open it, so never keep it). */
+  v: 1 | 2 | 3
   header: DmHeader
   sender: DeviceCert
   nonce: string
@@ -62,6 +66,8 @@ export interface DmContent {
   friend?: Record<string, unknown>
   /** Key transparency gossip (core/keylog.ts, which checks it). Older apps ignore it. */
   kt?: Record<string, unknown>
+  /** A disappearing messages timer change (seconds, 0 = off); `text` is the fallback for older apps. */
+  disappear?: { seconds: number }
 }
 
 export interface DmForward {
@@ -96,15 +102,19 @@ export interface EncryptOptions {
   prekeys?: SignedPrekey[]
   /** Device keys known to be revoked (checked revocations); they get no key slot. */
   revokedDevices?: Iterable<string>
+  /** A disappearing message: seconds until it goes (one of the timers). Makes a v3 envelope (needs `prekeys`). */
+  expires?: number
 }
 
 export class DmError extends Error {}
 
 const MAX_TEXT = 4000
 
-function associatedData(v: 1 | 2, header: DmHeader): Uint8Array {
+function associatedData(v: 1 | 2 | 3, header: DmHeader): Uint8Array {
   // An array has a fixed order, unlike object keys.
-  return new TextEncoder().encode(JSON.stringify([`iskra/dm/v${v}`, header.from, header.to, header.sentAt, header.id]))
+  const fields: unknown[] = [`iskra/dm/v${v}`, header.from, header.to, header.sentAt, header.id]
+  if (v === 3) fields.push(header.expires)
+  return new TextEncoder().encode(JSON.stringify(fields))
 }
 
 const toX25519Public = (deviceKey: string) => sodium.crypto_sign_ed25519_pk_to_curve25519(fromB64u(deviceKey))
@@ -139,9 +149,10 @@ export function encryptDm(
   const mine = validDevices([identity.cert, ...ownDevices], from, revoked)
   const targets = [...recipients, ...mine.filter((d) => !recipients.some((r) => r.deviceKey === d.deviceKey))]
 
-  const v = options.prekeys ? 2 : 1
-  const header: DmHeader = { from, to, sentAt: now, id: b64u(randomBytes(12)) }
-  return { v, header, sender: identity.cert, ...sealContent(identity, associatedData(v, header), targets, content, now, v === 2 ? options.prekeys : undefined) }
+  if (options.expires !== undefined && (!isExpiry(options.expires) || !options.prekeys)) throw new DmError('Unsupported message format.')
+  const v = options.expires !== undefined ? 3 : options.prekeys ? 2 : 1
+  const header: DmHeader = { from, to, sentAt: now, id: b64u(randomBytes(12)), ...(v === 3 ? { expires: options.expires } : {}) }
+  return { v, header, sender: identity.cert, ...sealContent(identity, associatedData(v, header), targets, content, now, v >= 2 ? options.prekeys : undefined) }
 }
 
 /** Device keys that get no slot: the known revocations, but never the sending device itself. */
@@ -228,9 +239,11 @@ export function decryptDm(
   identity: Identity, envelope: DmEnvelope, from: string, to: string,
   same: (a: string, b: string) => boolean = (a, b) => a === b,
 ): DmContent & { header: DmHeader } {
-  if (!envelope || (envelope.v !== 1 && envelope.v !== 2) || !envelope.header || !envelope.sender || !Array.isArray(envelope.keys))
+  if (!envelope || (envelope.v !== 1 && envelope.v !== 2 && envelope.v !== 3) || !envelope.header || !envelope.sender || !Array.isArray(envelope.keys))
     throw new DmError('Unsupported message format.')
   const { header, sender } = envelope
+  // Only v3 carries an expiry, and it must be one of the timers.
+  if (envelope.v === 3 ? !isExpiry(header.expires) : header.expires !== undefined) throw new DmError('Unsupported message format.')
   const me = b64u(identity.account.publicKey)
 
   if (!same(header.from, from) || !same(header.to, to)) throw new DmError("This message's sender or recipient doesn't match.")
@@ -264,9 +277,11 @@ export function openContent(identity: Identity, envelope: Pick<DmEnvelope, 'v' |
   const group = content.group && typeof content.group === 'object' && !Array.isArray(content.group) ? { group: content.group as Record<string, unknown> } : {}
   const friend = content.friend && typeof content.friend === 'object' && !Array.isArray(content.friend) ? { friend: content.friend } : {}
   const kt = content.kt && typeof content.kt === 'object' && !Array.isArray(content.kt) ? { kt: content.kt } : {}
+  const d = content.disappear as { seconds?: unknown } | undefined
+  const disappear = d && typeof d === 'object' && isTimer(d.seconds) ? { disappear: { seconds: d.seconds as number } } : {}
   const forward = content.forward === undefined ? null : cleanForward(content.forward)
   const files = checkFiles(content.files)
-  return { text: content.text, ...call, ...group, ...friend, ...kt, ...(forward ? { forward } : {}), ...(files.length ? { files } : {}) }
+  return { text: content.text, ...call, ...group, ...friend, ...kt, ...disappear, ...(forward ? { forward } : {}), ...(files.length ? { files } : {}) }
 }
 
 /**
