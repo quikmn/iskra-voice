@@ -30,6 +30,8 @@ button.teams-member:hover { background: var(--hover); }
   font-size: 14px; flex-wrap: wrap; }
 .teams-bar .teams-bar-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 600px) {
+  .teams-bar { padding: 8px 12px; }
+  .teams-bar .teams-bar-text { white-space: normal; overflow-wrap: anywhere; }
   .teams-grid { grid-template-columns: 1fr 1fr; }
   .teams-skills ul { grid-template-columns: 1fr; }
 }

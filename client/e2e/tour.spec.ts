@@ -1,7 +1,7 @@
 // A screenshot tour of every screen and state, at desktop and phone sizes, for reviewing the UI as a whole.
 // Not part of the normal run: `ISKRA_TOUR=1 npx playwright test e2e/tour.spec.ts` (screenshots in e2e/screenshots/tour).
 // Optional: ISKRA_TOUR_THEME=<theme id> or ISKRA_TOUR_THEME=light to shoot everything in another theme.
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
@@ -55,9 +55,48 @@ async function part(name: string, fn: () => Promise<void>) {
   }
 }
 
+/** Per phone shot: sideways overflow and touch targets smaller than 40px (written to phone-checks.json). */
+const phoneChecks: { shot: string; overflow: string[]; small: string[] }[] = []
+
 async function shot(page: Page, name: string) {
   await page.waitForTimeout(250) // let transitions settle
   await page.screenshot({ path: join(OUT, `${name}.png`), animations: 'disabled' })
+  if ((page.viewportSize()?.width ?? 1000) > 500) return
+  const found = await page.evaluate(() => {
+    const describe = (el: Element) => {
+      const r = el.getBoundingClientRect()
+      const label = el.getAttribute('aria-label') ?? el.textContent?.trim().slice(0, 30) ?? ''
+      return `${el.tagName.toLowerCase()}.${[...el.classList].join('.')} "${label}" ${Math.round(r.width)}×${Math.round(r.height)}`
+    }
+    const visible = (el: Element) => {
+      const r = el.getBoundingClientRect()
+      if (r.width === 0 || r.height === 0 || r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) return false
+      const s = getComputedStyle(el)
+      return s.visibility !== 'hidden' && s.display !== 'none'
+    }
+    // Clipped by a scrolling or hidden-overflow ancestor (a toolbar that scrolls sideways): not page overflow.
+    const clipped = (el: Element) => {
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+        const o = getComputedStyle(p).overflowX
+        if (o === 'auto' || o === 'scroll' || o === 'hidden' || o === 'clip') return true
+      }
+      return false
+    }
+    const overflow: string[] = []
+    if (document.documentElement.scrollWidth > innerWidth) overflow.push(`page scrollWidth ${document.documentElement.scrollWidth}`)
+    for (const el of document.querySelectorAll('body *')) {
+      const r = el.getBoundingClientRect()
+      if (r.right > innerWidth + 1 && r.width > 0 && visible(el) && !clipped(el)) overflow.push(describe(el))
+    }
+    const small: string[] = []
+    for (const el of document.querySelectorAll('button, a.button, [role=button], [role=menuitem], [role=tab], [role=radio], select')) {
+      if (!visible(el) || el.closest('.message-text, .rich-text, .wb-canvas, [inert], [aria-hidden=true]')) continue
+      const r = el.getBoundingClientRect()
+      if (Math.min(r.width, r.height) < 40) small.push(describe(el))
+    }
+    return { overflow: overflow.slice(0, 10), small }
+  })
+  if (found.overflow.length || found.small.length) phoneChecks.push({ shot: name, ...found })
 }
 
 async function context(browser: Browser, options: Parameters<Browser['newContext']>[0] = { viewport: DESKTOP }): Promise<BrowserContext> {
@@ -107,6 +146,7 @@ test.afterAll(async () => {
   await server?.stop()
   await offline?.stop()
   rmSync(botDir, { recursive: true, force: true })
+  writeFileSync(join(OUT, 'phone-checks.json'), JSON.stringify(phoneChecks, null, 2))
   if (problems.length) console.log(`Tour problems:\n  ${problems.join('\n  ')}`)
 })
 
@@ -454,6 +494,130 @@ test('screenshot tour', async ({ browser }) => {
     await host.keyboard.press('Escape')
   })
 
+  // ── Newer chat features: code and math, disappearing messages, LFG, whiteboard, translation, quiet hours ──
+  const openChannel = async (page: Page, name: string) => {
+    const drawer = page.getByRole('button', { name: 'Open channels' }).first()
+    if (await drawer.isVisible()) await drawer.click()
+    await page.locator('.channel', { hasText: name }).first().click()
+    await expect(page.getByRole('heading', { name })).toBeVisible()
+  }
+  const createChannel = async (kind: string, name: string) => {
+    await host.getByRole('button', { name: 'Create channel' }).first().click()
+    const create = host.getByRole('dialog', { name: 'Create channel' })
+    await create.getByRole('radio', { name: kind }).click()
+    await create.getByPlaceholder('game-night').fill(name)
+    await create.getByRole('button', { name: 'Create' }).click()
+    await expect(host.getByRole('heading', { name })).toBeVisible()
+  }
+  await part('code and math', async () => {
+    await send(host, '```ts\nconst greet = (name: string) => `hi ${name}` // say hello to everyone who joins the server tonight\n```')
+    await send(host, 'Odds per roll: $\\frac{1}{6}$, and over a night:\n$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$')
+    await expect(host.locator('.math-block')).toBeVisible()
+    await shot(host, '100-code-math-desktop')
+    await shot(phone, '100-code-math-phone')
+    await shot(small, '100-code-math-small-phone')
+  })
+  await part('disappearing', async () => {
+    await createChannel('Text', 'short-lived')
+    await host.getByTestId('disappear-button').click()
+    await shot(host, '101-dialog-disappearing-desktop')
+    await host.getByRole('dialog', { name: 'Disappearing messages' }).getByText('1 hour', { exact: true }).click()
+    await host.getByPlaceholder('Message #short-lived').fill('this one goes away in an hour')
+    await host.getByPlaceholder('Message #short-lived').press('Enter')
+    await openChannel(phone, 'short-lived')
+    await expect(phone.locator('.expiry-badge').first()).toBeVisible()
+    await shot(phone, '102-disappearing-phone')
+    await phone.getByTestId('disappear-button').click()
+    await shot(phone, '101-dialog-disappearing-phone')
+    await phone.keyboard.press('Escape')
+    await shot(host, '102-disappearing-desktop')
+  })
+  await part('lfg', async () => {
+    await openChannel(host, 'general')
+    await openChannel(phone, 'general')
+    const box = phone.getByPlaceholder('Message #general')
+    await box.fill('/lfg 3 Valheim')
+    await box.press('Enter')
+    const dialog = phone.getByRole('dialog', { name: 'Looking for group' })
+    await dialog.getByLabel('Note (optional)').fill('Chill run, bring mead')
+    await shot(phone, '103-dialog-lfg-phone')
+    await dialog.getByTestId('lfg-post').click()
+    await expect(host.getByTestId('lfg-card').last()).toBeVisible()
+    await host.getByTestId('lfg-card').last().getByRole('button', { name: 'Join', exact: true }).click()
+    await expect(phone.getByTestId('lfg-card').last()).toContainText('2 slots left')
+    await shot(phone, '104-lfg-card-phone')
+    await shot(small, '104-lfg-card-small-phone')
+    await shot(host, '104-lfg-card-desktop')
+  })
+  await part('whiteboard', async () => {
+    await createChannel('Whiteboard', 'plans')
+    await shot(host, '105-whiteboard-empty-desktop')
+    const canvas = host.locator('.wb-canvas')
+    const b = (await canvas.boundingBox())!
+    await host.mouse.move(b.x + b.width * 0.2, b.y + b.height * 0.3)
+    await host.mouse.down()
+    for (let i = 1; i <= 10; i++) await host.mouse.move(b.x + b.width * (0.2 + i * 0.04), b.y + b.height * (0.3 + Math.sin(i) * 0.05))
+    await host.mouse.up()
+    await host.getByRole('radio', { name: 'Rectangle (R)' }).click()
+    await host.mouse.move(b.x + b.width * 0.55, b.y + b.height * 0.5)
+    await host.mouse.down()
+    await host.mouse.move(b.x + b.width * 0.8, b.y + b.height * 0.75, { steps: 5 })
+    await host.mouse.up()
+    await expect(canvas).toHaveAttribute('data-count', '2')
+    await shot(host, '106-whiteboard-desktop')
+    await openChannel(phone, 'plans')
+    await expect(phone.locator('.wb-canvas')).toHaveAttribute('data-count', '2')
+    await shot(phone, '106-whiteboard-phone')
+    await openChannel(small, 'plans')
+    await shot(small, '106-whiteboard-small-phone')
+    await openChannel(small, 'general')
+    await openChannel(phone, 'general')
+    await openChannel(host, 'general')
+  })
+  await part('translate', async () => {
+    await serverSettings(host, 'Translation')
+    await shot(host, '107-settings-translation-desktop')
+    await host.getByTestId('translate-section').getByRole('checkbox', { name: 'Offer translation to members' }).check()
+    await host.keyboard.press('Escape')
+    await send(small, 'Hej! Kommer du på spelkvällen ikväll? Jag tar med snacks.')
+    const message = host.locator('.message', { hasText: 'spelkvällen' }).first()
+    await message.hover()
+    await message.getByRole('button', { name: 'More' }).click()
+    await host.getByRole('menuitem', { name: 'Translate' }).click()
+    await expect(message.getByTestId('translation-download')).toBeVisible({ timeout: 30_000 })
+    await shot(host, '108-translate-prompt-desktop')
+    const onPhone = phone.locator('.message', { hasText: 'spelkvällen' }).first()
+    await longPress(phone, onPhone.locator('.message-text'))
+    await shot(phone, '108-message-actions-translate-phone')
+    await phone.getByRole('menuitem', { name: 'Translate' }).click()
+    await expect(onPhone.getByTestId('translation-download')).toBeVisible({ timeout: 30_000 })
+    await shot(phone, '108-translate-prompt-phone')
+    await host.getByTestId('auto-translate-button').click()
+    await shot(host, '109-translate-auto-desktop')
+    await host.keyboard.press('Escape')
+  })
+  await part('quiet hours', async () => {
+    await settings(phone, 'Notifications')
+    const dialog = phone.getByRole('dialog', { name: 'Settings' })
+    await dialog.getByRole('textbox', { name: 'Alert me for these words' }).fill('raid night')
+    await dialog.getByRole('button', { name: 'Add', exact: true }).click()
+    await dialog.getByRole('checkbox', { name: 'Quiet hours on a schedule' }).check()
+    await shot(phone, '110-settings-alerts-phone')
+    await phone.locator('.quiet-settings').scrollIntoViewIfNeeded()
+    await shot(phone, '110-settings-quiet-phone')
+    await phone.keyboard.press('Escape')
+    await phone.keyboard.press('Escape')
+    const drawer = phone.getByRole('button', { name: 'Open channels' }).first()
+    if (await drawer.isVisible()) await drawer.click()
+    await phone.locator('.me-status-button').click()
+    await shot(phone, '111-status-menu-phone')
+    await phone.keyboard.press('Escape')
+    await phone.keyboard.press('Escape')
+    await host.locator('.me-status-button').click()
+    await shot(host, '111-status-menu-desktop')
+    await host.keyboard.press('Escape')
+  })
+
   // ── Voice channel and the soundboard ──
   if (hasLiveKit()) {
     await part('voice', async () => {
@@ -478,6 +642,52 @@ test('screenshot tour', async ({ browser }) => {
       await host.keyboard.press('Escape')
       await expect(phone.locator('.sound-toast')).toBeVisible()
       await shot(phone, '62-sound-toast-phone')
+
+      await part('whiteboard in a call', async () => {
+        await host.locator('.call-controls').getByRole('button', { name: 'Open a whiteboard' }).click()
+        await expect(host.getByTestId('whiteboard')).toBeVisible()
+        await phone.locator('.call-controls').getByRole('button', { name: 'Show the whiteboard' }).click()
+        await expect(phone.getByTestId('whiteboard')).toBeVisible()
+        await shot(host, '64-whiteboard-call-desktop')
+        await shot(phone, '64-whiteboard-call-phone')
+        await host.getByRole('button', { name: 'Hide the whiteboard' }).first().click()
+        await phone.getByRole('button', { name: 'Hide the whiteboard' }).first().click()
+      })
+      await part('teams', async () => {
+        await lounge(host).locator('.channel').first().hover()
+        await host.getByRole('button', { name: 'lounge options' }).click()
+        await host.getByRole('menuitem', { name: 'Split into teams…' }).click()
+        const dialog = host.getByRole('dialog', { name: 'Split into teams' })
+        await expect(dialog.getByTestId('teams-preview')).toBeVisible()
+        await dialog.getByLabel('Game (optional)').fill('Valheim')
+        await shot(host, '65-dialog-teams-desktop')
+        await host.setViewportSize(PHONE.viewport)
+        await shot(host, '65-dialog-teams-phone')
+        await host.setViewportSize(DESKTOP)
+        await dialog.getByTestId('teams-go').click()
+        await expect(host.getByTestId('teams-bar')).toBeVisible({ timeout: 20_000 })
+        await expect(phone.getByTestId('teams-bar')).toBeVisible({ timeout: 20_000 })
+        await shot(host, '66-teams-bar-desktop')
+        await shot(phone, '66-teams-bar-phone')
+        await host.getByTestId('teams-bar').getByRole('button', { name: 'Bring everyone back' }).click()
+        await host.getByTestId('teams-back').click()
+        await expect(host.getByTestId('teams-bar')).toHaveCount(0, { timeout: 20_000 })
+      })
+      await part('whisper', async () => {
+        await settings(phone, 'Voice & audio')
+        const list = phone.getByTestId('whisper-list-1')
+        await list.getByLabel('Name').fill('Viktor only')
+        await list.getByRole('radio', { name: 'People' }).click()
+        await phone.getByTestId('whisper-add-1').selectOption({ label: 'Viktor' })
+        await list.scrollIntoViewIfNeeded()
+        await shot(phone, '67-settings-whisper-phone')
+        await phone.keyboard.press('Escape')
+        await phone.keyboard.press('Escape')
+        await phone.getByRole('button', { name: 'Open channels' }).first().click()
+        await expect(phone.getByTestId('whisper-hold-1')).toBeVisible()
+        await shot(phone, '68-voice-bar-whisper-phone')
+        await phone.keyboard.press('Escape')
+      })
       await host.locator('.channel', { hasText: 'general' }).click()
       await shot(host, '63-voice-bar-desktop')
       await host.locator('.voice-controls').getByRole('button', { name: 'Leave voice' }).click()

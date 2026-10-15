@@ -31,7 +31,7 @@ button.author:hover { text-decoration: underline; }
 .profile-banner { height: 64px; position: relative; }
 .profile-close { position: absolute; right: 8px; top: 8px; background: rgba(0, 0, 0, 0.35); color: #fff; }
 .profile-close:hover { background: rgba(0, 0, 0, 0.55); color: #fff; }
-.profile-head { padding: 0 16px; margin-top: -44px; }
+.profile-head { padding: 0 16px; margin-top: -44px; position: relative; } /* above the banner */
 .profile-avatar-ring { display: inline-grid; padding: 5px; border-radius: var(--avatar-radius); }
 .profile-avatar-ring .presence { border-color: var(--float); }
 .profile-body { padding: 6px 16px 0; }

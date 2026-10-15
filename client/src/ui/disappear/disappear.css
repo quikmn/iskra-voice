@@ -1,5 +1,5 @@
 /* ── Disappearing messages ── */
-.icon-button.disappear-button { width: auto; min-width: 32px; gap: 4px; padding: 0 6px; display: inline-flex; flex-direction: row; align-items: center; }
+.icon-button.disappear-button { width: auto; min-width: 36px; gap: 4px; padding: 0 6px; display: inline-flex; flex-direction: row; align-items: center; }
 .disappear-button.on { color: var(--accent); }
 .disappear-short { font-size: 12px; font-weight: 600; white-space: nowrap; }
 

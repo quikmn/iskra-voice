@@ -115,7 +115,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         {channel ? (
           <h1>
             <span className="hash">{channel.kind === 'voice' || channel.kind === 'stage' ? <Volume size={20} /> : <Hash size={20} />}</span>
-            {channel.name}
+            <span className="chat-title-name">{channel.name}</span>
             <LockBadge channel={channel} size={14} />
           </h1>
         ) : (
@@ -216,6 +216,22 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
       if (messages && messages.length > SHOWN_ABOVE) trimChannel(server.key, channelId)
     }
   }, [messages, detached, server.key, channelId])
+  // Content that grows after it's drawn (pictures, embeds, math, a poll's results) or a list that shrinks (the phone
+  // keyboard opening): at the bottom, stay at the bottom.
+  const shown = !!messages
+  useEffect(() => {
+    const el = scroller.current
+    if (!el || detached || typeof ResizeObserver === 'undefined') return
+    const follow = () => { if (stickToBottom.current && !restore.current) el.scrollTop = el.scrollHeight }
+    const sizes = new ResizeObserver(follow)
+    sizes.observe(el)
+    for (const child of el.children) sizes.observe(child)
+    const added = new MutationObserver((changes) => {
+      for (const change of changes) for (const node of change.addedNodes) if (node instanceof Element) sizes.observe(node)
+    })
+    added.observe(el, { childList: true })
+    return () => { sizes.disconnect(); added.disconnect() }
+  }, [shown, detached])
   useJumpTarget(server.key, channelId, scroller, () => (stickToBottom.current = false), messages)
   useAnnounceNew(messages, (m) => (m.tempId ? null : String(m.id)), (m) => m.author === server.me?.accountKey ? null
     : t('chat.a11y.newMessage', { name: authorOf(m, server.members).name, text: m.text ? decodeMentions(m.text, (k) => server.members[k]?.name ?? null).slice(0, 200) : t('chat.message.attachment') }), !thread)
