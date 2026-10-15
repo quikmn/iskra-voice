@@ -68,6 +68,9 @@ export async function bundleSidecar(outfile, { sea = false } = {}) {
     },
   }
   const result = await esbuild.build({
+    // Metafile paths are relative to this folder, whatever directory the script is run from (release-windows runs it
+    // from the repo root): bundledLicences resolves them against `desktop`.
+    absWorkingDir: desktop,
     entryPoints: [ENTRY],
     outfile,
     bundle: true,
