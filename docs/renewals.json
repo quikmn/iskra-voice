@@ -1,0 +1,90 @@
+{
+  "$comment": "Everything that expires, in one list. scripts/renewals.mjs reads it and .github/workflows/renewals.yml posts warnings to the #renewals channel (docs/ci-cd.md, section 5). Each item has either expires (YYYY-MM-DD, or null with a note when the date is unknown) or check (read live: tls, rdap, securitytxt). Only dates from the docs; never guess one.",
+  "warnDays": [30, 14, 7, 1],
+  "items": [
+    {
+      "id": "certum-code-signing",
+      "name": "Certum code-signing certificate (Windows)",
+      "expires": "2027-05-12",
+      "warnDays": [45, 30, 14, 7, 1],
+      "renew": "Order the renewal in the Certum shop (same identity), verify, activate in SimplySign; same CN keeps auto-update working",
+      "doc": "docs/ci-cd.md#windows-code-signing-certum-simplysign"
+    },
+    {
+      "id": "apple-developer-id",
+      "name": "Apple Developer ID Application certificate",
+      "expires": "2031-09-17",
+      "warnDays": [60, 30, 14, 7, 1],
+      "renew": "New key + CSR, Developer ID Application (G2) certificate, p12, then gh secret set MAC_CERT_P12_BASE64 and MAC_CERT_PASSWORD",
+      "doc": "docs/ci-cd.md#apple-macos-signing-and-notarization"
+    },
+    {
+      "id": "apple-developer-program",
+      "name": "Apple Developer Program membership",
+      "expires": null,
+      "note": "date unknown: owner to fill (developer.apple.com → Membership details shows the expiry date)",
+      "renew": "Renew the membership (99 USD/year) at developer.apple.com, or Mac builds stop being notarized",
+      "doc": "docs/ci-cd.md#apple-macos-signing-and-notarization"
+    },
+    {
+      "id": "do-marketplace-token",
+      "name": "DigitalOcean token DO_MARKETPLACE_TOKEN (90 days, from 2026-10-15)",
+      "expires": "2027-01-13",
+      "renew": "New 90-day token with the scopes in marketplace/digitalocean/README.md, then gh secret set DO_MARKETPLACE_TOKEN --env marketplace",
+      "doc": "docs/ci-cd.md#digitalocean-marketplace-image"
+    },
+    {
+      "id": "android-keystore",
+      "name": "Android release keystore",
+      "expires": null,
+      "note": "date unknown: owner to fill (docs say ~27 years, ~2053; the exact date is in keytool -list -v -keystore iskra-android.keystore)",
+      "renew": "Can't be renewed: enrol in Play App Signing long before, so Google holds the app key",
+      "doc": "docs/ci-cd.md#android"
+    },
+    {
+      "id": "domain-iskra-foo",
+      "name": "iskra.foo domain registration",
+      "check": { "type": "rdap", "domain": "iskra.foo" },
+      "renew": "Check auto-renew (and the card) at the registrar (Porkbun), or renew by hand",
+      "doc": "docs/ci-cd.md#5-refresh-calendar"
+    },
+    {
+      "id": "securitytxt-site",
+      "name": "security.txt Expires on iskra.foo (site/.well-known/security.txt)",
+      "check": { "type": "securitytxt", "url": "https://iskra.foo/.well-known/security.txt" },
+      "renew": "Move Expires a year ahead in both security.txt files (at most a year), check Contact and Policy, deploy site and web app",
+      "doc": "docs/ci-cd.md#5-refresh-calendar"
+    },
+    {
+      "id": "securitytxt-app",
+      "name": "security.txt Expires on app.iskra.foo (client/public/.well-known/security.txt)",
+      "check": { "type": "securitytxt", "url": "https://app.iskra.foo/.well-known/security.txt" },
+      "renew": "Move Expires a year ahead in both security.txt files (at most a year), check Contact and Policy, deploy site and web app",
+      "doc": "docs/ci-cd.md#5-refresh-calendar"
+    },
+    {
+      "id": "tls-iskra-foo",
+      "name": "TLS certificate of iskra.foo",
+      "check": { "type": "tls", "host": "iskra.foo" },
+      "warnDays": [14, 7, 1],
+      "renew": "Cloudflare Pages renews it itself; if it doesn't, check the custom domain in the Pages project",
+      "doc": "docs/ci-cd.md#cloudflare"
+    },
+    {
+      "id": "tls-app-iskra-foo",
+      "name": "TLS certificate of app.iskra.foo",
+      "check": { "type": "tls", "host": "app.iskra.foo" },
+      "warnDays": [14, 7, 1],
+      "renew": "Cloudflare Pages renews it itself; if it doesn't, check the custom domain in the Pages project",
+      "doc": "docs/ci-cd.md#cloudflare"
+    },
+    {
+      "id": "tls-chat-iskra-foo",
+      "name": "TLS certificate of chat.iskra.foo",
+      "check": { "type": "tls", "host": "chat.iskra.foo" },
+      "warnDays": [14, 7, 1],
+      "renew": "The server renews it itself (Let's Encrypt); port 80 must stay open. Check the server log",
+      "doc": "docs/ci-cd.md#the-server-chatiskrafoo"
+    }
+  ]
+}

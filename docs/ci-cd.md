@@ -34,6 +34,7 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
  weekly ──► Dependabot ............ grouped PRs for npm (client, desktop, bots), NuGet (server), GitHub Actions
  every 15 min ──► uptime.yml ....... iskra.foo, app.iskra.foo, chat.iskra.foo (+ /health), voice port, TLS expiry
                                      ──► GitHub issue labelled "outage" on a change of state (section 8)
+ daily ──► renewals.yml ............ everything that expires (docs/renewals.json) ──► #renewals channel (section 5)
 
  THE RELEASE BUTTON: GitHub → Actions → Release → Run workflow (github.com or GitHub Mobile), or
  scripts/release.ps1 -GitHub. Needs only the home PC switched on (section 2a). release-all.yml:
@@ -127,6 +128,7 @@ Other files of the pipeline:
 | `scripts/ci-notify.mjs` | CI and release results to an Iskra channel ([section 9](#9-ci-results-in-iskra)) |
 | `docs/store/` | Store texts, forms and graphics: `play/` (Google Play), `appstore/` (App Store), `README.md` (phases and the owner's one-time steps) |
 | `.github/workflows/uptime.yml`, `scripts/uptime-check.sh` | Uptime checks and outage issues ([section 8](#8-uptime-monitoring)) |
+| `docs/renewals.json`, `.github/workflows/renewals.yml`, `scripts/renewals.mjs` | Everything that expires, and daily warnings to the #renewals channel ([Renewal warnings](#renewal-warnings)) |
 | `server/deploy/iskra-update-guard` | Shipped in the Linux server tarball (release.yml): undoes a server self-update that doesn't start (docs/hosting.md) |
 
 Supply chain: every action is pinned to a full commit SHA with the version as a comment (Dependabot keeps them
@@ -539,6 +541,17 @@ server checks for new releases only every 6 hours (Updates/UpdateService.cs), so
 new version within the release; a "check now" trigger would need a new authenticated server endpoint. The SSH key is
 low risk already (forced command, published and checksummed versions only), so the deploy stays as it is.
 
+### DigitalOcean Marketplace image
+
+| Item | Where | Expiry / renewal |
+|---|---|---|
+| `DO_MARKETPLACE_TOKEN` (secret of the `marketplace` environment) | DigitalOcean → API → Tokens, custom scopes; used only by `marketplace.yml` (builds and tests the 1-Click image) | 90 days: created 2026-10-15, expires **2027-01-13** |
+
+**Renew the token:** DigitalOcean → API → Tokens → Generate New Token, 90 days, the custom scopes listed in
+[marketplace/digitalocean/README.md](../marketplace/digitalocean/README.md#2-a-digitalocean-project-and-token-for-image-builds-once)
+→ `gh secret set DO_MARKETPLACE_TOKEN --env marketplace` (paste at the prompt) → delete the old token → update its
+`expires` in `docs/renewals.json` and the date here. Expired: only Marketplace image builds fail; nothing live breaks.
+
 ### Android
 
 The Android app is the Capacitor shell in `mobile/android` ([mobile/README.md](../mobile/README.md#android)), built and
@@ -587,8 +600,9 @@ to the Capacitor app in place. The TWA project is gone from the tree (`android/R
   workflow pushes the version commit and tag with it (main has no branch protection; if it gets one, allow the
   workflow to push, or the `version` job fails before anything else changes).
 - Repo secrets: `MAC_CERT_P12_BASE64`, `MAC_CERT_PASSWORD`, `APPSTORE_API_KEY_BASE64`, `APPSTORE_KEY_ID`,
-  `APPSTORE_ISSUER_ID`; optional `APPSTORE_REVIEW_PHONE` (App Review contact) and `ISKRA_CI_WEBHOOK`
-  ([section 9](#9-ci-results-in-iskra)).
+  `APPSTORE_ISSUER_ID`; optional `APPSTORE_REVIEW_PHONE` (App Review contact), `ISKRA_CI_WEBHOOK`
+  ([section 9](#9-ci-results-in-iskra)) and `ISKRA_RENEWALS_WEBHOOK` ([Renewal warnings](#renewal-warnings)).
+- Environment `marketplace` secret: `DO_MARKETPLACE_TOKEN` ([DigitalOcean Marketplace image](#digitalocean-marketplace-image)).
 - Environment `release` secrets: **`CLOUDFLARE_API_TOKEN` and `DROPLET_SSH_KEY`** (moved there from repo level; only
   jobs in that environment, on main, can read them).
 - Variables: `CLOUDFLARE_ACCOUNT_ID`, `DROPLET_HOST`, `DROPLET_KNOWN_HOSTS`, `MAC_IDENTITY`, `REVIEW_INVITE_URL` (the
@@ -634,6 +648,11 @@ many of them (branch protection, review) are owner settings too. Click-by-click 
 
 ## 5. Refresh calendar
 
+**`docs/renewals.json` is the single list of everything that expires** (date, how to renew, the section that
+explains it); [renewals.yml](#renewal-warnings) warns about each one in the #renewals channel. When a date changes (a
+renewed certificate, a new token), update `expires` there. The table below adds the routine chores; its dated rows
+must match renewals.json.
+
 | When | What | Do |
 |---|---|---|
 | Every release | SimplySign session | Nothing with a stored seed (it logs itself in); otherwise log in to SimplySign Desktop with the phone code first (the first check says so) |
@@ -643,13 +662,45 @@ many of them (branch protection, review) are owner settings too. Click-by-click 
 | Every ~60 days, automatic | chat.iskra.foo HTTPS certificate | The server renews it itself; port 80 must stay open |
 | Yearly (membership date) | Apple Developer Program | Renew, or Mac builds stop being notarized |
 | Yearly | Cloudflare tokens, CI SSH key | Optional rotation (they don't expire): see section 4 |
+| **2027-01 (before 2027-01-13), then every 90 days** | DigitalOcean token `DO_MARKETPLACE_TOKEN` | New token, `gh secret set DO_MARKETPLACE_TOKEN --env marketplace` ([section 4](#digitalocean-marketplace-image)) |
 | **2027-04 (before 2027-05-12)** | Certum code-signing certificate | Renew (section 4); same CN keeps auto-update working |
 | **2027-09 (before 2027-10-01), then yearly** | `Expires` in both security.txt files | Move it a year ahead (RFC 9116: at most a year), check Contact and Policy still work, deploy site and web app |
-| Yearly | iskra.foo domain | Check auto-renew at the registrar |
+| Yearly (read live by renewals.yml) | iskra.foo domain | Check auto-renew at the registrar (Porkbun) |
 | Yearly | Offline backups | Check the keystore, devkeys folder and admin SSH key copies still open |
 | After 60 days without commits | Uptime schedule | GitHub pauses scheduled workflows in inactive repos (it emails first): Actions → Uptime → Enable workflow |
 | **2031-08 (before 2031-09-17)** | Apple Developer ID certificate | New CSR, certificate, p12, secrets (section 4) |
 | ~2053 | Android keystore | Far future; Play App Signing removes the problem |
+
+### Renewal warnings
+
+`.github/workflows/renewals.yml` runs `scripts/renewals.mjs --post` daily (and by hand: Actions → Renewals → Run
+workflow; tick **digest** to post the full list now). It reads `docs/renewals.json` and works out the days left for
+each item: a fixed `expires` date, or a live check with no date to maintain: the TLS certificates of iskra.foo,
+app.iskra.foo and chat.iskra.foo, the iskra.foo domain (RDAP: the registry's `expiration` event) and the `Expires`
+field of the deployed security.txt on iskra.foo and app.iskra.foo.
+
+| When | What it posts |
+|---|---|
+| Exactly at one of the item's `warnDays` (default 30, 14, 7 and 1 days left) | That item |
+| 7 days or fewer left, overdue, or a live check can't be read | That item, every day |
+| The 1st of the month (UTC), or **digest** ticked | Every item with its days left, and those whose date is unknown ("date unknown: owner to fill") |
+| Any other day | Nothing |
+
+Each line: the name, the date, the days left, how to renew and a link to the section here. The run is **red** when
+something is overdue or a live check can't be read, so it shows in Actions even without the webhook. Try it locally
+(read-only network checks, posts nothing): `node scripts/renewals.mjs` (`--today YYYY-MM-DD` pretends another day).
+Tests: `scripts/renewals.test.mjs` (root `npm test`).
+
+**Adding an item:** one entry in `docs/renewals.json`: `id`, `name`, `expires` (YYYY-MM-DD; `null` with a `note` while
+the date is unknown) or `check`, optional `warnDays`, `renew` (one line) and `doc` (a section of this file). Only real
+dates: the test checks that every `expires` also appears in this file.
+
+**The channel (once):** the warnings get their own channel, not #ci. On Hangout (chat.iskra.foo): create a text channel
+`#renewals` that only admins can read (channel permissions), then Server settings → **Bots and webhooks → Webhooks →
+New webhook**, name `Renewals`, "Posts in" #renewals → **Create webhook** → copy the URL (it is shown once). Then
+`gh secret set ISKRA_RENEWALS_WEBHOOK` and paste it at the prompt. Until it's set, the run says "ISKRA_RENEWALS_WEBHOOK
+not set, not posting." and still passes (unless something is overdue). The URL is never printed; regenerate the
+webhook's secret in Iskra if it leaks, then set the secret again.
 
 ## 6. Troubleshooting
 

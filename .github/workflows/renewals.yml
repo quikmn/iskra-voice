@@ -1,0 +1,45 @@
+name: Renewals
+
+# Daily: everything in docs/renewals.json that expires (certificates, tokens, the domain, security.txt, memberships).
+# Warnings go to the #renewals channel through the Iskra webhook ISKRA_RENEWALS_WEBHOOK (optional: without it the run
+# says so and posts nothing). Red when something is overdue or a live check can't be read. See docs/ci-cd.md,
+# "Renewal warnings".
+on:
+  schedule:
+    - cron: '23 6 * * *' # daily, off the hour
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: 'Post the full list (the monthly digest) now'
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: renewals
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # the list and the script
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            docs/renewals.json
+            scripts/renewals.mjs
+            scripts/ci-notify.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Check and post
+        env:
+          ISKRA_RENEWALS_WEBHOOK: ${{ secrets.ISKRA_RENEWALS_WEBHOOK }}
+          RENEWALS_DIGEST: ${{ inputs.digest }}
+        run: node scripts/renewals.mjs --post
