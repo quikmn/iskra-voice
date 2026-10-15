@@ -100,6 +100,7 @@ export const errors: Messages['errors'] = {
     backup_copy_passphrase: 'Välj en lösenfras på minst {{min}} tecken för kopiorna: de krypteras med den.',
     owner_limits: 'Bara ägaren kan ändra serverns gränser.',
     owner_bug_inbox: 'Bara ägaren kan ändra felrapportinkorgen.',
+    bug_inbox_off: 'Den här servern tar inte emot felrapporter.',
     bug_inbox_channel: 'Välj en kanal för felrapporter först.',
     bug_inbox_text_only: 'Felrapporter kan bara gå till en textkanal.',
     owner_export: 'Bara ägaren kan exportera någon annans data.',

@@ -119,7 +119,7 @@ public static class TemplateExport
         var bots = BuiltinBotFeature.Bots.Where(b => store.BuiltinBots().FirstOrDefault(r => r.Id == b.Id) is { } row && store.GetMember(row.AccountKey) is not null)
             .Select(b => b.Id).ToArray();
         if (bots.Length > 0) settings["builtinBots"] = Names(bots);
-        if (me.Role == Roles.Owner && store.GetBugInbox() is { Enabled: true, ChannelId: { } inboxId }
+        if (me.Role == Roles.Owner && world.Settings.BugInbox.Accept && store.GetBugInbox() is { Enabled: true, ChannelId: { } inboxId }
             && channels.FirstOrDefault(c => c.Id == inboxId) is { Kind: "text" } inbox && unique.Contains(inboxId))
             settings["bugInbox"] = inbox.Name;
         if (world.Settings.Translate.Offer) settings["translation"] = true;

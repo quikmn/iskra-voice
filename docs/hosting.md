@@ -537,6 +537,9 @@ iskra-server import-discord my-server export.zip              # add --read-only 
   },
   "Captions": {                        // live captions (see Live captions)
     "ModelDownload": true              // offer the speech model (~78 MB, fetched once from Hugging Face into models/)
+  },
+  "BugInbox": {
+    "Accept": false                    // only for the server that receives Iskra's bug reports; leave it off
   }
 }
 ```

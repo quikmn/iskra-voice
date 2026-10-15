@@ -2766,8 +2766,11 @@ defaults. Effective powers are always clamped to what may be changed, whatever t
 ## Bug inbox
 
 A server can take bug reports from Iskra's apps ("Report a bug"): each report becomes one message in a channel the
-owner picked, normally a private one. Off by default. Iskra's own apps send to `chat.iskra.foo`; any owner can turn
-it on for their own server, but the apps only send to the address built into them.
+owner picked, normally a private one. Only a server whose `server.json` has `"BugInbox": { "Accept": true }` has a bug
+inbox, and only the server that receives Iskra's own reports should: with it off (the default) `POST /bug-reports` and its
+`OPTIONS` answer `404` like an unknown route, `buginbox.get` and `buginbox.set` are refused with `forbidden` (key
+`bug_inbox_off`), and `welcome.server.bugInbox` is `false`, so apps hide Server settings → Bug inbox. Iskra's own apps
+send to `chat.iskra.foo`; the apps only send to the address built into them.
 
 | type | body | result | who |
 |---|---|---|---|
@@ -2797,7 +2800,7 @@ development); `OPTIONS` answers the preflight. Body: `application/json`, at most
 - Unknown fields are refused (`400`), not dropped. Text follows chat text rules (no invisible control characters);
   `env` values must match short patterns (letters, digits and a few separators), so nothing free-form hides there.
   An image's bytes must be the type it says.
-- Answers: `201 { id: "ABCD-EFGH" }`; `404` while the inbox is off or its channel is gone; `400 { error: "invalid",
+- Answers: `201 { id: "ABCD-EFGH" }`; `404` while the server doesn't accept bug reports (`BugInbox.Accept` off), the inbox is off or its channel is gone; `400 { error: "invalid",
   message }`; `413`; `415` for anything but JSON; `429` with `Retry-After`.
 - Limits: 5 reports an hour per client address (IPv6: per /64), and 60 an hour for everyone. Addresses are used in
   memory for this only: never stored or logged. The server log line has the report id and channel name only.

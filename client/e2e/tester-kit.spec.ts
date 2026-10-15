@@ -15,7 +15,7 @@ let review: TestServer
 let inbox: TestServer
 test.beforeAll(async () => {
   review = await startServer('Iskra Review', false, {}, { Template: join(TEMPLATES, 'review.json') })
-  inbox = await startServer('Iskra HQ', false, {}, { Template: join(TEMPLATES, 'bug-inbox.json') })
+  inbox = await startServer('Iskra HQ', false, {}, { Template: join(TEMPLATES, 'bug-inbox.json'), BugInbox: { Accept: true } })
 })
 test.afterAll(async () => {
   await review?.stop()

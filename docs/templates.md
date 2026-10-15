@@ -39,7 +39,9 @@ set. It never deletes, renames or changes channels, roles, members or messages t
 nothing the second time.
 
 The bug inbox is left off (the command says so) if the server's channel of that name can be read by more people than
-the template says: reports can hold email addresses.
+the template says: reports can hold email addresses. It is also left off, with a message, on a server that doesn't take
+bug reports (`BugInbox.Accept` in server.json is off, which is the default: only the server that receives Iskra's
+bug reports turns it on).
 
 ## The format
 
@@ -153,7 +155,8 @@ only get everyday powers (`invite`, `events`, `pin`, `mentionEveryone`, `uploadS
   `emojiMaxKb`, `stickerMaxKb` (0 = no limit). Left out: the server's defaults.
 - `builtinBots`: built-in bots to turn on: `dice`, `polls`, `reminders`.
 - `bugInbox`: a text channel of the template where bug reports from Iskra apps land (normally only useful on the
-  server that runs the bug inbox).
+  server that runs the bug inbox). Applied only when that server's `server.json` has `"BugInbox": { "Accept": true }`;
+  on any other server it is skipped with a message, and a saved template leaves it out.
 - `translation`: `true` offers message translation to members (Server settings → Translation): the server fetches each
   language's model from Mozilla the first time a member needs it.
 

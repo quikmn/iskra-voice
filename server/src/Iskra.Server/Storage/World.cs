@@ -82,6 +82,16 @@ public sealed record WorldSettings
 
     /// <summary>Friends connecting without port forwarding, through a peer-to-peer tunnel (see PROTOCOL.md).</summary>
     public P2pSettings P2p { get; init; } = new();
+
+    /// <summary>The bug inbox: only the server that receives Iskra's own bug reports turns this on (docs/hosting.md).</summary>
+    public BugInboxConfig BugInbox { get; init; } = new();
+}
+
+/// <summary>server.json "BugInbox". Leave it off: apps send bug reports to the project's own server, not to yours.</summary>
+public sealed record BugInboxConfig
+{
+    /// <summary>Take bug reports at POST /bug-reports and show the Bug inbox section. Off: 404, and no section.</summary>
+    public bool Accept { get; init; }
 }
 
 /// <summary>

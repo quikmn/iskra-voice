@@ -174,7 +174,9 @@ public static partial class ServerTemplates
                     BuiltinBotFeature.Enable(store, kind, "", now);
                 }
             }
-            if (settings.BugInbox is { } inbox && !store.GetBugInbox().Enabled)
+            if (settings.BugInbox is { } skipped && !world.Settings.BugInbox.Accept)
+                plan.Add(ServerTemplates.BugInboxSkipped(skipped));
+            else if (settings.BugInbox is { } inbox && !store.GetBugInbox().Enabled)
             {
                 // Reports can carry email addresses: never into a channel more people can read than the template says.
                 var wanted = template.AllChannels.First(c => c.Kind == "text" && c.Name.Equals(inbox, StringComparison.OrdinalIgnoreCase)).ReadRole;

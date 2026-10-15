@@ -7,6 +7,7 @@ import { create } from 'zustand'
 import { useTranslation } from 'react-i18next'
 import { baseAllows, has } from '../../state/permissions'
 import { useServerBaseRoles } from '../../state/baseRoles'
+import { useBugInbox } from '../../state/bugInbox'
 import { useServerRoles } from '../../state/roles'
 import { useReports } from '../../state/reports'
 import { connectionFor, leaveServer, useApp, type ServerState } from '../../state/store'
@@ -40,7 +41,8 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
   const reports = useReports((s) => s.open[server.key] ?? 0)
   const me = server.me
   const baseRoles = useServerBaseRoles(server.key)
-  const sections = serverSections(me?.role, (perm) => has(me, roles, perm, baseRoles))
+  const bugInbox = useBugInbox((s) => !!s.accepts[server.key])
+  const sections = serverSections(me?.role, (perm) => has(me, roles, perm, baseRoles), bugInbox)
   const label = new Map(sections.map((s) => [s.id, s.label]))
   const { rows, more } = serverMenuLayout(sections.map((s) => s.id), {
     invite: baseAllows(baseRoles, me, 'invite'),

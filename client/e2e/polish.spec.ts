@@ -21,7 +21,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   await expect(roomNav.getByRole('button')).toHaveText([
     'Overview', 'Channels', 'Voice', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Translation',
     'Members', 'Roles', 'Reports', 'AutoMod', 'Activity log', 'Sign-ins & security',
-    'Bots & webhooks', 'Bug inbox',
+    'Bots & webhooks',
     'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates',
   ])
   await expect(roomNav.getByRole('button', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page')

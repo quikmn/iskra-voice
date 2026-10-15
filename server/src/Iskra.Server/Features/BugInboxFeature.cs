@@ -15,7 +15,7 @@ namespace Iskra.Server.Features;
 
 /// <summary>
 /// The bug inbox: anyone's Iskra app can send a bug report to <c>POST /bug-reports</c> on a server whose owner turned it
-/// on; each report becomes one message in the channel the owner picked (normally a private one). Anonymous, so it's
+/// on (server.json <c>BugInbox.Accept</c>, only the project's own server) and enabled; each report becomes one message in the channel the owner picked (normally a private one). Anonymous, so it's
 /// limited hard: sizes, types, a rate per client address (kept in memory only) and a cap per hour for everyone.
 /// </summary>
 public static class BugInboxFeature
@@ -25,6 +25,7 @@ public static class BugInboxFeature
         router.Add("buginbox.get", (s, me, _) =>
         {
             RequireOwner(me);
+            RequireAccepting(s.World);
             return View(s.World.Store);
         });
         router.Add("buginbox.set", Set);
@@ -33,6 +34,12 @@ public static class BugInboxFeature
     private static void RequireOwner(Member me)
     {
         if (me.Role != Roles.Owner) throw RequestException.Forbidden("Only the owner can change the bug inbox.", "owner_bug_inbox");
+    }
+
+    /// <summary>Only a server whose server.json says <c>BugInbox.Accept</c> has a bug inbox.</summary>
+    private static void RequireAccepting(World world)
+    {
+        if (!world.Settings.BugInbox.Accept) throw RequestException.Forbidden("This server doesn't take bug reports.", "bug_inbox_off");
     }
 
     public static object View(Store store)
@@ -44,6 +51,7 @@ public static class BugInboxFeature
     private static object Set(Session s, Member me, Body body)
     {
         RequireOwner(me);
+        RequireAccepting(s.World);
         var store = s.World.Store;
         var enabled = body.OptionalBool("enabled") ?? throw RequestException.BadRequest("'enabled' is required.");
         var channelId = body.OptionalLong("channelId", min: 1) ?? store.GetBugInbox().ChannelId;
@@ -87,11 +95,15 @@ public sealed partial class BugInbox(World world, Hub hub, Uploads uploads, Time
 
     private static readonly string[] Origins = ["https://app.iskra.foo", "app://iskra", "capacitor://localhost", "http://localhost", "https://localhost"];
 
+    public bool Accepting => world.Settings.BugInbox.Accept;
+
     public static void Map(WebApplication app)
     {
-        app.MapPost("/bug-reports", (HttpContext c, BugInbox inbox) => inbox.PostAsync(c));
-        app.MapMethods("/bug-reports", ["OPTIONS"], (HttpContext c) =>
+        // Without BugInbox.Accept these answer 404 with an empty body, like a route that doesn't exist (and no CORS headers).
+        app.MapPost("/bug-reports", (HttpContext c, BugInbox inbox) => inbox.Accepting ? inbox.PostAsync(c) : Task.FromResult(Results.NotFound()));
+        app.MapMethods("/bug-reports", ["OPTIONS"], (HttpContext c, BugInbox inbox) =>
         {
+            if (!inbox.Accepting) return Results.NotFound();
             AllowCors(c);
             return Results.NoContent();
         });

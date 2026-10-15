@@ -256,6 +256,7 @@ public class TemplateContentTests : IDisposable
     {
         var template = ServerTemplates.Load(Repo("server", "templates", "bug-inbox.json"));
         using var world = World.OpenOrCreate(_path);
+        world.UpdateSettings(w => w with { BugInbox = new BugInboxConfig { Accept = true } });
         Assert.Contains("bug inbox in bug-reports", ServerTemplates.Merge(world, template, apply: true, 1000));
         var inbox = Named(world.Store, "bug-reports");
         Assert.Equal("admin", inbox.ReadRole);
@@ -269,9 +270,22 @@ public class TemplateContentTests : IDisposable
     {
         var template = ServerTemplates.Load(Repo("server", "templates", "bug-inbox.json"));
         using var world = World.OpenOrCreate(_path);
+        world.UpdateSettings(w => w with { BugInbox = new BugInboxConfig { Accept = true } });
         world.Store.CreateChannel("bug-reports", "text", "member", "member", 1000); // made by hand, public
         var plan = ServerTemplates.Merge(world, template, apply: true, 2000);
         Assert.Contains("(skipped) bug inbox in bug-reports: members can read #bug-reports, the template says admin", plan);
         Assert.False(world.Store.GetBugInbox().Enabled);
+    }
+
+    [Fact]
+    public void The_bug_inbox_is_skipped_with_a_message_on_servers_that_dont_take_reports()
+    {
+        var template = ServerTemplates.Load(Repo("server", "templates", "bug-inbox.json"));
+        using var world = World.OpenOrCreate(_path);
+        var plan = ServerTemplates.Merge(world, template, apply: true, 1000);
+        Assert.Contains(plan, line => line.StartsWith("(skipped) bug inbox in bug-reports: this server doesn't take bug reports"));
+        Assert.DoesNotContain(plan, line => line.StartsWith("bug inbox in"));
+        Assert.False(world.Store.GetBugInbox().Enabled);
+        Assert.Contains(plan, line => line.Contains("bug-reports") && !line.StartsWith("(skipped)")); // the channel itself is still added
     }
 }
