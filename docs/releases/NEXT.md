@@ -23,6 +23,13 @@
 
 - **Pop-outs**: pop the voice panel, a screen share or camera, or a text channel into its own small window, always on top over your game. In Chrome and Edge, the voice panel and videos can go picture-in-picture.
 
+- **Alert words and quiet hours**: get a ping when someone writes words you choose, matched on your own device, even in encrypted chats. Set quiet hours (say weeknights 22–07) and Iskra stays silent, with mentions let through if you like.
+- **Code and math**: code blocks are syntax-highlighted and `$…$` renders as real math, without breaking "$5 and $10".
+- **Disappearing messages**: a timer from 5 minutes to 4 weeks in any DM, group or channel. Messages and their files are deleted from the server and everyone's devices, even in encrypted chats, and backups never include them.
+- **Whisper and priority speakers**: hold a key and only the people on your list hear you, or talk straight to another channel. Priority speakers make everyone else quieter while they talk. Enforced by your server.
+- **Game nights**: split a voice channel into random or balanced teams (or let captains pick), each in its own channel, and bring everyone back with one tap. Post "Looking for 3 for Valheim tonight" and everyone gets a ping when the group is full.
+- **Translate messages** on your own device, even in encrypted chats: nothing goes to a translation service. The server owner turns it on in Server settings → Translation.
+
 ### Fixes
 
 - Voice through Connect without port forwarding no longer keeps reconnecting after the owner turns it on.
