@@ -84,6 +84,10 @@ public sealed class Router
         AfkFeature.Register(this);
         BotDmFeature.Register(this);
         TemplateFeature.Register(this);
+        AlertFeature.Register(this);
+        WhisperFeature.Register(this);
+        TeamsFeature.Register(this);
+        LfgFeature.Register(this);
         DisappearFeature.Register(this);
     }
 

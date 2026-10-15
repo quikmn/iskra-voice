@@ -347,6 +347,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
                   <span className="member-name">{member?.name ?? t('common.someone')}</span>
                   {member?.bot && <BotBadge />}
                   <ClipsMark on={p.clips} />
+                  {p.priority && <span className="priority-badge" title={t('whisper.priority.badge')}>{t('whisper.priority.badge')}</span>}
                 </button>
                 {p.afk ? <span className="voice-flag server-muted" title={t('afk.participantForced')}><HeadphonesOff size={14} /></span> : p.serverMuted ? <span className="voice-flag server-muted" title={t('organize.list.serverMuted')}><MicOff size={14} /></span> : p.deafened ? <span className="voice-flag" title={t('organize.list.deafened')}><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title={t('organize.list.muted')}><MicOff size={14} /></span> : null}
               </li>

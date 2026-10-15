@@ -19,6 +19,9 @@ import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/help
 import { Avatar, Spinner } from './bits'
 import { openProfileCard } from '../state/profile'
 import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
+import { useAlertPattern } from '../state/alerts'
+import { matchesAlert } from '../state/alertsLogic'
+import './alerts/alerts.css'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
 import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
@@ -36,6 +39,7 @@ import { decodeEmoji, encodeEmoji, insertAt } from './expressions/emoji'
 import { useEmojiLookup } from './expressions/useEmojiLookup'
 import { useEmojiSuggest } from './expressions/EmojiSuggest'
 import { PollCard, PollDialog } from './expressions/Polls'
+import { LfgCard } from './lfg/Lfg'
 import { PollIcon } from './expressions/icons'
 import { useServerEmojis } from '../state/expressions'
 import { VoiceMessage, VoiceRecordButton } from './chat/voice/VoiceMessages'
@@ -67,6 +71,7 @@ import { messageListKeys, useAnnounceNew } from './a11y'
 import { useQueuedSend } from './chat/QueuedSend'
 import { JoinFailed } from './JoinFailed'
 import { useReadableColor } from '../theme/useReadable'
+import { ChannelPopoutButton } from './popout/PopoutButtons'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -117,6 +122,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         <HeaderTools key={channel?.id} server={server} channel={channel} />
         <EncryptionButton server={server} channel={channel} />
         <ChannelSettingsButton server={server} channel={channel} />
+        {channel?.kind === 'text' && <ChannelPopoutButton serverKey={server.key} channelId={channel.id} />}
         <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label={t('chat.view.members')} title={t('chat.view.members')}>
           <Users />
         </button>
@@ -310,11 +316,13 @@ function MessageRow({
   const [picking, setPicking] = useState(false)
   const [sheet, setSheet] = useState(false)
   const [forwarding, setForwarding] = useState(false)
-  const canForward = !message.tempId && !message.poll && !message.e2ee && (!!message.text || message.attachments.length > 0)
-  const canEdit = mine && !!message.text && !message.poll
+  const canForward = !message.tempId && !message.poll && !message.lfg && !message.e2ee && (!!message.text || message.attachments.length > 0)
+  const canEdit = mine && !!message.text && !message.poll && !message.lfg
   const longPress = useLongPress(() => setSheet(true), !message.tempId && !editing)
   const [error, setError] = useState<string | null>(null)
   const emojiLookup = useEmojiLookup(server.key)
+  const alerts = useAlertPattern(server.key)
+  const alerted = !mine && !message.forwarded && matchesAlert(alerts, message.text)
   const { t } = useTranslation()
 
   function jumpTo(id: number) {
@@ -334,7 +342,7 @@ function MessageRow({
     <>
     <div
       id={message.tempId ? undefined : `msg-${message.id}`}
-      className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''} ${sheet ? 'pressed' : ''}`}
+      className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''} ${sheet ? 'pressed' : ''} ${alerted ? 'alerted' : ''}`}
       role="article"
       tabIndex={-1}
       aria-label={t('chat.a11y.message', { name, time: fullTime(message.createdAt) })}
@@ -378,15 +386,16 @@ function MessageRow({
         {editing ? (
           <EditBox server={server} message={message} onDone={() => onEdit(false)} />
         ) : (
-          (message.text || message.editedAt) && !message.poll && !message.builtin && (
+          (message.text || message.editedAt) && !message.poll && !message.lfg && !message.builtin && (
             <div className="message-text">
-              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf, serverKey: server.key })}
+              {renderMarkdown(message.text, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey, emoji: emojiLookup, roleOf, serverKey: server.key, alerts })}
               <EditedMark server={server} message={message} />
             </div>
           )
         )}
         {message.builtin && <BuiltinReply server={server} reply={message.builtin} />}
         {message.poll && <PollCard server={server} message={message} />}
+        {message.lfg && <LfgCard server={server} message={message} />}
         {message.automod && <AutoModAlertCard server={server} alert={message.automod} />}
         {message.sticker && <StickerMessage server={server} sticker={message.sticker} />}
         {message.gif && <GifMessage server={server} gif={message.gif} />}

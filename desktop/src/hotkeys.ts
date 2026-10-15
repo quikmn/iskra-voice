@@ -18,8 +18,13 @@ const MODIFIER_KEYS = new Map<number, number>([
 ])
 const ESCAPE = 1
 
-export type HotkeyAction = 'mute' | 'deafen' | 'clip'
-export const HOTKEY_ACTIONS: readonly HotkeyAction[] = ['mute', 'deafen', 'clip']
+export type PressAction = 'mute' | 'deafen' | 'clip'
+/** Held, not pressed: the page hears when they go down and when they come up (whisper lists 1–3, priority speaker). */
+export type HoldAction = 'whisper1' | 'whisper2' | 'whisper3' | 'priority'
+export type HotkeyAction = PressAction | HoldAction
+export const HOLD_ACTIONS: readonly HoldAction[] = ['whisper1', 'whisper2', 'whisper3', 'priority']
+export const HOTKEY_ACTIONS: readonly HotkeyAction[] = ['mute', 'deafen', 'clip', ...HOLD_ACTIONS]
+export const isHold = (action: HotkeyAction): action is HoldAction => (HOLD_ACTIONS as readonly string[]).includes(action)
 
 export interface Hotkey {
   code: number
@@ -86,14 +91,25 @@ export class ModifierTracker {
   }
 }
 
-/** Fires each hotkey once per press (keys auto-repeat while held). */
+/** Fires each hotkey once per press (keys auto-repeat while held); hold actions also report their release. */
 export class HotkeyMatcher {
   private binds: Hotkeys = {}
   private readonly held = new Set<number>()
+  /** Hold actions down right now, by the key that started them. */
+  private readonly holding = new Map<number, HoldAction[]>()
 
   set(binds: Hotkeys): void {
     this.binds = binds
     this.held.clear()
+    this.holding.clear()
+  }
+
+  /** Hold actions still down (to release them when the keys change or the hook stops). */
+  release(): HoldAction[] {
+    const all = [...this.holding.values()].flat()
+    this.holding.clear()
+    this.held.clear()
+    return all
   }
 
   get active(): boolean {
@@ -108,11 +124,17 @@ export class HotkeyMatcher {
       return h && h.code === code && h.mods === otherMods(code, mods)
     })
     if (hit.length) this.held.add(code)
+    const holds = hit.filter(isHold)
+    if (holds.length) this.holding.set(code, holds)
     return hit
   }
 
-  up(code: number): void {
+  /** The hold actions this key's release ends (usually none). */
+  up(code: number): HoldAction[] {
     this.held.delete(code)
+    const released = this.holding.get(code) ?? []
+    this.holding.delete(code)
+    return released
   }
 }
 

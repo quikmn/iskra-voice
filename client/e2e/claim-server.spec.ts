@@ -41,8 +41,9 @@ test('the console code makes you the owner of a new server', async ({ browser })
 
     // Owner, and the code is used up.
     await expect.poll(() => existsSync(codeFile), { timeout: 15_000 }).toBe(false)
-    expect(existsSync(join(server.world, 'owner-claim'))).toBe(false)
-    expect(JSON.parse(readFileSync(join(server.world, 'server.json'), 'utf8')).OwnerClaim ?? null).toBeNull()
+    await expect.poll(() => existsSync(join(server.world, 'owner-claim')), { timeout: 15_000 }).toBe(false)
+    // The server rewrites server.json just after deleting the code file: wait for it, under load it can lag a moment.
+    await expect.poll(() => JSON.parse(readFileSync(join(server.world, 'server.json'), 'utf8')).OwnerClaim ?? null, { timeout: 15_000 }).toBeNull()
   } finally {
     await server.stop()
   }

@@ -1,6 +1,7 @@
 // A thread beside its channel (full screen on phones): the message it started from, its replies, a composer.
 import { useEffect, useState } from 'react'
 import { prepareChannel, readable } from '../../state/e2eeChannels'
+import { alertPatternFor } from '../../state/alerts'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import type { Message } from '../../core/protocol'
@@ -213,7 +214,7 @@ function ThreadStart({ server, root, createdBy, post }: { server: ServerState; r
           </div>
           {root.text && (
             <div className="message-text">
-              {renderMarkdown(root.text, { nameOf: (k) => server.members[k]?.name ?? null, me: server.me?.accountKey, roleOf, serverKey: server.key })}
+              {renderMarkdown(root.text, { nameOf: (k) => server.members[k]?.name ?? null, me: server.me?.accountKey, roleOf, serverKey: server.key, alerts: alertPatternFor(server.key) })}
             </div>
           )}
           <Attachments server={server} files={root.attachments} />

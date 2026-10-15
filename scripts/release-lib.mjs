@@ -219,6 +219,31 @@ export function ciVerdict(runs) {
   return { state: 'fail', run: last, message: `CI concluded ${last.conclusion} on this commit${hint}: ${last.html_url}` }
 }
 
+/** CI's jobs that must have passed (by their name in ci.yml) when the Release workflow ran CI itself. */
+export const REQUIRED_CI_JOBS = ['end-to-end', 'release scripts and restore drill', 'android', 'server', 'client']
+
+/**
+ * Whether the CI that the Release workflow (release-all.yml) called in its own run passed, from that run and its jobs
+ * (GitHub's actions/runs/{id} and its jobs: name, status, conclusion). CI's jobs are named "<prefix><ci job>". pass: the
+ * run is the Release workflow on main, every CI job finished as success or skipped, and the required ones succeeded.
+ * wait: some still run. fail: anything else.
+ */
+export function releaseRunCiVerdict(run, jobs, { prefix = 'ci / ', workflowPath = '.github/workflows/release-all.yml' } = {}) {
+  if (!run || run.path !== workflowPath || run.head_branch !== 'main') {
+    return { state: 'fail', message: `run ${run?.id ?? '?'} isn't the Release workflow (${workflowPath}) on main` }
+  }
+  const ci = (jobs ?? []).filter((j) => String(j.name).startsWith(prefix))
+  if (!ci.length) return { state: 'fail', message: `run ${run.id} has no CI jobs ("${prefix}...")` }
+  const running = ci.filter((j) => j.status !== 'completed')
+  if (running.length) return { state: 'wait', message: `CI in this run is still running (${running.length} job(s))` }
+  const bad = ci.filter((j) => !['success', 'skipped'].includes(j.conclusion))
+  if (bad.length) return { state: 'fail', message: `CI in this run: ${bad.map((j) => `${j.name.slice(prefix.length)} ${j.conclusion}`).join(', ')}` }
+  const passed = (n) => ci.some((j) => { const name = j.name.slice(prefix.length); return (name === n || name.startsWith(`${n} (`)) && j.conclusion === 'success' })
+  const missing = REQUIRED_CI_JOBS.filter((n) => !passed(n))
+  if (missing.length) return { state: 'fail', message: `CI in this run didn't pass ${missing.join(', ')}` }
+  return { state: 'pass', message: `CI passed in this run (${ci.length} jobs): ${run.html_url}` }
+}
+
 /** The "- " lines of `next` that are already in the previous release's notes (NEXT.md not emptied after a release). */
 export function repeatedNotes(next, previousNotes) {
   const shipped = new Set(previousNotes.replace(/\r\n/g, '\n').split('\n').map((l) => l.trim()).filter((l) => l.startsWith('- ')))

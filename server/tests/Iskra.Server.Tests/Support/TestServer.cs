@@ -165,6 +165,15 @@ public sealed class FakeVoiceBackend : IVoiceBackend
         lock (FullPermissions) FullPermissions.Add((room, identity, canPublish, canSubscribe));
         return Task.FromResult(true);
     }
+
+    /// <summary>Rooms the server closed (ended whispers), in order.</summary>
+    public List<string> Deleted { get; } = [];
+
+    public Task DeleteRoomAsync(string room)
+    {
+        lock (Deleted) Deleted.Add(room);
+        return Task.CompletedTask;
+    }
 }
 
 public sealed record User(TestIdentity Identity, TestClient Client, JsonElement Welcome) : IDisposable

@@ -307,6 +307,24 @@ public class DisappearTests
     }
 
     [Fact]
+    public async Task Looking_for_group_posts_follow_the_channels_timer_like_any_message()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var alice = await server.JoinAsync("Alice");
+        await SetTimer(admin, new { channelId = server.General, seconds = 3600 });
+        var reply = await alice.RequestAsync("lfg.create", new { channelId = server.General, game = "Valheim", slots = 2 });
+        Assert.True(reply.Type() == "result", reply.ToString());
+        var post = reply.Body().GetProperty("message");
+        var id = post.GetProperty("id").GetInt64();
+        Assert.Equal(post.GetProperty("createdAt").GetInt64() + Hour, ExpiresAt(post));
+
+        Assert.Equal(1, Sweeper(server).Sweep(Now + 2 * Hour).Messages);
+        Assert.Null(server.World.Store.GetMessage(id));
+        Assert.Null(server.World.Store.GetLfg(id));
+    }
+
+    [Fact]
     public async Task Files_still_used_elsewhere_stay_when_a_message_disappears()
     {
         using var server = new IskraServer();

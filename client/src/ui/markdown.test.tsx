@@ -121,3 +121,19 @@ describe('role mentions', () => {
     expect(plainText('<@&7> ping', { nameOf: () => null, roleOf: () => ({ name: 'Moderators', color: null, mine: false }) })).toBe('@Moderators ping')
   })
 })
+
+describe('math and alert words in messages', () => {
+  it('keeps prices as text and shows math (its source until the engine loads)', () => {
+    expect(html('It costs $5 and $10, or $15.')).toBe('It costs $5 and $10, or $15.')
+    expect(html('so $x^2$ it is')).toBe('so <code class="math-source">$x^2$</code> it is')
+    expect(html('\\$x$ stays')).toBe('$x$ stays')
+    expect(html('see\n$$\na+b\n$$\nok')).toBe('see\n<code class="math-source block">$$a+b$$</code>ok')
+    expect(html('`$x$`')).toBe('<code>$x$</code>')
+  })
+
+  it('marks alert words without touching markup', () => {
+    const alerts = /(?<![\p{L}\p{N}\p{M}_])(?:pizza)(?![\p{L}\p{N}\p{M}_])/giu
+    const out = renderToStaticMarkup(<>{renderMarkdown('**Pizza** night, pizzas <b>pizza</b>', { ...ctx, alerts })}</>)
+    expect(out).toBe('<strong><mark class="alert-word">Pizza</mark></strong> night, pizzas &lt;b&gt;<mark class="alert-word">pizza</mark>&lt;/b&gt;')
+  })
+})

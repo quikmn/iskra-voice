@@ -44,6 +44,9 @@ const SV = {
     scheduledFailed: 'Ditt schemalagda meddelande skickades inte',
     eventLive: '{{title}} börjar nu',
     eventSoon: 'Snart: {{title}}',
+    lfgJoined: '{{name}} gick med i din grupp för {{game}}',
+    lfgFull: 'Din grupp för {{game}} är full',
+    lfgPosted: '{{name}} söker {{slots}} till {{game}}',
   },
   body: {
     openToRead: 'Öppna Iskra för att läsa det.',
@@ -60,6 +63,8 @@ const SV = {
     inMinutesVoice: 'Om {{minutes}} min, i en röstkanal',
     inMinutesAt: 'Om {{minutes}} min, {{place}}',
     inMinutes: 'Om {{minutes}} min',
+    lfgIn: 'I #{{channel}}',
+    lfgTime: 'Dags att spela!',
   },
   dmCount: '{{count}} nya meddelanden från {{from}}',
   groupCount: '{{count}} nya meddelanden i en gruppchatt',
@@ -114,6 +119,7 @@ function notificationFor(data, server) {
       badge: BADGE,
       timestamp: Number.isSafeInteger(data.at) ? data.at : Date.now(),
       requireInteraction: call,
+      silent: data.silent === true, // quiet hours: shown without a sound
       data: { route: routeFor(data) },
     },
   }

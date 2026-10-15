@@ -86,6 +86,8 @@ exists.
 |---|---|
 | Mention | Omnämnande (verb: nämna) |
 | Poll | Omröstning |
+| Teams (team splitter; one team, "Team 1") | Lag (laguppdelning; ett lag, "Lag 1") |
+| Looking for group (LFG post) | Söker spelare (inlägget: "LFG-inlägg" only where short) |
 | Event | Evenemang |
 | Sticker | Klistermärke |
 | Emoji | Emoji (no plural ending) |

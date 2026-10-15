@@ -2,21 +2,23 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { desktop } from '../../platform/desktop'
 import {
-  captureWebHotkey, globalHotkeys, HOTKEY_ACTIONS, setDesktopHotkey, setWebHotkey, useHotkeys, type HotkeyAction,
+  captureWebHotkey, globalHotkeys, HOTKEY_ACTIONS, keysAreGlobal, setDesktopHotkey, setWebHotkey, useHotkeys, type HotkeyAction,
 } from '../../state/hotkeys'
 import { PushToTalkHint, usePushToTalkStatus } from './VoiceSettings'
 import './hotkeys.css'
 
-const NAMES = { mute: 'settings.hotkeys.mute', deafen: 'settings.hotkeys.deafen', clip: 'clips.hotkey' } as const satisfies Record<HotkeyAction, string>
+const NAMES = {
+  mute: 'settings.hotkeys.mute', deafen: 'settings.hotkeys.deafen', clip: 'clips.hotkey',
+  whisper1: 'whisper.keys.list1', whisper2: 'whisper.keys.list2', whisper3: 'whisper.keys.list3', priority: 'whisper.keys.priority',
+} as const satisfies Record<HotkeyAction, string>
 
-/** Mute, deafen and clip keybinds: global on desktop (even in games), in-app shortcuts in the browser. */
-export function HotkeySettingsSection() {
+/** A "press a key" row per action: global on desktop (even in games), in-app shortcuts in the browser. */
+export function HotkeyRows({ actions, labels }: { actions: readonly HotkeyAction[]; labels?: Partial<Record<HotkeyAction, string>> }) {
   const { t } = useTranslation()
-  const global = globalHotkeys()
+  const global = keysAreGlobal(actions)
   const binds = useHotkeys((s) => (global ? s.desktop : s.web))
   const [capturing, setCapturing] = useState<HotkeyAction | null>(null)
   const abort = useRef<AbortController | null>(null)
-  const status = usePushToTalkStatus(global)
 
   // Leaving the section mid-capture stops listening.
   useEffect(() => () => {
@@ -64,15 +66,15 @@ export function HotkeySettingsSection() {
   }
 
   return (
-    <section className="settings-section">
-      <h2>{t('settings.hotkeys.title')}</h2>
+    <>
       <div className="hotkey-list">
-        {HOTKEY_ACTIONS.map((action) => {
+        {actions.map((action) => {
           const label = binds[action]?.label
           const waiting = capturing === action
+          const name = labels?.[action] ?? t(NAMES[action])
           return (
             <div className="hotkey-row" key={action}>
-              <span className="hotkey-name" id={`hotkey-${action}`}>{t(NAMES[action])}</span>
+              <span className="hotkey-name" id={`hotkey-${action}`}>{name}</span>
               <span className={`key-chip ${label || waiting ? '' : 'unset'}`} aria-labelledby={`hotkey-${action}`} aria-live="polite">
                 {waiting ? t('settings.voice.pressKey') : (label ?? t('settings.hotkeys.notSet'))}
               </span>
@@ -81,13 +83,13 @@ export function HotkeySettingsSection() {
                   <button className="button small" onClick={cancel}>{t('common.cancel')}</button>
                 ) : (
                   <button className="button small" onClick={() => void capture(action)}
-                    aria-label={t(label ? 'settings.hotkeys.changeFor' : 'settings.hotkeys.setFor', { action: t(NAMES[action]).toLowerCase() })}>
+                    aria-label={t(label ? 'settings.hotkeys.changeFor' : 'settings.hotkeys.setFor', { action: name.toLowerCase() })}>
                     {label ? t('settings.hotkeys.change') : t('settings.voice.setKey')}
                   </button>
                 )}
                 {label && !waiting && (
                   <button className="button ghost small" onClick={() => clear(action)}
-                    aria-label={t('settings.hotkeys.clearFor', { action: t(NAMES[action]).toLowerCase() })}>{t('common.clear')}</button>
+                    aria-label={t('settings.hotkeys.clearFor', { action: name.toLowerCase() })}>{t('common.clear')}</button>
                 )}
               </div>
             </div>
@@ -95,6 +97,19 @@ export function HotkeySettingsSection() {
         })}
       </div>
       {capturing && <p className="muted">{global ? t('settings.hotkeys.comboHintDesktop') : t('settings.hotkeys.comboHint')}</p>}
+    </>
+  )
+}
+
+/** Mute, deafen and clip keybinds: global on desktop (even in games), in-app shortcuts in the browser. */
+export function HotkeySettingsSection() {
+  const { t } = useTranslation()
+  const global = globalHotkeys()
+  const status = usePushToTalkStatus(global)
+  return (
+    <section className="settings-section">
+      <h2>{t('settings.hotkeys.title')}</h2>
+      <HotkeyRows actions={HOTKEY_ACTIONS} />
       {global ? (
         <>
           <PushToTalkHint status={status} />

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { checkAssets, ciVerdict, compareVersions, EMPTY_NEXT, expectedAssets, formatSums, isValidVersion, mergeUpdateYml, missingUpdaterFiles, notesFromNext, notesHeadline, parseUpdateYml, publicWordingProblems, releaseTitle, repeatedNotes, replaceVersion } from './release-lib.mjs'
+import { checkAssets, ciVerdict, releaseRunCiVerdict, compareVersions, EMPTY_NEXT, expectedAssets, formatSums, isValidVersion, mergeUpdateYml, missingUpdaterFiles, notesFromNext, notesHeadline, parseUpdateYml, publicWordingProblems, releaseTitle, repeatedNotes, replaceVersion } from './release-lib.mjs'
 
 test('accepts x.y.z and x.y.z-alpha.n only', () => {
   for (const v of ['2.0.0', '2.0.0-alpha.10', '10.20.30', '0.0.1-alpha.0']) assert.ok(isValidVersion(v), v)
@@ -202,4 +202,20 @@ test('CI gate verdicts', () => {
 test('finds notes that already shipped', () => {
   assert.deepEqual(repeatedNotes("### What's new\n- Old things.\n- New things.\n", PREVIOUS), ['- Old things.'])
   assert.deepEqual(repeatedNotes(EMPTY_NEXT, PREVIOUS), [])
+})
+
+// ── The Release workflow's own CI (scripts/ci-gate.mjs --run) ──
+
+test("the Release run's CI verdict: every ci / job done, the required ones green", () => {
+  const run = { id: 9, path: '.github/workflows/release-all.yml', head_branch: 'main', html_url: 'https://r' }
+  const job = (name, conclusion = 'success', status = 'completed') => ({ name: `ci / ${name}`, status, conclusion })
+  const all = [job('server (windows-latest)'), job('server (ubuntu-latest)'), job('client (ubuntu-latest)'), job('end-to-end'), job('release scripts and restore drill'), job('android'), job('livekit-mac (arm64)', 'skipped'), job('report to Iskra', 'skipped'), { name: 'windows', status: 'completed', conclusion: 'failure' }]
+  assert.equal(releaseRunCiVerdict(run, all).state, 'pass', "other jobs of the run don't count")
+  assert.equal(releaseRunCiVerdict(run, [...all, job('desktop (macos-latest)', null, 'in_progress')]).state, 'wait')
+  assert.match(releaseRunCiVerdict(run, [...all, job('end-to-end shard 2/4', 'failure')]).message, /end-to-end shard 2\/4 failure/)
+  assert.match(releaseRunCiVerdict(run, all.filter((j) => j.name !== 'ci / android')).message, /didn't pass android/)
+  assert.match(releaseRunCiVerdict(run, all.map((j) => (j.name === 'ci / end-to-end' ? job('end-to-end', 'skipped') : j))).message, /didn't pass end-to-end/)
+  assert.equal(releaseRunCiVerdict({ ...run, path: '.github/workflows/ci.yml' }, all).state, 'fail', 'only the Release workflow')
+  assert.equal(releaseRunCiVerdict({ ...run, head_branch: 'feature' }, all).state, 'fail', 'only on main')
+  assert.equal(releaseRunCiVerdict(run, []).state, 'fail')
 })

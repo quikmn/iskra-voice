@@ -150,7 +150,7 @@ export interface Requests {
   'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
-  'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean; canHear?: boolean; afk?: boolean }]
+  'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean; canHear?: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }]
   'voice.state': [{ muted: boolean; deafened: boolean; clips?: boolean }, Record<string, never>]
   'dm.devices': [{ accountKey: string }, DeviceBundle]
   // ── signing out ──
@@ -1047,6 +1047,7 @@ export interface Requests {
 export type Permission =
   | 'manageMessages' | 'timeoutMembers' | 'kickMembers' | 'banMembers' | 'manageChannels' | 'manageRoles'
   | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers' | 'manageAutoMod'
+  | 'prioritySpeaker'
 
 export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak'
 
@@ -1085,7 +1086,7 @@ export interface VoiceParticipant {
 
 export interface Events {
   roles: { roles: ServerRole[]; baseRoles?: BaseRoleInfo[] }
-  'voice.moved': { channelId: number; reason?: 'afk' }
+  'voice.moved': { channelId: number; reason?: 'afk' | 'teams' }
 }
 
 export interface Requests {
@@ -1400,7 +1401,7 @@ export interface WireScheduled {
   error: string | null
 }
 
-export type InboxKind = 'mention' | 'reply' | 'role' | 'everyone'
+export type InboxKind = 'mention' | 'reply' | 'role' | 'everyone' | 'keyword'
 
 export interface InboxItem {
   kind: InboxKind
@@ -2043,6 +2044,7 @@ export interface Requests {
 export type BaseAbility =
   | 'invite' | 'events' | 'pin' | 'mentionEveryone' | 'uploadSounds' | 'giveBaseRoles' | 'bots' | 'organize' | 'rules'
   | 'stickers' | 'gifs' | 'stageModerators' | 'forumTags' | 'profilePages' | 'resolveDisputes' | 'runServer' | 'transferOwnership'
+  | 'whisper'
 
 /** A base role (owner … guest) as listed next to custom roles: its colour and its powers (both adjustable, powers within limits). */
 export interface BaseRoleInfo {
@@ -2144,6 +2146,119 @@ export interface Events {
 export interface Requests {
   'dm.bots.get': [Record<string, never>, BotDmSetting]
   'dm.bots.set': [BotDmSetting, BotDmSetting]
+}
+
+// ── keyword alerts and quiet hours ──
+// See "Keyword alerts and quiet hours" in PROTOCOL.md.
+
+/** Quiet hours: on these days (bit 0 = Sunday), from/to in minutes after midnight, wall clock in timeZone. */
+export interface QuietHours {
+  days: number
+  from: number
+  to: number
+  timeZone: string
+  /** Let mentions, replies, alert words, DMs and calls through, silently. */
+  mentions: boolean
+}
+
+/** A server's copy, kept only where push needs it. */
+export interface ServerAlerts {
+  words: string[]
+  quiet: QuietHours | null
+}
+
+export interface Events {
+  'alerts.updated': { alerts: ServerAlerts }
+}
+
+export interface Requests {
+  'alerts.get': [Record<string, never>, { alerts: ServerAlerts }]
+  'alerts.set': [{ words: string[]; quiet: QuietHours | null }, { alerts: ServerAlerts }]
+}
+
+// ── whisper and priority speakers ──
+
+export interface VoiceParticipant {
+  /** A priority speaker talking with priority on: apps turn everyone else down while they speak. */
+  priority?: boolean
+}
+
+export interface Events {
+  /** A whisper now reaches you: join it with whisper.join. `channelId`: the channel it goes to (null: a list of people). */
+  'whisper.incoming': { id: string; from: string; channelId: number | null }
+  'whisper.ended': { id: string }
+  /** To the whisperer: who the whisper reaches changed. */
+  'whisper.reach': { id: string; reached: string[] }
+}
+
+export interface Requests {
+  'whisper.start': [
+    { slot: 1 | 2 | 3; targets?: string[]; channelId?: number },
+    { id: string; url: string; token: string; room: string; reached: string[] },
+  ]
+  'whisper.join': [{ id: string }, { url: string; token: string; room: string }]
+  'whisper.stop': [{ id: string }, Record<string, never>]
+  'voice.priority': [{ on: boolean }, Record<string, never>]
+}
+
+// ── teams and looking for group ──
+
+export interface TeamSplit {
+  id: number
+  /** The voice channel everyone came from. */
+  channelId: number
+  game: string | null
+  createdBy: string
+  createdAt: number
+  /** In team order; a team whose channel is gone is left out. */
+  teams: { name: string; channelId: number }[]
+}
+
+export interface Lfg {
+  game: string
+  /** How many more people the poster is looking for. */
+  slots: number
+  startAt: number | null
+  voiceChannelId: number | null
+  note: string | null
+  /** In join order. */
+  joined: string[]
+  expiresAt: number
+  closedAt: number | null
+}
+
+export interface LfgCreate {
+  channelId: number
+  game: string
+  slots: number
+  startAt?: number
+  voiceChannelId?: number
+  note?: string
+}
+
+export interface Message {
+  lfg?: Lfg | null
+}
+
+export interface Events {
+  'teams.split': { split: TeamSplit }
+  'teams.ended': { id: number }
+  'lfg.updated': { id: number; channelId: number; lfg: Lfg }
+  'lfg.joined': { id: number; channelId: number; accountKey: string; lfg: Lfg }
+  'lfg.full': { id: number; channelId: number; lfg: Lfg }
+  'lfg.posted': { id: number; channelId: number; author: string; game: string }
+}
+
+export interface Requests {
+  'teams.start': [{ channelId: number; teams: string[][]; names?: string[]; game?: string }, { split: TeamSplit }]
+  'teams.end': [{ id: number }, { moved: number }]
+  'teams.list': [Record<string, never>, { splits: TeamSplit[] }]
+  'lfg.create': [LfgCreate, { message: Message }]
+  'lfg.join': [{ id: number }, { lfg: Lfg }]
+  'lfg.leave': [{ id: number }, { lfg: Lfg }]
+  'lfg.close': [{ id: number }, Record<string, never>]
+  'lfg.notify.get': [Record<string, never>, { on: boolean }]
+  'lfg.notify.set': [{ on: boolean }, { on: boolean }]
 }
 
 // ── disappearing messages ──

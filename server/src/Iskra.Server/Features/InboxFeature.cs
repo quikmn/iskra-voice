@@ -8,7 +8,7 @@ namespace Iskra.Server.Features;
 
 /// <summary>
 /// The mention inbox: every channel message that pinged you (a mention, a reply to you, one of your roles, @everyone or
-/// @here), kept for a while so apps can list them across reconnects. Only what you can still read is listed.
+/// @here, or one of the alert words you asked this server to watch for), kept for a while so apps can list them across reconnects. Only what you can still read is listed.
 /// </summary>
 public static partial class InboxFeature
 {
@@ -18,7 +18,7 @@ public static partial class InboxFeature
     public static readonly TimeSpan Retention = TimeSpan.FromDays(60);
 
     /// <summary>Kinds, strongest first: a message that both mentions and replies to you is a mention.</summary>
-    public static readonly string[] Kinds = ["mention", "reply", "role", "everyone"];
+    public static readonly string[] Kinds = ["mention", "reply", "role", "everyone", "keyword"];
 
     [GeneratedRegex("<@([A-Za-z0-9_-]{43})>")]
     private static partial Regex MentionToken();
@@ -60,6 +60,7 @@ public static partial class InboxFeature
         }
         if (message.ReplyTo is { } replyId && store.GetMessage(replyId) is { } original) Add(original.AuthorKey, "reply");
         foreach (Match m in MentionToken().Matches(message.Text)) Add(m.Groups[1].Value, "mention");
+        foreach (var key in AlertFeature.KeywordTargets(store, channel, message)) Add(key, "keyword"); // alert words stored here
         kinds.Remove(message.AuthorKey);
 
         var targets = kinds.Where(k => store.GetMember(k.Key) is { } target && Permissions.CanRead(target, channel)

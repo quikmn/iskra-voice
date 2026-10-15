@@ -83,3 +83,28 @@ test('held modifiers: the hook flags plus modifier keys seen down', () => {
   assert.equal(t.update(M, 0, true), 0)
   assert.equal(t.update(M, MOD_SHIFT | 64, true), MOD_SHIFT)
 })
+
+test('whisper and priority keys are held: their release is reported, once', () => {
+  const m = new HotkeyMatcher()
+  m.set({ whisper1: { code: MOUSE + 4, mods: 0 }, whisper2: { code: D, mods: MOD_CTRL }, priority: { code: M, mods: 0 }, mute: { code: SHIFT, mods: 0 } })
+  assert.deepEqual(m.down(MOUSE + 4, 0), ['whisper1'])
+  assert.deepEqual(m.down(MOUSE + 4, 0), [], 'repeat while held')
+  assert.deepEqual(m.up(MOUSE + 4), ['whisper1'])
+  assert.deepEqual(m.up(MOUSE + 4), [], 'released once')
+  // Ctrl let go before D: D's release still ends the whisper.
+  assert.deepEqual(m.down(D, mods(true)), ['whisper2'])
+  assert.deepEqual(m.up(CTRL), [])
+  assert.deepEqual(m.up(D), ['whisper2'])
+  // A pressed (not held) hotkey reports nothing on release.
+  assert.deepEqual(m.down(SHIFT, mods(false, true)), ['mute'])
+  assert.deepEqual(m.up(SHIFT), [])
+  // Changing the keys (or stopping the hook) releases whatever is still held.
+  assert.deepEqual(m.down(M, 0), ['priority'])
+  assert.deepEqual(m.release(), ['priority'])
+  assert.deepEqual(m.up(M), [])
+})
+
+test('hold actions from the page are validated like the others', () => {
+  assert.deepEqual(parseHotkeys({ whisper3: { code: MOUSE + 5 }, priority: { code: M, mods: MOD_ALT }, whisper4: { code: D } }),
+    { whisper3: { code: MOUSE + 5, mods: 0 }, priority: { code: M, mods: MOD_ALT } })
+})

@@ -1,11 +1,19 @@
-name: Release
+name: Release builds (Linux, macOS)
 
 # Builds the Linux and macOS desktop apps (and server bundles) for a tag and attaches them to its GitHub release.
-# Windows builds stay local because they're signed with a hardware-token certificate.
+# Windows builds are signed through SimplySign on the home PC (release-windows.ps1).
 # If the release doesn't exist yet it's created as a draft prerelease; an existing release keeps its state.
+# Started by a pushed v* tag (scripts/release.ps1), or called by the Release workflow (release-all.yml), whose own tag
+# push can't start it.
 on:
   push:
     tags: ['v*']
+  workflow_call:
+    inputs:
+      tag: { type: string, required: true }
+      ref: { type: string, default: '' }
+      # The Release workflow refuses an ad-hoc signed Mac build (installed Mac apps couldn't update to it).
+      require_mac_signing: { type: boolean, default: false }
   workflow_dispatch:
     inputs:
       tag:
@@ -19,8 +27,8 @@ permissions:
   contents: read
 
 env:
-  TAG: ${{ github.event.inputs.tag || github.ref_name }}
-  REF: ${{ github.event.inputs.ref || github.event.inputs.tag || github.ref_name }}
+  TAG: ${{ inputs.tag || github.ref_name }}
+  REF: ${{ inputs.ref || inputs.tag || github.ref_name }}
 
 jobs:
   linux:
@@ -146,6 +154,7 @@ jobs:
           CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
           API_KEY: ${{ secrets.APPSTORE_API_KEY_BASE64 }}
           IDENTITY: ${{ vars.MAC_IDENTITY }}
+          REQUIRE_SIGNING: ${{ inputs.require_mac_signing || false }}
         run: |
           if [ -n "$CERT" ] && [ -n "$API_KEY" ] && [ -n "$IDENTITY" ]; then
             echo "$API_KEY" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
@@ -164,6 +173,9 @@ jobs:
             security find-identity -v -p codesigning "$keychain"
             echo "CSC_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
             echo "MAC_SIGNED=1" >> "$GITHUB_ENV"
+          elif [ "$REQUIRE_SIGNING" = true ]; then
+            echo "::error::MAC_CERT_P12_BASE64, APPSTORE_API_KEY_BASE64 or MAC_IDENTITY isn't set: the Release workflow doesn't ship ad-hoc signed Mac builds (docs/ci-cd.md, Apple)"
+            exit 1
           else
             echo "No Apple Developer ID secrets: building ad-hoc signed (not notarized)."
           fi

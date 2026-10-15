@@ -1,7 +1,7 @@
 // Global push-to-talk and mute/deafen hotkeys: key down/up anywhere, even while a game has focus.
 // Uses libuiohook (via uiohook-napi); only the configured keys' actions are reported to the app, never other keys.
 import { uIOhook, UiohookKey, type UiohookKeyboardEvent, type UiohookMouseEvent } from 'uiohook-napi'
-import { ComboCapture, HotkeyMatcher, hotkeyName, ModifierTracker, modsOf, MOUSE, type HotkeyAction, type Hotkeys } from './hotkeys'
+import { ComboCapture, HotkeyMatcher, hotkeyName, isHold, ModifierTracker, modsOf, MOUSE, type HoldAction, type Hotkeys, type PressAction } from './hotkeys'
 import { text } from './i18n'
 
 // Keys are libuiohook keycodes; mouse buttons are encoded as 0x10000 + button (side buttons are popular for PTT).
@@ -23,11 +23,16 @@ export class PushToTalk {
   private readonly hotkeys = new HotkeyMatcher()
   private readonly mods = new ModifierTracker()
   private readonly onChange: (down: boolean) => void
-  private readonly onHotkey: (action: HotkeyAction) => void
+  private readonly onHotkey: (action: PressAction) => void
+  private readonly onHold: (action: HoldAction, down: boolean) => void
 
-  constructor(onChange: (down: boolean) => void, onHotkey: (action: HotkeyAction) => void = () => undefined) {
+  constructor(
+    onChange: (down: boolean) => void, onHotkey: (action: PressAction) => void = () => undefined,
+    onHold: (action: HoldAction, down: boolean) => void = () => undefined,
+  ) {
     this.onChange = onChange
     this.onHotkey = onHotkey
+    this.onHold = onHold
   }
 
   /** Starts listening (once); false if the OS refused (e.g. no Accessibility permission on macOS). */
@@ -56,6 +61,7 @@ export class PushToTalk {
   stop(): void {
     if (this.started) uIOhook.stop()
     this.started = false
+    for (const action of this.hotkeys.release()) this.onHold(action, false)
   }
 
   setKey(code: number | null): void {
@@ -68,6 +74,7 @@ export class PushToTalk {
 
   /** Mute/deafen hotkeys (none: the hook still runs for push-to-talk, if set). */
   setHotkeys(binds: Hotkeys): void {
+    for (const action of this.hotkeys.release()) this.onHold(action, false) // nothing stays held across a change
     this.hotkeys.set(binds)
   }
 
@@ -114,7 +121,10 @@ export class PushToTalk {
       this.capture(code, mods, true)
       return
     }
-    for (const action of this.hotkeys.down(code, mods)) this.onHotkey(action)
+    for (const action of this.hotkeys.down(code, mods)) {
+      if (isHold(action)) this.onHold(action, true)
+      else this.onHotkey(action)
+    }
     if (code === this.key && !this.down) {
       this.down = true
       this.onChange(true)
@@ -122,7 +132,7 @@ export class PushToTalk {
   }
 
   private release(code: number, mods: number): void {
-    this.hotkeys.up(code)
+    for (const action of this.hotkeys.up(code)) this.onHold(action, false)
     if (this.capture) {
       this.capture(code, mods, false)
       return

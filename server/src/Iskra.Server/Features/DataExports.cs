@@ -127,6 +127,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("presence", $"SELECT account_key, status, emoji, text, expires_at, updated_at FROM presence WHERE account_key {Mine};");
         Section("syncedSettings", $"SELECT account_key, name, data, updated_at FROM account_prefs WHERE account_key {Mine};");
         Section("notificationSettings", $"SELECT account_key, channel_id, level, muted_until FROM notify_settings WHERE account_key {Mine};");
+        Section("alertSettings", $"SELECT account_key, words, quiet, updated_at FROM alert_settings WHERE account_key {Mine};");
         Section("rulesAccepted", $"SELECT account_key, version, at FROM rules_accepted WHERE account_key {Mine};");
         Section("devices", $"SELECT account_key, device_key, name, platform, created, last_seen FROM devices WHERE account_key {Mine};");
         Section("removedDevices", $"SELECT account_key, device_key, revoked_at FROM device_revocations WHERE account_key {Mine};");
@@ -165,6 +166,9 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("botCommandsUsed", $"SELECT message_id, interaction_id, user_key, command FROM bot_interaction_messages WHERE user_key {Mine} ORDER BY message_id;");
         Section("pollVotes", $"SELECT message_id, account_key, option, created_at FROM poll_votes WHERE account_key {Mine};");
         Section("eventInterest", $"SELECT event_id, account_key, created_at FROM event_interest WHERE account_key {Mine};");
+        Section("lfgJoined", $"SELECT message_id, account_key, joined_at FROM lfg_members WHERE account_key {Mine} ORDER BY joined_at;");
+        Section("lfgNotify", $"SELECT account_key, created_at FROM lfg_notify WHERE account_key {Mine};");
+        Section("teamSplitsStarted", $"SELECT id, channel_id, game, created_by, created_at FROM team_splits WHERE created_by {Mine};");
         Section("uploads", $"SELECT id, name, size, type, sha256, uploader, created_at FROM files WHERE uploader {Mine} ORDER BY created_at;");
         Section("directMessages", $"SELECT id, from_key, to_key, created_at FROM dms WHERE from_key {Mine} OR to_key {Mine} ORDER BY id;");
         Section("botDmSetting", $"SELECT account_key, allow, at FROM bot_dm_prefs WHERE account_key {Mine};");
@@ -213,6 +217,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
 
         - membership, nickname, customRoles, profile, profilePage, presence: who you are on this server.
         - syncedSettings, notificationSettings, rulesAccepted, blockList: your settings as the server keeps them.
+        - alertSettings: alert words you asked this server to watch for while Iskra is closed (only if you turned that on),
+          and your quiet hours (days, times and time zone; only where your notifications while Iskra is closed are on).
         - devices, removedDevices, pushSubscriptions, keyRotations, accountDeletion: your account's keys and devices
           (public keys only: your private keys never leave your devices).
         - messages, editHistory, reactions, pollVotes, eventInterest, uploads, invitesCreated: what you wrote and shared in server

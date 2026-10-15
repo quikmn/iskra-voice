@@ -38,7 +38,10 @@ public static class VoiceFeature
             : LiveKitTokens.ForRoom(backend.ApiKey, backend.ApiSecret, me.AccountKey, me.Name, room, canPublish: canSpeak, s.Time.GetUtcNow(), canSubscribe: !afk);
         // Over HTTPS (internet hosting) or Tailscale voice goes through the same address the client used.
         var url = LiveKitHost.ClientUrlFor(s.Origin, backend, s.World.Settings.Voice.ClientUrl, s.Tunnelled);
-        return new { url, token, room, canSpeak, canHear = !afk && !bot, afk };
+        // Whisper and priority (WhisperFeature): what the app may offer here; the server checks each use again.
+        var whisper = !bot && channel.Kind == "voice" && BaseRoles.Allows(me, BaseAbility.Whisper) && !E2eeChannelFeature.IsEncrypted(s.World.Store, channel);
+        var priority = !bot && Permissions.Has(me, Perm.PrioritySpeaker);
+        return new { url, token, room, canSpeak, canHear = !afk && !bot, afk, whisper, priority };
     }
 
     private static object? State(Session s, Member me, Body body)
