@@ -35,7 +35,7 @@ test('two friends join with invite links and chat', async ({ browser }) => {
 
   // Markup in messages is shown as text, never run.
   await send(friend, '<img src=x onerror="document.title=\'pwned\'">')
-  await expect(host.getByText('<img src=x onerror')).toBeVisible()
+  await expect(host.locator('.message-text').getByText('<img src=x onerror')).toBeVisible()
   expect(await host.title()).toBe('Iskra')
 
   await host.screenshot({ path: join(SHOTS, 'desktop-host.png') })
