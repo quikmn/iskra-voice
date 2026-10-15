@@ -233,6 +233,7 @@ public class TemplateContentTests : IDisposable
         var review = ServerTemplates.Load(Repo("server", "templates", "review.json"));
         Assert.All(review.AllChannels, c => Assert.False(string.IsNullOrEmpty(c.Topic), $"{c.Name} has no topic"));
         Assert.Contains(review.AllChannels, c => c.Kind == "forum" && c.Name == "feedback");
+        Assert.Contains(review.AllChannels, c => c.Kind == "whiteboard" && c.Name == "whiteboard");
         Assert.NotNull(review.Rules);
 
         using var world = World.OpenOrCreate(_path);

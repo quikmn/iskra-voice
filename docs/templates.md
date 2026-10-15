@@ -106,13 +106,13 @@ version of Iskra says so. Files can be up to 256 KB, with up to 500 channels.
 | field | meaning |
 |---|---|
 | `name` | 1–32 characters |
-| `kind` | `text` (default), `voice`, `forum`, `stage` or `docs` |
+| `kind` | `text` (default), `voice`, `forum`, `stage`, `docs` or `whiteboard` |
 | `readRole` | the lowest built-in role that can see it: `guest`, `member` (default), `trusted`, `admin` or `owner` |
-| `writeRole` | the lowest built-in role that can post (text, forums), speak (voice), ask to speak (stage) or edit (docs). Default: the same as `readRole`; for docs `trusted` |
+| `writeRole` | the lowest built-in role that can post (text, forums), speak (voice), ask to speak (stage), edit (docs) or draw (whiteboards). Default: the same as `readRole`; for docs `trusted` |
 | `overrides` | for the template's own roles: `{ "role": "Moderator", "allow": [...], "deny": [...] }` with `view`, `send`, `connect`, `speak`. Denies apply first, then allows |
 | `userLimit` | voice only: 0 (no limit) to 99 |
 | `hifi` | voice only: hi-fi audio allowed |
-| `slowmode` | seconds between messages per person: 0 (off), 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200 or 21600. Not for docs |
+| `slowmode` | seconds between messages per person: 0 (off), 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200 or 21600. Not for docs or whiteboards |
 | `tags` | forums only: up to 20, `{ "name": "Bug", "emoji": "🐛" }` |
 | `topic` | one line saying what the channel is for, shown at its top: up to 300 characters |
 | `messages` | text channels only: up to 10 messages, `{ "text": "...", "pin": true }`, posted once under the server's name. Markdown as in the app, up to 4000 characters each; mentions never ping |

@@ -90,6 +90,7 @@ public sealed class Router
         TeamsFeature.Register(this);
         LfgFeature.Register(this);
         DisappearFeature.Register(this);
+        WhiteboardFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

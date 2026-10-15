@@ -5,7 +5,7 @@ export const e2ee = {
     toggle: 'End-to-end encrypted',
     hint: "Only the people who can see this channel can read it, on their own devices. The server stores messages it can't read.",
     limits: "Made for small private channels (up to {{max}} people). New members can't read messages from before they joined, search only works on your device, and webhooks, bots, polls, stickers, GIFs and forwarding aren't available. This can't be turned off later.",
-    kinds: 'Only text and voice channels can be encrypted.',
+    kinds: 'Only text, voice and whiteboard channels can be encrypted.',
     count_one: '{{count}} person will be able to read it.',
     count_other: '{{count}} people will be able to read it.',
     tooMany: '{{count}} people could see this channel, and an encrypted channel fits {{max}}. Choose a higher "who can see".',

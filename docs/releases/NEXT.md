@@ -30,6 +30,8 @@
 - **Game nights**: split a voice channel into random or balanced teams (or let captains pick), each in its own channel, and bring everyone back with one tap. Post "Looking for 3 for Valheim tonight" and everyone gets a ping when the group is full.
 - **Translate messages** on your own device, even in encrypted chats: nothing goes to a translation service. The server owner turns it on in Server settings → Translation.
 
+- **Whiteboards**: draw together in a whiteboard channel or in any voice call. Pens, shapes, sticky notes and pictures, live cursors, undo and export to PNG, on desktop and phone. End-to-end encrypted in encrypted channels.
+
 ### Fixes
 
 - Voice through Connect without port forwarding no longer keeps reconnecting after the owner turns it on.

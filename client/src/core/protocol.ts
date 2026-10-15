@@ -14,7 +14,7 @@ export interface Member extends PublicProfile {
 export interface Channel {
   id: number
   name: string
-  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs'
+  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'
   position: number
   readRole: Role
   writeRole: Role
@@ -137,7 +137,7 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean; topic?: string }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate & ProfileStamp, { member: Member; stale?: boolean }]
@@ -2309,6 +2309,55 @@ export interface Requests {
   'translate.models.link': [Record<string, never>, TranslateModelsLink]
   'translate.config': [Record<string, never>, TranslateConfig]
   'translate.configure': [{ offer: boolean }, TranslateConfig]
+}
+
+// ── whiteboards ──
+
+export interface WireBoard {
+  channelId: number
+  id: string
+  seq: number
+  openedBy: string | null
+  openedAt: number
+  encrypted: boolean
+}
+
+export interface WireBatch {
+  seq: number
+  by: string
+  at: number
+  ops?: import('./board').Op[]
+  version?: number
+  envelope?: import('./boardCrypto').BoardEnvelope
+}
+
+export interface WireSnapshot {
+  seq: number
+  at: number
+  objects?: Record<string, import('./board').Props>
+  by?: string
+  version?: number
+  envelope?: import('./boardCrypto').BoardEnvelope
+}
+
+export interface Events {
+  'wb.batch': { channelId: number; boardId: string; batch: WireBatch; cid?: string; wantSnapshot?: boolean }
+  'wb.live': { channelId: number; boardId: string; accountKey: string; live?: unknown; version?: number; envelope?: import('./boardCrypto').BoardEnvelope }
+  'wb.viewers': { channelId: number; viewers: string[] }
+  'wb.snapshot': { channelId: number; boardId: string; seq: number }
+  'wb.board': { channelId: number; board: WireBoard | null }
+  'wb.cleared': { channelId: number; boardId: string }
+}
+
+export interface Requests {
+  'wb.boards': [Record<string, never>, { boards: WireBoard[] }]
+  'wb.open': [{ channelId: number }, { board: WireBoard }]
+  'wb.get': [{ channelId: number; since?: number }, { board: WireBoard | null; snapshot: WireSnapshot | null; batches: WireBatch[]; hasMore: boolean; viewers: string[]; wantSnapshot: boolean }]
+  'wb.leave': [{ channelId: number }, Record<string, never>]
+  'wb.update': [{ channelId: number; boardId: string; cid?: string; ops?: import('./board').Op[]; live?: import('./board').Live; version?: number; envelope?: import('./boardCrypto').BoardEnvelope }, { seq: number }]
+  'wb.live': [{ channelId: number; boardId: string; live?: import('./board').Live; version?: number; envelope?: import('./boardCrypto').BoardEnvelope }, Record<string, never>]
+  'wb.snapshot': [{ channelId: number; boardId: string; seq: number; version: number; envelope?: import('./boardCrypto').BoardEnvelope; file?: string }, Record<string, never>]
+  'wb.clear': [{ channelId: number; boardId: string }, Record<string, never>]
 }
 
 // ── channel topics ──

@@ -6,7 +6,7 @@ export const e2ee: Messages['e2ee'] = {
     toggle: 'Totalsträckskrypterad',
     hint: 'Bara de som kan se kanalen kan läsa den, på sina egna enheter. Servern sparar meddelanden som den inte kan läsa.',
     limits: 'Gjord för små privata kanaler (upp till {{max}} personer). Nya medlemmar kan inte läsa meddelanden från innan de gick med, sökning fungerar bara på din enhet, och webhooks, bottar, omröstningar, klistermärken, GIF:ar och vidarebefordran går inte att använda. Det går inte att stänga av i efterhand.',
-    kinds: 'Bara text- och röstkanaler kan krypteras.',
+    kinds: 'Bara text-, röst- och whiteboardkanaler kan krypteras.',
     count_one: '{{count}} person kommer att kunna läsa den.',
     count_other: '{{count}} personer kommer att kunna läsa den.',
     tooMany: '{{count}} personer skulle kunna se kanalen, och en krypterad kanal rymmer {{max}}. Välj en högre roll under ”Vem kan se den”.',

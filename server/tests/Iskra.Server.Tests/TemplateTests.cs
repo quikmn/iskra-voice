@@ -135,7 +135,7 @@ public class TemplateTests : IDisposable
     }
 
     [Theory]
-    [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "vioce" } ] }""", "'kind' must be one of text, voice, forum, stage, docs, not \"vioce\"")]
+    [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "vioce" } ] }""", "'kind' must be one of text, voice, forum, stage, docs, whiteboard, not \"vioce\"")]
     [InlineData("""{ "name": "x", "chanels": [] }""", "unknown field at $.chanels")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "voice", "userLimit": 100 } ] }""", "'userLimit' must be 0 (no limit) to 99")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "userLimit": 3 } ] }""", "only voice channels have a 'userLimit'")]
@@ -164,6 +164,7 @@ public class TemplateTests : IDisposable
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "hifi": true } ] }""", "only voice channels can allow hi-fi audio")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "slowmode": 7 } ] }""", "'slowmode' must be 0 (off) or one of")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "docs", "slowmode": 5 } ] }""", "docs channels have no slowmode")]
+    [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "whiteboard", "slowmode": 5 } ] }""", "whiteboard channels have no slowmode")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "overrides": [ { "role": "Mods", "allow": ["send"] } ] } ] }""", "override for 'Mods', which isn't one of the template's roles")]
     [InlineData("""{ "name": "x", "roles": [ { "name": "Mods" } ], "channels": [ { "name": "a", "overrides": [ { "role": "mods", "allow": ["fly"] } ] } ] }""", "unknown channel permission 'fly'")]
     [InlineData("""{ "name": "x", "roles": [ { "name": "Mods" } ], "channels": [ { "name": "a", "overrides": [ { "role": "Mods", "allow": ["send"], "deny": ["send"] } ] } ] }""", "can't both allow and deny")]
@@ -478,6 +479,6 @@ public class TemplateTests : IDisposable
         Assert.Equal(0, Cli.Run(["templates", "apply", _path, ReviewTemplate()]));
         using (var world = World.OpenOrCreate(_path)) Assert.Single(world.Store.AllChannels()); // dry run
         Assert.Equal(0, Cli.Run(["templates", "apply", _path, ReviewTemplate(), "--apply"]));
-        using (var world = World.OpenOrCreate(_path)) Assert.Equal(24, world.Store.AllChannels().Count);
+        using (var world = World.OpenOrCreate(_path)) Assert.Equal(25, world.Store.AllChannels().Count);
     }
 }

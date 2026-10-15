@@ -30,7 +30,7 @@ public sealed record TemplateTag
 public sealed record TemplateChannel
 {
     public string Name { get; init; } = "";
-    /// <summary>"text" (default), "voice", "forum", "stage" or "docs".</summary>
+    /// <summary>"text" (default), "voice", "forum", "stage", "docs" or "whiteboard".</summary>
     public string Kind { get; init; } = "text";
     /// <summary>Voice only: how many people fit (0 = no limit).</summary>
     public int UserLimit { get; init; }
@@ -178,7 +178,7 @@ public static partial class ServerTemplates
     public const int MaxNameLength = 60;
     public const int MaxDescriptionLength = 300;
 
-    public static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs"];
+    public static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs", "whiteboard"];
     private static readonly string[] ChannelPermNames = ["view", "send", "connect", "speak"];
 
     private static readonly JsonSerializerOptions Options = new()
@@ -301,7 +301,7 @@ public static partial class ServerTemplates
             if (c.Hifi && kind != "voice") Fail($"{where}: only voice channels can allow hi-fi audio.");
             if (!ModerationFeature.SlowmodeSteps.Contains(c.Slowmode))
                 Fail($"{where}: 'slowmode' must be 0 (off) or one of {string.Join(", ", ModerationFeature.SlowmodeSteps.Skip(1))} seconds.");
-            if (c.Slowmode > 0 && kind == "docs") Fail($"{where}: docs channels have no slowmode.");
+            if (c.Slowmode > 0 && kind is ("docs" or "whiteboard")) Fail($"{where}: {kind} channels have no slowmode.");
             var read = c.ReadRole.Trim().ToLowerInvariant();
             // Docs: everyone reads, trusted and above edit, unless chosen otherwise (as when creating one in the app).
             var write = (c.WriteRole ?? (kind == "docs" && Sessions.Roles.Rank(read) < Sessions.Roles.Rank(Sessions.Roles.Trusted) ? Sessions.Roles.Trusted : read)).Trim().ToLowerInvariant();

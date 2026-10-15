@@ -53,7 +53,8 @@ try there. Do the steps in any order. If something doesn't work, or you don't un
 - **Translation** (#your-language): write in your own language. Long-press a message in another language and choose
   **Translate**. It runs on your phone; nothing goes to a translation service. It works between English and 12
   European languages so far.
-- **Whiteboard**: in a voice channel, open a **whiteboard** from the call bar and draw with someone.
+- **Whiteboard**: open **#whiteboard** under Try things and draw something; others see it as you draw. In a voice
+  channel, open a **whiteboard** from the call bar and draw with someone.
 - **Polls** (#polls): tap the poll button next to the message box, or send **/poll Pizza or tacos? | Pizza | Tacos**.
 - **Threads** (#threads): long-press a message, choose **Start a thread**, and reply inside it.
 - **Forums** (#feedback): make a post with a title and a tag. Tell us what you like or what confused you.

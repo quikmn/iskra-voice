@@ -48,6 +48,7 @@ import { teams } from './teams'
 import { lfg } from './lfg'
 import { disappear } from './disappear'
 import { translate } from './translate'
+import { whiteboard } from './whiteboard'
 
 export const en = {
   common,
@@ -99,4 +100,5 @@ export const en = {
   lfg,
   disappear,
   translate,
+  whiteboard,
 } as const

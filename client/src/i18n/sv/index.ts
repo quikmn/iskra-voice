@@ -49,6 +49,7 @@ import { teams } from './teams'
 import { lfg } from './lfg'
 import { disappear } from './disappear'
 import { translate } from './translate'
+import { whiteboard } from './whiteboard'
 
 export const sv: Messages = {
   common,
@@ -100,4 +101,5 @@ export const sv: Messages = {
   lfg,
   disappear,
   translate,
+  whiteboard,
 }

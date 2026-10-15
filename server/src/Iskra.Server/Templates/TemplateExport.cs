@@ -35,7 +35,7 @@ public static class TemplateExport
             if (c.WriteRole != c.ReadRole || c.Kind == "docs") o["writeRole"] = c.WriteRole;
             if (limits.GetValueOrDefault(c.Id) is > 0 and var limit) o["userLimit"] = limit;
             if (hifi.Contains(c.Id) && c.Kind == "voice") o["hifi"] = true;
-            if (slowmodes.GetValueOrDefault(c.Id) is > 0 and var slow && c.Kind != "docs") o["slowmode"] = slow;
+            if (slowmodes.GetValueOrDefault(c.Id) is > 0 and var slow && c.Kind is not ("docs" or "whiteboard")) o["slowmode"] = slow;
             var overrides = c.Overrides.Where(x => roleNames.ContainsKey(x.RoleId)).Select(x => (JsonNode)new JsonObject
             {
                 ["role"] = roleNames[x.RoleId],

@@ -91,7 +91,7 @@ Iskra's version is deliberately light: servers are small and many, so a full log
 | Server channels, voice channels, files, profiles | The server's permissions | Members allowed in that channel, and whoever runs the server |
 | Direct messages, with their pictures, files and voice messages | **End-to-end encryption** | Only the two of you |
 | Group chats, with their files | **End-to-end encryption** | Only the people in the group |
-| **Encrypted channels** (an option for small private text and voice channels), with their files, threads and voice | **End-to-end encryption** | Only the people who can see the channel, on their own devices |
+| **Encrypted channels** (an option for small private text, voice and whiteboard channels), with their files, threads, voice and boards | **End-to-end encryption** | Only the people who can see the channel, on their own devices |
 | Calls in DMs and group calls (voice and video) | **End-to-end encryption** | Only the people in the call |
 
 Server channels trust the server, because a server is run by you or your friend; the app always tells you which server you're on. Direct messages, group chats, calls and encrypted channels don't trust anyone: servers only pass encrypted envelopes and encrypted media along.
@@ -195,6 +195,12 @@ Ads stay off, and anything that isn't a GIF from KLIPY's own hosts is left out.
 ### Watch parties
 
 A watch party only shares a clock: each app plays the video itself, from its source. **Whoever hosts the video sees your IP address**: YouTube for a YouTube video, the website for a link, your server for an upload. Before anything loads from YouTube or a website, the app says where it plays from and waits for you to press Watch (unless you ticked "Always load from <site>" on that device). YouTube plays in its privacy-enhanced (youtube-nocookie.com) player inside a sandboxed frame; no YouTube code runs inside the app itself, where it could reach your keys. The desktop app sends YouTube the web app's address as the referring page (YouTube requires one) and nothing else.
+
+### Whiteboards
+
+A board is a list of changes ("set these fields of this object") that the server puts in order and passes on, so everyone ends up with the same board. On a normal board the server checks every field (known fields only, numbers in range, colours as `#rrggbb`, text length, no control characters) and only accepts pictures that are images uploaded to that server; everything, text included, is drawn on a canvas, never turned into HTML. Drawing follows the channel's permissions, timeouts and server rules, and only moderators (or whoever opened a call's board) can clear one.
+
+In an **encrypted channel** the board is end-to-end encrypted too: every change, snapshot and live cursor is sealed with the channel's current key and signed by the sender's device, under its own signing context (`iskra/wb/v1`), bound to the channel, the board and what it is (a change, a snapshot of the board up to a given change, or a cursor). The server only checks who sent it and for which board, and can't read, forge or move it. It can't tidy up an encrypted board, so members' apps upload sealed snapshots, including a fresh one under the new key after someone joins, so new members can read the board. Apps drop changes they've already applied and changes signed long before the snapshot they started from, so an old change can't simply be replayed. Pictures aren't offered on encrypted boards (the server could read them). A member who can draw can also upload a snapshot that wipes the board, much as they could erase everything by hand.
 
 ### Activity status
 

@@ -64,10 +64,15 @@ test('the review server greets testers with a welcome, a guide and topics', asyn
   // The channel list: Start here at the top, then the categories.
   await tester.getByRole('button', { name: 'Open channels' }).first().click()
   await expect(tester.locator('.start-here')).toHaveText('How to test')
-  for (const name of ['introductions', 'testing-guide', 'your-language', 'disappearing', 'feedback', 'town-hall', 'Hangout', 'Game night']) {
+  for (const name of ['introductions', 'testing-guide', 'your-language', 'disappearing', 'whiteboard', 'feedback', 'town-hall', 'Hangout', 'Game night']) {
     await expect(tester.getByRole('button', { name, exact: true }).first()).toBeAttached()
   }
   await tester.screenshot({ path: join(SHOTS, 'tester-kit-channels-phone.png') })
+
+  // The whiteboard channel shows its topic above the board.
+  await tester.getByRole('button', { name: 'whiteboard', exact: true }).first().click()
+  await expect(tester.locator('.channel-topic')).toContainText('A shared whiteboard')
+  await tester.getByRole('button', { name: 'Open channels' }).first().click()
 
   // The guide: the Start here page, written by the server.
   await tester.locator('.start-here').click()

@@ -9,6 +9,7 @@ import { Hash, Volume } from '../icons'
 import { StageIcon } from '../stage/stageIcons'
 import { ForumIcon } from '../forums/icons'
 import { DocsIcon } from '../docs/icons'
+import { BoardIcon } from '../whiteboard/icons'
 import { createEncryptedChannel, readersFor } from '../../state/e2eeChannels'
 import { MAX_CHANNEL_MEMBERS } from '../../core/channelChain'
 import { EncryptedCreateNote, e2eeText } from '../e2ee/E2ee'
@@ -19,11 +20,11 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
   const categories = useCategories(server.key)
   const [categoryId, setCategoryId] = useState<number | null>(initialCategory)
   const [name, setName] = useState('')
-  const [kind, setKind] = useState<'text' | 'voice' | 'forum' | 'stage' | 'docs'>('text')
+  const [kind, setKind] = useState<'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'>('text')
   const [readRole, setReadRole] = useState<Role>('member')
   const [writeRole, setWriteRole] = useState<Role>('member')
   const [encrypted, setEncrypted] = useState(false)
-  const canEncrypt = kind === 'text' || kind === 'voice'
+  const canEncrypt = kind === 'text' || kind === 'voice' || kind === 'whiteboard'
   const readers = encrypted && canEncrypt ? readersFor(server.key, readRole).length : 0
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -37,10 +38,10 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
         name: slug, kind, readRole, writeRole: ROLES.indexOf(writeRole) < ROLES.indexOf(readRole) ? readRole : writeRole,
         categoryId: categoryId ?? undefined,
       }
-      const channel = encrypted && (kind === 'text' || kind === 'voice')
+      const channel = encrypted && (kind === 'text' || kind === 'voice' || kind === 'whiteboard')
         ? await createEncryptedChannel(server.key, { ...spec, kind })
         : (await connectionFor(server.key)!.request('channel.create', spec)).channel
-      if (channel.kind === 'text' || channel.kind === 'forum' || channel.kind === 'docs') selectChannel(server.key, channel.id)
+      if (channel.kind === 'text' || channel.kind === 'forum' || channel.kind === 'docs' || channel.kind === 'whiteboard') selectChannel(server.key, channel.id)
       onClose()
     } catch (e) {
       setError(e2eeText(errorMessage(e)))
@@ -69,6 +70,7 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
           // Docs: everyone reads, trusted and above edit (a starting point the admin can change).
           if (ROLES.indexOf(writeRole) < ROLES.indexOf('trusted')) setWriteRole('trusted')
         }}><DocsIcon size={16} /> {t('docs.channel.kind')}</button>
+        <button role="radio" aria-checked={kind === 'whiteboard'} className={kind === 'whiteboard' ? 'on' : ''} onClick={() => setKind('whiteboard')}><BoardIcon size={16} /> {t('whiteboard.kind')}</button>
       </div>
       <label className="field">
         <span>{t('settings.overview.name')}</span>
@@ -78,9 +80,10 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
       {kind === 'forum' && <p className="muted">{t('settings.channel.forumHint')}</p>}
       {kind === 'stage' && <p className="muted">{t('settings.channel.stageHint')}</p>}
       {kind === 'docs' && <p className="muted">{t('docs.channel.hint')}</p>}
+      {kind === 'whiteboard' && <p className="muted">{t('whiteboard.channelHint')}</p>}
       <div className="options-row">
         <RolePicker label={t('settings.channel.whoCanSee')} value={readRole} onChange={setReadRole} />
-        <RolePicker label={kind === 'voice' ? t('settings.channel.whoCanSpeak') : kind === 'stage' ? t('settings.channel.whoCanAsk') : kind === 'docs' ? t('docs.channel.whoCanEdit') : t('settings.channel.whoCanPost')} value={writeRole} onChange={setWriteRole} min={readRole} />
+        <RolePicker label={kind === 'voice' ? t('settings.channel.whoCanSpeak') : kind === 'stage' ? t('settings.channel.whoCanAsk') : kind === 'docs' ? t('docs.channel.whoCanEdit') : kind === 'whiteboard' ? t('whiteboard.whoCanDraw') : t('settings.channel.whoCanPost')} value={writeRole} onChange={setWriteRole} min={readRole} />
       </div>
       <label className="checkbox">
         <input type="checkbox" checked={encrypted && canEncrypt} disabled={!canEncrypt} onChange={(e) => setEncrypted(e.target.checked)} data-testid="e2ee-toggle" />
