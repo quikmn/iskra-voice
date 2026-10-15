@@ -11,7 +11,9 @@
 - **Invites say where you're going**: an invite link greets you with the server's name.
 - **On a phone, Start your own server** shows how to put Iskra on your computer, or rent a small server.
 
-- **No port forwarding for standalone servers too**: turn on Connect without port forwarding and the server runs its own peer-to-peer tunnel (included in the server downloads).
+- **No port forwarding for standalone servers too**: turn on Connect without port forwarding and the server runs its own peer-to-peer tunnel (included in the server downloads, Raspberry Pi and other 64-bit ARM boxes included).
+- **Copy backups to another disk**: in Server settings → Backup & move, pick a folder on a USB stick, a second disk or a network share, and every daily backup is copied there too. If the copy fails (a stick that isn't plugged in), Backup & move says why.
+- **A Raspberry Pi that lasts**: "An Iskra box at home" now walks you through running the Pi from an SSD instead of an SD card, keeping writes down, and getting everything back from a backup if a disk dies.
 
 - **Shape the built-in roles**: choose what Admins, Trusted, Members and Guests can do. The owner can never be locked out.
 - **Templates**: save your server as a template, or start a new one from a template file, with every channel kind, who can see and use each channel, roles and settings. See what a template sets up before you create the server.

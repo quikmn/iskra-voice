@@ -17,7 +17,7 @@ Anything from the last ten years or so works for a friend group. What matters is
 |---|---|---|
 | Old PC or laptop with Windows | `iskra-server-<version>-win-x64.zip`, or the desktop app | Easiest if it already runs Windows. A laptop has a built-in battery for short power cuts |
 | Old PC, laptop or mini PC with Linux (Ubuntu, Debian, Fedora…) | `iskra-server-<version>-linux-x64.tar.gz` | The best fit: [automatic updates](#5-updates) work here. Mini PCs (Intel N100 and similar) are quiet and frugal |
-| Raspberry Pi 4 or 5 | `iskra-server-<version>-linux-arm64.tar.gz` | Needs the **64-bit** Raspberry Pi OS (or Ubuntu for Pi). Use a USB SSD rather than the SD card if you can: it lasts longer and is faster. A Pi 3 runs the 64-bit system too, but slowly |
+| Raspberry Pi 4 or 5 | `iskra-server-<version>-linux-arm64.tar.gz` | Needs the **64-bit** Raspberry Pi OS (or Ubuntu for Pi), and best on an **SSD**, not the SD card: see [below](#a-raspberry-pi-run-it-from-an-ssd). A Pi 3 runs the 64-bit system too, but slowly |
 | Other 64-bit ARM boards | `iskra-server-<version>-linux-arm64.tar.gz` | Any 64-bit Linux (`uname -m` says `aarch64`) |
 | Mac (Apple silicon or Intel) | `iskra-server-<version>-osx-arm64.tar.gz` / `osx-x64` | Works, but Macs like to sleep: see [power tips](#7-power-use) |
 
@@ -29,6 +29,57 @@ with `uname -m`: it must say `aarch64`; if it says `armv7l`, install the 64-bit 
 captions. A wired network cable is better than Wi-Fi for voice.
 
 Voice (LiveKit) is in every package: nothing else to install.
+
+### A Raspberry Pi? Run it from an SSD
+
+SD cards wear out when something writes to them all day, and when one dies it often takes the whole system with it.
+An SSD is faster and lasts years, so make it the Pi's only disk:
+
+| Pi | SSD | You need |
+|---|---|---|
+| **Pi 5** (best) | An NVMe SSD on an M.2 HAT (the official M.2 HAT+ or a similar board) | The HAT, a small NVMe SSD (128–256 GB is plenty), the official 27 W power supply |
+| Pi 4 or Pi 5 | A USB 3 SSD, or a SATA SSD in a USB 3 case | Plug it into a **blue** USB 3 port |
+
+**Set it up** (Raspberry Pi's own guides: [boot from NVMe](https://www.raspberrypi.com/documentation/accessories/m2-hat-plus.html#boot-from-nvme),
+[boot order](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#BOOT_ORDER)):
+
+1. **Write the system to the SSD.** In [Raspberry Pi Imager](https://www.raspberrypi.com/software/) choose your Pi,
+   **Raspberry Pi OS Lite (64-bit)** (no desktop needed), and the SSD as the storage. Let Imager set a host name,
+   your user and password, and turn on SSH. A USB SSD can be written from your PC. An NVMe SSD sits in the Pi, so start
+   the Pi once from any SD card with Raspberry Pi OS, then run Imager on the Pi and pick the NVMe drive.
+2. **Update the bootloader** (on a Pi that started from an SD card): `sudo rpi-eeprom-update` shows its date. For NVMe
+   it must be December 6, 2023 or later; if it's older, run `sudo raspi-config` → **Advanced Options** →
+   **Bootloader Version** → **Latest**, then `sudo rpi-eeprom-update -a` and `sudo reboot`.
+3. **Boot from the SSD:** `sudo raspi-config` → **Advanced Options** → **Boot Order** → the option with **NVMe/USB**
+   first → **Finish**, and reboot. Then **take the SD card out**: the Pi starts from the SSD, also after power cuts.
+4. **Pi 5 with a USB SSD and a power supply that isn't the official 27 W one:** the Pi 5 won't boot from USB with a
+   3 A supply. Use the official supply, or add `usb_max_current_enable=1` to `/boot/firmware/config.txt` if you know
+   your supply and SSD are fine with it.
+
+Then check with `findmnt /`: it should say `/dev/nvme0n1p2` (NVMe) or `/dev/sda2` (USB), not `/dev/mmcblk0p2` (the
+SD card). If a USB SSD doesn't start, try the other blue port or another USB case; some cheap adapters misbehave.
+
+**Only have an SD card?** It works, and plenty of Pis run for years on one, but it's the part most likely to fail. Use
+a good, name-brand card ("A2" or "high endurance"), do the next section, and set up [copies of the backups on another
+disk](#6-backups). Count on replacing the card someday.
+
+### Make it last
+
+A few small settings mean far fewer writes, on an SD card and an SSD alike:
+
+- **Keep the system log small:** create `/etc/systemd/journald.conf.d/iskra.conf` with
+  ```ini
+  [Journal]
+  SystemMaxUse=50M
+  ```
+  and run `sudo systemctl restart systemd-journald`. On an SD card, `Storage=volatile` instead keeps the log in
+  memory only (it's gone after a restart, which also loses the clues if something went wrong).
+- **`noatime`:** the disk doesn't note every time a file is read. Raspberry Pi OS already does this; `findmnt -no OPTIONS /`
+  should show `noatime`. If not, add `noatime` to the options of `/` in `/etc/fstab`.
+- **Swap:** leave Raspberry Pi OS's own setting alone (current versions mostly swap into compressed memory). Iskra
+  needs about 1 GB, so a Pi with 2 GB or more rarely swaps. Don't add a big swap file on an SD card.
+- **Keep the Iskra folder on the SSD:** with the system on the SSD, `/opt/iskra/world` is there too. Don't put it on a
+  USB stick or a network share; those are for [backup copies](#6-backups).
 
 ## 2. Install
 
@@ -134,9 +185,9 @@ Your options:
    friends reach your box as if it were on their own network. Iskra notices Tailscale on the box by itself and offers
    **Invite friends → Over Tailscale**. Friends join with the Iskra app (browsers need HTTPS, which this route doesn't
    have).
-3. **Connect without port forwarding** (experimental) is built into the desktop app: if the box runs the desktop app
-   with **Keep my server running**, turn it on in Server settings → Internet access. The standalone server can't do
-   this yet.
+3. **Connect without port forwarding** (experimental): turn it on in Server settings → Internet access. It works with
+   the desktop app's **Keep my server running** and with the standalone server, Raspberry Pi included (the
+   `iskra-p2p` program in the download does it; see [hosting.md](hosting.md#let-friends-connect-without-port-forwarding-experimental)).
 4. **Rent a small server instead.** If home hosting doesn't work out, the app can set one up for about $6 a month
    ([Rent a small server](hosting.md#rent-a-small-server)), and your server can [move there](hosting.md#moving-a-server-to-another-computer)
    with everyone and everything in it.
@@ -160,6 +211,14 @@ The operating system needs updates too. On Ubuntu and Debian, security updates i
 
 - **Daily backups** are on by default: every day the server keeps a copy of its database, settings and keys in
   `world/backups/` (the last 7). They help with mistakes, not with a dead disk.
+- **Copy them to another disk:** in **Server settings → Backup & move → Also copy them to**, enter a folder on a USB
+  stick, a second disk or a network share mounted on the box, such as `/mnt/usb/iskra`. After each daily backup the
+  server copies it there and keeps the same number there. The folder must exist and the server's user must be able to
+  write to it (`sudo mkdir -p /mnt/usb/iskra && sudo chown iskra:iskra /mnt/usb/iskra`); if the stick isn't mounted,
+  Server settings says so and the next try is an hour later. The copies hold the server's keys, unencrypted, so keep
+  the stick private (format it as ext4, so these permissions work). For a stick that's always plugged in, mount it at boot with a line in `/etc/fstab` using its
+  `UUID` (from `lsblk -f`) and `nofail`, so the Pi still starts without it. Details:
+  [hosting.md](hosting.md#backups).
 - **Download a backup now and then:** **Server settings → Backup & move → Make backup** gives you one encrypted file
   with everything (keep the passphrase somewhere else). Put it on another computer or a USB stick.
 - From a script, for example a weekly job that writes to a NAS. It works while the server runs; run it as the
@@ -169,9 +228,17 @@ The operating system needs updates too. On Ubuntu and Debian, security updates i
   echo "$PASSPHRASE" | sudo -u iskra /opt/iskra/iskra-server backup /opt/iskra/world /mnt/nas/iskra/iskra-$(date +%F).iskrabackup --passphrase-stdin
   ```
 
-A Raspberry Pi's SD card is the part most likely to fail, so downloaded backups matter most there. To restore on a new
-box, see [Restoring](hosting.md#restoring); to hand the server to another computer, [Move this
-server](hosting.md#moving-a-server-to-another-computer).
+**If the disk dies:** get a new SSD (or card), install the system and Iskra again ([1](#a-raspberry-pi-run-it-from-an-ssd),
+[2](#2-install), [3](#3-start-with-the-computer)), then restore the newest backup into an empty world folder instead of
+starting a new server, before you start the service:
+
+```sh
+sudo -u iskra /opt/iskra/iskra-server restore /mnt/usb/iskra/auto-2026-10-14.zip /opt/iskra/world   # a daily copy: no passphrase
+```
+
+A downloaded `.iskrabackup` file restores the same way and asks for its passphrase. Everything comes back, with the
+server's own key, so friends' apps simply reconnect: no new invites. See [Restoring](hosting.md#restoring); to hand the server
+to another computer, [Move this server](hosting.md#moving-a-server-to-another-computer).
 
 ## 7. Power use
 

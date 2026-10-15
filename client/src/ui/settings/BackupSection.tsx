@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
+import { formatDate } from '../../i18n/format'
 import { createBackup, downloadFile, formatBytes, MIN_PASSPHRASE, passphraseStrength, useBackups } from '../../state/backups'
 import { connectionFor, type ServerState } from '../../state/store'
 import type { BackupStatus } from '../../core/protocol'
@@ -104,15 +105,27 @@ function AutoBackups({ server }: { server: ServerState }) {
     connectionFor(server.key)?.request('backup.status', {}).then(setStatus).catch((e: Error) => setError(errorMessage(e)))
   }, [server.key])
 
-  async function change(patch: { enabled?: boolean; keep?: number; includeUploads?: boolean }) {
+  async function change(patch: { enabled?: boolean; keep?: number; includeUploads?: boolean; copyTo?: string | null }) {
     setError(null)
     try {
       const next = await connectionFor(server.key)?.request('backup.settings', patch)
       if (next) setStatus(next)
+      return true
     } catch (e) {
       setError(errorMessage(e))
+      return false
     }
   }
+
+  // A new copy folder gets the newest backup right away, on the server: look again shortly for how it went.
+  const copyPending = !!status?.copyTo && !status.copy
+  useEffect(() => {
+    if (!copyPending) return
+    const timer = setTimeout(() => {
+      connectionFor(server.key)?.request('backup.status', {}).then(setStatus).catch(() => {})
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [copyPending, server.key])
 
   if (!status) return error ? <p className="error-text">{error}</p> : <Spinner />
   return (
@@ -151,8 +164,42 @@ function AutoBackups({ server }: { server: ServerState }) {
         status.auto.enabled && <p className="muted">{t('settings.backup.firstSoon')}</p>
       )}
       <p className="muted backup-folder"><Trans i18nKey="settings.backup.inFolder" values={{ folder: status.folder }} components={{ code: <code /> }} /></p>
+      {status.auto.enabled && <CopyBackups status={status} change={change} />}
       {error && <p className="error-text">{error}</p>}
     </>
+  )
+}
+
+/** "Also copy them to": a folder on another disk of the server's computer (Backups.CopyTo). */
+function CopyBackups({ status, change }: { status: BackupStatus; change: (patch: { copyTo: string | null }) => Promise<boolean> }) {
+  const { t } = useTranslation()
+  const [draft, setDraft] = useState(status.copyTo ?? '')
+  const [busy, setBusy] = useState(false)
+  const copy = status.copy
+  const when = copy ? formatDate(copy.at, { dateStyle: 'medium', timeStyle: 'short' }) : ''
+
+  async function save(copyTo: string | null) {
+    setBusy(true)
+    if (await change({ copyTo }) && copyTo === null) setDraft('')
+    setBusy(false)
+  }
+
+  return (
+    <div className="backup-copy">
+      <strong>{t('settings.backup.copyTitle')}</strong>
+      <p className="muted">{t('settings.backup.copyHint')}</p>
+      <form className="copy-row" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) void save(draft.trim()) }}>
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="/mnt/usb/iskra" maxLength={1024}
+          aria-label={t('settings.backup.copyFolder')} spellCheck={false} autoCapitalize="off" autoCorrect="off" disabled={busy} />
+        <button className="button" type="submit" disabled={busy || !draft.trim() || draft.trim() === status.copyTo}>{t('settings.backup.copySave')}</button>
+        {status.copyTo && <button className="button ghost" type="button" disabled={busy} onClick={() => void save(null)}>{t('settings.backup.copyStop')}</button>}
+      </form>
+      {status.copyTo && (
+        copy?.ok ? <p className="muted backup-copy-state" role="status">{t('settings.backup.copyOk', { name: copy.name, when })}</p>
+        : copy?.error ? <p className="error-text backup-copy-state" role="alert">{t('settings.backup.copyFailed', { when, reason: errorMessage(copy.error) })}</p>
+        : <p className="muted backup-copy-state">{t('settings.backup.copyPending')}</p>
+      )}
+    </div>
   )
 }
 

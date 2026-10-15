@@ -404,7 +404,9 @@ it on. The details, and how to write your own bot: [bots.md](bots.md).
 
 Because the file holds the server's key, it's always encrypted with your passphrase (Argon2id and XChaCha20-Poly1305 from libsodium). Keep the file and the passphrase in different places: without the passphrase nobody can open it, and nobody can recover it for you either.
 
-**Daily backups:** every day the server also keeps a copy of the database, settings and keys in its own `backups/` folder (the last 7), so a bad disk write or a mistake can be undone. These aren't encrypted, since they sit next to the keys anyway (owner-only file permissions on Linux and macOS). Uploaded files stay in `uploads/`; turn on **Include uploaded files** if you want them copied too. Change this in **Server settings → Backup & move** or in `server.json` → `Backups`. A daily backup only helps while that disk is fine, so download one now and then as well.
+**Daily backups:** every day the server also keeps a copy of the database, settings and keys in its own `backups/` folder (the last 7), so a bad disk write or a mistake can be undone. These aren't encrypted, since they sit next to the keys anyway (owner-only file permissions on Linux and macOS). Uploaded files stay in `uploads/`; turn on **Include uploaded files** if you want them copied too. Change this in **Server settings → Backup & move** or in `server.json` → `Backups`. A daily backup only helps while that disk is fine, so download one now and then as well, or copy them to another disk:
+
+**Copy daily backups to another disk:** in **Server settings → Backup & move → Also copy them to** (or `server.json` → `Backups` → `CopyTo`), give a folder on the server's computer that lives on another disk: a USB stick mounted at `/mnt/usb/iskra`, a second drive, or a network share (an SMB/NFS mount on Linux, a share like `\\nas\iskra` or a mapped drive on Windows). After each daily backup the server copies it there (to a temporary name first, then renamed, so a half-written copy never looks finished) and keeps the same number of days there; it only ever deletes files named `auto-YYYY-MM-DD.zip`, so use a folder of its own for each server. The path must be absolute and outside the server's folder, and the folder must already exist and be writable by the server's user (on Linux: `sudo mkdir -p /mnt/usb/iskra && sudo chown iskra:iskra /mnt/usb/iskra`). The server never creates it, so a stick that isn't mounted doesn't quietly fill the main disk: the copy fails, Server settings → Backup & move shows why, and it tries again within the hour. A failed copy never stops the server or the daily backup. The copies are the same unencrypted zips as in `backups/` and hold the server's key: keep that disk or share private (a stick formatted FAT/exFAT has no file permissions). Mount a stick that's always plugged in by `UUID` with `nofail` in `/etc/fstab`, so the computer still starts without it.
 
 From the command line (this works while the server runs, too):
 
@@ -513,7 +515,8 @@ iskra-server import-discord my-server export.zip              # add --read-only 
   "Backups": {                         // daily backups in backups/ (Server settings → Backup & move)
     "Enabled": true,
     "Keep": 7,                         // how many days to keep (1–30)
-    "IncludeUploads": false            // also copy uploads/ into each one
+    "IncludeUploads": false,           // also copy uploads/ into each one
+    "CopyTo": null                     // also copy each one into this folder on another disk, e.g. "/mnt/usb/iskra"
   },
   "Import": {
     "MaxMb": 4096                      // largest Discord export the owner may upload

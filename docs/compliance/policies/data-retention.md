@@ -43,6 +43,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Looking-for-group posts (game, slots, time, voice channel, note; who joined) and the "Notify me for LFG" setting | Posts: same as messages (they go with their message), closed 2 hours after their time or after 24 hours; who joined: with the post, or until the account is deleted; the setting: until turned off or the account is deleted | `RetentionSweeper` and message deletion; `LfgCloser` (closing); account deletion | `Retention.MessagesDays` |
 | Team splits (who started one, the voice channel, the game, its temporary team channels) | Until the split ends: team channels are deleted after 5 minutes empty, or when everyone is brought back | `TeamSweeper`; `teams.end` | No |
 | Daily backups (`backups/auto-*.zip`) | Last 7 (disappearing messages and their files are never in them) | `BackupService` | `Backups.Keep` (1–30) |
+| Copies of daily backups on another disk (`Backups.CopyTo`, off by default) | Same as daily backups: the newest `Keep` there | `BackupService` | `Backups.CopyTo`, `Backups.Keep` |
 | Downloaded encrypted backups | Wherever the owner keeps them | The owner | — |
 | Data exports (`/export/{token}`) | 10 minutes (the link; files in `world/exports`, never in backups) | Export cleanup | No |
 | Presence, voice state, IP addresses of connected clients | In memory while connected (stored in the security log only if the owner turns on `Retention.SecurityLogIps`, off by default) | Process memory | No |

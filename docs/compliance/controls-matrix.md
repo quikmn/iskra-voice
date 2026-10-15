@@ -57,7 +57,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 | Control | How Iskra meets it | Evidence | Status |
 |---|---|---|---|
 | A1.1 Capacity | Upload quotas, size limits, rate limits; droplet with swap; no capacity monitoring | HOST `server.json` reference, OA 10 | partial |
-| A1.2 Backups and recovery infrastructure | Daily backups (same disk), encrypted downloads; off-site copies pending | [BackupService.cs][backupsvc], OA 8–9 | owner-action |
+| A1.2 Backups and recovery infrastructure | Daily backups (same disk, optionally copied to another disk or share with `Backups.CopyTo`), encrypted downloads; off-site copies pending | [BackupService.cs][backupsvc], OA 8–9 | owner-action |
 | A1.3 Recovery testing | Automated backup → restore drill on every CI run; yearly real restore pending | CI `scripts-and-drill` (artifact `restore-drill-report`), [RestoreDrillTests.cs][drill], OA 11 | partial |
 
 ### Confidentiality

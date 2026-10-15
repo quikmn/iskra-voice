@@ -171,6 +171,123 @@ public class BackupTests
     }
 
     [Fact]
+    public async Task Daily_backups_are_copied_to_another_folder_with_the_same_retention()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var backups = server.Services.GetRequiredService<BackupService>();
+        var copies = TempPath("copies");
+        Directory.CreateDirectory(copies);
+        try
+        {
+            Assert.True(backups.RunDaily());
+            var status = (await owner.RequestAsync("backup.settings", new { copyTo = copies })).Body();
+            Assert.Equal(Path.GetFullPath(copies), status.GetProperty("copyTo").GetString());
+            Assert.Equal(Path.GetFullPath(copies), server.World.Settings.Backups.CopyTo);
+            await backups.LastCopyTask; // copied right away
+
+            var today = backups.LocalBackups()[0].Name;
+            Assert.Equal(File.ReadAllBytes(Path.Combine(backups.Folder, today)), File.ReadAllBytes(Path.Combine(copies, today)));
+            Assert.Empty(Directory.EnumerateFiles(copies, "*.tmp"));
+            if (!OperatingSystem.IsWindows())
+                Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(Path.Combine(copies, today)));
+            var copy = (await owner.RequestAsync("backup.status")).Body().GetProperty("copy");
+            Assert.True(copy.GetProperty("ok").GetBoolean());
+            Assert.Equal(today, copy.GetProperty("name").GetString());
+
+            // Older copies beyond `Keep` go; anything else in the folder stays.
+            for (var day = 1; day <= 9; day++) File.WriteAllText(Path.Combine(copies, $"auto-2020-01-0{day}.zip"), "old");
+            File.WriteAllText(Path.Combine(copies, "notes.txt"), "mine");
+            File.WriteAllText(Path.Combine(copies, "auto-mine.zip"), "mine");
+            await owner.RequestAsync("backup.settings", new { keep = 3 });
+            await backups.LastCopyTask;
+            Assert.Equal(new[] { today, "auto-2020-01-09.zip", "auto-2020-01-08.zip" },
+                Directory.EnumerateFiles(copies, "auto-*.zip").Select(p => Path.GetFileName(p)).Where(n => n != "auto-mine.zip")
+                    .OrderByDescending(n => n, StringComparer.Ordinal).ToArray());
+            Assert.True(File.Exists(Path.Combine(copies, "notes.txt")));
+            Assert.True(File.Exists(Path.Combine(copies, "auto-mine.zip")));
+
+            // A copy that went missing (or was cut off) is made again on the next hourly run.
+            File.WriteAllText(Path.Combine(copies, today), "cut off");
+            Assert.False(backups.RunDaily());
+            Assert.Equal(File.ReadAllBytes(Path.Combine(backups.Folder, today)), File.ReadAllBytes(Path.Combine(copies, today)));
+
+            // Turning it off forgets the folder.
+            status = (await owner.RequestAsync("backup.settings", new { copyTo = "" })).Body();
+            await backups.LastCopyTask;
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, status.GetProperty("copyTo").ValueKind);
+            Assert.Null(server.World.Settings.Backups.CopyTo);
+            Assert.Null(backups.LastCopy);
+        }
+        finally
+        {
+            try { Directory.Delete(copies, true); } catch (IOException) { }
+        }
+    }
+
+    [Fact]
+    public async Task Backup_copy_folders_must_be_full_paths_outside_the_server_folder()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        async Task<string?> Refused(string copyTo)
+        {
+            var reply = await owner.RequestAsync("backup.settings", new { copyTo });
+            Assert.Equal("bad_request", reply.ErrorCode());
+            return reply.Body().GetProperty("key").GetString();
+        }
+        Assert.Equal("backup_copy_relative", await Refused("backups-elsewhere"));
+        Assert.Equal("backup_copy_relative", await Refused(Path.Combine("..", "elsewhere")));
+        Assert.Equal("backup_copy_inside_world", await Refused(server.World.Path));
+        Assert.Equal("backup_copy_inside_world", await Refused(Path.Combine(server.World.Path, "backups")));
+        Assert.Equal("backup_copy_inside_world", await Refused(Path.Combine(server.World.Path, "uploads", "..", "x")));
+        Assert.Equal("backup_copy_not_found", await Refused(TempPath("not-there")));
+        Assert.Null(server.World.Settings.Backups.CopyTo);
+        // Only the owner.
+        Assert.Equal("forbidden", (await (await server.JoinAsync("Admin", "admin")).RequestAsync("backup.settings", new { copyTo = Path.GetTempPath() })).ErrorCode());
+    }
+
+    [Fact]
+    public async Task A_missing_or_broken_copy_folder_is_reported_and_never_stops_the_daily_backup()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var backups = server.Services.GetRequiredService<BackupService>();
+        // A USB stick that isn't mounted (server.json edited by hand): never created, reported instead.
+        var missing = TempPath("unplugged");
+        server.World.UpdateSettings(w => w with { Backups = w.Backups with { CopyTo = missing } });
+        Assert.True(backups.RunDaily());
+        Assert.False(Directory.Exists(missing));
+        Assert.False(backups.LastCopy!.Ok);
+        Assert.Equal("backup_copy_missing", backups.LastCopy.Error!.Key);
+        var copy = (await owner.RequestAsync("backup.status")).Body().GetProperty("copy");
+        Assert.False(copy.GetProperty("ok").GetBoolean());
+        Assert.Equal("backup_copy_missing", copy.GetProperty("error").GetProperty("key").GetString());
+
+        // A copy that fails halfway (here: a folder in the way of the file) is reported and leaves no temp file.
+        var broken = TempPath("broken");
+        Directory.CreateDirectory(Path.Combine(broken, backups.LocalBackups()[0].Name));
+        try
+        {
+            server.World.UpdateSettings(w => w with { Backups = w.Backups with { CopyTo = broken } });
+            Assert.False(backups.RunDaily()); // no exception
+            Assert.False(backups.LastCopy!.Ok);
+            Assert.Equal("backup_copy_failed", backups.LastCopy.Error!.Key);
+            Assert.Empty(Directory.EnumerateFiles(broken, "*.tmp"));
+            // A hand-edited path inside the world folder is refused at copy time too.
+            server.World.UpdateSettings(w => w with { Backups = w.Backups with { CopyTo = Path.Combine(server.World.Path, "elsewhere") } });
+            backups.RunDaily();
+            Assert.Equal("backup_copy_inside_world", backups.LastCopy!.Error!.Key);
+            // The server carries on.
+            Assert.Equal("result", (await owner.RequestAsync("backup.status")).Type());
+        }
+        finally
+        {
+            try { Directory.Delete(broken, true); } catch (IOException) { }
+        }
+    }
+
+    [Fact]
     public void Restore_only_writes_the_files_a_backup_is_made_of()
     {
         // A crafted plain zip: a real world's files plus entries trying to escape the folder.

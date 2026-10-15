@@ -93,8 +93,20 @@ public static class BackupFeature
             auto = new { enabled = settings.Enabled, keep = Math.Clamp(settings.Keep, 1, 30), includeUploads = settings.IncludeUploads },
             local = backups.LocalBackups().Select(b => new { name = b.Name, size = b.Size, createdAt = b.CreatedAt }),
             folder = backups.Folder,
+            copyTo = string.IsNullOrWhiteSpace(settings.CopyTo) ? null : settings.CopyTo,
+            copy = backups.LastCopy is { } copy
+                ? new
+                {
+                    at = copy.At,
+                    ok = copy.Ok,
+                    name = copy.Name,
+                    error = copy.Error is { } e ? new { code = e.Code, message = e.Message, key = e.Key, args = e.Args } : null,
+                }
+                : null,
         };
     }
+
+    public const int MaxCopyToLength = 1024;
 
     private static object Settings(BackupService backups, Session s, Member me, Body body)
     {
@@ -102,6 +114,20 @@ public static class BackupFeature
         var enabled = body.OptionalBool("enabled");
         var keep = body.OptionalLong("keep", min: 1, max: 30);
         var includeUploads = body.OptionalBool("includeUploads");
+        // "copyTo": a folder for copies of each daily backup; "" or null stops them.
+        var copyToGiven = body.Has("copyTo");
+        string? copyTo = null;
+        if (copyToGiven && !body.IsNull("copyTo"))
+        {
+            var text = body.String("copyTo", MaxCopyToLength).Trim();
+            if (text.Length > 0)
+            {
+                if (BackupService.CheckCopyFolder(s.World.Path, text, out var full) is { } invalid) throw invalid;
+                if (!Directory.Exists(full))
+                    throw RequestException.BadRequest("That folder doesn't exist. Create it first (and connect the disk or share).", "backup_copy_not_found");
+                copyTo = full;
+            }
+        }
         var before = s.World.Settings.Backups;
         s.World.UpdateSettings(w => w with
         {
@@ -110,10 +136,16 @@ public static class BackupFeature
                 Enabled = enabled ?? w.Backups.Enabled,
                 Keep = (int?)keep ?? w.Backups.Keep,
                 IncludeUploads = includeUploads ?? w.Backups.IncludeUploads,
+                CopyTo = copyToGiven ? copyTo : w.Backups.CopyTo,
             },
         });
-        if (s.World.Settings.Backups != before)
-            SecurityLog.Record(s, "backup.settings", details: new { from = before, to = s.World.Settings.Backups });
+        var after = s.World.Settings.Backups;
+        if (after != before)
+        {
+            SecurityLog.Record(s, "backup.settings", details: new { from = before, to = after });
+            // Copy the newest daily backup there right away (or forget the old folder's status).
+            if (after.CopyTo != before.CopyTo || after.Keep != before.Keep) _ = backups.CopyNowAsync();
+        }
         return Status(backups, s, me);
     }
 }

@@ -24,6 +24,11 @@
 .backup-list li + li { border-top: 1px solid var(--border); }
 .backup-list code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .backup-folder { font-size: 13px; overflow-wrap: anywhere; }
+.backup-copy { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.backup-copy > p { margin: 4px 0 10px; }
+.backup-copy .copy-row { flex-wrap: wrap; }
+.backup-copy .copy-row input { flex: 1 1 220px; min-width: 0; font-family: var(--mono); font-size: 14px; }
+.backup-copy-state { font-size: 13px; overflow-wrap: anywhere; }
 
 /* Move this server */
 .modal.move-dialog { width: min(600px, 100%); }
