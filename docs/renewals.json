@@ -21,9 +21,8 @@
     {
       "id": "apple-developer-program",
       "name": "Apple Developer Program membership",
-      "expires": null,
-      "note": "date unknown: owner to fill (developer.apple.com → Membership details shows the expiry date)",
-      "renew": "Renew the membership (99 USD/year) at developer.apple.com, or Mac builds stop being notarized",
+      "expires": "2027-10-12",
+      "renew": "Auto-renew is on (999 kr/year): check the card at developer.apple.com → Membership details before the date, or Mac builds stop being notarized",
       "doc": "docs/ci-cd.md#apple-macos-signing-and-notarization"
     },
     {

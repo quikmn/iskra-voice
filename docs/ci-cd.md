@@ -660,7 +660,7 @@ must match renewals.json.
 | Weekly (Mondays) | Dependabot PRs, CodeQL, Scorecard and secret scans | Merge green Dependabot PRs; look at new code-scanning alerts (Security tab: CodeQL and Scorecard) and secret-scanning alerts |
 | Continuous | Droplet OS updates | Automatic (unattended-upgrades); reboot now and then (`ssh … reboot` with the admin key) when `/var/run/reboot-required` exists |
 | Every ~60 days, automatic | chat.iskra.foo HTTPS certificate | The server renews it itself; port 80 must stay open |
-| Yearly (membership date) | Apple Developer Program | Renew, or Mac builds stop being notarized |
+| Yearly, next **2027-10-12** (auto-renew on) | Apple Developer Program | Check the card before the date, or Mac builds stop being notarized |
 | Yearly | Cloudflare tokens, CI SSH key | Optional rotation (they don't expire): see section 4 |
 | **2027-01 (before 2027-01-13), then every 90 days** | DigitalOcean token `DO_MARKETPLACE_TOKEN` | New token, `gh secret set DO_MARKETPLACE_TOKEN --env marketplace` ([section 4](#digitalocean-marketplace-image)) |
 | **2027-04 (before 2027-05-12)** | Certum code-signing certificate | Renew (section 4); same CN keeps auto-update working |
