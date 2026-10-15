@@ -3,9 +3,11 @@ name: Marketplace image
 # The DigitalOcean Marketplace image (marketplace/digitalocean/).
 # - On changes: lint only. ShellCheck and packer validate, with a dummy token: nothing is built and DigitalOcean is
 #   never called.
-# - By hand (Run workflow, owner only): builds the image in the image-build project of the owner's DigitalOcean
-#   account. It runs in the `marketplace` environment, which needs the owner's approval per run and holds the
-#   DO_MARKETPLACE_TOKEN secret. The snapshot is then tested and submitted by hand (marketplace/digitalocean/README.md).
+# - By hand (Run workflow; only people with write access can): builds the image in the owner's DigitalOcean account,
+#   then tests it end to end on a temporary $6 droplet (test.sh: HTTPS, the claim screen, ufw, a claim with the app's
+#   own code, voice) and deletes that droplet again. One run gives a pass or a fail; no approvals. The jobs that call
+#   DigitalOcean run in the `marketplace` environment, which holds the DO_MARKETPLACE_TOKEN secret. The snapshot is
+#   kept: it's what gets submitted, by hand (marketplace/digitalocean/README.md).
 on:
   push:
     branches: ['**', '!dependabot/**']
@@ -21,8 +23,9 @@ on:
 permissions:
   contents: read
 
+# Manual runs one at a time, whatever the branch: the cleanup sweeps every test and build droplet by tag.
 concurrency:
-  group: marketplace-${{ github.event_name }}-${{ github.ref }}
+  group: ${{ github.event_name == 'workflow_dispatch' && 'marketplace-image' || format('marketplace-{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 env:
@@ -51,8 +54,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     needs: lint
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 25
     environment: marketplace
+    outputs:
+      snapshot: ${{ steps.build.outputs.snapshot }}
+      region: ${{ steps.build.outputs.region }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -64,9 +70,65 @@ jobs:
           unzip -q "$RUNNER_TEMP/packer.zip" -d "$RUNNER_TEMP/packer"
           echo "$RUNNER_TEMP/packer" >> "$GITHUB_PATH"
       - name: Build the image
+        id: build # build.sh writes the snapshot's ID and region to its outputs
         env:
           DIGITALOCEAN_TOKEN: ${{ secrets.DO_MARKETPLACE_TOKEN }}
           GH_TOKEN: ${{ github.token }} # the server package's attestation check
           PACKER_GITHUB_API_TOKEN: ${{ github.token }}
           VERSION: ${{ github.event.inputs.version }}
         run: bash marketplace/digitalocean/build.sh ${VERSION:+"$VERSION"}
+
+  # A droplet from the new snapshot, claimed as a user would (marketplace/digitalocean/test.sh), then deleted.
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: marketplace
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            bots/package-lock.json
+      - run: npm ci # the app's claim code and client core (client/interop/claim.test.ts)
+        working-directory: client
+      - run: npm ci # LiveKit's Node SDK, to join the voice room
+        working-directory: bots
+      - name: Test the image
+        env:
+          DIGITALOCEAN_TOKEN: ${{ secrets.DO_MARKETPLACE_TOKEN }}
+          SNAPSHOT: ${{ needs.build.outputs.snapshot }}
+          REGION: ${{ needs.build.outputs.region }}
+        run: bash marketplace/digitalocean/test.sh "$SNAPSHOT" "$REGION"
+
+  # Backup for test.sh's own cleanup (a cancelled or timed-out run): every test droplet and test SSH key, and a build
+  # droplet Packer left behind. The snapshot is kept either way.
+  cleanup:
+    needs: [build, test]
+    if: always() && github.event_name == 'workflow_dispatch' && needs.build.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: marketplace
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Delete leftover droplets and keys
+        env:
+          DIGITALOCEAN_TOKEN: ${{ secrets.DO_MARKETPLACE_TOKEN }}
+        run: bash marketplace/digitalocean/test.sh --sweep
+      - name: Result
+        env:
+          SNAPSHOT: ${{ needs.build.outputs.snapshot }}
+          REGION: ${{ needs.build.outputs.region }}
+          BUILD: ${{ needs.build.result }}
+          TEST: ${{ needs.test.result }}
+        run: |
+          line="Build: $BUILD. Test: $TEST. Snapshot: ${SNAPSHOT:-none}${REGION:+ in $REGION} (kept)."
+          echo "$line"
+          echo "$line" >> "$GITHUB_STEP_SUMMARY"

@@ -47,3 +47,17 @@ cd "$here"
 packer init iskra.pkr.hcl
 packer validate -var "iskra_version=$version" iskra.pkr.hcl
 packer build -var "iskra_version=$version" iskra.pkr.hcl
+
+# The snapshot Packer made, from its manifest ("<region>:<id>"), for test.sh (and the workflow's test job).
+artifact="$(sed -n 's/.*"artifact_id": *"\([^"]*\)".*/\1/p' "$out/manifest.json" | tail -n 1)"
+if ! [[ "$artifact" =~ ^([a-z0-9]+):([0-9]+)$ ]]; then
+  echo "No snapshot ID in $out/manifest.json ('$artifact')" >&2
+  exit 1
+fi
+region="${BASH_REMATCH[1]}"
+snapshot="${BASH_REMATCH[2]}"
+echo "Snapshot $snapshot in $region. Test it: DIGITALOCEAN_TOKEN=... ./test.sh $snapshot $region"
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+  echo "snapshot=$snapshot" >> "$GITHUB_OUTPUT"
+  echo "region=$region" >> "$GITHUB_OUTPUT"
+fi

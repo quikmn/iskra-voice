@@ -1,6 +1,6 @@
 # The Iskra 1-Click image for the DigitalOcean Marketplace.
-# Build it with build.sh (it fetches and checks the server package first); see README.md. Never in CI without the
-# owner's approval: it creates a temporary droplet in the DigitalOcean account the token belongs to.
+# Build it with build.sh (it fetches and checks the server package first); see README.md. Only ever by hand (Run
+# workflow, or build.sh): it creates a temporary droplet in the DigitalOcean account the token belongs to.
 
 packer {
   required_version = ">= 1.11.0"
@@ -99,5 +99,11 @@ build {
       "${path.root}/vendor/90-cleanup.sh",
       "${path.root}/vendor/99-img-check.sh",
     ]
+  }
+
+  # The snapshot's ID ("<region>:<id>") for build.sh, which hands it to the test (test.sh).
+  post-processor "manifest" {
+    output     = "${local.package_dir}/manifest.json"
+    strip_path = true
   }
 }
