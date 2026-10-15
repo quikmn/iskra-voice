@@ -18,6 +18,8 @@
   <!-- The live-captions model's pins, shared with the app (one source of truth; CaptionModelTests checks it). -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\..\client\src\state\captions\model.json" LogicalName="captions-model.json" />
+    <!-- Message translation's model pins, the same way (TranslateModelTests checks it). -->
+    <EmbeddedResource Include="..\..\..\client\src\state\translate\models.json" LogicalName="translate-models.json" />
   </ItemGroup>
 
   <!-- Starter templates for new servers (the Template setting; docs/hosting.md). -->

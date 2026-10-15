@@ -44,6 +44,9 @@ public sealed class IskraServer : WebApplicationFactory<Program>
     /// <summary>Stands in for Hugging Face (the captions model), with a tiny model of its own.</summary>
     public FakeModelUpstream Models { get; } = new();
 
+    /// <summary>Stands in for Mozilla's storage (translation models), with two tiny models of its own.</summary>
+    public FakeTranslationUpstream Translations { get; } = new();
+
     /// <summary>Stands in for GitHub's releases (server updates).</summary>
     public FakeReleaseFeed Releases { get; } = new();
 
@@ -63,6 +66,8 @@ public sealed class IskraServer : WebApplicationFactory<Program>
             services.AddSingleton<Iskra.Server.Updates.IReleaseFeed>(Releases);
             services.AddSingleton<Iskra.Server.Captions.IModelUpstream>(Models);
             services.AddSingleton(Models.Manifest);
+            services.AddSingleton(new Iskra.Server.Translate.TranslationUpstream(Translations));
+            services.AddSingleton(Translations.Pins);
             if (PortMapper is not null) services.AddSingleton(PortMapper);
         });
         foreach (var (key, value) in Settings) builder.UseSetting(key, value);
@@ -164,6 +169,15 @@ public sealed class FakeVoiceBackend : IVoiceBackend
     {
         lock (FullPermissions) FullPermissions.Add((room, identity, canPublish, canSubscribe));
         return Task.FromResult(true);
+    }
+
+    /// <summary>Rooms the server closed (ended whispers), in order.</summary>
+    public List<string> Deleted { get; } = [];
+
+    public Task DeleteRoomAsync(string room)
+    {
+        lock (Deleted) Deleted.Add(room);
+        return Task.CompletedTask;
     }
 }
 

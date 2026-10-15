@@ -1,13 +1,16 @@
-# Step of scripts/release.ps1 (the one release command); not run by hand. Local checks shared by release.ps1 and
-# release-windows.ps1: the code-signing test signature (SimplySign) and the Android build prerequisites.
-# Tested by scripts/release-checks.test.mjs (fake certificates, a fake signer, a fake tools folder).
+# Step of scripts/release.ps1 (the one release command) and of the Release workflow's jobs on the home PC
+# (release-all.yml); not run by hand. Local checks shared by release.ps1, release-windows.ps1 and release-pc-checks.ps1:
+# the code-signing test signature (SimplySign, with the automatic login) and the Android build prerequisites.
+# Tested by scripts/release-checks.test.mjs (fake certificates, a fake signer, a fake login, a fake tools folder).
 
 $script:Subject = 'Open Source Developer Viktor Lundgren'
 $script:CodeSigning = '1.3.6.1.5.5.7.3.3'
 $script:LoginLine = 'Log in to SimplySign Desktop (6-digit code from the app), then run scripts/release.ps1 again.'
+# The same on GitHub (the Release workflow's jobs on the home PC).
+$script:LoginLineGitHub = 'Log in to SimplySign Desktop on the home PC (6-digit code from the app), then re-run the failed jobs of this Release run.'
 
 function Get-SigningSubject { $script:Subject }
-function Get-SimplySignLoginLine { $script:LoginLine }
+function Get-SimplySignLoginLine { if ($env:GITHUB_ACTIONS -eq 'true') { $script:LoginLineGitHub } else { $script:LoginLine } }
 
 # The newest code-signing certificate with a private key and the Iskra subject. SimplySign Desktop puts it in
 # CurrentUser\My while it's logged in.
@@ -26,7 +29,7 @@ function Test-Signing {
   param([object[]]$Certificates, [scriptblock]$Signer, [datetime]$Now = (Get-Date), [string]$TimestampServer = 'http://time.certum.pl')
   $cert = Find-SigningCertificate -Certificates $Certificates
   if (-not $cert) {
-    return @{ Ok = $false; Reason = 'no-cert'; Message = "SimplySign isn't logged in (no '$script:Subject' code-signing certificate in the store). $script:LoginLine" }
+    return @{ Ok = $false; Reason = 'no-cert'; Message = "SimplySign isn't logged in (no '$script:Subject' code-signing certificate in the store). $(Get-SimplySignLoginLine)" }
   }
   if ($cert.NotAfter -lt $Now) {
     return @{ Ok = $false; Reason = 'expired'; Certificate = $cert; Message = "The code-signing certificate expired on $($cert.NotAfter.ToString('yyyy-MM-dd')). Renew it with Certum (docs/ci-cd.md, Windows code signing)." }
@@ -42,12 +45,41 @@ function Test-Signing {
   try {
     $result = & $Signer $probe $cert
     if ("$($result.Status)" -ne 'Valid') {
-      return @{ Ok = $false; Reason = 'sign-failed'; Certificate = $cert; Message = "SimplySign can't sign (test signature: $($result.StatusMessage)). $script:LoginLine" }
+      return @{ Ok = $false; Reason = 'sign-failed'; Certificate = $cert; Message = "SimplySign can't sign (test signature: $($result.StatusMessage)). $(Get-SimplySignLoginLine)" }
     }
   } catch {
-    return @{ Ok = $false; Reason = 'sign-failed'; Certificate = $cert; Message = "SimplySign can't sign (test signature failed: $($_.Exception.Message)). $script:LoginLine" }
+    return @{ Ok = $false; Reason = 'sign-failed'; Certificate = $cert; Message = "SimplySign can't sign (test signature failed: $($_.Exception.Message)). $(Get-SimplySignLoginLine)" }
   } finally { Remove-Item $probe -ErrorAction SilentlyContinue }
   @{ Ok = $true; Certificate = $cert; ExpiresSoon = ($cert.NotAfter -lt $Now.AddDays(30)); Message = "signing works ($script:Subject, valid until $($cert.NotAfter.ToString('yyyy-MM-dd')))" }
+}
+
+# Test-Signing, and when it fails because SimplySign isn't logged in, scripts/simplysign-login.ps1 once (it logs in with
+# the seed stored by simplysign-setup.ps1; at most one attempt per release run), then the test signature again.
+# Without a stored seed nothing changes: the result says to log in by hand. -Test and -Login replace the real
+# test signature and login (tests): -Login returns @{ Code (0 ok, 2 no seed, 3 not allowed now, 1 failed); Line }.
+# The result gets AutoLogin = $true when the login made it work.
+function Confirm-Signing {
+  param([scriptblock]$Test, [scriptblock]$Login)
+  if (-not $Test) { $Test = { Test-Signing } }
+  if (-not $Login) {
+    $Login = {
+      $script = Join-Path $PSScriptRoot 'simplysign-login.ps1'
+      $out = & pwsh -NoProfile -NonInteractive -File $script 2>&1 | ForEach-Object { "$_" }
+      @{ Code = $LASTEXITCODE; Line = (($out | Where-Object { $_ -like 'SimplySign login:*' } | Select-Object -Last 1) -replace '^SimplySign login:\s*', '') }
+    }
+  }
+  $s = & $Test
+  if ($s.Ok -or $s.Reason -eq 'expired') { return $s }
+  $r = & $Login
+  if ($r.Code -eq 2) { return $s }
+  if ($r.Code -ne 0) {
+    $s.Message = "SimplySign isn't logged in and the automatic login didn't help ($($r.Line)). $(Get-SimplySignLoginLine)"
+    return $s
+  }
+  $again = & $Test
+  if ($again.Ok) { $again.AutoLogin = $true; $again.Message = "$($again.Message); SimplySign logged itself in" }
+  else { $again.Message = "SimplySign logged in, but the test signature still fails: $($again.Message)" }
+  $again
 }
 
 # The folder above the repo that holds devtools\ and devkeys\ (D:\Development_Projects here).
@@ -87,4 +119,4 @@ function Get-AndroidProblems {
   $problems
 }
 
-Export-ModuleMember -Function Get-SigningSubject, Get-SimplySignLoginLine, Find-SigningCertificate, Test-Signing, Get-DevRoot, Get-AndroidProblems
+Export-ModuleMember -Function Get-SigningSubject, Get-SimplySignLoginLine, Find-SigningCertificate, Test-Signing, Confirm-Signing, Get-DevRoot, Get-AndroidProblems

@@ -15,6 +15,8 @@ import { useEscapeLayer, useFocusTrap } from '../layers'
 import { focusFirstItem } from '../a11y'
 import { plainText } from '../markdown'
 import { ChannelSaveRemind } from '../productivity/MessageTools'
+import { TranslateMenuItem } from '../translate/Translate'
+import { channelItem } from '../translate/items'
 import './more.css'
 
 /** Where links to this server's messages should open: its web app, or this page if it's a web page (not app:// or capacitor://). */
@@ -78,6 +80,7 @@ function MoreMenu({ server, message, anchor, onClose, onReactions }: {
             {text && <button role="menuitem" onClick={act(t('chat.actions.textCopied'), () => navigator.clipboard.writeText(text))}>{t('chat.actions.copyText')}</button>}
             <button role="menuitem" onClick={act(null, () => markUnread(server.key, message.channelId, message.id))}>{t('chat.actions.markUnread')}</button>
             <ChannelSaveRemind server={server} message={message} wrap={act} />
+            <TranslateMenuItem item={channelItem(server, message)} wrap={act} />
             {message.reactions.length > 0 && <button role="menuitem" onClick={act(null, onReactions)}>{t('chat.actions.viewReactions')}</button>}
             {canReport(server, message) && (
               <button role="menuitem" className="danger" onClick={act(null, () => openReport({ kind: 'message', serverKey: server.key, message }))}>{t('safety.report.menuMessage')}</button>

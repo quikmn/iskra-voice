@@ -62,7 +62,7 @@ export async function enableDesktopNotifications(): Promise<boolean> {
 let audio: AudioContext | null = null
 let audioSink = ''
 
-export type Tone = 'message' | 'join' | 'leave' | 'mute' | 'unmute' | 'deafen' | 'undeafen'
+export type Tone = 'message' | 'join' | 'leave' | 'mute' | 'unmute' | 'deafen' | 'undeafen' | 'whisper'
 
 const TONES: Record<Tone, number[]> = {
   message: [880, 1320],
@@ -72,6 +72,7 @@ const TONES: Record<Tone, number[]> = {
   unmute: [440, 660],
   deafen: [587, 392, 294],
   undeafen: [294, 392, 587],
+  whisper: [1175, 1568],
 }
 
 /** Message sounds follow Notifications; voice sounds (join, leave, mute, deafen) follow Voice & audio. */
@@ -106,18 +107,27 @@ export function playTone(kind: Tone, test = false): void {
   }
 }
 
+/** Quiet hours (state/alerts.ts fills it in): null when they're off right now. */
+export const quietRules = { now: (): { mentions: boolean } | null => null }
+
 /** Servers that push to this device: while the page is in the background, their pushes do the notifying. */
 export const pushActive = new Set<string>()
 
 /** A desktop notification (and tone) unless this server's pushes cover it while the page is in the background. */
-export function showNotification(serverKey: string, title: string, body: string, onClick: () => void): void {
-  show(serverKey, title, body, onClick)
+export function showNotification(serverKey: string, title: string, body: string, onClick: () => void, ping = false): void {
+  show(serverKey, title, body, onClick, ping)
 }
 
-export function show(serverKey: string, title: string, body: string, onClick: () => void): void {
+/**
+ * `ping`: a mention, reply, alert word or DM, which quiet hours may let through (silently). `expiresAt`: a disappearing
+ * message; its notification is taken away when the message goes.
+ */
+export function show(serverKey: string, title: string, body: string, onClick: () => void, ping = false, expiresAt?: number): void {
   if (pushActive.has(serverKey) && !document.hasFocus()) return
   if (isDoNotDisturb()) return // do not disturb: no sounds or notifications (unread badges still count)
-  playTone('message')
+  const quiet = quietRules.now()
+  if (quiet && !(quiet.mentions && ping)) return // quiet hours: nothing, or pings without a sound
+  if (!quiet) playTone('message')
   if (!document.hasFocus()) void desktop?.attention?.().catch(() => undefined)
   if (!useNotify.getState().desktop || !notificationsSupported() || Notification.permission !== 'granted') return
   const notification = new Notification(title, { body: body.slice(0, 200), silent: true })
@@ -126,6 +136,7 @@ export function show(serverKey: string, title: string, body: string, onClick: ()
     onClick()
     notification.close()
   }
+  if (typeof expiresAt === 'number') setTimeout(() => notification.close(), Math.min(Math.max(0, expiresAt - Date.now()), 2 ** 31 - 1))
 }
 
 const me = () => {
@@ -142,12 +153,15 @@ export function notifyChannelMessage(serverKey: string, message: Message): void 
   const myKey = me()
   // Blocked people never notify; then your notification level for the channel decides (all, mentions, nothing).
   if (message.author === myKey || senderRules.ignored(message.author) || isBlocked(useBlocks.getState().entries, message.author)) return
-  if (!shouldNotify(notifyFor(serverKey, message.channelId), !message.forwarded && senderRules.mentionsMe(server, message))) return
+  const alerted = !message.forwarded && senderRules.alertsMe(server, message)
+  if (alerted) senderRules.alerted(serverKey, message) // the inbox lists it, whatever the notification level
+  const pinged = !message.forwarded && (alerted || senderRules.mentionsMe(server, message))
+  if (!shouldNotify(notifyFor(serverKey, message.channelId), pinged)) return
   if (isOnScreen(channelConv(serverKey, message.channelId))) return
   const author = message.webhook?.name ?? server.members[message.author]?.name ?? t('common.someone')
   show(serverKey, t('app.notify.authorIn', { author, where: conversationLabel(server, message.channelId) }), stripMarkdown(plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null })), () => {
     void jumpToMessage(serverKey, message.channelId, message.id)
-  })
+  }, pinged, message.expiresAt ?? undefined)
 }
 
 onServerEvent((serverKey, type, body) => {
@@ -184,7 +198,7 @@ const dmServer = new Map<string, string>()
 void import('./dms').then(({ onDmOpened, nameOf, openConversation }) => onDmOpened((peer, dms, live) => {
   const dm = dms.at(-1)
   if (!live || !dm || dm.from === me() || dm.friend || isOnScreen(dmConv(peer))) return
-  show(dmServer.get(dm.from) ?? '', nameOf(dm.from), dm.error ? t('app.notify.newMessage') : (dm.text || t('app.notify.newMessage')), () => openConversation(peer))
+  show(dmServer.get(dm.from) ?? '', nameOf(dm.from), dm.error ? t('app.notify.newMessage') : (dm.text || t('app.notify.newMessage')), () => openConversation(peer), true, dm.expiresAt)
 }))
 
 let lastBadge = -1

@@ -11,12 +11,17 @@
 #   .\scripts\release.ps1 -Redeploy checksums  # SHA256SUMS.txt and attestations of the latest release (or a version) again
 #   .\scripts\release.ps1 -Phones              # only the phone apps of the latest release (TestFlight, Google Play)
 #   .\scripts\release.ps1 -BotSdk [0.1.2]      # the bot SDK to npm (default: the next patch version)
+#   .\scripts\release.ps1 -GitHub [V]          # press GitHub's Release button instead (release-all.yml) and follow it
+#                                              # (-CheckOnly: only its checks; -SkipPhones: without the phones)
 #
 # Every mode has two phases. The check phase runs every check and changes nothing; for a release, SimplySign's test
 # signature comes first and stops at once when it isn't logged in. If anything is red it lists all of it ("N thing(s) to
 # fix") and ends: nothing was sent; fix it and run the same command again. If all is green it prints
 # "ALL CHECKS GREEN - SENDING" and ships without a prompt or an approval. A problem after that prints one
 # "STOP [case] what to do" line (docs/ci-cd-playbook.md, decision table).
+#
+# The usual way to release is GitHub's Release button (Actions -> Release -> Run workflow, also in GitHub Mobile; the
+# home PC must be on: docs/ci-cd.md). This script is the local alternative and the button's trigger (-GitHub).
 #
 # A release: notes (docs/releases/NEXT.md), version bump and tag, push, the Windows apps (signed through SimplySign),
 # server zip and Android app, the Linux and macOS builds (release.yml), finalize (refuses unless CI passed on the tag;
@@ -31,6 +36,8 @@ param(
   [string]$Ref = '',
   [switch]$BotSdk,
   [switch]$Phones,
+  # Start the Release workflow on GitHub (release-all.yml) instead of releasing from this PC, and follow it.
+  [switch]$GitHub,
   # A release without TestFlight and Google Play.
   [switch]$SkipPhones,
   # Google Play track for this release instead of mobile/store.json's android.track.
@@ -49,6 +56,8 @@ $runs = [ordered]@{}
 $env:GH_PROMPT_DISABLED = '1'
 $env:GIT_TERMINAL_PROMPT = '0'
 $env:GCM_INTERACTIVE = 'never'
+# One SimplySign auto-login per release run: the login script keys its one attempt on this (steps inherit it).
+if (-not $env:ISKRA_RELEASE_RUN) { $env:ISKRA_RELEASE_RUN = [guid]::NewGuid().ToString('N') }
 Import-Module (Join-Path $PSScriptRoot 'release-checks.psm1') -Force
 
 function Step([string]$text) { Write-Host ''; Write-Host "== $text" -ForegroundColor Cyan }
@@ -179,9 +188,10 @@ function Warn-Reviewers([string[]]$names) {
     if ($rules -match 'required_reviewers') { Warn "environment `"$n`" has required reviewers, so its runs wait for an approval: GitHub → $repo → Settings → Environments → $n → untick `"Required reviewers`" → Save protection rules" }
   }
 }
-# SimplySign: a test signature; not logged in stops at once with one line.
+# SimplySign: a test signature; when it isn't logged in and a seed is stored (scripts/simplysign-setup.ps1) it logs
+# itself in once (scripts/simplysign-login.ps1). Still not logged in: stops at once with one line.
 function Check-Signing {
-  $s = Test-Signing
+  $s = Confirm-Signing
   if (-not $s.Ok) { Stop-At 'SimplySign' $s.Message }
   Ok $s.Message
   if ($s.ExpiresSoon) { Warn "the code-signing certificate expires on $($s.Certificate.NotAfter.ToString('yyyy-MM-dd')): renew it (docs/ci-cd.md, Windows code signing)." }
@@ -230,8 +240,8 @@ function Wait-Run($run, [int]$minutes, [string]$label) {
 }
 function Failed-Jobs($run) { (@($run.jobs | Where-Object { $_.conclusion -notin 'success', 'skipped' } | ForEach-Object name) -join ', ') }
 
-$modes = @($Resume.IsPresent, [bool]$Redeploy, $BotSdk.IsPresent, $Phones.IsPresent) | Where-Object { $_ }
-if ($modes.Count -gt 1) { Stop-At 'one mode at a time' 'Use one of -Resume, -Redeploy, -BotSdk, -Phones.' }
+$modes = @($Resume.IsPresent, [bool]$Redeploy, $BotSdk.IsPresent, $Phones.IsPresent, $GitHub.IsPresent) | Where-Object { $_ }
+if ($modes.Count -gt 1) { Stop-At 'one mode at a time' 'Use one of -Resume, -Redeploy, -BotSdk, -Phones, -GitHub.' }
 
 Push-Location $root
 try {
@@ -365,6 +375,32 @@ try {
     for ($i = 0; $i -lt 10 -and $onNpm -ne $Version; $i++) { if ($i) { Start-Sleep -Seconds 15 }; $onNpm = npm view "iskra-bots@$Version" version 2>$null }
     if ($onNpm -ne $Version) { Stop-At 'not on npm yet' "bots-sdk.yml succeeded but npm doesn't list iskra-bots $Version yet. Check https://www.npmjs.com/package/iskra-bots in a few minutes." }
     Ok "iskra-bots $Version is on npm, with provenance"
+    exit 0
+  }
+
+  # ════════════════ The Release workflow on GitHub (the button) ════════════════
+  if ($GitHub) {
+    Step "Checks: the Release workflow on GitHub$(if ($Version) { " ($Version)" })"
+    Check-Basics
+    Check-Workflows @('release-all.yml')
+    # The home PC's runner must be online (only the owner's gh can see runners).
+    $states = @(Gh-Json @('api', "repos/$repo/actions/runners") | ForEach-Object { $_.runners } |
+      Where-Object { @($_.labels | ForEach-Object name) -contains 'iskra-windows-signing' } | ForEach-Object status)
+    if (-not $states.Count) { Red 'no home PC runner' 'No runner has the label iskra-windows-signing: run scripts/runner-setup.ps1 once on the home PC (docs/ci-cd.md, "The home PC runner").' }
+    elseif ($states -notcontains 'online') { Red 'home PC offline' 'The home PC runner is offline: switch the PC on and log in to Windows (the runner starts at logon).' }
+    else { Ok 'the home PC runner is online' }
+    $policy = gh api "repos/$repo/actions/permissions/fork-pr-contributor-approval" --jq .approval_policy 2>$null
+    if ($policy -and $policy -ne 'all_external_contributors') { Red 'Actions setting' 'GitHub -> Settings -> Actions -> General -> "Approval for running fork pull request workflows from contributors": pick "Require approval for all external contributors" (the repo has a self-hosted runner).' }
+    if ($script:reds.Count) { End-Checks 'a Release run on GitHub' }
+    $fields = @("version=$Version", "phones=$((-not $SkipPhones).ToString().ToLowerInvariant())", "check_only=$($CheckOnly.IsPresent.ToString().ToLowerInvariant())")
+    Step "Starting the Release workflow$(if ($CheckOnly) { ' (checks only)' })"
+    $run = Start-Workflow 'release-all.yml' $fields
+    if (-not $run) { Stop-At 'Release did not start' "gh workflow run release-all.yml failed or no run appeared. Check: gh run list -R $repo --workflow release-all.yml -L 3" }
+    Info "Release: $($run.url)"
+    $run = Wait-Run $run ($WaitMinutes + 120) 'Release'
+    if (-not $run) { Stop-At 'Release still running' "Not done yet; follow it on GitHub: gh run watch -R $repo" }
+    if ($run.conclusion -ne 'success') { Stop-At "Release $($run.conclusion)" "Jobs: $(Failed-Jobs $run). The run's summary says what to fix ($($run.url)); gh run view $($run.databaseId) -R $repo --log-failed" }
+    Ok "the Release workflow succeeded$(if ($CheckOnly) { ' (checks only: nothing was changed)' }): $($run.url)"
     exit 0
   }
 

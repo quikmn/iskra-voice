@@ -37,6 +37,7 @@ public sealed partial class Store
     {
         Exec("DELETE FROM members WHERE account_key = $key;", ("$key", accountKey));
         Exec("DELETE FROM member_roles WHERE account_key = $key;", ("$key", accountKey));
+        Exec("DELETE FROM alert_settings WHERE account_key = $key;", ("$key", accountKey)); // alert words and quiet hours are kept only for members
     }
 
     // ── Bans ─────────────────────────────────────────────────────────────────

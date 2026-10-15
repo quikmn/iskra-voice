@@ -53,7 +53,9 @@ public static partial class BackupArchive
         try
         {
             world.Store.Snapshot(temp);
-            var uploads = includeUploads ? UploadFiles(world.Path) : [];
+            // Disappearing messages and their files are never in a backup (see Disappearing messages in PROTOCOL.md).
+            var gone = Store.StripDisappearing(temp);
+            var uploads = includeUploads ? UploadFiles(world.Path).Where(u => !gone.Contains(Path.GetFileName(u.Path))).ToList() : [];
             var total = new FileInfo(temp).Length + uploads.Sum(u => SafeLength(u.Path));
             long done = 0;
             var manifest = new BackupManifest(1, now, Ed25519.ToB64u(world.ServerPublicKey), world.Settings.Name, uploads.Count, includeUploads);

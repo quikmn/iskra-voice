@@ -127,6 +127,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("presence", $"SELECT account_key, status, emoji, text, expires_at, updated_at FROM presence WHERE account_key {Mine};");
         Section("syncedSettings", $"SELECT account_key, name, data, updated_at FROM account_prefs WHERE account_key {Mine};");
         Section("notificationSettings", $"SELECT account_key, channel_id, level, muted_until FROM notify_settings WHERE account_key {Mine};");
+        Section("alertSettings", $"SELECT account_key, words, quiet, updated_at FROM alert_settings WHERE account_key {Mine};");
         Section("rulesAccepted", $"SELECT account_key, version, at FROM rules_accepted WHERE account_key {Mine};");
         Section("devices", $"SELECT account_key, device_key, name, platform, created, last_seen FROM devices WHERE account_key {Mine};");
         Section("removedDevices", $"SELECT account_key, device_key, revoked_at FROM device_revocations WHERE account_key {Mine};");
@@ -171,12 +172,21 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("botCommandsUsed", $"SELECT message_id, interaction_id, user_key, command FROM bot_interaction_messages WHERE user_key {Mine} ORDER BY message_id;");
         Section("pollVotes", $"SELECT message_id, account_key, option, created_at FROM poll_votes WHERE account_key {Mine};");
         Section("eventInterest", $"SELECT event_id, account_key, created_at FROM event_interest WHERE account_key {Mine};");
+        Section("lfgJoined", $"SELECT message_id, account_key, joined_at FROM lfg_members WHERE account_key {Mine} ORDER BY joined_at;");
+        Section("lfgNotify", $"SELECT account_key, created_at FROM lfg_notify WHERE account_key {Mine};");
+        Section("teamSplitsStarted", $"SELECT id, channel_id, game, created_by, created_at FROM team_splits WHERE created_by {Mine};");
         Section("uploads", $"SELECT id, name, size, type, sha256, uploader, created_at FROM files WHERE uploader {Mine} ORDER BY created_at;");
         Section("directMessages", $"SELECT id, from_key, to_key, created_at FROM dms WHERE from_key {Mine} OR to_key {Mine} ORDER BY id;");
         Section("botDmSetting", $"SELECT account_key, allow, at FROM bot_dm_prefs WHERE account_key {Mine};");
         Section("botConversations", $"SELECT bot_key, account_key, person_wrote, started_at FROM bot_dm_peers WHERE account_key {Mine} OR bot_key {Mine};");
         Section("groups", $"SELECT group_id, account_key FROM group_members WHERE account_key {Mine};");
         Section("groupMessagesSent", $"SELECT id, group_id, from_key, created_at FROM group_messages WHERE from_key {Mine} ORDER BY id;");
+        Section("disappearingTimers", $"""
+            SELECT 'channel' AS scope, CAST(channel_id AS TEXT) AS target, seconds, set_by, set_at FROM channel_disappear WHERE set_by {Mine}
+            UNION ALL SELECT 'dm', first_key || ' ' || second_key, seconds, set_by, set_at FROM dm_disappear WHERE first_key {Mine} OR second_key {Mine}
+            UNION ALL SELECT 'group', group_id, seconds, set_by, set_at FROM group_disappear
+                WHERE group_id IN (SELECT group_id FROM group_members WHERE account_key {Mine}) OR set_by {Mine};
+            """);
         // Reminders' data is sealed by your devices (what they're about and your note); the server only knows the rest.
         Section("reminders", $"SELECT id, account_key, due_at, channel_id, message_id, data, created_at, fired_at FROM reminders WHERE account_key {Mine} ORDER BY id;");
         // Built-in bots' answers to your commands (dice rolls, poll hints, reminder confirmations): what they meant, as JSON.
@@ -213,6 +223,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
 
         - membership, nickname, customRoles, profile, profilePage, presence: who you are on this server.
         - syncedSettings, notificationSettings, rulesAccepted, blockList: your settings as the server keeps them.
+        - alertSettings: alert words you asked this server to watch for while Iskra is closed (only if you turned that on),
+          and your quiet hours (days, times and time zone; only where your notifications while Iskra is closed are on).
         - devices, removedDevices, pushSubscriptions, keyRotations, accountDeletion: your account's keys and devices
           (public keys only: your private keys never leave your devices).
         - messages, editHistory, reactions, pollVotes, eventInterest, uploads, invitesCreated: what you wrote and shared in server
@@ -228,6 +240,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         - directMessages, groups, groupMessagesSent: your direct messages and group chats are end-to-end encrypted, so the
           server only knows who wrote to whom and when. Their content is on your devices: in the app, use
           Settings -> Privacy & data -> Download data on this device.
+        - disappearingTimers: disappearing message timers you set, and the ones of your DMs and groups (scope, which
+          conversation, seconds, who set it and when). Messages that disappeared are gone from the server and aren't listed.
         - reminders, scheduledMessages, inbox: your reminders (what each is about is sealed by your devices: "data"), messages
           waiting to be sent later (encrypted DMs and group messages only by time and recipient), and messages that mentioned you.
           Reminders set with the built-in Reminders bot (/remind) aren't sealed: their "data" starts with "bot." and holds the note.

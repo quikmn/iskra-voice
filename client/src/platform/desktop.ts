@@ -123,12 +123,14 @@ export interface DesktopBridge {
   onPushToTalk(callback: (down: boolean) => void): () => void
   pushToTalkStatus(): Promise<PushToTalkStatus>
   /** Global mute/deafen hotkeys: codes and modifiers (Ctrl 1, Shift 2, Alt 4, Meta 8). Missing in older desktop builds. */
-  setHotkeys?(binds: Partial<Record<'mute' | 'deafen', { code: number; mods: number }>>): Promise<void>
+  setHotkeys?(binds: Partial<Record<'mute' | 'deafen' | 'clip' | 'whisper1' | 'whisper2' | 'whisper3' | 'priority', { code: number; mods: number }>>): Promise<void>
   /** The next key or side button pressed, with modifiers held; null if cancelled (Escape) or keys can't be seen. */
   captureHotkey?(): Promise<{ code: number; mods: number; name: string } | null>
   cancelHotkeyCapture?(): Promise<void>
   /** Only the action ever arrives, never which keys were pressed. */
   onHotkey?(callback: (action: 'mute' | 'deafen' | 'clip') => void): () => void
+  /** Whisper and priority keys: held, so both the press and the release arrive (missing in older desktop builds). */
+  onHoldHotkey?(callback: (action: 'whisper1' | 'whisper2' | 'whisper3' | 'priority', down: boolean) => void): () => void
   /** Bug reports: a PNG data URL of this app window only, never the screen (missing in older desktop builds). */
   captureApp?(): Promise<string | null>
   /** macOS: opens a Privacy & Security page in System Settings. */
@@ -146,6 +148,12 @@ export interface DesktopBridge {
   pickScreen(id: string | null): void
   /** An incoming call: flash the taskbar and bring the window up (without stealing focus). */
   callAlert?(on: boolean): Promise<void>
+  /**
+   * Pop-out windows (missing in older desktop builds): the page opens them with window.open(popout.html, name) and
+   * renders into them; this sets always on top, click-through, and wakes a click-through window while the pointer is
+   * on its handle. Returns the window's flags, or null when there's no such pop-out.
+   */
+  popout?: { set(name: string, patch: { alwaysOnTop?: boolean; clickThrough?: boolean; handle?: boolean }): Promise<{ alwaysOnTop: boolean; clickThrough: boolean } | null> }
   /** WebAuthn ceremonies for app lock passkeys, run by the main process on https://app.iskra.foo (desktop/src/passkeys.ts). */
   passkey?: { run(op: 'create' | 'get', request: unknown): Promise<{ ok: boolean; name?: string; message?: string } & Record<string, unknown>> }
   /** The OS keychain (Electron safeStorage). basic: Linux without a keyring, which protects nothing. */

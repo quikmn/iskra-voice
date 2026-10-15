@@ -35,7 +35,7 @@ public class E2eeChannelTests
         ["keys"] = new JsonArray(to.Select(u => (JsonNode)new JsonObject { ["device"] = DeviceKey(u), ["nonce"] = "x", ["box"] = "y" }).ToArray()),
     };
 
-    private static JsonObject MessageEnvelope(User from, string chain, long version, string ct) => new()
+    internal static JsonObject MessageEnvelope(User from, string chain, long version, string ct) => new()
     {
         ["v"] = 1, ["kind"] = "channel",
         ["header"] = new JsonObject { ["from"] = from.Key, ["chain"] = chain, ["version"] = version, ["sentAt"] = 1, ["id"] = "m" },
@@ -43,7 +43,7 @@ public class E2eeChannelTests
     };
 
     /// <summary>A v2 message envelope: it names the channel (and thread) it was sent to.</summary>
-    private static JsonObject BoundEnvelope(User from, string chain, long version, string ct, long channel, long? thread = null)
+    internal static JsonObject BoundEnvelope(User from, string chain, long version, string ct, long channel, long? thread = null)
     {
         var envelope = MessageEnvelope(from, chain, version, ct);
         envelope["v"] = 2;
@@ -83,7 +83,7 @@ public class E2eeChannelTests
         Assert.Equal("result", (await t.Bob.RequestAsync("chat.send", Send(t, t.Bob, 1, "older format"))).Type());
     }
 
-    private sealed record Setup(IskraServer Server, User Owner, User Bob, User Carol, User Dave, long ChannelId, string Chain, string Head) : IDisposable
+    internal sealed record Setup(IskraServer Server, User Owner, User Bob, User Carol, User Dave, long ChannelId, string Chain, string Head) : IDisposable
     {
         public void Dispose()
         {
@@ -93,7 +93,7 @@ public class E2eeChannelTests
     }
 
     /// <summary>An encrypted channel only trusted+ can read: the owner, Bob and Carol. Dave is a member.</summary>
-    private static async Task<Setup> CreateAsync()
+    internal static async Task<Setup> CreateAsync()
     {
         var server = new IskraServer();
         var owner = await server.JoinAsync("Owner", "owner");

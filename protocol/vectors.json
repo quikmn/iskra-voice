@@ -130,6 +130,34 @@
           "ct": "r8wHWpAWbWcXCewAbkRFwPBL8U-lVARZZbsryYcJ",
           "sig": "GddNe0oR-cNtBYmM0hFSGRMNcec93fWlnuQ1wkwRipgQKAMXBZGsy3y6CZVRqBHLdW7bm2xtVDqj7lIXROFEDQ"
         }
+      },
+      {
+        "place": {
+          "channel": 42
+        },
+        "ad": "WyJpc2tyYS9jaGFubmVsLW1zZy92MyIsImlvamozWFFKOFpYOVV0c3RQTHBkY3NwbkNiOGRsQkliODNTSUFiUVBiMXciLCJCZ1lHQmdZR0JnWUdCZ1lHQmdZR0JnIiwzLCJRbVdKZlh0ZE5IZ0lVcmxVV0dPX19nSFNkZDZtTFBsSmNOYnFma2gxQ1JBIiwxNzYwMDAwMDAwMDAwLCJHQmthR3h3ZEhoOGdJU0lqIiw0MiwwLCIiLDM2MDBd",
+        "envelope": {
+          "v": 3,
+          "kind": "channel",
+          "header": {
+            "from": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+            "chain": "BgYGBgYGBgYGBgYGBgYGBg",
+            "version": 3,
+            "sentAt": 1760000000000,
+            "id": "GBkaGxwdHh8gISIj",
+            "channel": 42,
+            "expires": 3600
+          },
+          "sender": {
+            "accountKey": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+            "deviceKey": "gTl3Dqh9F19Wo1Rmw0x-zMuNipG07jeiXfYPW4_Js5Q",
+            "created": 1760000000000,
+            "sig": "yTTtaUPF8w0kjh5H-sQSC9TUgRcKp2zMdd1SpHUKka01dVxczIjsaRycOFXkGvTev7_qMLG6ubskVWOMXqe2Bg"
+          },
+          "nonce": "CAgICAgICAgICAgICAgICAgICAgICAgI",
+          "ct": "r8wHWpAWbWcXCewAbkTEKDiU2wr1aQ9RAr_OFZza",
+          "sig": "bDNEKDYzdr-DVMp0p8qCqSQPvFzM1eFDiVY97Riwj7rpn3FsJ0o8Ar5Q_itJPcIgVHMVpX0Dj0L-DE3TV0NBDA"
+        }
       }
     ]
   }

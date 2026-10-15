@@ -71,3 +71,14 @@ export function missedItems(items: InboxItem[], seen: number | undefined): Inbox
   if (seen === undefined) return []
   return items.filter((i) => i.message.id > seen)
 }
+
+/** The server's pings plus alert-word matches this app found itself (the server's item wins for the same message). */
+export function withAlertHits(items: Record<string, InboxItem[]>, hits: Record<string, InboxItem[]>): Record<string, InboxItem[]> {
+  const out: Record<string, InboxItem[]> = { ...items }
+  for (const [server, list] of Object.entries(hits)) {
+    const have = new Set((items[server] ?? []).map((i) => i.message.id))
+    const extra = list.filter((i) => !have.has(i.message.id))
+    if (extra.length) out[server] = [...(items[server] ?? []), ...extra].sort((a, b) => b.message.id - a.message.id)
+  }
+  return out
+}

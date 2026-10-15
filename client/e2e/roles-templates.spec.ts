@@ -28,7 +28,7 @@ test('the owner adjusts what Member can do, resets it, and saves the server as a
   await builtin.getByRole('button', { name: /Member/ }).click()
   const about = room.getByRole('group', { name: 'About Member' })
   const powers = about.getByRole('group', { name: 'What Member can do' })
-  await expect(powers.locator('input[type=checkbox]')).toHaveCount(5) // everyday powers only
+  await expect(powers.locator('input[type=checkbox]')).toHaveCount(6) // everyday powers only (whisper included)
   await expect(powers.locator('[data-permission="kickMembers"]')).toHaveCount(0)
   await powers.locator('[data-ability="invite"]').uncheck()
   await powers.locator('[data-ability="pin"]').check()

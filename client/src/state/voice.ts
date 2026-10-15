@@ -32,6 +32,9 @@ export interface VoiceSession {
   encrypted?: boolean
   /** The AFK channel: the server mutes and deafens us here (LiveKit takes no audio from us and sends us none). */
   afk?: boolean
+  /** We may whisper from here, and we're a priority speaker (state/whisper.ts; the server checks each use). */
+  whisper?: boolean
+  priority?: boolean
 }
 
 /** One video on the call screen: someone's camera or screen share. */
@@ -261,9 +264,18 @@ function container(): HTMLDivElement {
   return audioContainer
 }
 
+/** Turns people down for a while (a priority speaker talking: state/whisper.ts). 1 = as set. */
+let volumeFactor: (accountKey: string) => number = () => 1
+export function setVolumeFactor(factor: (accountKey: string) => number): void {
+  volumeFactor = factor
+}
+export function reapplyVolumes(): void {
+  room?.remoteParticipants.forEach(applyVolume)
+}
+
 function applyVolume(participant: RemoteParticipant): void {
   const { volumes, deafened } = useVoice.getState()
-  const volume = effectiveVolume(volumes[participant.identity] ?? 1, useAudio.getState().outputVolume, deafened, boosting)
+  const volume = effectiveVolume(volumes[participant.identity] ?? 1, useAudio.getState().outputVolume, deafened, boosting) * volumeFactor(participant.identity)
   participant.setVolume(volume)
   participant.setVolume(volume, lk().Track.Source.ScreenShareAudio)
 }
@@ -291,7 +303,7 @@ export const micPipelineActive = () => !!processor?.active
 function onLevel(db: number, open: boolean): void {
   for (const l of levelListeners) l(db, open)
   const { muted, pttDown, settings, localSpeaking } = useVoice.getState()
-  const talking = open && !muted && (settings.mode === 'voice' || pttDown)
+  const talking = open && !muted && !whisperHold && (settings.mode === 'voice' || pttDown)
   if (talking !== localSpeaking) setLocalSpeaking(talking)
 }
 
@@ -479,7 +491,7 @@ export async function setCallKey(key: Uint8Array, index: number): Promise<void> 
 
 async function connect(
   session: VoiceSession,
-  target: () => Promise<{ url: string; token: string; canSpeak: boolean; afk?: boolean }>,
+  target: () => Promise<{ url: string; token: string; canSpeak: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }>,
   options: { e2eeKey?: Uint8Array; groupKey?: { key: Uint8Array; index: number } | 'later'; camera?: boolean; stageOpen?: boolean } = {},
 ): Promise<boolean> {
   useVoice.setState({
@@ -487,7 +499,7 @@ async function connect(
   })
 
   try {
-    const [{ url, token, canSpeak, afk }, { Room, RoomEvent, Track, ConnectionState, RemoteAudioTrack, VideoPresets, ScreenSharePresets }] =
+    const [{ url, token, canSpeak, afk, whisper, priority }, { Room, RoomEvent, Track, ConnectionState, RemoteAudioTrack, VideoPresets, ScreenSharePresets }] =
       await Promise.all([target(), loadLiveKit()])
     let encryption: RoomOptions['encryption']
     let worker: Worker | null = null
@@ -655,7 +667,7 @@ async function connect(
       await next.disconnect()
       return false
     }
-    useVoice.setState((s) => ({ session: s.session && { ...s.session, state: 'connected', canSpeak, afk: !!afk } }))
+    useVoice.setState((s) => ({ session: s.session && { ...s.session, state: 'connected', canSpeak, afk: !!afk, whisper: !!whisper, priority: !!priority } }))
 
     if (canSpeak) {
       if (!(await publishMic(next))) return false
@@ -880,14 +892,33 @@ export function setVolume(accountKey: string, volume: number): void {
   if (participant) applyVolume(participant)
 }
 
-/** Opens or pauses the published mic: not muted, and (in push-to-talk mode) the key is held. */
+/** A whisper key is held (state/whisper.ts): the channel doesn't hear us meanwhile. */
+let whisperHold = false
+export function setWhisperHold(on: boolean): void {
+  if (whisperHold === on) return
+  whisperHold = on
+  if (on && useVoice.getState().localSpeaking) setLocalSpeaking(false)
+  void applyMic()
+}
+
+/** The mic as captured (before our processing), for a whisper to clone; null without a published mic. */
+export const rawMicTrack = (): MediaStreamTrack | null => micTrack()?.mediaStreamTrack ?? null
+
+/** Connects another room on the voice server we're in (a whisper), the same way as the call itself (tunnel, no STUN). */
+export async function connectSideRoom(side: Room, serverKey: string, url: string, token: string): Promise<void> {
+  const tunnel = tunnelFor(serverKey)
+  if (tunnel) routeVoiceThroughTunnel(side, tunnel.turnPort)
+  await side.connect(url, token, { rtcConfig: tunnel ? { iceTransportPolicy: 'relay' } : { iceServers: [] } })
+}
+
+/** Opens or pauses the published mic: not muted, not whispering, and (in push-to-talk mode) the key is held. */
 async function applyMic(): Promise<void> {
   const { muted, settings, pttDown, session } = useVoice.getState()
   const current = room
   if (!current || !session?.canSpeak) return
   const { Track } = lk()
   const publication = current.localParticipant.getTrackPublication(Track.Source.Microphone)
-  const open = !muted && (settings.mode === 'voice' || pttDown)
+  const open = !muted && !whisperHold && (settings.mode === 'voice' || pttDown)
   if (!publication?.track) {
     if (!open || !micDeferred) return
     micDeferred = false

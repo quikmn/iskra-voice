@@ -337,6 +337,16 @@ public class WhiteboardTests
     }
 
     [Fact]
+    public async Task Whiteboard_channels_take_no_disappearing_timer()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var id = Board(server);
+        var reply = await admin.RequestAsync("disappear.set", new { channelId = id, seconds = 3600 });
+        Assert.Equal("disappear_kind", Key(reply));
+    }
+
+    [Fact]
     public async Task Your_unfolded_batches_are_in_your_data_and_lose_their_author_when_you_go()
     {
         using var server = new IskraServer();

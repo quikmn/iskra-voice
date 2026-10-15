@@ -11,6 +11,7 @@ import {
 } from '../core/group'
 import { RequestError, type WireGroup, type WireGroupMessage } from '../core/protocol'
 import { checkFiles, type DmFile } from '../core/dmFiles'
+import { isTimer, localExpiry } from '../core/disappear'
 import * as storage from '../core/storage'
 import { ensurePrekeys, ownRevokedDevices } from './devices'
 import { mergeDm, orderTime } from './dmMerge'
@@ -139,13 +140,36 @@ function storedFiles(raw: unknown): { files?: DmFile[] } {
   }
 }
 
+/** Gone already (a disappearing message whose time is up). */
+const expired = (m: { expiresAt?: number }, now = Date.now()) => typeof m.expiresAt === 'number' && m.expiresAt <= now
+
+/** The disappearing-message fields kept with a stored message, checked. */
+const disappearing = (m: { expiresAt?: unknown; disappear?: unknown }) => ({
+  ...(typeof m.expiresAt === 'number' ? { expiresAt: m.expiresAt } : {}),
+  ...(m.disappear && typeof m.disappear === 'object' && isTimer((m.disappear as { seconds?: unknown }).seconds)
+    ? { disappear: { seconds: (m.disappear as { seconds: number }).seconds } } : {}),
+})
+
 const storable = (g: GroupConv): storage.StoredGroup => ({
   serverKey: g.serverKey, id: g.id, chain: g.chain, name: g.name, nameAt: g.nameAt, names: namesFor(g),
-  messages: g.messages.filter((m) => !m.pending && !m.error).slice(-MAX_LOCAL)
-    .map(({ id, from, text, sentAt, call, group, files }) => ({
-      id, from, to: g.id, text, sentAt, ...(call ? { call } : {}), ...(group ? { group } : {}), ...(files?.length ? { files } : {}),
+  messages: g.messages.filter((m) => !m.pending && !m.error && !expired(m)).slice(-MAX_LOCAL)
+    .map(({ id, from, text, sentAt, call, group, files, ...rest }) => ({
+      id, from, to: g.id, text, sentAt, ...(call ? { call } : {}), ...(group ? { group } : {}), ...(files?.length ? { files } : {}), ...disappearing(rest),
     })),
 })
+
+/** Drops disappearing messages whose time has come, from the screen and from this device's storage. */
+export function purgeExpiredGroups(now = Date.now()): void {
+  for (const [key, g] of Object.entries(useGroups.getState().groups)) {
+    if (g.messages.some((m) => expired(m, now))) patchGroup(key, (cur) => ({ messages: cur.messages.filter((m) => !expired(m, now)) }))
+  }
+}
+
+/** The disappearing messages timer a group sends with (state/disappearing.ts sets it; 0 = off). */
+let expiryFor: (key: string) => number = () => 0
+export function setGroupExpiry(fn: (key: string) => number): void {
+  expiryFor = fn
+}
 
 /** Every group on this device with its chain and history, for a device link (the new device re-checks the chains). */
 export function exportGroups(perGroup = MAX_LOCAL): storage.StoredGroup[] {
@@ -164,9 +188,9 @@ export async function importGroups(groups: unknown): Promise<void> {
   for (const g of groups.slice(0, 1000) as Partial<storage.StoredGroup>[]) {
     if (!g || !text(g.serverKey, 64) || !text(g.id, 32) || !Array.isArray(g.chain) || !Array.isArray(g.messages)) continue
     const chain = g.chain.filter((c) => c && text(c.payload, 4096) && text(c.sig, 128)).map(({ payload, sig }) => ({ payload, sig }))
-    const messages = g.messages.filter((m) => m && text(m.id, 64) && text(m.from, 64) && text(m.text, 4000) && typeof m.sentAt === 'number')
-      .map(({ id, from, text, sentAt, call, group, files }) => ({ id, from, to: g.id!, text, sentAt,
-        ...(call && typeof call === 'object' ? { call } : {}), ...(group && typeof group === 'object' ? { group } : {}), ...storedFiles(files) }))
+    const messages = g.messages.filter((m) => m && text(m.id, 64) && text(m.from, 64) && text(m.text, 4000) && typeof m.sentAt === 'number' && !expired(m))
+      .map(({ id, from, text, sentAt, call, group, files, ...rest }) => ({ id, from, to: g.id!, text, sentAt,
+        ...(call && typeof call === 'object' ? { call } : {}), ...(group && typeof group === 'object' ? { group } : {}), ...storedFiles(files), ...disappearing(rest) }))
     await storage.saveGroup(groupKey(g.serverKey!, g.id!), {
       serverKey: g.serverKey!, id: g.id!, chain, messages: messages.slice(-MAX_LOCAL),
       name: typeof g.name === 'string' ? g.name.slice(0, MAX_GROUP_NAME) : null, nameAt: typeof g.nameAt === 'number' ? g.nameAt : 0,
@@ -194,7 +218,9 @@ export function loadLocalGroups(): Promise<void> {
         chain: view ? s.chain : g.chain, view: view ?? g.view, problem: problem ?? g.problem,
         name: s.nameAt >= g.nameAt ? s.name : g.name, nameAt: Math.max(s.nameAt, g.nameAt),
         names: { ...(s.names && typeof s.names === 'object' ? s.names : {}), ...g.names },
-        messages: s.messages.map(({ id, from, text, sentAt, call, group, files }) => ({ id, from, text, sentAt, call, group, ...storedFiles(files) }))
+        // Disappearing messages whose time came while the app was closed go now (and from storage with the save below).
+        messages: s.messages.filter((m) => !expired(m))
+          .map(({ id, from, text, sentAt, call, group, files, ...rest }) => ({ id, from, text, sentAt, call, group, ...storedFiles(files), ...disappearing(rest) }))
           .reduce<GroupMsg[]>(mergeDm, g.messages),
       }))
     }
@@ -271,8 +297,12 @@ async function openMessage(key: string, wire: WireGroupMessage): Promise<GroupMs
     const view = useGroups.getState().groups[key]?.view
     try {
       if (!view) throw new GroupBehindError('Group not loaded yet.')
-      const { text, header, call, group, files } = decryptGroup(identity, wire.envelope, routed, view)
-      return { id: header.id, from: wire.from, text, sentAt: orderTime(header.sentAt, wire.createdAt), call, group, ...(files ? { files } : {}) }
+      const { text, header, call, group, files, disappear } = decryptGroup(identity, wire.envelope, routed, view)
+      const expiresAt = localExpiry(wire.expiresAt, header, wire.createdAt)
+      return {
+        id: header.id, from: wire.from, text, sentAt: orderTime(header.sentAt, wire.createdAt), call, group, ...(files ? { files } : {}),
+        ...(expiresAt !== undefined ? { expiresAt } : {}), ...(disappear ? { disappear } : {}),
+      }
     } catch (e) {
       if (e instanceof GroupBehindError && attempt === 0) {
         await syncGroup(key)
@@ -282,6 +312,7 @@ async function openMessage(key: string, wire: WireGroupMessage): Promise<GroupMs
       return {
         id: typeof headerId === 'string' && headerId.length <= 32 ? headerId : `server-${wire.id}-${wire.createdAt}`,
         from: wire.from, text: '', sentAt: wire.createdAt,
+        ...(typeof wire.expiresAt === 'number' ? { expiresAt: wire.expiresAt } : {}),
         error: e instanceof DmError || e instanceof GroupError ? e.message : "This message couldn't be read.",
       }
     }
@@ -313,7 +344,7 @@ async function onGroupMessage(serverKey: string, wire: WireGroupMessage): Promis
   if (!mine && !viewing && !silent && !isBlocked(useBlocks.getState().entries, message.from)) {
     const g = useGroups.getState().groups[key]
     show(serverKey, t('groups.notify.title', { name: nameOf(message.from), group: g ? titleOf(g) : t('groups.notify.aGroup') }),
-      message.error ? t('groups.notify.newMessage') : message.text, () => openGroup(key))
+      message.error ? t('groups.notify.newMessage') : message.text, () => openGroup(key), true, message.expiresAt)
   }
 }
 
@@ -334,7 +365,7 @@ export async function loadGroupHistory(key: string): Promise<void> {
 }
 
 /** Encrypts for every device of every member of the verified chain, never for revoked devices. */
-async function encryptFor(g: GroupConv, content: DmContent, sentAt = Date.now()): Promise<GroupEnvelope> {
+async function encryptFor(g: GroupConv, content: DmContent, sentAt = Date.now(), expires?: number): Promise<GroupEnvelope> {
   const identity = useApp.getState().identity
   if (!identity || !g.view) throw new DmError('No account on this device.')
   const [bundles, ownRevoked] = await Promise.all([
@@ -347,6 +378,7 @@ async function encryptFor(g: GroupConv, content: DmContent, sentAt = Date.now())
   return encryptGroup(identity, g.view, found.map((b) => ({ accountKey: b.accountKey, devices: b.bundle.devices })), content, sentAt, {
     prekeys: found.flatMap((b) => b.bundle.prekeys ?? []),
     revokedDevices,
+    ...(expires ? { expires } : {}),
   })
 }
 
@@ -369,12 +401,12 @@ export function cannotSend(g: GroupConv | undefined): string | null {
 }
 
 /** Sends to the group, retrying once if it changed meanwhile (the new member list gets it). */
-async function deliver(key: string, content: DmContent, onEncrypted?: (envelope: GroupEnvelope) => void): Promise<GroupEnvelope> {
+async function deliver(key: string, content: DmContent, onEncrypted?: (envelope: GroupEnvelope) => void, expires?: number): Promise<GroupEnvelope> {
   for (let attempt = 0; ; attempt++) {
     const g = useGroups.getState().groups[key]
     const reason = cannotSend(g)
     if (reason) throw new DmError(reason)
-    const envelope = await encryptFor(g!, content)
+    const envelope = await encryptFor(g!, content, Date.now(), expires)
     onEncrypted?.(envelope)
     try {
       await connectionFor(g!.serverKey)!.request('group.send', {
@@ -388,8 +420,10 @@ async function deliver(key: string, content: DmContent, onEncrypted?: (envelope:
   }
 }
 
-export async function sendGroupMessage(key: string, text: string, extra: Pick<DmContent, 'call' | 'group' | 'files'> = {}): Promise<void> {
+export async function sendGroupMessage(key: string, text: string, extra: Pick<DmContent, 'call' | 'group' | 'files' | 'disappear'> = {}): Promise<void> {
   const mine = me()
+  // Renames, calls and timer change lines don't disappear; messages follow the group's timer.
+  const expires = extra.disappear || extra.group || extra.call ? 0 : expiryFor(key)
   let id = `pending-${Date.now()}-${Math.random()}`
   const isOurs = (m: GroupMsg) => m.id === id && m.from === mine
   addMessage(key, { id, from: mine, text, sentAt: Date.now(), pending: 'sending', ...extra }, false)
@@ -398,10 +432,13 @@ export async function sendGroupMessage(key: string, text: string, extra: Pick<Dm
   const settle = (envelope: GroupEnvelope, pending?: 'sending') => {
     patchGroup(key, (g) => ({ messages: g.messages.filter((m) => !isOurs(m)) }))
     id = envelope.header.id
-    addMessage(key, { id, from: mine, text, sentAt: envelope.header.sentAt, ...(pending ? { pending } : {}), ...extra }, false)
+    addMessage(key, {
+      id, from: mine, text, sentAt: envelope.header.sentAt, ...(pending ? { pending } : {}), ...extra,
+      ...(expires ? { expiresAt: envelope.header.sentAt + expires * 1000 } : {}),
+    }, false)
   }
   try {
-    settle(await deliver(key, { text, ...extra }, (envelope) => settle(envelope, 'sending')))
+    settle(await deliver(key, { text, ...extra }, (envelope) => settle(envelope, 'sending'), expires || undefined))
   } catch (e) {
     patchGroup(key, (g) => ({
       messages: g.messages.map((m) => (isOurs(m) ? { ...m, pending: 'failed' as const, error: errorMessage(e) } : m)),

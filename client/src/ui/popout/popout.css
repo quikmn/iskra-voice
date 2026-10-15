@@ -1,0 +1,50 @@
+/* ── Pop-outs and picture-in-picture ─────────────────────────────────── */
+/* In the main window: the video tile's pop-out button sits left of its full screen button. */
+.video-tile .tile-popout { position: absolute; right: 42px; top: 6px; background: rgba(0, 0, 0, 0.55); opacity: 0; }
+.video-tile:hover .tile-popout, .tile-popout:focus-visible, .tile-popout.on { opacity: 1; }
+.popout-bar .icon-button.on { color: var(--accent-2, var(--accent)); }
+/* With the pop-out button the voice bar's controls fill its width: the "open the call" link above them gets a full-size target. */
+.voice-bar .voice-status .link-like { min-height: 24px; }
+
+/* The pop-out's own document (popout.html, or the browser's picture-in-picture window). */
+.popout-body { margin: 0; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font, system-ui, sans-serif); }
+.popout-root { height: 100%; }
+.popout-frame { display: flex; flex-direction: column; height: 100%; min-height: 0; position: relative; }
+.popout-bar {
+  display: flex; align-items: center; gap: 2px; padding: 4px 4px 4px 10px; flex: none;
+  background: var(--sidebar); border-bottom: 1px solid var(--border);
+}
+/* Desktop windows have no frame: the bar is what you drag them by. */
+.popout-frame.desktop .popout-bar { -webkit-app-region: drag; user-select: none; }
+.popout-frame.desktop .popout-bar button { -webkit-app-region: no-drag; }
+.popout-title { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.popout-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* Click-through: no bar, a see-through panel, and a small handle that takes clicks while pointed at. */
+.popout-frame.click-through { background: transparent; }
+.popout-frame.click-through .popout-content { opacity: 0.85; }
+.popout-frame.click-through .popout-controls { display: none; }
+.popout-handle {
+  position: absolute; top: 4px; right: 4px; z-index: 1; width: 24px; height: 24px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: rgba(0, 0, 0, 0.6); color: var(--muted); opacity: 0.6; cursor: pointer;
+}
+.popout-handle:hover, .popout-handle:focus-visible { opacity: 1; color: var(--text); }
+
+/* Voice: who's here (talking ones ringed), then mute, deafen and leave. */
+.popout-people { list-style: none; margin: 0; padding: 6px; flex: 1; min-height: 0; overflow-y: auto; display: grid; gap: 2px; align-content: start; }
+.popout-person { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: calc(var(--radius) * 0.6); font-size: 13px; }
+.popout-person .avatar { transition: box-shadow 0.12s; }
+.popout-person.speaking .avatar { box-shadow: 0 0 0 2px var(--green); }
+.popout-person-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.popout-person svg { color: var(--red); flex: none; }
+.popout-controls { display: flex; justify-content: center; gap: 6px; padding: 6px; border-top: 1px solid var(--border); flex: none; }
+.popout-controls .icon-button { width: 36px; height: 32px; }
+.popout-controls .icon-button.talking { color: var(--green); }
+
+/* A stream: the video, letterboxed. */
+.popout-stream .popout-content { background: #000; }
+.popout-video { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+.popout-video.mirror { transform: scaleX(-1); }
+
+/* A text channel: the usual chat, narrower. */
+.popout-chat { flex: 1; min-height: 0; }

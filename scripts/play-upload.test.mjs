@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import {
-  checkTrack, defaultKeyPath, defaultSwedishNotes, headline, listTracks, loadListing, main, NOTES_MAX, playApi, playNotes, publishToPlay,
+  checkTrack, defaultKeyPath, defaultSwedishNotes, downloadUniversalApk, playCredentials, headline, listTracks, loadListing, main, NOTES_MAX, playApi, playNotes, publishToPlay,
   releaseNotesFor, rolloutStatus, storeConfig,
 } from './play-upload.mjs'
 
@@ -353,4 +353,54 @@ test('command line: config defaults, --list-tracks and data safety', async () =>
     assert.equal(await main(['--list-tracks', '--key', key], opts(tracks)), 0)
     assert.equal(tracks[0], 'Play tracks for foo.iskra.app: production')
   } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+// ── Workload identity federation (an access token, no key file) and the universal APK from Play ──
+
+test('an access token from workload identity federation needs no key file; --key still wins when given', () => {
+  assert.equal(playCredentials({ ISKRA_PLAY_ACCESS_TOKEN: 'ya29.x' }).kind, 'token')
+  assert.equal(playCredentials({ ISKRA_PLAY_ACCESS_TOKEN: 'ya29.x', ISKRA_PLAY_KEY: join(tmpdir(), 'none.json') }).kind, 'token')
+  assert.equal(playCredentials({ ISKRA_PLAY_KEY: join(tmpdir(), 'no-such-dir', 'k.json') }).kind, null)
+  assert.equal(playCredentials({ ISKRA_PLAY_ACCESS_TOKEN: 'ya29.x' }, join(tmpdir(), 'no-such-dir', 'k.json')).kind, null)
+})
+
+test('command line with ISKRA_PLAY_ACCESS_TOKEN: --check passes, the upload uses the token, the key file is never looked for', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'iskra-play-'))
+  try {
+    const env = { ISKRA_PLAY_ACCESS_TOKEN: 'test-token', ISKRA_PLAY_API: 'https://play.test', ISKRA_PLAY_KEY: join(dir, 'missing.json') }
+    const check = []
+    assert.equal(await main(['2.0.0-alpha.16', '--check'], { env, print: (l) => check.push(l), tokenFor: () => assert.fail('no key file'), fetchImpl: () => assert.fail('no network') }), 0)
+    assert.match(check[0], /^Play upload: an access token \(workload identity federation\)/)
+    const file = join(dir, 'Iskra.aab')
+    writeFileSync(file, aab(200001160))
+    const play = fakePlay()
+    const out = []
+    assert.equal(await main(['2.0.0-alpha.16', '--aab', file], { env, print: (l) => out.push(l), fetchImpl: play.fetchImpl, tokenFor: () => assert.fail('no key file') }), 0, out.join('\n'))
+    assert.ok(play.state.requests.every((r) => r.auth === 'Bearer test-token'))
+    assert.ok(!out.join('\n').includes('test-token'), 'the token is never printed')
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('the universal APK: listed by version code, downloaded as media, refused when it is missing or not an APK', async () => {
+  const apk = Buffer.concat([Buffer.from('PK\x03\x04'), Buffer.alloc(64, 1)])
+  const seen = []
+  const fetchImpl = async (href, init) => {
+    const url = new URL(href)
+    seen.push(url.pathname + url.search)
+    assert.equal(init.headers.authorization, 'Bearer t')
+    if (url.pathname === '/androidpublisher/v3/applications/foo.iskra.app/generatedApks/200001160') {
+      return new Response(JSON.stringify({ generatedApks: [{ certificateSha256Hash: 'x', generatedSplitApks: [], generatedUniversalApk: { downloadId: 'uni-1' } }] }), { status: 200 })
+    }
+    if (url.pathname === '/androidpublisher/v3/applications/foo.iskra.app/generatedApks/200001160/downloads/uni-1:download') {
+      assert.equal(url.searchParams.get('alt'), 'media')
+      return new Response(apk, { status: 200 })
+    }
+    if (url.pathname.endsWith('/generatedApks/200001170')) return new Response(JSON.stringify({ generatedApks: [] }), { status: 200 })
+    return new Response(JSON.stringify({ error: { message: 'nope' } }), { status: 404 })
+  }
+  const api = playApi({ token: async () => 't', fetchImpl, base: 'https://play.test' })
+  assert.deepEqual(await downloadUniversalApk(api, 200001160), apk)
+  await assert.rejects(downloadUniversalApk(api, 200001170), /no universal APK for version code 200001170/)
+  const notApk = playApi({ token: async () => 't', base: 'https://play.test', fetchImpl: async (href) => (href.includes(':download') ? new Response('<html>', { status: 200 }) : fetchImpl(href, { headers: { authorization: 'Bearer t' } })) })
+  await assert.rejects(downloadUniversalApk(notApk, 200001160), /isn't an APK/)
 })

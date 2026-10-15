@@ -21,11 +21,14 @@ import {
   type ChangeBody, type GroupChange,
 } from './group'
 import { verifyDeviceCert, type DeviceCert, type Identity } from './identity'
+import { isExpiry } from './disappear'
 
 export const CHANNEL_CHANGE_CONTEXT = 'iskra/channel-change/v1'
 export const CHANNEL_MESSAGE_CONTEXT = 'iskra/channel-msg/v1'
 /** Messages bound to their channel, thread and (for edits) message. Apps send only this one. */
 export const CHANNEL_MESSAGE_CONTEXT_V2 = 'iskra/channel-msg/v2'
+/** v3: v2 plus a disappearing message's `expires`. */
+export const CHANNEL_MESSAGE_CONTEXT_V3 = 'iskra/channel-msg/v3'
 export const CHANNEL_KEY_CONTEXT = 'iskra/channel-key/v1'
 export const MAX_CHANNEL_MEMBERS = 50
 /** Key slots per key envelope, so each stays well under the server's 52 KB limit. */
@@ -227,11 +230,13 @@ export interface ChannelHeader {
   thread?: number
   /** v2: an edit names the `id` of the message's first envelope. */
   edit?: string
+  /** v3: a disappearing message, gone this many seconds after it was sent. */
+  expires?: number
 }
 
 export interface ChannelEnvelope {
-  /** 1: the older format (not bound to a channel); apps only send 2. */
-  v: 1 | 2
+  /** 1: the older format (not bound to a channel); apps send 2, or 3 for a disappearing message. */
+  v: 1 | 2 | 3
   kind: 'channel'
   header: ChannelHeader
   sender: DeviceCert
@@ -268,21 +273,27 @@ const isId = (n: unknown): n is number => typeof n === 'number' && Number.isSafe
 const MAX_HEADER_ID = 32
 
 /** The associated data of a message (the head of its version comes from the verified chain, never the envelope). */
-export function channelMessageAd(v: 1 | 2, h: ChannelHeader, head: string): Uint8Array {
+export function channelMessageAd(v: 1 | 2 | 3, h: ChannelHeader, head: string): Uint8Array {
   const fields = v === 1
     ? [CHANNEL_MESSAGE_CONTEXT, h.from, h.chain, h.version, head, h.sentAt, h.id]
-    : [CHANNEL_MESSAGE_CONTEXT_V2, h.from, h.chain, h.version, head, h.sentAt, h.id, h.channel, h.thread ?? 0, h.edit ?? '']
+    : v === 2
+      ? [CHANNEL_MESSAGE_CONTEXT_V2, h.from, h.chain, h.version, head, h.sentAt, h.id, h.channel, h.thread ?? 0, h.edit ?? '']
+      : [CHANNEL_MESSAGE_CONTEXT_V3, h.from, h.chain, h.version, head, h.sentAt, h.id, h.channel, h.thread ?? 0, h.edit ?? '', h.expires]
   return new TextEncoder().encode(JSON.stringify(fields))
 }
 
 /** What the sender's device signs: the associated data, nonce and ciphertext, each length-prefixed, under the format's context. */
-export function channelMessageSigned(v: 1 | 2, ad: Uint8Array, nonce: Uint8Array, ct: Uint8Array): Uint8Array {
-  return signedPayload(v === 1 ? CHANNEL_MESSAGE_CONTEXT : CHANNEL_MESSAGE_CONTEXT_V2, u64be(ad.length), ad, u64be(nonce.length), nonce, ct)
+export function channelMessageSigned(v: 1 | 2 | 3, ad: Uint8Array, nonce: Uint8Array, ct: Uint8Array): Uint8Array {
+  const context = v === 1 ? CHANNEL_MESSAGE_CONTEXT : v === 2 ? CHANNEL_MESSAGE_CONTEXT_V2 : CHANNEL_MESSAGE_CONTEXT_V3
+  return signedPayload(context, u64be(ad.length), ad, u64be(nonce.length), nonce, ct)
 }
 
-/** Encrypts a message (always v2) for `place`; `edit` is the first envelope's `id` when it replaces a message's text. */
+/**
+ * Encrypts a message for `place` (v2, or v3 with `expires` for a disappearing one); `edit` is the first envelope's `id`
+ * when it replaces a message's text.
+ */
 export function encryptChannelMessage(
-  identity: Identity, view: ChannelView, epochKey: Uint8Array, content: ChannelContent, place: ChannelPlace, now = Date.now(), edit?: string,
+  identity: Identity, view: ChannelView, epochKey: Uint8Array, content: ChannelContent, place: ChannelPlace, now = Date.now(), edit?: string, expires?: number,
 ): ChannelEnvelope {
   const from = b64u(identity.account.publicKey)
   if (!view.members.some((m) => sameKey(m, from))) throw new GroupError("You're not in this channel's encryption.")
@@ -290,16 +301,19 @@ export function encryptChannelMessage(
   if ((content.text.length === 0 && !hasFiles) || content.text.length > MAX_TEXT) throw new DmError(`Messages must be 1–${MAX_TEXT} characters.`)
   if (!isId(place.channel) || (place.thread !== undefined && (!isId(place.thread) || place.thread === place.channel))) throw new DmError('Unsupported message format.')
   if (edit !== undefined && (typeof edit !== 'string' || edit.length === 0 || edit.length > MAX_HEADER_ID)) throw new DmError('Unsupported message format.')
+  if (expires !== undefined && !isExpiry(expires)) throw new DmError('Unsupported message format.')
+  const v = expires !== undefined ? 3 : 2
   const header: ChannelHeader = {
     from, chain: view.chain, version: view.version, sentAt: now, id: b64u(randomBytes(12)),
     channel: place.channel, ...(place.thread !== undefined ? { thread: place.thread } : {}), ...(edit !== undefined ? { edit } : {}),
+    ...(expires !== undefined ? { expires } : {}),
   }
-  const ad = channelMessageAd(2, header, view.head)
+  const ad = channelMessageAd(v, header, view.head)
   const nonce = randomBytes(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)
   const plain = new TextEncoder().encode(JSON.stringify({ text: content.text, ...(hasFiles ? { files: content.files } : {}) }))
   const ct = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plain, ad, null, nonce, epochKey)
-  const sig = sign(channelMessageSigned(2, ad, nonce, ct), identity.device.secretKey)
-  return { v: 2, kind: 'channel', header, sender: identity.cert, nonce: b64u(nonce), ct: b64u(ct), sig: b64u(sig) }
+  const sig = sign(channelMessageSigned(v, ad, nonce, ct), identity.device.secretKey)
+  return { v, kind: 'channel', header, sender: identity.cert, nonce: b64u(nonce), ct: b64u(ct), sig: b64u(sig) }
 }
 
 /**
@@ -331,13 +345,14 @@ export interface ChannelRouting {
 export function decryptChannelMessage(
   envelope: ChannelEnvelope, routed: ChannelRouting, view: ChannelView, keyFor: (version: number) => Uint8Array | undefined, endedAt?: number,
 ): ChannelContent & ChannelMessageInfo {
-  if (!envelope || (envelope.v !== 1 && envelope.v !== 2) || envelope.kind !== 'channel' || !envelope.header || !envelope.sender
+  if (!envelope || (envelope.v !== 1 && envelope.v !== 2 && envelope.v !== 3) || envelope.kind !== 'channel' || !envelope.header || !envelope.sender
     || typeof envelope.nonce !== 'string' || typeof envelope.ct !== 'string' || typeof envelope.sig !== 'string')
     throw new DmError('Unsupported message format.')
   const { header, sender, v } = envelope
   if (header.chain !== view.chain) throw new DmError('This message belongs to another channel.')
   if (!isCount(header.version) || !isCount(header.sentAt) || typeof header.id !== 'string' || header.id.length > MAX_HEADER_ID) throw new DmError('Unsupported message format.')
-  if (v === 2) {
+  if (v === 3 ? !isExpiry(header.expires) : header.expires !== undefined) throw new DmError('Unsupported message format.')
+  if (v >= 2) {
     if (!isId(header.channel) || (header.thread !== undefined && !isId(header.thread))
       || (header.edit !== undefined && (typeof header.edit !== 'string' || header.edit.length === 0 || header.edit.length > MAX_HEADER_ID)))
       throw new DmError('Unsupported message format.')

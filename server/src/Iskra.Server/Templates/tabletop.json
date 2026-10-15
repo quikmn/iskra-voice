@@ -24,7 +24,7 @@
     }
   ],
   "roles": [
-    { "name": "Moderator", "color": "#3fa66b", "hoist": true, "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] },
+    { "name": "Moderator", "color": "#3fa66b", "hoist": true, "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog", "prioritySpeaker"] },
     { "name": "Game master", "color": "#8e6be8", "icon": "🎲", "mentionable": true, "permissions": ["muteMembers", "moveMembers", "mentionEveryone"] }
   ],
   "builtinRoles": {

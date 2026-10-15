@@ -29,7 +29,7 @@ public static class DmFeature
     }
 
     public static object PublicDm(DirectMessage m) =>
-        new { id = m.Id, from = m.From, to = m.To, envelope = JsonDocument.Parse(m.Envelope).RootElement.Clone(), createdAt = m.CreatedAt };
+        new { id = m.Id, from = m.From, to = m.To, envelope = JsonDocument.Parse(m.Envelope).RootElement.Clone(), createdAt = m.CreatedAt, expiresAt = m.ExpiresAt };
 
     /// <summary>The signed device certificates (and prekeys, revocations) for a member, so the sender can encrypt to each device.</summary>
     private static object Devices(Session s, Member me, Body body)
@@ -53,6 +53,7 @@ public static class DmFeature
         if (envelope.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'envelope' must be an object.");
         var raw = envelope.GetRawText();
         if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.", "message_too_large");
+        DisappearFeature.EnvelopeExpires(envelope); // a malformed expiry is refused before anything is stored
 
         var silent = body.OptionalBool("silent") == true;
         // A nonce makes a retried send (or a scheduled one after a restart) return the stored DM instead of a second one.
@@ -69,6 +70,7 @@ public static class DmFeature
             message = stored!;
         }
         s.World.Store.LinkDmFiles(message.Id, files);
+        message = DisappearFeature.Stamp(s.World.Store, message, files);
         BotDmFeature.Sent(s, me, peer);
         var frame = Frames.Event("dm.message", new { message = PublicDm(message) });
         s.Hub.SendToAccount(peer.AccountKey, frame);

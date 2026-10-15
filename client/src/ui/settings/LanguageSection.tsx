@@ -1,5 +1,6 @@
-// My settings → Language: follow the system, or pick one. It applies right away.
+// My settings → Language: follow the system, or pick one. It applies right away. Also: what messages are translated into.
 import { useTranslation } from 'react-i18next'
+import { TranslateTargetField } from '../translate/Translate'
 import { LANGUAGE_NAMES, LANGUAGES, setLanguageChoice, useLanguageChoice, type LanguageChoice } from '../../i18n'
 
 export function LanguageSection() {
@@ -15,6 +16,9 @@ export function LanguageSection() {
         </select>
         {choice === 'auto' && <small className="muted">{t('common.language.autoHint')}</small>}
       </label>
+      <h3>{t('translate.label')}</h3>
+      <TranslateTargetField />
+      <small className="muted">{t('translate.auto.hint')}</small>
     </section>
   )
 }

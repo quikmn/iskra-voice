@@ -77,6 +77,12 @@ builder.Services.AddSingleton<Iskra.Server.Captions.IModelUpstream>(_ => world.S
     : new Iskra.Server.Captions.HttpModelUpstream());
 builder.Services.AddSingleton(Iskra.Server.Captions.ModelManifest.Pinned);
 builder.Services.AddSingleton<Iskra.Server.Captions.CaptionModelService>();
+// Translation models: each fetched from Mozilla (or a local folder, Translate.ModelSource) the first time a member needs it.
+builder.Services.AddSingleton(_ => new Iskra.Server.Translate.TranslationUpstream(world.Settings.Translate.ModelSource is { Length: > 0 } translateFolder
+    ? new Iskra.Server.Captions.FolderModelUpstream(translateFolder)
+    : new Iskra.Server.Captions.HttpModelUpstream()));
+builder.Services.AddSingleton(Iskra.Server.Translate.TranslationPins.Pinned);
+builder.Services.AddSingleton<Iskra.Server.Translate.TranslationModelService>();
 builder.Services.AddSingleton<WebhookIngress>();
 builder.Services.AddSingleton<BugInbox>();
 builder.Services.AddSingleton<OutgoingWebhooks>();
@@ -88,6 +94,10 @@ builder.Services.AddHostedService<ModerationSweeper>();
 builder.Services.AddHostedService<ProductivityScheduler>();
 builder.Services.AddSingleton<AfkSweeper>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AfkSweeper>());
+builder.Services.AddSingleton<TeamSweeper>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<TeamSweeper>());
+builder.Services.AddSingleton<LfgCloser>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<LfgCloser>());
 builder.Services.AddPush(world);
 builder.Services.AddSingleton<LinkRelay>();
 builder.Services.Configure<LinkSettings>(builder.Configuration.GetSection("Link"));
@@ -134,6 +144,7 @@ builder.Services.AddSingleton<Iskra.Server.Updates.UpdateService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Updates.UpdateService>());
 builder.Services.AddSingleton<DataExports>();
 builder.Services.AddHostedService<RetentionSweeper>();
+builder.Services.AddHostedService<DisappearSweeper>();
 
 var https = world.Settings.Https;
 // The peer-to-peer tunnel in the host's desktop app reaches us here (localhost only; see TunnelListener).
@@ -309,6 +320,8 @@ WebhookIngress.Map(app);
 BugInbox.Map(app);
 // The live-captions model's parts: GET /models/{dir}/{part}.
 Iskra.Server.Captions.CaptionModelFeature.Map(app);
+// Translation models' parts: GET /models/translate/{dir}/{part}.
+Iskra.Server.Translate.TranslateFeature.Map(app);
 // Device linking: a short-lived relay for a new device that has no account yet.
 LinkRelay.MapEndpoints(app);
 // Backups, moving to another computer, imports.

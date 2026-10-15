@@ -23,10 +23,10 @@ public sealed partial class Store
 
     // ── Direct messages: opaque encrypted envelopes ─────────────────────────
 
-    private const string DmColumns = "id, from_key, to_key, envelope, created_at";
+    private const string DmColumns = "id, from_key, to_key, envelope, created_at, expires_at";
 
     private static DirectMessage ReadDm(Microsoft.Data.Sqlite.SqliteDataReader r) =>
-        new(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetInt64(4));
+        new(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetInt64(4)) { ExpiresAt = NullableLong(r, 5) };
 
     public DirectMessage AddDm(string from, string to, string envelope, long now)
     {

@@ -77,6 +77,9 @@ public sealed record WorldSettings
     /// <summary>Live captions: whether members' apps may get the speech model from this server.</summary>
     public CaptionsSettings Captions { get; init; } = new();
 
+    /// <summary>Message translation: whether members' apps may get translation models from this server.</summary>
+    public TranslateSettings Translate { get; init; } = new();
+
     /// <summary>Friends connecting without port forwarding, through a peer-to-peer tunnel (see PROTOCOL.md).</summary>
     public P2pSettings P2p { get; init; } = new();
 }
@@ -107,6 +110,18 @@ public sealed record CaptionsSettings
     /// <summary>Offer the model. Off: GET /models/... answers 404 and the apps say captions aren't offered here.</summary>
     public bool ModelDownload { get; init; } = true;
     /// <summary>Where to fetch it from instead of Hugging Face: a folder laid out like scripts/get-models.mjs writes it.</summary>
+    public string? ModelSource { get; init; }
+}
+
+/// <summary>
+/// Message translation runs on members' devices; the models (Mozilla's, about 15-26 MB per language and direction) come
+/// from this server, which fetches each one from Mozilla the first time a member needs it (Server settings → Translation).
+/// </summary>
+public sealed record TranslateSettings
+{
+    /// <summary>Offer the models. Off (the default): GET /models/translate/... answers 404 and the apps say so.</summary>
+    public bool Offer { get; init; }
+    /// <summary>Where to fetch them from instead of Mozilla: a folder laid out like scripts/get-models.mjs --translate writes it.</summary>
     public string? ModelSource { get; init; }
 }
 

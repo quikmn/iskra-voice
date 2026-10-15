@@ -11,6 +11,7 @@ import { revokedSet } from '../core/devices'
 import { decryptDm, DmError, encryptDm, type DmContent, type DmEnvelope, type DmForward } from '../core/dm'
 import { checkFiles, type DmFile } from '../core/dmFiles'
 import { checkFriend, type FriendAction } from '../core/friend'
+import { isTimer, localExpiry } from '../core/disappear'
 import type { DeviceCert } from '../core/identity'
 import type { DeviceBundle, WireDm } from '../core/protocol'
 import * as storage from '../core/storage'
@@ -69,6 +70,10 @@ export interface Dm {
   files?: DmFile[]
   /** A checked friend action (see state/friends.ts); shown as a small line, or not at all. */
   friend?: FriendAction
+  /** When it disappears from this device (state/disappearing.ts deletes it then). */
+  expiresAt?: number
+  /** A disappearing messages timer change line (seconds, 0 = off), shown instead of the text. */
+  disappear?: { seconds: number }
 }
 
 export interface Conversation {
@@ -138,7 +143,8 @@ function open(wire: WireDm): Dm {
   const identity = useApp.getState().identity!
   try {
     // Messages sent to or from an earlier key of the same person (a checked rotation) belong to their current key.
-    const { text, header, call, forward, files, friend: rawFriend, kt } = decryptDm(identity, wire.envelope, wire.from, wire.to, sameAccount)
+    const { text, header, call, forward, files, friend: rawFriend, kt, disappear } = decryptDm(identity, wire.envelope, wire.from, wire.to, sameAccount)
+    const expiresAt = localExpiry(wire.expiresAt, header, wire.createdAt)
     if (kt) gossip?.receive(wire.from, wire.to, kt)
     // A friend action must carry a good signature from the sender; never shown as plain text if it doesn't.
     const friend = rawFriend === undefined ? undefined : checkFriend(rawFriend, wire.from, wire.to, Date.now(), sameAccount)
@@ -146,6 +152,7 @@ function open(wire: WireDm): Dm {
     return {
       id: header.id, from: resolveKey(wire.from), to: resolveKey(wire.to), text, sentAt: orderTime(header.sentAt, wire.createdAt), call,
       ...(forward ? { forward } : {}), ...(files ? { files } : {}), ...(friend ? { friend } : {}),
+      ...(expiresAt !== undefined ? { expiresAt } : {}), ...(disappear ? { disappear } : {}),
     }
   } catch (e) {
     // The header id (unauthenticated here) only lets a readable local copy of the same message win.
@@ -153,6 +160,7 @@ function open(wire: WireDm): Dm {
     return {
       id: typeof headerId === 'string' && headerId.length <= 32 ? headerId : `server-${wire.id}-${wire.createdAt}`,
       from: resolveKey(wire.from), to: resolveKey(wire.to), text: '', sentAt: wire.createdAt,
+      ...(typeof wire.expiresAt === 'number' ? { expiresAt: wire.expiresAt } : {}),
       error: e instanceof DmError ? dmErrorText(e) : t('dms.errors.unreadable'),
     }
   }
@@ -169,7 +177,11 @@ let historyLoaded = false
 const storable = (m: Dm): storage.StoredDm => ({
   id: m.id, from: m.from, to: m.to, text: m.text, sentAt: m.sentAt, ...(m.call ? { call: m.call } : {}), ...(m.notice ? { notice: m.notice } : {}),
   ...(m.forward ? { forward: m.forward } : {}), ...(m.files?.length ? { files: m.files } : {}), ...(m.friend ? { friend: m.friend } : {}),
+  ...(typeof m.expiresAt === 'number' ? { expiresAt: m.expiresAt } : {}), ...(m.disappear && isTimer(m.disappear.seconds) ? { disappear: { seconds: m.disappear.seconds } } : {}),
 })
+
+/** Gone already (a disappearing message whose time is up). */
+const expired = (m: { expiresAt?: number }, now = Date.now()) => typeof m.expiresAt === 'number' && m.expiresAt <= now
 
 /** Attachments from storage or another device, checked like freshly decrypted ones (dropped if malformed). */
 function storedFiles(raw: unknown): DmFile[] | undefined {
@@ -190,7 +202,7 @@ function persist(peer: string): void {
     dirty.clear()
     saving = saving.then(async () => {
       for (const p of peers) {
-        const messages = (useDms.getState().conversations[p]?.messages ?? []).filter((m) => !m.pending && !m.error)
+        const messages = (useDms.getState().conversations[p]?.messages ?? []).filter((m) => !m.pending && !m.error && !expired(m))
         await storage.saveDmConversation(p, messages.slice(-MAX_LOCAL_PER_CONVERSATION).map(storable)).catch(() => undefined)
       }
     })
@@ -205,7 +217,9 @@ export function loadLocalHistory(): Promise<void> {
     await keysReady()
     const stored = await storage.loadDmHistory().catch(() => ({}) as Record<string, storage.StoredDm[]>)
     for (const [peer, messages] of Object.entries(stored)) {
-      const checked = messages.map((m): Dm => { const { files, ...rest } = m; const ok = storedFiles(files); return ok ? { ...rest, files: ok } : rest })
+      // Disappearing messages whose time came while the app was closed go now (and from storage with the next save).
+      if (messages.some((m) => expired(m))) dirty.add(peer)
+      const checked = messages.filter((m) => !expired(m)).map((m): Dm => { const { files, ...rest } = m; const ok = storedFiles(files); return ok ? { ...rest, files: ok } : rest })
       patchConversation(peer, (c) => ({ messages: checked.reduce<Dm[]>(upsert, c.messages) }))
     }
     historyLoaded = true
@@ -224,7 +238,7 @@ export async function importHistory(history: Record<string, storage.StoredDm[]>)
     if (!Array.isArray(messages)) continue
     // Friend actions come over separately (state/friends.ts), already checked.
     const clean = messages.filter((m) => typeof m?.id === 'string' && typeof m.text === 'string' && typeof m.sentAt === 'number'
-      && typeof m.from === 'string' && typeof m.to === 'string' && !m.friend)
+      && typeof m.from === 'string' && typeof m.to === 'string' && !m.friend && !expired(m))
     await storage.saveDmConversation(peer, clean.map((m) => storable({ ...m, files: storedFiles(m.files) })))
   }
 }
@@ -237,7 +251,7 @@ export function exportHistory(perConversation = 200, maxBytes = 600_000): Record
     .sort(([, a], [, b]) => (b.messages.at(-1)?.sentAt ?? 0) - (a.messages.at(-1)?.sentAt ?? 0))
   for (const [peer, c] of conversations) {
     const kept: storage.StoredDm[] = []
-    for (const m of c.messages.filter((m) => !m.pending && !m.error).slice(-perConversation).reverse()) {
+    for (const m of c.messages.filter((m) => !m.pending && !m.error && !expired(m)).slice(-perConversation).reverse()) {
       const item = storable(m)
       size += JSON.stringify(item).length
       if (size > maxBytes) break
@@ -345,7 +359,7 @@ export async function devicesOf(serverKey: string, accountKey: string): Promise<
  * Encrypts for everyone who should read it (their devices and ours), forward secret where the devices
  * have prekeys, never for revoked devices. Used for DMs and call invites.
  */
-export async function encryptFor(serverKey: string, peer: string, content: DmContent, sentAt = Date.now()): Promise<DmEnvelope> {
+export async function encryptFor(serverKey: string, peer: string, content: DmContent, sentAt = Date.now(), expires?: number): Promise<DmEnvelope> {
   const identity = useApp.getState().identity
   if (!identity) throw new DmError(t('dms.errors.noAccount'))
   const mine = me()
@@ -354,16 +368,32 @@ export async function encryptFor(serverKey: string, peer: string, content: DmCon
   return encryptDm(identity, peer, theirs.devices, peer === mine ? [] : ours.devices, content, sentAt, {
     prekeys: [...(theirs.prekeys ?? []), ...(ours.prekeys ?? [])],
     revokedDevices,
+    ...(expires ? { expires } : {}),
   })
 }
 
-export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 'call' | 'forward' | 'files'> = {}): Promise<void> {
+/** The disappearing messages timer a DM sends with (state/disappearing.ts sets it; 0 = off). */
+let expiryFor: (peer: string) => number = () => 0
+export function setDmExpiry(fn: (peer: string) => number): void {
+  expiryFor = fn
+}
+
+/** Drops disappearing messages whose time has come, from the screen and from this device's storage. */
+export function purgeExpiredDms(now = Date.now()): void {
+  for (const [peer, c] of Object.entries(useDms.getState().conversations)) {
+    if (c.messages.some((m) => expired(m, now))) patchConversation(peer, (conv) => ({ messages: conv.messages.filter((m) => !expired(m, now)) }))
+  }
+}
+
+export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 'call' | 'forward' | 'files' | 'disappear'> = {}): Promise<void> {
   const identity = useApp.getState().identity
   const mine = me()
   // Attachments live on one server: the message goes through that one, so the server can link them to it.
   const shared = sharedServers(peer)
   const route = extra.files?.length ? shared.find((s) => s === extra.files![0].server) : shared[0]
   const tempId = `pending-${Date.now()}-${Math.random()}`
+  // A timer change line never disappears itself; everything else follows the conversation's timer.
+  const expires = extra.disappear ? 0 : expiryFor(peer)
   const pending: Dm = { id: tempId, from: mine, to: peer, text, sentAt: Date.now(), pending: 'sending', ...extra }
   patchConversation(peer, (c) => ({ messages: upsert(c.messages, pending) }))
 
@@ -372,10 +402,13 @@ export async function sendDm(peer: string, text: string, extra: Pick<DmContent, 
   try {
     if (!identity || !route) throw new DmError(t('dms.errors.noSharedServer'))
     const kt = await gossip?.attach(peer).catch(() => undefined)
-    const envelope = await encryptFor(route, peer, { text, ...extra, ...(kt ? { kt } : {}) })
+    const envelope = await encryptFor(route, peer, { text, ...extra, ...(kt ? { kt } : {}) }, Date.now(), expires || undefined)
     // The placeholder takes the real id before sending, so our own dm.message echo (which can arrive before the
     // request's result) merges into it instead of showing the message twice.
-    const sent: Dm = { id: envelope.header.id, from: mine, to: peer, text, sentAt: envelope.header.sentAt, ...extra }
+    const sent: Dm = {
+      id: envelope.header.id, from: mine, to: peer, text, sentAt: envelope.header.sentAt, ...extra,
+      ...(expires ? { expiresAt: envelope.header.sentAt + expires * 1000 } : {}),
+    }
     patchConversation(peer, (c) => ({ messages: upsert(c.messages.filter((m) => !isOurs(m)), { ...sent, pending: 'sending' }) }))
     id = sent.id
     await connectionFor(route)!.request('dm.send', { accountKey: peer, envelope, ...(extra.files?.length ? { files: extra.files.map((f) => f.id) } : {}) })

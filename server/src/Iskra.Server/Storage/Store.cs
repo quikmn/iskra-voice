@@ -24,7 +24,11 @@ public sealed record Message(long Id, long ChannelId, string AuthorKey, string T
 public sealed record StoredFile(string Id, string Sha256, string Name, long Size, string Type, int? Width, int? Height, string Uploader, long CreatedAt);
 public sealed record Invite(string Code, string CreatedBy, long CreatedAt, long? ExpiresAt, int? MaxUses, int Uses, string Role, bool Revoked);
 public sealed record Ban(string AccountKey, string Reason, string BannedBy, long BannedAt);
-public sealed record DirectMessage(long Id, string From, string To, string Envelope, long CreatedAt);
+public sealed record DirectMessage(long Id, string From, string To, string Envelope, long CreatedAt)
+{
+    /// <summary>When it disappears (Disappearing messages), or null.</summary>
+    public long? ExpiresAt { get; init; }
+}
 
 /// <summary>
 /// SQLite storage for a world (iskra.db). One connection, and every statement runs under one lock,
@@ -323,6 +327,10 @@ public sealed partial class Store : IDisposable
         ("botdms-1", BotDmsMigration),
         ("builtinroles-2", BaseRolePowersMigration),
         ("templatesv2-1", NotifyDefaultMigration),
+        ("alerts-1", AlertsMigration),
+        ("teams-1", TeamsMigration),
+        ("lfg-1", LfgMigration),
+        ("disappearing-1", DisappearMigration),
         ("whiteboard-1", WhiteboardMigration),
     ];
 

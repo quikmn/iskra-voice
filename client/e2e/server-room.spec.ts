@@ -9,7 +9,7 @@ const settled = (page: Page) => page.evaluate(() => Promise.all(document.getAnim
 
 const MINE = ['Profile', 'Appearance', 'Language', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Voice & audio', 'Camera', 'Blocked people', 'Account', 'Privacy & data', 'About & legal']
 const SERVER_SECTIONS = [
-  'Overview', 'Channels', 'Voice', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules',
+  'Overview', 'Channels', 'Voice', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Translation',
   'Members', 'Roles', 'Reports', 'AutoMod', 'Activity log', 'Sign-ins & security',
   'Bots & webhooks', 'Bug inbox',
   'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates',
@@ -32,7 +32,7 @@ test('the server room belongs to one server; My settings has no server sections'
   const menu = host.getByRole('dialog', { name: 'Hangout options' })
   await expect(menu.getByRole('menuitem')).toHaveText([
     'Invite friends', 'Create channel…', 'Server settings', 'Members', 'Roles', 'Reports', 'More settings',
-    /^Notifications/, /^Mute server/, 'Server nickname…', 'Mark as read', 'Move / Folder', 'Hide server', 'Leave server',
+    /^Notifications/, /^Mute server/, /^Notify me for LFG/, 'Server nickname…', 'Mark as read', 'Move / Folder', 'Hide server', 'Leave server',
   ])
   await settled(host)
   await host.screenshot({ path: join(SHOTS, 'server-room-menu.png') })
@@ -110,7 +110,7 @@ test('the server room belongs to one server; My settings has no server sections'
   // A member with no admin rights: no Server settings at all, just their own things.
   await friend.locator('.server-rail').getByTitle('Hangout', { exact: true }).click({ button: 'right' })
   const theirs = friend.getByRole('dialog', { name: 'Hangout options' })
-  await expect(theirs.getByRole('menuitem')).toHaveText(['Invite friends', /^Notifications/, /^Mute server/, 'Server nickname…', 'Mark as read', 'Move / Folder', 'Hide server', 'Leave server'])
+  await expect(theirs.getByRole('menuitem')).toHaveText(['Invite friends', /^Notifications/, /^Mute server/, /^Notify me for LFG/, 'Server nickname…', 'Mark as read', 'Move / Folder', 'Hide server', 'Leave server'])
   await settled(friend)
   await friend.screenshot({ path: join(SHOTS, 'server-room-member-menu.png') })
   await theirs.getByRole('menuitem', { name: 'Server nickname…' }).click()

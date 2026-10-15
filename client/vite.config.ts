@@ -38,7 +38,7 @@ export default defineConfig({
   plugins: [react(), csp()],
   define: { __ISKRA_COMMIT__: JSON.stringify(COMMIT), __ISKRA_WHATS_NEW__: JSON.stringify(WHATS_NEW) },
   // Only workers import these: bundle them up front, or the dev server reloads the page when it finds them.
-  optimizeDeps: { include: ['onnxruntime-web/wasm', '@mediapipe/tasks-vision'] },
+  optimizeDeps: { include: ['onnxruntime-web/wasm', '@mediapipe/tasks-vision', 'eld/extrasmall'] },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     setupFiles: ['src/i18n/testSetup.ts'],

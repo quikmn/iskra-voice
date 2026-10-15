@@ -91,7 +91,7 @@ Iskra's version is deliberately light: servers are small and many, so a full log
 | Server channels, voice channels, files, profiles | The server's permissions | Members allowed in that channel, and whoever runs the server |
 | Direct messages, with their pictures, files and voice messages | **End-to-end encryption** | Only the two of you |
 | Group chats, with their files | **End-to-end encryption** | Only the people in the group |
-| **Encrypted channels** (an option for small private text and voice channels), with their files, threads and voice | **End-to-end encryption** | Only the people who can see the channel, on their own devices |
+| **Encrypted channels** (an option for small private text, voice and whiteboard channels), with their files, threads, voice and boards | **End-to-end encryption** | Only the people who can see the channel, on their own devices |
 | Calls in DMs and group calls (voice and video) | **End-to-end encryption** | Only the people in the call |
 
 Server channels trust the server, because a server is run by you or your friend; the app always tells you which server you're on. Direct messages, group chats, calls and encrypted channels don't trust anyone: servers only pass encrypted envelopes and encrypted media along.
@@ -163,6 +163,7 @@ When an admin creates a text or voice channel they can tick **End-to-end encrypt
 ### Security log, retention and your data
 
 - **Security log** (Server settings → Sign-ins & security, the owner only): failed sign-ins, rate-limit hits, new members and devices, account key changes, account deletions, removed devices, backups and restores, moves, retention changes and data downloads, with the account key and time. Never message text, invite codes, passphrases or keys. IP addresses only if the owner turns that on (off by default). Bursts of the same event are capped, so a flood can't fill the disk. Moderators' actions stay in the audit log.
+- **Disappearing messages:** a timer per channel, DM and group (5 minutes to 4 weeks). Each message's expiry is fixed when it's sent; in DMs, groups and encrypted channels it is also in the encrypted message's authenticated header (signed, in channels), so a server can't stretch it: apps delete at the sooner of the two. The server deletes expired messages with their files every few seconds (overwritten on disk, checkpointed out of the write-ahead log). **Backups never contain them**: they're taken out of every backup as it is made, so a backup can't keep a message past its time. Apps delete their own copies on time, even after being offline. People can still screenshot or copy them, and apps from before disappearing messages can't open the encrypted ones at all.
 - **Retention:** the owner chooses how long the server keeps messages (and encrypted DM and group envelopes), files in messages and DMs, the audit log (90 days by default) and the security log (365 days). 0 keeps forever; older data is deleted every hour.
 - **Download my data** (Settings → Privacy & data): a zip of everything a server keeps about you, through a link that works for 10 minutes; the owner can make one for a member who asks. The content of your DMs and group chats is only on your devices, so **Download data on this device** exports it from there (without your keys).
 - **HTTP:** every response refuses MIME sniffing, referrers and framing by other sites; HTTPS uses TLS 1.2 or 1.3 and HSTS for domain names. The voice service's own API only listens on the server itself.
@@ -194,6 +195,12 @@ Ads stay off, and anything that isn't a GIF from KLIPY's own hosts is left out.
 ### Watch parties
 
 A watch party only shares a clock: each app plays the video itself, from its source. **Whoever hosts the video sees your IP address**: YouTube for a YouTube video, the website for a link, your server for an upload. Before anything loads from YouTube or a website, the app says where it plays from and waits for you to press Watch (unless you ticked "Always load from <site>" on that device). YouTube plays in its privacy-enhanced (youtube-nocookie.com) player inside a sandboxed frame; no YouTube code runs inside the app itself, where it could reach your keys. The desktop app sends YouTube the web app's address as the referring page (YouTube requires one) and nothing else.
+
+### Whiteboards
+
+A board is a list of changes ("set these fields of this object") that the server puts in order and passes on, so everyone ends up with the same board. On a normal board the server checks every field (known fields only, numbers in range, colours as `#rrggbb`, text length, no control characters) and only accepts pictures that are images uploaded to that server; everything, text included, is drawn on a canvas, never turned into HTML. Drawing follows the channel's permissions, timeouts and server rules, and only moderators (or whoever opened a call's board) can clear one.
+
+In an **encrypted channel** the board is end-to-end encrypted too: every change, snapshot and live cursor is sealed with the channel's current key and signed by the sender's device, under its own signing context (`iskra/wb/v1`), bound to the channel, the board and what it is (a change, a snapshot of the board up to a given change, or a cursor). The server only checks who sent it and for which board, and can't read, forge or move it. It can't tidy up an encrypted board, so members' apps upload sealed snapshots, including a fresh one under the new key after someone joins, so new members can read the board. Apps drop changes they've already applied and changes signed long before the snapshot they started from, so an old change can't simply be replayed. Pictures aren't offered on encrypted boards (the server could read them). A member who can draw can also upload a snapshot that wipes the board, much as they could erase everything by hand.
 
 ### Activity status
 

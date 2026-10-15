@@ -46,6 +46,7 @@ public sealed partial class Store
                 DELETE FROM presence WHERE account_key = $k;
                 DELETE FROM account_prefs WHERE account_key = $k;
                 DELETE FROM notify_settings WHERE account_key = $k;
+                DELETE FROM alert_settings WHERE account_key = $k;
                 DELETE FROM timeouts WHERE account_key = $k;
                 DELETE FROM rules_accepted WHERE account_key = $k;
                 DELETE FROM send_nonces WHERE account_key = $k;
@@ -54,6 +55,8 @@ public sealed partial class Store
                 DELETE FROM bot_dm_prefs WHERE account_key = $k;
                 DELETE FROM bot_dm_peers WHERE account_key = $k OR bot_key = $k;
                 DELETE FROM event_interest WHERE account_key = $k;
+                DELETE FROM lfg_members WHERE account_key = $k;
+                DELETE FROM lfg_notify WHERE account_key = $k;
                 DELETE FROM stage_moderators WHERE account_key = $k;
                 DELETE FROM push_subscriptions WHERE account_key = $k;
                 DELETE FROM prekeys WHERE device_key IN (SELECT device_key FROM devices WHERE account_key = $k);

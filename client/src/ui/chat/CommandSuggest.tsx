@@ -10,6 +10,7 @@ import { useServerRoles } from '../../state/roles'
 import { useApp } from '../../state/store'
 import { Avatar } from '../bits'
 import { encodeMentions } from '../markdown'
+import { appEntries, runAppCommand } from './appCommands'
 import { parseOptions } from './commandInvoke'
 import {
   activeOption, commandQueryAt, commandTarget, completeChoice, completeCommand, findCommand, matchChoices, matchCommands, signature,
@@ -38,7 +39,9 @@ export function useCommandSuggest(
   const [pick, setPick] = useState(0)
   const [dismissed, setDismissed] = useState<string | null>(null)
   const query = commandQueryAt(text, caret)
-  const entries = useChannelCommands(serverKey, channelId, query !== null, encrypted)
+  const botEntries = useChannelCommands(serverKey, channelId, query !== null, encrypted)
+  // The app's own /teams and /lfg aren't offered in encrypted channels: LFG posts aren't allowed there and encrypted voice can't be split.
+  const entries = query ? [...(encrypted ? [] : appEntries()), ...botEntries] : botEntries
   const hasBots = useBotCommands((s) => Object.keys(s.lists[serverKey] ?? {}).length > 0)
   const closed = dismissed === text
   const members = useApp((s) => s.servers[serverKey]?.members)
@@ -48,7 +51,7 @@ export function useCommandSuggest(
   const [failure, setFailure] = useState<{ text: string; message: string } | null>(null)
   if (failure && failure.text !== text) setFailure(null)
   // Encrypted channels where no bot can answer (only bots that take interactions can, privately): say why nothing is suggested.
-  const encryptedHint = encrypted && hasBots && query?.kind === 'name' && !closed && entries.length === 0
+  const encryptedHint = encrypted && hasBots && query?.kind === 'name' && !closed && botEntries.length === 0
   // Esc closes the list for this text only: once the text changes, typing "/" again opens it again.
   if (dismissed !== null && dismissed !== text) setDismissed(null)
 
@@ -100,6 +103,15 @@ export function useCommandSuggest(
     if (!q) return null
     const name = q.kind === 'name' ? q.query : q.name
     const listed = findCommand(entries, name, q.target)
+    // The app's own commands ("/teams", "/lfg") open a dialog here.
+    if (listed?.app || (!listed && !q.target && appEntries().some((e) => e.command.name === name))) {
+      const problem = runAppCommand(serverKey, channelId, name, q.kind === 'args' ? q.args : '')
+      if (problem) {
+        setFailure({ text: raw, message: problem })
+        return 'blocked'
+      }
+      return 'sent'
+    }
     const entry = commandTarget(listed, encrypted, closed, () => interactiveCommand(serverKey, name, q.target, (k) => members?.[k]?.name))
     if (!entry) return null
     const memberList = Object.values(members ?? {})

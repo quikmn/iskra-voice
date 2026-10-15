@@ -17,6 +17,8 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Server channel messages (with reactions, pins, threads' messages) | Until deleted by the author, a moderator, account deletion, or the retention period | `RetentionSweeper` (hourly) | `server.json` → `Retention.MessagesDays` (0 = keep), Settings → Security log → Data retention (owner) |
 | DM and group chat envelopes (end-to-end encrypted) | Same as messages; deleted with the account | `RetentionSweeper`; account deletion | `Retention.MessagesDays` |
 | Encrypted channel envelopes, signed membership changes and channel key envelopes (end-to-end encrypted) | Envelopes: same as the message they belong to; membership changes and key envelopes: as long as the channel | `RetentionSweeper` and message deletion (envelopes go with their message); channel deletion | `Retention.MessagesDays` |
+| Disappearing messages (channel messages, DM and group envelopes, encrypted channel envelopes, with their reactions, pins, threads, search entries and files) | Until their expiry: the conversation's timer when sent (5 minutes to 4 weeks), or sooner if the sender's signed envelope says so. Never in any backup | `DisappearSweeper` (every 5 s, rows overwritten on disk); apps delete their copies on their own clocks; backups leave them out | Per conversation: people who manage channels (channels), either person (DMs), any member (groups) |
+| Disappearing message timers (which conversation, seconds, who set it and when) | Until changed; channel and group timers go with the channel or group | Channel or group deletion | — |
 | Keys protecting DM envelopes (prekeys) | Replaced weekly, deleted 30 days later (≈5 weeks); afterwards old envelopes can't be decrypted | Client and server prekey rotation | No |
 | Earlier versions of edited messages (edit history) | Up to 20 per message; go with the message | `RetentionSweeper` and message deletion | `Retention.MessagesDays` |
 | Docs pages and their revisions | Pages until deleted; the last 50 revisions per page, older revisions also by the retention period | Docs edits; `RetentionSweeper` | `Retention.MessagesDays` |
@@ -38,12 +40,16 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Bug reports (bug inbox, when the owner turns it on: what the reporter wrote, screenshots, logs from the app, an optional contact email; anonymous, never the sender's IP address) | 365 days at most (sooner with a shorter `Retention.MessagesDays`); their files a day later | `RetentionSweeper`; admins can delete one earlier | No (the year); the owner turns the inbox off |
 | Outgoing webhooks (name, address, events, who made it) and their delivery log (time, event, attempt, HTTP status, outcome; never the payload) | Webhooks until an admin deletes them; the last 50 log entries per webhook, deleted with it | Admins; each new log entry | No |
 | Ended or cancelled events | 30 days | `EventScheduler` | No |
-| Daily backups (`backups/auto-*.zip`) | Last 7 | `BackupService` | `Backups.Keep` (1–30) |
+| Looking-for-group posts (game, slots, time, voice channel, note; who joined) and the "Notify me for LFG" setting | Posts: same as messages (they go with their message), closed 2 hours after their time or after 24 hours; who joined: with the post, or until the account is deleted; the setting: until turned off or the account is deleted | `RetentionSweeper` and message deletion; `LfgCloser` (closing); account deletion | `Retention.MessagesDays` |
+| Team splits (who started one, the voice channel, the game, its temporary team channels) | Until the split ends: team channels are deleted after 5 minutes empty, or when everyone is brought back | `TeamSweeper`; `teams.end` | No |
+| Daily backups (`backups/auto-*.zip`) | Last 7 (disappearing messages and their files are never in them) | `BackupService` | `Backups.Keep` (1–30) |
 | Downloaded encrypted backups | Wherever the owner keeps them | The owner | — |
 | Data exports (`/export/{token}`) | 10 minutes (the link; files in `world/exports`, never in backups) | Export cleanup | No |
 | Presence, voice state, IP addresses of connected clients | In memory while connected (stored in the security log only if the owner turns on `Retention.SecurityLogIps`, off by default) | Process memory | No |
 | Profiles (and the stamp of the newest profile edit, `profile_stamps`), memberships, roles, devices, push subscriptions | While the person is a member | Leaving, kick/ban, account deletion, device revocation | — |
+| Alert words and quiet hours (`alert_settings`): words only if the member turned on "Also when Iskra is closed", the schedule (days, times, time zone) only where their push is on | Until they change or turn them off, or stop being a member | The member's app (`alerts.set`), leaving, kick/ban, account deletion | — |
 | Captions model (`models/`; no personal data) | Until the owner deletes it | The owner | `Captions.ModelDownload` (off: not fetched or served) |
+| Translation models (`models/translate/`; no personal data) | Until the owner deletes them | The owner | Server settings → Translation (off: not fetched or served) |
 | Owner claim of a rented server (`owner-claim`), or a server image's claim code (`owner-claim`, `owner-claim-code.txt`) | Until the owner joins; a claim code also stops working after 24 hours and is replaced on the next start | `OwnerSetup` | — |
 
 Account deletion (Settings → Account → Delete my account; `account.delete`) removes the profile, roles, settings,
@@ -68,7 +74,8 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 - Clips are recorded on the device and kept only if the person saves or shares them; Catch up summaries are worked out
   on the device and not stored.
 - Apps keep keys, decrypted DMs, settings and the server list on the device until the user signs out, deletes the
-  account or removes the app. "Download data on this device" (Settings → Privacy & data) exports it.
+  account or removes the app. Disappearing messages are deleted from the device (screen, storage, notifications) when
+  their time is up, also if the app was closed then (on its next start). "Download data on this device" (Settings → Privacy & data) exports it.
 - Live captions and camera background effects run on the device only: audio, video and caption text are never sent
   or stored; captions are dropped from memory seconds after they're shown. The speech model is downloaded once from
   the member's own Iskra server (which fetched it once from Hugging Face) and kept with the settings on the device
@@ -95,4 +102,6 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-13 | Built-in bots (Dice, Polls, Reminders): their answers and /remind reminders |
 | 2026-10-14 | Bug reports (bug inbox) |
 | 2026-10-14 | Claim codes of server images (DigitalOcean Marketplace) |
+| 2026-10-15 | Looking-for-group posts and team splits |
+| 2026-10-15 | Message translation on the device (texts never leave it); translation models folder on the server |
 | 2026-10-15 | Whiteboards: board objects, unfolded batches and their authors, pictures on boards |

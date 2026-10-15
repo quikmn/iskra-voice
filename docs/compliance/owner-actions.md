@@ -40,8 +40,10 @@ backup (action 8).
   Manage Account → Members: only the owner.
 - **DigitalOcean:** Settings → Security → Two-factor authentication → Enable (or sign in with an MFA-protected
   GitHub/Google account). Check Team members.
-- **Certum / SimplySign:** already a phone code per session; protect the Certum shop account with a strong unique
-  password and MFA if offered.
+- **Certum / SimplySign:** a TOTP code per session (phone app, or the seed stored on the home PC for automatic
+  logins); protect the Certum shop account with a strong unique password and MFA if offered.
+- **GitHub Actions (self-hosted runner):** Settings → Actions → General → fork pull request workflows → **Require
+  approval for all external contributors** (docs/ci-cd-playbook.md, O.1).
 - **Domain registrar** for iskra.foo: turn on 2FA and registrar lock; check auto-renew.
 - **Mailbox** that receives spark@iskra.foo (it can reset everything above): 2FA with a passkey.
 - **KLIPY, Resend (if used), Ko-fi, PayPal:** 2FA in each account's security settings.

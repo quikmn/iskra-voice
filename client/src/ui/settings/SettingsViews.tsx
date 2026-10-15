@@ -18,6 +18,7 @@ import { serverColor } from '../serverColor'
 import { desktop } from '../../platform/desktop'
 import { VoiceSettingsSection } from '../dialogs/VoiceSettings'
 import { HotkeySettingsSection } from '../dialogs/HotkeySettings'
+import { WhisperSettingsSection } from '../whisper/WhisperSettings'
 import { ClipSettingsSection } from '../clips/ClipSettings'
 import { InputSettingsSection, OutputSettingsSection, ProcessingSettingsSection } from '../dialogs/AudioSettings'
 import { DesktopSettingsSection } from '../dialogs/DesktopSettings'
@@ -38,6 +39,7 @@ import { LimitsSection } from './LimitsSection'
 import { BugInboxSection } from './BugInboxSection'
 import { AfkSection } from '../afk/AfkSection'
 import { UpdatesSection } from './UpdatesSection'
+import { TranslateServerSection } from '../translate/TranslateServerSection'
 import { LanguageSection } from './LanguageSection'
 import { RulesSection } from '../rules/Rules'
 import { ImportSection } from './ImportSection'
@@ -261,7 +263,7 @@ function MySection({ id }: { id: MySectionId }) {
     case 'recovery': return <><RecoveryKeySection /><RotateKeySection /><KeyTransparencySection /></>
     case 'security': return <AppLockSection />
     case 'notifications': return <NotificationSettingsSection server={null} />
-    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><CaptionSettingsSection /><SoundboardSettingsSection /></>
+    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><WhisperSettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><CaptionSettingsSection /><SoundboardSettingsSection /></>
     case 'video': return <CameraSettingsSection />
     case 'blocked': return <BlockedSection />
     case 'desktop': return <DesktopSettingsSection />
@@ -339,6 +341,7 @@ function ServerSection({ id, server, onClose }: { id: ServerSectionId; server: S
     case 'backup': return <BackupSection server={server} />
     case 'import': return <ImportSection server={server} />
     case 'updates': return <UpdatesSection server={server} />
+    case 'translate': return <TranslateServerSection server={server} />
   }
 }
 

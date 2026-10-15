@@ -25,6 +25,7 @@ import { ClipButton, ClipsMark, ClipsStrip } from './clips/ClipControls'
 import { setWatchedTile } from '../state/clips'
 import { BackgroundNotice, CaptionsButton, CaptionsOverlay } from './media/CallMedia'
 import { ResumeOffer } from './ResumeOffer'
+import { VideoPopoutButton } from './popout/PopoutButtons'
 import './afk/afk.css'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
@@ -135,6 +136,7 @@ export function VideoTile({ tile, name, big, speaking, onClick }: { tile: Tile; 
       </span>
       {/* The whole tile is the button that puts it in the big spot (a real button, so keyboards and screen readers get it). */}
       {onClick && <button className="tile-focus" onClick={onClick} aria-label={t('voice.stage.showBig', { name: tile.source === 'screen' ? t('voice.stage.screenOf', { name }) : name })} />}
+      <VideoPopoutButton tile={tile} video={ref} />
       <button
         className="icon-button tile-fullscreen"
         aria-label={t('voice.stage.fullScreen')}

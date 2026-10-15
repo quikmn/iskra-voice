@@ -22,6 +22,7 @@ write a secret value here.
 | Signing and release keys (Apple Developer ID p12, Android keystore, CI SSH key) | Secret | `D:\Development_Projects\devkeys` + offline copy; GitHub secrets | Owner |
 | Admin SSH key `~/.ssh/iskrapersonalvoip` | Secret | Owner's PC + offline copy | Owner |
 | Windows code-signing key | Secret | Certum cloud HSM (SimplySign) — not exportable | Owner |
+| SimplySign TOTP seed (when stored) | Secret | Owner's Windows account on the home PC, DPAPI (`%LOCALAPPDATA%\Iskra\simplysign.dat`); never in GitHub | Owner |
 | Security reports, incident log, data-request emails | Confidential | spark@iskra.foo mailbox, private advisories | Owner |
 
 Classification levels: **Public** (anyone), **Internal** (owner and future team), **Confidential** (need-to-know;
@@ -51,7 +52,7 @@ Droplet ports: 22, 80, 443, 7881/tcp, 7882/udp (ufw).
 
 | Device | Use | Required protection |
 |---|---|---|
-| Owner's Windows PC | Development, Windows/Android release builds, admin SSH, `devkeys` | Full-disk encryption (BitLocker), screen lock, automatic updates, MFA-protected accounts |
+| Owner's Windows PC | Development, Windows/Android release builds (also as the Release workflow's self-hosted runner), admin SSH, `devkeys`, the SimplySign seed | Full-disk encryption (BitLocker), screen lock, automatic updates, MFA-protected accounts; the runner runs as the owner without admin rights and listens on no port |
 | Owner's phone | SimplySign codes, authenticator, passkeys | Screen lock, OS updates |
 | Offline backup media (encrypted USB) | Copies of `devkeys`, admin SSH key, recovery codes | Encrypted, stored apart from the PC |
 
@@ -65,7 +66,9 @@ On-device models (versions, hashes and licenses in [voice-processing.md](../../v
 DeepFilterNet3, Silero VAD and the MediaPipe selfie segmenter are bundled in `client/vendor/`; Whisper base (captions)
 is never in git or the apps: each Iskra server fetches it once from Hugging Face at a pinned commit, checked against
 the SHA-256s in `client/src/state/captions/model.json`, into its `models/` folder (`scripts/get-models.mjs` for tests
-and CI).
+and CI). The Bergamot translation engine is bundled in `client/vendor/bergamot`; the translation models (Mozilla's
+Firefox Translations) aren't in git or the apps either: a server whose owner offers translation fetches each one from Mozilla the
+first time a member needs it, checked against `client/src/state/translate/models.json`, into `models/translate/`.
 
 ## Change log
 
@@ -75,3 +78,4 @@ and CI).
 | 2026-10-11 | Push relay (Worker, APNs key, Firebase) and the Capacitor Android app |
 | 2026-10-12 | Push relay retired: the phone apps notify while open. The owner deletes Worker `iskra-push`, `push.iskra.foo` and its secrets |
 | 2026-10-12 | On-device models (bundled, and the captions model each server fetches from Hugging Face) |
+| 2026-10-15 | Bergamot (bundled) and the translation models each server may fetch from Mozilla |

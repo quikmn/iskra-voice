@@ -21,6 +21,7 @@ public sealed class AccountLimits(TimeProvider time)
         ["link.part"] = (300, 20),                 // device-link history parts (they need the link keys), per client address
         ["gif.media"] = (200, 20),                 // GIF media proxy, per client address
         ["captions.model"] = (30, 0.2),            // the captions model's parts (6 a download), per client address
+        ["translate.model"] = (40, 0.5),           // translation models' parts (3-4 a language and direction), per client address
         ["report.create"] = (5, 1 / 120.0),        // 5 at once, then one every 2 minutes
         ["data.export"] = (2, 1 / 600.0),          // "Download my data", whatever the number of connections
         ["scheduled.deliver"] = (10, 2),           // scheduled messages going out: chat.send's burst, so 50 at one time trickle out

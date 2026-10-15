@@ -8,13 +8,26 @@
 }
 .code-wrap:hover .code-copy, .code-copy:focus-visible { opacity: 1; }
 @media (hover: none) { .code-copy { opacity: 1; } }
-.tok-keyword { color: var(--accent); font-weight: 600; }
-.tok-string { color: color-mix(in srgb, var(--green) 85%, var(--text)); }
-.tok-number { color: var(--amber); }
-.tok-literal { color: var(--accent-2); }
-.tok-comment { color: var(--muted); font-style: italic; }
-.tok-added { color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
-.tok-removed { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+/* Code colours come from the theme (theme.ts codeColors: readable at 4.5:1 on --bg in every built-in theme). */
+.tok-keyword, .hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-section, .hljs-type { color: var(--code-keyword, var(--accent)); font-weight: 600; }
+.tok-string, .hljs-string, .hljs-regexp, .hljs-symbol, .hljs-template-tag, .hljs-char { color: var(--code-string, var(--green)); }
+.tok-number, .hljs-number, .hljs-literal, .hljs-bullet { color: var(--code-number, var(--amber)); }
+.tok-literal, .hljs-title, .hljs-name, .hljs-built_in, .hljs-selector-id, .hljs-selector-class, .hljs-attr, .hljs-attribute,
+.hljs-property, .hljs-variable.language_, .hljs-link { color: var(--code-title, var(--accent-2)); }
+.tok-comment, .hljs-comment, .hljs-quote { color: var(--code-comment, var(--muted)); font-style: italic; }
+.hljs-meta, .hljs-params, .hljs-subst, .hljs-template-variable, .hljs-variable { color: var(--code-meta, var(--text-2)); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+.tok-added, .hljs-addition { color: var(--code-string, var(--green)); background: color-mix(in srgb, var(--green) 10%, transparent); }
+.tok-removed, .hljs-deletion { color: var(--code-removed, var(--red)); background: color-mix(in srgb, var(--red) 10%, transparent); }
+
+/* Math (LaTeX through temml, as MathML) */
+.math-inline { display: inline; }
+.math-inline math { font-size: 1.08em; }
+.math-block { margin: 6px 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; padding: 2px 0; white-space: normal; }
+.math-block math { font-size: 1.15em; }
+.math-source { font-size: 0.88em; color: var(--text-2); }
+.math-source.block { display: block; margin: 6px 0; white-space: pre-wrap; }
 
 .md-heading { font-weight: 800; line-height: 1.25; margin: 6px 0 2px; color: var(--text-strong); white-space: normal; }
 .md-h1 { font-size: 1.5em; }

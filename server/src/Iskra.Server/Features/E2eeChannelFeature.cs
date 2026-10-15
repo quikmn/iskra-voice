@@ -329,6 +329,7 @@ public static class E2eeChannelFeature
         if (!e.Members.Contains(me.AccountKey)) throw RequestException.Forbidden("You don't have this channel's key yet.");
         var raw = envelope.GetRawText();
         if (raw.Length > MaxMessageEnvelopeBytes) throw RequestException.BadRequest("Message is too large.", "message_too_large");
+        DisappearFeature.EnvelopeExpires(envelope);
         var header = envelope.TryGetProperty("header", out var h) && h.ValueKind == JsonValueKind.Object ? new Body(h) : throw RequestException.BadRequest("Envelope without a header.");
         if (header.OptionalString("from", 64) != me.AccountKey || header.OptionalLong("version") != version || header.OptionalString("chain", 32) != e.ChainId)
             throw RequestException.BadRequest("The envelope doesn't match this send.");
@@ -368,6 +369,7 @@ public static class E2eeChannelFeature
         }
         store.SaveE2eeMessage(message.Id, sealedMsg.Version, sealedMsg.Envelope);
         if (files.Length > 0) store.LinkDmFiles(message.Id, files);
+        DisappearFeature.Stamp(store, message, sealedMsg.Envelope, files);
         var view = MessageViews.Public(store, message);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = view, nonce }));
         ThreadFeature.Touched(s, channel);

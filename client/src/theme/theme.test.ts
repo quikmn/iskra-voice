@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrast, contrastIssues, effectiveColor, INPUT_BACKGROUNDS, placeholderColor, loadThemeChoice, nameLightness, nameSurfacesOf, readableColor, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
+import { codeColors, contrast, contrastIssues, effectiveColor, INPUT_BACKGROUNDS, placeholderColor, loadThemeChoice, nameLightness, nameSurfacesOf, readableColor, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
 import { BUILT_IN_THEMES } from './themes'
 import type { ThemeFile } from './theme'
 
@@ -248,5 +248,15 @@ describe('contrast warnings for custom themes', () => {
     expect(effectiveColor({ meta: { name: 'x' }, colors: { textNormal: '#123456' } }, 'textHeading')).toBe('#123456')
     expect(contrastIssues({ meta: { name: 'x' }, colors: { accent: '#ffff00' } })).toEqual([])
     expect(contrastIssues({ meta: { name: 'x' }, colors: { accent: '#ffff00', onAccent: '#ffffff' } }).map((i) => i.text)).toEqual(['onAccent'])
+  })
+})
+
+// Syntax colours in code blocks: every one reads at AA on the code background in every built-in look and the default.
+describe('code colours', () => {
+  it.each([...BUILT_IN_THEMES.map(({ id, theme }) => [id, theme] as const), ['default (no theme)', null] as const])('%s reads at AA', (_id, theme) => {
+    const background = theme?.colors.bgDeep ?? '#0b0b14'
+    const colors = codeColors(theme)
+    expect(Object.keys(colors).length).toBeGreaterThanOrEqual(7)
+    for (const [name, color] of Object.entries(colors)) expect(contrast(color, background), `${name} ${color} on ${background}`).toBeGreaterThanOrEqual(4.5)
   })
 })

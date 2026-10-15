@@ -39,11 +39,16 @@ public sealed class RateLimiter(TimeProvider time)
         ["dm.upload.begin"] = (10, 2),
         ["dm.file.url"] = (40, 10),
         ["captions.model.link"] = (10, 1),
+        ["translate.models.link"] = (10, 1),
+        ["translate.configure"] = (10, 1),
         ["gif.search"] = (10, 1),
         ["gif.trending"] = (10, 1),
         ["gif.categories"] = (5, 0.2),
         ["presence.idle"] = (10, 0.5),
         ["voice.idle"] = (10, 0.5),
+        ["whisper.start"] = (10, 2), // every press of a whisper key
+        ["whisper.join"] = (20, 4),
+        ["voice.priority"] = (20, 4), // every press of the priority key
         ["device.revoke.new"] = (10, 10 / 3600.0), // new revocations: 10 an hour, so a thief can't use up the 100 at once
         ["account.rotate"] = (10, 0.2),
         ["update.check"] = (3, 0.05),
@@ -52,6 +57,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["docs.page.create"] = (5, 0.2),
         ["docs.page.save"] = (10, 1),
         ["docs.page.restore"] = (5, 0.2),
+        ["disappear.set"] = (10, 1),
         ["docs.page.move"] = (10, 1),
         ["docs.search"] = (10, 2),
         ["wb.update"] = (20, 8),
@@ -78,6 +84,11 @@ public sealed class RateLimiter(TimeProvider time)
         ["builtin.bots.set"] = (10, 1),
         ["interaction.invoke"] = (5, 2),
         ["interaction.respond"] = (20, 5),
+        ["teams.created"] = (3, 0.1), // checked by TeamsFeature: only splits that go ahead count
+        ["teams.end"] = (5, 0.5),
+        ["lfg.created"] = (3, 1 / 30.0), // checked by LfgFeature: only posts that go ahead count
+        ["lfg.join"] = (10, 1),
+        ["lfg.leave"] = (10, 1),
         ["*"] = (40, 10),
     };
 

@@ -12,6 +12,7 @@ import {
   MUTE_CHOICES, layoutChannels, levelLabel, muteChoiceLabel, muteLabel, notifyKey, stepCategory, stepChannel,
 } from '../../state/organizeLogic'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgMenu'
+import { GameNightItems } from '../teams/TeamsBits'
 
 export type Run = (action: () => Promise<unknown> | void) => () => void
 
@@ -137,6 +138,7 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
               </MenuItem>
             )}
             {channel.kind !== 'forum' && channel.kind !== 'whiteboard' && <NotifyRows server={server} channelId={channel.id} setView={setView} run={run} />}
+            <GameNightItems server={server} channel={channel} onClose={onClose} />
             {isAdmin && (
               <>
                 <div className="org-sep" role="separator" />
