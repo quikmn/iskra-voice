@@ -281,6 +281,7 @@ public class TemplateTests : IDisposable
             }
             """, "everything.json");
         using var world = World.OpenOrCreate(_path);
+        world.UpdateSettings(w => w with { BugInbox = new BugInboxConfig { Accept = true } });
         Assert.Equal(ServerTemplates.Outcome.Applied, ServerTemplates.Apply(world, template, "everything.json", 1000));
         var store = world.Store;
         var channels = store.AllChannels().ToDictionary(c => c.Name);
@@ -342,7 +343,7 @@ public class TemplateTests : IDisposable
     [Fact]
     public async Task Save_as_template_round_trips_and_never_includes_members_messages_or_secrets()
     {
-        using var server = new IskraServer { Settings = { ["Template"] = "tabletop" } };
+        using var server = new IskraServer { AcceptBugReports = true, Settings = { ["Template"] = "tabletop" } };
         using var owner = await server.JoinAsync("Owner", "owner");
         using var admin = await server.JoinAsync("Admin", "admin");
         using var member = await server.JoinAsync("Member");
@@ -379,6 +380,7 @@ public class TemplateTests : IDisposable
 
         // And it starts a new server that looks the same.
         using var world = World.OpenOrCreate(Path.Combine(_path, "copy"));
+        world.UpdateSettings(w => w with { BugInbox = new BugInboxConfig { Accept = true } });
         Assert.Equal(ServerTemplates.Outcome.Applied, ServerTemplates.Apply(world, template, "export.json", 1000));
         Assert.Equal(server.World.Store.AllChannels().Select(c => (c.Name, c.Kind, c.ReadRole, c.WriteRole, c.Overrides.Length)).Order(),
             world.Store.AllChannels().Select(c => (c.Name, c.Kind, c.ReadRole, c.WriteRole, c.Overrides.Length)).Order());

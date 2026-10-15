@@ -582,7 +582,11 @@ public static partial class ServerTemplates
                 });
             foreach (var bot in settings.BuiltinBots)
                 BuiltinBotFeature.Enable(store, BuiltinBotFeature.Bots.First(k => k.Id == bot), "", now);
-            if (settings.BugInbox is { } inbox && channelIds.TryGetValue(inbox, out var inboxId)) store.SetBugInbox(true, inboxId);
+            if (settings.BugInbox is { } inbox)
+            {
+                if (!world.Settings.BugInbox.Accept) Console.WriteLine($"Template: {BugInboxSkipped(inbox)}");
+                else if (channelIds.TryGetValue(inbox, out var inboxId)) store.SetBugInbox(true, inboxId);
+            }
             if (settings.Translation) world.UpdateSettings(w => w with { Translate = w.Translate with { Offer = true } });
         }
 
@@ -605,6 +609,10 @@ public static partial class ServerTemplates
     /// template only when it's still needed, so a template file removed after setup never stops the server.
     /// Throws <see cref="TemplateException"/> for a template that can't be used.
     /// </summary>
+    /// <summary>Why a template's bug inbox isn't turned on: only the server that receives Iskra's bug reports has one.</summary>
+    public static string BugInboxSkipped(string channel) =>
+        $"(skipped) bug inbox in {channel}: this server doesn't take bug reports (server.json BugInbox.Accept is off)";
+
     public static Outcome ApplyOnStart(World world, string nameOrPath, long now)
     {
         if (world.Store.AppliedTemplate() is not null) return Outcome.AlreadyApplied;

@@ -7,7 +7,7 @@ import { createInviteLink, joinVia, openServerSettings, send, SHOTS, startServer
 
 let server: TestServer
 test.beforeAll(async () => {
-  server = await startServer('Bug HQ')
+  server = await startServer('Bug HQ', false, {}, { BugInbox: { Accept: true } })
 })
 test.afterAll(async () => server?.stop())
 

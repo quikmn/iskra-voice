@@ -67,11 +67,12 @@ export function mySections(desktopApp = false): SectionInfo<MySectionId>[] {
 
 /**
  * One server's settings for you: by level, or by a permission a custom role gives. Empty without a membership or
- * without any admin rights (then there's no Server settings at all). The server still checks every request.
+ * without any admin rights (then there's no Server settings at all). `bugInbox`: the server takes bug reports (welcome). The server still checks every request.
  */
-export function serverSections(role: Role | null | undefined, can: (perm: Permission) => boolean = () => false): ServerSectionInfo[] {
+export function serverSections(role: Role | null | undefined, can: (perm: Permission) => boolean = () => false, bugInbox = false): ServerSectionInfo[] {
   if (!role) return []
   return SERVER
+    .filter((s) => s.id !== 'bugInbox' || bugInbox) // only on the server that takes Iskra's bug reports
     .filter((s) => roleRank(role) >= roleRank(s.min) || s.perms?.some(can))
     .map(({ id, group }) => ({ id, group, label: t(`settings.sections.${id}`) }))
 }

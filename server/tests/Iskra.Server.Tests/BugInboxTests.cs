@@ -50,9 +50,40 @@ public class BugInboxTests
     }
 
     [Fact]
-    public async Task Only_the_owner_turns_it_on_and_it_needs_a_text_channel()
+    public async Task Off_by_default_the_endpoint_is_a_404_and_the_settings_are_refused()
     {
         using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        Assert.False(owner.Welcome.Body().GetProperty("server").GetProperty("bugInbox").GetBoolean());
+
+        var post = await Post(server, Report(), origin: "https://app.iskra.foo");
+        Assert.Equal(HttpStatusCode.NotFound, post.StatusCode);
+        Assert.Equal("", await post.Content.ReadAsStringAsync());
+        Assert.False(post.Headers.Contains("Access-Control-Allow-Origin"));
+
+        var preflight = new HttpRequestMessage(HttpMethod.Options, "/bug-reports");
+        preflight.Headers.Add("Origin", "https://app.iskra.foo");
+        var options = await server.CreateClient().SendAsync(preflight);
+        Assert.Equal(HttpStatusCode.NotFound, options.StatusCode);
+        Assert.False(options.Headers.Contains("Access-Control-Allow-Origin"));
+
+        Assert.Equal("bug_inbox_off", (await owner.RequestAsync("buginbox.get")).Body().GetProperty("key").GetString());
+        Assert.Equal("bug_inbox_off", (await owner.RequestAsync("buginbox.set", new { enabled = true, channelId = server.General })).Body().GetProperty("key").GetString());
+        Assert.False(server.World.Store.GetBugInbox().Enabled);
+    }
+
+    [Fact]
+    public async Task Accepting_servers_say_so_in_the_welcome()
+    {
+        using var server = new IskraServer { AcceptBugReports = true };
+        using var owner = await server.JoinAsync("Owner", "owner");
+        Assert.True(owner.Welcome.Body().GetProperty("server").GetProperty("bugInbox").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Only_the_owner_turns_it_on_and_it_needs_a_text_channel()
+    {
+        using var server = new IskraServer { AcceptBugReports = true };
         using var owner = await server.JoinAsync("Owner", "owner");
         using var admin = await server.JoinAsync("Admin", "admin");
 
@@ -86,7 +117,7 @@ public class BugInboxTests
     [Fact]
     public async Task Off_means_404()
     {
-        using var server = new IskraServer();
+        using var server = new IskraServer { AcceptBugReports = true };
         using var response = await Post(server, Report());
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -94,7 +125,7 @@ public class BugInboxTests
     [Fact]
     public async Task A_report_lands_in_the_chosen_channel_with_its_images_and_logs()
     {
-        using var server = new IskraServer();
+        using var server = new IskraServer { AcceptBugReports = true };
         using var owner = await server.JoinAsync("Owner", "owner");
         using var member = await server.JoinAsync("Member");
         var channel = await PrivateChannel(owner);
@@ -156,7 +187,7 @@ public class BugInboxTests
     [InlineData("{\"what\":\"x\",\"env\":{\"version\":\"1\",\"commit\":\"dev\",\"os\":\"Linux\",\"device\":\"web\"},\"images\":[{\"type\":\"image/png\",\"data\":\"PGh0bWw+PC9odG1sPg==\"}]}")]
     public async Task Bad_reports_are_refused(string body)
     {
-        using var server = new IskraServer();
+        using var server = new IskraServer { AcceptBugReports = true };
         using var owner = await server.JoinAsync("Owner", "owner");
         await TurnOn(owner, server.General);
         using var response = await PostRaw(server, body);
@@ -167,7 +198,7 @@ public class BugInboxTests
     [Fact]
     public async Task Size_limits()
     {
-        using var server = new IskraServer();
+        using var server = new IskraServer { AcceptBugReports = true };
         using var owner = await server.JoinAsync("Owner", "owner");
         await TurnOn(owner, server.General);
         server.Services.GetRequiredService<BugInbox>().PerAddressPerHour = 100;
@@ -191,7 +222,7 @@ public class BugInboxTests
     [Fact]
     public async Task Rate_limited_per_address_and_for_everyone()
     {
-        using var server = new IskraServer();
+        using var server = new IskraServer { AcceptBugReports = true };
         using var owner = await server.JoinAsync("Owner", "owner");
         await TurnOn(owner, server.General);
         var inbox = server.Services.GetRequiredService<BugInbox>();
@@ -223,7 +254,7 @@ public class BugInboxTests
     [Fact]
     public async Task The_senders_address_is_never_stored()
     {
-        using var server = new IskraServer();
+        using var server = new IskraServer { AcceptBugReports = true };
         using var owner = await server.JoinAsync("Owner", "owner");
         await TurnOn(owner, server.General);
         const string ip = "203.0.113.77";
@@ -253,7 +284,7 @@ public class BugInboxTests
     [Fact]
     public async Task Reports_are_deleted_after_a_year()
     {
-        using var server = new IskraServer();
+        using var server = new IskraServer { AcceptBugReports = true };
         using var owner = await server.JoinAsync("Owner", "owner");
         await TurnOn(owner, server.General);
         using (var r = await Post(server, Report("old bug"))) Assert.Equal(HttpStatusCode.Created, r.StatusCode);
@@ -272,7 +303,7 @@ public class BugInboxTests
     [Fact]
     public async Task The_phone_apps_preflight_and_send_from_their_own_origins()
     {
-        using var server = new IskraServer();
+        using var server = new IskraServer { AcceptBugReports = true };
         using var owner = await server.JoinAsync("Owner", "owner");
         await TurnOn(owner, await PrivateChannel(owner));
 

@@ -29,9 +29,15 @@ describe('server settings', () => {
     expect(ids('owner')).toEqual([
       'overview', 'channels', 'serverVoice', 'emoji', 'gifs', 'sounds', 'pages', 'rules', 'translate',
       'members', 'roles', 'reports', 'automod', 'audit', 'securityLog',
-      'integrations', 'bugInbox',
+      'integrations',
       'internet', 'limits', 'backup', 'import', 'updates',
     ])
+  })
+
+  it('shows the Bug inbox only on a server that takes bug reports', () => {
+    expect(ids('owner')).not.toContain('bugInbox')
+    expect(serverSections('owner', () => false, true).map((s) => s.id)).toContain('bugInbox')
+    expect(serverSections('admin', () => false, true).map((s) => s.id)).not.toContain('bugInbox') // owner only
   })
 
   it('opens sections for the permissions a custom role gives', () => {
@@ -45,7 +51,7 @@ describe('server settings', () => {
     const groups = serverSections('owner').map((s) => `${s.group}:${s.id}`)
     expect(groups.filter((g) => g.startsWith('server:'))).toEqual(['server:overview', 'server:channels', 'server:serverVoice', 'server:emoji', 'server:gifs', 'server:sounds', 'server:pages', 'server:rules', 'server:translate'])
     expect(groups.filter((g) => g.startsWith('safety:'))).toEqual(['safety:members', 'safety:roles', 'safety:reports', 'safety:automod', 'safety:audit', 'safety:securityLog'])
-    expect(groups.filter((g) => g.startsWith('apps:'))).toEqual(['apps:integrations', 'apps:bugInbox'])
+    expect(groups.filter((g) => g.startsWith('apps:'))).toEqual(['apps:integrations'])
     expect(groups.filter((g) => g.startsWith('hosting:'))).toEqual(['hosting:internet', 'hosting:limits', 'hosting:backup', 'hosting:import', 'hosting:updates'])
   })
 

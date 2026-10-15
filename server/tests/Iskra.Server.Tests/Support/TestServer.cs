@@ -27,6 +27,9 @@ public sealed class IskraServer : WebApplicationFactory<Program>
     /// <summary>Extra configuration, e.g. ["Link:TtlMs"] = "300".</summary>
     public Dictionary<string, string> Settings { get; init; } = [];
 
+    /// <summary>server.json BugInbox.Accept: this server is the one that receives Iskra's bug reports.</summary>
+    public bool AcceptBugReports { get; init; }
+
     public World World => Services.GetRequiredService<World>();
 
     /// <summary>Stands in for the router (internet hosting); null keeps the real one, which only runs when hosting is on.</summary>
@@ -52,6 +55,11 @@ public sealed class IskraServer : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        if (AcceptBugReports)
+        {
+            Directory.CreateDirectory(WorldPath);
+            File.WriteAllText(Path.Combine(WorldPath, "server.json"), """{ "BugInbox": { "Accept": true } }""");
+        }
         builder.UseSetting("World", WorldPath);
         builder.UseSetting("Session:AuthTimeoutMs", AuthTimeoutMs.ToString());
         builder.UseSetting("Session:CloseGraceMs", "200");

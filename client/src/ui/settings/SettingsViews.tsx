@@ -8,6 +8,7 @@ import { b64u } from '../../core/crypto'
 import { fingerprint } from '../../core/connection'
 import { useApp, type ServerState } from '../../state/store'
 import { useP2p } from '../../state/p2p'
+import { useBugInbox } from '../../state/bugInbox'
 import { useServerRoles } from '../../state/roles'
 import { has } from '../../state/permissions'
 import { useReports } from '../../state/reports'
@@ -281,7 +282,8 @@ export function ServerSettings({ serverKey, section, onClose }: { serverKey: str
   const roles = useServerRoles(serverKey)
   const reports = useReports((s) => s.open[serverKey] ?? 0)
   const me = server?.me
-  const sections = serverSections(me?.role, (perm) => has(me, roles, perm))
+  const bugInbox = useBugInbox((s) => !!s.accepts[serverKey])
+  const sections = serverSections(me?.role, (perm) => has(me, roles, perm), bugInbox)
   const gone = !server || sections.length === 0
   // Pinned to this server: if it goes away (left, removed, rights taken), the room closes.
   useEffect(() => {

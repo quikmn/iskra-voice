@@ -84,6 +84,8 @@ export interface Welcome {
   you: Member
   server: {
     name: string; key: string; appUrl: string; publicUrl?: string | null; profilePages?: boolean; moved?: MoveNotice | null
+    /** server.json BugInbox.Accept: only the server that receives Iskra's bug reports (Server settings → Bug inbox). */
+    bugInbox?: boolean
     /** The p2p secret members put in invite links while friends may connect without port forwarding (see "p2p" below). */
     p2p?: string | null
   }

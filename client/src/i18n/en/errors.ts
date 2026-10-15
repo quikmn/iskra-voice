@@ -102,6 +102,7 @@ export const errors = {
     backup_copy_passphrase: "Choose a passphrase of at least {{min}} characters for the backup copies: they're encrypted with it.",
     owner_limits: "Only the owner can change this server's limits.",
     owner_bug_inbox: 'Only the owner can change the bug inbox.',
+    bug_inbox_off: "This server doesn't take bug reports.",
     bug_inbox_channel: 'Pick a channel for bug reports first.',
     bug_inbox_text_only: 'Bug reports can only go to a text channel.',
     owner_export: "Only the owner can export someone else's data.",
