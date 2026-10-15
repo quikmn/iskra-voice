@@ -195,7 +195,8 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
   }
 }
 
-export async function joinVia(page: Page, link: string, name: string) {
+/** Joins with an invite link as someone new; `landing` is the channel the server opens first (a template's first text channel). */
+export async function joinVia(page: Page, link: string, name: string, landing = 'general') {
   const file = currentFile()
   if (file && !opened.some((o) => o.context === page.context())) opened.push({ context: page.context(), file })
   await page.goto(link)
@@ -204,7 +205,7 @@ export async function joinVia(page: Page, link: string, name: string) {
   await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
   await page.getByLabel('Your name').fill(name)
   await page.getByRole('button', { name: 'Join' }).click()
-  await expect(page.getByRole('heading', { name: 'general' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('heading', { name: landing, exact: true })).toBeVisible({ timeout: 15_000 })
 }
 
 /**

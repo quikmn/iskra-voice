@@ -10,6 +10,7 @@ import { EncryptionButton, LockBadge } from '../e2ee/E2ee'
 import { useBoardAbilities } from './abilities'
 import { BoardIcon } from './icons'
 import { Whiteboard } from './Whiteboard'
+import { ChannelTopic } from '../chat/ChannelTopic'
 
 const NO_VIEWERS: string[] = []
 
@@ -47,6 +48,7 @@ export function WhiteboardView({ server, channel, onToggle }: { server: ServerSt
           <Users />
         </button>
       </header>
+      <ChannelTopic channel={channel} />
       {blocked && channel.e2ee && <p className="wb-note muted small-text">{blocked}</p>}
       <Whiteboard key={channel.id} server={server} channel={channel} canDraw={canDraw} canClear={canClear} />
     </div>

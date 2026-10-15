@@ -26,6 +26,7 @@ import { setWatchedTile } from '../state/clips'
 import { BackgroundNotice, CaptionsButton, CaptionsOverlay } from './media/CallMedia'
 import { ResumeOffer } from './ResumeOffer'
 import { VideoPopoutButton } from './popout/PopoutButtons'
+import { ChannelTopic } from './chat/ChannelTopic'
 import './afk/afk.css'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
@@ -64,6 +65,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
           <Users />
         </button>
       </header>
+      <ChannelTopic channel={channel} />
 
       <div className={`stage-body ${focused || party || boardShown ? 'has-focus' : ''}`}>
         {channel && <WatchPartyPanel server={server} channel={channel} />}

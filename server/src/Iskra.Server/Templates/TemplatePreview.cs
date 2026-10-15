@@ -25,6 +25,7 @@ public static partial class ServerTemplates
             limits = s.Limits is not null,
             builtinBots = s.BuiltinBots,
             bugInbox = s.BugInbox,
+            translation = s.Translation,
         } : null,
     };
 
@@ -39,5 +40,9 @@ public static partial class ServerTemplates
         slowmode = c.Slowmode,
         overrides = c.Overrides.Select(o => new { role = o.Role, allow = o.Allow, deny = o.Deny }),
         tags = c.Tags.Select(tag => tag.Name),
+        topic = c.Topic,
+        messages = c.Messages.Length,
+        pages = c.Pages.Select(p => p.Title),
+        disappear = c.Disappear,
     };
 }

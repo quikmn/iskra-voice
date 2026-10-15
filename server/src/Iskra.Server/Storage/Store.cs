@@ -332,6 +332,7 @@ public sealed partial class Store : IDisposable
         ("lfg-1", LfgMigration),
         ("disappearing-1", DisappearMigration),
         ("whiteboard-1", WhiteboardMigration),
+        ("topics-1", TopicsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

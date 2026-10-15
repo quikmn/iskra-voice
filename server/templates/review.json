@@ -1,92 +1,135 @@
 {
-  // The Iskra Review server: room for app reviewers and testers to try everything without sitting on top of each other.
-  // Add it to a running world with: iskra-server templates apply <world> review.json (dry run), then --apply.
-  "version": 2,
+  // The Iskra Review server (chat.iskra.foo:8443): where testers and app reviewers try everything, with a short guide
+  // inside the server itself. Add it to the world with the server stopped:
+  //   iskra-server templates apply <world> review.json            (dry run: shows what it would add)
+  //   iskra-server templates apply <world> review.json --apply
+  // Only adds what's missing (channels, topics, the welcome messages and guide pages once), so running it again is safe.
+  // Make the testers' invite a "Trusted" one: Trusted here can split voice channels into teams, but can't @everyone.
+  "version": 3,
   "name": "Iskra Review",
-  "description": "Lots of channels to try every feature: chat, threads, forums, docs, stage, voice, hi-fi and watch parties.",
+  "description": "A place to try everything in Iskra, with a short guide: chat, voice, forums, docs, stages and more.",
   "categories": [
     {
       "name": "Start here",
       "channels": [
-        { "name": "welcome", "writeRole": "admin" },
-        { "name": "rules", "writeRole": "admin" },
-        { "name": "announcements", "writeRole": "admin", "overrides": [{ "role": "Moderator", "allow": ["send"] }] },
-        { "name": "introductions", "slowmode": 10 }
+        {
+          "name": "welcome", "writeRole": "admin",
+          "topic": "👋 Start here: read the two pinned messages, then open the testing-guide.",
+          "messages": [
+            {
+              "pin": true,
+              "text": "# 👋 Welcome to Iskra Review\nThanks for testing Iskra! This server is a playground. Try anything, tap every button, and tell us what breaks. You can't break anything important here.\n\n**Start in 5 steps**\n1. Say hi in **#introductions**: your first name and your phone (like \"Ana, Pixel 7\").\n2. Open **testing-guide** and do the 10-minute tour.\n3. Join the **Hangout** voice channel and talk to someone.\n4. Come back each day and try one new thing from the guide.\n5. Something wrong? Report it in the app (see the next message).\n\nEach channel has a topic at the top that says what to try there."
+            },
+            {
+              "pin": true,
+              "text": "## 🐞 Found a bug? Report it in the app\n1. Tap **your name** at the bottom of the channel list. On a computer you can also press **Ctrl+Shift+B**.\n2. Choose **Report a bug**.\n3. Write what happened and what you expected. Add a screenshot if you can.\n4. Tap **Send**. You get a report number.\n\nThe report goes straight to the Iskra team. It has your words, your screenshots and some technical details (app version, system, connection and voice status). Never your messages, names or contacts. Tap **See what's included** to check before you send.\n\nIdeas, questions or something confusing? Post it in **#feedback**."
+            }
+          ]
+        },
+        {
+          "name": "announcements", "writeRole": "admin", "overrides": [{ "role": "Moderator", "allow": ["send"] }],
+          "topic": "📣 News from the Iskra team: new test versions and what to try next. Only the team posts here."
+        },
+        {
+          "name": "introductions", "slowmode": 10,
+          "topic": "Say hi: your first name, your phone, and a game or hobby you like. Try reacting to someone's hello."
+        },
+        {
+          "name": "testing-guide", "kind": "docs", "writeRole": "admin",
+          "topic": "The testing guide: a 10-minute tour, how to report bugs, and what not to worry about.",
+          "pages": [
+            {
+              "title": "How to test",
+              "startHere": true,
+              "text": "Thanks for testing! This tour takes about 10 minutes. Do the steps in any order: each takes a minute or two. If something doesn't work, or you don't understand it, that's a useful bug report too.\n\n## 1. Chat (#general)\n- Send a message. Then **long-press** it (on a computer: hover it) and **edit** it.\n- Long-press someone's message and choose **Reply**. React to another one with an emoji.\n- Type **@** and pick someone's name to mention them.\n\n## 2. Voice (Hangout)\n- Tap **Hangout** to join. Allow the microphone when your phone asks.\n- Try **mute** and **deafen** in the call bar. Tap someone's name to change how loud they are.\n- Lock your phone for a minute. You should stay in voice and still hear people.\n\n## 3. Whisper (Lounge 1, 2 or 3)\n- Open **Settings → Voice & audio → Whisper** and put a friend on list 1.\n- In voice, **hold** the whisper button in the call bar. Only the people on your list hear you.\n\n## 4. Teams and looking for group\n- With two or more people in **Game night**, long-press the channel and choose **Split into teams…**. Then bring everyone back.\n- In **#gaming**, type **/lfg 3 Minecraft** and send it. Others tap **Join**. Everyone gets a ping when the group is full.\n\n## 5. Disappearing messages (#disappearing)\n- Send a message in **#disappearing**. It's gone after an hour, for everyone.\n- In a direct message, tap the **timer** at the top and choose **5 minutes**.\n\n## 6. Translation (#your-language)\n- Write something in your own language in **#your-language**.\n- Long-press a message in another language and choose **Translate**. It runs on your phone: the message never goes to a translation service. The first time, the app downloads that language once (Wi-Fi is best).\n- It works between English and Danish, Dutch, Finnish, French, German, Italian, Norwegian, Polish, Portuguese, Spanish, Swedish and Ukrainian. More languages come later.\n\n## 7. Polls and threads\n- In **#polls**, tap the poll button next to the message box, or type **/poll Pizza or tacos? | Pizza | Tacos**.\n- In **#threads**, long-press a message and choose **Start a thread**. Reply inside it.\n\n## 8. Forums, docs and events\n- In **#feedback**, make a post with a title and a tag.\n- Tap **Events** at the top of the channel list. Say you're interested in an event, or plan one.\n- You're reading a docs channel right now: pages anyone on the server can read.\n\n## 9. Whiteboard and watch together\n- Open **#whiteboard** under Try things and draw something. Others see it as you draw.\n- In a voice channel, open a **whiteboard** from the call bar and draw with someone.\n- In **Watch party**, tap **Watch together** and paste a YouTube link. Everyone sees the same moment.\n\n## 10. Private chats and encrypted channels\n- Tap someone's name and choose **Message**. Direct messages are end-to-end encrypted: only the two of you can read them.\n- A channel with a **lock** is end-to-end encrypted too. Even the server can't read it.\n\n## More to try\n- **Stage**: join **town-hall** and tap **Ask to speak**.\n- **Voice messages**: hold the microphone button next to the message box.\n- **Your profile**: tap your name, then **Edit profile**. Add a picture and a few words about you.\n- **Themes**: Settings → Appearance.\n- **Language**: Settings → Language.\n- **Notifications**: Settings → Notifications. On a phone they arrive while the app is open.\n\nFound a bug? See **Reporting bugs**."
+            },
+            {
+              "title": "Reporting bugs",
+              "text": "The fastest way is right inside the app.\n\n## How\n1. Tap **your name** at the bottom of the channel list. On a computer you can press **Ctrl+Shift+B** instead. (It's also in **Settings → About & legal**.)\n2. Choose **Report a bug**.\n3. Fill in **What happened?** Short is fine.\n4. Add **steps** if you can: what you tapped, in order.\n5. Add a **screenshot**: take one on your phone, then tap **Add pictures**.\n6. Tap **Send**. You get a report number like ABCD-2345.\n\n## What gets sent\n- What you wrote, and your screenshots.\n- The app version, your system (like Android 15) and the app's language.\n- Technical logs from the last 30 minutes: settings, connection and voice status, errors.\n- Your email, only if you type it in (then we can answer you).\n\nNever your messages, names, servers, invite links or addresses. Tap **See what's included** to see exactly what will be sent.\n\n## A good report\n- One problem per report.\n- What you expected, and what happened instead.\n- Does it happen every time? Say so.\n\nIdeas and questions are welcome too: post them in **#feedback**."
+            },
+            {
+              "title": "Good to know",
+              "text": "## Don't worry about\n- **Updates.** New test versions arrive by themselves through Google Play or TestFlight.\n- **A short \"Reconnecting…\".** It happens when your phone changes network or wakes up. Report it only if it doesn't go away.\n- **Notifications while the app is closed.** The phone apps notify you while they're open. That's on purpose for now.\n- **Screen sharing and starting your own server.** These are in the desktop app, not on phones.\n- **Breaking things.** This is a test server. Messages and channels may be reset.\n- **Your English.** Write in any language you like. Short and simple is perfect.\n\n## Your privacy\n- Your account is a key stored on your phone. No email, no phone number, no password.\n- This server is run by the Iskra team. Don't post private things here, like your address or phone number.\n- Bug reports go only to the Iskra team. You can stay anonymous: the email field is optional.\n\nMore: https://iskra.foo/privacy"
+            }
+          ]
+        }
       ]
     },
     {
       "name": "Chat",
       "channels": [
-        { "name": "general" },
-        { "name": "off-topic" },
-        { "name": "memes" },
-        { "name": "gaming" },
-        { "name": "music" },
-        { "name": "pets" },
-        { "name": "food-and-drinks" },
-        { "name": "screenshots-and-clips" }
+        { "name": "general", "topic": "Talk about anything. Try replies, reactions, @mentions, and editing your own messages." },
+        { "name": "gaming", "topic": "Games you play. Try /lfg 3 Minecraft to find people, or Looking for group… in the channel menu." },
+        { "name": "your-language", "topic": "🌍 Write in your own language! Long-press a message and choose Translate. It runs on your phone (English and 12 European languages so far)." },
+        { "name": "memes-and-gifs", "topic": "Funny stuff. Try the GIF button, emoji, stickers, and voice messages (hold the mic button)." },
+        { "name": "photos-and-files", "topic": "Share pictures, videos and files (nothing private). Try several at once, and tap one to open it." }
       ]
     },
     {
       "name": "Try things",
       "channels": [
-        { "name": "polls-and-reactions" },
-        { "name": "threads-playground" },
-        { "name": "files-and-images" },
-        { "name": "gifs-and-stickers" },
-        { "name": "bots-playground" },
-        { "name": "slow-chat", "slowmode": 30 }
+        { "name": "polls", "topic": "📊 Make a poll with the poll button next to the message box, or /poll Question | Answer | Answer. Vote!" },
+        { "name": "threads", "topic": "🧵 Long-press a message and choose Start a thread. Reply inside the thread." },
+        { "name": "disappearing", "disappear": 3600, "topic": "⏳ Messages here disappear after 1 hour, for everyone. Watch the timer on each message." },
+        { "name": "bots", "topic": "🎲 Built-in bots: /roll 2d6 rolls dice, /remind me in 10m stretch reminds you later." },
+        { "name": "whiteboard", "kind": "whiteboard", "topic": "🎨 A shared whiteboard: draw, write and add sticky notes together. Everyone here sees it live." }
       ]
     },
     {
-      "name": "Forums and docs",
+      "name": "Feedback",
       "channels": [
         {
-          "name": "feature-ideas", "kind": "forum",
-          "tags": [{ "name": "Chat", "emoji": "💬" }, { "name": "Voice", "emoji": "🎙️" }, { "name": "Phone", "emoji": "📱" }, { "name": "Desktop", "emoji": "🖥️" }]
-        },
-        {
-          "name": "help-and-questions", "kind": "forum",
-          "tags": [{ "name": "Question", "emoji": "❓" }, { "name": "Bug", "emoji": "🐛" }, { "name": "Solved", "emoji": "✅" }]
-        },
-        { "name": "guide", "kind": "docs" }
+          "name": "feedback", "kind": "forum",
+          "topic": "Ideas, questions, and anything confusing. One post per topic. For bugs, use Report a bug in the app.",
+          "tags": [
+            { "name": "Idea", "emoji": "💡" },
+            { "name": "Question", "emoji": "❓" },
+            { "name": "Confusing", "emoji": "😕" },
+            { "name": "Love it", "emoji": "❤️" },
+            { "name": "Phone", "emoji": "📱" },
+            { "name": "Desktop", "emoji": "🖥️" },
+            { "name": "Done", "emoji": "✅" }
+          ]
+        }
       ]
     },
     {
       "name": "Stage",
       "channels": [
-        { "name": "town-hall", "kind": "stage" }
+        { "name": "town-hall", "kind": "stage", "topic": "A stage: speakers talk, everyone else listens. Tap Ask to speak to raise your hand." }
       ]
     },
     {
       "name": "Voice",
       "channels": [
-        { "name": "Hangout", "kind": "voice" },
-        { "name": "Quiet corner", "kind": "voice", "userLimit": 4 },
-        { "name": "Lounge 1", "kind": "voice" },
-        { "name": "Lounge 2", "kind": "voice" },
-        { "name": "Lounge 3", "kind": "voice" },
-        { "name": "Lounge 4", "kind": "voice" },
-        { "name": "Lounge 5", "kind": "voice" },
-        { "name": "Lounge 6", "kind": "voice" },
-        { "name": "Duo 1", "kind": "voice", "userLimit": 2 },
-        { "name": "Duo 2", "kind": "voice", "userLimit": 2 },
-        { "name": "Duo 3", "kind": "voice", "userLimit": 2 },
-        { "name": "Squad 1", "kind": "voice", "userLimit": 5 },
-        { "name": "Squad 2", "kind": "voice", "userLimit": 5 },
-        { "name": "Squad 3", "kind": "voice", "userLimit": 5 },
-        { "name": "Music lounge", "kind": "voice", "hifi": true },
-        { "name": "Watch party", "kind": "voice" },
-        { "name": "AFK", "kind": "voice" }
+        { "name": "Hangout", "kind": "voice", "topic": "Just talk. Try mute, deafen, and changing someone's volume (tap their name)." },
+        { "name": "Game night", "kind": "voice", "topic": "With 2 or more people here: long-press the channel → Split into teams…, then bring everyone back." },
+        { "name": "Lounge 1", "kind": "voice", "topic": "Talk. Try whisper: hold the whisper button to talk only to your list (Settings → Voice & audio)." },
+        { "name": "Lounge 2", "kind": "voice", "topic": "Talk. Try whispering to another voice channel, or open a whiteboard and draw together." },
+        { "name": "Lounge 3", "kind": "voice", "topic": "Talk. Try your camera, and noise suppression in Settings → Voice & audio." },
+        { "name": "Duo", "kind": "voice", "userLimit": 2, "topic": "Room for 2. A third person sees it's full." },
+        { "name": "Music lounge", "kind": "voice", "hifi": true, "topic": "Hi-fi audio for music: turn it on in Settings → Voice & audio." },
+        { "name": "Watch party", "kind": "voice", "topic": "Tap Watch together in the call bar and paste a YouTube link. Everyone sees the same moment." },
+        { "name": "AFK", "kind": "voice", "topic": "Quiet room: people idle in voice for 30 minutes are moved here." }
       ]
     }
   ],
   "roles": [
-    { "name": "Moderator", "color": "#3fa66b", "hoist": true, "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] }
+    { "name": "Moderator", "color": "#3fa66b", "hoist": true, "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog", "prioritySpeaker"] }
   ],
+  "builtinRoles": {
+    // Testers join as Trusted: everyday powers plus moving people (Split into teams), but no @everyone.
+    "trusted": { "color": "#4f9cf9", "abilities": ["invite", "events", "whisper", "pin", "uploadSounds"], "permissions": ["moveMembers"] }
+  },
+  "rules": {
+    "required": true,
+    "welcome": "Welcome to Iskra Review! Thanks for helping us test. Please read these five rules, then start in #welcome.",
+    "text": "1. **Be kind.** Everyone here is testing, often in their second language. Be patient and friendly.\n2. **This is a test server.** Things can break, and messages and channels may be reset. Don't keep anything important here.\n3. **No personal data.** Don't post phone numbers, addresses, passwords or anything private, here or in screenshots.\n4. **Keep it clean.** No hate, harassment, spam or adult content. The community guidelines apply: https://iskra.foo/terms#guidelines\n5. **Report bugs in the app.** Tap your name at the bottom of the channel list, then Report a bug."
+  },
   "afk": { "channel": "AFK", "minutes": 30, "canTalk": ["owner", "admin"] },
   "settings": {
     "notifyDefault": "mentions",
-    "builtinBots": ["dice", "polls", "reminders"]
+    "builtinBots": ["dice", "polls", "reminders"],
+    "translation": true
   }
 }

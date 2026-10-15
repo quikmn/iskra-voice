@@ -21,6 +21,7 @@ import { PageEditor } from './PageEditor'
 import { HistoryDialog, PageMenu, type MenuAnchor } from './DocDialogs'
 import './docs.css'
 import { stripMarkdownPieces } from '../plainMarkdown'
+import { ChannelTopic } from '../chat/ChannelTopic'
 
 const NO_PAGES: DocPage[] = []
 
@@ -70,6 +71,7 @@ export function DocsView({ server, channel, onToggle }: { server: ServerState; c
           <Users />
         </button>
       </header>
+      {!showingPage && <ChannelTopic channel={channel} />}
 
       <div className="docs-body">
         {!noPages && <PageTree server={server} channel={channel} pages={pages} openId={openId} canEdit={can.edit} loading={loading} />}
@@ -204,7 +206,7 @@ function Overview({ server, channel, pages, canEdit }: { server: ServerState; ch
   const { t } = useTranslation()
   const tree = useMemo(() => pageTree(pages), [pages])
   const recent = useMemo(() => [...pages].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5), [pages])
-  const name = (k: string) => server.members[k]?.name ?? t('docs.someone')
+  const name = (k: string) => server.members[k]?.name ?? (k.startsWith('webhook:') ? server.name : t('docs.someone'))
 
   if (pages.length === 0) {
     return (
@@ -278,7 +280,7 @@ function PageReader({ server, channel, page, pages, can }: {
   const text = (current ?? full)?.text ?? ''
   const headings = useMemo(() => docHeadings(text), [text])
   const rendered = useMemo(() => renderDoc(text, ctx), [text, ctx.serverUrl, server.members]) // eslint-disable-line react-hooks/exhaustive-deps
-  const name = (k: string) => server.members[k]?.name ?? t('docs.someone')
+  const name = (k: string) => server.members[k]?.name ?? (k.startsWith('webhook:') ? server.name : t('docs.someone'))
 
   const openMenu = (e: MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()

@@ -2890,14 +2890,15 @@ Whoever runs the bot reads what's sent to it: that's the point of writing to a b
 A template (format in `docs/templates.md`) sets up a new server once: channels of every kind (text, voice, forum,
 stage, docs; hi-fi, user limits, slowmode, forum tags), who can see and use each (`readRole`/`writeRole` and per-role
 overrides for the template's own roles), custom roles, built-in role colours and powers, rules, the AFK channel and
-settings (default notifications, limits, built-in bots, bug inbox). `"version": 2`; files without a version are format 1
-and stay valid; a newer format is refused with a clear message. Unknown fields are an error. Up to 256 KB, 500
+settings (default notifications, limits, built-in bots, bug inbox). `"version": 3` (format 3 adds starting content: see
+"Channel topics and template content"); formats 2 and 1 (no version) stay valid; a newer format is refused with a clear
+message. Unknown fields are an error. Up to 256 KB, 500
 channels, 50 categories, 100 roles. The server checks every template it reads with the same rules as the requests that
 make the same changes (built-in role powers included).
 
 | type | body | result | who |
 |---|---|---|---|
-| `server.template.export` | `{}` | `{ template: object }` (format 2) | admins (`forbidden`, key `admins_template_export`). Rate limited (3, then 1 every 10 s) |
+| `server.template.export` | `{}` | `{ template: object }` (format 3, or 2 when it needs nothing newer) | admins (`forbidden`, key `admins_template_export`). Rate limited (3, then 1 every 10 s) |
 | `notify.default.set` | `level`: `auto` (all messages under 15 people, only @mentions above), `all` or `mentions` | `{ level }` | the `organize` ability (`forbidden`, key `admins_notify_default`). Rate limited (10, then 1 a second) |
 
 - `server.template.export` ("Save this server as a template") contains only structure and settings: never members,
@@ -3382,3 +3383,29 @@ BoardEnvelope { "v": 1, "kind": "wb",
 - [Starter templates](#starter-templates) can create whiteboard channels (`"kind": "whiteboard"`; no slowmode).
 - [Disappearing messages](#disappearing-messages): a whiteboard channel can't have a timer (`bad_request`, key
   `disappear_kind`), and a voice channel's timer applies to its text chat only; its board stays until it's cleared.
+
+## Channel topics and template content
+
+`Channel` gains `topic` (string; `""` = none): one line saying what the channel is for, shown at the top of the channel.
+`channel.create` and `channel.update` take `topic?`: up to 300 characters on one line, trimmed and NFC-normalized, no
+control or invisible formatting characters (else `bad_request`, key `channel_topic`, args `{ max }`); blank removes it;
+an update that leaves it out keeps it. Admins only, as with every channel setting. It's plain text the apps render as
+text; like the channel's name it isn't end-to-end encrypted, also in encrypted channels.
+
+- Sent in `welcome.channels`, the `channels` event and the `channel` in each answer. Older apps ignore it.
+- Audit: `channel.update` changes gain `topic: true` (never the text).
+- Storage: `channel_topics(channel_id, topic)` (migration `topics-1`), dropped with the channel.
+
+Templates (format 3, `docs/templates.md`) can also hold starting content, added once by `templates apply` or on a new
+server: a channel's `topic`; `messages` (text channels, up to 10 per channel and 100 in all, each up to 4000
+characters) posted as webhook-style messages with the author `webhook:template`, `webhook.name` the server's name and no
+embeds, mentions made inert as in the bug inbox, optionally pinned (`pinnedBy` `webhook:template`); `pages` (docs
+channels, up to 20 per channel and 50 in all, each up to 100 KB) created with `createdBy` `webhook:template`, one of them
+optionally the server's Start here page; `disappear` (a channel's disappearing-messages timer, `set_by`
+`webhook:template`); and `settings.translation` (offer translation models). `templates apply` adds each only where
+there is none yet (no topic; no message from `webhook:template` in the channel; no page with that title; no timer row;
+translation off), never posts into an end-to-end encrypted channel or one with disappearing messages, and leaves the
+bug inbox off when the existing channel of that name is readable by more people than the template says.
+`iskra-server templates <file> --json` gains per-channel `topic`, `messages` (a count), `pages` (titles), `disappear`
+and `settings.translation`. `server.template.export` gains `topic`, `disappear` and `settings.translation` (never
+messages or pages); it writes `"version": 3` when it has any of them, else `2`, so older servers can still read it.

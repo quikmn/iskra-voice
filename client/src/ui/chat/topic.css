@@ -1,0 +1,10 @@
+/* ── Channel topics ──────────────────────────────────────────────────── */
+.channel-topic {
+  display: block; width: 100%; flex: none; margin: 0; padding: 6px 16px; text-align: left; cursor: pointer;
+  background: var(--surface); border: 0; border-bottom: 1px solid var(--border); border-radius: 0;
+  color: var(--text-2); font: inherit; font-size: 13px; line-height: 1.4;
+}
+.channel-topic:hover { color: var(--text); }
+.channel-topic:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.channel-topic-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.channel-topic.open .channel-topic-text { white-space: normal; overflow-wrap: anywhere; }

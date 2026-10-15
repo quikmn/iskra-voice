@@ -45,7 +45,12 @@ public static partial class ServerTemplates
 
         void Add(TemplateChannel c, string? categoryName)
         {
-            if (!have.Add((c.Name.ToLowerInvariant(), c.Kind))) return;
+            if (!have.Add((c.Name.ToLowerInvariant(), c.Kind)))
+            {
+                // A channel it has: only its starting content, where it has none yet.
+                if (channelIds.TryGetValue($"{c.Kind}:{c.Name}", out var existing)) AddContent(world, store.GetChannel(existing), c, apply, plan, now);
+                return;
+            }
             long? categoryId = null;
             if (categoryName is not null)
             {
@@ -67,7 +72,11 @@ public static partial class ServerTemplates
             var where = categoryName is null ? "" : $" in {categoryName}";
             var who = c.ReadRole != Sessions.Roles.Member || c.WriteRole != c.ReadRole ? $" (read: {c.ReadRole}, write: {c.WriteRole})" : "";
             plan.Add($"{c.Kind} channel {c.Name}{where}{who}");
-            if (!apply) return;
+            if (!apply)
+            {
+                AddContent(world, null, c, apply: false, plan, now);
+                return;
+            }
             var channel = store.CreateChannel(c.Name, c.Kind, c.ReadRole, c.WriteRole ?? c.ReadRole, now);
             if (c.UserLimit > 0) store.SetUserLimit(channel.Id, c.UserLimit);
             if (c.Hifi) store.SetHifi(channel.Id, true);
@@ -78,6 +87,7 @@ public static partial class ServerTemplates
                     store.SetOverride(channel.Id, roleId, ChannelPerms(o.Allow), ChannelPerms(o.Deny));
             channelIds.TryAdd($"{c.Kind}:{c.Name}", channel.Id);
             store.MoveChannel(channel.Id, categoryId, beforeId: null);
+            AddContent(world, channel, c, apply: true, plan, now);
         }
         foreach (var c in template.Channels) Add(c, null);
         foreach (var category in template.Categories)
@@ -166,8 +176,21 @@ public static partial class ServerTemplates
             }
             if (settings.BugInbox is { } inbox && !store.GetBugInbox().Enabled)
             {
-                plan.Add($"bug inbox in {inbox}");
-                if (apply && channelIds.TryGetValue($"text:{inbox}", out var inboxId)) store.SetBugInbox(true, inboxId);
+                // Reports can carry email addresses: never into a channel more people can read than the template says.
+                var wanted = template.AllChannels.First(c => c.Kind == "text" && c.Name.Equals(inbox, StringComparison.OrdinalIgnoreCase)).ReadRole;
+                var current = channelIds.TryGetValue($"text:{inbox}", out var inboxId) ? store.GetChannel(inboxId) : null;
+                if (current is not null && Sessions.Roles.Rank(current.ReadRole) < Sessions.Roles.Rank(wanted))
+                    plan.Add($"(skipped) bug inbox in {inbox}: {current.ReadRole}s can read #{current.Name}, the template says {wanted}");
+                else
+                {
+                    plan.Add($"bug inbox in {inbox}");
+                    if (apply && current is not null) store.SetBugInbox(true, current.Id);
+                }
+            }
+            if (settings.Translation && !world.Settings.Translate.Offer)
+            {
+                plan.Add("translation offered to members");
+                if (apply) world.UpdateSettings(w => w with { Translate = w.Translate with { Offer = true } });
             }
         }
 

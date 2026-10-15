@@ -159,8 +159,8 @@ public class TemplateTests : IDisposable
     [InlineData("""{ "name": "x", "channels": [ { "name": "AFK", "kind": "voice" } ], "afk": { "channel": "AFK", "minutes": 10 } }""", "'afk.minutes' must be 0 (never move anyone), 5, 15, 30 or 60")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "AFK", "kind": "voice" } ], "afk": { "channel": "AFK", "canTalk": ["Mods"] } }""", "'afk.canTalk': 'Mods' is neither a level")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "AFK", "kind": "voice" } ], "afk": { "channel": "AFK", "mins": 5 } }""", "unknown field at $.afk.mins")]
-    [InlineData("""{ "version": 3, "name": "x" }""", "made by a newer version of Iskra (format 3)")]
-    [InlineData("""{ "version": 0, "name": "x" }""", "'version' must be 1 or 2")]
+    [InlineData("""{ "version": 4, "name": "x" }""", "made by a newer version of Iskra (format 4)")]
+    [InlineData("""{ "version": 0, "name": "x" }""", "'version' must be 1 to 3")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "hifi": true } ] }""", "only voice channels can allow hi-fi audio")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "slowmode": 7 } ] }""", "'slowmode' must be 0 (off) or one of")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "docs", "slowmode": 5 } ] }""", "docs channels have no slowmode")]
@@ -370,7 +370,7 @@ public class TemplateTests : IDisposable
         Assert.Contains("\"bugInbox\":\"gm-screen\"", json.Replace(" ", ""));
 
         var template = ServerTemplates.Parse(json, "export.json");
-        Assert.Equal(2, template.Version);
+        Assert.Equal(2, template.Version); // nothing from format 3 in it
         Assert.Contains(template.AllChannels, c => c.Name == "campaign-notes" && c.Kind == "docs" && c.Overrides.Single().Role == "Game master");
         Assert.Contains(template.AllChannels, c => c.Name == "Music room" && c.Hifi);
         Assert.Equal(["invite", "events", "pin"], template.BuiltinRoles["member"].Abilities);
@@ -412,11 +412,14 @@ public class TemplateTests : IDisposable
 
         // Dry run: says what it would add, changes nothing.
         var plan = ServerTemplates.Merge(world, review, apply: false, 2000);
-        Assert.Contains("text channel off-topic in Chat", plan);
+        Assert.Contains("text channel gaming in Chat", plan);
         Assert.Contains("category Try things", plan);
         Assert.Contains("default notifications: mentions", plan);
+        // Channels it has get only their starting content (topics here), never a second channel.
+        Assert.Contains("topic for #general", plan);
+        Assert.Contains("topic for Hangout", plan);
         Assert.DoesNotContain(plan, p => p.Contains("channel general ") || p.EndsWith("channel general in Chat"));
-        Assert.DoesNotContain(plan, p => p.Contains("Hangout") || p.Contains("Quiet corner") || p.Contains("role Moderator") || p.StartsWith("AFK"));
+        Assert.DoesNotContain(plan, p => p.Contains("channel Hangout") || p.Contains("Quiet corner") || p.Contains("role Moderator") || p.StartsWith("AFK"));
         Assert.Equal(before.Count, store.AllChannels().Count);
         Assert.Null(store.NotifyDefault());
 
@@ -434,12 +437,16 @@ public class TemplateTests : IDisposable
         Assert.Equal("hello", store.GetMessage(hello.Id)!.Text);
         Assert.NotNull(store.GetMember("owner-key"));
         var byName = after.ToDictionary(c => c.Name);
-        Assert.Equal(2, store.UserLimit(byName["Duo 1"].Id));
+        Assert.Equal(2, store.UserLimit(byName["Duo"].Id));
         Assert.True(store.IsHifi(byName["Music lounge"].Id));
-        Assert.Equal(30, store.Slowmode(byName["slow-chat"].Id));
+        Assert.Equal(10, store.Slowmode(byName["introductions"].Id));
         Assert.Equal("admin", byName["announcements"].WriteRole);
         Assert.Equal("stage", byName["town-hall"].Kind);
-        Assert.Equal("docs", byName["guide"].Kind);
+        Assert.Equal("docs", byName["testing-guide"].Kind);
+        Assert.Equal("hello", store.History(general.Id, null, null, 10).Single().Text); // #general's messages untouched
+        Assert.StartsWith("Talk about anything", store.Topic(general.Id));
+        Assert.Equal(3600, store.ChannelTimer(byName["disappearing"].Id)!.Seconds);
+        Assert.True(world.Settings.Translate.Offer);
         Assert.Equal("mentions", store.NotifyDefault());
         Assert.Equal(["dice", "polls", "reminders"], store.BuiltinBots().Select(b => b.Id).Order());
         Assert.Equal(store.AllChannels().Single(c => c.Name == "AFK").Id, store.Afk().ChannelId); // the friends one, kept
@@ -472,6 +479,6 @@ public class TemplateTests : IDisposable
         Assert.Equal(0, Cli.Run(["templates", "apply", _path, ReviewTemplate()]));
         using (var world = World.OpenOrCreate(_path)) Assert.Single(world.Store.AllChannels()); // dry run
         Assert.Equal(0, Cli.Run(["templates", "apply", _path, ReviewTemplate(), "--apply"]));
-        using (var world = World.OpenOrCreate(_path)) Assert.Equal(39, world.Store.AllChannels().Count);
+        using (var world = World.OpenOrCreate(_path)) Assert.Equal(25, world.Store.AllChannels().Count);
     }
 }

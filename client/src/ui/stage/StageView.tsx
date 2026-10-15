@@ -20,6 +20,7 @@ import './stage.css'
 import { useTranslation } from 'react-i18next'
 import { t as i18t } from '../../i18n'
 import { errorMessage } from '../../i18n/errors'
+import { ChannelTopic } from '../chat/ChannelTopic'
 
 const nameIn = (server: ServerState, accountKey: string) => server.members[accountKey]?.name ?? i18t('common.someone')
 
@@ -112,6 +113,7 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
           <Users />
         </button>
       </header>
+      {!live && <ChannelTopic channel={channel} />}
 
       <div className="stage-body stage-scroll">
         {!live ? (

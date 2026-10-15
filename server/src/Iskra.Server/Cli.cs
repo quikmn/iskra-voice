@@ -277,6 +277,7 @@ public static class Cli
                 if (settings.BuiltinBots.Length > 0) Console.WriteLine($"    Built-in bots: {string.Join(", ", settings.BuiltinBots)}");
                 if (settings.Limits is not null) Console.WriteLine("    Limits: yes");
                 if (settings.BugInbox is { } inbox) Console.WriteLine($"    Bug inbox: {inbox}");
+                if (settings.Translation) Console.WriteLine("    Translation: offered");
             }
             if (template.Afk is { } afk)
                 Console.WriteLine($"    AFK channel: {afk.Channel} ({(afk.Minutes > 0 ? $"idle people moved after {afk.Minutes} min" : "nobody moved")}; can talk: {(afk.CanTalk.Length > 0 ? string.Join(", ", afk.CanTalk) : "nobody")})");
@@ -287,7 +288,11 @@ public static class Cli
         static string Describe(TemplateChannel c) =>
             (c.Kind switch { "text" => $"# {c.Name}", "voice" => $"(voice) {c.Name}{(c.UserLimit > 0 ? $" (up to {c.UserLimit})" : "")}", _ => $"({c.Kind}) {c.Name}" })
             + (c.ReadRole != "member" || c.WriteRole != c.ReadRole ? $" [read: {c.ReadRole}, write: {c.WriteRole}]" : "")
-            + (c.Overrides.Length > 0 ? $" [{string.Join("; ", c.Overrides.Select(o => $"{o.Role}: {(o.Allow.Length > 0 ? "+" + string.Join(" +", o.Allow) : "")}{(o.Deny.Length > 0 ? " -" + string.Join(" -", o.Deny) : "")}"))}]" : "");
+            + (c.Overrides.Length > 0 ? $" [{string.Join("; ", c.Overrides.Select(o => $"{o.Role}: {(o.Allow.Length > 0 ? "+" + string.Join(" +", o.Allow) : "")}{(o.Deny.Length > 0 ? " -" + string.Join(" -", o.Deny) : "")}"))}]" : "")
+            + (c.Topic is not null ? " [topic]" : "")
+            + (c.Disappear > 0 ? $" [messages disappear after {c.Disappear}s]" : "")
+            + (c.Messages.Length > 0 ? $" [{c.Messages.Length} message{(c.Messages.Length == 1 ? "" : "s")}]" : "")
+            + (c.Pages.Length > 0 ? $" [pages: {string.Join(", ", c.Pages.Select(p => p.Title))}]" : "");
     }
 
     /// <summary>`templates apply`: adds a template to a server in use, additive only. Dry run unless --apply.</summary>

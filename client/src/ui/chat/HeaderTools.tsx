@@ -147,7 +147,7 @@ export function PinList({ server, channelId, onJump }: { server: ServerState; ch
                   : <span className="muted">{t('chat.search.attachments', { count: message.attachments.length })}</span>}
               </div>
               <div className="pin-actions">
-                <span className="muted" title={fullTime(pinnedAt)}>{t('chat.pins.pinnedBy', { name: server.members[pinnedBy]?.name ?? t('chat.composer.someone') })}</span>
+                <span className="muted" title={fullTime(pinnedAt)}>{t('chat.pins.pinnedBy', { name: server.members[pinnedBy]?.name ?? (pinnedBy.startsWith('webhook:') ? server.name : t('chat.composer.someone')) })}</span>
                 <button className="link" onClick={() => {
                   onJump()
                   void jumpToMessage(server.key, channelId, message.id)

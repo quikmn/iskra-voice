@@ -75,6 +75,7 @@ import { useQueuedSend } from './chat/QueuedSend'
 import { JoinFailed } from './JoinFailed'
 import { useReadableColor } from '../theme/useReadable'
 import { ChannelPopoutButton } from './popout/PopoutButtons'
+import { ChannelTopic } from './chat/ChannelTopic'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -131,6 +132,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           <Users />
         </button>
       </header>
+      <ChannelTopic channel={channel} />
 
       {failedJoin(server) ? <JoinFailed server={server} /> : <ConnectionBanner server={server} />}
 

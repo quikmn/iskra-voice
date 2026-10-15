@@ -152,6 +152,9 @@ export const chat = {
     pins: 'Pinned messages',
     pinnedIn: 'Pinned in #{{name}}',
     threadsIn: 'Threads in #{{name}}',
+    topic: 'Channel topic',
+    topicMore: 'Show the whole topic',
+    topicLess: 'Show less of the topic',
   },
   pins: {
     empty: 'No pinned messages yet.',
