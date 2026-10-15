@@ -6,21 +6,19 @@ import type { Channel } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
 import { openVoiceBoard, voiceBoardFor, useWhiteboard } from '../../state/whiteboard'
 import { errorMessage } from '../../i18n/errors'
-import { create } from 'zustand'
 import { Close } from '../icons'
 import { BoardIcon } from './icons'
 import { Whiteboard } from './Whiteboard'
-import { useBoardAbilities, Viewers } from './WhiteboardView'
+import { Viewers } from './WhiteboardView'
+import { useBoardAbilities, useBoardShown } from './abilities'
 import { boardKey } from '../../state/whiteboard'
-
-/** Which calls show their board (per channel, on this device). */
-export const useBoardShown = create<Record<string, boolean>>(() => ({}))
 
 export function WhiteboardButton({ server, channel }: { server: ServerState; channel: Channel }) {
   const { t } = useTranslation()
   const board = useWhiteboard(voiceBoardFor(server.key, channel.id))
   const key = boardKey(server.key, channel.id)
-  const shown = useBoardShown((s) => !!s[key])
+  // A cleared board is closed: "shown" only counts while there is one.
+  const shown = useBoardShown((s) => !!s[key]) && !!board
   const { canDraw } = useBoardAbilities(server, channel)
   const [error, setError] = useState<string | null>(null)
   if (channel.kind !== 'voice' || (!board && !canDraw)) return null

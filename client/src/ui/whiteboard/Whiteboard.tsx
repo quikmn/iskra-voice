@@ -29,9 +29,9 @@ import './whiteboard.css'
 
 export type Tool = 'select' | 'pan' | 'pen' | 'hl' | 'eraser' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'text' | 'note'
 
-export const COLORS = ['#1f2328', '#e5484d', '#f76b15', '#f5d90a', '#30a46c', '#0090ff', '#8e4ec6', '#ffffff'] as const
+const COLORS = ['#1f2328', '#e5484d', '#f76b15', '#f5d90a', '#30a46c', '#0090ff', '#8e4ec6', '#ffffff'] as const
 const COLOR_NAMES = ['black', 'red', 'orange', 'yellow', 'green', 'blue', 'purple', 'white'] as const
-const NOTE_COLORS: Record<string, string> = { '#1f2328': '#e5e7eb', '#ffffff': '#f3f4f6', '#e5484d': '#fecaca', '#f76b15': '#fed7aa', '#f5d90a': '#fde68a', '#30a46c': '#bbf7d0', '#0090ff': '#bfdbfe', '#8e4ec6': '#e9d5ff' }
+const NOTE_COLORS: Record<string, string> = { '#1f2328': '#fde68a', '#ffffff': '#f3f4f6', '#e5484d': '#fecaca', '#f76b15': '#fed7aa', '#f5d90a': '#fde68a', '#30a46c': '#bbf7d0', '#0090ff': '#bfdbfe', '#8e4ec6': '#e9d5ff' }
 const SIZES: Record<'stroke' | 'hl' | 'text', [number, number, number]> = { stroke: [2, 4, 8], hl: [12, 20, 32], text: [18, 28, 44] }
 const KEYS: Record<string, Tool> = { v: 'select', h: 'pan', p: 'pen', m: 'hl', e: 'eraser', l: 'line', a: 'arrow', r: 'rect', o: 'ellipse', t: 'text', n: 'note' }
 const MIN_ZOOM = 0.1
@@ -80,7 +80,8 @@ export function Whiteboard({ server, channel, canDraw, canClear, compact }: {
   const [confirmClear, setConfirmClear] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [empty, setEmpty] = useState(true)
+  const [count, setCount] = useState(0)
+  const empty = count === 0
 
   const wrapRef = useRef<HTMLDivElement>(null)
   const baseRef = useRef<HTMLCanvasElement>(null)
@@ -120,16 +121,17 @@ export function Whiteboard({ server, channel, canDraw, canClear, compact }: {
     if (!session) return
     return subscribeBoard(server.key, channel.id, () => {
       redraw(true)
-      setEmpty(session.state.list().length === 0)
+      setCount(session.state.list().length)
     })
   }, [session, server.key, channel.id, redraw])
 
   // Fit to content the first time the board is in.
   useEffect(() => {
-    if (!ready || !session || fitted.current) return
+    if (!ready || !session || fitted.current || !wrapRef.current) return
     fitted.current = true
+    size.current = { ...size.current, w: wrapRef.current.clientWidth, h: wrapRef.current.clientHeight }
     fit()
-    setEmpty(session.state.list().length === 0)
+    setCount(session.state.list().length)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, session])
 
@@ -194,7 +196,7 @@ export function Whiteboard({ server, channel, canDraw, canClear, compact }: {
     const observer = new ResizeObserver(resize)
     observer.observe(wrap)
     return () => observer.disconnect()
-  }, [redraw])
+  }, [redraw, ready])
 
   useEffect(() => {
     let frame = 0
@@ -374,6 +376,8 @@ export function Whiteboard({ server, channel, canDraw, canClear, compact }: {
       if (editing) commitText()
       return
     }
+    // No default (mouse-compat) focus change: it would take focus straight back from a text editor this opens.
+    e.preventDefault()
     wrapRef.current?.focus({ preventScroll: true })
     e.currentTarget.setPointerCapture(e.pointerId)
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
@@ -565,7 +569,7 @@ export function Whiteboard({ server, channel, canDraw, canClear, compact }: {
     wrap.addEventListener('wheel', onWheel, { passive: false })
     return () => wrap.removeEventListener('wheel', onWheel)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [ready])
 
   function onKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
     if (editing || !session) return
@@ -749,6 +753,7 @@ export function Whiteboard({ server, channel, canDraw, canClear, compact }: {
       <div
         ref={wrapRef}
         className={`wb-canvas tool-${drawing ? tool : 'view'}`}
+        data-count={count}
         tabIndex={0}
         role="application"
         aria-label={t('whiteboard.canvasLabel', { name: channel.name })}
@@ -824,7 +829,7 @@ function snap(a: Point, b: Point, kind: BoardKind): Point {
 }
 
 /** A steady colour per person for their cursor. */
-export function cursorColor(accountKey: string): string {
+function cursorColor(accountKey: string): string {
   let h = 0
   for (let i = 0; i < accountKey.length; i++) h = (h * 31 + accountKey.charCodeAt(i)) >>> 0
   return `hsl(${h % 360}, 70%, 42%)`

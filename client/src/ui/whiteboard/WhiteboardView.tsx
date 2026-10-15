@@ -1,28 +1,17 @@
 // A whiteboard channel: the header (who's here now), and the board.
 import { useTranslation } from 'react-i18next'
-import { roleRank, type Channel } from '../../core/protocol'
+import type { Channel } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
-import { canSendIn, has } from '../../state/permissions'
-import { useServerRoles } from '../../state/roles'
 import { boardKey, useWhiteboard } from '../../state/whiteboard'
 import { Avatar } from '../bits'
 import { Menu, Users } from '../icons'
 import type { Panel } from '../Shell'
-import { EncryptionButton, LockBadge, useEncryptedWriteBlock } from '../e2ee/E2ee'
+import { EncryptionButton, LockBadge } from '../e2ee/E2ee'
+import { useBoardAbilities } from './abilities'
 import { BoardIcon } from './icons'
 import { Whiteboard } from './Whiteboard'
 
 const NO_VIEWERS: string[] = []
-
-/** What a member may do on a board (mirrors the server's checks). */
-export function useBoardAbilities(server: ServerState, channel: Channel, openedBy?: string | null) {
-  const roles = useServerRoles(server.key)
-  const me = server.me
-  const blocked = useEncryptedWriteBlock(server, channel.id)
-  const canDraw = canSendIn(me, channel, roles) && !blocked
-  const moderator = canDraw && !!me && (roleRank(me.role) >= roleRank('trusted') || has(me, roles, 'manageMessages'))
-  return { canDraw, canClear: moderator || (canDraw && channel.kind === 'voice' && !!openedBy && openedBy === me?.accountKey), blocked }
-}
 
 export function Viewers({ server, viewers }: { server: ServerState; viewers: string[] }) {
   const { t } = useTranslation()

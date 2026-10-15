@@ -20,6 +20,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Keys protecting DM envelopes (prekeys) | Replaced weekly, deleted 30 days later (≈5 weeks); afterwards old envelopes can't be decrypted | Client and server prekey rotation | No |
 | Earlier versions of edited messages (edit history) | Up to 20 per message; go with the message | `RetentionSweeper` and message deletion | `Retention.MessagesDays` |
 | Docs pages and their revisions | Pages until deleted; the last 50 revisions per page, older revisions also by the retention period | Docs edits; `RetentionSweeper` | `Retention.MessagesDays` |
+| Whiteboards (objects drawn; batches of changes with their author until folded into the board's snapshot, encrypted boards as ciphertext; pictures from uploads) | Until the board is cleared or its channel deleted; batches lose their author when folded (plain boards: by the server once 500 batches or 512 KB pile up; encrypted: when a member's app uploads a snapshot); live cursors are never stored | `wb.clear`, channel deletion, compaction; account deletion with messages removes authorship | No |
 | Reminders (due time; channel and message for server channels; what it's about and the note sealed) | Until 30 days after they fire, or until cancelled | `ProductivityScheduler` (hourly) | No |
 | Built-in bots' answers (Dice rolls, Polls and Reminders replies: the bot, who asked, what it meant) and their reminders (set with /remind: the note readable by the server, as the command was) | Answers: same as messages; reminders: as other reminders | `RetentionSweeper` and message deletion (answers go with their message); `ProductivityScheduler` | `Retention.MessagesDays` |
 | Scheduled messages | Until sent (then deleted) or deleted by the author; failed ones stay until the author edits or deletes them | `ScheduledFeature` | No |
@@ -94,3 +95,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-13 | Built-in bots (Dice, Polls, Reminders): their answers and /remind reminders |
 | 2026-10-14 | Bug reports (bug inbox) |
 | 2026-10-14 | Claim codes of server images (DigitalOcean Marketplace) |
+| 2026-10-15 | Whiteboards: board objects, unfolded batches and their authors, pictures on boards |
