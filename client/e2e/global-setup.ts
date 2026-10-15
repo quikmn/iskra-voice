@@ -3,7 +3,12 @@
 // "terminal" (the monitor of the window in front when the run starts, i.e. your terminal), a number (that monitor,
 // 0-based, Windows' order) or "primary" (Electron's normal placement). Worked out once per run and handed to every
 // electron.launch through ISKRA_E2E_WINDOW_AREA (the specs pass process.env on).
+// Also: the desktop app under test never sees the developer's own hosted servers (Documents/Iskra/Servers) and only
+// ever listens on localhost. A spec that hosts servers gives the app its own ISKRA_HOST_ROOT.
 import { execFileSync } from 'node:child_process'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 /** C# for one PowerShell call: a monitor's work area in physical pixels, "x,y,w,h". index < 0: the foreground window's. */
 const MONITOR_CS = `
@@ -51,4 +56,6 @@ export function windowArea(display: string): string {
 
 export default function globalSetup(): void {
   process.env.ISKRA_E2E_WINDOW_AREA ??= windowArea((process.env.ISKRA_E2E_DISPLAY ?? '').trim().toLowerCase())
+  process.env.ISKRA_HOST_ROOT ??= mkdtempSync(join(tmpdir(), 'iskra-e2e-hosted-'))
+  process.env.ISKRA_LOCAL_ONLY ??= '1'
 }

@@ -6,7 +6,7 @@ import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } fro
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
-import { Host, isTemplateId, MAX_TEMPLATE_BYTES, type HostedServer } from './host'
+import { GRACEFUL_STOP_MS, Host, isTemplateId, MAX_TEMPLATE_BYTES, type HostedServer } from './host'
 import type { StopKind } from './restartMarker'
 import { parseHotkeys } from './hotkeys'
 import { ClientTunnels } from './p2p/clientTunnel'
@@ -31,6 +31,7 @@ import { applyChromiumPrivacy, applySessionPrivacy } from './privacy'
 import { desktopLanguage, languageFromLocales, parseLanguage, setDesktopLanguage, text } from './i18n'
 import { initialLaunch, readyToShow, SERVER_WAIT_MS, splashView, updatedTo, updatingView, type LaunchState } from './launch'
 import { Splash } from './splash'
+import { logUncaughtErrors, settleWithin } from './quit'
 import { captureAppPage } from './capture'
 import { readBuildCommit, windowTitle } from './title'
 import { pickerChoices, placeTestWindow, realScreenThumbnails, testWindowArea, thumbnailSize } from './testMode'
@@ -146,7 +147,7 @@ function finishLaunch(): void {
   launch = null
   setTimeout(() => {
     void splash.fadeOut()
-    if (!window) return
+    if (!window || quitting) return
     window.show()
     window.focus()
     launchLog('main shown')
@@ -257,6 +258,11 @@ function createWindow(): void {
       event.preventDefault()
       window?.hide()
     }
+  })
+  // Gone for good (quitting, or closed without the tray): late callbacks see no window rather than a destroyed one.
+  const created = window
+  created.on('closed', () => {
+    if (window === created) window = null
   })
 }
 
@@ -931,15 +937,22 @@ app.whenReady().then(() => {
 })
 
 // macOS: clicking the Dock icon brings the window back.
-app.on('activate', () => showWindow())
+app.on('activate', () => {
+  if (!window && !quitting && app.isReady()) createWindow()
+  showWindow()
+})
 
 let serversStopped: Promise<void> | null = null
+/** How long quitting waits for hosted servers (and the p2p node) at most: they're force-stopped well before. */
+const QUIT_WAIT_MS = GRACEFUL_STOP_MS + 3000
 app.on('before-quit', () => {
   quitting = true
+  // Nothing may hold the quit up: Electron's error box for a late callback's error would block it for good.
+  logUncaughtErrors()
   ptt.stop()
   void clientTunnels.closeAll()
   // Restarting (a relaunch, an update): hosted servers tell members "restarting", since they're back in a moment.
-  if (host.running()) serversStopped ??= host.stopAll(serverStop).finally(() => p2pNode.destroy())
+  if (host.running()) serversStopped ??= settleWithin(host.stopAll(serverStop).finally(() => p2pNode.destroy()), QUIT_WAIT_MS)
   else void p2pNode.destroy()
 })
 

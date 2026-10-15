@@ -1,6 +1,7 @@
 // The desktop app's splash window on start, "Updated to X" after an update, none when started hidden in the tray,
 // and the "Updating Iskra to X…" overlay before restarting into an update (nothing is really installed here).
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -17,14 +18,30 @@ const VERSION = (JSON.parse(readFileSync(join(DESKTOP, 'package.json'), 'utf8'))
 
 test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
 
-async function launch(userData: string, extra: string[] = []): Promise<ElectronApplication> {
+async function launch(userData: string, extra: string[] = [], more: Record<string, string> = {}): Promise<ElectronApplication> {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
   return electron.launch({
     executablePath: ELECTRON,
     args: [DESKTOP, `--user-data-dir=${userData}`, '--lang=en-US', ...extra],
     cwd: DESKTOP,
-    env: { ...env, ISKRA_E2E: '1', ISKRA_LOCAL_ONLY: '1', ISKRA_HOST_ROOT: join(userData, 'servers') },
+    env: { ...env, ISKRA_E2E: '1', ISKRA_LOCAL_ONLY: '1', ISKRA_HOST_ROOT: join(userData, 'servers'), ...more },
   })
+}
+
+const freePort = () => new Promise<number>((done, fail) => {
+  const probe = createServer().once('error', fail).listen(0, '127.0.0.1', () => {
+    const { port } = probe.address() as { port: number }
+    probe.close(() => done(port))
+  })
+})
+
+const alive = (pid: number) => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
 }
 
 const launchLog = (app: ElectronApplication) => app.evaluate(() => (globalThis as { iskraLaunchLog?: string[] }).iskraLaunchLog ?? [])
@@ -108,6 +125,40 @@ test('started with the computer (hidden in the tray): no splash', async () => {
     expect(app.windows().filter((w) => w.url().startsWith('file:'))).toHaveLength(0)
   } finally {
     await app.close()
+    rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+  }
+})
+
+// Quitting waits for hosted servers to stop, but only so long, and an error in a late callback meanwhile (a timer,
+// a message for a window that's already closed) can't hold it up: Electron's modal error box would block the quit.
+test('quitting with a hosted server still stopping finishes, even past a late error', async () => {
+  const userData = mkdtempSync(join(tmpdir(), 'iskra-launch-'))
+  // A stand-in for iskra-server (run by this test's Node): answers like one on localhost, ignores the stop request
+  // (stdin closing), so the app has to wait and then force-stop it.
+  const world = join(userData, 'servers', 'slow')
+  mkdirSync(world, { recursive: true })
+  const port = await freePort()
+  writeFileSync(join(world, 'server.json'), JSON.stringify({ Name: 'Slow', Port: port, LocalOnly: true, PublicUrl: `http://localhost:${port}`, Voice: { Enabled: false } }))
+  writeFileSync(join(world, 'index.js'), [
+    `require('fs').writeFileSync(require('path').join(__dirname, 'pid'), String(process.pid))`,
+    `require('http').createServer((q, r) => r.end('{"name":"Slow"}')).listen(${port}, '127.0.0.1')`,
+    `setTimeout(() => process.exit(0), 60000)`,
+  ].join('\n'))
+  const app = await launch(userData, [], { ISKRA_SERVER_EXE: process.execPath })
+  try {
+    await appWindow(app)
+    await expect.poll(() => mainVisible(app)).toBe(true)
+    await expect.poll(() => existsSync(join(world, 'pid'))).toBe(true)
+    const pid = Number(readFileSync(join(world, 'pid'), 'utf8'))
+    expect(alive(pid)).toBe(true)
+    // Thrown while the app waits for the server, after its windows are gone.
+    await app.evaluate(() => void setTimeout(() => { throw new Error('a late callback failed') }, 500))
+    const started = Date.now()
+    await app.close()
+    expect(Date.now() - started).toBeLessThan(15_000)
+    expect(alive(pid)).toBe(false) // force-stopped, not left running
+  } finally {
+    await app.close().catch(() => undefined)
     rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
   }
 })
