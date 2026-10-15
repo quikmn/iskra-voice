@@ -45,7 +45,7 @@ describe('a deleted channel leaves nothing on the device', () => {
     const server = {
       key: 'srv', name: 'Server', status: { state: 'online' }, me: null, members: {},
       channels: [channel(1, 10), channel(7, 70)],
-      messages: { 1: [msg(1, 1)], 7: [msg(2, 7, 'old ci build log')], 20: [msg(3, 20)], 21: [msg(4, 21)] },
+      messages: { 1: [msg(1, 1)], 7: [msg(2, 7, 'old ci build log')], 20: [msg(3, 20)], 21: [msg(4, 21)], 99: [msg(5, 99, 'a thread never looked up')] },
       hasMore: { 7: true }, typing: { 7: { bob: Date.now() + 1000 } }, voice: {},
     } as unknown as ServerState
     useApp.setState({ servers: { srv: server }, activeServer: 'srv' })
@@ -61,7 +61,7 @@ describe('a deleted channel leaves nothing on the device', () => {
 
   const server = () => useApp.getState().servers.srv
 
-  it('when it leaves the channel list: messages, threads, drafts, read state and the rest go', () => {
+  it('when it leaves the channel list: messages, threads, drafts, read state and the rest go (also threads this device never looked up)', () => {
     applyChannels('srv', [channel(1, 10)])
     expect(Object.keys(server().messages).map(Number).sort((a, b) => a - b)).toEqual([1, 21])
     expect(server().hasMore[7]).toBeUndefined()

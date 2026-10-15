@@ -199,11 +199,21 @@ Invite  { "code": "<b64u 16>", "role": "member", "createdBy": "<accountKey>", "c
 
 Roles, lowest to highest: `guest < member < trusted < admin < owner`.
 
-**Ids are never reused.** A channel (or thread), category, docs page, event or forum tag that is deleted keeps its id
-forever: the next one always gets a higher id, also across restarts. Clients may key what they keep on the device by
-channel id, but must drop everything kept for a channel (messages, drafts, read state, decrypted messages, keys) once
-it is gone from `channels` (deleted, or no longer readable), and treat a channel whose `createdAt` differs from the one
-they kept data for as a different channel. Servers before this rule may send no `createdAt`.
+**Ids are never reused.** A channel (or thread), category, docs page, event, forum tag or team split that is deleted
+keeps its id forever: the next one always gets a higher id, also across restarts. Clients may key what they keep on the
+device by channel id. A channel missing from `channels` is either deleted or no longer readable, and a client can't
+tell which, so:
+
+- **Missing from the list:** drop all plaintext kept for it at once (messages and their threads, decrypted messages,
+  drafts, read state, docs, boards, forum markers, unsent messages). For an encrypted channel, keep only its chain,
+  keys, older chains and what was seen of each message (no text) as a tombstone with the time it went missing.
+- **Listed again with the same `createdAt`:** lift the tombstone and use the chain and keys again (messages are fetched
+  and decrypted anew). The pinned chain still refuses a substitute.
+- **Listed with a different `createdAt`** (another channel under that id): wipe the tombstone at once, and never use
+  anything kept for the old channel.
+- **Tombstones older than 30 days:** wipe them.
+
+Servers before this rule may send no `createdAt`; then only a missing channel counts.
 
 ## Requests and events
 

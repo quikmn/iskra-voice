@@ -126,6 +126,31 @@ public sealed partial class Store
         INSERT INTO messages_fts (messages_fts) VALUES ('rebuild');
         """;
 
+    // Same trigger as id-floors-1, plus team splits: a split whose origin channel is gone goes once it has no team
+    // channels left (until then TeamSweeper still needs it to tidy them up).
+    private const string IdFloors2Migration = """
+        DROP TRIGGER channel_gone_cleanup;
+        CREATE TRIGGER channel_gone_cleanup AFTER DELETE ON channels BEGIN
+            DELETE FROM scheduled_messages WHERE kind = 'channel' AND channel_id = old.id;
+            DELETE FROM inbox_items WHERE channel_id = old.id;
+            DELETE FROM pins WHERE channel_id = old.id;
+            UPDATE reminders SET channel_id = NULL WHERE channel_id = old.id;
+            UPDATE outgoing_webhooks
+                SET channels = (SELECT json_group_array(j.value) FROM json_each(outgoing_webhooks.channels) j WHERE j.value <> old.id)
+                WHERE json_valid(channels) AND EXISTS (SELECT 1 FROM json_each(outgoing_webhooks.channels) j WHERE j.value = old.id);
+            UPDATE automod
+                SET config = json_set(config, '$.exemptChannels',
+                    json((SELECT json_group_array(j.value) FROM json_each(automod.config, '$.exemptChannels') j WHERE j.value <> old.id)))
+                WHERE json_valid(config) AND EXISTS (SELECT 1 FROM json_each(automod.config, '$.exemptChannels') j WHERE j.value = old.id);
+            UPDATE automod SET config = json_set(config, '$.alertChannelId', json('null'))
+                WHERE json_valid(config) AND json_extract(config, '$.alertChannelId') = old.id;
+            DELETE FROM team_splits WHERE channel_id NOT IN (SELECT id FROM channels)
+                AND NOT EXISTS (SELECT 1 FROM team_channels t WHERE t.split_id = team_splits.id AND t.channel_id <> old.id);
+        END;
+        DELETE FROM team_splits WHERE channel_id NOT IN (SELECT id FROM channels)
+            AND NOT EXISTS (SELECT 1 FROM team_channels t WHERE t.split_id = team_splits.id);
+        """;
+
     private long _channelDeletions;
 
     /// <summary>Goes up whenever channels are deleted, so caches of settings that name channels (AutoMod, outgoing webhooks) reload.</summary>

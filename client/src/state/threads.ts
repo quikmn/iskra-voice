@@ -135,9 +135,16 @@ onServerEvent((key, type, body) => {
 })
 
 // A channel that's gone takes its threads (their messages, drafts and read state) with it.
-onChannelsGone((key, channelIds) => {
+// Messages kept under an id that is neither a listed channel nor a known thread may belong to a thread of the channel
+// that went (one this device never looked up): they go too (opening a thread fetches it again).
+onChannelsGone((key, channelIds, how) => {
   const gone = new Set(channelIds)
   const threads = Object.values(useThreads.getState().threads[key] ?? {}).filter((th) => gone.has(th.channelId) || gone.has(th.id))
   for (const th of threads) forget(key, th.id)
-  forgetChannels(key, threads.map((th) => th.id).filter((id) => !gone.has(id)))
+  const server = useApp.getState().servers[key]
+  const known = useThreads.getState().threads[key] ?? {}
+  const unknown = server
+    ? Object.keys(server.messages).map(Number).filter((id) => !gone.has(id) && !server.channels.some((c) => c.id === id) && !known[id])
+    : []
+  forgetChannels(key, [...new Set([...threads.map((th) => th.id), ...unknown])].filter((id) => !gone.has(id)), how)
 })

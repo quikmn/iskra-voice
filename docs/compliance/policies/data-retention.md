@@ -77,10 +77,11 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 - Apps keep keys, decrypted DMs, settings and the server list on the device until the user signs out, deletes the
   account or removes the app. Disappearing messages are deleted from the device (screen, storage, notifications) when
   their time is up, also if the app was closed then (on its next start). "Download data on this device" (Settings → Privacy & data) exports it.
-- What an app keeps for a server channel (messages, its threads, drafts, read state, decrypted messages and keys of an
+- What an app keeps for a server channel (messages, its threads, drafts, read state, decrypted messages of an
   encrypted channel, docs, boards, forum markers) is dropped from the device as soon as the channel is deleted or the
-  member can no longer read it, at the latest on the next connection. Servers never reuse a channel's id, so nothing of
-  a deleted channel can show up in a later one.
+  member can no longer read it, at the latest on the next connection. An encrypted channel's signed history and keys
+  (no message text) stay up to 30 days in case access comes back, then go; at once if another channel takes the id.
+  Servers never reuse a channel's id, so nothing of a deleted channel can show up in a later one.
 - Live captions and camera background effects run on the device only: audio, video and caption text are never sent
   or stored; captions are dropped from memory seconds after they're shown. The speech model is downloaded once from
   the member's own Iskra server (which fetched it once from Hugging Face) and kept with the settings on the device

@@ -16,16 +16,27 @@ export type Stamps = Record<number, number>
 
 export const stampsOf = (channels: ChannelStamp[]): Stamps => Object.fromEntries(channels.map((c) => [c.id, c.createdAt ?? 0]))
 
-/** Ids in `known` that `now` no longer lists, or lists under a different createdAt. */
-export function goneChannels(known: Stamps, now: ChannelStamp[]): number[] {
+/**
+ * Channels in `known` that `now` no longer lists (`hidden`: deleted, or not readable any more; the app can't tell
+ * which), and ones listed under a different createdAt (`replaced`: another channel with that id).
+ */
+export function classifyGone(known: Stamps, now: ChannelStamp[]): { hidden: number[]; replaced: number[] } {
   const listed = new Map(now.map((c) => [c.id, c.createdAt ?? 0]))
-  const gone: number[] = []
+  const hidden: number[] = []
+  const replaced: number[] = []
   for (const [raw, was] of Object.entries(known)) {
     const id = Number(raw)
     const is = listed.get(id)
-    if (is === undefined || (was !== 0 && is !== 0 && was !== is)) gone.push(id)
+    if (is === undefined) hidden.push(id)
+    else if (was !== 0 && is !== 0 && was !== is) replaced.push(id)
   }
-  return gone
+  return { hidden, replaced }
+}
+
+/** Every channel in `known` whose cached content must go (hidden or replaced). */
+export function goneChannels(known: Stamps, now: ChannelStamp[]): number[] {
+  const { hidden, replaced } = classifyGone(known, now)
+  return [...hidden, ...replaced]
 }
 
 const KEY = 'iskra.channelStamps'
