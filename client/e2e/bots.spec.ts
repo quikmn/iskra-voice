@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { Bot } from '../../bots/sdk/src/index'
 import { describe as describeRoll, roll } from '../../bots/examples/dice-rules'
-import { createInviteLink, joinVia, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 let botDir: string
@@ -76,7 +76,11 @@ test('a webhook posts a card, and a bot answers a /command', async ({ browser })
   await bot.start()
   await expect(host.locator('.member', { hasText: 'Dice' }).locator('.bot-badge')).toBeVisible()
 
-  await send(host, '/roll d6')
+  // As a person would: the app knows the bot's /roll (its hint shows) before Enter sends it to the bot.
+  const composer = host.getByPlaceholder('Message #general')
+  await composer.fill('/roll d6')
+  await expect(host.locator('.command-hint .command-name')).toHaveText('/roll')
+  await composer.press('Enter')
   const answer = host.locator('.message', { hasText: 'Host rolled 1d6' })
   await expect(answer.locator('.author')).toHaveText('Dice')
   await expect(answer.locator('.bot-badge')).toBeVisible()

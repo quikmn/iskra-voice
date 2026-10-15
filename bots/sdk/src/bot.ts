@@ -315,7 +315,7 @@ export class Bot {
     return `**${this.name}** can do:\n${lines.join('\n')}`
   }
 
-  /** Connects; resolves once the server has welcomed the bot. Rejects if the server says no. */
+  /** Connects; resolves once the server has welcomed the bot and has its commands. Rejects if the server says no. */
   async start(): Promise<void> {
     await ready()
     this.state = loadState(this.stateFile) ?? newState()
@@ -374,12 +374,13 @@ export class Bot {
             saveState(this.stateFile, this.state!)
           }
           this.log(`Online in "${welcome.server.name}" as ${welcome.you.name} (${welcome.you.role})`)
-          void this.syncCommands()
+          const synced = this.syncCommands()
           void this.publishPrekey()
           for (const l of this.listeners.ready) l(this)
           if (first) {
             first = false
-            done()
+            // Once the server has the commands: right after start(), apps send them as commands, not as text.
+            void synced.finally(done)
           }
         },
         onEvent: (type, body) => this.handleEvent(type, body),
