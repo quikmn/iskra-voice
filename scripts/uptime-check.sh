@@ -2,7 +2,7 @@
 # Uptime check for the owner's infrastructure (run by .github/workflows/uptime.yml every 15 minutes).
 #   checks   iskra.foo and app.iskra.foo answer, chat.iskra.foo answers {"iskra":...} (and /health, once it has one:
 #            voice up), the voice port 7881/tcp is reachable, and no TLS certificate expires within 14 days.
-#   alerts   one GitHub issue labelled "outage", assigned to the repo owner (GitHub emails them). It's opened when
+#   alerts   one GitHub issue labelled "outage" (not assigned, so no e-mail) plus a post to the Iskra channel (ISKRA_CI_WEBHOOK). It's opened when
 #            something fails, commented on only when the set of failures changes, and closed when all is well again.
 # Each check is tried 3 times, 20 s apart, so one dropped packet isn't an outage.
 # Needs: curl, openssl, gh (GH_TOKEN with issues: write), GITHUB_REPOSITORY. DRY_RUN=1 only prints.
@@ -108,6 +108,12 @@ open="$(gh issue list -R "$REPO" --label "$LABEL" --state open --search "\"uptim
 number="${open%% *}"
 previous="${open#* }"
 
+# The alert goes to the team's Iskra channel (the same webhook as CI and releases), not by e-mail. Only when set.
+notify() {
+  [ -n "${ISKRA_CI_WEBHOOK:-}" ] || return 0
+  jq -n --arg c "$1" '{content: $c}' | curl -fsS -m 20 -H 'content-type: application/json' --data @- "$ISKRA_CI_WEBHOOK" >/dev/null     || echo "::warning::couldn't post to Iskra"
+}
+
 body() {
   printf '%s\n<!-- state: %s -->\n\nThe uptime check found problems with the infrastructure:\n\n' "$MARKER" "$key"
   printf -- '- %s\n' "${failures[@]}"
@@ -118,11 +124,17 @@ if [ "${#failures[@]}" -gt 0 ]; then
   if [ -z "$number" ]; then
     gh label create "$LABEL" -R "$REPO" --color B60205 --description "Opened by the uptime check" 2>/dev/null || true
     gh issue create -R "$REPO" --title "Outage: ${failures[0]%%:*}$([ "${#failures[@]}" -gt 1 ] && echo " (+$(( ${#failures[@]} - 1 )) more)")" \
-      --label "$LABEL" --assignee "${GITHUB_REPOSITORY_OWNER:-quikmn}" --body "$(body)"
+      --label "$LABEL" --body "$(body)"
+    notify "$(printf '🔴 Outage:
+'; printf -- '- %s
+' "${failures[@]}"; printf '%s' "$run_url")"
     echo "Opened an outage issue."
   elif [ "$previous" != "$key" ]; then
     gh issue edit "$number" -R "$REPO" --body "$(body)"
     gh issue comment "$number" -R "$REPO" --body "$(printf 'Failing now:\n\n'; printf -- '- %s\n' "${failures[@]}"; printf '\n[Run](%s)\n' "$run_url")"
+    notify "$(printf '🟠 Outage changed, failing now:
+'; printf -- '- %s
+' "${failures[@]}"; printf '%s' "$run_url")"
     echo "Updated outage issue #$number."
   else
     echo "Still failing; issue #$number already says so."
@@ -132,6 +144,7 @@ fi
 
 if [ -n "$number" ]; then
   gh issue close "$number" -R "$REPO" --comment "Every check passes again ($(date -u '+%Y-%m-%d %H:%M UTC'), [run]($run_url))."
+  notify "🟢 Back up: every uptime check passes again. $run_url"
   echo "Closed outage issue #$number."
 fi
 echo "All checks pass."

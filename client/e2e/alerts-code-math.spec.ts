@@ -105,7 +105,7 @@ test('code is highlighted and math is rendered, never as HTML', async ({ browser
   await send(page, '```js\n' + 'const veryLongLine = ' + '"x".repeat(1); '.repeat(20) + '\n```')
   const wide = page.locator('.code-block', { hasText: 'veryLongLine' })
   await expect(wide).toBeVisible()
-  expect(await wide.evaluate((el) => el.scrollWidth > el.clientWidth && getComputedStyle(el).overflowX === 'auto')).toBe(true)
+  await expect.poll(() => wide.evaluate((el) => el.scrollWidth > el.clientWidth && getComputedStyle(el).overflowX === 'auto')).toBe(true)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: join(SHOTS, 'code-math-phone.png') })
 })

@@ -345,11 +345,11 @@ export const settings: Messages['settings'] = {
   start: {
     downloadFor: 'Ladda ner Iskra för {{os}}',
     needsComputer: 'En server körs på en dator som står på, inte på en telefon: din egen Windows-, Mac- eller Linuxdator med Iskra-appen, eller en liten hyrd server. När den är igång kan du chatta från telefonen.',
-    onComputer: 'På din dator: Iskra-appen',
+    onComputer: 'Skaffa Iskra på din dator',
     phoneStep1: 'Gå till <b>{{site}}</b> på datorn och ladda ner Iskra.',
     copyLink: 'Kopiera nedladdningslänken',
     linkCopied: 'Länken är kopierad',
-    rentTitle: 'Eller hyr en liten server',
+    rentTitle: 'Hyr en liten server',
     rentText: 'Den är igång hela tiden, även när din dator är avstängd. Några euro i månaden, som din grupp betalar och äger.',
     otherOs: 'Appen körs på den Windows-, Mac- eller Linuxdator som ska vara värd för din server.',
     allDownloads: 'Alla nedladdningar',

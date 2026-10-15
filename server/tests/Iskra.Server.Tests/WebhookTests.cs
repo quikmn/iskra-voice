@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
@@ -254,6 +255,39 @@ public class WebhookTests
         Assert.Equal("[me/game:main] 2 new commits", embed.GetProperty("title").GetString());
         Assert.Equal("`0123456` Fix the jump · Octo · 3 files\n↳ long text over two lines\n`fedcba9` Tidy up · Octo", embed.GetProperty("description").GetString());
         Assert.Equal("octocat", embed.GetProperty("author").GetProperty("name").GetString());
+
+        // Finished workflow runs: failures always, successes of watched workflows, never scheduled successes.
+        // A fresh webhook: the one above has used up its burst of posts.
+        var (_, _, runs) = await CreateHook(admin, server.General);
+        async Task<HttpStatusCode> Run(string name, string conclusion, string trigger)
+        {
+            var body = new JsonObject
+            {
+                ["action"] = "completed",
+                ["repository"] = new JsonObject { ["full_name"] = "me/game" },
+                ["sender"] = new JsonObject { ["login"] = "octocat" },
+                ["workflow_run"] = new JsonObject
+                {
+                    ["name"] = name, ["conclusion"] = conclusion, ["event"] = trigger, ["head_branch"] = "main",
+                    ["head_sha"] = "0123456789abcdef", ["html_url"] = "https://github.com/me/game/actions/runs/1",
+                    ["head_commit"] = new JsonObject { ["message"] = "Fix the jump\n\nmore" },
+                },
+            }.ToJsonString();
+            using var req = new HttpRequestMessage(HttpMethod.Post, runs + "/github") { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+            req.Headers.Add("X-GitHub-Event", "workflow_run");
+            using var res = await http.SendAsync(req);
+            return res.StatusCode;
+        }
+        await Run("CI", "success", "push");
+        var passed = Message(await admin.EventAsync("chat.message")).GetProperty("webhook").GetProperty("embeds")[0];
+        Assert.Equal("[me/game:main] ✅ CI passed", passed.GetProperty("title").GetString());
+        Assert.Equal("`0123456` Fix the jump", passed.GetProperty("description").GetString());
+        await Run("Uptime", "success", "schedule");
+        await Run("Secrets scan", "success", "push");
+        await Run("CI", "cancelled", "push");
+        await admin.NoEventAsync("chat.message");
+        Assert.Equal(HttpStatusCode.NoContent, await Run("Uptime", "failure", "schedule"));
+        Assert.Equal("[me/game:main] ❌ Uptime failure", Message(await admin.EventAsync("chat.message")).GetProperty("webhook").GetProperty("embeds")[0].GetProperty("title").GetString());
     }
 
     [Fact]

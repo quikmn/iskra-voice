@@ -1,5 +1,5 @@
 /* ── Looking for group: the post in a message, its dialog and toasts ── */
-.lfg-card { margin-top: 4px; padding: 12px 14px; max-width: 460px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+.lfg-card { margin-top: 4px; padding: 12px 14px; max-width: 460px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
   display: flex; flex-direction: column; gap: 6px; }
 .lfg-card.closed { opacity: 0.75; }
 .lfg-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -12,7 +12,7 @@
 .lfg-slot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .lfg-slot.free { border: 2px dashed var(--faint); }
 .lfg-names { font-size: 13px; }
-.lfg-footer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.lfg-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
 .lfg-footer .spacer { flex: 1; }
 .lfg-status { font-size: 13px; font-weight: 600; color: var(--text-2); }
 .lfg-status.full { color: var(--green); }

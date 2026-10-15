@@ -1,7 +1,7 @@
 name: Uptime
 
 # Every 15 minutes: iskra.foo, app.iskra.foo, chat.iskra.foo (and its /health), the voice port and TLS expiry.
-# Problems open one GitHub issue labelled "outage" (assigned to the owner, so GitHub emails them); it's updated only
+# Problems post to the Iskra channel (ISKRA_CI_WEBHOOK) and open one GitHub issue labelled "outage" (not assigned: no e-mail); it's updated only
 # when the set of failures changes and closed when everything passes again. See docs/ci-cd.md, "Uptime monitoring".
 on:
   schedule:
@@ -30,4 +30,5 @@ jobs:
       - name: Check
         env:
           GH_TOKEN: ${{ github.token }}
+          ISKRA_CI_WEBHOOK: ${{ secrets.ISKRA_CI_WEBHOOK }}
         run: bash scripts/uptime-check.sh

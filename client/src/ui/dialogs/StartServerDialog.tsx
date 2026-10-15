@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { desktopOs, isPhoneOrTablet, LINKS, type DesktopOs } from '../../links'
+import { nativePlatform } from '../../platform/native'
 import { Modal } from '../bits'
 import { RentServerDialog } from './RentServerDialog'
 
@@ -10,6 +11,14 @@ const OS_NAME: Record<Exclude<DesktopOs, 'other'>, string> = { windows: 'Windows
 
 function visitorOs(): DesktopOs {
   return typeof navigator === 'undefined' ? 'other' : desktopOs(navigator.userAgent, navigator.platform, navigator.maxTouchPoints)
+}
+
+/** Phones and tablets, the phone apps, and narrow touch screens whose browser asks for desktop sites (its user agent
+ *  then says Windows or Linux). */
+function onPhone(): boolean {
+  if (typeof navigator === 'undefined') return false
+  if (nativePlatform() || isPhoneOrTablet(navigator.userAgent, navigator.platform, navigator.maxTouchPoints)) return true
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse) and (max-width: 760px)').matches
 }
 
 /** Chromium browsers can tell an Intel Mac from Apple silicon; others get Apple silicon first. */
@@ -57,7 +66,7 @@ function DesktopDownload({ os }: { os: DesktopOs }) {
   )
 }
 
-/** On a phone: the app goes on a computer (send yourself the link), or rent a small server from here. */
+/** On a phone: rent a small server from here, or put the app on a computer (send yourself the link). */
 function PhoneStart() {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
@@ -69,6 +78,13 @@ function PhoneStart() {
     <>
       <p className="dialog-note" role="note">{t('settings.start.needsComputer')}</p>
       <section className="guide-option">
+        <h3>{t('settings.start.rentTitle')}</h3>
+        <p className="muted">{t('settings.start.rentText')}</p>
+        <div className="guide-actions">
+          <button type="button" className="button primary" onClick={() => setRenting(true)}>{t('hosting.cgnat.rentButton')}</button>
+        </div>
+      </section>
+      <section className="guide-option">
         <h3>{t('settings.start.onComputer')}</h3>
         <ol>
           <li><Trans i18nKey="settings.start.phoneStep1" values={{ site: 'iskra.foo' }} components={{ b: <strong /> }} /></li>
@@ -76,15 +92,8 @@ function PhoneStart() {
           <li><Trans i18nKey="settings.start.step3" components={{ b: <strong /> }} /></li>
         </ol>
         <div className="guide-actions">
-          <button type="button" className="button primary" onClick={copy}>{copied ? t('settings.start.linkCopied') : t('settings.start.copyLink')}</button>
+          <button type="button" className="button" onClick={copy}>{copied ? t('settings.start.linkCopied') : t('settings.start.copyLink')}</button>
           <a className="button" href={LINKS.releases} target="_blank" rel="noopener noreferrer">{t('settings.start.allDownloads')}</a>
-        </div>
-      </section>
-      <section className="guide-option">
-        <h3>{t('settings.start.rentTitle')}</h3>
-        <p className="muted">{t('settings.start.rentText')}</p>
-        <div className="guide-actions">
-          <button type="button" className="button" onClick={() => setRenting(true)}>{t('hosting.cgnat.rentButton')}</button>
         </div>
       </section>
       {renting && <RentServerDialog onClose={() => setRenting(false)} />}
@@ -96,7 +105,7 @@ function PhoneStart() {
 export function StartServerDialog({ onClose, onClaim }: { onClose: () => void; onClaim?: () => void }) {
   const { t } = useTranslation()
   const [os] = useState(visitorOs)
-  const [phone] = useState(() => typeof navigator !== 'undefined' && isPhoneOrTablet(navigator.userAgent, navigator.platform, navigator.maxTouchPoints))
+  const [phone] = useState(onPhone)
   if (phone) {
     return (
       <Modal title={t('settings.start.title')} onClose={onClose}>
