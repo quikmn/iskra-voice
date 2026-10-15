@@ -1,0 +1,28 @@
+/* ── Whisper and priority speakers ───────────────────────────────────── */
+.whisper-settings select, .whisper-settings input:not([type='checkbox']) { max-width: 100%; }
+.whisper-lists { display: grid; gap: 12px; margin: 12px 0; }
+.whisper-list { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin: 0; display: grid; gap: 10px; min-width: 0; }
+.whisper-list legend { font-weight: 700; padding: 0 6px; color: var(--text); }
+.whisper-list .segmented { margin-bottom: 0; }
+.whisper-list .hotkey-list { margin-bottom: 0; }
+.whisper-field { display: grid; gap: 4px; }
+.whisper-field > span { font-size: 13px; color: var(--text-2); font-weight: 600; }
+.whisper-people { display: grid; gap: 8px; }
+.whisper-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.whisper-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 13px; max-width: 100%; }
+.whisper-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.whisper-controls { display: grid; gap: 6px; padding: 6px 8px 0; font-size: 13px; }
+.whisper-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.whisper-hold { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.button.whisper-hold.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.button.whisper-hold.priority.on { background: var(--amber); border-color: var(--amber); color: #1a1300; }
+.whisper-incoming, .whisper-status, .whisper-priority-talking, .whisper-error { display: flex; align-items: center; gap: 6px; border-radius: calc(var(--radius) * 0.8); padding: 6px 8px; overflow-wrap: anywhere; }
+.whisper-incoming { background: var(--accent-subtle); border: 1px solid var(--accent); color: var(--text); font-weight: 600; }
+.whisper-status { background: var(--surface-2); color: var(--text); }
+.whisper-status.priority, .whisper-priority-talking { background: rgba(251, 191, 36, 0.12); border: 1px solid var(--amber); color: var(--text); }
+.whisper-error { background: rgba(248, 113, 113, 0.12); color: var(--text); justify-content: space-between; }
+.whisper-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; animation: whisper-pulse 1.2s ease-in-out infinite; }
+@keyframes whisper-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .whisper-dot { animation: none; } }
+.priority-badge { display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 5px; border-radius: 4px; background: var(--amber); color: #1a1300; flex: none; }

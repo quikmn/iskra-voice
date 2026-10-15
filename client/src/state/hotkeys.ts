@@ -1,11 +1,18 @@
-// Mute, deafen and clip hotkeys. Desktop: global (they work while a game has focus), seen by the desktop shell, which only
-// ever tells us which action fired. Browser: in-app shortcuts while Iskra is the focused tab.
+// Mute, deafen and clip hotkeys, and the held whisper and priority keys. Desktop: global (they work while a game has
+// focus), seen by the desktop shell, which only ever tells us which action fired. Browser: in-app shortcuts while Iskra
+// is the focused tab.
 import { create } from 'zustand'
 import { desktop } from '../platform/desktop'
 import { toggleDeafen, toggleMute, useVoice } from './voice'
 
-export type HotkeyAction = 'mute' | 'deafen' | 'clip'
-export const HOTKEY_ACTIONS: readonly HotkeyAction[] = ['mute', 'deafen', 'clip']
+export type PressAction = 'mute' | 'deafen' | 'clip'
+/** Keys you hold: whisper to list 1–3, talk with priority (state/whisper.ts). */
+export type HoldAction = 'whisper1' | 'whisper2' | 'whisper3' | 'priority'
+export type HotkeyAction = PressAction | HoldAction
+export const HOTKEY_ACTIONS: readonly PressAction[] = ['mute', 'deafen', 'clip']
+export const HOLD_ACTIONS: readonly HoldAction[] = ['whisper1', 'whisper2', 'whisper3', 'priority']
+const ALL_ACTIONS: readonly HotkeyAction[] = [...HOTKEY_ACTIONS, ...HOLD_ACTIONS]
+const isHold = (action: HotkeyAction): action is HoldAction => (HOLD_ACTIONS as readonly string[]).includes(action)
 
 /** Browser: a KeyboardEvent.code plus the modifiers held with it. */
 export interface WebHotkey {
@@ -53,7 +60,7 @@ export function parseHotkeys(raw: string | null): HotkeyState {
   } catch {
     return state
   }
-  for (const action of HOTKEY_ACTIONS) {
+  for (const action of ALL_ACTIONS) {
     const web = data.web?.[action]
     const desk = data.desktop?.[action]
     if (isWebHotkey(web)) state.web[action] = web
@@ -83,18 +90,27 @@ function save(): void {
 /** What the desktop shell listens for (codes and modifiers only). */
 function sendToDesktop(): void {
   const binds = useHotkeys.getState().desktop
-  void desktop?.setHotkeys?.(Object.fromEntries(HOTKEY_ACTIONS.flatMap((a) => (binds[a] ? [[a, { code: binds[a].code, mods: binds[a].mods }]] : []))))
+  // Held keys only go to a shell that reports their release.
+  const actions = desktop?.onHoldHotkey ? ALL_ACTIONS : HOTKEY_ACTIONS
+  void desktop?.setHotkeys?.(Object.fromEntries(actions.flatMap((a) => (binds[a] ? [[a, { code: binds[a].code, mods: binds[a].mods }]] : []))))
 }
 
 /** Whether the desktop shell can do global hotkeys (an up-to-date desktop app). */
 export const globalHotkeys = (): boolean => !!desktop?.setHotkeys && !!desktop.captureHotkey && !!desktop.onHotkey
+
+/** Held keys (whisper, priority) are global too: a desktop shell that reports releases. Otherwise they're in-app keys. */
+export const globalHoldKeys = (): boolean => globalHotkeys() && !!desktop?.onHoldHotkey
+
+/** Whether these keys are global (desktop shell) or in-app. */
+export const keysAreGlobal = (actions: readonly HotkeyAction[]): boolean =>
+  actions.some((a) => (HOLD_ACTIONS as readonly string[]).includes(a)) ? globalHoldKeys() : globalHotkeys()
 
 const sameWeb = (a: WebHotkey, b: WebHotkey) => a.code === b.code && a.ctrl === b.ctrl && a.shift === b.shift && a.alt === b.alt && a.meta === b.meta
 
 /** Sets (or clears, with null) a hotkey. The same key on the other action is cleared, so one press does one thing. */
 export function setWebHotkey(action: HotkeyAction, hotkey: WebHotkey | null): void {
   const web = { ...useHotkeys.getState().web }
-  if (hotkey) for (const other of HOTKEY_ACTIONS) if (other !== action && web[other] && sameWeb(web[other], hotkey)) delete web[other]
+  if (hotkey) for (const other of ALL_ACTIONS) if (other !== action && web[other] && sameWeb(web[other], hotkey)) delete web[other]
   if (hotkey) web[action] = hotkey
   else delete web[action]
   useHotkeys.setState({ web })
@@ -104,7 +120,7 @@ export function setWebHotkey(action: HotkeyAction, hotkey: WebHotkey | null): vo
 export function setDesktopHotkey(action: HotkeyAction, hotkey: DesktopHotkey | null): void {
   const binds = { ...useHotkeys.getState().desktop }
   if (hotkey) {
-    for (const other of HOTKEY_ACTIONS) {
+    for (const other of ALL_ACTIONS) {
       const h = binds[other]
       if (other !== action && h && h.code === hotkey.code && h.mods === hotkey.mods) delete binds[other]
     }
@@ -177,8 +193,26 @@ export const onClipHotkey = (handler: () => void): void => {
   clipHandler = handler
 }
 
+let holdHandler: (action: HoldAction, down: boolean) => void = () => {}
+/** What the whisper and priority keys do (state/whisper.ts sets it). */
+export const onHoldKey = (handler: (action: HoldAction, down: boolean) => void): void => {
+  holdHandler = handler
+}
+
+/** Held keys that are down right now, so a lost key-up (focus moving away) still releases them. */
+const heldKeys = new Set<HoldAction>()
+export function runHoldKey(action: HoldAction, down: boolean): void {
+  if (down === heldKeys.has(action)) return
+  if (down) heldKeys.add(action)
+  else heldKeys.delete(action)
+  holdHandler(action, down)
+}
+const releaseHeld = () => {
+  for (const action of [...heldKeys]) runHoldKey(action, false)
+}
+
 /** Mute, deafen or save a clip in whatever voice session is on (channel, DM call, group call, stage). */
-export function runHotkey(action: HotkeyAction): void {
+export function runHotkey(action: PressAction): void {
   const { session } = useVoice.getState()
   if (!session) return
   if (action === 'clip') clipHandler()
@@ -190,28 +224,57 @@ export function runHotkey(action: HotkeyAction): void {
 
 /** Wires the hotkeys: global on desktop, in-page in the browser. */
 export function startHotkeys(): () => void {
-  if (globalHotkeys()) {
+  const stops: (() => void)[] = [releaseHeld]
+  const global = globalHotkeys()
+  const globalHold = globalHoldKeys()
+  if (global) {
     sendToDesktop()
-    return desktop!.onHotkey!((action) => {
+    const typing = (action: HotkeyAction) => {
       const hotkey = useHotkeys.getState().desktop[action]
-      if (hotkey && desktopTypesText(hotkey) && document.hasFocus() && isTypingTarget(document.activeElement)) return
-      runHotkey(action)
-    })
-  }
-  const onKey = (e: KeyboardEvent) => {
-    if (e.repeat || e.defaultPrevented || capturing) return
-    const { web } = useHotkeys.getState()
-    for (const action of HOTKEY_ACTIONS) {
-      const hotkey = web[action]
-      if (!hotkey || !matchesWebHotkey(e, hotkey)) continue
-      if (typesText(hotkey) && isTypingTarget(e.target)) return
-      e.preventDefault()
-      runHotkey(action)
-      return
+      return !!hotkey && desktopTypesText(hotkey) && document.hasFocus() && isTypingTarget(document.activeElement)
+    }
+    stops.push(desktop!.onHotkey!((action) => {
+      if (!typing(action)) runHotkey(action)
+    }))
+    if (globalHold) {
+      stops.push(desktop!.onHoldHotkey!((action, down) => {
+        if (!down || !typing(action)) runHoldKey(action, down)
+      }))
     }
   }
-  window.addEventListener('keydown', onKey)
-  return () => window.removeEventListener('keydown', onKey)
+  // In the page: every hotkey in the browser; on an older desktop shell, the held ones.
+  const pageActions: readonly HotkeyAction[] = global ? (globalHold ? [] : HOLD_ACTIONS) : ALL_ACTIONS
+  if (pageActions.length) {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat || e.defaultPrevented || capturing) return
+      const { web } = useHotkeys.getState()
+      for (const action of pageActions) {
+        const hotkey = web[action]
+        if (!hotkey || !matchesWebHotkey(e, hotkey)) continue
+        if (typesText(hotkey) && isTypingTarget(e.target)) return
+        e.preventDefault()
+        if (isHold(action)) runHoldKey(action, true)
+        else runHotkey(action)
+        return
+      }
+    }
+    // A held key ends when its key comes up, whatever modifiers are held by then.
+    const onKeyUp = (e: KeyboardEvent) => {
+      const { web } = useHotkeys.getState()
+      for (const action of HOLD_ACTIONS) if (web[action]?.code === e.code) runHoldKey(action, false)
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', releaseHeld)
+    stops.push(() => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', releaseHeld)
+    })
+  }
+  return () => {
+    for (const stop of stops.reverse()) stop()
+  }
 }
 
 /** While the settings field waits for a key, hotkeys don't fire. */

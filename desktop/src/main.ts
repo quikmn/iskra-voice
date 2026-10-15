@@ -81,8 +81,13 @@ let tray: Tray | null = null
 let quitting = false
 /** Quitting to start again (a relaunch, an update): hosted servers say "restarting" (for an update) rather than "stopped". */
 let serverStop: StopKind = 'stop'
-// Mute/deafen hotkeys: only the action's name reaches the page, never which keys were pressed.
-const ptt = new PushToTalk((down) => window?.webContents.send('iskra:ptt', down), (action) => window?.webContents.send('iskra:hotkey', action))
+// Mute/deafen hotkeys: only the action's name reaches the page, never which keys were pressed. Whisper and priority
+// keys are held: the page hears when they go down and up.
+const ptt = new PushToTalk(
+  (down) => window?.webContents.send('iskra:ptt', down),
+  (action) => window?.webContents.send('iskra:hotkey', action),
+  (action, down) => window?.webContents.send('iskra:hold', { action, down }),
+)
 // Friends without port forwarding: one DHT node for the app; tunnels for the servers hosted here and the ones you join.
 // Development builds and ISKRA_LOCAL_ONLY runs bind 127.0.0.1 and only join a testnet named by ISKRA_P2P_BOOTSTRAP.
 const p2pNode = new P2pNode(p2pNetwork(process.env, app.isPackaged))

@@ -150,7 +150,7 @@ export interface Requests {
   'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
-  'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean; canHear?: boolean; afk?: boolean }]
+  'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean; canHear?: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }]
   'voice.state': [{ muted: boolean; deafened: boolean; clips?: boolean }, Record<string, never>]
   'dm.devices': [{ accountKey: string }, DeviceBundle]
   // ── signing out ──
@@ -1047,6 +1047,7 @@ export interface Requests {
 export type Permission =
   | 'manageMessages' | 'timeoutMembers' | 'kickMembers' | 'banMembers' | 'manageChannels' | 'manageRoles'
   | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers' | 'manageAutoMod'
+  | 'prioritySpeaker'
 
 export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak'
 
@@ -2043,6 +2044,7 @@ export interface Requests {
 export type BaseAbility =
   | 'invite' | 'events' | 'pin' | 'mentionEveryone' | 'uploadSounds' | 'giveBaseRoles' | 'bots' | 'organize' | 'rules'
   | 'stickers' | 'gifs' | 'stageModerators' | 'forumTags' | 'profilePages' | 'resolveDisputes' | 'runServer' | 'transferOwnership'
+  | 'whisper'
 
 /** A base role (owner … guest) as listed next to custom roles: its colour and its powers (both adjustable, powers within limits). */
 export interface BaseRoleInfo {
@@ -2144,4 +2146,29 @@ export interface Events {
 export interface Requests {
   'dm.bots.get': [Record<string, never>, BotDmSetting]
   'dm.bots.set': [BotDmSetting, BotDmSetting]
+}
+
+// ── whisper and priority speakers ──
+
+export interface VoiceParticipant {
+  /** A priority speaker talking with priority on: apps turn everyone else down while they speak. */
+  priority?: boolean
+}
+
+export interface Events {
+  /** A whisper now reaches you: join it with whisper.join. `channelId`: the channel it goes to (null: a list of people). */
+  'whisper.incoming': { id: string; from: string; channelId: number | null }
+  'whisper.ended': { id: string }
+  /** To the whisperer: who the whisper reaches changed. */
+  'whisper.reach': { id: string; reached: string[] }
+}
+
+export interface Requests {
+  'whisper.start': [
+    { slot: 1 | 2 | 3; targets?: string[]; channelId?: number },
+    { id: string; url: string; token: string; room: string; reached: string[] },
+  ]
+  'whisper.join': [{ id: string }, { url: string; token: string; room: string }]
+  'whisper.stop': [{ id: string }, Record<string, never>]
+  'voice.priority': [{ on: boolean }, Record<string, never>]
 }

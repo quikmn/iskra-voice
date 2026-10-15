@@ -81,11 +81,11 @@ public sealed class WhisperRegistry : IDisposable
     /// <summary>Why this member can't whisper right now (null: they can). Checked on every start and after every change.</summary>
     public RequestException? WhispererProblem(Member me)
     {
-        if (world.Store.IsBot(me.AccountKey)) return RequestException.Forbidden("Bots can't whisper.", "whisper_not_allowed");
+        if (world.Store.IsBot(me.AccountKey)) return RequestException.Forbidden("You can't whisper on this server.", "whisper_not_allowed");
         if (!BaseRoles.Allows(me, BaseAbility.Whisper)) return RequestException.Forbidden("You can't whisper on this server.", "whisper_not_allowed");
         if (voice.ChannelOfMember(me.AccountKey) is not { } channelId || world.Store.GetChannel(channelId) is not { } channel)
             return RequestException.BadRequest("Join a voice channel to whisper.", "whisper_not_in_voice");
-        if (channel.Kind != "voice") return RequestException.BadRequest("You can't whisper on a stage.", "whisper_stage");
+        if (channel.Kind != "voice") return RequestException.BadRequest("Whisper is off on stages.", "whisper_stage");
         if (Features.E2eeChannelFeature.IsEncrypted(world.Store, channel))
             return RequestException.BadRequest("Whispers aren't end-to-end encrypted, so they're off in encrypted voice channels.", "whisper_e2ee");
         if (voice.IsServerMuted(me.AccountKey) || voice.IsAfkForced(me.AccountKey))
@@ -96,7 +96,7 @@ public sealed class WhisperRegistry : IDisposable
     /// <summary>Why this member can't whisper to that channel (null: they can). Speaking there is what it takes.</summary>
     public RequestException? ChannelProblem(Member me, Channel target)
     {
-        if (target.Kind == "stage") return RequestException.BadRequest("You can't whisper to a stage.", "whisper_stage");
+        if (target.Kind == "stage") return RequestException.BadRequest("Whisper is off on stages.", "whisper_stage");
         if (target.Kind != "voice") return RequestException.BadRequest("Whisper to a voice channel.", "whisper_voice_only");
         if (Features.E2eeChannelFeature.IsEncrypted(world.Store, target))
             return RequestException.BadRequest("Whispers aren't end-to-end encrypted, so they're off in encrypted voice channels.", "whisper_e2ee");

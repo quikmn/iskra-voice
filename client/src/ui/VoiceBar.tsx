@@ -8,6 +8,7 @@ import { clearVoiceError, leaveVoice, setStageOpen, toggleDeafen, toggleMute, us
 import { Close, Headphones, HeadphonesOff, Mic, MicOff, PhoneOff } from './icons'
 import { SoundboardButton } from './expressions/Soundboard'
 import './afk/afk.css'
+import { WhisperControls } from './whisper/WhisperControls'
 
 /** Shown above your name while you're in voice (or when joining failed). */
 export function VoiceBar() {
@@ -84,6 +85,7 @@ export function VoiceBar() {
           <PhoneOff />
         </button>
       </div>
+      <WhisperControls />
     </div>
   )
 }
