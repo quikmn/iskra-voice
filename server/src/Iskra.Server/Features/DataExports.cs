@@ -171,6 +171,12 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("botConversations", $"SELECT bot_key, account_key, person_wrote, started_at FROM bot_dm_peers WHERE account_key {Mine} OR bot_key {Mine};");
         Section("groups", $"SELECT group_id, account_key FROM group_members WHERE account_key {Mine};");
         Section("groupMessagesSent", $"SELECT id, group_id, from_key, created_at FROM group_messages WHERE from_key {Mine} ORDER BY id;");
+        Section("disappearingTimers", $"""
+            SELECT 'channel' AS scope, CAST(channel_id AS TEXT) AS target, seconds, set_by, set_at FROM channel_disappear WHERE set_by {Mine}
+            UNION ALL SELECT 'dm', first_key || ' ' || second_key, seconds, set_by, set_at FROM dm_disappear WHERE first_key {Mine} OR second_key {Mine}
+            UNION ALL SELECT 'group', group_id, seconds, set_by, set_at FROM group_disappear
+                WHERE group_id IN (SELECT group_id FROM group_members WHERE account_key {Mine}) OR set_by {Mine};
+            """);
         // Reminders' data is sealed by your devices (what they're about and your note); the server only knows the rest.
         Section("reminders", $"SELECT id, account_key, due_at, channel_id, message_id, data, created_at, fired_at FROM reminders WHERE account_key {Mine} ORDER BY id;");
         // Built-in bots' answers to your commands (dice rolls, poll hints, reminder confirmations): what they meant, as JSON.
@@ -220,6 +226,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         - directMessages, groups, groupMessagesSent: your direct messages and group chats are end-to-end encrypted, so the
           server only knows who wrote to whom and when. Their content is on your devices: in the app, use
           Settings -> Privacy & data -> Download data on this device.
+        - disappearingTimers: disappearing message timers you set, and the ones of your DMs and groups (scope, which
+          conversation, seconds, who set it and when). Messages that disappeared are gone from the server and aren't listed.
         - reminders, scheduledMessages, inbox: your reminders (what each is about is sealed by your devices: "data"), messages
           waiting to be sent later (encrypted DMs and group messages only by time and recipient), and messages that mentioned you.
           Reminders set with the built-in Reminders bot (/remind) aren't sealed: their "data" starts with "bot." and holds the note.

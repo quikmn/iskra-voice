@@ -33,7 +33,7 @@ public static class GroupFeature
     private static object PublicChange(GroupChangeRecord c) => new { version = c.Version, payload = c.Payload, sig = c.Sig };
 
     private static object PublicMessage(GroupMessage m) =>
-        new { id = m.Id, group = m.GroupId, from = m.From, version = m.Version, envelope = JsonDocument.Parse(m.Envelope).RootElement.Clone(), createdAt = m.CreatedAt };
+        new { id = m.Id, group = m.GroupId, from = m.From, version = m.Version, envelope = JsonDocument.Parse(m.Envelope).RootElement.Clone(), createdAt = m.CreatedAt, expiresAt = m.ExpiresAt };
 
     /// <summary>A group <paramref name="me"/> is in right now. Anyone else (former members, admins) gets "not found".</summary>
     public static GroupRecord Mine(Session s, Member me, string id) =>
@@ -121,6 +121,7 @@ public static class GroupFeature
         if (envelope.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'envelope' must be an object.");
         var raw = envelope.GetRawText();
         if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.", "message_too_large");
+        DisappearFeature.EnvelopeExpires(envelope);
         var files = DmFileFeature.CheckGroupAttachments(s, me, group.Members, body);
 
         GroupMessage message;
@@ -132,6 +133,7 @@ public static class GroupFeature
             message = stored!;
         }
         if (files.Length > 0) s.World.Store.LinkDmFiles(message.Id, files);
+        message = DisappearFeature.Stamp(s.World.Store, message, files);
         var frame = Frames.Event("group.message", new { message = PublicMessage(message) });
         foreach (var account in group.Members) s.Hub.SendToAccount(account, frame);
         s.Push.GroupMessage(me, group.Id, Reachable(s, group));
