@@ -1,4 +1,6 @@
 // Group DMs: the sidebar rows, the conversation, and the dialogs to make a group, add people and manage it.
+import { useAlertPattern } from '../../state/alerts'
+import { matchesAlert } from '../../state/alertsLogic'
 import { Fragment, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { b64u } from '../../core/crypto'
 import { asRename, MAX_GROUP_MEMBERS, MAX_GROUP_NAME, ownerOf } from '../../core/group'
@@ -489,8 +491,10 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
   const name = knownName(m.from)
   const translateItem = m.pending || m.error || m.call ? null : groupItem(groupKey, m.id, m.text, (k) => knownName(k))
   const tools = usePrivateMessageTools(m.pending || m.error || m.call ? null : groupTarget(groupKey, m), m.text, translateItem)
+  const alerts = useAlertPattern(null)
+  const alerted = !mine && matchesAlert(alerts, m.text)
   return (
-    <div id={privateRowId(m.from, m.id)} {...tools.rowProps} data-dm-id={m.id} className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''} ${tools.rowProps.className ?? ''}`}
+    <div id={privateRowId(m.from, m.id)} {...tools.rowProps} data-dm-id={m.id} className={`message ${grouped ? 'grouped' : ''} ${m.pending ?? ''} ${tools.rowProps.className ?? ''} ${alerted ? 'alerted' : ''}`}
       role="article" tabIndex={-1} aria-label={t('chat.a11y.message', { name, time: fullTime(m.sentAt) })}>
       <div className="message-gutter">
         {grouped ? <time className="hover-time" title={fullTime(m.sentAt)}>{clockTime(m.sentAt)}</time> : <Avatar name={name} accountKey={m.from} />}
@@ -506,7 +510,7 @@ function GroupRow({ m, grouped, groupKey, mine }: { m: GroupMsg; grouped: boolea
           <div className="message-notice"><Lock size={13} /> {groupText(m.error)}</div>
         ) : (
           <>
-            {m.text && <div className="message-text">{renderMarkdown(m.text, { nameOf: (k) => knownName(k) })}</div>}
+            {m.text && <div className="message-text">{renderMarkdown(m.text, { nameOf: (k) => knownName(k), alerts })}</div>}
             <TranslationBlock item={translateItem} />
             <DmAttachments files={m.files} />
           </>

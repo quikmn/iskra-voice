@@ -52,9 +52,31 @@ public static class LiveKitTokens
             ["canPublishSources"] = new JsonArray("microphone"),
         }, TimeSpan.FromHours(6), now);
 
-    /// <summary>A short-lived token for server-to-LiveKit API calls on one room.</summary>
-    public static string Admin(string apiKey, string apiSecret, string room, DateTimeOffset now) =>
-        Create(apiKey, apiSecret, "iskra-server", "Iskra", new JsonObject { ["room"] = room, ["roomAdmin"] = true }, TimeSpan.FromMinutes(5), now);
+    /// <summary>A short-lived token for server-to-LiveKit API calls on one room (<paramref name="create"/>: DeleteRoom needs roomCreate).</summary>
+    public static string Admin(string apiKey, string apiSecret, string room, DateTimeOffset now, bool create = false)
+    {
+        var grant = new JsonObject { ["room"] = room, ["roomAdmin"] = true };
+        if (create) grant["roomCreate"] = true;
+        return Create(apiKey, apiSecret, "iskra-server", "Iskra", grant, TimeSpan.FromMinutes(5), now);
+    }
+
+    /// <summary>
+    /// A whisper room (WhisperRegistry): the whisperer may publish one microphone track and hears nothing there;
+    /// listeners may only subscribe. Short-lived: LiveKit checks it when joining, the webhook check covers the rest.
+    /// </summary>
+    public static string ForWhisper(string apiKey, string apiSecret, string identity, string name, string room, bool speaker, DateTimeOffset now)
+    {
+        var grant = new JsonObject
+        {
+            ["room"] = room,
+            ["roomJoin"] = true,
+            ["canSubscribe"] = !speaker,
+            ["canPublish"] = speaker,
+            ["canPublishData"] = false,
+        };
+        if (speaker) grant["canPublishSources"] = new JsonArray("microphone");
+        return Create(apiKey, apiSecret, identity, name, grant, TimeSpan.FromMinutes(5), now);
+    }
 
     internal static string Sign(JsonObject claims, string secret)
     {

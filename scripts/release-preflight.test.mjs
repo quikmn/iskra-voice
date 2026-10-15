@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { nameFindings, nextVersion, requiredNames, reviewerFindings, storeProblems } from './release-preflight.mjs'
+import { ciCommit, nameFindings, nextVersion, releaseFindings, requiredNames, reviewerFindings, storeProblems } from './release-preflight.mjs'
 
 const store = () => JSON.parse(readFileSync(new URL('../mobile/store.json', import.meta.url), 'utf8'))
 
@@ -82,4 +82,45 @@ test('environments with required reviewers get a warning with the setting to cha
   assert.equal(w[0].level, 'warn')
   assert.match(w[0].text, /environment "npm".*Settings → Environments → npm/)
   assert.deepEqual(reviewerFindings(undefined), [])
+})
+
+// ── The Release workflow's checks (release-preflight.mjs release) ──
+
+const facts = (change = {}) => ({
+  current: '2.0.0-alpha.17', version: '2.0.0-alpha.18',
+  workflows: { 'ci.yml': 'active', 'release.yml': 'active' },
+  tagExists: false, releaseExists: false,
+  notes: { code: 0 }, bump: { code: 0, siteCount: 24, links: true }, assets: { listed: 23, want: 23 },
+  store: [], names: [{ level: 'ok', text: 'names ok' }], ci: { ok: true, message: 'CI passed: https://x' },
+  ...change,
+})
+const reds = (f) => releaseFindings(f).filter((x) => x.level === 'red').map((x) => x.text)
+
+test('Release workflow checks: all green', () => {
+  assert.deepEqual(reds(facts()), [])
+  assert.ok(releaseFindings(facts()).some((x) => x.text === 'CI passed: https://x'))
+})
+
+test('Release workflow checks: every red is listed, each with its case', () => {
+  const r = reds(facts({
+    workflows: { 'ci.yml': 'active', 'deploy.yml': 'disabled_manually' }, tagExists: true, releaseExists: true, version: '2.0.0-alpha.17',
+    notes: { code: 1, message: 'docs/releases/NEXT.md has no changes.' }, bump: { code: 0, siteCount: 3, links: true }, assets: { listed: 22, want: 23 },
+    store: ['mobile/store.json ios.mode is "x"'], names: [{ level: 'red', text: 'secret MAC_CERT_PASSWORD is missing' }, { level: 'warn', text: 'w' }],
+    ci: { ok: false, message: 'CI concluded failure on this commit: https://y' },
+  }))
+  for (const want of [/^\[workflow off\] .*deploy\.yml \(disabled_manually\)/, /^\[tag v2\.0\.0-alpha\.17 already exists\]/, /^\[a release v2\.0\.0-alpha\.17 already exists\]/,
+    /^\[must be newer than the current version\]/, /^\[write the release notes first\] docs\/releases\/NEXT\.md has no changes\. Add/, /^\[site download section\] .*3 links/,
+    /^\[release file list\] .*22 files/, /^\[store setup\]/, /^\[GitHub setup\] secret MAC_CERT_PASSWORD/, /^\[CI failed on main\] CI concluded failure/]) {
+    assert.ok(r.some((t) => want.test(t)), `${want} in ${r.join('\n')}`)
+  }
+  assert.match(reds(facts({ ci: { ok: false, timedOut: true, message: 'no green CI run' } }))[0], /^\[CI not done\]/)
+  assert.match(reds(facts({ bump: { code: 1, message: "client/src/links.ts doesn't mention 2.0.0-alpha.17." } }))[0], /^\[doesn't mention the current version\]/)
+  assert.equal(reds(facts({ versionError: "can't pick the next version" })).length, 1, 'no version: nothing else to check')
+})
+
+test('the commit CI must have passed on skips newer docs-only commits, like CI does', () => {
+  const files = { a: ['docs/x.md'], b: ['site/index.html', 'README.md'], c: ['server/x.cs'], d: ['client/y.ts'] }
+  assert.equal(ciCommit(['a', 'b', 'c', 'd'], () => false, (c) => files[c]), 'c')
+  assert.equal(ciCommit(['a', 'b', 'c'], (c) => c === 'b', (c) => files[c]), 'b', 'a commit CI ran on counts')
+  assert.equal(ciCommit(['d', 'c'], () => false, (c) => files[c]), 'd')
 })

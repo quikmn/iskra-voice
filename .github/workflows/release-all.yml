@@ -1,0 +1,525 @@
+name: Release
+
+# The whole release from one button: Actions → Release → Run workflow (github.com or the GitHub Mobile app), or
+# `scripts/release.ps1 -GitHub`. The only thing it needs besides GitHub is the owner's home PC switched on: the
+# Windows apps are signed there through SimplySign (it logs itself in with a seed stored on that PC), by a self-hosted
+# runner that only this workflow's Windows jobs use (label iskra-windows-signing; docs/ci-cd.md, "The home PC runner").
+# Everything else runs on GitHub's runners.
+#
+# Order, like scripts/release.ps1: every check first (red = stop, nothing changed) → "Version X" commit and tag →
+# CI on that commit (called here: this workflow's own push can't start ci.yml) → Linux/macOS builds (release.yml) and
+# the signed Windows build (home PC) → finalize (CI gate on this run's CI, SBOMs, sums, attestations, publish, deploy
+# iskra.foo, app.iskra.foo, chat.iskra.foo) → phones (TestFlight: mobile-ios.yml dispatched; Google Play) → report.
+# A failed job after the tag: fix the cause, then "Re-run failed jobs" on this run (every step looks before it acts).
+#
+# Safety of the self-hosted runner in a public repo: its jobs run only for workflow_dispatch on main by the repo owner
+# (the `if:` below), never for pull requests; the runner itself refuses any other job (scripts/runner-job-guard.ps1);
+# fork pull requests need approval (Settings → Actions → "Require approval for all external contributors").
+run-name: ${{ format('Release {0}{1}', inputs.version || '(next alpha)', inputs.check_only && ' (checks only)' || '') }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without v, e.g. 2.0.0-alpha.20 (empty: the next alpha after the latest release)'
+        required: false
+        default: ''
+      phones:
+        description: 'Also TestFlight and Google Play (where mobile/store.json says)'
+        type: boolean
+        default: true
+      check_only:
+        description: 'Only the checks: change nothing'
+        type: boolean
+        default: false
+
+permissions: {}
+
+# One release at a time; a second press waits for the first.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # ── 1. Checks (nothing changes) ──
+  checks:
+    name: checks
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    # The environment's own secrets (Cloudflare, droplet) are visible here, for the presence check only.
+    environment: release
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read # CI runs and workflow states
+    outputs:
+      version: ${{ steps.checks.outputs.version }}
+      tag: ${{ steps.checks.outputs.tag }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Release checks (scripts/release-preflight.mjs release)
+        id: checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+          PHONES: ${{ inputs.phones }}
+          ANDROID_BUILD: ${{ vars.ANDROID_BUILD }}
+          # Names only: whether each secret is set (never its value), and the variables (not secret).
+          VARS_JSON: ${{ toJSON(vars) }}
+          HAS_MAC_CERT_P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 != '' }}
+          HAS_MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD != '' }}
+          HAS_APPSTORE_API_KEY_BASE64: ${{ secrets.APPSTORE_API_KEY_BASE64 != '' }}
+          HAS_APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID != '' }}
+          HAS_APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID != '' }}
+          HAS_APPSTORE_REVIEW_PHONE: ${{ secrets.APPSTORE_REVIEW_PHONE != '' }}
+          HAS_CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+          HAS_DROPLET_SSH_KEY: ${{ secrets.DROPLET_SSH_KEY != '' }}
+        run: |
+          if [ -n "$VERSION" ] && ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$ ]]; then
+            echo "::error::'$VERSION' isn't a release version (x.y.z or x.y.z-alpha.n, no leading v)"; exit 1
+          fi
+          args=(--repo "$GH_REPO" --ci-wait 30)
+          [ "$PHONES" = true ] || args+=(--skip-phones)
+          [ "$ANDROID_BUILD" = ci ] && args+=(--android-ci)
+          node scripts/release-preflight.mjs release ${VERSION:+"$VERSION"} "${args[@]}"
+
+  # The checks only the home PC can answer: SimplySign signs (logging itself in once when it isn't), build tools,
+  # Android keystore, Play key file. Runs alongside `checks`.
+  pc-checks:
+    name: home PC checks (SimplySign)
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: [iskra-windows-signing]
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Home PC checks (scripts/release-pc-checks.ps1)
+        shell: pwsh
+        env:
+          ANDROID_BUILD: ${{ vars.ANDROID_BUILD }}
+          PLAY_KEY: ${{ inputs.phones && (vars.GCP_WIF_PROVIDER == '' || vars.GCP_PLAY_SERVICE_ACCOUNT == '') }}
+        run: |
+          $flags = @{}
+          if ($env:ANDROID_BUILD -eq 'ci') { $flags.SkipAndroid = $true }
+          if ($env:PLAY_KEY -eq 'true' -and $env:ANDROID_BUILD -ne 'ci') { $flags.PlayKey = $true }
+          ./scripts/release-pc-checks.ps1 @flags
+
+  # The runner only takes jobs while the PC is on: if the home PC checks are still waiting for it after 10 minutes,
+  # stop the whole run (nothing has changed yet) instead of waiting up to a day.
+  pc-online:
+    name: home PC online?
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: write # read this run's jobs; cancel the run
+    steps:
+      - name: Wait for the home PC to pick up its job
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for i in $(seq 1 40); do
+            status="$(gh api "repos/$GH_REPO/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" --jq '.jobs[] | select(.name == "home PC checks (SimplySign)") | .status' | head -n1)"
+            if [ -n "$status" ] && [ "$status" != queued ] && [ "$status" != waiting ] && [ "$status" != pending ]; then echo "The home PC picked up its job ($status)."; exit 0; fi
+            sleep 15
+          done
+          echo "::error::The home PC didn't pick up its job in 10 minutes: switch it on and log in to Windows (the runner starts at logon), then press Release again. Nothing was changed."
+          gh run cancel "$GITHUB_RUN_ID" || true
+          exit 1
+
+  # ── 2. Version commit and tag (the first change) ──
+  version:
+    name: version commit and tag
+    needs: [checks, pc-checks]
+    if: ${{ !inputs.check_only }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # push the version commit and tag; create the draft release
+    outputs:
+      sha: ${{ steps.push.outputs.sha }}
+    env:
+      VERSION: ${{ needs.checks.outputs.version }}
+      TAG: ${{ needs.checks.outputs.tag }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Main is where the checks were
+        env:
+          CHECKED: ${{ github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$CHECKED" || { echo "::error::main moved since the checks ($CHECKED → $(git rev-parse HEAD)): press Release again"; exit 1; }
+      - name: Notes, version bump, commit and tag (release-notes.mjs, release-version.mjs)
+        env:
+          ACTOR: ${{ github.actor }}
+          ACTOR_ID: ${{ github.actor_id }}
+        run: |
+          git config user.name "$ACTOR"
+          git config user.email "$ACTOR_ID+$ACTOR@users.noreply.github.com"
+          node scripts/release-notes.mjs "$VERSION"
+          node scripts/release-version.mjs "$VERSION"
+      - name: Push main and the tag
+        id: push
+        run: |
+          git push --atomic origin HEAD:refs/heads/main "refs/tags/$TAG"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      # Made here so the Linux/macOS and Windows jobs never race to create it.
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --draft --prerelease --verify-tag --title "Iskra $VERSION" --notes "Builds follow."
+          echo "Committed Version $VERSION and pushed $TAG ($(git rev-parse --short HEAD))." >> "$GITHUB_STEP_SUMMARY"
+
+  # ── 3. CI on the version commit, and the builds ──
+  ci:
+    needs: version
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.version.outputs.sha }}
+    secrets: inherit
+
+  builds:
+    name: Linux and macOS
+    needs: [checks, version]
+    permissions:
+      contents: write # attach the files to the draft
+      id-token: write # attestations
+      attestations: write
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.checks.outputs.tag }}
+      ref: ${{ needs.checks.outputs.tag }}
+      require_mac_signing: true
+    secrets: inherit
+
+  # The signed Windows apps and server zip (and, unless the Android app is built on GitHub, the Android APK and app
+  # bundle with the release key), on the home PC: scripts/release-windows.ps1, the same step release.ps1 runs.
+  windows:
+    name: Windows (home PC, signed)
+    needs: [checks, version]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: [iskra-windows-signing]
+    timeout-minutes: 120
+    permissions:
+      contents: write # upload to the draft release
+    env:
+      VERSION: ${{ needs.checks.outputs.version }}
+      TAG: ${{ needs.checks.outputs.tag }}
+      ANDROID_BUILD: ${{ vars.ANDROID_BUILD }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/${{ needs.checks.outputs.tag }}
+          persist-credentials: false
+      - name: LiveKit for the Windows server (pinned, SHA-256 checked)
+        shell: pwsh
+        run: ./scripts/get-livekit.ps1
+      - name: Build, sign, check and upload (scripts/release-windows.ps1)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $flags = @{}
+          if ($env:ANDROID_BUILD -eq 'ci') { $flags.SkipAndroid = $true }
+          ./scripts/release-windows.ps1 $env:VERSION @flags
+      - name: Keep the app bundle for the Play upload
+        if: env.ANDROID_BUILD != 'ci'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-bundle
+          path: mobile/release/Iskra-${{ needs.checks.outputs.version }}.aab
+          if-no-files-found: error
+          retention-days: 7
+
+  # ── Prepared, off unless the variable ANDROID_BUILD is "ci" (docs/ci-cd.md, "Android built on GitHub") ──
+  # The app bundle built here and signed with the upload key (environment `signing`), then put on Play first; the APK
+  # for the GitHub release is the universal APK Play makes from it, signed with the app signing key (same as before).
+  android-ci:
+    name: Android app bundle (upload key)
+    needs: [checks, version]
+    if: vars.ANDROID_BUILD == 'ci'
+    runs-on: ubuntu-latest
+    environment: signing
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.checks.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/${{ needs.checks.outputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            mobile/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: client
+      - run: npm ci && npx cap sync android
+        working-directory: mobile
+      - name: Version code
+        run: node scripts/mobile-version.mjs --android 0 | tee -a "$GITHUB_ENV"
+      - name: Gradle (unsigned bundle)
+        working-directory: mobile/android
+        run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          ./gradlew bundleRelease --no-daemon --console=plain "-PiskraVersionCode=$VERSION_CODE" "-PiskraVersionName=$APP_VERSION"
+      - name: Sign with the upload key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          ISKRA_KS_PASS: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+        run: |
+          [ -n "$KEYSTORE" ] && [ -n "$ISKRA_KS_PASS" ] || { echo "::error::ANDROID_UPLOAD_KEYSTORE_BASE64 / _PASSWORD aren't set in the environment signing"; exit 1; }
+          umask 077
+          echo "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/upload.keystore"
+          mkdir -p "$RUNNER_TEMP/out"
+          cp mobile/android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/out/Iskra-$VERSION.aab"
+          "$JAVA_HOME_21_X64/bin/jarsigner" -keystore "$RUNNER_TEMP/upload.keystore" -storepass:env ISKRA_KS_PASS -keypass:env ISKRA_KS_PASS \
+            -sigalg SHA256withRSA -digestalg SHA-256 "$RUNNER_TEMP/out/Iskra-$VERSION.aab" upload > /dev/null
+          rm -f "$RUNNER_TEMP/upload.keystore"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-bundle
+          path: ${{ runner.temp }}/out/Iskra-${{ needs.checks.outputs.version }}.aab
+          if-no-files-found: error
+          retention-days: 7
+
+  android-apk:
+    name: Google Play first, then the APK from Play
+    needs: [checks, version, ci, android-ci]
+    if: vars.ANDROID_BUILD == 'ci'
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 45
+    permissions:
+      contents: write # upload the APK to the draft release
+      id-token: write # Google workload identity federation
+    env:
+      VERSION: ${{ needs.checks.outputs.version }}
+      TAG: ${{ needs.checks.outputs.tag }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/${{ needs.checks.outputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - run: npm ci --prefix mobile --no-audit --no-fund --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: android-bundle
+          path: mobile/release
+      - id: google
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_PLAY_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+          create_credentials_file: false
+      - name: Upload to Google Play and fetch Play's universal APK
+        env:
+          ISKRA_PLAY_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
+        run: node scripts/play-upload.mjs "$VERSION" --universal-apk "$RUNNER_TEMP/Iskra-$VERSION.apk"
+      - name: The APK is signed with the app's key (assetlinks.json) and is this version
+        run: |
+          tools="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n1)"
+          apk="$RUNNER_TEMP/Iskra-$VERSION.apk"
+          digest="$("$tools/apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          jq -r '.[0].target.sha256_cert_fingerprints[]' client/public/.well-known/assetlinks.json | tr -d ':' | tr 'A-F' 'a-f' | grep -qx "$digest" \
+            || { echo "::error::Play's APK is signed with $digest, which isn't in assetlinks.json: not uploading it"; exit 1; }
+          code="$(node scripts/mobile-version.mjs --android 0 | sed -n 's/^VERSION_CODE=//p')"
+          "$tools/aapt2" dump badging "$apk" | head -n1 | grep -q "package: name='foo.iskra.app' versionCode='$code'" || { echo "::error::Play's APK isn't foo.iskra.app $code"; exit 1; }
+      - name: Attach the APK to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "$TAG" "$RUNNER_TEMP/Iskra-$VERSION.apk" --clobber
+
+  # ── 4. Finalize: CI gate (this run's CI), checks, SBOMs, sums, attestations, publish, deploy ──
+  finalize:
+    needs: [checks, version, ci, builds, windows, android-apk]
+    if: ${{ !cancelled() && needs.ci.result == 'success' && needs.builds.result == 'success' && needs.windows.result == 'success' && (needs.android-apk.result == 'success' || needs.android-apk.result == 'skipped') }}
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      actions: read
+    uses: ./.github/workflows/release-finalize.yml
+    with:
+      tag: ${{ needs.checks.outputs.tag }}
+      deploy: true
+      ci_run: ${{ github.run_id }}
+      report: false
+    secrets: inherit
+
+  # ── 5. Phones ──
+  # TestFlight: mobile-ios.yml started as its own run (its build numbers keep counting as before), then followed.
+  # An earlier run for this tag that succeeded or still runs is reused, so a re-run never uploads twice.
+  ios:
+    name: iPhone (TestFlight)
+    needs: [checks, finalize]
+    if: inputs.phones
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      actions: write # start mobile-ios.yml and follow it
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.checks.outputs.tag }}
+    steps:
+      - name: Start or find the TestFlight build
+        id: run
+        run: |
+          title="Mobile iOS $TAG (TestFlight)"
+          pick() { gh run list --workflow mobile-ios.yml -L 30 --json databaseId,displayTitle,status,conclusion,createdAt --jq "$1"; }
+          id="$(pick "[.[] | select(.displayTitle == \"$title\" and (.status != \"completed\" or .conclusion == \"success\"))][0].databaseId // empty")"
+          if [ -z "$id" ]; then
+            since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            gh workflow run mobile-ios.yml --ref main -f ref="$TAG" -f upload=true
+            for i in $(seq 1 30); do
+              sleep 10
+              id="$(pick "[.[] | select(.displayTitle == \"$title\" and .createdAt >= \"$since\")][0].databaseId // empty")"
+              [ -n "$id" ] && break
+            done
+          fi
+          [ -n "$id" ] || { echo "::error::the TestFlight build (mobile-ios.yml) didn't start"; exit 1; }
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "TestFlight build: $GITHUB_SERVER_URL/$GH_REPO/actions/runs/$id" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Wait for it (build, upload, Apple's processing, TestFlight groups and reviews)
+        env:
+          RUN: ${{ steps.run.outputs.id }}
+        run: gh run watch "$RUN" --exit-status --interval 60 > /dev/null
+
+  # Google Play with workload identity federation (no key file anywhere), once the variables are set.
+  play:
+    name: Google Play
+    needs: [checks, finalize, windows]
+    if: inputs.phones && vars.ANDROID_BUILD != 'ci' && vars.GCP_WIF_PROVIDER != '' && vars.GCP_PLAY_SERVICE_ACCOUNT != ''
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # Google workload identity federation
+    env:
+      VERSION: ${{ needs.checks.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/${{ needs.checks.outputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - run: npm ci --prefix mobile --no-audit --no-fund --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: android-bundle
+          path: mobile/release
+      - id: google
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_PLAY_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+          create_credentials_file: false
+      - name: Upload to Google Play (scripts/play-upload.mjs)
+        env:
+          ISKRA_PLAY_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
+        run: node scripts/play-upload.mjs "$VERSION"
+
+  # Until then: the home PC uploads with its service-account key file (as scripts/release.ps1 does).
+  play-pc:
+    name: Google Play (home PC key)
+    needs: [checks, finalize, windows]
+    if: inputs.phones && vars.ANDROID_BUILD != 'ci' && (vars.GCP_WIF_PROVIDER == '' || vars.GCP_PLAY_SERVICE_ACCOUNT == '') && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: [iskra-windows-signing]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.checks.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/${{ needs.checks.outputs.tag }}
+          persist-credentials: false
+      - run: npm ci --prefix mobile --no-audit --no-fund --ignore-scripts
+        shell: pwsh
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: android-bundle
+          path: mobile/release
+      - name: Upload to Google Play (scripts/play-upload.mjs)
+        shell: pwsh
+        run: node scripts/play-upload.mjs $env:VERSION
+
+  # ── 6. Report: one table in the run's summary, and the result in an Iskra channel when ISKRA_CI_WEBHOOK is set ──
+  report:
+    name: report
+    needs: [checks, pc-checks, version, ci, builds, windows, android-ci, android-apk, finalize, ios, play, play-pc]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      NEEDS: ${{ toJSON(needs) }}
+      TAG: ${{ needs.checks.outputs.tag }}
+      COMMIT: ${{ needs.version.outputs.sha }}
+      CHECK_ONLY: ${{ inputs.check_only }}
+    steps:
+      - name: Summary
+        run: |
+          {
+            if [ "$CHECK_ONLY" = true ]; then echo "### Release ${TAG:-?}: checks only (nothing was changed)"; else echo "### Release ${TAG:-?}"; fi
+            echo
+            echo "| Step | Result |"
+            echo "|---|---|"
+            echo "$NEEDS" | jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"'
+            if [ -n "$TAG" ] && [ "$CHECK_ONLY" != true ]; then echo; echo "Release: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Is the webhook set?
+        id: hook
+        env:
+          ISKRA_CI_WEBHOOK: ${{ secrets.ISKRA_CI_WEBHOOK }}
+        run: |
+          if [ -n "$ISKRA_CI_WEBHOOK" ] && [ "$CHECK_ONLY" != true ]; then echo "set=1" >> "$GITHUB_OUTPUT"; else echo "Not reporting to Iskra (no ISKRA_CI_WEBHOOK, or checks only)."; fi
+      - if: steps.hook.outputs.set == '1'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci-notify.mjs
+          sparse-checkout-cone-mode: false
+      - if: steps.hook.outputs.set == '1'
+        run: node scripts/ci-notify.mjs release
+        env:
+          ISKRA_CI_WEBHOOK: ${{ secrets.ISKRA_CI_WEBHOOK }}

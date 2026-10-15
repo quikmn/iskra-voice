@@ -42,6 +42,11 @@ import { afk } from './afk'
 import { whatsNew } from './whatsNew'
 import { claim } from './claim'
 import { templates } from './templates'
+import { popout } from './popout'
+import { alerts } from './alerts'
+import { whisper } from './whisper'
+import { teams } from './teams'
+import { lfg } from './lfg'
 import { translate } from './translate'
 
 export const sv: Messages = {
@@ -87,5 +92,10 @@ export const sv: Messages = {
   whatsNew,
   claim,
   templates,
+  popout,
+  alerts,
+  whisper,
+  teams,
+  lfg,
   translate,
 }

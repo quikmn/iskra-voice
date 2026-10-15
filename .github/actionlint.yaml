@@ -1,0 +1,4 @@
+# actionlint (also run by scripts/workflows.test.mjs when it is installed): the home PC runner's label.
+self-hosted-runner:
+  labels:
+    - iskra-windows-signing

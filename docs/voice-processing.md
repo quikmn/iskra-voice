@@ -311,3 +311,15 @@ part of the app or the server.
 
 WAV is read by the SDK itself (`bots/sdk/src/voice/audio.ts`). The LGPL parts are used unmodified, as the separate
 npm packages they ship in.
+
+### Rich text (code and math)
+
+Code blocks and LaTeX math in messages, threads, forums and docs pages. Both are bundled with the app (no CDN), loaded
+only when a message needs them, and their output is turned into React elements through an allowlist
+(`client/src/ui/chat/safeTrees.ts`), never inserted as HTML.
+
+| Component | Version | Used for | License |
+|---|---|---|---|
+| [lowlight](https://github.com/wooorm/lowlight) | 3.3.0 | syntax highlighting as a token tree | MIT |
+| [highlight.js](https://github.com/highlightjs/highlight.js) (grammars, through lowlight) | 11.11.2 | the common languages, and guessing one for untagged blocks | BSD-3-Clause |
+| [Temml](https://github.com/ronkok/Temml) (with its small `Temml.woff2` font and `Temml-Local.css`) | 0.13.5 | LaTeX to MathML | MIT |

@@ -1,3 +1,5 @@
+import { useAlertPattern } from '../state/alerts'
+import { matchesAlert } from '../state/alertsLogic'
 import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { b64u } from '../core/crypto'
@@ -223,8 +225,10 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
   const name = nameOf(dm.from)
   const translateItem = dm.pending || dm.error || asLog(dm.call) ? null : dmItem(peer, dm, (k) => nameOf(k))
   const tools = usePrivateMessageTools(dm.pending || dm.error || asLog(dm.call) ? null : dmTarget(peer, dm), dm.text, translateItem)
+  const alerts = useAlertPattern(null)
+  const alerted = !mine && matchesAlert(alerts, dm.text)
   return (
-    <div id={privateRowId(dm.from, dm.id)} {...tools.rowProps} data-dm-id={dm.id} className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''} ${tools.rowProps.className ?? ''}`}
+    <div id={privateRowId(dm.from, dm.id)} {...tools.rowProps} data-dm-id={dm.id} className={`message ${grouped ? 'grouped' : ''} ${dm.pending ?? ''} ${tools.rowProps.className ?? ''} ${alerted ? 'alerted' : ''}`}
       role="article" tabIndex={-1} aria-label={t('chat.a11y.message', { name, time: fullTime(dm.sentAt) })}>
       <div className="message-gutter">
         {grouped ? <time className="hover-time" title={fullTime(dm.sentAt)}>{clockTime(dm.sentAt)}</time> : <span {...userMenuProps(dm.from)}><Avatar name={name} accountKey={dm.from} /></span>}
@@ -243,7 +247,7 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
         ) : (
           <>
             {dm.forward && <ForwardedLine label={dm.forward.from} />}
-            {dm.text && <div className="message-text">{renderMarkdown(dm.text, { nameOf: (k) => nameOf(k) })}</div>}
+            {dm.text && <div className="message-text">{renderMarkdown(dm.text, { nameOf: (k) => nameOf(k), alerts })}</div>}
             <TranslationBlock item={translateItem} />
             {dm.forward && dm.forward.files.length > 0 && <ForwardedFiles files={dm.forward.files} />}
             <DmAttachments files={dm.files} />

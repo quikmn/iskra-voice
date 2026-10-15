@@ -21,6 +21,9 @@ import { IncomingGroupCall } from './groups/GroupCall'
 import { SoundToasts } from './expressions/Soundboard'
 import { OuthookToast } from './OuthookToast'
 import { AfkToast } from './afk/AfkToast'
+import { LfgLayer, LfgToast } from './lfg/Lfg'
+import { TeamsBar } from './teams/TeamsBits'
+import { TeamsLayer } from './teams/TeamsDialog'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { UserMenuLayer } from './people/UserMenu'
 import { ServerActionLayer } from './organize/ServerMenu'
@@ -37,6 +40,7 @@ import { RestartBanner } from './RestartBanner'
 import { ProductivityLayer } from './productivity/InboxButton'
 import { VoiceRoom } from './clips/VoiceRoom'
 import { ClipLayer } from './clips/ClipControls'
+import { PopoutLayer } from './popout/PopoutLayer'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -70,6 +74,7 @@ export function Shell() {
         <DisputeNotices />
         {server && <ServerUpdateNotice server={server} />}
         {server && <RestartBanner server={server} />}
+        {server && <TeamsBar server={server} />}
         <KtNotices />
         <ErrorBoundary variant="pane" resetKey={`${server?.key ?? ''}:${channelId ?? ''}:${stage}`}>
           {server && stage ? (
@@ -99,6 +104,9 @@ export function Shell() {
       <SoundToasts />
       <OuthookToast />
       <AfkToast />
+      <LfgToast />
+      <TeamsLayer />
+      <LfgLayer />
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
       <IncomingCall />
       <IncomingGroupCall />
@@ -112,6 +120,7 @@ export function Shell() {
       <RulesLayer />
       <ProductivityLayer />
       <ClipLayer />
+      <PopoutLayer />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} onClaim={() => { setJoining(false); setClaiming(true) }} />}
       {claiming && <ClaimServerDialog onClose={() => setClaiming(false)} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} onClaim={() => { setCreating(false); setClaiming(true) }} />)}

@@ -14,6 +14,7 @@ export const roles = {
     moveMembers: { label: 'Move members', hint: 'Move people between voice channels' },
     muteMembers: { label: 'Mute members', hint: 'Mute people in voice for everyone' },
     manageAutoMod: { label: 'Manage AutoMod', hint: 'Change the blocked words and spam rules' },
+    prioritySpeaker: { label: 'Priority speaker', hint: 'Turn everyone else down for listeners while they talk with priority' },
   },
   base: {
     title: 'Built-in roles',
@@ -36,6 +37,7 @@ export const roles = {
     abilities: {
       invite: 'Invite friends as guests or members',
       events: 'Schedule events',
+      whisper: 'Whisper to people or a voice channel',
       pin: 'Pin messages where they can post',
       mentionEveryone: 'Notify everyone with @everyone and @here',
       uploadSounds: 'Add soundboard sounds',

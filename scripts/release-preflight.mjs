@@ -1,18 +1,25 @@
 #!/usr/bin/env node
-// Step of scripts/release.ps1 (the one release command); not run by hand. Checks for its check phase.
+// Step of scripts/release.ps1 (the one release command) and of the Release workflow (release-all.yml); not run by
+// hand. Checks for their check phase.
 //
 //   node scripts/release-preflight.mjs next-version [--repo owner/name]   the next alpha after the latest release
 //   node scripts/release-preflight.mjs store                               mobile/store.json is valid
 //   node scripts/release-preflight.mjs github [--skip-phones] [--repo owner/name]
 //                                     the secrets and variables the release workflows need (names only, via gh),
 //                                     and whether an environment still waits for a reviewer
+//   node scripts/release-preflight.mjs release [<version>] [--skip-phones] [--android-ci] [--repo owner/name] [--ci-wait 30]
+//                                     the Release workflow's checks on GitHub: what release.ps1's check phase checks
+//                                     that doesn't need the home PC (that's release-pc-checks.ps1). Secret names come
+//                                     from HAS_<NAME>=true|false and variables from VARS_JSON (the workflow passes
+//                                     them; a job can't list secrets). Writes version= and tag= to $GITHUB_OUTPUT.
 //
 // Prints one line per finding: "red: ..." (the release can't go), "warn: ..." or "ok: ...". Exit 1 on any red.
-import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { compareVersions, parseVersion } from './release-lib.mjs'
+import { waitForCi } from './ci-gate.mjs'
+import { compareVersions, isValidVersion, parseVersion } from './release-lib.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -93,6 +100,59 @@ export function reviewerFindings(environments) {
     .map((e) => ({ level: 'warn', text: `environment "${e.name}" has required reviewers, so its runs wait for an approval: GitHub → quikmn/iskra-voice → Settings → Environments → ${e.name} → untick "Required reviewers" → Save protection rules` }))
 }
 
+/** The workflows a release runs (they must be active). */
+export const RELEASE_WORKFLOWS = ['ci.yml', 'release.yml', 'release-finalize.yml', 'deploy.yml', 'mobile-ios.yml']
+
+/**
+ * The commit CI must have passed on: HEAD, or the newest commit before it that CI ran on or would run on (CI skips
+ * pushes that only change *.md and site/). `hasRun(c)`: CI has a push run there; `files(c)`: the files c changes.
+ */
+export function ciCommit(commits, hasRun, files) {
+  let sha = commits[0]
+  for (const c of commits) {
+    sha = c
+    if (hasRun(c)) break
+    if (files(c).some((f) => !/\.md$/.test(f) && !f.startsWith('site/'))) break
+  }
+  return sha
+}
+
+/**
+ * The Release workflow's findings from what was looked up (`f`), with the same cases as release.ps1's check phase:
+ * "[case] what to do".
+ */
+export function releaseFindings(f) {
+  const out = []
+  const red = (c, t) => out.push({ level: 'red', text: `[${c}] ${t}` })
+  const ok = (t) => out.push({ level: 'ok', text: t })
+  const off = Object.entries(f.workflows ?? {}).filter(([, state]) => state !== 'active')
+  if (off.length) red('workflow off', `not active on GitHub: ${off.map(([n, s]) => `${n} (${s})`).join(', ')}. Enable it under Actions.`)
+  else ok(`workflows active: ${Object.keys(f.workflows ?? {}).join(', ')}`)
+  if (f.versionError) { red('which version?', f.versionError); return out }
+  if (f.tagExists) red(`tag v${f.version} already exists`, 'pick the next version. Never move tags.')
+  if (f.releaseExists) red(`a release v${f.version} already exists`, 'report it (a draft without a tag?).')
+  if (compareVersions(f.version, f.current) <= 0) red('must be newer than the current version', `${f.version} isn't newer than ${f.current}.`)
+  else ok(`${f.current} -> ${f.version}`)
+  if (f.notes.code !== 0) red('write the release notes first', `${String(f.notes.message || 'release-notes.mjs stopped').replace(/\.$/, '')}. Add the changes to docs/releases/NEXT.md (or write docs/releases/${f.version}.md).`)
+  else ok('release notes are ready')
+  if (f.bump.code !== 0) red("doesn't mention the current version", `${String(f.bump.message || 'release-version.mjs stopped').replace(/\.$/, '')}. links.ts or site/index.html is out of sync with desktop/package.json.`)
+  else if ((f.bump.siteCount ?? 0) < 20) red('site download section', `site/index.html has ${f.bump.siteCount ?? 0} links to ${f.current} (20 or more expected). Fix its download section.`)
+  else if (!f.bump.links) red('links.ts', `client/src/links.ts doesn't carry ${f.current}.`)
+  else ok(`desktop/package.json, client/src/links.ts and site/index.html all say ${f.current}`)
+  if (f.assets.listed !== f.assets.want || f.assets.listed < 20) red('release file list', `scripts/release-assets.mjs lists ${f.assets.listed} files, scripts/release-assets.json has ${f.assets.want}. Report it.`)
+  else ok(`the release will carry ${f.assets.listed} files`)
+  for (const p of f.store ?? []) red('store setup', p)
+  for (const n of f.names ?? []) {
+    if (n.level === 'red') red('GitHub setup', n.text)
+    else out.push(n)
+  }
+  if (!f.ci.ok) {
+    if (f.ci.timedOut) red('CI not done', `${f.ci.message}. Press Release again when CI on main is green.`)
+    else red('CI failed on main', `${f.ci.message}. Fix main first (a flake: re-run CI's failed jobs), then press Release again.`)
+  } else ok(f.ci.message)
+  return out
+}
+
 function gh(args) {
   return execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GH_PROMPT_DISABLED: '1' } })
 }
@@ -100,7 +160,77 @@ const names = (args) => gh([...args, '--json', 'name', '--jq', '.[].name']).spli
 const readStore = () => JSON.parse(readFileSync(join(root, 'mobile/store.json'), 'utf8'))
 const print = (findings) => { for (const f of findings) console.log(`${f.level}: ${f.text}`); return findings.some((f) => f.level === 'red') ? 1 : 0 }
 
-function main(argv) {
+const lines = (text) => String(text ?? '').split(/\r?\n/)
+function runNode(args) {
+  const r = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8' })
+  const all = lines(`${r.stdout}\n${r.stderr}`)
+  const stop = all.find((l) => l.startsWith('Release stopped:'))
+  return { code: r.status, lines: all, message: stop ? stop.replace(/^Release stopped:\s*/, '') : '' }
+}
+const git = (...a) => execFileSync('git', a, { cwd: root, encoding: 'utf8' }).trim()
+
+async function releaseCommand(rest, { repo, skipPhones }) {
+  const valued = ['--repo', '--ci-wait']
+  const positional = rest.filter((a, i) => !a.startsWith('--') && !valued.includes(rest[i - 1]))
+  const ciWait = Number((rest.includes('--ci-wait') ? rest[rest.indexOf('--ci-wait') + 1] : '') || 30)
+  const current = JSON.parse(readFileSync(join(root, 'desktop/package.json'), 'utf8')).version
+  const f = { current, workflows: {} }
+  for (const wf of RELEASE_WORKFLOWS) {
+    try { f.workflows[wf] = gh(['api', `repos/${repo}/actions/workflows/${wf}`, '--jq', '.state']).trim() } catch { f.workflows[wf] = 'unknown' }
+  }
+  let latest = ''
+  try { latest = gh(['release', 'view', '-R', repo, '--json', 'tagName', '--jq', '.tagName']).trim() } catch { /* none yet */ }
+  f.version = positional[0] || nextVersion(latest, current)
+  if (!f.version) f.versionError = `can't pick the next version after ${latest || current}: give it (the version input)`
+  else if (!isValidVersion(f.version)) f.versionError = `'${f.version}' isn't a release version (x.y.z or x.y.z-alpha.n, no leading v)`
+  if (!f.versionError) {
+    const tag = `v${f.version}`
+    f.tagExists = git('ls-remote', '--tags', 'origin', `refs/tags/${tag}`) !== ''
+    try { gh(['release', 'view', tag, '-R', repo, '--json', 'tagName']); f.releaseExists = true } catch { f.releaseExists = false }
+    f.notes = runNode(['scripts/release-notes.mjs', f.version, '--dry-run'])
+    const bump = runNode(['scripts/release-version.mjs', f.version, '--dry-run'])
+    const site = bump.lines.find((l) => /site\/index\.html: \d+ occurrence/.test(l))
+    f.bump = { code: bump.code, message: bump.message, siteCount: site ? Number(/(\d+) occurrence/.exec(site)[1]) : 0, links: bump.lines.some((l) => /client\/src\/links\.ts: \d+ occurrence/.test(l)) }
+    const listed = runNode(['scripts/release-assets.mjs', 'list', f.version])
+    const spec = JSON.parse(readFileSync(join(root, 'scripts/release-assets.json'), 'utf8'))
+    f.assets = { listed: listed.code === 0 ? listed.lines.filter(Boolean).length : 0, want: Object.entries(spec).filter(([k]) => k !== '$comment').flatMap(([, v]) => [v].flat()).length }
+  }
+  let store = null
+  try { store = readStore() } catch (e) { f.store = [`mobile/store.json can't be read: ${e.message}`] }
+  if (store && !skipPhones) f.store = storeProblems(store)
+  // Names only: the workflow says which secrets are set (HAS_<NAME>) and passes the variables (not secret).
+  const required = requiredNames(store, { skipPhones })
+  const present = [...required.secrets, ...required.either, 'APPSTORE_REVIEW_PHONE'].filter((n) => process.env[`HAS_${n}`] === 'true')
+  let vars = {}
+  try { vars = JSON.parse(process.env.VARS_JSON || '{}') } catch { /* none */ }
+  f.names = nameFindings(required, { secrets: present, envSecrets: present, variables: Object.keys(vars) }, store, { skipPhones })
+  const wif = Boolean(vars.GCP_WIF_PROVIDER && vars.GCP_PLAY_SERVICE_ACCOUNT)
+  if (rest.includes('--android-ci') && !wif) f.names.push({ level: 'red', text: 'variable ANDROID_BUILD is "ci" (the Android app built on GitHub), which needs Google workload identity federation: set GCP_WIF_PROVIDER and GCP_PLAY_SERVICE_ACCOUNT (docs/ci-cd.md, "Google Play without a key file"), or delete ANDROID_BUILD' })
+  else if (!wif && !skipPhones) f.names.push({ level: 'warn', text: "Google Play uploads use the home PC's key file (no workload identity federation yet: docs/ci-cd.md, \"Google Play without a key file\")" })
+  // CI on main's head (or the newest commit CI runs on), waiting while it runs.
+  const commits = git('rev-list', '--first-parent', '-n', '30', 'HEAD').split('\n').filter(Boolean)
+  const sha = ciCommit(commits, (c) => {
+    try { return Number(gh(['api', `repos/${repo}/actions/workflows/ci.yml/runs?head_sha=${c}&event=push&per_page=1`, '--jq', '.total_count']).trim()) > 0 } catch { return false }
+  }, (c) => git('diff-tree', '--no-commit-id', '--name-only', '-r', c).split('\n').filter(Boolean))
+  if (f.versionError) f.ci = { ok: true, message: 'CI not checked' }
+  else {
+    console.log(`CI on ${sha.slice(0, 12)}${sha === commits[0] ? ' (HEAD)' : ' (newer commits only change docs or site/, which CI skips)'}; waiting up to ${ciWait} min while it runs:`)
+    f.ci = await waitForCi({ sha, repo, waitMinutes: ciWait })
+  }
+  const findings = releaseFindings(f)
+  const code = print(findings)
+  for (const x of findings) if (x.level === 'red') console.log(`::error::${x.text}`)
+  if (process.env.GITHUB_OUTPUT && !f.versionError) appendFileSync(process.env.GITHUB_OUTPUT, `version=${f.version}\ntag=v${f.version}\n`)
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    const reds = findings.filter((x) => x.level === 'red')
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, reds.length
+      ? `### ${reds.length} thing(s) to fix before release v${f.version ?? '?'} (nothing was changed)\n${reds.map((x) => `- ${x.text}`).join('\n')}\n`
+      : `### Checks green for release v${f.version}\n`)
+  }
+  return code
+}
+
+async function main(argv) {
   const [cmd, ...rest] = argv
   const opt = (name, fallback) => { const i = rest.indexOf(name); return i === -1 ? fallback : rest[i + 1] }
   const repo = opt('--repo', 'quikmn/iskra-voice')
@@ -114,6 +244,7 @@ function main(argv) {
     console.log(v)
     return 0
   }
+  if (cmd === 'release') return releaseCommand(rest, { repo, skipPhones })
   if (cmd === 'store') {
     let store
     try { store = readStore() } catch (e) { return print([{ level: 'red', text: `mobile/store.json can't be read: ${e.message}` }]) }
@@ -132,8 +263,8 @@ function main(argv) {
     }
     return print([...nameFindings(requiredNames(store, { skipPhones }), have, store, { skipPhones }), ...reviewerFindings(environments)])
   }
-  console.error('usage: node scripts/release-preflight.mjs next-version | store | github [--skip-phones]')
+  console.error('usage: node scripts/release-preflight.mjs next-version | store | github [--skip-phones] | release [<version>] [--skip-phones]')
   return 2
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) process.exit(main(process.argv.slice(2)))
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) process.exitCode = await main(process.argv.slice(2))

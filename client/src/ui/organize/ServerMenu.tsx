@@ -24,6 +24,7 @@ import { ServerTile } from '../settings/ServerTile'
 import { FolderDialog } from './FolderDialog'
 import { NotifyRows, NotifyViews, useRunner, type Run } from './Menus'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgMenu'
+import { LfgNotifyItem } from '../teams/TeamsBits'
 import { NicknameField } from './ServerSettings'
 import { serverMenuLayout } from './serverMenuLayout'
 
@@ -92,6 +93,7 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
             <ServerRulesItem serverKey={server.key} onDone={onClose} />
             <div className="org-sep" role="separator" />
             {me && <NotifyRows server={server} channelId={null} setView={setView} run={run} />}
+            {me && <LfgNotifyItem server={server} run={run} />}
             {me && <MenuItem onClick={pick({ kind: 'nickname' })}>{t('app.serverMenu.nickname')}</MenuItem>}
             <MenuItem onClick={run(() => markServerRead(server.key))}>{t('app.rail.markRead')}</MenuItem>
             <MenuItem onClick={() => setView('move')} submenu>{t('app.serverMenu.moveFolder')}</MenuItem>

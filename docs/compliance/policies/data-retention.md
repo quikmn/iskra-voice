@@ -37,11 +37,14 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Bug reports (bug inbox, when the owner turns it on: what the reporter wrote, screenshots, logs from the app, an optional contact email; anonymous, never the sender's IP address) | 365 days at most (sooner with a shorter `Retention.MessagesDays`); their files a day later | `RetentionSweeper`; admins can delete one earlier | No (the year); the owner turns the inbox off |
 | Outgoing webhooks (name, address, events, who made it) and their delivery log (time, event, attempt, HTTP status, outcome; never the payload) | Webhooks until an admin deletes them; the last 50 log entries per webhook, deleted with it | Admins; each new log entry | No |
 | Ended or cancelled events | 30 days | `EventScheduler` | No |
+| Looking-for-group posts (game, slots, time, voice channel, note; who joined) and the "Notify me for LFG" setting | Posts: same as messages (they go with their message), closed 2 hours after their time or after 24 hours; who joined: with the post, or until the account is deleted; the setting: until turned off or the account is deleted | `RetentionSweeper` and message deletion; `LfgCloser` (closing); account deletion | `Retention.MessagesDays` |
+| Team splits (who started one, the voice channel, the game, its temporary team channels) | Until the split ends: team channels are deleted after 5 minutes empty, or when everyone is brought back | `TeamSweeper`; `teams.end` | No |
 | Daily backups (`backups/auto-*.zip`) | Last 7 | `BackupService` | `Backups.Keep` (1–30) |
 | Downloaded encrypted backups | Wherever the owner keeps them | The owner | — |
 | Data exports (`/export/{token}`) | 10 minutes (the link; files in `world/exports`, never in backups) | Export cleanup | No |
 | Presence, voice state, IP addresses of connected clients | In memory while connected (stored in the security log only if the owner turns on `Retention.SecurityLogIps`, off by default) | Process memory | No |
 | Profiles (and the stamp of the newest profile edit, `profile_stamps`), memberships, roles, devices, push subscriptions | While the person is a member | Leaving, kick/ban, account deletion, device revocation | — |
+| Alert words and quiet hours (`alert_settings`): words only if the member turned on "Also when Iskra is closed", the schedule (days, times, time zone) only where their push is on | Until they change or turn them off, or stop being a member | The member's app (`alerts.set`), leaving, kick/ban, account deletion | — |
 | Captions model (`models/`; no personal data) | Until the owner deletes it | The owner | `Captions.ModelDownload` (off: not fetched or served) |
 | Translation models (`models/translate/`; no personal data) | Until the owner deletes them | The owner | Server settings → Translation (off: not fetched or served) |
 | Owner claim of a rented server (`owner-claim`), or a server image's claim code (`owner-claim`, `owner-claim-code.txt`) | Until the owner joins; a claim code also stops working after 24 hours and is replaced on the next start | `OwnerSetup` | — |
@@ -95,4 +98,5 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-13 | Built-in bots (Dice, Polls, Reminders): their answers and /remind reminders |
 | 2026-10-14 | Bug reports (bug inbox) |
 | 2026-10-14 | Claim codes of server images (DigitalOcean Marketplace) |
+| 2026-10-15 | Looking-for-group posts and team splits |
 | 2026-10-15 | Message translation on the device (texts never leave it); translation models folder on the server |
