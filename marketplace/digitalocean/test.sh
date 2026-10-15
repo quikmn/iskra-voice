@@ -2,7 +2,7 @@
 # Tests a built image end to end, as a user would meet it: a $6 droplet from the snapshot, HTTPS on its sslip.io name,
 # the claim screen, ufw, then a claim with the app's own code (client/interop/claim.test.ts: new identity, address +
 # code, joined as the owner, a voice token and a LiveKit room), and the console back to normal. See README.md.
-#   DIGITALOCEAN_TOKEN=... ./test.sh <snapshot-id> [region]    (region: the snapshot's, default nyc3; build.sh prints both)
+#   DIGITALOCEAN_TOKEN=... ./test.sh <snapshot-id> [region]    (region: the snapshot's, default ams3; build.sh prints both)
 #   DIGITALOCEAN_TOKEN=... ./test.sh --sweep                   deletes leftover test and build droplets and test SSH keys
 # The droplet and its temporary SSH key are always deleted again (about 10 minutes of a $6 droplet); the snapshot stays.
 # Needs curl, jq, ssh, ssh-keygen and Node, with `npm ci` done in client/ and bots/. Never prints the claim code.
@@ -54,7 +54,7 @@ fi
 
 need ssh ssh-keygen node npx
 snapshot="${1:-}"
-region="${2:-nyc3}"
+region="${2:-ams3}"
 [[ "$snapshot" =~ ^[0-9]+$ ]] || { echo "Usage: $0 <snapshot-id> [region]" >&2; exit 1; }
 [[ "$region" =~ ^[a-z0-9]+$ ]] || { echo "Not a region: $region" >&2; exit 1; }
 

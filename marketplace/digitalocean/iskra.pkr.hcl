@@ -34,9 +34,10 @@ variable "package_dir" {
   description = "Where the checked server package and SHA256SUMS.txt are (default: build/, where build.sh puts them)."
 }
 
+# Amsterdam: it has s-1vcpu-1gb (New York no longer did in 2026-10).
 variable "region" {
   type    = string
-  default = "nyc3"
+  default = "ams3"
 }
 
 # The smallest size with 1 GB: DigitalOcean asks for the smallest disk, so every size can use the image.
