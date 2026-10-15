@@ -58,8 +58,7 @@ OS updates), which Iskra doesn't control.
 
 ## The websites
 
-- **iskra.foo**: static, on Cloudflare Pages; self-hosted fonts; no analytics. Its two showcase background videos
-  load from YouTube (privacy-enhanced) only when a visitor presses their play button.
+- **iskra.foo**: static, on Cloudflare Pages; self-hosted fonts; no analytics; nothing loads from other sites.
 - **app.iskra.foo**: the web app's files, on Cloudflare Pages. After it loads, it talks only to the servers you join.
 
 ## How this is checked

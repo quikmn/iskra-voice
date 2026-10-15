@@ -32,7 +32,7 @@ data is involved. DPA status "to accept" is an owner action ([owner-actions.md](
 | **Certum** (Asseco Data Systems) | Supplier | Windows code-signing certificate, key held in Certum's cloud HSM (SimplySign) | Owner's identity only | Poland (EU) | Certum terms |
 | **Ko-fi**, **PayPal** | Third party | Donations; the site and Settings → About link to them | Donors give their data to Ko-fi/PayPal directly | UK / Luxembourg (EU entity for EU users) | Their own terms; the owner receives donor name/email from them as controller |
 | **npm registry**, **NuGet** (Microsoft) | Supplier | Package downloads for builds | None | US | — |
-| **YouTube, Twitch, X, Reddit, linked websites** | Third party | Embeds (click-to-load placeholders; a per-site, per-device "Always load" tick) and watch parties (a "plays from …" notice before anything loads); link previews fetched by the server (text only); iskra.foo's two showcase videos only after a click | Users' IP (embeds, watch parties); the server's IP (previews) | Various | Their own terms (privacy policy §8) |
+| **YouTube, Twitch, X, Reddit, linked websites** | Third party | Embeds (click-to-load placeholders; a per-site, per-device "Always load" tick) and watch parties (a "plays from …" notice before anything loads); link previews fetched by the server (text only) | Users' IP (embeds, watch parties); the server's IP (previews) | Various | Their own terms (privacy policy §8) |
 
 **Not vendors:** VPS providers named in the app's "Rent a small server" guide (Hetzner, DigitalOcean as examples) are
 chosen, paid and run by each group itself; Iskra has no deal with them and they process nothing for the owner (the

@@ -130,7 +130,7 @@ export function StartServerDialog({ onClose, onClaim }: { onClose: () => void; o
         <ol>
           <li>
             <Trans i18nKey="settings.start.self1" components={{
-              win: <a href={LINKS.serverWindows} />, linux: <a href={LINKS.serverLinux} />,
+              win: <a href={LINKS.serverWindows} />, linux: <a href={LINKS.serverLinux} />, pi: <a href={LINKS.serverLinuxArm} />,
               arm: <a href={LINKS.serverMacAppleSilicon} />, intel: <a href={LINKS.serverMacIntel} />,
             }} />
           </li>

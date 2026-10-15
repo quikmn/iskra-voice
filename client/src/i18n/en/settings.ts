@@ -361,7 +361,7 @@ export const settings = {
     step2: "Click <b>Create a server</b>. It runs on your computer, voice included, and you're the owner.",
     step3: 'Click <b>Invite friends</b> and send them the link.',
     selfTitle: 'Or run the server yourself (home PC or a VPS)',
-    self1: 'Download the server for <win>Windows</win>, <linux>Linux</linux> or Mac (<arm>Apple silicon</arm>, <intel>Intel</intel>) and unpack it.',
+    self1: 'Download the server for <win>Windows</win>, <linux>Linux</linux>, <pi>Raspberry Pi and ARM Linux</pi> or Mac (<arm>Apple silicon</arm>, <intel>Intel</intel>) and unpack it.',
     self2: 'Run <code>iskra-server my-server</code>. It creates a folder called <code>my-server</code> that holds everything.',
     self3: 'Open the link it prints to become the owner, then invite your friends.',
     https: "For friends joining over the internet from a browser, the server needs HTTPS. It's built in: set your domain in <code>server.json</code> and it gets a free certificate automatically.",

@@ -362,7 +362,7 @@ export const settings: Messages['settings'] = {
     step2: 'Klicka på <b>Skapa en server</b>. Den körs på din dator, röst ingår, och du är ägaren.',
     step3: 'Klicka på <b>Bjud in vänner</b> och skicka länken till dem.',
     selfTitle: 'Eller kör servern själv (hemdator eller VPS)',
-    self1: 'Ladda ner servern för <win>Windows</win>, <linux>Linux</linux> eller Mac (<arm>Apple silicon</arm>, <intel>Intel</intel>) och packa upp den.',
+    self1: 'Ladda ner servern för <win>Windows</win>, <linux>Linux</linux>, <pi>Raspberry Pi och ARM-Linux</pi> eller Mac (<arm>Apple silicon</arm>, <intel>Intel</intel>) och packa upp den.',
     self2: 'Kör <code>iskra-server my-server</code>. Den skapar en mapp som heter <code>my-server</code> där allt sparas.',
     self3: 'Öppna länken den skriver ut för att bli ägare, och bjud sedan in dina vänner.',
     https: 'För vänner som går med över internet från en webbläsare behöver servern HTTPS. Det är inbyggt: ange din domän i <code>server.json</code> så får den ett gratis certifikat automatiskt.',
