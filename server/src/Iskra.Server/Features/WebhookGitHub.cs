@@ -20,6 +20,7 @@ public static class WebhookGitHub
         var action = Str(root, "action");
 
         string? title = null, url = null, description = null;
+        var color = GitHubColor;
         switch (eventName)
         {
             case "ping":
@@ -61,6 +62,27 @@ public static class WebhookGitHub
                 url = Str(root, "release", "html_url");
                 description = Excerpt((Str(root, "release", "body") ?? "").Trim(), 1500);
                 break;
+            case "workflow_run":
+            {
+                // A finished workflow run (CI, releases, deploys): failures always, successes only for the workflows
+                // people watch and not for scheduled runs, so a channel isn't flooded by uptime checks.
+                if (action != "completed") return null;
+                var conclusion = Str(root, "workflow_run", "conclusion");
+                if (conclusion is null or "cancelled" or "skipped" or "neutral") return null;
+                var name = Str(root, "workflow_run", "name") ?? "Workflow";
+                var trigger = Str(root, "workflow_run", "event");
+                var ok = conclusion == "success";
+                if (ok && (trigger == "schedule" || !WatchedWorkflows.Any(w => name.StartsWith(w, StringComparison.Ordinal)))) return null;
+                var branch = Str(root, "workflow_run", "head_branch");
+                title = $"[{repo}{(branch is null ? "" : $":{branch}")}] {(ok ? "✅" : "❌")} {name} {(ok ? "passed" : conclusion.Replace('_', ' '))}";
+                url = Str(root, "workflow_run", "html_url");
+                var message = Str(root, "workflow_run", "head_commit", "message") ?? "";
+                var sha = Str(root, "workflow_run", "head_sha");
+                var subject = message.Split('\n', 2)[0];
+                if (subject.Length > 0) description = $"{(sha is { Length: >= 7 } ? $"`{sha[..7]}` " : "")}{Short(subject, 200)}";
+                color = ok ? 0x2EA043 : 0xCF222E;
+                break;
+            }
             case "star" or "watch":
                 if (action is not ("created" or "started")) return null;
                 title = $"[{repo}] New star";
@@ -72,7 +94,7 @@ public static class WebhookGitHub
                 break;
         }
 
-        var embed = new JsonObject { ["title"] = Short(title, 256), ["color"] = GitHubColor };
+        var embed = new JsonObject { ["title"] = Short(title, 256), ["color"] = color };
         if (IsWebUrl(url)) embed["url"] = url;
         var cleaned = Sanitize(description, 4096);
         if (!string.IsNullOrEmpty(cleaned)) embed["description"] = cleaned;
@@ -81,6 +103,9 @@ public static class WebhookGitHub
     }
 
     private const int MaxCommits = 8;
+
+    /// <summary>Workflows whose successful runs are worth a message (prefixes of the workflow name); failures always are.</summary>
+    private static readonly string[] WatchedWorkflows = ["CI", "Release", "Deploy", "Bot SDK", "Mobile"];
 
     /// <summary>
     /// "`abc1234` Subject · Author · 3 files", then the first paragraph of the message body on its own line
