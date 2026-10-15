@@ -153,6 +153,9 @@ export const chat: Messages['chat'] = {
     pins: 'Fästa meddelanden',
     pinnedIn: 'Fäst i #{{name}}',
     threadsIn: 'Trådar i #{{name}}',
+    topic: 'Kanalens ämne',
+    topicMore: 'Visa hela ämnet',
+    topicLess: 'Visa mindre av ämnet',
   },
   pins: {
     empty: 'Inga fästa meddelanden än.',

@@ -18,6 +18,7 @@ import type { Panel } from '../Shell'
 import { CheckCircle, ForumIcon, ReplyCount, TagIcon } from './icons'
 import { NewPostDialog, TagsDialog } from './ForumDialogs'
 import './forums.css'
+import { ChannelTopic } from '../chat/ChannelTopic'
 
 const NO_TAGS: ForumTag[] = []
 
@@ -85,6 +86,7 @@ export function ForumView({ server, channel, onToggle }: { server: ServerState; 
           <Users />
         </button>
       </header>
+      <ChannelTopic channel={channel} />
 
       <div className="forum-toolbar">
         <label className="forum-search">

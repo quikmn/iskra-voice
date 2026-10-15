@@ -310,7 +310,7 @@ export function ConflictDialog({ server, draft, latest, onChoose, onClose }: {
   const myCounts = useMemo(() => changeCounts(draft.baseText, draft.text), [draft.baseText, draft.text])
   const diff = useMemo(() => show === 'theirs' ? diffLines(draft.baseText.split('\n'), theirs.split('\n'))
     : show === 'mine' ? diffLines(draft.baseText.split('\n'), draft.text.split('\n')) : null, [show, draft.baseText, draft.text, theirs])
-  const who = server.members[latest.updatedBy]?.name ?? t('docs.someone')
+  const who = server.members[latest.updatedBy]?.name ?? (latest.updatedBy.startsWith('webhook:') ? server.name : t('docs.someone'))
 
   return (
     <Modal title={t('docs.conflict.title')} wide className="docs-conflict" onClose={onClose}>

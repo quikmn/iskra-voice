@@ -25,6 +25,9 @@ export const organize: Messages['organize'] = {
   channelSettings: {
     title: 'Inställningar för {{name}}',
     name: 'Namn',
+    topic: 'Ämne',
+    topicPlaceholder: 'Vad är kanalen till för?',
+    topicHint: 'Visas överst i kanalen. En rad.',
     whoSees: 'Vem kan se den',
     whoSpeaks: 'Vem kan prata och chatta',
     whoAsks: 'Vem kan be om ordet och chatta',

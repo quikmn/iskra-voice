@@ -7,6 +7,7 @@ namespace Iskra.Server.Features;
 public static class ChannelFeature
 {
     public const int MaxNameLength = 32;
+    public const int MaxTopicLength = 300;
     private static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs"];
 
     public static void Register(Router router)
@@ -27,6 +28,21 @@ public static class ChannelFeature
         var name = Text.Normalize(raw, MaxNameLength, allowNewlines: false)
             ?? throw RequestException.BadRequest($"Channel names must be 1–{MaxNameLength} characters.", "channel_name", new { max = MaxNameLength });
         return string.Join('-', name.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    /// <summary>A channel topic: one line, up to <see cref="MaxTopicLength"/>; blank means none (""). Null if not given.</summary>
+    internal static string? CleanTopic(string? raw)
+    {
+        if (raw is null) return null;
+        if (raw.Trim().Length == 0) return "";
+        return Text.Normalize(raw, MaxTopicLength, allowNewlines: false);
+    }
+
+    private static string? TopicField(Body body)
+    {
+        if (!body.Has("topic")) return null;
+        return CleanTopic(body.OptionalString("topic", MaxTopicLength * 4) ?? "")
+            ?? throw RequestException.BadRequest($"A topic can be up to {MaxTopicLength} characters, on one line.", "channel_topic", new { max = MaxTopicLength });
     }
 
     private static string Role(Body body, string field, string fallback)
@@ -70,6 +86,7 @@ public static class ChannelFeature
         var slowmode = ModerationFeature.SlowmodeField(body) ?? 0;
         var userLimit = VoiceLimitFeature.Field(body, kind) ?? 0;
         var hifi = HifiFeature.Field(body, kind) ?? false;
+        var topic = TopicField(body) ?? "";
         var categoryId = OrganizeFeature.OptionalCategory(s, body);
         var e2ee = E2eeChannelFeature.CheckCreate(s, me, body, kind, readRole, writeRole);
         var channel = s.World.Store.CreateChannel(ChannelName(body.String("name", 256)), kind, readRole, writeRole, s.Now);
@@ -88,6 +105,7 @@ public static class ChannelFeature
         if (slowmode > 0) s.World.Store.SetSlowmode(channel.Id, slowmode);
         if (userLimit > 0) s.World.Store.SetUserLimit(channel.Id, userLimit);
         if (hifi) s.World.Store.SetHifi(channel.Id, true);
+        if (topic.Length > 0) s.World.Store.SetTopic(channel.Id, topic);
         if (categoryId is not null)
         {
             s.World.Store.SetChannelCategory(channel.Id, categoryId);
@@ -95,7 +113,7 @@ public static class ChannelFeature
         }
         Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode, userLimit, encrypted = e2ee is not null, hifi });
         BroadcastChannels(s);
-        return new { channel = Hub.PublicChannel(channel, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi) };
+        return new { channel = Hub.PublicChannel(channel, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi, topic) };
     }
 
     private static object Update(Session s, Member me, Body body)
@@ -117,11 +135,14 @@ public static class ChannelFeature
         var userLimit = VoiceLimitFeature.Field(body, channel.Kind) ?? oldLimit;
         var oldHifi = s.World.Store.IsHifi(channel.Id);
         var hifi = HifiFeature.Field(body, channel.Kind) ?? oldHifi;
+        var oldTopic = s.World.Store.Topic(channel.Id);
+        var topic = TopicField(body) ?? oldTopic;
 
         s.World.Store.UpdateChannel(updated);
         if (slowmode != oldSlowmode) s.World.Store.SetSlowmode(channel.Id, slowmode);
         if (userLimit != oldLimit) s.World.Store.SetUserLimit(channel.Id, userLimit);
         if (hifi != oldHifi) s.World.Store.SetHifi(channel.Id, hifi);
+        if (topic != oldTopic) s.World.Store.SetTopic(channel.Id, topic);
         var changes = new Dictionary<string, object>();
         if (updated.Name != channel.Name) changes["name"] = new { from = channel.Name, to = updated.Name };
         if (updated.ReadRole != channel.ReadRole) changes["readRole"] = new { from = channel.ReadRole, to = updated.ReadRole };
@@ -129,10 +150,11 @@ public static class ChannelFeature
         if (slowmode != oldSlowmode) changes["slowmode"] = new { from = oldSlowmode, to = slowmode };
         if (userLimit != oldLimit) changes["userLimit"] = new { from = oldLimit, to = userLimit };
         if (hifi != oldHifi) changes["hifi"] = new { from = oldHifi, to = hifi };
+        if (topic != oldTopic) changes["topic"] = true; // the text itself stays out of the audit log
         if (changes.Count > 0) Audit.Record(s, "channel.update", details: new { channelId = channel.Id, name = updated.Name, changes });
         BroadcastChannels(s);
         s.Voice.EnforceAccess();
-        return new { channel = Hub.PublicChannel(updated, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi) };
+        return new { channel = Hub.PublicChannel(updated, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi, topic) };
     }
 
     private static object? Delete(Session s, Member me, Body body)

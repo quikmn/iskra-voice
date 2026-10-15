@@ -328,6 +328,7 @@ export const errors: Messages['errors'] = {
     bio_length: 'Presentationen kan vara upp till {{max}} tecken, utan osynliga tecken.',
     category_name: 'Kategorinamn måste vara 1–{{max}} tecken, utan osynliga tecken.',
     channel_name: 'Kanalnamn måste vara 1–{{max}} tecken.',
+    channel_topic: 'Ett ämne kan vara upp till {{max}} tecken, på en rad.',
     cover_size: 'Omslagsbilder kan vara upp till {{mb}} MB.',
     status_length: 'En egen status kan vara upp till {{max}} tecken, på en rad.',
     description_length: 'Beskrivningar kan vara upp till {{max}} tecken.',

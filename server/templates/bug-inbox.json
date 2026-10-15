@@ -1,0 +1,30 @@
+{
+  // For Iskra's own server (chat.iskra.foo): a private #bug-reports channel where "Report a bug" in everyone's Iskra
+  // apps lands, and an AFK channel. Additive only; run it with the server stopped:
+  //   iskra-server templates apply <world> bug-inbox.json            (dry run)
+  //   iskra-server templates apply <world> bug-inbox.json --apply
+  // If the server already has a #bug-reports that members can read, the bug inbox is left off (reports can hold email
+  // addresses): make that channel admin-only first.
+  "version": 3,
+  "name": "Bug inbox",
+  "description": "A private channel for bug reports from Iskra apps, and an AFK channel.",
+  "categories": [
+    {
+      "name": "Iskra team",
+      "channels": [
+        {
+          "name": "bug-reports", "readRole": "admin", "writeRole": "admin",
+          "topic": "Reports from Report a bug in Iskra apps (anyone's, from any server). Admins only. Deleted after a year."
+        }
+      ]
+    },
+    {
+      "name": "Voice",
+      "channels": [
+        { "name": "AFK", "kind": "voice", "topic": "People idle in voice for 30 minutes are moved here." }
+      ]
+    }
+  ],
+  "afk": { "channel": "AFK", "minutes": 30, "canTalk": ["owner", "admin"] },
+  "settings": { "bugInbox": "bug-reports" }
+}

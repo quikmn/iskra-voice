@@ -330,6 +330,7 @@ export const errors = {
     bio_length: 'Bios can be up to {{max}} characters, with no invisible characters.',
     category_name: 'Category names must be 1–{{max}} characters, with no invisible characters.',
     channel_name: 'Channel names must be 1–{{max}} characters.',
+    channel_topic: 'A topic can be up to {{max}} characters, on one line.',
     cover_size: 'Cover images can be up to {{mb}} MB.',
     status_length: 'Custom statuses can be up to {{max}} characters, on one line.',
     description_length: 'Descriptions can be up to {{max}} characters.',

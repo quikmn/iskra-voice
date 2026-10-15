@@ -21,6 +21,9 @@ public static class TemplateExport
         var limits = store.AllUserLimits();
         var slowmodes = store.AllSlowmodes();
         var hifi = store.AllHifi();
+        var topics = store.AllTopics();
+        var timers = store.ChannelTimers().ToDictionary(t => t.ChannelId, t => t.Timer.Seconds);
+        var format3 = false;
         // Settings that refer to a channel by name need the name to be unique.
         var unique = channels.GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() == 1).Select(g => g.Single().Id).ToHashSet();
 
@@ -42,6 +45,9 @@ public static class TemplateExport
             if (overrides.Length > 0) o["overrides"] = new JsonArray(overrides);
             if (c.Kind == "forum" && store.ForumTags(c.Id) is { Count: > 0 } tags)
                 o["tags"] = new JsonArray(tags.Select(t => (JsonNode)new JsonObject { ["name"] = t.Name, ["emoji"] = t.Emoji }).ToArray());
+            if (topics.GetValueOrDefault(c.Id) is { Length: > 0 } topic) o["topic"] = topic;
+            if (timers.GetValueOrDefault(c.Id) is > 0 and var seconds && c.Kind is "text" or "voice") o["disappear"] = seconds;
+            format3 |= o.ContainsKey("topic") || o.ContainsKey("disappear");
             return o;
         }
 
@@ -116,7 +122,10 @@ public static class TemplateExport
         if (me.Role == Roles.Owner && store.GetBugInbox() is { Enabled: true, ChannelId: { } inboxId }
             && channels.FirstOrDefault(c => c.Id == inboxId) is { Kind: "text" } inbox && unique.Contains(inboxId))
             settings["bugInbox"] = inbox.Name;
+        if (world.Settings.Translate.Offer) settings["translation"] = true;
         if (settings.Count > 0) template["settings"] = settings;
+        // Format 3 only when it uses format 3's fields, so servers that read format 2 can still use the file.
+        if (!format3 && !settings.ContainsKey("translation")) template["version"] = 2;
         return template;
     }
 

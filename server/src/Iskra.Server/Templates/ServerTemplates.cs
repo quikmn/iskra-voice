@@ -43,6 +43,30 @@ public sealed record TemplateChannel
     public TemplateOverride[] Overrides { get; init; } = [];
     /// <summary>Forum only.</summary>
     public TemplateTag[] Tags { get; init; } = [];
+    /// <summary>One line saying what the channel is for (format 3).</summary>
+    public string? Topic { get; init; }
+    /// <summary>Text channels only: messages posted once, as the server (format 3).</summary>
+    public TemplateMessage[] Messages { get; init; } = [];
+    /// <summary>Docs channels only: starting pages (format 3).</summary>
+    public TemplatePage[] Pages { get; init; } = [];
+    /// <summary>Text and voice channels: messages disappear after this many seconds (0 = off; format 3).</summary>
+    public int Disappear { get; init; }
+}
+
+/// <summary>A message a template posts once, as the server, in the app's Markdown.</summary>
+public sealed record TemplateMessage
+{
+    public string Text { get; init; } = "";
+    public bool Pin { get; init; }
+}
+
+/// <summary>A docs page a template writes once, in the app's Markdown.</summary>
+public sealed record TemplatePage
+{
+    public string Title { get; init; } = "";
+    public string Text { get; init; } = "";
+    /// <summary>The server's "Start here" page (at most one in a template).</summary>
+    public bool StartHere { get; init; }
 }
 
 public sealed record TemplateCategory
@@ -113,6 +137,8 @@ public sealed record TemplateSettings
     public string[] BuiltinBots { get; init; } = [];
     /// <summary>A text channel of the template, by name: bug reports land there (the bug inbox is on).</summary>
     public string? BugInbox { get; init; }
+    /// <summary>Offer message translation to members (Server settings → Translation).</summary>
+    public bool Translation { get; init; }
 }
 
 /// <summary>
@@ -122,7 +148,7 @@ public sealed record TemplateSettings
 /// </summary>
 public sealed record ServerTemplate
 {
-    /// <summary>The format: 1 (when absent) or 2.</summary>
+    /// <summary>The format: 1 (when absent), 2 or 3.</summary>
     public int Version { get; init; } = 1;
     public string Name { get; init; } = "";
     public string Description { get; init; } = "";
@@ -145,7 +171,7 @@ public static partial class ServerTemplates
     /// <summary>The templates that come with the server, in the order the setup wizard shows them.</summary>
     public static readonly string[] BuiltIn = ["gaming", "friends", "tabletop", "empty"];
 
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
     public const int MaxFileBytes = 256 * 1024;
     public const int MaxChannels = 500;
     public const int MaxRoles = RoleFeature.MaxRoles;
@@ -233,7 +259,7 @@ public static partial class ServerTemplates
     {
         string Fail(string what) => throw new TemplateException($"Template '{source}': {what}");
 
-        if (t.Version < 1) Fail("'version' must be 1 or 2.");
+        if (t.Version < 1) Fail($"'version' must be 1 to {CurrentVersion}.");
         var name = Text.Normalize(t.Name, MaxNameLength, allowNewlines: false) ?? Fail($"'name' must be 1–{MaxNameLength} characters.");
         var description = t.Description.Trim().Length == 0 ? ""
             : Text.Normalize(t.Description, MaxDescriptionLength, allowNewlines: false) ?? Fail($"'description' can be up to {MaxDescriptionLength} characters.");
@@ -312,11 +338,16 @@ public static partial class ServerTemplates
                 return new TemplateTag { Name = tagName, Emoji = emoji };
             }).ToArray();
             if (tags.Select(x => x.Name.ToLowerInvariant()).Distinct().Count() != tags.Length) Fail($"{where}: two tags have the same name.");
+            var (topic, messages, pages) = CheckContent(c, kind, where, Fail);
+            if (!DisappearFeature.Allowed.Contains(c.Disappear))
+                Fail($"{where}: 'disappear' must be 0 (off) or one of {string.Join(", ", DisappearFeature.Allowed.Skip(1))} seconds.");
+            if (c.Disappear > 0 && kind is not ("text" or "voice")) Fail($"{where}: only text and voice channels can have disappearing messages.");
+            if (c.Disappear > 0 && messages.Length > 0) Fail($"{where}: a channel with disappearing messages can't have 'messages' (they would disappear).");
 
             return new TemplateChannel
             {
                 Name = channelName, Kind = kind, UserLimit = c.UserLimit, ReadRole = read, WriteRole = write, Hifi = c.Hifi,
-                Slowmode = c.Slowmode, Overrides = overrides, Tags = tags,
+                Slowmode = c.Slowmode, Overrides = overrides, Tags = tags, Topic = topic, Messages = messages, Pages = pages, Disappear = c.Disappear,
             };
         }
 
@@ -330,6 +361,7 @@ public static partial class ServerTemplates
         }).ToArray();
         if (total > MaxChannels) Fail($"at most {MaxChannels} channels.");
         var allChannels = channels.Concat(categories.SelectMany(c => c.Channels)).ToArray();
+        CheckContentTotals(allChannels, Fail);
 
         var builtinRoles = new Dictionary<string, TemplateBuiltinRole>();
         foreach (var (key, value) in t.BuiltinRoles)
@@ -453,7 +485,7 @@ public static partial class ServerTemplates
             if (named[0].Kind != "text") fail($"'settings.bugInbox': '{named[0].Name}' isn't a text channel.");
             bugInbox = named[0].Name;
         }
-        return new TemplateSettings { NotifyDefault = notify, Limits = s.Limits, BuiltinBots = bots, BugInbox = bugInbox };
+        return new TemplateSettings { NotifyDefault = notify, Limits = s.Limits, BuiltinBots = bots, BugInbox = bugInbox, Translation = s.Translation };
     }
 
     /// <summary>What happened when a template was asked for.</summary>
@@ -502,6 +534,7 @@ public static partial class ServerTemplates
                 store.SetOverride(channel.Id, roleIds[o.Role], ChannelPerms(o.Allow), ChannelPerms(o.Deny));
             channelIds.TryAdd(c.Name, channel.Id);
             store.MoveChannel(channel.Id, categoryId, beforeId: null);
+            AddContent(world, channel, c, apply: true, [], now);
         }
 
         foreach (var channel in template.Channels) Place(channel, null);
@@ -550,6 +583,7 @@ public static partial class ServerTemplates
             foreach (var bot in settings.BuiltinBots)
                 BuiltinBotFeature.Enable(store, BuiltinBotFeature.Bots.First(k => k.Id == bot), "", now);
             if (settings.BugInbox is { } inbox && channelIds.TryGetValue(inbox, out var inboxId)) store.SetBugInbox(true, inboxId);
+            if (settings.Translation) world.UpdateSettings(w => w with { Translate = w.Translate with { Offer = true } });
         }
 
         store.MarkTemplateApplied(id, now);

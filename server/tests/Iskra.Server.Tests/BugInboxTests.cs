@@ -269,6 +269,39 @@ public class BugInboxTests
         Assert.NotNull(server.World.Store.GetMessage(kept)); // messages are kept for good by default
     }
 
+    [Fact]
+    public async Task The_phone_apps_preflight_and_send_from_their_own_origins()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        await TurnOn(owner, await PrivateChannel(owner));
+
+        // iOS (capacitor://localhost) and Android (http://localhost): the browser's preflight, then the report itself.
+        foreach (var origin in new[] { "capacitor://localhost", "http://localhost" })
+        {
+            var preflight = new HttpRequestMessage(HttpMethod.Options, "/bug-reports");
+            preflight.Headers.Add("Origin", origin);
+            preflight.Headers.Add("Access-Control-Request-Method", "POST");
+            preflight.Headers.Add("Access-Control-Request-Headers", "content-type");
+            using var answer = await server.CreateClient().SendAsync(preflight);
+            Assert.Equal(HttpStatusCode.NoContent, answer.StatusCode);
+            Assert.Equal(origin, answer.Headers.GetValues("Access-Control-Allow-Origin").Single());
+            Assert.Contains("POST", answer.Headers.GetValues("Access-Control-Allow-Methods").Single());
+            Assert.Contains("Content-Type", answer.Headers.GetValues("Access-Control-Allow-Headers").Single());
+
+            using var sent = await Post(server, Report($"From {origin}"), origin);
+            Assert.Equal(HttpStatusCode.Created, sent.StatusCode);
+            Assert.Equal(origin, sent.Headers.GetValues("Access-Control-Allow-Origin").Single());
+        }
+
+        // Anyone else's page gets no CORS answer, so their browser never shows it the result.
+        var other = new HttpRequestMessage(HttpMethod.Options, "/bug-reports");
+        other.Headers.Add("Origin", "https://evil.example");
+        other.Headers.Add("Access-Control-Request-Method", "POST");
+        using var refused = await server.CreateClient().SendAsync(other);
+        Assert.False(refused.Headers.Contains("Access-Control-Allow-Origin"));
+    }
+
     [Theory]
     [InlineData("https://app.iskra.foo", true)]
     [InlineData("app://iskra", true)]

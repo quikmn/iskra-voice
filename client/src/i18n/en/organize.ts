@@ -24,6 +24,9 @@ export const organize = {
   channelSettings: {
     title: '{{name}} settings',
     name: 'Name',
+    topic: 'Topic',
+    topicPlaceholder: 'What is this channel for?',
+    topicHint: 'Shown at the top of the channel. One line.',
     whoSees: 'Who can see it',
     whoSpeaks: 'Who can speak and chat',
     whoAsks: 'Who can ask to speak and chat',

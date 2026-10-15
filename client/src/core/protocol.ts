@@ -137,8 +137,8 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean }, { channel: Channel }]
-  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string }, { channel: Channel }]
+  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean; topic?: string }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate & ProfileStamp, { member: Member; stale?: boolean }]
   'profile.page.set': [{ file: string } & ProfileStamp, { member: Member; stale?: boolean }]
@@ -2309,4 +2309,12 @@ export interface Requests {
   'translate.models.link': [Record<string, never>, TranslateModelsLink]
   'translate.config': [Record<string, never>, TranslateConfig]
   'translate.configure': [{ offer: boolean }, TranslateConfig]
+}
+
+// ── channel topics ──
+// See "Channel topics" in PROTOCOL.md.
+
+export interface Channel {
+  /** One line saying what the channel is for; "" (or missing, from older servers) = none. */
+  topic?: string
 }

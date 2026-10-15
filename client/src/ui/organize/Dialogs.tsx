@@ -1,4 +1,4 @@
-// Admin dialogs: naming a category, and a channel's settings (name, who can see and post, slowmode, category, delete).
+// Admin dialogs: naming a category, and a channel's settings (name, topic, who can see and post, slowmode, category, delete).
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
@@ -59,6 +59,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
   const { t } = useTranslation()
   const categories = useCategories(server.key)
   const [name, setName] = useState(channel.name)
+  const [topic, setTopic] = useState(channel.topic ?? '')
   const [readRole, setReadRole] = useState<Role>(channel.readRole)
   const [writeRole, setWriteRole] = useState<Role>(channel.writeRole)
   const [categoryId, setCategoryId] = useState<number | null>(channel.categoryId ?? null)
@@ -90,6 +91,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
       id: channel.id, name: slug, readRole, writeRole: write, slowmode,
       userLimit: channel.kind === 'voice' ? userLimit : undefined,
       hifi: channel.kind === 'voice' && hifi !== (channel.hifi ?? false) ? hifi : undefined,
+      topic: topic.trim() !== (channel.topic ?? '') ? topic.trim() : undefined,
     })
     if (categoryId !== (channel.categoryId ?? null)) await moveChannel(server.key, channel.id, categoryId, null)
   })
@@ -108,6 +110,12 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
       <label className="field">
         <span>{t('organize.channelSettings.name')}</span>
         <input value={name} maxLength={32} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void save()} />
+      </label>
+      <label className="field">
+        <span>{t('organize.channelSettings.topic')}</span>
+        <input value={topic} maxLength={300} placeholder={t('organize.channelSettings.topicPlaceholder')}
+          onChange={(e) => setTopic(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void save()} />
+        <small className="muted">{t('organize.channelSettings.topicHint')}</small>
       </label>
       <div className="options-row">
         <RolePicker label={t('organize.channelSettings.whoSees')} value={readRole} onChange={setReadRole} />
