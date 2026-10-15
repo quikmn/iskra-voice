@@ -74,7 +74,12 @@ const VARIABLES: { name: string; key: ColorKey; fallback: string }[] = [
   { name: '--accent-subtle', key: 'accentSubtle', fallback: 'color-mix(in srgb, var(--accent) 8%, transparent)' },
   { name: '--on-accent', key: 'onAccent', fallback: '#ffffff' },
 ]
-const OTHER_VARIABLES = ['--radius', '--avatar-radius', '--font', '--mono', '--name-l', '--placeholder']
+/** Syntax colours in code blocks, from the theme's own colours, each nudged until it reads at 4.5:1 (codeColors). */
+const CODE_VARIABLES: [string, ColorKey][] = [
+  ['--code-keyword', 'accent'], ['--code-string', 'success'], ['--code-number', 'warning'], ['--code-title', 'link'],
+  ['--code-comment', 'textSubtle'], ['--code-meta', 'textMuted'], ['--code-removed', 'danger'],
+]
+const OTHER_VARIABLES = ['--radius', '--avatar-radius', '--font', '--mono', '--name-l', '--placeholder', ...CODE_VARIABLES.map(([name]) => name)]
 
 // ── Validation ──────────────────────────────────────────────────────────────
 
@@ -420,7 +425,15 @@ export function themeVariables(theme: ThemeFile): Record<string, string> {
   vars['--avatar-radius'] = AVATAR_SHAPES[theme.avatarShape ?? 'circle']
   vars['--font'] = BODY_FONTS[theme.fonts?.body ?? 'inter']
   vars['--mono'] = MONO_FONTS[theme.fonts?.mono ?? 'jetbrains']
+  Object.assign(vars, codeColors(theme))
   return vars
+}
+
+/** The code colours for a theme (null: the default look), readable on the code background (--bg). */
+export function codeColors(theme: ThemeFile | null): Record<string, string> {
+  const file = theme ?? ({ meta: { name: '' }, colors: {} } as unknown as ThemeFile)
+  const background = effectiveColor(file, 'bgDeep')
+  return Object.fromEntries(CODE_VARIABLES.map(([name, key]) => [name, readableColor(effectiveColor(file, key), [background])]))
 }
 
 export function applyTheme(theme: ThemeFile | null, root: HTMLElement = document.documentElement): void {
@@ -435,7 +448,10 @@ export function applyTheme(theme: ThemeFile | null, root: HTMLElement = document
     for (const listener of surfaceListeners) listener()
   }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme?.colors.bgDeep ?? '#0b0b14')
-  if (!theme) return
+  if (!theme) {
+    for (const [name, value] of Object.entries(codeColors(null))) root.style.setProperty(name, value)
+    return
+  }
   for (const [name, value] of Object.entries(themeVariables(theme))) root.style.setProperty(name, value)
   root.style.setProperty('color-scheme', theme.meta.scheme ?? 'dark')
 }

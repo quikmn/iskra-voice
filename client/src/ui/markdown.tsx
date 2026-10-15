@@ -1,5 +1,5 @@
 // Chat formatting, Discord-style, rendered straight to React elements (never to an HTML string).
-// Supported: ```code blocks``` (highlighted, with copy), `code`, **bold**, *italic* / _italic_, ~~strike~~, ||spoiler||,
+// Supported: ```code blocks``` (highlighted, with copy), $math$ and $$math$$ (LaTeX), `code`, **bold**, *italic* / _italic_, ~~strike~~, ||spoiler||,
 // > quotes, # headings, -# subtext, - and 1. lists, links, [masked](https://…) links (they ask before opening),
 // <t:unix:style> timestamps, mentions written as <@accountKey> (shown as @name) or <@&roleId> (@Role), and server emoji written as <:name:id>.
 import { Fragment, type MouseEvent, type ReactNode } from 'react'
@@ -10,7 +10,8 @@ import { t } from '../i18n'
 import { resolveKey } from '../state/keyMap'
 import { userMenuProps } from './people/userMenuProps'
 import { CUSTOM_EMOJI_SOURCE, isEmojiOnly } from './expressions/emoji'
-import { CodeBlock, MaskedLink, Timestamp } from './chat/RichText'
+import { CodeBlock, MaskedLink, MathTex, Timestamp } from './chat/RichText'
+import { inlineMathAt, splitDisplayMath } from './chat/mathRules'
 import { TIMESTAMP_SOURCE, formatTimestamp, parseTimestamp, type TimestampStyle } from './chat/richTextRules'
 import { alertRanges } from '../state/alertsLogic'
 
@@ -84,7 +85,7 @@ function inline(text: string, ctx: MarkdownContext, depth = 0, links = true): Re
 
   for (let i = 0; i < text.length; ) {
     // Escaped character: show it as-is.
-    if (text[i] === '\\' && i + 1 < text.length && /[\\`*_~|<>]/.test(text[i + 1]) || (text[i] === '\\' && /[[\]#-]/.test(text[i + 1] ?? ''))) {
+    if (text[i] === '\\' && i + 1 < text.length && /[\\`*_~|<>$]/.test(text[i + 1]) || (text[i] === '\\' && /[[\]#-]/.test(text[i + 1] ?? ''))) {
       plain += text[i + 1]
       i += 2
       continue
@@ -160,6 +161,15 @@ function inline(text: string, ctx: MarkdownContext, depth = 0, links = true): Re
       continue
     }
 
+    // $…$ math (the rules in chat/mathRules.ts keep "$5 and $10" as text).
+    const math = text[i] === '$' ? inlineMathAt(text, i) : null
+    if (math) {
+      flush()
+      out.push(<MathTex key={key++} tex={math.tex} display={false} />)
+      i = math.end
+      continue
+    }
+
     const rule = depth < 6 ? INLINE.find((r) => text.startsWith(r.open, i)) : undefined
     if (rule) {
       const end = text.indexOf(rule.close, i + rule.open.length)
@@ -200,52 +210,59 @@ export function renderMarkdown(text: string, ctx: MarkdownContext): ReactNode {
       return
     }
     const source = index % 2 === 1 ? '```' + part : part
-    const lines = source.split('\n')
-    let quote: ReactNode[] = []
-    const flushQuote = (k: string) => {
-      if (quote.length) blocks.push(<blockquote key={k}>{quote}</blockquote>)
-      quote = []
-    }
-    let list: { ordered: boolean; start: number; items: ReactNode[] } | null = null
-    const flushList = (k: string) => {
-      if (list) {
-        blocks.push(list.ordered
-          ? <ol key={k} className="md-list" start={list.start}>{list.items}</ol>
-          : <ul key={k} className="md-list">{list.items}</ul>)
-      }
-      list = null
-    }
-    lines.forEach((line, n) => {
-      const k = `${index}-${n}`
-      const isQuote = /^> ?/.test(line)
-      const content = isQuote ? line.replace(/^> ?/, '') : line
-      const block = blockOf(content)
-      if (block?.kind === 'item' && !isQuote) {
-        flushQuote(`q${k}`)
-        if (list && list.ordered !== block.ordered) flushList(`l${k}`)
-        list ??= { ordered: block.ordered, start: block.start, items: [] }
-        list.items.push(<li key={k} className={block.nested ? 'md-nested' : undefined}>{inline(block.text, ctx)}</li>)
+    // $$…$$ math blocks first (they may span lines), then the text around them line by line.
+    splitDisplayMath(source).forEach((segment, si) => {
+      if (segment.kind === 'math') {
+        blocks.push(<MathTex key={`m${index}-${si}`} tex={segment.tex} display />)
         return
       }
-      flushList(`l${k}`)
-      const rendered = block?.kind === 'heading' ? (
-        <div key={k} className={`md-heading md-h${block.level}`}>{inline(block.text, ctx)}</div>
-      ) : block?.kind === 'subtext' ? (
-        <div key={k} className="md-subtext">{inline(block.text, ctx)}</div>
-      ) : (
-        <Fragment key={k}>
-          {inline(content, ctx)}
-          {n < lines.length - 1 && '\n'}
-        </Fragment>
-      )
-      if (isQuote) quote.push(rendered)
-      else {
-        flushQuote(`q${k}`)
-        blocks.push(rendered)
+      const lines = segment.text.split('\n')
+      let quote: ReactNode[] = []
+      const flushQuote = (k: string) => {
+        if (quote.length) blocks.push(<blockquote key={k}>{quote}</blockquote>)
+        quote = []
       }
+      let list: { ordered: boolean; start: number; items: ReactNode[] } | null = null
+      const flushList = (k: string) => {
+        if (list) {
+          blocks.push(list.ordered
+            ? <ol key={k} className="md-list" start={list.start}>{list.items}</ol>
+            : <ul key={k} className="md-list">{list.items}</ul>)
+        }
+        list = null
+      }
+      lines.forEach((line, n) => {
+        const k = `${index}-${si}-${n}`
+        const isQuote = /^> ?/.test(line)
+        const content = isQuote ? line.replace(/^> ?/, '') : line
+        const block = blockOf(content)
+        if (block?.kind === 'item' && !isQuote) {
+          flushQuote(`q${k}`)
+          if (list && list.ordered !== block.ordered) flushList(`l${k}`)
+          list ??= { ordered: block.ordered, start: block.start, items: [] }
+          list.items.push(<li key={k} className={block.nested ? 'md-nested' : undefined}>{inline(block.text, ctx)}</li>)
+          return
+        }
+        flushList(`l${k}`)
+        const rendered = block?.kind === 'heading' ? (
+          <div key={k} className={`md-heading md-h${block.level}`}>{inline(block.text, ctx)}</div>
+        ) : block?.kind === 'subtext' ? (
+          <div key={k} className="md-subtext">{inline(block.text, ctx)}</div>
+        ) : (
+          <Fragment key={k}>
+            {inline(content, ctx)}
+            {n < lines.length - 1 && '\n'}
+          </Fragment>
+        )
+        if (isQuote) quote.push(rendered)
+        else {
+          flushQuote(`q${k}`)
+          blocks.push(rendered)
+        }
     })
-    flushList(`l${index}-end`)
-    flushQuote(`q${index}-end`)
+    flushList(`l${index}-${si}-end`)
+    flushQuote(`q${index}-${si}-end`)
+    })
   })
   return isEmojiOnly(text) ? <span className="jumbo">{blocks}</span> : <>{blocks}</>
 }
