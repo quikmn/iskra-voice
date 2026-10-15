@@ -62,7 +62,7 @@ export async function enableDesktopNotifications(): Promise<boolean> {
 let audio: AudioContext | null = null
 let audioSink = ''
 
-export type Tone = 'message' | 'join' | 'leave' | 'mute' | 'unmute' | 'deafen' | 'undeafen'
+export type Tone = 'message' | 'join' | 'leave' | 'mute' | 'unmute' | 'deafen' | 'undeafen' | 'whisper'
 
 const TONES: Record<Tone, number[]> = {
   message: [880, 1320],
@@ -72,6 +72,7 @@ const TONES: Record<Tone, number[]> = {
   unmute: [440, 660],
   deafen: [587, 392, 294],
   undeafen: [294, 392, 587],
+  whisper: [1175, 1568],
 }
 
 /** Message sounds follow Notifications; voice sounds (join, leave, mute, deafen) follow Voice & audio. */

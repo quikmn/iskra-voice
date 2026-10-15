@@ -43,6 +43,7 @@ import { claim } from './claim'
 import { templates } from './templates'
 import { popout } from './popout'
 import { alerts } from './alerts'
+import { whisper } from './whisper'
 
 export const en = {
   common,
@@ -89,4 +90,5 @@ export const en = {
   templates,
   popout,
   alerts,
+  whisper,
 } as const

@@ -26,6 +26,8 @@ public interface IVoiceBackend
     Task<bool> SetBotCanPublishAsync(string room, string identity, bool canPublish) => SetCanPublishAsync(room, identity, canPublish);
     /// <summary>Publishing and subscribing together (the AFK channel mutes and deafens through LiveKit).</summary>
     Task<bool> SetPermissionsAsync(string room, string identity, bool canPublish, bool canSubscribe);
+    /// <summary>Closes a room and drops everyone in it (an ended whisper).</summary>
+    Task DeleteRoomAsync(string room) => Task.CompletedTask;
 }
 
 /// <summary>
@@ -332,14 +334,14 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
     }
 
     /// <summary>Calls one LiveKit RoomService method (Twirp JSON, signed with a short-lived room-admin token).</summary>
-    private async Task<HttpResponseMessage?> RoomServiceAsync(string method, string room, object body)
+    private async Task<HttpResponseMessage?> RoomServiceAsync(string method, string room, object body, bool create = false)
     {
         if (!Available) return null;
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{ApiUrl}/twirp/livekit.RoomService/{method}")
         {
             Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json"),
         };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", LiveKitTokens.Admin(ApiKey, ApiSecret, room, DateTimeOffset.UtcNow));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", LiveKitTokens.Admin(ApiKey, ApiSecret, room, DateTimeOffset.UtcNow, create));
         try
         {
             return await _http.SendAsync(request);
@@ -368,6 +370,13 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound) return true;
         _log.LogWarning("Changing {Identity}'s permissions in {Room} failed: {Status}", identity[..Math.Min(8, identity.Length)], room, response.StatusCode);
         return false;
+    }
+
+    public async Task DeleteRoomAsync(string room)
+    {
+        using var response = await RoomServiceAsync("DeleteRoom", room, new { room }, create: true);
+        if (response is { IsSuccessStatusCode: false, StatusCode: not System.Net.HttpStatusCode.NotFound })
+            _log.LogWarning("Closing {Room} failed: {Status}", room, response.StatusCode);
     }
 
     public async Task MuteMicrophoneAsync(string room, string identity)

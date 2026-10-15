@@ -15,6 +15,7 @@ export const roles: Messages['roles'] = {
     moveMembers: { label: 'Flytta medlemmar', hint: 'Flytta folk mellan röstkanaler' },
     muteMembers: { label: 'Servertysta medlemmar', hint: 'Tysta folk i röstkanaler för alla' },
     manageAutoMod: { label: 'Hantera AutoMod', hint: 'Ändra blockerade ord och spamregler' },
+    prioritySpeaker: { label: 'Prioriterad talare', hint: 'Sänker alla andra för lyssnarna medan de pratar med prioritet' },
   },
   base: {
     title: 'Inbyggda roller',
@@ -37,6 +38,7 @@ export const roles: Messages['roles'] = {
     abilities: {
       invite: 'Bjuda in vänner som gäster eller medlemmar',
       events: 'Schemalägga evenemang',
+      whisper: 'Viska till personer eller en röstkanal',
       pin: 'Fästa meddelanden där de kan skriva',
       mentionEveryone: 'Avisera alla med @everyone och @here',
       uploadSounds: 'Lägga till ljud i ljudpanelen',

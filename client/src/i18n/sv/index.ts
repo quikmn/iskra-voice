@@ -44,6 +44,7 @@ import { claim } from './claim'
 import { templates } from './templates'
 import { popout } from './popout'
 import { alerts } from './alerts'
+import { whisper } from './whisper'
 
 export const sv: Messages = {
   common,
@@ -90,4 +91,5 @@ export const sv: Messages = {
   templates,
   popout,
   alerts,
+  whisper,
 }
