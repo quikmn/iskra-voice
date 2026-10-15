@@ -119,7 +119,7 @@ Other files of the pipeline:
 | `package.json` (repo root) | `npm test`: the release-script tests (`scripts/*.test.mjs`, run in CI) |
 | `mobile/store.json` | Where the phone apps go each release: iOS mode (testflight, appstore, upload), TestFlight groups, Play track, rollout, listing ([docs/store/README.md](store/README.md)) |
 | `docs/releases/<version>.md`, `NEXT.md` | Release notes (become the GitHub release text); NEXT.md collects them between releases |
-| `.github/workflows/marketplace.yml` | Lints the DigitalOcean Marketplace image (`marketplace/digitalocean/`) on changes; its build job runs only by hand in the `marketplace` environment (owner approval, secret `DO_MARKETPLACE_TOKEN`); it ships no Iskra release. Steps: `marketplace/digitalocean/README.md` |
+| `.github/workflows/marketplace.yml` | Lints the DigitalOcean Marketplace image (`marketplace/digitalocean/`) on changes. By hand (Run workflow, no approval) it builds the image and tests it end to end on a temporary $6 droplet (`test.sh`: HTTPS, claim screen, ufw, a claim with the app's code, voice), always deletes that droplet, and keeps the snapshot; jobs in the `marketplace` environment (secret `DO_MARKETPLACE_TOKEN`). It ships no Iskra release. Steps: `marketplace/digitalocean/README.md` |
 | `.github/workflows/ci.yml`, `codeql.yml`, `.github/dependabot.yml` | Tests (including the backup-restore drill), code scanning, dependency updates |
 | `.github/workflows/secrets.yml`, `.gitleaks.toml`, `.gitleaksignore` | Secret scan of the whole history ([below](#secret-scanning-and-security-settings)) |
 | `.github/workflows/scorecard.yml` | OpenSSF Scorecard (supply-chain checks), results in the Security tab |

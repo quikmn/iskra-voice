@@ -8,6 +8,7 @@ cd "$here"
 
 ours=(
   build.sh
+  test.sh
   lint.sh
   scripts/10-install.sh
   files/usr/local/sbin/iskra-claim-screen

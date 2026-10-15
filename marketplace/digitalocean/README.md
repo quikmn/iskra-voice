@@ -7,7 +7,8 @@ Marketplace](../../docs/hosting.md#digitalocean-marketplace). The listing text: 
 | Path | What it is |
 |---|---|
 | `iskra.pkr.hcl` | Packer template: Ubuntu 24.04 on the $6 size (`s-1vcpu-1gb`), the DigitalOcean plugin pinned to 1.4.1 |
-| `build.sh` | Downloads the server package, checks it (SHA256SUMS.txt, GitHub's checksum, the build attestation), then runs Packer |
+| `build.sh` | Downloads the server package, checks it (SHA256SUMS.txt, GitHub's checksum, the build attestation), then runs Packer and prints the snapshot's ID |
+| `test.sh` | Tests a snapshot end to end on a temporary $6 droplet (below), then deletes the droplet and its SSH key; `--sweep` deletes leftovers |
 | `lint.sh` | ShellCheck and `packer validate` with a dummy token (CI: `.github/workflows/marketplace.yml`) |
 | `scripts/10-install.sh` | Runs in the build droplet: the server in `/opt/iskra`, services, ufw, unattended-upgrades. No world folder |
 | `files/var/lib/cloud/scripts/per-instance/10-iskra-world` | First boot of each droplet: its own `server.json` (`"OwnerClaim": "generate"`, HTTPS on `<ip>.sslip.io`, auto updates, daily backups), starts Iskra |
@@ -21,7 +22,8 @@ check fails).
 
 ## Owner's steps
 
-Nothing here runs by itself. CI only lints these files; building needs your DigitalOcean token and your approval.
+Nothing here runs by itself. CI only lints these files on changes; building and testing need your DigitalOcean token
+and a press of **Run workflow** (only people with write access to the repository can press it).
 
 ### 1. Apply as a vendor (once)
 
@@ -36,39 +38,48 @@ Nothing here runs by itself. CI only lints these files; building needs your Digi
 1. In DigitalOcean, make a separate project (for example "Iskra image builds"): only build droplets and test droplets
    live there.
 2. API → Tokens → **Generate New Token**, 90 days, **Custom Scopes**: *droplet* (create, read, delete), *image* (read,
-   update), *snapshot* (read), *regions* (read), *sizes* (read), *ssh_key* (create, read, delete), *tag* (create),
-   *actions* (read). Packer makes a temporary SSH key and droplet and deletes both afterwards. If a build fails on a
-   missing scope, use full access for that build and delete the token right after.
-3. For builds from GitHub: Settings → Environments → **New environment** `marketplace`, with **Required reviewers**
-   (you) and the secret `DO_MARKETPLACE_TOKEN` = the token. Only `.github/workflows/marketplace.yml` uses it.
+   update), *snapshot* (read), *regions* (read), *sizes* (read), *ssh_key* (create, read, delete), *tag* (create,
+   read), *actions* (read). The build (Packer) and the test (`test.sh`) each make a temporary SSH key and droplet and
+   delete both afterwards. If a run fails on a missing scope (the log shows DigitalOcean's message), use full access
+   for that run and delete the token right after.
+3. On GitHub: Settings → Environments → **New environment** `marketplace`, **no** required reviewers, and the secret
+   `DO_MARKETPLACE_TOKEN` = the token. Only `.github/workflows/marketplace.yml` uses it. (The first run also creates
+   the environment, without the secret; then add the secret and run again.)
 
-### 3. Build the image
+### 3. Build and test the image (one run)
 
 On GitHub: Actions → **Marketplace image** → **Run workflow** (optionally a version; empty = the release the app links
-to) → approve the run.
+to). About 25 minutes, no approvals, then a pass or a fail:
+
+1. **build**: the snapshot, named `iskra-<version>-<date>` (Images → Snapshots); the build droplet is deleted.
+2. **test**: a $6 droplet from that snapshot, in the same region, tagged `iskra-image-test`, exactly as "Create Iskra
+   Droplet" makes it. It checks what a user meets: the claim code on the console (`/etc/issue`), in the login message
+   and in `/root/iskra-claim.txt`; `iskra` running; ufw allowing only 22, 80, 443, 7881/tcp and 7882/udp; HTTPS with
+   a real certificate on `<ip-with-dashes>.sslip.io` and voice up (`/health`). Then it claims the server with the
+   app's own code (`client/interop/claim.test.ts`: a new identity, address + code, a wrong code refused, joined as
+   the owner, the code then used up, a voice token and a LiveKit room joined) and checks the console went back to
+   normal. The claim code is masked in the log.
+3. **cleanup**: the test droplet and its SSH key are always deleted (also after a failure or a cancel; any droplet
+   tagged `iskra-image-test` or `iskra-image-build` is swept). The snapshot is kept, pass or fail: its ID is in the
+   run's summary. A failed test prints the droplet's setup log and the server's log first.
+
+A snapshot costs a few cents a month; delete old ones (and the one from a failed run).
 
 Or on your computer (Linux, macOS or WSL; needs [Packer](https://developer.hashicorp.com/packer/install), `curl`,
-`sha256sum` and the GitHub CLI signed in):
+`sha256sum` and the GitHub CLI signed in; for the test also `jq`, `ssh` and Node, with `npm ci` in `client/` and
+`bots/`):
 
 ```sh
 cd marketplace/digitalocean
-DIGITALOCEAN_TOKEN=dop_v1_... ./build.sh              # or ./build.sh 2.0.0-alpha.16
+DIGITALOCEAN_TOKEN=dop_v1_... ./build.sh              # or ./build.sh 2.0.0-alpha.16; prints the snapshot ID
+DIGITALOCEAN_TOKEN=dop_v1_... ./test.sh <snapshot-id> <region>
 ```
 
-About 10 minutes. The result is a snapshot named `iskra-<version>-<date>` in that project (Images → Snapshots); the
-build droplet is deleted. A snapshot costs a few cents a month; delete old ones.
+### 4. Try it yourself (optional)
 
-### 4. Test it by hand
-
-1. Create a droplet from the snapshot (Images → Snapshots → More → Create Droplet), $6 size, any region, password
-   login.
-2. After a minute, open its **Console**: the screen shows the address and a claim code. If it says "starting", wait a
-   minute and press Enter.
-3. In the Iskra app: **Join a server → Claim it**, address + code → **Join as owner**. Check chat, a voice call, and
-   that a friend can join with an invite.
-4. Check: `systemctl status iskra`, `ufw status` (22, 80, 443, 7881/tcp, 7882/udp), `/var/log/iskra-setup.log`, and
-   that the console looks normal again after the claim (`cat /etc/issue`).
-5. Destroy the droplet.
+The test covers the claim and voice; to see it as a user does, create a droplet from the snapshot (Images → Snapshots
+→ More → Create Droplet, $6 size), open its **Console** for the address and claim code, and in the Iskra app **Join a
+server → Claim it**. Check chat, a voice call, and that a friend can join with an invite. Destroy the droplet after.
 
 ### 5. Submit
 
