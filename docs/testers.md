@@ -9,7 +9,7 @@ You don't need to be an expert. Short and simple notes are perfect, in any langu
 
 **Android (Google Play):**
 
-1. Open this link on your phone: {{PLAY_OPT_IN}}
+1. Open this link on your phone: https://play.google.com/apps/testing/foo.iskra.app
 2. Tap **Become a tester**.
 3. Tap **Download it on Google Play** and install **Iskra**.
 
@@ -25,7 +25,7 @@ New test versions arrive by themselves. You don't need to do anything.
 
 ## 2. Join the test server
 
-1. Open this invite link on your phone: {{REVIEW_INVITE}}
+1. Open this invite link on your phone: https://app.iskra.foo/#/join/aHR0cHM6Ly9jb21tdW5pdHkuaXNrcmEuZm9v.7zA91nWmAVWFE8lCKapTTeE39UGJ2ogElKoV7eiC6X4.8zWYxRjbH9zeM43YyjZqfg
 2. It opens in Iskra. (If it opens in your browser instead, tap **Open in the app**.) Agree to the terms and tap
    **I'm new to Iskra**.
 3. Pick a name (your first name or a nickname) and tap **Join**.

@@ -1,16 +1,16 @@
 # Tester kit: texts to paste once
 
 For the Google Play closed test (12 testers for 14 days, needed before production) and the TestFlight public link.
-Replace `{{PLAY_OPT_IN}}` with the closed test's opt-in link (Play Console → Testing → Closed testing → the track →
-**Testers** → *How testers join your test* → **Copy link**) and `{{REVIEW_INVITE}}` with the review server's
-never-expiring invite (the same link as the `REVIEW_INVITE_URL` variable). The public guide for testers is
-[docs/testers.md](../testers.md); it has the same placeholders.
+The opt-in link is the closed test's (Play Console → Testing → Closed testing → the track → **Testers** → *How
+testers join your test*), and the invite is the community server's never-expiring one (the same link as the
+`REVIEW_INVITE_URL` variable; if it's ever revoked, make a new one and replace it here and there). The public guide for testers is
+[docs/testers.md](../testers.md); it has the same links.
 
 ## For the paid tester service
 
 **App name:** Iskra
 
-**Opt-in link (Android):** {{PLAY_OPT_IN}}
+**Opt-in link (Android):** https://play.google.com/apps/testing/foo.iskra.app
 
 **Short description** (one line):
 
@@ -30,8 +30,8 @@ never-expiring invite (the same link as the `REVIEW_INVITE_URL` variable). The p
 > Thank you for testing Iskra! The full guide: https://github.com/quikmn/iskra-voice/blob/main/docs/testers.md
 >
 > **Day 1 (about 10 minutes)**
-> 1. Join the test with the opt-in link: {{PLAY_OPT_IN}} Then install **Iskra** from Google Play.
-> 2. Open this invite link on your phone: {{REVIEW_INVITE}} Choose "I'm new to Iskra", pick a name and tap Join.
+> 1. Join the test with the opt-in link: https://play.google.com/apps/testing/foo.iskra.app Then install **Iskra** from Google Play.
+> 2. Open this invite link on your phone: https://app.iskra.foo/#/join/aHR0cHM6Ly9jb21tdW5pdHkuaXNrcmEuZm9v.7zA91nWmAVWFE8lCKapTTeE39UGJ2ogElKoV7eiC6X4.8zWYxRjbH9zeM43YyjZqfg Choose "I'm new to Iskra", pick a name and tap Join.
 > 3. Read the five rules and tap "I agree". Save your recovery key when the app asks.
 > 4. Say hi in **#introductions** (first name and phone model).
 > 5. Open **testing-guide** and do the 10-minute tour.
