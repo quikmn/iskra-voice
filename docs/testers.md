@@ -11,7 +11,7 @@ You don't need to be an expert. Short and simple notes are perfect, in any langu
 
 1. Open this link on your phone: https://play.google.com/apps/testing/foo.iskra.app
 2. Tap **Become a tester**.
-3. Tap **Download it on Google Play** and install **Iskra**.
+3. Tap **Download it on Google Play** (or open https://play.google.com/store/apps/details?id=foo.iskra.app) and install **Iskra**.
 
 It can take a few minutes before Play shows the test version. Keep the app installed for the whole test.
 
