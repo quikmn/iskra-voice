@@ -460,7 +460,7 @@ export async function startOver(serverKey: string, channelId: number, offeredCha
 
 export interface NewChannel {
   name: string
-  kind: 'text' | 'voice'
+  kind: 'text' | 'voice' | 'whiteboard'
   readRole: Role
   writeRole: Role
   categoryId?: number
@@ -832,6 +832,21 @@ export async function editEncrypted(serverKey: string, message: Message, text: s
       throw e
     }
   }
+}
+
+// ── Other features sealing under a channel's chain (whiteboards) ─────────────
+
+/** The verified chain and current epoch key, for sealing (fetched first if needed). Throws if this device can't write. */
+export async function channelSealKey(serverKey: string, channelId: number): Promise<{ view: ChannelView; key: Uint8Array }> {
+  const rec = await readyRec(serverKey, channelId)
+  return { view: rec.view!, key: rec.keys.get(rec.view!.version)! }
+}
+
+/** The chain an envelope names (the current one or one kept from before a start-over), for opening; syncs once if unknown. */
+export async function channelOpenKeys(serverKey: string, channelId: number, chain: string, sync = false): Promise<{ view: ChannelView; keys: Map<number, Uint8Array> } | null> {
+  const rec = await load(serverKey, channelId)
+  if (sync || !rec.view) await syncChannel(serverKey, channelId)
+  return chainFor(rec, chain)
 }
 
 // ── Voice ──────────────────────────────────────────────────────────────────

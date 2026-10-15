@@ -30,6 +30,7 @@ public static class ModerationFeature
         "voice.join", "sound.play", "call.start", "call.accept",
         "forum.post.create", "forum.post.update", "event.create", "event.update",
         "docs.page.create", "docs.page.save", "docs.page.move", "docs.page.delete", "docs.page.restore",
+        "wb.open", "wb.update", "wb.live", "wb.snapshot", "wb.clear",
     ];
 
     public static void Register(Router router)

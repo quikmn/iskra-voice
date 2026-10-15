@@ -22,6 +22,7 @@ public static class RulesFeature
         "forum.post.create", "forum.post.update", "event.create", "event.update", "event.interest",
         "watch.start", "watch.control", "watch.chat", "invite.create", "interaction.invoke",
         "docs.page.create", "docs.page.save", "docs.page.move", "docs.page.delete", "docs.page.restore",
+        "wb.open", "wb.update", "wb.live", "wb.snapshot", "wb.clear",
     ];
 
     public static void Register(Router router)

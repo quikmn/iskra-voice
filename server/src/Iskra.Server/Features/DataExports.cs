@@ -162,6 +162,12 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             SELECT r.page_id, p.title AS page_title, r.version, r.title, r.text, r.author, r.created_at, r.restored_from
             FROM doc_revisions r LEFT JOIN doc_pages p ON p.id = r.page_id WHERE r.author {Mine} ORDER BY r.page_id, r.version;
             """);
+        // Whiteboards: batches not yet folded into a snapshot (folded ones keep no author). Encrypted ones only by size.
+        Section("whiteboardBatches", $"""
+            SELECT b.channel_id, c.name AS channel_name, b.seq, b.created_at, CASE WHEN b.version IS NULL THEN b.data END AS ops,
+                b.version, length(b.data) AS bytes
+            FROM wb_batches b LEFT JOIN channels c ON c.id = b.channel_id WHERE b.author {Mine} ORDER BY b.channel_id, b.seq;
+            """);
         Section("reactions", $"SELECT message_id, account_key, emoji, created_at FROM reactions WHERE account_key {Mine} ORDER BY created_at;");
         Section("botCommandsUsed", $"SELECT message_id, interaction_id, user_key, command FROM bot_interaction_messages WHERE user_key {Mine} ORDER BY message_id;");
         Section("pollVotes", $"SELECT message_id, account_key, option, created_at FROM poll_votes WHERE account_key {Mine};");
@@ -229,6 +235,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
           app signed there. Their content is on your devices.
         - docsPages, docsRevisions: docs pages you made or last edited, and every saved version of a page you wrote
           (older versions may have gone: the server keeps 50 per page).
+        - whiteboardBatches: changes you drew on whiteboards that the server hasn't folded into the board's snapshot yet
+          (encrypted boards only by channel, time, key version and size). Folded changes keep no author.
         - directMessages, groups, groupMessagesSent: your direct messages and group chats are end-to-end encrypted, so the
           server only knows who wrote to whom and when. Their content is on your devices: in the app, use
           Settings -> Privacy & data -> Download data on this device.

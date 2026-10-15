@@ -7,7 +7,7 @@ namespace Iskra.Server.Features;
 public static class ChannelFeature
 {
     public const int MaxNameLength = 32;
-    private static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs"];
+    private static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs", "whiteboard"];
 
     public static void Register(Router router)
     {
@@ -61,7 +61,7 @@ public static class ChannelFeature
     {
         RequireAdmin(me);
         var kind = body.OptionalString("kind", 16) ?? "text";
-        if (!Kinds.Contains(kind)) throw RequestException.BadRequest("'kind' must be text, voice, forum, stage or docs.");
+        if (!Kinds.Contains(kind)) throw RequestException.BadRequest("'kind' must be text, voice, forum, stage, docs or whiteboard.");
         var readRole = Role(body, "readRole", Roles.Member);
         // Docs: everyone reads, trusted and above edit (unless chosen otherwise).
         var writeRole = Role(body, "writeRole", kind == "docs" && Roles.Rank(readRole) < Roles.Rank(Roles.Trusted) ? Roles.Trusted : readRole);

@@ -20,6 +20,7 @@ public sealed partial class Uploads
         if (voice is not null) keep.UnionWith(voice.Watch.FileIds()); // none from the command line
         keep.UnionWith(world.Store.ReportFileIds()); // moderators still look at reported files
         keep.UnionWith(world.Store.DocFileIds()); // pictures in docs pages (and their revisions)
+        keep.UnionWith(world.Store.BoardFileIds()); // pictures on whiteboards
         keep.UnionWith(world.Store.CardFileIds()); // pictures in bots' cards
         var removed = world.Store.DeleteUnreferencedFiles((now - UnusedGrace).ToUnixTimeMilliseconds(), keep);
         if (removed.Count > 0) world.Store.ForgetDeletedDmFiles();
