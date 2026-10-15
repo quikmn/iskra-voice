@@ -111,7 +111,7 @@ The desktop app can rent and set up the server in **your own DigitalOcean accoun
 
 Started on DigitalOcean's website rather than in the app? The Iskra 1-Click image makes the same kind of server without a terminal. You pay DigitalOcean directly (about $6 a month for the 1 GB droplet); Iskra charges nothing and never sees the server. DigitalOcean doesn't build or support Iskra.
 
-> The listing is on its way through DigitalOcean's review. Until it's live, [Rent a server on DigitalOcean](#rent-a-server-on-digitalocean-one-click) in the desktop app does the same in one go.
+> Iskra isn't in the DigitalOcean Marketplace yet. Until it is, [Rent a server on DigitalOcean](#rent-a-server-on-digitalocean-one-click) in the desktop app does the same in one go.
 
 1. Open Iskra in the DigitalOcean Marketplace and press **Create Iskra Droplet**.
 2. Pick a region near your group and the $6 size (1 GB). DigitalOcean asks for a password or an SSH key: pick either, you won't need it for Iskra. Create the droplet; it's ready in about a minute.

@@ -332,7 +332,8 @@ On the home PC, releases log SimplySign Desktop in by themselves, so nobody type
 
 - **The seed**: the TOTP seed of the SimplySign account (the otpauth:// link or Base32 seed behind the QR code Certum
   shows when the phone app is added). `scripts/simplysign-setup.ps1` (the owner, once, in their own window) asks for the
-  account e-mail and the link or seed with a hidden prompt, shows the current code to compare with the phone app, and
+  account e-mail and the link or seed with a hidden prompt (or reads the QR code from a Win+Shift+S snip with
+  `-FromClipboard`, or a picture with `-Image`, decoded offline by `scripts/read-qr.mjs`), shows the current code to compare with the phone app, and
   stores it with **DPAPI for the owner's Windows account** (with a context string) in `%LOCALAPPDATA%\Iskra\simplysign.dat`.
   It is never printed, logged, committed or sent to GitHub. `-Remove` deletes it. Risk accepted by the owner
   (2026-10-13): anyone who can run code as this Windows account can sign as Iskra, like the devkeys on this PC.

@@ -240,11 +240,13 @@ opened for them in `D:\Development_Projects\Iskra` (CLAUDE.local.md): they never
    The owner only watches; it needs gh logged in as the owner. ✔ "Runner 'iskra-home-…' is online on GitHub with the
    label iskra-windows-signing." Then the owner sets Windows → Settings → System → Power → "When plugged in, put my
    device to sleep after" → Never. Check: `gh api repos/quikmn/iskra-voice/actions/runners` lists it online.
-3. **The SimplySign seed** (when the owner has a new QR code from Certum; the way to get one is still open: re-adding
-   the phone in the SimplySign app / Certum's portal, or Certum support):
+3. **The SimplySign seed** (when the owner has a new QR code from Certum: ask infolinia@certum.pl to generate one;
+   support@certum.pl is for partners only):
    - In SimplySign Desktop: options → "show the login dialog on start" ticked.
-   - Open a window running `scripts\simplysign-setup.ps1`. The owner types the account e-mail, pastes the otpauth://
-     link (or the Base32 seed) at the hidden prompt, compares the code it shows with the phone app and answers y.
+   - Open a window running `scripts\simplysign-setup.ps1 -FromClipboard`. The owner types the account e-mail, snips the
+     QR code with Win+Shift+S (decoded offline by `scripts/read-qr.mjs`; the snip is deleted and the clipboard emptied),
+     compares the code it shows with the phone app and answers y. Without `-FromClipboard` it asks for the otpauth://
+     link or Base32 seed at a hidden prompt; `-Image <file>` reads a saved picture.
      The phone app should scan the same QR, so the phone keeps working too.
    - First test, with the owner watching: the owner logs SimplySign Desktop out (tray → disconnect), then
      `pwsh -NoProfile -File scripts/release.ps1 -CheckOnly` (local) or A0.2. Its first line should end
