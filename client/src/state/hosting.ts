@@ -17,8 +17,27 @@ function setStatus(key: string, status: HostStatus): void {
   useHosting.setState((s) => ({ status: { ...s.status, [key]: status } }))
 }
 
+/** host.status events seen per server key, so a request's reply never replaces a newer event (see fromReply). */
+const eventsSeen = new Map<string, number>()
+
+/**
+ * Applies the status a request's reply carries, unless a host.status event came while the request was out. The server
+ * reads the reply's status while its hosting loop may be mid-way, then the loop's own event can go out first: the
+ * reply's older (or half-updated) copy would stay on screen until something changes again (e2e hosting.spec on CI: the
+ * router "not found" with no ports to forward). Every change ends in an event, so dropping the reply loses nothing.
+ */
+export async function fromReply(key: string, request: () => Promise<{ status: HostStatus }>): Promise<HostStatus> {
+  const before = eventsSeen.get(key) ?? 0
+  const { status } = await request()
+  if ((eventsSeen.get(key) ?? 0) === before) setStatus(key, status)
+  return useHosting.getState().status[key] ?? status
+}
+
 onServerEvent((key, type, body) => {
-  if (type === 'host.status') setStatus(key, (body as { status: HostStatus }).status)
+  if (type === 'host.status') {
+    eventsSeen.set(key, (eventsSeen.get(key) ?? 0) + 1)
+    setStatus(key, (body as { status: HostStatus }).status)
+  }
   if (type === 'server.address') {
     const { publicUrl } = body as { publicUrl: string | null }
     useApp.setState((state) => {
@@ -31,17 +50,14 @@ onServerEvent((key, type, body) => {
 export async function loadHostStatus(key: string): Promise<HostStatus> {
   const connection = connectionFor(key)
   if (!connection) throw new Error(t('errors.codes.disconnected'))
-  const { status } = await connection.request('host.status', {})
-  setStatus(key, status)
-  return status
+  return fromReply(key, () => connection.request('host.status', {}))
 }
 
 /** Turns internet hosting on or off. Turning it on while it's on checks everything again right away. */
 export async function setInternet(key: string, enabled: boolean): Promise<void> {
   const connection = connectionFor(key)
   if (!connection) throw new Error(t('errors.codes.disconnected'))
-  const { status } = await connection.request('host.internet.set', { enabled })
-  setStatus(key, status)
+  await fromReply(key, () => connection.request('host.internet.set', { enabled }))
 }
 
 // ── Servers hosted on this computer (desktop app) ─────────────────────────
