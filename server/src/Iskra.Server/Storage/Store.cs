@@ -337,6 +337,7 @@ public sealed partial class Store : IDisposable
         ("topics-1", TopicsMigration),
         // Channel, category and other ids are never handed out twice; leftovers of deleted channels go.
         ("id-floors-1", IdFloorsMigration),
+        ("id-floors-2", IdFloors2Migration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

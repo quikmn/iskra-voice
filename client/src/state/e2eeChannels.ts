@@ -22,6 +22,7 @@ import {
 import { GroupBehindError, GroupError, sameKey, type GroupChange } from '../core/group'
 import { RequestError, roleRank, type Channel, type Events, type FileInfo, type Message, type Requests, type Role, type SearchRequest, type SearchResult } from '../core/protocol'
 import * as storage from '../core/storage'
+import { hideStored, loadVerdict, tombstonesToWipe, type Hidden } from './e2eeTombstone'
 import { ensurePrekeys, ownRevokedDevices } from './devices'
 import { bundleOf } from './dms'
 import { uploadDmFile } from './dmFiles'
@@ -80,6 +81,10 @@ interface Stored {
   /** Chains used before a start-over (or before this account was out of the channel), for old messages. */
   past?: StoredPast[]
   restarts?: ChainState['restarts']
+  /** The channel's createdAt when this was kept (0 or missing: the server didn't say). */
+  createdAt?: number
+  /** Set while the channel isn't listed: only the chain, keys and what was seen are kept (see e2eeTombstone.ts). */
+  hidden?: Hidden
 }
 
 interface Rec extends ChainState {
@@ -89,6 +94,10 @@ interface Rec extends ChainState {
   messages: Map<number, LocalMessage>
   /** Which message each envelope id belongs to (built from `messages` when first needed). */
   envelopeIds?: Map<string, number>
+  /** The channel's createdAt (kept with the copy, so it's never used for another channel with the same id). */
+  createdAt?: number
+  /** A channel that isn't listed and has a tombstone: nothing is fetched, used or saved until it's listed again. */
+  hidden?: boolean
 }
 
 const keysIn = (stored: Record<number, string> | undefined) => new Map(Object.entries(stored ?? {}).map(([v, k]) => [Number(v), fromB64u(k)] as const))
@@ -97,8 +106,48 @@ const keysOut = (keys: Map<number, Uint8Array>) => Object.fromEntries([...keys].
 const MAX_LOCAL = 5000
 const records = new Map<string, Rec>()
 const loading = new Map<string, Promise<Rec>>()
-/** How many times each slot was forgotten: a load that started before is thrown away (see forgetSlot). */
+/** How many times each slot was forgotten: a load or save that started before is thrown away (see forgetSlot). */
 const forgets = new Map<string, number>()
+const generationOf = (slot: string) => forgets.get(slot) ?? 0
+
+/** This device's storage for each slot changes one step at a time, in order (a save never lands after a later delete). */
+const writes = new Map<string, Promise<void>>()
+function queueWrite(slot: string, op: () => Promise<void>): Promise<void> {
+  const next = (writes.get(slot) ?? Promise.resolve()).then(op).catch(() => undefined)
+  writes.set(slot, next)
+  void next.finally(() => {
+    if (writes.get(slot) === next) writes.delete(slot)
+  })
+  return next
+}
+
+// Tombstones: slot → when the channel stopped being listed (so ones that never come back are wiped after 30 days).
+const TOMBSTONES = 'tombstones'
+function markTombstone(slot: string, at: number | null): Promise<void> {
+  return queueWrite(TOMBSTONES, async () => {
+    const all = (await storage.loadE2ee<Record<string, number>>(TOMBSTONES)) ?? {}
+    if (at === null ? !(slot in all) : slot in all) return
+    if (at === null) delete all[slot]
+    else all[slot] = at
+    await storage.saveE2ee(TOMBSTONES, all)
+  })
+}
+
+/** Wipes what's kept for a slot, for good. */
+function wipeStored(slot: string): Promise<void> {
+  void markTombstone(slot, null)
+  return queueWrite(slot, () => storage.deleteE2ee(slot))
+}
+
+/** Wipes tombstones older than 30 days (channels that never came back). */
+export async function sweepTombstones(now = Date.now()): Promise<void> {
+  const all = (await storage.loadE2ee<Record<string, number>>(TOMBSTONES).catch(() => undefined)) ?? {}
+  for (const slot of tombstonesToWipe(all, now)) {
+    forgets.set(slot, generationOf(slot) + 1)
+    records.delete(slot)
+    await wipeStored(slot)
+  }
+}
 
 export const slotOf = (serverKey: string, channelId: number) => `${serverKey}:${channelId}`
 
@@ -143,9 +192,23 @@ async function load(serverKey: string, channelId: number): Promise<Rec> {
   if (!running) {
     running = (async () => {
       const rec: Rec = { slot, serverKey, channelId, chain: null, changes: [], view: null, keys: new Map(), messages: new Map(), past: [], offer: null, restarts: [] }
-      const generation = forgets.get(slot) ?? 0
-      let stored = await storage.loadE2ee<Stored>(slot).catch(() => undefined)
-      if ((forgets.get(slot) ?? 0) !== generation) stored = undefined // the channel went meanwhile
+      // Read after any write still on its way, and again if the channel went meanwhile (so a tombstone is never missed).
+      let stored: Stored | undefined
+      for (let tries = 0; ; tries++) {
+        const generation = generationOf(slot)
+        await writes.get(slot)
+        stored = await storage.loadE2ee<Stored>(slot).catch(() => undefined)
+        if (generationOf(slot) === generation || tries >= 3) break
+      }
+      const listed = useApp.getState().servers[serverKey]?.channels.find((c) => c.id === channelId) ?? null
+      const verdict = loadVerdict(stored, listed, Date.now())
+      if (verdict === 'wipe') {
+        void wipeStored(slot)
+        stored = undefined
+      } else if (verdict === 'wait') {
+        return { ...rec, hidden: true } // not kept: loaded again once the channel is listed
+      }
+      rec.createdAt = listed?.createdAt || stored?.hidden?.createdAt || stored?.createdAt || undefined
       if (stored?.chain) {
         try {
           rec.view = verifyChannelChain(stored.chain, stored.changes)
@@ -169,6 +232,11 @@ async function load(serverKey: string, channelId: number): Promise<Rec> {
       }
       records.set(slot, rec)
       publish(rec)
+      if (verdict === 'lift') {
+        // Listed again under the same channel: the chain and keys are used again (messages are fetched and decrypted anew).
+        void markTombstone(slot, null)
+        persist(rec)
+      }
       return rec
     })().finally(() => loading.delete(slot))
     loading.set(slot, running)
@@ -179,10 +247,15 @@ async function load(serverKey: string, channelId: number): Promise<Rec> {
 const dirty = new Set<string>()
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-/** A channel that's gone: its chain, keys and decrypted messages leave this device. */
-function forgetSlot(serverKey: string, channelId: number): void {
+/**
+ * A channel that's not listed any more. Its decrypted messages leave this device at once. If another channel now has
+ * its id (`replaced`), everything goes. Otherwise it may only be hidden (a role or override taken away), so the chain,
+ * keys, older chains and what was seen stay as a tombstone: listed again with the same createdAt they're used again
+ * (the pinned chain still refuses a substitute); with another createdAt, or after 30 days, they're wiped.
+ */
+function forgetSlot(serverKey: string, channelId: number, replaced: boolean, createdAt: number): Promise<void> {
   const slot = slotOf(serverKey, channelId)
-  forgets.set(slot, (forgets.get(slot) ?? 0) + 1)
+  forgets.set(slot, generationOf(slot) + 1)
   records.delete(slot)
   loading.delete(slot)
   dirty.delete(slot)
@@ -192,27 +265,46 @@ function forgetSlot(serverKey: string, channelId: number): void {
     delete channels[slot]
     return { channels }
   })
-  void storage.deleteE2ee(slot).catch(() => undefined)
+  if (replaced) return wipeStored(slot)
+  const now = Date.now()
+  return queueWrite(slot, async () => {
+    const stored = await storage.loadE2ee<Stored>(slot)
+    if (!stored) return
+    const tombstone = hideStored(stored, now, createdAt)
+    await storage.saveE2ee(slot, tombstone)
+    void markTombstone(slot, tombstone.hidden!.at)
+  })
 }
 
-onChannelsGone((serverKey, channelIds) => {
-  for (const id of channelIds) forgetSlot(serverKey, id)
+/** Resolves once every change to this device's storage queued so far is done (tests). */
+export async function e2eeWritesSettled(): Promise<void> {
+  while (writes.size > 0) await Promise.all([...writes.values()])
+}
+
+onChannelsGone((serverKey, channelIds, how) => {
+  for (const id of channelIds) void forgetSlot(serverKey, id, how.replaced, how.createdAt[id] ?? 0)
 })
 
 function persist(rec: Rec): void {
+  if (rec.hidden) return
   dirty.add(rec.slot)
   saveTimer ??= setTimeout(() => {
     saveTimer = null
     for (const slot of [...dirty]) {
       dirty.delete(slot)
       const r = records.get(slot)
-      if (!r?.chain) continue
+      if (!r?.chain || r.hidden) continue
       const messages = [...r.messages.values()].filter((m) => !expired(m)).sort((a, b) => a.id - b.id).slice(-MAX_LOCAL)
       const stored: Stored = {
         chain: r.chain, changes: r.changes, keys: keysOut(r.keys), messages, restarts: r.restarts,
         past: r.past.map((p) => ({ chain: p.chain, changes: p.changes, keys: keysOut(p.keys), endedAt: p.endedAt, startedOver: p.startedOver })),
+        ...(r.createdAt ? { createdAt: r.createdAt } : {}),
       }
-      void storage.saveE2ee(slot, stored).catch(() => undefined)
+      // Not if the channel went since (checked when the write's turn comes, after any write before it).
+      const generation = generationOf(slot)
+      void queueWrite(slot, async () => {
+        if (generationOf(slot) === generation && records.get(slot) === r) await storage.saveE2ee(slot, stored)
+      })
     }
   }, 500)
 }
@@ -260,6 +352,7 @@ export function syncChannel(serverKey: string, channelId: number): Promise<void>
       if (!connection?.isOnline) return
       await ensurePrekeys()
       const rec = await load(serverKey, channelId)
+      if (rec.hidden) return
       let reply: Requests['echan.get'][1]
       try {
         reply = await connection.request('echan.get', { channelId, since: rec.view && rec.chain ? rec.view.version : 0 })
@@ -934,4 +1027,7 @@ onServerEvent((serverKey, type, body) => {
   }
 })
 
-onWelcomeHook((serverKey) => scheduleSyncAll(serverKey, 500))
+onWelcomeHook((serverKey) => {
+  scheduleSyncAll(serverKey, 500)
+  void sweepTombstones()
+})

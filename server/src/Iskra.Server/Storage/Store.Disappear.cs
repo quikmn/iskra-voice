@@ -214,7 +214,6 @@ public sealed partial class Store
                         SELECT f.file_id FROM disappear_files f JOIN messages m ON m.id = f.message_id WHERE f.kind = 'channel' AND m.channel_id = $t;
                         """, r => r.GetString(0), ("$t", thread)));
                     Run(tx, "DELETE FROM channels WHERE id = $t;", ("$t", thread));
-                    ChannelsDeleted();
                 }
                 var messages = Read("""
                     DELETE FROM messages WHERE id IN (SELECT value FROM json_each($ids)) RETURNING id, channel_id, attachments;
@@ -246,6 +245,7 @@ public sealed partial class Store
                 Run(tx, "DELETE FROM dm_file_access WHERE file_id IN (SELECT value FROM json_each($f));", ("$f", fileList));
                 Run(tx, "DELETE FROM dm_files WHERE file_id IN (SELECT value FROM json_each($f));", ("$f", fileList));
                 tx.Commit();
+                if (threads.Count > 0) ChannelsDeleted();
                 return new ExpiredSweep(messages.Select(m => (m.Id, m.ChannelId)).ToList(), threads, dms.Count + groups.Count, files.Distinct().ToList());
             }
             finally

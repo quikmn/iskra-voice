@@ -139,6 +139,31 @@ public class ProductivityTests
     }
 
     [Fact]
+    public async Task A_reminder_about_a_message_in_a_deleted_channel_fires_without_it()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var alice = await server.JoinAsync("Alice");
+        var endpoint = $"https://fcm.googleapis.com/fcm/send/alice-{Guid.NewGuid():N}";
+        Assert.Equal("result", (await alice.RequestAsync("push.subscribe", Subscription(endpoint))).Type());
+        await alice.RequestAsync("notify.set", new { level = "none" });
+        var ci = (await admin.RequestAsync("channel.create", new { name = "ci" })).Body().GetProperty("channel").GetProperty("id").GetInt64();
+        var id = await SayAsync(admin, ci, "the deploy secret");
+        var reminderId = (await alice.RequestAsync("reminder.create", new { dueAt = Now + 1500, data = Sealed(), messageId = id }))
+            .Body().GetProperty("reminder").GetProperty("id").GetInt64();
+
+        Assert.Equal("result", (await admin.RequestAsync("channel.delete", new { id = ci })).Type());
+        var listed = Assert.Single((await alice.RequestAsync("reminder.list")).Body().GetProperty("reminders").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, listed.GetProperty("channelId").ValueKind);
+
+        var due = (await alice.EventAsync("reminder.due")).Body().GetProperty("reminder");
+        Assert.Equal(reminderId, due.GetProperty("id").GetInt64());
+        Assert.Equal(JsonValueKind.Null, due.GetProperty("channelId").ValueKind);
+        var push = (await server.Push.WaitForAsync(endpoint)).Single();
+        Assert.DoesNotContain("secret", push.GetProperty("body").GetString());
+    }
+
+    [Fact]
     public async Task A_reminder_for_someone_who_left_is_dropped()
     {
         using var server = new IskraServer();

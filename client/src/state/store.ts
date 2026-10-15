@@ -15,7 +15,7 @@ import * as storage from '../core/storage'
 import { openDeviceVault } from './lock'
 import { channelConv, forgetConversation, noteMessage, seeConversation } from './readState'
 import { draftKey, forgetDrafts } from './drafts'
-import { forgetStamps, goneChannels, knownStamps, rememberStamps } from './channelGone'
+import { classifyGone, forgetStamps, knownStamps, rememberStamps, type Stamps } from './channelGone'
 
 export interface PendingMessage extends Message {
   pending?: 'sending' | 'failed'
@@ -112,10 +112,21 @@ export function onWelcomeHook(listener: (serverKey: string, welcome: Welcome) =>
   welcomeListeners.add(listener)
 }
 
-const goneListeners = new Set<(serverKey: string, channelIds: number[]) => void>()
+/**
+ * How channels went. `replaced`: another channel now has the id, so nothing kept may be used for it again. Otherwise
+ * they're just not listed: deleted, or not readable any more (the app can't tell), and may come back.
+ * `createdAt`: what this device last saw of them.
+ */
+export interface ChannelsGone {
+  replaced: boolean
+  createdAt: Stamps
+}
+
+type GoneListener = (serverKey: string, channelIds: number[], how: ChannelsGone) => void
+const goneListeners = new Set<GoneListener>()
 
 /** Other state modules drop what they keep for a channel (or thread) when it's gone (see forgetChannels). */
-export function onChannelsGone(listener: (serverKey: string, channelIds: number[]) => void): void {
+export function onChannelsGone(listener: GoneListener): void {
   goneListeners.add(listener)
 }
 
@@ -124,7 +135,7 @@ export function onChannelsGone(listener: (serverKey: string, channelIds: number[
  * (through onChannelsGone) threads, decrypted messages and keys, docs, boards, forums… Deleted content doesn't linger
  * here, and can't show up in a later channel.
  */
-export function forgetChannels(key: string, channelIds: number[]): void {
+export function forgetChannels(key: string, channelIds: number[], how: ChannelsGone = { replaced: false, createdAt: {} }): void {
   if (channelIds.length === 0) return
   const gone = new Set(channelIds)
   const keep = <T,>(record: Record<number, T>): Record<number, T> =>
@@ -136,7 +147,7 @@ export function forgetChannels(key: string, channelIds: number[]): void {
   for (const [tempId, unsent] of unsentSends) if (unsent.key === key && gone.has(unsent.channelId)) unsentSends.delete(tempId)
   forgetDrafts(channelIds.map((id) => draftKey.channel(key, id)))
   for (const id of channelIds) forgetConversation(channelConv(key, id))
-  for (const listener of goneListeners) listener(key, channelIds)
+  for (const listener of goneListeners) listener(key, channelIds, how)
 }
 
 /**
@@ -147,7 +158,11 @@ export function forgetChannels(key: string, channelIds: number[]): void {
 export function applyChannels(key: string, channels: Channel[]): void {
   const known = knownStamps(key)
   rememberStamps(key, channels)
-  if (known) forgetChannels(key, goneChannels(known, channels))
+  if (known) {
+    const { hidden, replaced } = classifyGone(known, channels)
+    forgetChannels(key, hidden, { replaced: false, createdAt: known })
+    forgetChannels(key, replaced, { replaced: true, createdAt: known })
+  }
   patchServer(key, () => ({ channels }))
 }
 const TYPING_MS = 6_000

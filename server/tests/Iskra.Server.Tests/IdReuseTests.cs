@@ -220,4 +220,30 @@ public class IdReuseTests
             foreach (var f in new[] { path, path + "-wal", path + "-shm" }) File.Delete(f);
         }
     }
+
+    [Fact]
+    public void A_team_split_goes_once_its_origin_and_its_team_channels_are_gone()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"iskra-ids-{Guid.NewGuid():N}.db");
+        try
+        {
+            using var store = Store.Open(path);
+            var origin = store.CreateChannel("lobby", "voice", "member", "member", 1).Id;
+            var team = store.CreateChannel("Team 1", "voice", "member", "member", 1).Id;
+            var split = store.AddTeamSplit(origin, null, "a", [team], 1).Id;
+            store.DeleteChannel(origin);
+            Assert.NotNull(store.GetTeamSplit(split)); // still tidies up its team channel
+            store.DeleteChannel(team);
+            Assert.Null(store.GetTeamSplit(split));
+
+            var other = store.CreateChannel("other", "voice", "member", "member", 1).Id;
+            var empty = store.AddTeamSplit(other, null, "a", [], 1).Id;
+            store.DeleteChannel(other);
+            Assert.Null(store.GetTeamSplit(empty));
+        }
+        finally
+        {
+            foreach (var f in new[] { path, path + "-wal", path + "-shm" }) File.Delete(f);
+        }
+    }
 }
