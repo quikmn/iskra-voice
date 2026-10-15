@@ -1,8 +1,8 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync, writeSync } from 'node:fs'
+import { existsSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type BrowserContext, type ElectronApplication, type Locator, type Page } from '@playwright/test'
 import { APP_PORT } from '../playwright.config'
@@ -122,11 +122,13 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
     }),
   )
   const url = `http://localhost:${port}`
-  // The server's last lines of output, for the error when it doesn't come up (ISKRA_E2E_SERVER_LOG keeps all of it).
+  // The server's last lines of output, for the error when it doesn't come up. ISKRA_E2E_SERVER_LOG keeps all of it: a
+  // file (every server appends), or a folder (one <world>.log per server, for parallel workers).
   const tail: string[] = []
   const launch = () => {
     // stdin stays open: with ISKRA_STOP_ON_STDIN_CLOSE closing it is a clean stop (see restart).
-    const log = process.env.ISKRA_E2E_SERVER_LOG ? openSync(process.env.ISKRA_E2E_SERVER_LOG, 'a') : null
+    const logTo = process.env.ISKRA_E2E_SERVER_LOG
+    const log = logTo ? openSync(existsSync(logTo) && statSync(logTo).isDirectory() ? join(logTo, `${basename(world)}.log`) : logTo, 'a') : null
     const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, ...env } })
     const keep = (chunk: Buffer) => {
       if (log !== null) writeSync(log, chunk)
