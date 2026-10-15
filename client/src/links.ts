@@ -12,6 +12,8 @@ export const LINKS = {
   linuxRpm: download(`Iskra-${RELEASE_VERSION}-x86_64.rpm`),
   serverWindows: download(`iskra-server-${RELEASE_VERSION}-win-x64.zip`),
   serverLinux: download(`iskra-server-${RELEASE_VERSION}-linux-x64.tar.gz`),
+  // Raspberry Pi 4/5 (64-bit OS) and other 64-bit ARM Linux boards.
+  serverLinuxArm: download(`iskra-server-${RELEASE_VERSION}-linux-arm64.tar.gz`),
   serverMacAppleSilicon: download(`iskra-server-${RELEASE_VERSION}-osx-arm64.tar.gz`),
   serverMacIntel: download(`iskra-server-${RELEASE_VERSION}-osx-x64.tar.gz`),
   releases: 'https://github.com/quikmn/iskra-voice/releases',
