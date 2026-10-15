@@ -486,7 +486,7 @@ looks first, so reruns don't submit twice. The run summary names the build and w
 | Also used by the store step | Where | Notes |
 |---|---|---|
 | `APPSTORE_REVIEW_PHONE` (secret, optional) | The review contact's phone | Apple requires a phone for App Review; set once with `gh secret set APPSTORE_REVIEW_PHONE` |
-| `REVIEW_INVITE_URL` (variable) | A never-expiring member invite to the review server (Iskra Review, chat.iskra.foo:8443) for the review notes | One-time setup (docs/store/README.md): **Invite friends → Expires after: Never**. Nothing to renew; only if it's revoked, make a new one and set the variable again. Phase B refuses to submit without it |
+| `REVIEW_INVITE_URL` (variable) | A never-expiring member invite to the community server (Iskra, community.iskra.foo) for the review notes | One-time setup (docs/store/README.md): **Invite friends → Expires after: Never**. Nothing to renew; only if it's revoked, make a new one and set the variable again. Phase B refuses to submit without it |
 
 ### Cloudflare
 
@@ -505,9 +505,16 @@ looks first, so reruns don't submit twice. The run summary names the build and w
 ### The server (chat.iskra.foo)
 
 DigitalOcean droplet "Iskra-Voip-personal-ams3" (AMS3, Ubuntu 24.04, 146.190.236.187), the owner's friend server "Hangout".
-It also runs **Iskra Review** (for app store reviewers, nothing else): world `/opt/iskra/review-world`, service
-`iskra-review` on the same binary as Hangout, `https://chat.iskra.foo:8443` with Hangout's certificate (`Https.Mode` "files";
-a nightly `iskra-review-restart.timer` picks up renewals and new versions), voice on 7891/tcp and 7892/udp (ufw), updates off.
+It also runs the public **Iskra** community server (formerly Iskra Review; also where app store reviewers and testers
+join): world `/opt/iskra/review-world`, service `iskra-review` on the same binary as Hangout, `https://community.iskra.foo`
+with its own Let's Encrypt certificate (a nightly `iskra-review-restart.timer` picks up new versions), voice on 7891/tcp
+and 7892/udp (ufw), updates off.
+
+Both servers sit behind nginx (since 2026-10-15, hosting.md "Two servers on one machine"): `stream` on 443 routes by SNI
+(TLS passthrough, PROXY protocol, so each server sees members' real addresses) to Hangout on 127.0.0.1:9443 and Iskra on
+127.0.0.1:8443; `http` on 80 routes by Host to 127.0.0.1:9080 / 8080 (ACME challenges and redirects). Config:
+`/etc/nginx/modules-enabled/99-iskra-stream.conf` and `/etc/nginx/sites-available/iskra`. Each server.json has
+`Https.BindAddress` "127.0.0.1" and `Https.ProxyProtocol` true; backups `server.json.bak-proxy-20261015-1618`.
 
 | Item | Where | Notes |
 |---|---|---|

@@ -50,7 +50,7 @@ The `APPSTORE_*` secrets (Admin key) already build and upload. Also:
    Another external group: add `{ "name": "<group>" }` to `ios.externalGroups` in mobile/store.json.
 2. **Review contact phone** (Apple requires one for Beta App Review and App Review):
    `gh secret set APPSTORE_REVIEW_PHONE` and type it (e.g. `+46 70 123 45 67`). It never goes into the repo.
-3. **Review invite (once):** on the review server (`https://chat.iskra.foo:8443`), as its owner, open **Invite
+3. **Review invite (once):** on the community server (`https://community.iskra.foo`), as its owner, open **Invite
    friends**, set **Expires after** to **Never** (admins and owners only), leave **Single use** off, copy the link and
    `gh variable set REVIEW_INVITE_URL --body "<invite link>"`. It never expires, so there is nothing to renew; it shows
    as **Never expires** under **Active invites** in the same dialog, where it can be revoked (then make a new one and

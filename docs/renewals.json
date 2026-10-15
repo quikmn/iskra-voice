@@ -84,6 +84,14 @@
       "warnDays": [14, 7, 1],
       "renew": "The server renews it itself (Let's Encrypt); port 80 must stay open. Check the server log",
       "doc": "docs/ci-cd.md#the-server-chatiskrafoo"
+    },
+    {
+      "id": "tls-community-iskra-foo",
+      "name": "TLS certificate of community.iskra.foo",
+      "check": { "type": "tls", "host": "community.iskra.foo" },
+      "warnDays": [14, 7, 1],
+      "renew": "The server renews it itself (Let's Encrypt) through nginx on port 80. Check the iskra-review log",
+      "doc": "docs/ci-cd.md#the-server-chatiskrafoo"
     }
   ]
 }
