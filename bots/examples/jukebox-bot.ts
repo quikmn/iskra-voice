@@ -56,6 +56,9 @@ export function jukebox(bot: Bot, folder: string): void {
 
         let voice = bot.voice
         if (voice?.channelId !== channelId) {
+          // Joining voice can take a few seconds (longer on a busy machine): "Jukebox is thinking…" meanwhile, so the
+          // app doesn't give up on the answer after 15 s while the music is about to start.
+          await ctx.defer()
           try {
             voice = await bot.joinVoice(channelId)
           } catch (e) {
