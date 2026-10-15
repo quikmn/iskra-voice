@@ -13,7 +13,9 @@ import type { InviteLink } from '../core/invite'
 import type { Channel, DirectGif, Events, FileInfo, Member, Message, MessageGif, Sticker, VoiceInfo, VoiceParticipant, Welcome } from '../core/protocol'
 import * as storage from '../core/storage'
 import { openDeviceVault } from './lock'
-import { channelConv, noteMessage, seeConversation } from './readState'
+import { channelConv, forgetConversation, noteMessage, seeConversation } from './readState'
+import { draftKey, forgetDrafts } from './drafts'
+import { forgetStamps, goneChannels, knownStamps, rememberStamps } from './channelGone'
 
 export interface PendingMessage extends Message {
   pending?: 'sending' | 'failed'
@@ -108,6 +110,45 @@ export function onServerEvent(listener: ServerEventListener): void {
 
 export function onWelcomeHook(listener: (serverKey: string, welcome: Welcome) => void): void {
   welcomeListeners.add(listener)
+}
+
+const goneListeners = new Set<(serverKey: string, channelIds: number[]) => void>()
+
+/** Other state modules drop what they keep for a channel (or thread) when it's gone (see forgetChannels). */
+export function onChannelsGone(listener: (serverKey: string, channelIds: number[]) => void): void {
+  goneListeners.add(listener)
+}
+
+/**
+ * Drops everything this device keeps for these channels or threads: messages, unsent sends, drafts, read state, and
+ * (through onChannelsGone) threads, decrypted messages and keys, docs, boards, forums… Deleted content doesn't linger
+ * here, and can't show up in a later channel.
+ */
+export function forgetChannels(key: string, channelIds: number[]): void {
+  if (channelIds.length === 0) return
+  const gone = new Set(channelIds)
+  const keep = <T,>(record: Record<number, T>): Record<number, T> =>
+    Object.fromEntries(Object.entries(record).filter(([id]) => !gone.has(Number(id))))
+  patchServer(key, (s) => ({
+    messages: keep(s.messages), hasMore: keep(s.hasMore), typing: keep(s.typing), voice: keep(s.voice),
+    ...(s.detached ? { detached: keep(s.detached) } : {}),
+  }))
+  for (const [tempId, unsent] of unsentSends) if (unsent.key === key && gone.has(unsent.channelId)) unsentSends.delete(tempId)
+  forgetDrafts(channelIds.map((id) => draftKey.channel(key, id)))
+  for (const id of channelIds) forgetConversation(channelConv(key, id))
+  for (const listener of goneListeners) listener(key, channelIds)
+}
+
+/**
+ * A new channel list (welcome or `channels`). Channels this device knew that are no longer listed (deleted, or you
+ * can't read them any more), or that are listed with a different createdAt (another channel under the same id), are
+ * forgotten first.
+ */
+export function applyChannels(key: string, channels: Channel[]): void {
+  const known = knownStamps(key)
+  rememberStamps(key, channels)
+  if (known) forgetChannels(key, goneChannels(known, channels))
+  patchServer(key, () => ({ channels }))
 }
 const TYPING_MS = 6_000
 
@@ -286,6 +327,7 @@ export function acceptInvite(invite: InviteLink): void {
 export function leaveServer(key: string): void {
   connections.get(key)?.stop()
   connections.delete(key)
+  forgetStamps(key)
   useApp.setState((state) => {
     const servers = { ...state.servers }
     delete servers[key]
@@ -381,6 +423,7 @@ useApp.subscribe(dropFailedJoins)
 
 function onWelcome(key: string, welcome: Welcome): void {
   const before = useApp.getState().servers[key]
+  applyChannels(key, welcome.channels)
   patchServer(key, () => ({
     name: welcome.server.name,
     joining: false,
@@ -395,9 +438,10 @@ function onWelcome(key: string, welcome: Welcome): void {
   }))
   void persistServers()
 
-  // Catch up on anything we missed while disconnected.
-  if (before) {
-    for (const [channelId, list] of Object.entries(before.messages)) {
+  // Catch up on anything we missed while disconnected (in channels that are still there).
+  const after = useApp.getState().servers[key]
+  if (before && after) {
+    for (const [channelId, list] of Object.entries(after.messages)) {
       // A loaded channel that was empty catches up from the start (its first messages may have come meanwhile).
       const lastId = list.filter((m) => !m.tempId).at(-1)?.id ?? 0
       void catchUp(key, Number(channelId), lastId)
@@ -503,7 +547,7 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
     }
     case 'channels': {
       const { channels } = body as Events['channels']
-      patchServer(key, () => ({ channels }))
+      applyChannels(key, channels)
       return
     }
     case 'member.joined':

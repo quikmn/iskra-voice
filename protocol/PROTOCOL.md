@@ -186,7 +186,8 @@ Over the limit: `error` with `code: "rate_limited"`; the session stays open. HTT
 ```jsonc
 Member  { "accountKey": "<b64u>", "name": "Viktor", "role": "member", "online": true, "bot": false,
           ...profile fields (see Profiles) }
-Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "forum" | "stage" | "docs" | "whiteboard", "position": 0, "readRole": "member", "writeRole": "member" }
+Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "forum" | "stage" | "docs" | "whiteboard", "position": 0, "readRole": "member", "writeRole": "member",
+          "createdAt": 1760000000000 }                                  // ms; 0 for the first #general
 Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "createdAt": 1760000000000, "editedAt": null,
           "attachments": [File], "replyTo": ..., "reactions": [...],   // Files, replies and reactions
           "pinned": false, "thread": Thread | null,                     // Pins, search and threads
@@ -197,6 +198,12 @@ Invite  { "code": "<b64u 16>", "role": "member", "createdBy": "<accountKey>", "c
 ```
 
 Roles, lowest to highest: `guest < member < trusted < admin < owner`.
+
+**Ids are never reused.** A channel (or thread), category, docs page, event or forum tag that is deleted keeps its id
+forever: the next one always gets a higher id, also across restarts. Clients may key what they keep on the device by
+channel id, but must drop everything kept for a channel (messages, drafts, read state, decrypted messages, keys) once
+it is gone from `channels` (deleted, or no longer readable), and treat a channel whose `createdAt` differs from the one
+they kept data for as a different channel. Servers before this rule may send no `createdAt`.
 
 ## Requests and events
 

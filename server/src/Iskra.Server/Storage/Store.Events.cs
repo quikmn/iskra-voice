@@ -50,8 +50,8 @@ public sealed partial class Store
     public ServerEvent AddEvent(ServerEvent e)
     {
         var id = Convert.ToInt64(Scalar($"""
-            INSERT INTO events (title, description, start_at, end_at, time_zone, location_kind, channel_id, location, image_file, created_by, created_at, status)
-            VALUES ($title, $desc, $start, $end, $tz, $kind, $ch, $loc, $img, $by, $now, 'scheduled') RETURNING id;
+            INSERT INTO events (id, title, description, start_at, end_at, time_zone, location_kind, channel_id, location, image_file, created_by, created_at, status)
+            VALUES ({NextId("events")}, $title, $desc, $start, $end, $tz, $kind, $ch, $loc, $img, $by, $now, 'scheduled') RETURNING id;
             """, ("$title", e.Title), ("$desc", e.Description), ("$start", e.StartAt), ("$end", e.EndAt), ("$tz", e.TimeZone),
             ("$kind", e.LocationKind), ("$ch", e.ChannelId), ("$loc", e.Location), ("$img", e.ImageFile), ("$by", e.CreatedBy), ("$now", e.CreatedAt)));
         return e with { Id = id, Status = "scheduled", RemindedAt = null };

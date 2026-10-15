@@ -3,7 +3,7 @@
 import { create } from 'zustand'
 import { t } from '../i18n'
 import type { Events, Message, Thread } from '../core/protocol'
-import { connectionFor, onServerEvent, patchServer, useApp, type ServerState } from './store'
+import { connectionFor, forgetChannels, onChannelsGone, onServerEvent, patchServer, useApp, type ServerState } from './store'
 import { channelConv, forgetConversation, seeConversation } from './readState'
 
 interface ThreadsState {
@@ -132,4 +132,12 @@ onServerEvent((key, type, body) => {
     // Learn about threads we haven't seen, so badges and notifications can name them.
     if (!knownThread(key, message.channelId)) void fetchThread(key, message.channelId)
   }
+})
+
+// A channel that's gone takes its threads (their messages, drafts and read state) with it.
+onChannelsGone((key, channelIds) => {
+  const gone = new Set(channelIds)
+  const threads = Object.values(useThreads.getState().threads[key] ?? {}).filter((th) => gone.has(th.channelId) || gone.has(th.id))
+  for (const th of threads) forget(key, th.id)
+  forgetChannels(key, threads.map((th) => th.id).filter((id) => !gone.has(id)))
 })

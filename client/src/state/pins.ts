@@ -6,7 +6,8 @@ import { type Events, type Message, type Pin } from '../core/protocol'
 import { baseAllows, canSendIn, has } from './permissions'
 import { baseRolesFor } from './baseRoles'
 import { rolesFor } from './roles'
-import { connectionFor, onServerEvent, patchServer, type ServerState } from './store'
+import { connectionFor, onChannelsGone, onServerEvent, patchServer, type ServerState } from './store'
+import { withoutChannels } from './channelGone'
 import { knownThread } from './threads'
 
 export interface PinNote {
@@ -62,4 +63,11 @@ onServerEvent((key, type, body) => {
       notes: { ...s.notes, [noteKey(key, channelId)]: [...(s.notes[noteKey(key, channelId)] ?? []), { messageId: id, by, at }] },
     }))
   }
+})
+
+onChannelsGone((serverKey, channelIds) => {
+  usePinNotes.setState((s) => {
+    const notes = withoutChannels(s.notes, serverKey, channelIds)
+    return notes === s.notes ? s : { notes, version: s.version + 1 }
+  })
 })

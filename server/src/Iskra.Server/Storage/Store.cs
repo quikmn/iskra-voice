@@ -16,6 +16,8 @@ public sealed record Member(string AccountKey, string Name, string Role, long Jo
 public sealed record Channel(long Id, string Name, string Kind, int Position, string ReadRole, string WriteRole)
 {
     public long? CategoryId { get; init; }
+    /// <summary>When it was made (ms). With the id, tells a device's cache of a channel apart from a later one.</summary>
+    public long CreatedAt { get; init; }
     /// <summary>Per-role overrides (a thread carries its parent channel's).</summary>
     public ChannelOverride[] Overrides { get; init; } = [];
 }
@@ -333,6 +335,8 @@ public sealed partial class Store : IDisposable
         ("disappearing-1", DisappearMigration),
         ("whiteboard-1", WhiteboardMigration),
         ("topics-1", TopicsMigration),
+        // Channel, category and other ids are never handed out twice; leftovers of deleted channels go.
+        ("id-floors-1", IdFloorsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

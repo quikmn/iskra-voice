@@ -214,6 +214,7 @@ public sealed partial class Store
                         SELECT f.file_id FROM disappear_files f JOIN messages m ON m.id = f.message_id WHERE f.kind = 'channel' AND m.channel_id = $t;
                         """, r => r.GetString(0), ("$t", thread)));
                     Run(tx, "DELETE FROM channels WHERE id = $t;", ("$t", thread));
+                    ChannelsDeleted();
                 }
                 var messages = Read("""
                     DELETE FROM messages WHERE id IN (SELECT value FROM json_each($ids)) RETURNING id, channel_id, attachments;

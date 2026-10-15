@@ -77,6 +77,10 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 - Apps keep keys, decrypted DMs, settings and the server list on the device until the user signs out, deletes the
   account or removes the app. Disappearing messages are deleted from the device (screen, storage, notifications) when
   their time is up, also if the app was closed then (on its next start). "Download data on this device" (Settings → Privacy & data) exports it.
+- What an app keeps for a server channel (messages, its threads, drafts, read state, decrypted messages and keys of an
+  encrypted channel, docs, boards, forum markers) is dropped from the device as soon as the channel is deleted or the
+  member can no longer read it, at the latest on the next connection. Servers never reuse a channel's id, so nothing of
+  a deleted channel can show up in a later one.
 - Live captions and camera background effects run on the device only: audio, video and caption text are never sent
   or stored; captions are dropped from memory seconds after they're shown. The speech model is downloaded once from
   the member's own Iskra server (which fetched it once from Hugging Face) and kept with the settings on the device
@@ -103,6 +107,7 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-13 | Built-in bots (Dice, Polls, Reminders): their answers and /remind reminders |
 | 2026-10-14 | Bug reports (bug inbox) |
 | 2026-10-14 | Claim codes of server images (DigitalOcean Marketplace) |
+| 2026-10-15 | Apps drop what they keep for a channel once it's deleted or unreadable; deleting a channel also removes its pending scheduled messages and its place in webhooks and AutoMod settings |
 | 2026-10-15 | Looking-for-group posts and team splits |
 | 2026-10-15 | Message translation on the device (texts never leave it); translation models folder on the server |
 | 2026-10-15 | Whiteboards: board objects, unfolded batches and their authors, pictures on boards |

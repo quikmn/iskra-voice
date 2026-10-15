@@ -50,7 +50,7 @@ public sealed partial class Store
         lock (_gate)
         {
             var position = Convert.ToInt32(Scalar("SELECT COALESCE(MAX(position), -1) + 1 FROM categories;"));
-            var id = Convert.ToInt64(Scalar("INSERT INTO categories (name, position) VALUES ($name, $pos) RETURNING id;", ("$name", name), ("$pos", position)));
+            var id = Convert.ToInt64(Scalar($"INSERT INTO categories (id, name, position) VALUES ({NextId("categories")}, $name, $pos) RETURNING id;", ("$name", name), ("$pos", position)));
             return new Category(id, name, position);
         }
     }

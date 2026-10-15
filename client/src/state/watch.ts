@@ -2,7 +2,8 @@
 // video itself and follows that clock (see watchSync.ts for the math).
 import { create } from 'zustand'
 import { roleRank, type Channel, type Events, type StageState, type WatchParty, type WatchSourceInput } from '../core/protocol'
-import { connectionFor, onServerEvent, onWelcomeHook, type ServerState } from './store'
+import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, type ServerState } from './store'
+import { withoutChannels } from './channelGone'
 import { isStageModerator } from './stages'
 import { bestOffset, clockSample, type ClockSample } from './watchSync'
 import { t } from '../i18n'
@@ -127,3 +128,7 @@ export async function stopWatch(serverKey: string, party: WatchParty): Promise<v
 export async function sendWatchChat(serverKey: string, channelId: number, text: string): Promise<void> {
   await connection(serverKey).request('watch.chat', { channelId, text })
 }
+
+onChannelsGone((serverKey, channelIds) => {
+  useWatch.setState((s) => ({ parties: withoutChannels(s.parties, serverKey, channelIds), chat: withoutChannels(s.chat, serverKey, channelIds) }))
+})

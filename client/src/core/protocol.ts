@@ -18,6 +18,8 @@ export interface Channel {
   position: number
   readRole: Role
   writeRole: Role
+  /** When it was made (ms). Ids are never reused; a different createdAt under a known id still means a different channel. Missing from older servers. */
+  createdAt?: number
 }
 
 export interface FileInfo {

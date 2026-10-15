@@ -167,7 +167,16 @@ public sealed class OutgoingWebhooks : BackgroundService
     /// <summary>Forget the cached list after a webhook was made, changed or removed.</summary>
     public void Changed() => _hooks = null;
 
-    private List<OutgoingWebhook> Hooks() => _hooks ??= _world.Store.OutgoingWebhooks().Where(h => h.Enabled).ToList();
+    private long _deletions;
+
+    /// <summary>The enabled webhooks, read again after a change or after channels were deleted (which leave their lists).</summary>
+    private List<OutgoingWebhook> Hooks()
+    {
+        var deletions = _world.Store.ChannelDeletions;
+        if (_hooks is { } hooks && deletions == Interlocked.Read(ref _deletions)) return hooks;
+        Interlocked.Exchange(ref _deletions, deletions);
+        return _hooks = _world.Store.OutgoingWebhooks().Where(h => h.Enabled).ToList();
+    }
 
     /// <summary>The channel itself, or a thread's parent, is one the webhook listens to, and the server can read it.</summary>
     private bool Watches(OutgoingWebhook hook, Channel channel)

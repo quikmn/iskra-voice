@@ -3,5 +3,6 @@
 ### What's new
 
 ### Fixes
+- A new channel could show the messages of a deleted channel that had the same id, on devices that had the old one open. Fixed: servers never reuse channel (or category, thread, docs page, event) ids, also on existing servers; deleting a channel now also removes its scheduled messages and its place in webhooks and AutoMod settings; and apps drop everything they kept for a channel (messages, drafts, read state, encrypted channel keys) once it's deleted or you lose access.
 
 ### Good to know

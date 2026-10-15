@@ -37,8 +37,8 @@ public sealed partial class Store
         {
             using var tx = _db.BeginTransaction();
             long id;
-            using (var insert = Command("""
-                       INSERT INTO team_splits (channel_id, game, created_by, created_at) VALUES ($ch, $game, $by, $now) RETURNING id;
+            using (var insert = Command($"""
+                       INSERT INTO team_splits (id, channel_id, game, created_by, created_at) VALUES ({NextId("team_splits")}, $ch, $game, $by, $now) RETURNING id;
                        """, [("$ch", channelId), ("$game", game), ("$by", createdBy), ("$now", now)]))
             {
                 insert.Transaction = tx;

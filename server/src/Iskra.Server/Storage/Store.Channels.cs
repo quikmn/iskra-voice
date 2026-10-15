@@ -2,11 +2,11 @@ namespace Iskra.Server.Storage;
 
 public sealed partial class Store
 {
-    private const string ChannelColumns = "id, name, kind, position, read_role, write_role, category_id";
+    private const string ChannelColumns = "id, name, kind, position, read_role, write_role, category_id, created_at";
     private const string MessageColumns = "id, channel_id, author_key, text, created_at, edited_at, attachments, reply_to";
 
     private static Channel ReadChannel(Microsoft.Data.Sqlite.SqliteDataReader r) =>
-        new(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetInt32(3), r.GetString(4), r.GetString(5)) { CategoryId = NullableLong(r, 6) };
+        new(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetInt32(3), r.GetString(4), r.GetString(5)) { CategoryId = NullableLong(r, 6), CreatedAt = r.GetInt64(7) };
 
     private static Message ReadMessage(Microsoft.Data.Sqlite.SqliteDataReader r) =>
         new(r.GetInt64(0), r.GetInt64(1), r.GetString(2), r.GetString(3), r.GetInt64(4), NullableLong(r, 5),
@@ -26,11 +26,11 @@ public sealed partial class Store
         lock (_gate)
         {
             var position = Convert.ToInt32(Scalar("SELECT COALESCE(MAX(position), -1) + 1 FROM channels;"));
-            var id = Convert.ToInt64(Scalar("""
-                INSERT INTO channels (name, kind, position, read_role, write_role, created_at)
-                VALUES ($name, $kind, $pos, $read, $write, $now) RETURNING id;
+            var id = Convert.ToInt64(Scalar($"""
+                INSERT INTO channels (id, name, kind, position, read_role, write_role, created_at)
+                VALUES ({NextId("channels")}, $name, $kind, $pos, $read, $write, $now) RETURNING id;
                 """, ("$name", name), ("$kind", kind), ("$pos", position), ("$read", readRole), ("$write", writeRole), ("$now", now)));
-            return new Channel(id, name, kind, position, readRole, writeRole);
+            return new Channel(id, name, kind, position, readRole, writeRole) { CreatedAt = now };
         }
     }
 
@@ -38,7 +38,11 @@ public sealed partial class Store
         Exec("UPDATE channels SET name = $name, read_role = $read, write_role = $write WHERE id = $id;",
             ("$id", channel.Id), ("$name", channel.Name), ("$read", channel.ReadRole), ("$write", channel.WriteRole));
 
-    public void DeleteChannel(long id) => Exec("DELETE FROM channels WHERE id = $id;", ("$id", id));
+    public void DeleteChannel(long id)
+    {
+        Exec("DELETE FROM channels WHERE id = $id;", ("$id", id));
+        ChannelsDeleted();
+    }
 
     // ── Messages ─────────────────────────────────────────────────────────────
 

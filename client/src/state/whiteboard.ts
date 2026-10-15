@@ -13,7 +13,8 @@ import { openBoard as openSealed, sealBoard, type BoardEnvelope, type BoardWhat 
 import { RequestError, type Events, type WireBatch, type WireBoard, type WireSnapshot } from '../core/protocol'
 import { errorMessage } from '../i18n/errors'
 import { channelOpenKeys, channelSealKey, syncChannel } from './e2eeChannels'
-import { connectionFor, onServerEvent, onWelcomeHook, uploadFile, useApp } from './store'
+import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, uploadFile, useApp } from './store'
+import { withoutChannels } from './channelGone'
 
 export const boardKey = (serverKey: string, channelId: number) => `${serverKey}:${channelId}`
 
@@ -571,4 +572,25 @@ onWelcomeHook((serverKey) => {
     useWhiteboard.setState((st) => ({ voice: { ...st.voice, [serverKey]: Object.fromEntries(boards.map((b) => [b.channelId, b])) } }))
   }).catch(() => undefined)
   for (const s of sessions.values()) if (s.serverKey === serverKey && s.users > 0) void load(s, true)
+})
+
+// A board channel that's gone: what this device holds of it is cleared, and nothing unsent goes anywhere.
+onChannelsGone((serverKey, channelIds) => {
+  for (const id of channelIds) {
+    const s = sessions.get(boardKey(serverKey, id))
+    if (!s) continue
+    sessions.delete(s.key)
+    if (s.snapshotTimer) clearTimeout(s.snapshotTimer)
+    reset(s)
+    s.queue = []
+    notify(s)
+  }
+  useWhiteboard.setState((st) => {
+    const voice = st.voice[serverKey]
+    const kept = voice ? Object.fromEntries(Object.entries(voice).filter(([id]) => !channelIds.includes(Number(id)))) : undefined
+    return {
+      boards: withoutChannels(st.boards, serverKey, channelIds),
+      voice: voice && kept && Object.keys(kept).length !== Object.keys(voice).length ? { ...st.voice, [serverKey]: kept } : st.voice,
+    }
+  })
 })

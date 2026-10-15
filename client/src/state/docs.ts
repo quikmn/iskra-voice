@@ -2,7 +2,8 @@
 // server's "Start here" page. Pages too big for one socket frame are saved as an upload (see "Docs channels" in PROTOCOL.md).
 import { create } from 'zustand'
 import type { DocHome, DocPage, DocRevision, DocSearchResult } from '../core/protocol'
-import { connectionFor, onServerEvent, onWelcomeHook, selectChannel, uploadFile } from './store'
+import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, selectChannel, uploadFile } from './store'
+import { withoutChannels } from './channelGone'
 import { errorMessage } from '../i18n/errors'
 import { upsertPage } from './docsLogic'
 
@@ -227,4 +228,19 @@ onWelcomeHook((serverKey) => {
   connectionFor(serverKey)?.request('docs.home.get', {})
     .then(({ home }) => useDocs.setState((s) => ({ home: { ...s.home, [serverKey]: home } })))
     .catch(() => undefined) // an older server without docs
+})
+
+// A docs channel that's gone: its pages, their text and any unsaved edit leave this device.
+onChannelsGone((serverKey, channelIds) => {
+  const gone = new Set(channelIds)
+  useDocs.setState((s) => {
+    const texts = Object.fromEntries(Object.entries(s.texts).filter(([k, page]) => !(k.startsWith(`${serverKey}:`) && gone.has(page.channelId))))
+    const home = s.home[serverKey]
+    return {
+      lists: withoutChannels(s.lists, serverKey, channelIds), open: withoutChannels(s.open, serverKey, channelIds),
+      drafts: withoutChannels(s.drafts, serverKey, channelIds),
+      texts: Object.keys(texts).length === Object.keys(s.texts).length ? s.texts : texts,
+      home: home && gone.has(home.channelId) ? { ...s.home, [serverKey]: null } : s.home,
+    }
+  })
 })

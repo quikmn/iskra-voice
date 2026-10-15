@@ -332,9 +332,14 @@ public static class AutoModFeature
         private readonly ConcurrentDictionary<string, Queue<(long At, string Text)>> _recent = new();
         private readonly ConcurrentDictionary<(string, string), long> _reported = new();
 
+        private long _deletions = -1;
+
         public Compiled Current(Store store)
         {
-            if (_current is { } c) return c;
+            // A deleted channel leaves the saved settings (exempt, alert channel): read them again.
+            var deletions = store.ChannelDeletions;
+            if (_current is { } c && deletions == Interlocked.Read(ref _deletions)) return c;
+            Interlocked.Exchange(ref _deletions, deletions);
             AutoModConfig config;
             try { config = store.AutoModConfig() is { } json ? Sane(JsonSerializer.Deserialize<AutoModConfig>(json, Json.Options)) : AutoModConfig.Default; }
             catch (JsonException) { config = AutoModConfig.Default; }
