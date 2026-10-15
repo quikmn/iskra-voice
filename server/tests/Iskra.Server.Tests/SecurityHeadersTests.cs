@@ -39,9 +39,9 @@ public class SecurityHeadersTests
         Assert.Equal("*", Header(response, "Access-Control-Allow-Origin"));
         Assert.Equal("", Header(response, "Access-Control-Allow-Credentials"));
         var body = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
-        Assert.Equal(["iskra", "name"], body.EnumerateObject().Select(p => p.Name).ToArray());
+        Assert.Equal(["iskra", "name", "icon"], body.EnumerateObject().Select(p => p.Name).ToArray());
 
-        // Only the root.
+        // Only the root (and the icon, GET /icon: see ServerImageTests).
         using var health = await server.CreateClient().GetAsync("/health");
         Assert.Equal("", Header(health, "Access-Control-Allow-Origin"));
     }

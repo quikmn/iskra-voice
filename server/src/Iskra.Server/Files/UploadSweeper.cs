@@ -10,11 +10,8 @@ public sealed partial class Uploads
     [GeneratedRegex("/files/([A-Za-z0-9_-]{16,64})")]
     private static partial Regex FileLink();
 
-    /// <summary>
-    /// Deletes uploads older than a day that nothing refers to: messages, avatars, emoji, sounds, webhooks,
-    /// profile pages (which may show this server's files by URL) and running watch parties. Returns how many records went.
-    /// </summary>
-    public int Sweep(DateTimeOffset now)
+    /// <summary>Files used by what the database's reference lists don't cover (pages by URL, watch parties, reports, docs, boards, cards).</summary>
+    private HashSet<string> InUseOutsideTables()
     {
         var keep = world.Store.AllPageHtml().SelectMany(html => FileLink().Matches(html).Select(m => m.Groups[1].Value)).ToHashSet();
         if (voice is not null) keep.UnionWith(voice.Watch.FileIds()); // none from the command line
@@ -22,6 +19,19 @@ public sealed partial class Uploads
         keep.UnionWith(world.Store.DocFileIds()); // pictures in docs pages (and their revisions)
         keep.UnionWith(world.Store.BoardFileIds()); // pictures on whiteboards
         keep.UnionWith(world.Store.CardFileIds()); // pictures in bots' cards
+        return keep;
+    }
+
+    /// <summary>Deletes one file record (and its content, unless another record shares it) at once if nothing uses it.</summary>
+    public void DeleteIfUnused(string id) => DeleteContent(world.Store.DeleteFilesIfUnused([id], InUseOutsideTables()));
+
+    /// <summary>
+    /// Deletes uploads older than a day that nothing refers to: messages, avatars, emoji, sounds, webhooks,
+    /// profile pages (which may show this server's files by URL) and running watch parties. Returns how many records went.
+    /// </summary>
+    public int Sweep(DateTimeOffset now)
+    {
+        var keep = InUseOutsideTables();
         var removed = world.Store.DeleteUnreferencedFiles((now - UnusedGrace).ToUnixTimeMilliseconds(), keep);
         if (removed.Count > 0) world.Store.ForgetDeletedDmFiles();
         DeleteContent(removed);

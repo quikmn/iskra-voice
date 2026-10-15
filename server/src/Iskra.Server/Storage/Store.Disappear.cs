@@ -274,6 +274,7 @@ public sealed partial class Store
                 UNION SELECT avatar FROM webhook_messages WHERE avatar IS NOT NULL
                 UNION SELECT image_file FROM events WHERE image_file IS NOT NULL
                 UNION SELECT avatar_file FROM imported_authors WHERE avatar_file IS NOT NULL
+                UNION SELECT file_id FROM server_images
                 UNION SELECT file_id FROM dm_files WHERE message_id IS NOT NULL)
             RETURNING sha256;
             """, r => r.GetString(0), ("$ids", JsonSerializer.Serialize(ids)), ("$keep", JsonSerializer.Serialize(keep)));
@@ -330,6 +331,7 @@ public sealed partial class Store
                 UNION SELECT avatar FROM webhook_messages WHERE avatar IS NOT NULL
                 UNION SELECT image_file FROM events WHERE image_file IS NOT NULL
                 UNION SELECT avatar_file FROM imported_authors WHERE avatar_file IS NOT NULL
+                UNION SELECT file_id FROM server_images
                 UNION SELECT file_id FROM dm_files WHERE message_id IS NOT NULL
                 UNION SELECT j.value FROM reports r, json_each(r.attachments) j WHERE r.attachments IS NOT NULL
                 UNION SELECT file_id FROM doc_files)

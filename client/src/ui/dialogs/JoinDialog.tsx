@@ -6,7 +6,18 @@ import { acceptInvite, useApp } from '../../state/store'
 import { Modal } from '../bits'
 import { OpenInApp } from '../OpenInApp'
 import { hostOf } from '../format'
-import { useServerName } from '../../state/serverName'
+import { useServerInfo } from '../../state/serverName'
+
+/** The invited server's icon (fetched before joining from its public GET /icon); nothing if it doesn't load. */
+export function InviteIcon({ src, name }: { src: string; name: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return null
+  return (
+    <div className="invite-icon">
+      <img src={src} alt={name} width={64} height={64} referrerPolicy="no-referrer" onError={() => setFailed(true)} data-testid="invite-icon" />
+    </div>
+  )
+}
 
 const OPEN_JOIN_EVENT = 'iskra:open-join'
 
@@ -94,9 +105,11 @@ export function JoinPrompt({ invite }: { invite: InviteLink }) {
 
 export function InviteSummary({ invite }: { invite: InviteLink }) {
   const { t } = useTranslation()
-  const name = useServerName(invite.serverUrl)
+  const info = useServerInfo(invite.serverUrl)
+  const name = info?.name
   return (
     <div className="invite-summary">
+      {name && info?.icon && <InviteIcon src={info.icon} name={name} />}
       {name && (
         <div>
           <span className="label">{t('settings.join.server')}</span>

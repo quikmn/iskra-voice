@@ -106,7 +106,7 @@ export const AUDIT_ACTIONS = [
   'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
   'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
   'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'buginbox.update', 'afk.update', 'notify.default', 'server.template.export',
-  'automod.block', 'automod.update',
+  'server.images', 'automod.block', 'automod.update',
   'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
 ] as const
 
@@ -213,6 +213,16 @@ export function auditText(e: AuditEntry): string {
     case 'role.base.powers': return t(d.reset ? 'moderation.audit.baseRoleReset' : 'moderation.audit.baseRolePowers', { actor, role: level(d.role) })
     case 'notify.default': return t('moderation.audit.notifyDefault', { actor })
     case 'server.template.export': return t('moderation.audit.templateExport', { actor })
+    case 'server.images': {
+      // { icon: "set" | "removed" | null, banner: … }
+      const what = (v: unknown) => (v === 'set' ? 'set' : v === 'removed' ? 'removed' : null)
+      const icon = what(d.icon)
+      const banner = what(d.banner)
+      if (icon && banner) return t('moderation.audit.serverImagesBoth', { actor })
+      if (icon) return t(icon === 'set' ? 'moderation.audit.serverIconSet' : 'moderation.audit.serverIconRemoved', { actor })
+      if (banner) return t(banner === 'set' ? 'moderation.audit.serverBannerSet' : 'moderation.audit.serverBannerRemoved', { actor })
+      return t('moderation.audit.serverImagesBoth', { actor })
+    }
     case 'automod.update': return t(d.enabled ? 'moderation.audit.automodUpdate' : 'moderation.audit.automodOff', { actor })
     case 'report.resolve': {
       const outcome = ['dismissed', 'deleted', 'timeout', 'kick', 'ban', 'other'].includes(str(d.outcome)) ? str(d.outcome) as 'other' : 'other'

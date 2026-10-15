@@ -83,6 +83,7 @@ webview.page-frame, webview.page-preview { display: flex; overflow: hidden; }
   box-shadow: 0 0 0 2px var(--accent);
 }
 .crop-view:active { cursor: grabbing; }
+.crop-view.rect { border-radius: var(--radius); }
 .crop-view img { position: absolute; left: 0; top: 0; max-width: none; user-select: none; pointer-events: none; transform-origin: 0 0; }
 
 /* Theme picker. */

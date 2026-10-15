@@ -6,6 +6,7 @@ import { selectServer, useApp, type ServerState } from '../state/store'
 import { openFriends } from '../state/dms'
 import { useIncomingCount } from '../state/friends'
 import { initials } from './format'
+import { ServerPicture } from './ServerPicture'
 import { Plus } from './icons'
 import { useOrganize } from '../state/organize'
 import { newFolderId, setRail, useRail } from '../state/rail'
@@ -240,7 +241,7 @@ function ServerIcon({ server, active, className, dnd, onClick, onContextMenu, on
       {...hold}
       {...dnd}
     >
-      {initials(server.name)}
+      <ServerPicture server={server} />
       {pings > 0 && !active && <span className="badge" aria-hidden>{pings > 99 ? '99+' : pings}</span>}
       {pings === 0 && unread > 0 && !active && <span className="unread-dot" aria-hidden />}
     </button>

@@ -4,7 +4,8 @@ import { decodeRecoveryKey } from '../core/recovery'
 import { usePendingLink } from '../state/link'
 import { acceptInvite, completeOnboarding, restoreAccount, useApp } from '../state/store'
 import { hostOf } from './format'
-import { useServerName } from '../state/serverName'
+import { useServerInfo } from '../state/serverName'
+import { InviteIcon } from './dialogs/JoinDialog'
 import { OpenInApp } from './OpenInApp'
 import { LinkJoin } from './LinkJoin'
 import { acceptTerms, useTermsAccepted } from '../state/terms'
@@ -17,7 +18,8 @@ type Mode = 'choose' | 'new' | 'existing' | 'recovery' | 'link'
 export function Onboarding() {
   const { t } = useTranslation()
   const pendingInvite = useApp((s) => s.pendingInvite)
-  const serverName = useServerName(pendingInvite?.serverUrl)
+  const serverInfo = useServerInfo(pendingInvite?.serverUrl)
+  const serverName = serverInfo === undefined ? undefined : serverInfo?.name ?? null
   const pendingLink = usePendingLink((s) => s.code)
   const [mode, setMode] = useState<Mode>(pendingLink ? 'link' : 'choose')
   const [name, setName] = useState('')
@@ -74,6 +76,7 @@ export function Onboarding() {
 
   const invited = pendingInvite && (
     <>
+      {serverName && serverInfo?.icon && <InviteIcon src={serverInfo.icon} name={serverName} />}
       <p className="lead">
         {invitedLine}
       </p>

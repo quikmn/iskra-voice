@@ -1,13 +1,31 @@
-// Pick the square part of a picture to use as your avatar: drag to move, slide to zoom.
+// Pick the part of a picture to use: drag to move, slide to zoom. Square for avatars and server icons, wide for banners.
+// The result is drawn on a canvas and encoded again, so nothing of the original file (EXIF, GPS) goes along.
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AVATAR_SIZE } from '../../core/profile'
 import { Modal } from '../bits'
 
-const VIEW = 240
+export interface CropShape {
+  /** The picture made, in pixels. */
+  width: number
+  height: number
+  /** The bytes it may take; past that it's encoded smaller (JPEG), else refused. */
+  maxBytes?: number
+  /** Round preview (avatars, icons) or rounded rectangle. */
+  round?: boolean
+}
 
-export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel: () => void; onDone: (image: Blob) => void }) {
+const AVATAR: CropShape = { width: AVATAR_SIZE, height: AVATAR_SIZE, round: true }
+const VIEW_MAX = 240
+const WIDE_VIEW_MAX = 320
+
+export function AvatarCropper({ file, onCancel, onDone, shape = AVATAR, title, confirm }: {
+  file: File; onCancel: () => void; onDone: (image: Blob) => void; shape?: CropShape; title?: string; confirm?: string
+}) {
   const { t } = useTranslation()
+  const wide = shape.width > shape.height
+  const viewW = wide ? WIDE_VIEW_MAX : Math.round(VIEW_MAX * Math.min(1, shape.width / shape.height))
+  const viewH = Math.round(viewW * shape.height / shape.width)
   const [image, setImage] = useState<HTMLImageElement | null>(null)
   const [url, setUrl] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
@@ -16,26 +34,28 @@ export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel
   const [busy, setBusy] = useState(false)
   const drag = useRef<{ x: number; y: number; from: { x: number; y: number } } | null>(null)
 
+  const fit = (img: HTMLImageElement) => Math.max(viewW / img.naturalWidth, viewH / img.naturalHeight)
+
   useEffect(() => {
     const objectUrl = URL.createObjectURL(file)
     const img = new Image()
     img.onload = () => {
       setUrl(objectUrl)
       setImage(img)
-      const s = Math.max(VIEW / img.naturalWidth, VIEW / img.naturalHeight)
-      setOffset({ x: (VIEW - img.naturalWidth * s) / 2, y: (VIEW - img.naturalHeight * s) / 2 })
+      const s = fit(img)
+      setOffset({ x: (viewW - img.naturalWidth * s) / 2, y: (viewH - img.naturalHeight * s) / 2 })
     }
     img.onerror = () => setError(t('profile.notPicture'))
     img.src = objectUrl
     return () => URL.revokeObjectURL(objectUrl)
   }, [file])
 
-  const scale = image ? Math.max(VIEW / image.naturalWidth, VIEW / image.naturalHeight) * zoom : 1
-  const clamp = (x: number, y: number) =>
+  const scale = image ? fit(image) * zoom : 1
+  const clampTo = (x: number, y: number, s: number) =>
     image
       ? {
-          x: Math.min(0, Math.max(VIEW - image.naturalWidth * scale, x)),
-          y: Math.min(0, Math.max(VIEW - image.naturalHeight * scale, y)),
+          x: Math.min(0, Math.max(viewW - image.naturalWidth * s, x)),
+          y: Math.min(0, Math.max(viewH - image.naturalHeight * s, y)),
         }
       : { x, y }
 
@@ -43,15 +63,10 @@ export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel
     if (!image) return
     // Zoom around the middle of the view.
     const ratio = next / zoom
-    const center = VIEW / 2
     setZoom(next)
-    const nextScale = Math.max(VIEW / image.naturalWidth, VIEW / image.naturalHeight) * next
-    const x = center - (center - offset.x) * ratio
-    const y = center - (center - offset.y) * ratio
-    setOffset({
-      x: Math.min(0, Math.max(VIEW - image.naturalWidth * nextScale, x)),
-      y: Math.min(0, Math.max(VIEW - image.naturalHeight * nextScale, y)),
-    })
+    const x = viewW / 2 - (viewW / 2 - offset.x) * ratio
+    const y = viewH / 2 - (viewH / 2 - offset.y) * ratio
+    setOffset(clampTo(x, y, fit(image) * next))
   }
 
   function onPointerDown(e: PointerEvent) {
@@ -60,35 +75,36 @@ export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel
   }
   function onPointerMove(e: PointerEvent) {
     if (!drag.current) return
-    setOffset(clamp(drag.current.from.x + e.clientX - drag.current.x, drag.current.from.y + e.clientY - drag.current.y))
+    setOffset(clampTo(drag.current.from.x + e.clientX - drag.current.x, drag.current.from.y + e.clientY - drag.current.y, scale))
   }
 
   async function save() {
     if (!image) return
     setBusy(true)
     const canvas = document.createElement('canvas')
-    canvas.width = AVATAR_SIZE
-    canvas.height = AVATAR_SIZE
+    canvas.width = shape.width
+    canvas.height = shape.height
     const ctx = canvas.getContext('2d')!
     ctx.imageSmoothingQuality = 'high'
-    ctx.drawImage(image, -offset.x / scale, -offset.y / scale, VIEW / scale, VIEW / scale, 0, 0, AVATAR_SIZE, AVATAR_SIZE)
-    const encode = (type: string) => new Promise<Blob | null>((done) => canvas.toBlob(done, type, 0.9))
-    // WebP where the browser can make it (smaller), PNG otherwise.
+    ctx.drawImage(image, -offset.x / scale, -offset.y / scale, viewW / scale, viewH / scale, 0, 0, shape.width, shape.height)
+    const encode = (type: string, quality = 0.9) => new Promise<Blob | null>((done) => canvas.toBlob(done, type, quality))
+    // WebP where the browser can make it (smaller), PNG otherwise; JPEG if that's still too big.
     let blob = await encode('image/webp')
     if (!blob || blob.type !== 'image/webp') blob = await encode('image/png')
+    if (shape.maxBytes && blob && blob.size > shape.maxBytes) blob = await encode('image/jpeg', 0.85)
     setBusy(false)
-    if (blob) onDone(blob)
+    if (blob && (!shape.maxBytes || blob.size <= shape.maxBytes)) onDone(blob)
     else setError(t('profile.cantProcess'))
   }
 
   return (
     <Modal
-      title={t('profile.crop')}
+      title={title ?? t('profile.crop')}
       onClose={onCancel}
       footer={
         <>
           <button className="button" onClick={onCancel}>{t('common.cancel')}</button>
-          <button className="button primary" disabled={!image || busy} onClick={() => void save()}>{t('profile.usePicture')}</button>
+          <button className="button primary" disabled={!image || busy} onClick={() => void save()}>{confirm ?? t('profile.usePicture')}</button>
         </>
       }
     >
@@ -97,8 +113,8 @@ export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel
       ) : (
         <div className="cropper">
           <div
-            className="crop-view"
-            style={{ width: VIEW, height: VIEW }}
+            className={`crop-view ${shape.round === false ? 'rect' : ''}`}
+            style={{ width: viewW, height: viewH }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={() => (drag.current = null)}
@@ -113,7 +129,7 @@ export function AvatarCropper({ file, onCancel, onDone }: { file: File; onCancel
               />
             )}
           </div>
-          <label className="field">
+          <label className="field" style={{ width: viewW }}>
             <span>{t('profile.zoom')}</span>
             <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => changeZoom(Number(e.target.value))} aria-label={t('profile.zoom')} />
           </label>

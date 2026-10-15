@@ -36,7 +36,7 @@ export const DEFAULT_ABILITY_ROLES: Record<BaseAbility, Role> = {
   invite: 'member', events: 'member', whisper: 'member',
   pin: 'trusted', mentionEveryone: 'trusted', uploadSounds: 'trusted',
   giveBaseRoles: 'admin', bots: 'admin', organize: 'admin', rules: 'admin', stickers: 'admin', gifs: 'admin',
-  stageModerators: 'admin', forumTags: 'admin', profilePages: 'admin', resolveDisputes: 'admin',
+  stageModerators: 'admin', forumTags: 'admin', profilePages: 'admin', resolveDisputes: 'admin', serverImages: 'admin',
   runServer: 'owner', transferOwnership: 'owner',
 }
 export const BASE_ABILITIES = Object.keys(DEFAULT_ABILITY_ROLES) as BaseAbility[]

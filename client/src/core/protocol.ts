@@ -90,6 +90,8 @@ export interface Welcome {
     bugInbox?: boolean
     /** The p2p secret members put in invite links while friends may connect without port forwarding (see "p2p" below). */
     p2p?: string | null
+    /** The server's icon and banner (missing from older servers). */
+    images?: ServerImages
   }
   channels: Channel[]
   members: Member[]
@@ -2059,7 +2061,7 @@ export interface Requests {
 export type BaseAbility =
   | 'invite' | 'events' | 'pin' | 'mentionEveryone' | 'uploadSounds' | 'giveBaseRoles' | 'bots' | 'organize' | 'rules'
   | 'stickers' | 'gifs' | 'stageModerators' | 'forumTags' | 'profilePages' | 'resolveDisputes' | 'runServer' | 'transferOwnership'
-  | 'whisper'
+  | 'whisper' | 'serverImages'
 
 /** A base role (owner … guest) as listed next to custom roles: its colour and its powers (both adjustable, powers within limits). */
 export interface BaseRoleInfo {
@@ -2381,4 +2383,22 @@ export interface Requests {
 export interface Channel {
   /** One line saying what the channel is for; "" (or missing, from older servers) = none. */
   topic?: string
+}
+
+// ── server icon and banner ──
+// See "Server icon and banner" in PROTOCOL.md.
+
+/** The server's icon (square) and banner (wide); null when there is none. */
+export interface ServerImages {
+  icon: FileInfo | null
+  banner: FileInfo | null
+}
+
+export interface Events {
+  'server.images': ServerImages
+}
+
+export interface Requests {
+  /** Your own upload's file id sets it, "" removes it; a field left out stays as it is. `serverImages` (admins by default). */
+  'server.images.set': [{ icon?: string; banner?: string }, ServerImages]
 }

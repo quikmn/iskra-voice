@@ -338,6 +338,7 @@ public sealed partial class Store : IDisposable
         // Channel, category and other ids are never handed out twice; leftovers of deleted channels go.
         ("id-floors-1", IdFloorsMigration),
         ("id-floors-2", IdFloors2Migration),
+        ("server-images-1", ServerImagesMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

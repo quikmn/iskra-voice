@@ -19,6 +19,7 @@ import { ReportsButton } from './safety/ReportsSection'
 import { errorMessage } from '../i18n/errors'
 import type { MenuAnchor } from './organize/OrgMenu'
 import { ServerMenu } from './organize/ServerMenu'
+import { ServerBanner, ServerPicture } from './ServerPicture'
 import { treeKeys, useRoving } from './roving'
 import './audio.css'
 
@@ -39,8 +40,12 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
     onKey: treeKeys('.org-category', '.org-category-toggle'),
   })
 
+  // The banner folds away once the channel list is scrolled, so it never takes room from the channels.
+  const [scrolled, setScrolled] = useState(false)
+
   return (
     <nav className="channel-sidebar" aria-label={t('app.sidebar.channelsLabel', { name: server.name })}>
+      <ServerBanner server={server} collapsed={scrolled} />
       <header className="sidebar-header">
         <button
           className="server-header-button"
@@ -53,6 +58,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
           aria-label={t('app.sidebar.serverOptionsLabel', { name: server.name })}
           title={t('app.sidebar.serverOptions')}
         >
+          <span className="server-header-icon" aria-hidden><ServerPicture server={server} fallback={false} /></span>
           <span className="server-name">{server.name}</span>
           <ConnectionPill server={server} />
           <ChevronDown size={16} />
@@ -60,7 +66,10 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
       </header>
       {menu && <ServerMenu server={server} anchor={menu} onClose={() => setMenu(null)} />}
 
-      <div className="channel-list" ref={listRef}>
+      <div className="channel-list" ref={listRef} onScroll={(e) => {
+        const next = e.currentTarget.scrollTop > 8
+        if (next !== scrolled) setScrolled(next)
+      }}>
         <ReportsButton server={server} onOpen={() => openServerSettings(server.key, 'reports')} />
         <RulesButton server={server} onNavigate={onNavigate} />
         <EventsButton server={server} onNavigate={onNavigate} />

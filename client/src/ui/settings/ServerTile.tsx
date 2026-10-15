@@ -1,9 +1,13 @@
-// A server's initials tile in its own colour (the same initials as its icon in the rail): the server room's band,
-// its slim phone band, and the server menu's title.
+// A server's tile in its own colour (its icon when it has one, else the same initials as in the rail): the server
+// room's band, its slim phone band, and the server menu's title.
 import type { ServerState } from '../../state/store'
-import { initials } from '../format'
+import { ServerPicture } from '../ServerPicture'
 import { serverColor } from '../serverColor'
 
 export function ServerTile({ server, size = 'large' }: { server: Pick<ServerState, 'key' | 'name'>; size?: 'large' | 'small' }) {
-  return <span className={`room-tile ${size}`} style={{ background: serverColor(server.key).tile }} aria-hidden>{initials(server.name)}</span>
+  return (
+    <span className={`room-tile ${size}`} style={{ background: serverColor(server.key).tile }} aria-hidden>
+      <ServerPicture server={server} />
+    </span>
+  )
 }

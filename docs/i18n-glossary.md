@@ -34,6 +34,7 @@ exists.
 | Server settings | Serverinställningar |
 | Server, Members & safety, Apps, Hosting & data (groups) | Server, Medlemmar och säkerhet, Appar, Drift och data |
 | Overview | Översikt |
+| Server icon, banner | Serverikon, banderoll |
 | Channels | Kanaler |
 | Emoji & stickers | Emoji och klistermärken |
 | GIFs | GIF:ar |
