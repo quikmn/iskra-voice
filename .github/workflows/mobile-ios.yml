@@ -1,17 +1,24 @@
 name: Mobile iOS
 
-# Builds the iPhone/iPad app (mobile/: Capacitor around client/dist) and uploads it to App Store Connect, then
-# scripts/appstore.mjs does the rest in the store mode of mobile/store.json (or the `store` input): testflight = wait for
-# processing, What to test, the TestFlight groups and Beta App Review; appstore = that plus the App Store version,
-# listing, screenshots and App Review with automatic release; upload = nothing more.
-# Signing is automatic: Xcode's cloud signing with the App Store Connect API key (secrets APPSTORE_*), no
-# certificates or profiles stored here. See mobile/README.md and docs/ci-cd.md "iOS app".
-# Started by scripts/release.ps1 after each release and by release.ps1 -Phones (ref = the tag, upload on); by hand
-# (Actions → Mobile iOS → Run workflow) only for a test build without upload. It can also be called as a reusable workflow (`secrets: inherit`).
-# The run's title names the ref and the upload ("Mobile iOS v2.0.0-alpha.17 (TestFlight)"): release.ps1 finds the
-# run it started (or one a stopped release started) by that title.
+# Builds the iPhone/iPad app (mobile/: Capacitor around client/dist), signs it for the App Store (Xcode's cloud signing
+# with the App Store Connect API key, secrets APPSTORE_*; no certificates or profiles stored here) and keeps the signed
+# .ipa as an artifact named for the ref (iskra-ios-<tag>). See mobile/README.md and docs/ci-cd.md "iOS app".
+#
+# A release: the pushed v* tag (scripts/release.ps1) starts the `build` job here, alongside the Linux and macOS builds;
+# release-finalize.yml then uploads that .ipa to TestFlight after publishing (job `testflight`, the shared action
+# .github/actions/testflight-upload) and runs scripts/appstore.mjs (.github/actions/appstore-connect). Nothing is
+# uploaded from a push run.
+# By hand or from scripts/release.ps1 -Phones (workflow_dispatch with upload on): `build`, then `upload` (the same
+# action) and `groups` (store mode from mobile/store.json or the `store` input: testflight = Apple's processing, What
+# to test, the TestFlight groups and Beta App Review; appstore = that plus the App Store version, listing, screenshots
+# and App Review with automatic release; upload = nothing more). With upload off: a test build only.
+# It can also be called as a reusable workflow (`secrets: inherit`).
+# The run's title names the ref and the upload ("Mobile iOS v2.0.0-alpha.17 (TestFlight)"): release.ps1 -Phones finds
+# the run it started (or one a stopped release started) by that title; a push run is just "Mobile iOS v…".
 run-name: ${{ format('Mobile iOS {0}{1}', inputs.ref || github.ref_name, inputs.upload && ' (TestFlight)' || '') }}
 on:
+  push:
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       ref:
@@ -58,10 +65,16 @@ env:
   BUNDLE_ID: foo.iskra.app
 
 jobs:
-  ios:
+  # Build, cloud-sign and check (about 5 minutes); the signed .ipa and its version numbers become the artifact
+  # iskra-ios-<ref>, which the upload jobs (below, or finalize's) take.
+  build:
     runs-on: macos-latest
-    # The build (~25 min), then up to an hour for Apple's processing in the store step.
-    timeout-minutes: 120
+    timeout-minutes: 60
+    outputs:
+      artifact: ${{ steps.version.outputs.artifact }}
+      app_version: ${{ steps.version.outputs.app_version }}
+      marketing_version: ${{ steps.version.outputs.marketing_version }}
+      build_number: ${{ steps.version.outputs.build_number }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -83,9 +96,20 @@ jobs:
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
 
+      # The build number counts this workflow's runs (push and dispatch alike), so it rises with every build.
       - name: Version
+        id: version
+        env:
+          REF: ${{ inputs.ref || github.ref_name }}
         run: |
-          node scripts/mobile-version.mjs "${{ github.run_number }}" "${{ github.run_attempt }}" | tee -a "$GITHUB_ENV"
+          node scripts/mobile-version.mjs "${{ github.run_number }}" "${{ github.run_attempt }}" | tee -a "$GITHUB_ENV" > "$RUNNER_TEMP/version.env"
+          {
+            echo "app_version=$(sed -n 's/^APP_VERSION=//p' "$RUNNER_TEMP/version.env")"
+            echo "marketing_version=$(sed -n 's/^MARKETING_VERSION=//p' "$RUNNER_TEMP/version.env")"
+            echo "build_number=$(sed -n 's/^BUILD_NUMBER=//p' "$RUNNER_TEMP/version.env")"
+            # The artifact's name: finalize downloads iskra-ios-<tag>. A branch with a slash can't name an artifact.
+            echo "artifact=iskra-ios-${REF//\//-}"
+          } >> "$GITHUB_OUTPUT"
 
       - run: npm ci
         working-directory: client
@@ -117,9 +141,9 @@ jobs:
           ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           ARCHIVE_SIGNING: ${{ inputs.archive_signing }}
         run: |
-          # adhoc: sign the archive locally without a certificate (entitlements included), so runs never create
-          # development certificates; the export below signs it for the App Store with Apple's cloud certificate.
-          # automatic: plain automatic signing (creates an "Apple Development" certificate on each fresh runner).
+          # adhoc (also a push run's choice): sign the archive locally without a certificate (entitlements included), so
+          # runs never create development certificates; the export below signs it for the App Store with Apple's cloud
+          # certificate. automatic: plain automatic signing (creates an "Apple Development" certificate on each fresh runner).
           signing=()
           if [ "$ARCHIVE_SIGNING" != "automatic" ]; then
             signing=(CODE_SIGN_IDENTITY=- AD_HOC_CODE_SIGNING_ALLOWED=YES)
@@ -137,14 +161,13 @@ jobs:
 
       - name: Export options
         run: |
-          for destination in export upload; do
-            cat > "$RUNNER_TEMP/export-$destination.plist" <<EOF
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>$destination</string>
+            <key>destination</key><string>export</string>
             <key>teamID</key><string>$TEAM_ID</string>
             <key>signingStyle</key><string>automatic</string>
             <key>uploadSymbols</key><true/>
@@ -152,8 +175,7 @@ jobs:
           </dict>
           </plist>
           EOF
-            plutil -lint "$RUNNER_TEMP/export-$destination.plist"
-          done
+          plutil -lint "$RUNNER_TEMP/export.plist"
 
       - name: Sign for the App Store (cloud signing)
         env:
@@ -161,13 +183,13 @@ jobs:
           ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
         run: |
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Iskra.xcarchive" \
-            -exportOptionsPlist "$RUNNER_TEMP/export-export.plist" -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/export" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
             -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID"
           ls -la "$RUNNER_TEMP/export"
 
-      # The checks that matter for TestFlight and Universal Links, before anything is uploaded.
+      # The checks that matter for TestFlight and Universal Links, before anything is kept or uploaded.
       - name: Check the signed app
         run: |
           cd "$RUNNER_TEMP"
@@ -192,45 +214,73 @@ jobs:
           test ! -d "$app/PlugIns" || { echo "::error::unexpected app extensions"; ls "$app/PlugIns"; exit 1; }
           echo "Iskra $APP_VERSION ($MARKETING_VERSION build $BUILD_NUMBER) is signed for the App Store"
 
+      # The .ipa with its numbers (ios-build.env), for the upload (.github/actions/testflight-upload) and appstore.mjs.
+      - name: Keep the signed app
+        run: |
+          mkdir "$RUNNER_TEMP/app"
+          cp "$RUNNER_TEMP"/export/*.ipa "$RUNNER_TEMP/app/"
+          printf 'APP_VERSION=%s\nMARKETING_VERSION=%s\nBUILD_NUMBER=%s\n' "$APP_VERSION" "$MARKETING_VERSION" "$BUILD_NUMBER" > "$RUNNER_TEMP/app/ios-build.env"
+          cat "$RUNNER_TEMP/app/ios-build.env"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: iskra-ios-${{ env.APP_VERSION }}-${{ env.BUILD_NUMBER }}
-          path: ${{ runner.temp }}/export/*.ipa
+          name: ${{ steps.version.outputs.artifact }}
+          path: ${{ runner.temp }}/app
           if-no-files-found: error
           retention-days: 14
-
-      - name: Upload to TestFlight
-        if: ${{ inputs.upload }}
-        env:
-          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
-          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
-        run: |
-          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Iskra.xcarchive" \
-            -exportOptionsPlist "$RUNNER_TEMP/export-upload.plist" -exportPath "$RUNNER_TEMP/upload" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
-            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID"
-          {
-            echo "### Uploaded to App Store Connect"
-            echo "Iskra $APP_VERSION: version $MARKETING_VERSION, build $BUILD_NUMBER."
-            echo "Apple processes it (5–30 min), then it appears in TestFlight for the internal group."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      # Everything App Store Connect needs after the upload, so nobody clicks anything (docs/ci-cd.md, "Phone apps in
-      # the release"). A rerun of a run whose upload went through skips nothing it shouldn't: every step checks first.
-      - name: TestFlight groups and reviews (and the App Store in phase B)
-        if: ${{ inputs.upload }}
-        env:
-          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
-          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
-          APPSTORE_REVIEW_PHONE: ${{ secrets.APPSTORE_REVIEW_PHONE }}
-          REVIEW_INVITE_URL: ${{ vars.REVIEW_INVITE_URL }}
-          STORE: ${{ inputs.store || 'auto' }}
-        run: |
-          node scripts/appstore.mjs "$STORE" --version "$APP_VERSION" --marketing "$MARKETING_VERSION" --build-number "$BUILD_NUMBER" --key "$RUNNER_TEMP/keys/AuthKey.p8" | tee "$RUNNER_TEMP/appstore.log"
-          test "${PIPESTATUS[0]}" = 0
-          { echo "### App Store Connect"; grep -E '^App Store Connect' "$RUNNER_TEMP/appstore.log" || true; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove the key
         if: always()
         run: rm -rf "$RUNNER_TEMP/keys"
+
+  # By hand or from release.ps1 -Phones (upload on): the .ipa above to App Store Connect, through the same action
+  # finalize uses. Never for a push run (finalize uploads those after the release is published).
+  upload:
+    needs: build
+    if: github.event_name != 'push' && inputs.upload
+    runs-on: macos-latest
+    timeout-minutes: 30
+    outputs:
+      app_version: ${{ steps.upload.outputs.app-version }}
+      marketing_version: ${{ steps.upload.outputs.marketing-version }}
+      build_number: ${{ steps.upload.outputs.build-number }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+          path: ${{ runner.temp }}/app
+      - id: upload
+        uses: ./.github/actions/testflight-upload
+        with:
+          dir: ${{ runner.temp }}/app
+          api-key-base64: ${{ secrets.APPSTORE_API_KEY_BASE64 }}
+          key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+
+  # Everything App Store Connect needs after the upload (scripts/appstore.mjs; up to an hour for Apple's processing).
+  groups:
+    name: TestFlight groups and reviews
+    needs: [build, upload]
+    if: github.event_name != 'push' && inputs.upload
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          persist-credentials: false
+      - uses: ./.github/actions/appstore-connect
+        with:
+          store: ${{ inputs.store || 'auto' }}
+          app-version: ${{ needs.build.outputs.app_version }}
+          marketing-version: ${{ needs.build.outputs.marketing_version }}
+          build-number: ${{ needs.build.outputs.build_number }}
+          api-key-base64: ${{ secrets.APPSTORE_API_KEY_BASE64 }}
+          key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          review-phone: ${{ secrets.APPSTORE_REVIEW_PHONE }}
+          review-invite-url: ${{ vars.REVIEW_INVITE_URL }}

@@ -116,6 +116,10 @@ jobs:
     environment: release
     permissions:
       contents: read
+      actions: read # the web app release.yml built for a tag (its `webapp` artifact)
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -126,9 +130,31 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: client/package-lock.json
-      - run: npm ci
+      # A release tag: the web app release.yml's linux job built from that tag (the same npm run build), kept as the
+      # artifact `webapp` for 30 days. Anything else (a branch, an older tag, a tag whose release.yml was called by the
+      # Release workflow, so it has no push run): built from source below.
+      - name: The web app built with the release
+        id: built
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          tag="${REF#refs/tags/}"
+          if [[ "$tag" =~ ^v[0-9] ]]; then
+            id="$(gh run list --workflow release.yml --branch "$tag" --event push -L 5 --json databaseId,createdAt --jq 'sort_by(.createdAt) | last | .databaseId // empty')"
+            if [ -n "$id" ] && gh run download "$id" --name webapp --dir client/dist; then
+              test -s client/dist/index.html && test -s client/dist/.well-known/security.txt || { echo "::error::the webapp artifact of run $id is incomplete"; exit 1; }
+              echo "Reusing the web app built by release.yml run $id (artifact webapp)."
+              echo "reused=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "No release.yml build to reuse for $REF: building from source."
+          echo "reused=false" >> "$GITHUB_OUTPUT"
+      - if: steps.built.outputs.reused != 'true'
+        run: npm ci
         working-directory: client
-      - run: npm run build
+      - if: steps.built.outputs.reused != 'true'
+        run: npm run build
         working-directory: client
       - name: Index asset
         run: |

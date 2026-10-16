@@ -47,8 +47,10 @@ test('updates links.ts', () => {
 
 test('expected assets from the spec file', () => {
   const names = expectedAssets('2.0.0-alpha.10').map((a) => a.name)
-  assert.equal(names.length, 23)
-  for (const n of ['Iskra-Setup-2.0.0-alpha.10.exe', 'latest-mac.yml', 'iskra-server-2.0.0-alpha.10-win-x64.zip', 'Iskra-2.0.0-alpha.10.apk', 'Iskra-2.0.0-alpha.10-mac-x64.zip', 'iskra-server-2.0.0-alpha.10-linux-arm64.tar.gz']) assert.ok(names.includes(n), n)
+  assert.equal(names.length, 26)
+  for (const n of ['Iskra-Setup-2.0.0-alpha.10.exe', 'latest-mac.yml', 'iskra-server-2.0.0-alpha.10-win-x64.zip', 'Iskra-2.0.0-alpha.10.apk', 'Iskra-2.0.0-alpha.10-mac-x64.zip', 'iskra-server-2.0.0-alpha.10-linux-arm64.tar.gz', 'iskra-sbom-server-2.0.0-alpha.10.cdx.json', 'iskra-sbom-web-2.0.0-alpha.10.cdx.json']) assert.ok(names.includes(n), n)
+  // The SBOMs come from release.yml's sbom job; the Windows step waits for its own groups only.
+  assert.deepEqual(expectedAssets('2.0.0-alpha.10').filter((a) => a.group === 'sbom').length, 3)
   assert.ok(!names.some((n) => n.includes('{v}')))
 })
 

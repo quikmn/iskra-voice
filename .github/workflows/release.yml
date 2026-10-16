@@ -1,8 +1,12 @@
 name: Release builds (Linux, macOS)
 
-# Builds the Linux and macOS desktop apps (and server bundles) for a tag and attaches them to its GitHub release.
-# Windows builds are signed through SimplySign on the home PC (release-windows.ps1).
-# If the release doesn't exist yet it's created as a draft prerelease; an existing release keeps its state.
+# Builds the Linux and macOS desktop apps (and server bundles) for a tag and attaches them to its GitHub release:
+# each job attaches its own files the moment it has checked them (.github/actions/release-attach: attestations, upload,
+# size check), a small `sbom` job adds the CycloneDX SBOMs beside the builds, and `publish` merges the two Mac jobs'
+# latest-mac.yml into one. The linux job also keeps the built web app as an artifact, which deploy.yml reuses for
+# app.iskra.foo. Windows builds are signed through SimplySign on the home PC (release-windows.ps1).
+# The draft release is made by scripts/release.ps1 right after the tag push (the Release workflow's version job before
+# its builds); a job that finds none creates it. An existing release keeps its state.
 # Started by a pushed v* tag (scripts/release.ps1), or called by the Release workflow (release-all.yml), whose own tag
 # push can't start it.
 on:
@@ -33,6 +37,10 @@ env:
 jobs:
   linux:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # attach the files to the release
+      id-token: write # sign the attestations (Sigstore)
+      attestations: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -66,6 +74,8 @@ jobs:
         working-directory: desktop
       - run: npm test
         working-directory: desktop
+      # dist:linux builds the web client first (npm run build in client/), the same build deploy.yml makes for
+      # app.iskra.foo: kept below as the `webapp` artifact so the deploy doesn't build it again.
       - run: npm run dist:linux
         working-directory: desktop
       # The standalone server's peer-to-peer tunnel (one Node single executable; the desktop app runs its own). The
@@ -95,16 +105,26 @@ jobs:
           done
           tar -czf "desktop/release/iskra-server-$v-linux-arm64.tar.gz" -C desktop/build/server-linux-arm64 . -C "$PWD/desktop/build/p2p-linux-arm64" iskra-p2p iskra-p2p-licenses.txt
           tar -tzf "desktop/release/iskra-server-$v-linux-arm64.tar.gz" | grep -x iskra-p2p > /dev/null || { echo "::error::the linux-arm64 server bundle has no iskra-p2p"; exit 1; }
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - name: Attach to the release
+        uses: ./.github/actions/release-attach
         with:
-          name: linux
-          if-no-files-found: error
-          path: |
+          tag: ${{ env.TAG }}
+          files: |
             desktop/release/*.AppImage
             desktop/release/*.deb
             desktop/release/*.rpm
             desktop/release/latest-linux.yml
             desktop/release/iskra-server-*-linux-x64.tar.gz
+      # The web app as built for this release (hidden files too: .well-known holds security.txt, the Universal Links
+      # and App Links files), for deploy.yml's webapp job.
+      - name: Keep the web app for app.iskra.foo
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: webapp
+          path: client/dist
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: server-linux-arm64
@@ -112,11 +132,21 @@ jobs:
           path: desktop/release/iskra-server-*-linux-arm64.tar.gz
 
   # The linux-arm64 server bundle, started on a real 64-bit ARM machine (as on a Raspberry Pi 4/5): the server, LiveKit
-  # and the peer-to-peer tunnel (which loads its native addons) must all run, or nothing is published.
+  # and the peer-to-peer tunnel (which loads its native addons) must all run, or it isn't attached.
   linux-arm64:
     needs: linux
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: write # attach the bundle to the release
+      id-token: write # sign the attestation (Sigstore)
+      attestations: write
     steps:
+      # The checkout comes first: actions/checkout empties a workspace that isn't a git repository yet.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.REF }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: server-linux-arm64
@@ -138,12 +168,21 @@ jobs:
           cat p2p.out
           test "$code" = 0 || { echo "::error::iskra-p2p exited with $code on linux-arm64"; exit 1; }
           grep -q '^{"status":' p2p.out || { echo "::error::iskra-p2p reported no status on linux-arm64"; exit 1; }
+      - name: Attach to the release
+        uses: ./.github/actions/release-attach
+        with:
+          tag: ${{ env.TAG }}
+          files: bundle/iskra-server-*-linux-arm64.tar.gz
 
-  # One job per architecture, side by side: each builds, signs and notarizes its own dmg and zip. Their latest-mac.yml
-  # files (one architecture each) are merged in `publish` into the one a two-architecture build writes.
+  # One job per architecture, side by side: each builds, signs and notarizes its own dmg and zip and attaches them. Their
+  # latest-mac.yml files (one architecture each) are merged in `publish` into the one a two-architecture build writes.
   mac:
     name: mac (${{ matrix.arch }})
     runs-on: macos-latest # Apple silicon; cross-builds x64
+    permissions:
+      contents: write # attach the files to the release
+      id-token: write # sign the attestations (Sigstore)
+      attestations: write
     strategy:
       fail-fast: false # a rerun of failed jobs then rebuilds only the broken architecture
       matrix:
@@ -272,52 +311,109 @@ jobs:
           v="${TAG#v}"
           grep -qx "version: $v" desktop/release/latest-mac.yml || { echo "::error::latest-mac.yml isn't for $v"; exit 1; }
           mv desktop/release/latest-mac.yml "desktop/release/latest-mac-$ARCH.part.yml"
+      - name: Attach to the release
+        uses: ./.github/actions/release-attach
+        with:
+          tag: ${{ env.TAG }}
+          files: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.blockmap
+            desktop/release/iskra-server-*.tar.gz
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: mac-${{ matrix.arch }}
           if-no-files-found: error
-          path: |
-            desktop/release/*.dmg
-            desktop/release/*.zip
-            desktop/release/*.blockmap
-            desktop/release/latest-mac-*.part.yml
-            desktop/release/iskra-server-*.tar.gz
+          path: desktop/release/latest-mac-*.part.yml
 
-  publish:
-    needs: [linux, linux-arm64, mac]
+  # CycloneDX SBOMs of what ships, from the tag's lock files and project: the web app's and desktop app's runtime npm
+  # packages and the server's NuGet packages. On the release before finalize, so SHA256SUMS.txt and the attestations
+  # there cover them too (scripts/release-assets.json lists them; finalize refuses to publish without them).
+  sbom:
     runs-on: ubuntu-latest
     permissions:
       contents: write # attach the files to the release
       id-token: write # sign the attestations (Sigstore)
       attestations: write
+    env:
+      CYCLONEDX_NPM: '@cyclonedx/cyclonedx-npm@6.0.1'
+      CYCLONEDX_DOTNET: '6.2.1'
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          path: assets
-          merge-multiple: true
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ env.REF }}
-          path: src
-          sparse-checkout: scripts
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
-      # One latest-mac.yml listing both architectures, checked against the zips and dmgs (sha512, size); the parts go.
-      - name: Merge latest-mac.yml
-        run: node src/scripts/release-assets.mjs merge-yml "${TAG#v}" assets latest-mac.yml latest-mac-x64.part.yml latest-mac-arm64.part.yml
-      # Provenance for the Linux and macOS files: gh attestation verify <file> -R quikmn/iskra-voice
-      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
-          subject-path: assets/*
-      - name: Attach to the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
+          dotnet-version: '10.0.x'
+      - name: Check the tag matches the app version
+        run: test "v$(node -p "require('./desktop/package.json').version")" = "$TAG"
+      - name: SBOMs (CycloneDX)
         run: |
+          v="${TAG#v}"
+          out="$RUNNER_TEMP/sbom"
+          mkdir -p "$out"
+          for app in client desktop; do
+            (cd "$app" && npx --yes "$CYCLONEDX_NPM" --package-lock-only --omit dev --spec-version 1.6 --output-format JSON \
+              --mc-type application --output-reproducible --output-file "$RUNNER_TEMP/sbom-$app.json")
+          done
+          dotnet tool install CycloneDX --version "$CYCLONEDX_DOTNET" --tool-path "$RUNNER_TEMP/tools"
+          "$RUNNER_TEMP/tools/dotnet-CycloneDX" server/src/Iskra.Server/Iskra.Server.csproj -o "$RUNNER_TEMP" -fn sbom-server.json \
+            -F Json -spv 1.6 -ed -sn iskra-server -sv "$v"
+          # One name and version per file, whatever package.json says (the web app's is 0.0.0).
+          jq --arg v "$v" '.metadata.component.name = "iskra-web" | .metadata.component.version = $v' "$RUNNER_TEMP/sbom-client.json" > "$out/iskra-sbom-web-$v.cdx.json"
+          jq --arg v "$v" '.metadata.component.name = "iskra-desktop" | .metadata.component.version = $v' "$RUNNER_TEMP/sbom-desktop.json" > "$out/iskra-sbom-desktop-$v.cdx.json"
+          jq --arg v "$v" '.metadata.component.version = $v' "$RUNNER_TEMP/sbom-server.json" > "$out/iskra-sbom-server-$v.cdx.json"
+          for f in "$out"/iskra-sbom-*-"$v".cdx.json; do
+            jq -e '.bomFormat == "CycloneDX" and (.components | length) > 0' "$f" > /dev/null || { echo "::error::$f isn't a usable SBOM"; exit 1; }
+            echo "$(basename "$f"): $(jq '.components | length' "$f") components"
+          done
+      - name: Attach to the release
+        uses: ./.github/actions/release-attach
+        with:
+          tag: ${{ env.TAG }}
+          files: ${{ runner.temp }}/sbom/iskra-sbom-*.cdx.json
+
+  # One latest-mac.yml listing both architectures, merged from the two Mac jobs' parts and checked against the zips and
+  # dmgs they attached (sha512, size), then attached itself.
+  publish:
+    needs: mac
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # attach the file to the release
+      id-token: write # sign the attestation (Sigstore)
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      # The checkout comes first: actions/checkout empties a workspace that isn't a git repository yet.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.REF }}
+          sparse-checkout: |
+            scripts
+            .github/actions
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: mac-*
+          path: assets
+          merge-multiple: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: The Mac files, from the release
+        run: |
+          gh release download "$TAG" --pattern 'Iskra-*-mac-*' --dir assets
           ls -l assets
-          if ! gh release view "$TAG" > /dev/null 2>&1; then
-            gh release create "$TAG" --draft --prerelease --verify-tag --title "Iskra ${TAG#v}" --notes "Linux and macOS builds are attached; Windows builds follow."
-          fi
-          gh release upload "$TAG" assets/* --clobber
+      - name: Merge latest-mac.yml
+        run: node scripts/release-assets.mjs merge-yml "${TAG#v}" assets latest-mac.yml latest-mac-x64.part.yml latest-mac-arm64.part.yml
+      - name: Attach to the release
+        uses: ./.github/actions/release-attach
+        with:
+          tag: ${{ env.TAG }}
+          files: assets/latest-mac.yml

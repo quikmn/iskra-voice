@@ -1,0 +1,81 @@
+name: TestFlight upload
+description: >
+  Uploads the signed iPhone app to App Store Connect: the .ipa a Mobile iOS build job (mobile-ios.yml) kept as an
+  artifact, with its ios-build.env (APP_VERSION, MARKETING_VERSION, BUILD_NUMBER), through xcrun altool with the App Store
+  Connect API key. The one copy of the upload step: release-finalize.yml (every release, the build the tag push made) and
+  mobile-ios.yml (scripts/release.ps1 -Phones, or a run by hand with upload on) both use it. Needs a macOS runner.
+inputs:
+  dir:
+    description: Folder with the .ipa and ios-build.env (the downloaded iskra-ios-<ref> artifact)
+    required: true
+  api-key-base64:
+    description: The App Store Connect API key (.p8), base64 (secret APPSTORE_API_KEY_BASE64)
+    required: true
+  key-id:
+    description: Its key id (secret APPSTORE_KEY_ID)
+    required: true
+  issuer-id:
+    description: Its issuer id (secret APPSTORE_ISSUER_ID)
+    required: true
+outputs:
+  app-version:
+    description: The app version (desktop/package.json's), e.g. 2.0.0-alpha.25
+    value: ${{ steps.build.outputs.app-version }}
+  marketing-version:
+    description: CFBundleShortVersionString, e.g. 2.0.0
+    value: ${{ steps.build.outputs.marketing-version }}
+  build-number:
+    description: CFBundleVersion, e.g. 20000125.61.1
+    value: ${{ steps.build.outputs.build-number }}
+runs:
+  using: composite
+  steps:
+    - name: The build
+      id: build
+      shell: bash
+      env:
+        DIR: ${{ inputs.dir }}
+      run: |
+        test -s "$DIR/ios-build.env" || { echo "::error::$DIR has no ios-build.env (not a Mobile iOS build artifact)"; ls -la "$DIR" || true; exit 1; }
+        ipa="$(ls "$DIR"/*.ipa 2>/dev/null | head -n1)"
+        test -n "$ipa" || { echo "::error::$DIR has no .ipa"; exit 1; }
+        # Only the three expected lines, each a plain version string, so nothing else in the file can set variables.
+        for key in APP_VERSION MARKETING_VERSION BUILD_NUMBER; do
+          value="$(sed -n "s/^$key=//p" "$DIR/ios-build.env" | head -n1)"
+          [[ "$value" =~ ^[0-9A-Za-z.-]+$ ]] || { echo "::error::ios-build.env has no usable $key"; exit 1; }
+          echo "$key=$value" >> "$GITHUB_ENV"
+          echo "$(echo "$key" | tr 'A-Z_' 'a-z-')=$value" >> "$GITHUB_OUTPUT"
+        done
+        echo "IPA=$ipa" >> "$GITHUB_ENV"
+        ls -l "$ipa"
+    - name: App Store Connect API key
+      shell: bash
+      env:
+        API_KEY: ${{ inputs.api-key-base64 }}
+        KEY_ID: ${{ inputs.key-id }}
+        ISSUER_ID: ${{ inputs.issuer-id }}
+      run: |
+        if [ -z "$API_KEY" ] || [ -z "$KEY_ID" ] || [ -z "$ISSUER_ID" ]; then
+          echo "::error::APPSTORE_API_KEY_BASE64, APPSTORE_KEY_ID and APPSTORE_ISSUER_ID must be set"
+          exit 1
+        fi
+        # altool looks for AuthKey_<key id>.p8 here (one of its documented key folders).
+        mkdir -p "$HOME/.appstoreconnect/private_keys"
+        echo "$API_KEY" | base64 --decode > "$HOME/.appstoreconnect/private_keys/AuthKey_$KEY_ID.p8"
+        chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_$KEY_ID.p8"
+    - name: Upload to App Store Connect (TestFlight)
+      shell: bash
+      env:
+        KEY_ID: ${{ inputs.key-id }}
+        ISSUER_ID: ${{ inputs.issuer-id }}
+      run: |
+        xcrun altool --upload-app --type ios --file "$IPA" --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
+        {
+          echo "### Uploaded to App Store Connect"
+          echo "Iskra $APP_VERSION: version $MARKETING_VERSION, build $BUILD_NUMBER."
+          echo "Apple processes it (5–30 min), then it appears in TestFlight for the internal group."
+        } >> "$GITHUB_STEP_SUMMARY"
+    - name: Remove the key
+      if: always()
+      shell: bash
+      run: rm -rf "$HOME/.appstoreconnect/private_keys"

@@ -218,6 +218,22 @@ test('the PowerShell release scripts parse', { skip }, () => {
   }
 })
 
+// release.ps1 waits for finalize's publish, deploy and TestFlight upload jobs, not for the TestFlight groups job.
+test('Test-JobsDone: every named job (or called workflow\'s jobs) present and completed, others may still run', { skip }, () => {
+  const job = (name, status) => `[pscustomobject]@{ name = '${name}'; status = '${status}' }`
+  const done = (jobs, names) => ps(`ConvertTo-Json -Compress -InputObject (Test-JobsDone -Jobs @(${jobs.join(', ')}) -Names @(${names.map((n) => `'${n}'`).join(', ')}))`)
+  const names = ['publish', 'deploy', 'TestFlight upload']
+  const finished = [job('publish', 'completed'), job('deploy / site', 'completed'), job('deploy / webapp', 'completed'), job('deploy / server', 'completed'), job('TestFlight upload', 'completed')]
+  assert.equal(done([...finished, job('TestFlight groups and reviews', 'in_progress')], names), true)
+  assert.equal(done([...finished, job('TestFlight groups and reviews', 'queued')], names), true)
+  // One deploy job still running, or the called workflow's jobs not listed yet, or the upload still going: not done.
+  assert.equal(done([job('publish', 'completed'), job('deploy / site', 'completed'), job('deploy / server', 'in_progress'), job('TestFlight upload', 'completed')], names), false)
+  assert.equal(done([job('publish', 'completed'), job('TestFlight upload', 'completed')], names), false)
+  assert.equal(done([...finished.slice(0, 4), job('TestFlight upload', 'in_progress')], names), false)
+  assert.equal(done([], names), false)
+  assert.equal(done([job('publish', 'completed')], ['publish']), true)
+})
+
 test('release.ps1 asks nothing interactively', () => {
   const text = readFileSync(join(here, 'release.ps1'), 'utf8')
   for (const bad of ['Read-Host', 'approve it', 'PromptForChoice', 'Get-Credential']) assert.ok(!text.includes(bad), bad)

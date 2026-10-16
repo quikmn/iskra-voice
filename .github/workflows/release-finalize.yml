@@ -1,13 +1,16 @@
 name: Release finalize
 
 # Last step of a release (docs/ci-cd.md), started by scripts/release.ps1 once every build is attached:
-# checks the release files, adds CycloneDX SBOMs, SHA256SUMS.txt and build-provenance attestations, publishes the release as
-# Latest with docs/releases/<version>.md as notes, then deploys iskra.foo and app.iskra.foo and updates chat.iskra.foo.
+# checks the release files (the builds, release.yml's SBOMs, the update files), adds SHA256SUMS.txt and
+# build-provenance attestations, publishes the release as Latest with docs/releases/<version>.md as notes, then, side by
+# side: deploys iskra.foo and app.iskra.foo and updates chat.iskra.foo (deploy.yml), and uploads the iPhone app the tag
+# push built (mobile-ios.yml) to TestFlight; after that upload, scripts/appstore.mjs (TestFlight groups and reviews).
 # Runs in the `release` environment, which has no required reviewers: nothing waits for a click.
 # Release builds start on the tag without waiting for CI, so this is the automatic gate: nothing is uploaded or published until the
 # CI workflow concluded success on the tagged commit (scripts/ci-gate.mjs; waits up to CI_WAIT_MINUTES, then fails).
 # The Release workflow (release-all.yml) calls it too, after running CI on the tagged commit in its own run: then the
 # gate checks that run's CI jobs (ci_run; scripts/ci-gate.mjs --run). A manual run can't set ci_run.
+run-name: Release finalize ${{ inputs.tag }}
 on:
   workflow_dispatch:
     inputs:
@@ -18,10 +21,15 @@ on:
         description: 'Deploy the site and web app and update chat.iskra.foo after publishing'
         type: boolean
         default: true
+      testflight:
+        description: 'Upload the iPhone app the tag push built (mobile-ios.yml) to TestFlight after publishing'
+        type: boolean
+        default: true
   workflow_call:
     inputs:
       tag: { type: string, required: true }
       deploy: { type: boolean, default: true }
+      testflight: { type: boolean, default: true }
       # The calling Release run's id: its "ci / ..." jobs tested the tagged commit.
       ci_run: { type: string, default: '' }
 
@@ -89,35 +97,10 @@ jobs:
           gh release download "$TAG" --dir "$RUNNER_TEMP/assets"
           rm -f "$RUNNER_TEMP/assets/SHA256SUMS.txt"
           ls -l "$RUNNER_TEMP/assets"
+      # Every file in scripts/release-assets.json: the builds, the CycloneDX SBOMs release.yml's sbom job made from the
+      # tag's lock files and project (missing: rerun that job), and the update files, which must match the files.
       - name: Check every expected file is there and the update files match
         run: node scripts/release-assets.mjs check "$VERSION" "$RUNNER_TEMP/assets"
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
-        with:
-          dotnet-version: '10.0.x'
-      # CycloneDX SBOMs of what ships: the web app's and desktop app's runtime npm packages (from the lock files)
-      # and the server's NuGet packages. Added before SHA256SUMS.txt, so the sums and attestations cover them too.
-      - name: SBOMs (CycloneDX)
-        env:
-          CYCLONEDX_NPM: '@cyclonedx/cyclonedx-npm@6.0.1'
-          CYCLONEDX_DOTNET: '6.2.1'
-        run: |
-          out="$RUNNER_TEMP/assets"
-          for app in client desktop; do
-            (cd "$app" && npx --yes "$CYCLONEDX_NPM" --package-lock-only --omit dev --spec-version 1.6 --output-format JSON \
-              --mc-type application --output-reproducible --output-file "$RUNNER_TEMP/sbom-$app.json")
-          done
-          dotnet tool install CycloneDX --version "$CYCLONEDX_DOTNET" --tool-path "$RUNNER_TEMP/tools"
-          "$RUNNER_TEMP/tools/dotnet-CycloneDX" server/src/Iskra.Server/Iskra.Server.csproj -o "$RUNNER_TEMP" -fn sbom-server.json \
-            -F Json -spv 1.6 -ed -sn iskra-server -sv "$VERSION"
-          # One name and version per file, whatever package.json says (the web app's is 0.0.0).
-          jq --arg v "$VERSION" '.metadata.component.name = "iskra-web" | .metadata.component.version = $v' "$RUNNER_TEMP/sbom-client.json" > "$out/iskra-sbom-web-$VERSION.cdx.json"
-          jq --arg v "$VERSION" '.metadata.component.name = "iskra-desktop" | .metadata.component.version = $v' "$RUNNER_TEMP/sbom-desktop.json" > "$out/iskra-sbom-desktop-$VERSION.cdx.json"
-          jq --arg v "$VERSION" '.metadata.component.version = $v' "$RUNNER_TEMP/sbom-server.json" > "$out/iskra-sbom-server-$VERSION.cdx.json"
-          for f in "$out"/iskra-sbom-*-"$VERSION".cdx.json; do
-            jq -e '.bomFormat == "CycloneDX" and (.components | length) > 0' "$f" > /dev/null || { echo "::error::$f isn't a usable SBOM"; exit 1; }
-            echo "$(basename "$f"): $(jq '.components | length' "$f") components"
-          done
-          gh release upload "$TAG" "$out"/iskra-sbom-*-"$VERSION".cdx.json --clobber
       - name: SHA256SUMS.txt
         run: node scripts/release-assets.mjs sums "$RUNNER_TEMP/assets"
       - name: Attest build provenance
@@ -144,6 +127,7 @@ jobs:
     if: inputs.deploy
     permissions:
       contents: read
+      actions: read # the webapp job reuses the web app release.yml built for the tag (its artifact)
     uses: ./.github/workflows/deploy.yml
     with:
       ref: refs/tags/${{ inputs.tag }}
@@ -151,3 +135,90 @@ jobs:
       webapp: true
       server_version: ${{ needs.publish.outputs.version }}
     secrets: inherit
+
+  # The iPhone app: the tag push started a Mobile iOS run (mobile-ios.yml) beside the release builds; its signed .ipa
+  # (artifact iskra-ios-<tag>) goes to App Store Connect here, after the release is published and beside the deploys.
+  # Nothing else in this workflow depends on it. No build run, or a failed one: this job fails with the fallback
+  # (scripts/release.ps1 -Phones builds and uploads the old way); the release stays published and deployed.
+  testflight:
+    name: TestFlight upload
+    needs: publish
+    if: inputs.testflight
+    runs-on: macos-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read # the Mobile iOS run of the tag and its artifact
+    outputs:
+      app_version: ${{ steps.upload.outputs.app-version }}
+      marketing_version: ${{ steps.upload.outputs.marketing-version }}
+      build_number: ${{ steps.upload.outputs.build-number }}
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      FALLBACK: 'the release is published; scripts/release.ps1 -Phones builds the iPhone app again and uploads it (docs/ci-cd-playbook.md, I)'
+    steps:
+      - name: The Mobile iOS build of the tag
+        id: build
+        run: |
+          id="$(gh run list --workflow mobile-ios.yml --branch "$TAG" --event push -L 5 --json databaseId,createdAt --jq 'sort_by(.createdAt) | last | .databaseId // empty')"
+          [ -n "$id" ] || { echo "::error::no Mobile iOS build run for $TAG (the tag push starts one): $FALLBACK"; exit 1; }
+          url="$GITHUB_SERVER_URL/$GH_REPO/actions/runs/$id"
+          echo "Mobile iOS build: $url" | tee -a "$GITHUB_STEP_SUMMARY"
+          # It started with the release builds, so it is normally long done; a queued macOS runner gets 25 minutes.
+          status=''
+          for i in $(seq 1 100); do
+            read -r status conclusion < <(gh run view "$id" --json status,conclusion --jq '"\(.status) \(.conclusion)"')
+            [ "$status" = completed ] && break
+            sleep 15
+          done
+          [ "$status" = completed ] || { echo "::error::the Mobile iOS build $url hasn't finished after 25 minutes: re-run this job when it has, or $FALLBACK"; exit 1; }
+          [ "$conclusion" = success ] || { echo "::error::the Mobile iOS build $url concluded $conclusion (gh run view $id --log-failed; the playbook's mobile-ios.yml rows): $FALLBACK"; exit 1; }
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+      - name: Its signed app
+        env:
+          RUN: ${{ steps.build.outputs.id }}
+        run: |
+          gh run download "$RUN" --name "iskra-ios-$TAG" --dir "$RUNNER_TEMP/app" || { echo "::error::run $RUN has no artifact iskra-ios-$TAG (expired after 14 days?): $FALLBACK"; exit 1; }
+          ls -l "$RUNNER_TEMP/app"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          sparse-checkout: .github/actions
+          persist-credentials: false
+      - id: upload
+        uses: ./.github/actions/testflight-upload
+        with:
+          dir: ${{ runner.temp }}/app
+          api-key-base64: ${{ secrets.APPSTORE_API_KEY_BASE64 }}
+          key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+
+  # Everything App Store Connect needs after the upload (scripts/appstore.mjs): Apple's processing (up to an hour),
+  # What to test, the TestFlight groups, Beta App Review; phase B the App Store version. Its own job, so release.ps1 can
+  # end once the upload is done; a failure here still reaches the Iskra channel (the workflow_run webhook).
+  testflight-groups:
+    name: TestFlight groups and reviews
+    needs: testflight
+    if: inputs.testflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+      - uses: ./.github/actions/appstore-connect
+        with:
+          store: auto
+          app-version: ${{ needs.testflight.outputs.app_version }}
+          marketing-version: ${{ needs.testflight.outputs.marketing_version }}
+          build-number: ${{ needs.testflight.outputs.build_number }}
+          api-key-base64: ${{ secrets.APPSTORE_API_KEY_BASE64 }}
+          key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          review-phone: ${{ secrets.APPSTORE_REVIEW_PHONE }}
+          review-invite-url: ${{ vars.REVIEW_INVITE_URL }}
