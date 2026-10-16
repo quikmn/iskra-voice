@@ -1328,6 +1328,20 @@ Category { "id": 3, "name": "Games", "position": 0 }
 - `Member.name` is the name to show on this server (the nickname when set). Members gain `nick` (string or null) and `profileName` (their own profile name).
 - Broadcast as `member.updated`. Push notifications use nicknames too. A nickname is removed when the member leaves.
 
+### Per-server avatar
+
+| type | body | result | who |
+|---|---|---|---|
+| `member.avatar` | `file` (an upload of yours: PNG, JPEG or WebP, ≤ 1 MB, ≤ 4096 px a side, not animated; `""` removes), `accountKey?` (default: yourself) | `{ member }` | anyone for themselves; admins for members ranked below them (`forbidden`, key `rank_avatars`). Rate limited (10, then 1 every 2 s) |
+
+- A picture for this server only. `Member.avatar` (and `avatarHash`) then point at it instead of the profile picture;
+  `Member.serverAvatar` (URL or null) says whether one is set, so apps can offer to remove it. Removing it shows the
+  profile picture again. Apps crop on the device as for the profile picture; the server checks the bytes and stores a
+  copy without metadata (EXIF, GPS, text, thumbnails), like the [server icon](#server-icon-and-banner).
+- Broadcast as `member.updated`. The picture goes when the member leaves (with their nickname) and with their account;
+  it's in the data export (`serverAvatar`) and in backups with the other uploads. Audit `member.avatar` `{ removed }`
+  only when an admin changes someone else's.
+
 ### Notification levels and mutes
 
 Each account keeps, per server and per channel, a **level** (`all` messages, only `mentions`, `none`) and an optional **mute**. They're stored on the server, so every device and Web Push follow them.

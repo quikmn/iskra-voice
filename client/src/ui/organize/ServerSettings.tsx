@@ -1,13 +1,15 @@
-// "This server" pieces for settings: your notification level and mute here, and nicknames.
-import { useState } from 'react'
+// "This server" pieces for settings: your notification level and mute here, nicknames, and the per-server picture.
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { roleRank, type Member, type NotifyDefault, type NotifyLevel } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
-import { muteFor, setNickname, setNotifyLevel, setServerNotifyDefault, useNotifyFor, useOrganize, useServerNotifyDefault } from '../../state/organize'
+import { muteFor, setNickname, setNotifyLevel, setServerAvatar, setServerNotifyDefault, useNotifyFor, useOrganize, useServerNotifyDefault } from '../../state/organize'
 import { useServerBaseRoles } from '../../state/baseRoles'
 import { baseAllows } from '../../state/permissions'
 import { levelLabel, MUTE_CHOICES, muteChoiceLabel, muteLabel, SMALL_SERVER } from '../../state/organizeLogic'
+import { Avatar } from '../bits'
+import { AvatarCropper } from '../profile/AvatarCropper'
 import './organize.css'
 
 /** Level and mute for a whole server. Channels can override the level from their own menu. */
@@ -124,6 +126,61 @@ export function NicknameField({ server, member: given, onDone }: { server: Serve
         {saved ? t('organize.nick.saved') : t(isSelf ? 'organize.nick.hintYours' : 'organize.nick.hintTheirs', { server: server.name, name: member.profileName ?? member.name })}
       </p>
       {error && <p className="error-text">{error}</p>}
+    </div>
+  )
+}
+
+/**
+ * The per-server picture, next to the nickname: yours, or (admins, for members ranked below them) someone else's.
+ * Cropped on this device like the profile picture; the server strips what metadata is left. The preview is what
+ * `member.avatar` says right now (this server's picture, else the profile's).
+ */
+export function ServerAvatarField({ server, member: given }: { server: ServerState; member: Member }) {
+  const { t } = useTranslation()
+  const member = server.members[given.accountKey] ?? given
+  const me = server.me
+  const isSelf = me?.accountKey === member.accountKey
+  const [cropping, setCropping] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [status, setStatus] = useState<{ kind: 'saved' | 'error'; text: string } | null>(null)
+  const input = useRef<HTMLInputElement>(null)
+  if (!canEditNickname(me, member)) return null
+
+  async function apply(image: Blob | null) {
+    setCropping(null)
+    setBusy(true)
+    try {
+      await setServerAvatar(server.key, image, isSelf ? undefined : member.accountKey)
+      setStatus({ kind: 'saved', text: image ? t('organize.avatar.updated') : t('organize.avatar.removed') })
+    } catch (e) {
+      setStatus({ kind: 'error', text: errorMessage(e) })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="org-avatar" data-testid="server-avatar">
+      <span className="field-label">{t('organize.avatar.label')}</span>
+      <div className="org-avatar-row">
+        <Avatar name={member.name} accountKey={member.accountKey} size={56} />
+        <div className="copy-row">
+          <button className="button small" disabled={busy} onClick={() => input.current?.click()}>
+            {member.serverAvatar ? t('organize.avatar.change') : t('organize.avatar.upload')}
+          </button>
+          {member.serverAvatar && <button className="button small danger-outline" disabled={busy} onClick={() => void apply(null)}>{t('common.remove')}</button>}
+          <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden aria-label={t('organize.avatar.label')} data-testid="server-avatar-file"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) setCropping(file)
+            }} />
+        </div>
+      </div>
+      <p className={status?.kind === 'error' ? 'error-text' : 'muted'} role={status ? 'status' : undefined}>
+        {status ? status.text : t(isSelf ? 'organize.avatar.hintYours' : 'organize.avatar.hintTheirs', { server: server.name })}
+      </p>
+      {cropping && <AvatarCropper file={cropping} title={t('organize.avatar.crop')} confirm={t('settings.overview.use')} onCancel={() => setCropping(null)} onDone={(image) => void apply(image)} />}
     </div>
   )
 }

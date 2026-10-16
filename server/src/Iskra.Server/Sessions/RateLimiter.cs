@@ -73,6 +73,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["chat.delete.bulk"] = (5, 0.2), // up to 100 messages each
         ["member.warn"] = (10, 0.5),
         ["member.notes.add"] = (10, 0.5),
+        ["member.avatar"] = (10, 0.5), // reads and re-writes up to 1 MB
         ["notify.default.set"] = (10, 1),
         ["server.template.export"] = (3, 0.1), // builds a whole template
         ["outhook.create"] = (10, 0.5),

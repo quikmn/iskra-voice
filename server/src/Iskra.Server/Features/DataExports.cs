@@ -122,6 +122,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         // Asked to join through an approval invite (JoinFeature): the invite only by its tail, never the whole code.
         Section("joinRequest", $"SELECT account_key, name, substr(invite_code, -6) AS invite_tail, role, requested_at, declined_at FROM join_requests WHERE account_key {Mine};");
         Section("nickname", $"SELECT account_key, nick FROM nicknames WHERE account_key {Mine};");
+        Section("serverAvatar", $"SELECT account_key, file_id, set_at FROM member_avatars WHERE account_key {Mine};");
         Section("customRoles", $"SELECT mr.account_key, r.id, r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.account_key {Mine};");
         Section("profile", $"SELECT account_key, bio, pronouns, accent, avatar_file FROM profiles WHERE account_key {Mine};");
         Section("profilePage", $"SELECT account_key, page_id, html, updated_at FROM profile_pages WHERE account_key {Mine};");

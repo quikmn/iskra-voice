@@ -366,6 +366,7 @@ export const errors: Messages['errors'] = {
     note_length: 'Anteckningar kan vara 1–{{max}} tecken.',
     notes_max: 'Högst {{max}} anteckningar per person. Radera en gammal först.',
     note_author: 'Bara den som skrev anteckningen eller en admin kan radera den.',
+    rank_avatars: 'Du kan bara ändra serverbilder för medlemmar under dig i rang.',
     admins_joins: 'Bara admins kan ändra hur folk går med.',
     join_banned: 'De blev bannlysta under tiden.',
     stage_speakers_max: 'En scen kan ha upp till {{max}} talare.',

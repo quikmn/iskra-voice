@@ -14,7 +14,7 @@ import { useMemberPresence } from '../../state/presence'
 import { STATUS_LABELS } from '../../state/presenceRules'
 import { BlockButton, ClockIcon, TimeoutControls } from '../moderation/Moderation'
 import { timeoutActive, untilText } from '../../state/moderationRules'
-import { NicknameField } from '../organize/ServerSettings'
+import { NicknameField, ServerAvatarField } from '../organize/ServerSettings'
 import { useServerRoles } from '../../state/roles'
 import { has, outranks } from '../../state/permissions'
 import { MemberRolesEditor, RoleChips, VoiceModControls } from '../roles/RoleSettings'
@@ -87,6 +87,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
       )}
 
       <NicknameField server={server} member={member} />
+      <ServerAvatarField server={server} member={member} />
       <MemberRolesEditor server={server} member={member} />
       <VoiceModControls server={server} member={member} />
 

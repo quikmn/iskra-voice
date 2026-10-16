@@ -368,6 +368,7 @@ export const errors = {
     note_length: 'Notes can be 1–{{max}} characters.',
     notes_max: 'Up to {{max}} notes per person. Delete an old one first.',
     note_author: "Only the note's author or an admin can delete it.",
+    rank_avatars: 'You can only change server pictures of members ranked below you.',
     admins_joins: 'Only admins can change how people join.',
     join_banned: 'They were banned meanwhile.',
     stage_speakers_max: 'A stage can have up to {{max}} speakers.',

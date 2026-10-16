@@ -3,7 +3,7 @@ namespace Iskra.Server.Storage;
 /// <summary>What the member list shows about everyone, loaded in one go (see <see cref="Store.MemberViews"/>).</summary>
 public sealed record MemberViewData(
     Dictionary<string, PublicProfile> Profiles, Dictionary<string, string> Nicknames, Dictionary<string, PresenceRecord> Presence,
-    Dictionary<string, long> Timeouts);
+    Dictionary<string, long> Timeouts, Dictionary<string, StoredFile> ServerAvatars);
 
 /// <summary>Batched reads for busy paths: a few queries for many members instead of a few per member.</summary>
 public sealed partial class Store
@@ -54,7 +54,8 @@ public sealed partial class Store
                 profiles.GroupBy(x => x.Key).ToDictionary(g => g.Key, g => g.First().Profile),
                 nicknames.ToDictionary(x => x.Key, x => x.Nick),
                 presence.ToDictionary(x => x.Key, x => x.Record),
-                timeouts.ToDictionary(x => x.Key, x => x.Until));
+                timeouts.ToDictionary(x => x.Key, x => x.Until),
+                AllMemberAvatars());
         }
     }
 }

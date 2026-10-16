@@ -83,7 +83,8 @@ public sealed partial class Store
                 UNION SELECT avatar FROM webhook_messages WHERE avatar IS NOT NULL
                 UNION SELECT image_file FROM events WHERE image_file IS NOT NULL
                 UNION SELECT avatar_file FROM imported_authors WHERE avatar_file IS NOT NULL
-                UNION SELECT file_id FROM server_images)
+                UNION SELECT file_id FROM server_images
+                UNION SELECT file_id FROM member_avatars)
             RETURNING sha256;
             """, r => r.GetString(0), ("$cutoff", cutoff), ("$keep", JsonSerializer.Serialize(keep)));
 

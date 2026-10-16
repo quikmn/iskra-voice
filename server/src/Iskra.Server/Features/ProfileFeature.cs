@@ -52,7 +52,7 @@ public static partial class ProfileFeature
     public static object Public(Store store, Member m, PresenceFeature.View presence, object? activity = null) =>
         Public(m, store.GetPublicProfile(m.AccountKey), PagesEnabled(store), store.GetNickname(m.AccountKey), store.IsBot(m.AccountKey),
             store.GetTimeout(m.AccountKey)?.Until, presence, activity, store.BuiltinIdOf(m.AccountKey), BotReads(store, m.AccountKey),
-            BotVoice(store, m.AccountKey));
+            BotVoice(store, m.AccountKey), store.GetMemberAvatar(m.AccountKey));
 
     /// <summary>For bots: whether they can read all messages (BotScope); null for people. Built-in bots read only their commands.</summary>
     public static bool? BotReads(Store store, string accountKey) => store.IsBot(accountKey) ? store.BotReadsAll(accountKey) : null;
@@ -62,11 +62,12 @@ public static partial class ProfileFeature
 
     /// <summary>The same from what's already loaded (the welcome's member list loads it for everyone at once).</summary>
     public static object Public(Member m, PublicProfile p, bool pagesEnabled, string? nick, bool bot, long? timedOutUntil, PresenceFeature.View presence,
-        object? activity, string? builtin = null, bool? readsMessages = null, bool? joinsVoice = null)
+        object? activity, string? builtin = null, bool? readsMessages = null, bool? joinsVoice = null, StoredFile? serverAvatar = null)
     {
         var page = p.PageId is not null && pagesEnabled;
         // Built-in bots run inside the server: always there while they're on.
         if (builtin is not null) presence = new PresenceFeature.View(true, "online", null);
+        var shownAvatar = serverAvatar ?? p.Avatar; // the picture for this server, else the profile's (see Per-server avatar)
         return new
         {
             accountKey = m.AccountKey,
@@ -79,8 +80,9 @@ public static partial class ProfileFeature
             customStatus = presence.Custom,
             bot,
             builtin, // BuiltinBotFeature: "dice", "polls", "reminders" or null
-            avatar = p.Avatar is { } a ? $"/files/{a.Id}/{Uri.EscapeDataString(a.Name)}" : null,
-            avatarHash = p.Avatar?.Sha256,
+            avatar = shownAvatar is { } a ? $"/files/{a.Id}/{Uri.EscapeDataString(a.Name)}" : null,
+            avatarHash = shownAvatar?.Sha256,
+            serverAvatar = serverAvatar is { } sa ? $"/files/{sa.Id}/{Uri.EscapeDataString(sa.Name)}" : null,
             bio = p.Bio,
             pronouns = p.Pronouns,
             accent = p.Accent,

@@ -100,7 +100,8 @@ public sealed class Hub(World world, TimeProvider time)
                 views.Nicknames.GetValueOrDefault(m.AccountKey), store.IsBot(m.AccountKey),
                 views.Timeouts.TryGetValue(m.AccountKey, out var until) ? until : null, presence,
                 presence.Online ? Features.ActivityFeature.Public(Activities.Get(m.AccountKey)) : null, store.BuiltinIdOf(m.AccountKey),
-                Features.ProfileFeature.BotReads(store, m.AccountKey), Features.ProfileFeature.BotVoice(store, m.AccountKey));
+                Features.ProfileFeature.BotReads(store, m.AccountKey), Features.ProfileFeature.BotVoice(store, m.AccountKey),
+                views.ServerAvatars.GetValueOrDefault(m.AccountKey));
         }).ToList();
     }
 

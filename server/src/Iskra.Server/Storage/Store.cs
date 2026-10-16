@@ -356,6 +356,8 @@ public sealed partial class Store : IDisposable
         ("joins-1", JoinsMigration),
         // Moderators' private notes about people, and who left the server (and how).
         ("modpack-1", ModPackMigration),
+        // A picture per server, shown instead of the profile picture there.
+        ("member-avatars-1", MemberAvatarsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

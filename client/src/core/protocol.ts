@@ -798,6 +798,13 @@ export interface Member {
   nick?: string | null
   /** Their own profile name. */
   profileName?: string
+  /** A picture for this server only (`avatar` already shows it; the profile picture is underneath). URL or null. */
+  serverAvatar?: string | null
+}
+
+export interface Requests {
+  /** A per-server picture: an upload of yours (`""` removes); `accountKey` for admins changing someone below them. */
+  'member.avatar': [{ file: string; accountKey?: string }, { member: Member }]
 }
 
 export type NotifyLevel = 'all' | 'mentions' | 'none'
