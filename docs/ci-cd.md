@@ -365,13 +365,14 @@ On the home PC, releases log SimplySign Desktop in by themselves, so nobody type
 - **The login** (`scripts/simplysign-login.ps1`, called by `Confirm-Signing` when a test signature fails because
   SimplySign isn't logged in at all, e.g. no certificate in the store):
   - TOTP per RFC 6238 with .NET's HMAC (tested against the RFC's vectors), a code with at least 8 seconds left.
-  - Method `dialog` (default): opens SimplySign Desktop's login dialog (restarting SimplySign, which isn't logged in at
+  - The login dialog: opens SimplySign Desktop's login dialog (restarting SimplySign, which isn't logged in at
     that point, so the dialog shows on start; option "show the login dialog on start" must stay on; the dialog that
     pops up when a program asks to sign works too) and fills it with window messages (7.6.90.0 has no UI Automation
     names): the window with an "ID:" and a "Token:" label and an "&Ok" button, each box matched to its label's row.
-    Proven with Certum's link on 2026-10-15. Decline SimplySign's update offers until a new version is checked. Method `switches` (`simplysign-setup.ps1 -Method
-    switches`): SimplySign's own undocumented `/otpauth "<link>"` then `/autologin` switches (it parses a seed and has
-    a seed login built in); not needed so far.
+    Proven with Certum's link on 2026-10-15. Decline SimplySign's update offers until a new version is checked. It is
+    the only method: SimplySign's own `/otpauth "<link>"` and `/autologin` switches (once method `switches`) are
+    retired because they put the seed on a command line, visible to every process of the account. A seed stored for
+    that method logs in through the dialog, with a note.
   - **At most one attempt per release run** (GitHub run + attempt, or release.ps1's run), and **none for 30 minutes
     after a failed one**, so a wrong seed can't lock the Certum account. One exception: a run that outlasts a session
     may log in again when its last login **worked** and was at least 90 minutes ago (sessions last 2 hours). After a
@@ -380,8 +381,7 @@ On the home PC, releases log SimplySign Desktop in by themselves, so nobody type
   - Then the certificate must appear in CurrentUser\My and a test signature on a scratch file must pass.
 - Without a stored seed nothing changes: the release stops with "Log in to SimplySign Desktop ...".
 - Unverified until the owner's first run: UI Automation with the screen locked (the runner starts at logon; a locked
-  session should still answer UI Automation, but if the login only works unlocked, keep the PC unlocked or use
-  `switches`).
+  session should still answer UI Automation, but if the login only works unlocked, keep the PC unlocked).
 
 #### The home PC runner
 

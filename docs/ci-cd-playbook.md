@@ -250,8 +250,9 @@ opened for them in `D:\Development_Projects\Iskra` (CLAUDE.local.md): they never
      The phone app should scan the same QR, so the phone keeps working too.
    - First test, with the owner watching: the owner logs SimplySign Desktop out (tray → disconnect), then
      `pwsh -NoProfile -File scripts/release.ps1 -CheckOnly` (local) or A0.2. Its first line should end
-     "SimplySign logged itself in". If the dialog method fails, run setup again with `-Method switches` (SimplySign's
-     own /otpauth + /autologin), test once more after 30 minutes (the pause after a failed login). Report which works.
+     "SimplySign logged itself in". If it fails, report it; a second try waits 30 minutes (the pause after a failed
+     login). There is no other method: SimplySign's /otpauth + /autologin switches put the seed on a command line and
+     were retired.
    - Also try once with the screen locked (the runner may log in while nobody is at the PC).
 4. **Google Play without a key file** (owner, Google Cloud console, project `iskra-play`; or the orchestrator writes the
    gcloud lines into a .ps1 and opens it in Notepad for them):

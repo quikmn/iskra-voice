@@ -5,7 +5,6 @@
 #   simplysign-setup.ps1                      # asks for the e-mail and the otpauth:// link or Base32 seed (hidden)
 #   simplysign-setup.ps1 -FromClipboard       # reads the QR code from a screenshot on the clipboard (Win+Shift+S)
 #   simplysign-setup.ps1 -Image <file>        # reads the QR code from an image file (PNG/JPEG)
-#   simplysign-setup.ps1 -Method switches     # log in through SimplySign's own /otpauth + /autologin switches
 #   simplysign-setup.ps1 -Remove              # deletes the stored seed
 #
 # The seed is stored with DPAPI for this Windows account only (%LOCALAPPDATA%\Iskra\simplysign.dat). It is never
@@ -15,7 +14,6 @@ param(
   [switch]$Remove,
   [switch]$FromClipboard,
   [string]$Image = '',
-  [ValidateSet('dialog', 'switches')][string]$Method = 'dialog',
   [string]$Email = ''
 )
 $ErrorActionPreference = 'Stop'
@@ -58,7 +56,6 @@ try {
   Write-Host "Not stored: $($_.Exception.Message)" -ForegroundColor Red
   exit 1
 } finally { $text = $null }
-if ($Method -eq 'switches' -and -not $seed.Raw) { Write-Host 'Not stored: the switches method needs the whole otpauth:// link, not only the seed.' -ForegroundColor Red; exit 1 }
 
 # A code to compare with the phone app (it changes every $($seed.Period) s); the seed itself is never shown.
 $code = Get-Totp -Secret $seed.Secret -Algorithm $seed.Algorithm -Digits $seed.Digits -Period $seed.Period
@@ -67,6 +64,6 @@ Write-Host "The code right now is $code ($(Get-TotpSecondsLeft -Period $seed.Per
 $answer = Read-Host 'Same code? (y/n)'
 if ($answer -notmatch '^(y|yes|j|ja)$') { Write-Host 'Not stored. Check you copied the whole link or seed, and try again.' -ForegroundColor Yellow; exit 1 }
 
-Save-SimplySignSeed -Seed $seed -Email $Email -Method $Method
-Write-Host "Stored for this Windows account only ($path, DPAPI). Method: $Method." -ForegroundColor Green
+Save-SimplySignSeed -Seed $seed -Email $Email
+Write-Host "Stored for this Windows account only ($path, DPAPI)." -ForegroundColor Green
 Write-Host 'Releases now log SimplySign Desktop in by themselves when a test signature fails.'
