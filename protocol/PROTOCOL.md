@@ -3001,17 +3001,23 @@ make the same changes (built-in role powers included).
 
 ## Keyword alerts and quiet hours
 
-Alert words ("Alert me for these words") and quiet hours (a do-not-disturb schedule) are the app's settings: the app
+Alert words ("Alert me for these words"), follows ("alert me when this person, or anyone with this role, posts in
+this channel / anywhere on this server") and quiet hours (a do-not-disturb schedule) are the app's settings: the app
 keeps them on the device, syncs them across the account's devices sealed in `prefs` (name `alerts`), and matches alert
-words itself, in encrypted channels and DMs too. A server only gets a copy when push needs one:
+words and follows itself, in encrypted channels and DMs too. A server only gets a copy when push needs one:
 
-- **Alert words** only if the member turned on "Also when Iskra is closed" (the words then apply to this server's
-  channels that aren't encrypted; the server can't read encrypted ones).
+- **Alert words and follows** only if the member turned on "Also when Iskra is closed" (the words then apply to this
+  server's channels that aren't encrypted; the server can't read encrypted ones. A follow needs no text, so it works in
+  encrypted channels too).
 - **Quiet hours** only on servers where one of the member's devices has push on, so pushes follow the schedule.
 
 ```jsonc
 Alerts { "words": ["pizza", "raid night"],     // ≤ 25, each 1–50 characters after trimming
+         "follows": [Follow],                   // ≤ 50
          "quiet": Quiet | null }
+Follow { "member": "<accountKey>" | null,       // exactly one of member (43 base64url characters) and role (an id)
+         "role": 7 | null,
+         "channelId": 12 | null }               // null: any channel on this server
 Quiet  { "days": 62,                            // 1–127, bit 0 = Sunday … bit 6 = Saturday
          "from": 1320, "to": 420,               // 0–1439, minutes after midnight, wall clock in timeZone
          "timeZone": "Europe/Stockholm",        // IANA name, ≤ 64 characters, known to the server
@@ -3021,26 +3027,33 @@ Quiet  { "days": 62,                            // 1–127, bit 0 = Sunday … b
 | type | body | result | who |
 |---|---|---|---|
 | `alerts.get` | | `{ alerts: Alerts }` | anyone (their own) |
-| `alerts.set` | `words?` (list, default `[]`), `quiet?` (`Quiet` or `null`, default `null`) | `{ alerts: Alerts }` | anyone (their own) |
+| `alerts.set` | `words?` (list, default `[]`), `follows?` (list, default `[]`), `quiet?` (`Quiet` or `null`, default `null`) | `{ alerts: Alerts }` | anyone (their own) |
 
-- `alerts.set` replaces both. Words are trimmed, runs of spaces become one, empty ones are dropped and duplicates
+- `alerts.set` replaces all three. Words are trimmed, runs of spaces become one, empty ones are dropped and duplicates
   (ignoring case) kept once; control characters are refused (`bad_request`, key `alerts_word`). More than 25 words or one
-  longer than 50 characters: `bad_request`. `quiet` needs `days`, `from`, `to` in range (key `alerts_quiet`) and a time
-  zone the server knows (key `alerts_time_zone`). With no words and no quiet hours nothing is stored. Event
-  `alerts.updated { alerts }` to the member's sessions.
+  longer than 50 characters: `bad_request`. Follows: more than 50 (key `alerts_follows`), or one that isn't exactly a
+  person or a role (key `alerts_follow`): `bad_request`; the same follow twice is kept once; only the shape is checked
+  (a person who left, or a deleted role or channel, just never matches). `quiet` needs `days`, `from`, `to` in range
+  (key `alerts_quiet`) and a time zone the server knows (key `alerts_time_zone`). With no words, no follows and no quiet
+  hours nothing is stored. Event `alerts.updated { alerts }` to the member's sessions.
 - **Matching** (server and apps alike): each word or phrase as a whole, ignoring case: no letter, digit, combining mark
   or `_` right before or after it, and any run of white space between a phrase's words. Words are literal text, never
   patterns. The server matches new messages in channels that aren't encrypted, for members who can read the channel,
   never the author's own messages, forwarded ones, or between people where one blocked the other. A match notifies like a
   mention: push kind `keyword` (unless the member's level there is "nothing"; muting doesn't silence it), and an inbox
-  item of kind `keyword` (the weakest kind: a message that also mentions you is a `mention`).
+  item of kind `keyword` (a weak kind: a message that also mentions you is a `mention`).
+- **Follows** (server and apps alike): a new message counts when its author is the followed person, or has the followed
+  role, and the message is in the followed channel (or any channel here when `channelId` is null); never the follower's
+  own messages, forwarded ones, or between people where one blocked the other; only for members who can read the
+  channel. A match gives push kind `follow` (unless the member's level there is "nothing" or they muted the channel or
+  the server; quiet hours stop it) and an inbox item of kind `follow` (the weakest kind).
 - **Quiet hours**: active on the picked days from `from` to `to` in `timeZone`; a stretch that crosses midnight belongs
   to the day it starts on (Friday 23:00–02:00 runs into Saturday morning); `from` = `to` is the whole day. While active,
   pushes stop, except (with `mentions: true`) kinds `mention`, `reply`, `keyword`, `dm`, `group` and `call`, which are
   delivered with `silent: true` (the service worker shows them without sound or vibration). Inbox items and unread
   counts are unaffected. Do not disturb still stops every push.
 - Leaving the server, being removed and deleting the account delete the stored copy. It's in "Download my data"
-  (`alertSettings`). Storage: `alert_settings` (migration `alerts-1`).
+  (`alertSettings`). Storage: `alert_settings` (migrations `alerts-1`, `alerts-2` for follows).
 - Rate limit: the general bucket.
 
 ## Whisper and priority speakers

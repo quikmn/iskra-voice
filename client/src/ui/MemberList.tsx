@@ -15,6 +15,10 @@ import { useServerBaseRoles } from '../state/baseRoles'
 import { hoistedRole, nameColor, rolesOf } from '../state/permissions'
 import { userMenuProps } from './people/userMenuProps'
 import { useReadableColor } from '../theme/useReadable'
+import { useApp } from '../state/store'
+import { channelHere, setFollowing, useFollowing } from '../state/alerts'
+import { MenuItem, MenuTitle, OrgMenu } from './organize/OrgMenu'
+import { useState, type MouseEvent as ReactMouseEvent } from 'react'
 
 export function MemberList({ server }: { server: ServerState }) {
   const { t } = useTranslation()
@@ -38,7 +42,7 @@ export function MemberList({ server }: { server: ServerState }) {
         if (group.length === 0) return null
         return (
           <section key={`role-${role.id}`}>
-            <h2>{role.name} — {group.length}</h2>
+            <RoleHeading server={server} role={role} count={group.length} />
             {group.map(row)}
           </section>
         )
@@ -62,6 +66,46 @@ export function MemberList({ server }: { server: ServerState }) {
         </section>
       )}
     </div>
+  )
+}
+
+/** A hoisted role's heading: click (or right-click) it to follow the role, in the channel you're in or everywhere here. */
+function RoleHeading({ server, role, count }: { server: ServerState; role: { id: number; name: string }; count: number }) {
+  const { t } = useTranslation()
+  const [menu, setMenu] = useState<{ x: number; y: number } | null | false>(false)
+  const hereId = useApp((s) => s.activeChannel[server.key])
+  const here = channelHere(server, hereId)
+  const inHere = useFollowing({ server: server.key, role: role.id, channel: here?.id })
+  const everywhere = useFollowing({ server: server.key, role: role.id })
+  const open = (e: ReactMouseEvent<HTMLElement>) => {
+    e.preventDefault()
+    setMenu(e.clientX || e.clientY ? { x: e.clientX, y: e.clientY } : null)
+  }
+  const toggle = (channel: number | undefined, on: boolean) => () => {
+    setFollowing({ server: server.key, role: role.id, channel }, on)
+    setMenu(false)
+  }
+  return (
+    <>
+      <h2>
+        <button className="member-group-head" onClick={open} onContextMenu={open} aria-haspopup="menu" aria-label={t('alerts.follow.roleMenu', { role: role.name })}>
+          {role.name} — {count}
+        </button>
+      </h2>
+      {menu !== false && (
+        <OrgMenu anchor={menu} label={t('alerts.follow.roleMenu', { role: role.name })} onClose={() => setMenu(false)}>
+          <MenuTitle>{t('alerts.follow.role', { role: role.name })}</MenuTitle>
+          <div className="org-list" role="menu">
+            {here && (
+              <MenuItem onClick={toggle(here.id, !inHere)}>
+                {inHere ? t('alerts.follow.unfollowHere', { channel: here.name }) : t('alerts.follow.followHere', { channel: here.name })}
+              </MenuItem>
+            )}
+            <MenuItem onClick={toggle(undefined, !everywhere)}>{everywhere ? t('alerts.follow.unfollowEverywhere') : t('alerts.follow.followEverywhere')}</MenuItem>
+          </div>
+        </OrgMenu>
+      )}
+    </>
   )
 }
 

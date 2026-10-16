@@ -1,12 +1,46 @@
 import { describe, expect, it } from 'vitest'
 import {
-  MAX_WORDS, addWord, alertPattern, alertRanges, cleanWord, emptyAlerts, matchesAlert, parseAlerts, parseClock, quietActive,
-  sameCopy, serverCopy, wordsFor, type AlertSettings,
+  MAX_FOLLOWS, MAX_WORDS, addFollow, addWord, alertPattern, alertRanges, cleanWord, emptyAlerts, followsFor, matchesAlert, matchesFollow, parseAlerts,
+  parseClock, quietActive, removeFollow, sameCopy, serverCopy, wordsFor, type AlertSettings, type Follow,
 } from './alertsLogic'
 import type { QuietHours } from '../core/protocol'
 
 const A = 'A'.repeat(43)
 const B = 'B'.repeat(43)
+const P = 'P'.repeat(43)
+
+describe('follows', () => {
+  const alice = { accountKey: P, roles: [3] }
+  it('adds well-formed follows once, up to 50 per server', () => {
+    let list = addFollow([], { server: A, member: P, channel: 7 })!
+    expect(list).toEqual([{ server: A, member: P, channel: 7 }])
+    expect(addFollow(list, { server: A, member: P, channel: 7 })).toBeNull() // twice
+    expect(addFollow(list, { server: A, member: P, role: 3 })).toBeNull() // a person or a role, not both
+    expect(addFollow(list, { server: A, channel: 7 })).toBeNull()
+    expect(addFollow(list, { server: 'short', member: P })).toBeNull()
+    expect(addFollow(list, { server: A, role: 0 })).toBeNull()
+    list = addFollow(list, { server: A, role: 3 })!
+    expect(removeFollow(list, { server: A, member: P, channel: 7 })).toEqual([{ server: A, role: 3 }])
+    for (let i = 1; list.length < MAX_FOLLOWS; i++) list = addFollow(list, { server: A, role: 100 + i })!
+    expect(addFollow(list, { server: A, role: 999 })).toBeNull()
+    expect(addFollow(list, { server: B, role: 999 })).toHaveLength(MAX_FOLLOWS + 1) // another server has its own 50
+  })
+
+  it('matches the person or the role, in the channel or anywhere, on that server only', () => {
+    const follows: Follow[] = [{ server: A, member: P, channel: 7 }, { server: B, role: 3 }]
+    expect(matchesFollow(follows, A, alice, 7)).toBe(true)
+    expect(matchesFollow(follows, A, alice, 8)).toBe(false)
+    expect(matchesFollow(follows, A, { accountKey: B }, 7)).toBe(false)
+    expect(matchesFollow(follows, B, alice, 1)).toBe(true) // the role, anywhere on B
+    expect(matchesFollow(follows, B, { accountKey: B, roles: [4] }, 1)).toBe(false)
+    expect(matchesFollow(follows, B, { accountKey: P }, 1)).toBe(false) // roles unknown: no match
+  })
+
+  it('shapes a server\'s copy', () => {
+    expect(followsFor([{ server: A, member: P, channel: 7 }, { server: A, role: 3 }, { server: B, role: 3 }], A))
+      .toEqual([{ member: P, role: null, channelId: 7 }, { member: null, role: 3, channelId: null }])
+  })
+})
 
 describe('alert words', () => {
   const p = alertPattern(['pizza', 'raid night', 'ölkväll', 'C++'])
@@ -64,9 +98,12 @@ describe('what servers keep', () => {
   const quiet: QuietHours = { days: 62, from: 1320, to: 420, timeZone: 'Europe/Stockholm', mentions: true }
   const base: AlertSettings = { ...emptyAlerts(), words: [{ text: 'pizza' }, { text: 'raid', server: B }], quiet, updatedAt: 1 }
 
-  it('keeps words only when asked to, and quiet hours only where push needs them', () => {
-    expect(serverCopy(base, A, true, null)).toEqual({ words: [], quiet: null })
-    expect(serverCopy({ ...base, closed: true }, A, false, null)).toEqual({ words: ['pizza'], quiet: null })
+  it('keeps words and follows only when asked to, and quiet hours only where push needs them', () => {
+    expect(serverCopy(base, A, true, null)).toEqual({ words: [], follows: [], quiet: null })
+    expect(serverCopy({ ...base, closed: true }, A, false, null)).toEqual({ words: ['pizza'], follows: [], quiet: null })
+    const following = { ...base, closed: true, follows: [{ server: A, member: P }, { server: B, role: 2, channel: 9 }] }
+    expect(serverCopy(following, A, false, null).follows).toEqual([{ member: P, role: null, channelId: null }])
+    expect(serverCopy(following, B, false, null).follows).toEqual([{ member: null, role: 2, channelId: 9 }])
     expect(serverCopy({ ...base, quietOn: true }, A, false, null).quiet).toBeNull()
     expect(serverCopy({ ...base, quietOn: true }, A, true, null).quiet).toEqual(quiet)
     // Another device with push on put them there: keep them up to date.
@@ -78,6 +115,12 @@ describe('what servers keep', () => {
     expect(sameCopy({ words: ['a'], quiet }, { words: ['a'], quiet: { ...quiet } })).toBe(true)
     expect(sameCopy({ words: ['a'], quiet }, { words: ['a'], quiet: null })).toBe(false)
     expect(sameCopy(null, { words: [], quiet: null })).toBe(false)
+    // An older server's copy has no follows; order doesn't matter.
+    expect(sameCopy({ words: [], quiet: null }, { words: [], follows: [], quiet: null })).toBe(true)
+    const f1 = { member: P, role: null, channelId: null }
+    const f2 = { member: null, role: 2, channelId: 9 }
+    expect(sameCopy({ words: [], follows: [f1, f2], quiet: null }, { words: [], follows: [f2, f1], quiet: null })).toBe(true)
+    expect(sameCopy({ words: [], follows: [f1], quiet: null }, { words: [], follows: [f2], quiet: null })).toBe(false)
   })
 
   it('checks settings from storage or another device', () => {
@@ -87,6 +130,9 @@ describe('what servers keep', () => {
       quiet: { days: 200, from: 0, to: 60, timeZone: 'UTC' } })!
     expect(parsed.words).toEqual([{ text: 'pizza' }, { text: 'x' }])
     expect(parsed.closed).toBe(true)
+    expect(parsed.follows).toEqual([])
+    expect(parseAlerts({ words: [], updatedAt: 1, follows: [{ server: A, member: P, channel: 7 }, { server: A, role: 'x' }, 5] })!.follows)
+      .toEqual([{ server: A, member: P, channel: 7 }])
     expect(parsed.quiet.days).toBe(62) // bad schedule: the default
     expect(parseAlerts({ words: [], updatedAt: 1, quiet: { days: 1, from: 0, to: 60, timeZone: 'Mars/Olympus' } })!.quiet.timeZone).not.toBe('Mars/Olympus')
   })

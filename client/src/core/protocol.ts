@@ -1432,7 +1432,7 @@ export interface WireScheduled {
   error: string | null
 }
 
-export type InboxKind = 'mention' | 'reply' | 'role' | 'everyone' | 'keyword'
+export type InboxKind = 'mention' | 'reply' | 'role' | 'everyone' | 'keyword' | 'follow'
 
 export interface InboxItem {
   kind: InboxKind
@@ -2192,9 +2192,17 @@ export interface QuietHours {
   mentions: boolean
 }
 
-/** A server's copy, kept only where push needs it. */
+/** "Alert me when this person (or anyone with this role) posts", in one channel or anywhere on the server (channelId null). */
+export interface FollowRule {
+  member: string | null
+  role: number | null
+  channelId: number | null
+}
+
+/** A server's copy, kept only where push needs it. `follows` is missing from older servers. */
 export interface ServerAlerts {
   words: string[]
+  follows?: FollowRule[]
   quiet: QuietHours | null
 }
 
@@ -2204,7 +2212,7 @@ export interface Events {
 
 export interface Requests {
   'alerts.get': [Record<string, never>, { alerts: ServerAlerts }]
-  'alerts.set': [{ words: string[]; quiet: QuietHours | null }, { alerts: ServerAlerts }]
+  'alerts.set': [{ words: string[]; follows: FollowRule[]; quiet: QuietHours | null }, { alerts: ServerAlerts }]
 }
 
 // ── whisper and priority speakers ──

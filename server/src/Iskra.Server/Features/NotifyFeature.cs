@@ -54,6 +54,10 @@ public static class NotifyFeature
 
     private static bool Active(NotifySetting setting, long now) => setting.MutedUntil is { } until && (until == Forever || until > now);
 
+    /// <summary>Whether the channel, or the whole server, is muted right now.</summary>
+    public static bool IsMuted(IReadOnlyList<NotifySetting> settings, long channelId, long now) =>
+        settings.Any(n => (n.ChannelId == channelId || n.ChannelId == 0) && Active(n, now));
+
     /// <summary>The wire shape. An expired mute reads as not muted.</summary>
     public static object Public(NotifySetting setting, long now) => new
     {

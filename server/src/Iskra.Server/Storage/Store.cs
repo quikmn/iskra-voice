@@ -341,6 +341,8 @@ public sealed partial class Store : IDisposable
         ("server-images-1", ServerImagesMigration),
         // Repeating events: how often, until when, which series.
         ("events-2", Events2Migration),
+        // Follow people and roles in a channel (alert settings).
+        ("alerts-2", Alerts2Migration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

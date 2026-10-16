@@ -145,10 +145,15 @@ public sealed partial class PushService
                 foreach (var key in store.MembersWithRole(roleId)) kinds[key] = "mention";
             }
         }
-        // Alert words people asked this server to watch for (Features/AlertFeature.cs) notify like a mention.
+        // Alert words people asked this server to watch for (Features/AlertFeature.cs) notify like a mention; so do
+        // follows of the author or one of their roles, except where the follower muted the channel.
         if (pings)
+        {
             foreach (var key in Features.AlertFeature.KeywordTargets(store, channel, message))
                 if (!kinds.TryGetValue(key, out var was) || was == "message") kinds[key] = "keyword";
+            foreach (var key in Features.AlertFeature.FollowTargets(store, channel, message))
+                if (!kinds.TryGetValue(key, out var was) || was == "message") kinds[key] = "follow";
+        }
         kinds.Remove(message.AuthorKey);
         if (kinds.Count == 0) return;
 
@@ -167,8 +172,10 @@ public sealed partial class PushService
             if (target is null || !Permissions.CanRead(target, channel)) continue;
             if (Features.BotScope.Restricted(store, accountKey)) continue; // a push carries the text; such bots get their messages live
             if (store.EitherBlocked(accountKey, author.AccountKey)) continue; // blocked people never buzz your phone
-            var level = Features.NotifyFeature.EffectiveLevel(store.NotifySettings(accountKey), settingsChannel, now, defaultLevel);
+            var settings = store.NotifySettings(accountKey);
+            var level = Features.NotifyFeature.EffectiveLevel(settings, settingsChannel, now, defaultLevel);
             if (level == Features.NotifyFeature.Nothing || (kind == "message" && level != Features.NotifyFeature.All)) continue;
+            if (kind == "follow" && Features.NotifyFeature.IsMuted(settings, settingsChannel, now)) continue;
             var title = encrypted ? $"New message in #{channel.Name}"
                 : kind == "reply" ? $"{authorName} replied in #{channel.Name}" : $"{authorName} in #{channel.Name}";
             var names = new PushText(encrypted ? "encrypted" : kind == "reply" ? "reply" : "mention",

@@ -1,13 +1,109 @@
-// My settings → Notifications: alert words and quiet hours. Also the quiet hours line in the status menu.
+// My settings → Notifications: alert words, follows and quiet hours. Also the quiet hours line in the status menu.
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { updateAlerts, useAlerts, useQuietNow } from '../../state/alerts'
-import { MAX_WORDS, addWord, cleanWord, clockText, localTimeZone, parseClock } from '../../state/alertsLogic'
+import { t as translate } from '../../i18n'
+import { setFollowing, updateAlerts, useAlerts, useQuietNow } from '../../state/alerts'
+import { MAX_FOLLOWS, MAX_WORDS, addWord, cleanWord, clockText, localTimeZone, parseClock, type Follow } from '../../state/alertsLogic'
 import { currentPushSupport, usePush } from '../../state/push'
-import { useApp } from '../../state/store'
+import { useServerRoles } from '../../state/roles'
+import { useApp, type ServerState } from '../../state/store'
 import { Close } from '../icons'
 import { openMySettings } from '../settings/open'
 import './alerts.css'
+
+/** "Alice in #general" / "@Raiders anywhere", for a follow on `server` (which may be gone). */
+export function followWords(follow: Follow, server: ServerState | undefined, roles: { id: number; name: string }[]): { who: string; where: string } {
+  const who = follow.member !== undefined
+    ? server?.members[follow.member]?.name ?? translate('alerts.follow.someone')
+    : translate('alerts.follow.role', { role: roles.find((r) => r.id === follow.role)?.name ?? translate('alerts.follow.aRole') })
+  const channel = follow.channel === undefined ? undefined : server?.channels.find((c) => c.id === follow.channel)
+  const where = follow.channel === undefined ? translate('alerts.follow.anywhere') : channel ? translate('alerts.follow.in', { channel: channel.name }) : translate('alerts.follow.aChannel')
+  return { who, where }
+}
+
+export function FollowSettings() {
+  const { t } = useTranslation()
+  const follows = useAlerts((s) => s.settings.follows)
+  const servers = useApp((s) => s.servers)
+  const order = useApp((s) => s.order).filter((k) => servers[k]?.me)
+  const [serverKey, setServerKey] = useState(order[0] ?? '')
+  const server = servers[serverKey] ?? servers[order[0]]
+  const roles = useServerRoles(server?.key ?? '')
+  const [who, setWho] = useState('')
+  const [where, setWhere] = useState('')
+  const [problem, setProblem] = useState<string | null>(null)
+  const people = server ? Object.values(server.members).filter((m) => m.accountKey !== server.me?.accountKey && !m.bot).sort((a, b) => a.name.localeCompare(b.name)) : []
+
+  function add() {
+    if (!server || !who) return
+    const follow: Follow = { server: server.key }
+    if (who.startsWith('role:')) follow.role = Number(who.slice(5))
+    else follow.member = who
+    if (where) follow.channel = Number(where)
+    if (follows.filter((f) => f.server === server.key).length >= MAX_FOLLOWS) return setProblem(t('alerts.follow.full', { max: MAX_FOLLOWS }))
+    if (!setFollowing(follow, true)) return setProblem(t('alerts.follow.duplicate'))
+    setWho('')
+    setProblem(null)
+  }
+
+  return (
+    <div className="alert-settings" role="group" aria-labelledby="alert-follow-title">
+      <h3 className="h4" id="alert-follow-title">{t('alerts.follow.title')}</h3>
+      <p className="muted">{t('alerts.follow.intro')}</p>
+      {server && (
+        <form className="alert-add" onSubmit={(e) => { e.preventDefault(); add() }}>
+          {order.length > 1 && (
+            <select value={server.key} aria-label={t('alerts.follow.server')} onChange={(e) => { setServerKey(e.target.value); setWho(''); setWhere('') }}>
+              {order.map((k) => <option key={k} value={k}>{servers[k].name}</option>)}
+            </select>
+          )}
+          <select value={who} aria-label={t('alerts.follow.who')} onChange={(e) => { setWho(e.target.value); setProblem(null) }}>
+            <option value="">{t('alerts.follow.who')}…</option>
+            <optgroup label={t('alerts.follow.people')}>
+              {people.map((m) => <option key={m.accountKey} value={m.accountKey}>{m.name}</option>)}
+            </optgroup>
+            {roles.length > 0 && (
+              <optgroup label={t('alerts.follow.roles')}>
+                {roles.map((r) => <option key={r.id} value={`role:${r.id}`}>@{r.name}</option>)}
+              </optgroup>
+            )}
+          </select>
+          <select value={where} aria-label={t('alerts.follow.where')} onChange={(e) => setWhere(e.target.value)}>
+            <option value="">{t('alerts.follow.anyChannel')}</option>
+            {server.channels.filter((c) => c.kind !== 'voice' && c.kind !== 'stage').map((c) => <option key={c.id} value={c.id}>#{c.name}</option>)}
+          </select>
+          <button className="button" type="submit" disabled={!who}>{t('alerts.follow.add')}</button>
+        </form>
+      )}
+      {problem && <p className="error-text" role="alert">{problem}</p>}
+      {follows.length === 0 ? (
+        <p className="muted alert-empty">{t('alerts.follow.empty')}</p>
+      ) : (
+        <ul className="alert-chips" aria-label={t('alerts.follow.title')}>
+          {follows.map((f) => <FollowChip key={`${f.server}:${f.member ?? ''}:${f.role ?? ''}:${f.channel ?? ''}`} follow={f} />)}
+        </ul>
+      )}
+      <p className="muted alert-count">{t('alerts.follow.count', { count: follows.length })}</p>
+    </div>
+  )
+}
+
+function FollowChip({ follow }: { follow: Follow }) {
+  const { t } = useTranslation()
+  const server = useApp((s) => s.servers[follow.server])
+  const roles = useServerRoles(follow.server)
+  const { who, where } = followWords(follow, server, roles)
+  return (
+    <li className="alert-chip">
+      <span className="alert-chip-text">{who} {where}</span>
+      <span className="alert-chip-where">{server?.name ?? t('alerts.follow.gone')}</span>
+      <button className="icon-button small" aria-label={t('alerts.follow.remove', { who })} title={t('alerts.follow.remove', { who })}
+        onClick={() => setFollowing(follow, false)}>
+        <Close size={12} />
+      </button>
+    </li>
+  )
+}
 
 export function AlertWordsSettings() {
   const { t } = useTranslation()

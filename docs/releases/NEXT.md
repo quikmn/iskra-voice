@@ -1,6 +1,7 @@
 <!-- Release notes for the next version. Each change is its own line; the release step merges them. -->
 
 ### What's new
+- Follow people or roles: right-click someone (or a role group) in the member list to hear about their posts in that channel like a mention, in your inbox and as a notification; manage follows under My settings → Notifications.
 - Events can repeat every day, week, two weeks or month (with an optional end date): the next one is planned when the current one ends, you can change or cancel just one or the whole series, and the calendar file carries the repeat.
 
 ### Fixes

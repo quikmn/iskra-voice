@@ -244,4 +244,83 @@ public class AlertTests
         Assert.Contains("pizza", row.GetProperty("words").GetString());
         Assert.Contains("UTC", row.GetProperty("quiet").GetString());
     }
+
+    // ── Follows ──────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Following_a_person_in_a_channel_pushes_and_lands_in_the_inbox()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        using var carol = await server.JoinAsync("Carol");
+        var offtopic = server.World.Store.CreateChannel("offtopic", "text", "member", "member", 1).Id;
+        var endpoint = await SubscribeAsync(bob);
+        var saved = (await bob.RequestAsync("alerts.set", new { follows = new[] { new { member = alice.Key, channelId = server.General } } })).Body().GetProperty("alerts");
+        var follow = saved.GetProperty("follows").EnumerateArray().Single();
+        Assert.Equal(alice.Key, follow.GetProperty("member").GetString());
+        Assert.Equal(server.General, follow.GetProperty("channelId").GetInt64());
+
+        await Say(alice, server.General, "hello there");
+        var push = (await server.Push.WaitForAsync(endpoint)).Single();
+        Assert.Equal("follow", push.GetProperty("kind").GetString());
+        Assert.Equal("Alice in #general", push.GetProperty("title").GetString());
+        var item = (await bob.EventAsync("inbox.new")).Body().GetProperty("item");
+        Assert.Equal("follow", item.GetProperty("kind").GetString());
+        Assert.Equal("follow", (await bob.RequestAsync("inbox.list")).Body().GetProperty("items")[0].GetProperty("kind").GetString());
+
+        // Someone else, or another channel: nothing. A mention still wins over a follow.
+        await Say(carol, server.General, "not followed");
+        await Say(alice, offtopic, "elsewhere");
+        await server.Push.NoneAsync(endpoint, already: 1);
+        await bob.NoEventAsync("inbox.new");
+        await Say(alice, server.General, $"hey <@{bob.Key}>");
+        Assert.Equal("mention", (await bob.EventAsync("inbox.new")).Body().GetProperty("item").GetProperty("kind").GetString());
+    }
+
+    [Fact]
+    public async Task Following_a_role_anywhere_covers_every_channel_but_respects_mutes()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        var offtopic = server.World.Store.CreateChannel("offtopic", "text", "member", "member", 1).Id;
+        var role = (await owner.RequestAsync("role.create", new { name = "Raiders" })).Body().GetProperty("role").GetProperty("id").GetInt64();
+        Assert.Equal("result", (await owner.RequestAsync("member.roles.set", new { accountKey = alice.Key, roles = new[] { role } })).Type());
+        var endpoint = await SubscribeAsync(bob);
+        await bob.RequestAsync("alerts.set", new { follows = new[] { new { role } } });
+
+        await Say(alice, offtopic, "raid at nine");
+        Assert.Equal("follow", (await server.Push.WaitForAsync(endpoint)).Single().GetProperty("kind").GetString());
+        Assert.Equal("follow", (await bob.EventAsync("inbox.new")).Body().GetProperty("item").GetProperty("kind").GetString());
+
+        // A muted channel keeps follows out of push (the inbox still lists them); the owner, without the role, doesn't count.
+        await bob.RequestAsync("notify.set", new { channelId = offtopic, muteMinutes = -1 });
+        await Say(alice, offtopic, "muted here");
+        await server.Push.NoneAsync(endpoint, already: 1);
+        await bob.EventAsync("inbox.new");
+        await Say(owner, server.General, "no role");
+        await server.Push.NoneAsync(endpoint, already: 1);
+        await bob.NoEventAsync("inbox.new");
+    }
+
+    [Fact]
+    public async Task Bad_follows_are_refused_and_the_rest_cleaned()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        Assert.Equal("bad_request", (await bob.RequestAsync("alerts.set", new { follows = new[] { new { channelId = 1 } } })).ErrorCode());
+        Assert.Equal("bad_request", (await bob.RequestAsync("alerts.set", new { follows = new[] { new { member = alice.Key, role = 1 } } })).ErrorCode());
+        Assert.Equal("bad_request", (await bob.RequestAsync("alerts.set", new { follows = new[] { new { member = "not-a-key" } } })).ErrorCode());
+        Assert.Equal("bad_request", (await bob.RequestAsync("alerts.set", new { follows = Enumerable.Range(1, 51).Select(i => new { role = i }).ToArray() })).ErrorCode());
+        var twice = new[] { new { member = alice.Key }, new { member = alice.Key } };
+        var alerts = (await bob.RequestAsync("alerts.set", new { follows = twice })).Body().GetProperty("alerts");
+        Assert.Single(alerts.GetProperty("follows").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, alerts.GetProperty("follows")[0].GetProperty("channelId").ValueKind);
+        // Clearing everything removes the row.
+        await bob.RequestAsync("alerts.set", new { });
+        Assert.Null(server.World.Store.GetAlerts(bob.Key));
+    }
 }

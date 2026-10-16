@@ -11,15 +11,17 @@ namespace Iskra.Server.Features;
 public sealed record QuietHours(int Days, int From, int To, string TimeZone, bool Mentions);
 
 /// <summary>
-/// Keyword alerts and quiet hours, as far as this server needs them. Apps match alert words themselves (they can read
-/// encrypted channels and DMs; the server can't). A member who wants alerts while Iskra is closed opts in, and their
-/// words are stored here so push can match them in channels that aren't encrypted. Quiet hours are stored where push
-/// is on, so pushes stay silent (or stop) during them.
+/// Keyword alerts, follows and quiet hours, as far as this server needs them. Apps match alert words and follows
+/// themselves (they can read encrypted channels and DMs; the server can't). A member who wants alerts while Iskra is
+/// closed opts in, and their words and follows are stored here so push can match them (words only in channels that
+/// aren't encrypted; a follow needs just the author and the channel). Quiet hours are stored where push is on, so
+/// pushes stay silent (or stop) during them.
 /// </summary>
 public static class AlertFeature
 {
     public const int MaxWords = 25;
     public const int MaxWordLength = 50;
+    public const int MaxFollows = 50;
     public const int MaxTimeZoneLength = 64;
 
     public static void Register(Router router)
@@ -33,6 +35,7 @@ public static class AlertFeature
     public static object View(AlertSettingsRecord? record) => new
     {
         words = record?.Words ?? [],
+        follows = (record?.Follows ?? []).Select(f => new { member = f.Member, role = f.Role, channelId = f.ChannelId }),
         quiet = record?.Quiet is { } quiet ? ParseStored(quiet) : null,
     };
 
@@ -41,9 +44,10 @@ public static class AlertFeature
     private static object Set(Session s, Member me, Body body)
     {
         var words = CleanWords(body.OptionalStringArray("words", MaxWords, MaxWordLength));
+        var follows = ParseFollows(body.OptionalElement("follows"));
         var quiet = body.OptionalElement("quiet") is { } element ? ParseQuiet(new Body(element)) : null;
         var store = s.World.Store;
-        store.SaveAlerts(me.AccountKey, words, quiet is null ? null : JsonSerializer.Serialize(quiet, Json.Options), s.Now);
+        store.SaveAlerts(me.AccountKey, words, follows, quiet is null ? null : JsonSerializer.Serialize(quiet, Json.Options), s.Now);
         var alerts = View(store.GetAlerts(me.AccountKey));
         s.Hub.SendToAccount(me.AccountKey, Frames.Event("alerts.updated", new { alerts }));
         return new { alerts };
@@ -62,6 +66,32 @@ public static class AlertFeature
             if (seen.Add(word)) clean.Add(word);
         }
         return [.. clean];
+    }
+
+    /// <summary>
+    /// Follows from the body: each a person (`member`) or a role (`role`, an id), in one channel (`channelId`) or anywhere
+    /// here. Only the shape is checked (people leave, roles and channels go: a stale follow just never matches); the same
+    /// follow twice is kept once.
+    /// </summary>
+    public static FollowRule[] ParseFollows(JsonElement? element)
+    {
+        if (element is not { } list) return [];
+        if (list.ValueKind != JsonValueKind.Array) throw RequestException.BadRequest("'follows' must be a list.");
+        if (list.GetArrayLength() > MaxFollows) throw RequestException.BadRequest($"You can follow up to {MaxFollows} people and roles per server.", "alerts_follows", new { max = MaxFollows });
+        var seen = new HashSet<FollowRule>();
+        var follows = new List<FollowRule>();
+        foreach (var item in list.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("Each follow is an object.");
+            var body = new Body(item);
+            var member = body.OptionalString("member", 64);
+            var role = body.OptionalLong("role", min: 1);
+            if ((member is null) == (role is null)) throw RequestException.BadRequest("A follow is a person or a role.", "alerts_follow");
+            if (member is not null && !Regex.IsMatch(member, "^[A-Za-z0-9_-]{43}$")) throw RequestException.BadRequest("A follow is a person or a role.", "alerts_follow");
+            var follow = new FollowRule(member, role, body.OptionalLong("channelId", min: 1));
+            if (seen.Add(follow)) follows.Add(follow);
+        }
+        return [.. follows];
     }
 
     public static QuietHours ParseQuiet(Body body)
@@ -153,5 +183,21 @@ public static class AlertFeature
         if (message.Text.Length == 0 || store.GetE2ee(channel.Id) is not null) yield break;
         foreach (var record in store.AllAlertWords())
             if (record.AccountKey != message.AuthorKey && Matches(record.Words, message.Text)) yield return record.AccountKey;
+    }
+
+    /// <summary>Does one of these follows cover a message by <paramref name="author"/> in <paramref name="channelId"/>? Apps use the same rule.</summary>
+    public static bool FollowMatches(IEnumerable<FollowRule> follows, Member author, long channelId) =>
+        follows.Any(f => (f.ChannelId is null || f.ChannelId == channelId)
+            && (f.Member is not null ? f.Member == author.AccountKey : f.Role is { } role && Array.IndexOf(author.RoleIds, role) >= 0));
+
+    /// <summary>
+    /// Members who follow the author (or one of the author's roles) in this channel or anywhere here. Encrypted channels
+    /// count too: who posted where isn't secret, only what. Readers, blocks and the author are checked by the callers.
+    /// </summary>
+    public static IEnumerable<string> FollowTargets(Store store, Channel channel, Message message)
+    {
+        if (store.GetMember(message.AuthorKey) is not { } author) yield break;
+        foreach (var record in store.AllAlertFollows())
+            if (record.AccountKey != author.AccountKey && FollowMatches(record.Follows, author, channel.Id)) yield return record.AccountKey;
     }
 }

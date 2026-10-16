@@ -170,6 +170,8 @@ export const errors = {
     afk_voice_only: 'The AFK channel must be a voice channel.',
     alerts_word: "Alert words can't contain control characters.",
     alerts_quiet: 'Quiet hours need days, a start and an end.',
+    alerts_follows: 'You can follow up to {{max}} people and roles per server.',
+    alerts_follow: 'A follow is a person or a role.',
     alerts_time_zone: "That time zone isn't known here.",
     afk_minutes: 'Move idle people after 5, 15, 30 or 60 minutes, or never (0).',
     afk_levels: 'Pick base roles from guest, member, trusted, admin and owner.',

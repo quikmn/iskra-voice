@@ -168,6 +168,8 @@ export const errors: Messages['errors'] = {
     afk_voice_only: 'AFK-kanalen måste vara en röstkanal.',
     alerts_word: 'Bevakade ord får inte innehålla kontrolltecken.',
     alerts_quiet: 'Tysta timmar behöver dagar, en start och ett slut.',
+    alerts_follows: 'Du kan följa upp till {{max}} personer och roller per server.',
+    alerts_follow: 'En följning är en person eller en roll.',
     alerts_time_zone: 'Den tidszonen känner servern inte till.',
     afk_minutes: 'Flytta inaktiva efter 5, 15, 30 eller 60 minuter, eller aldrig (0).',
     afk_levels: 'Välj grundroller bland gäst, medlem, betrodd, admin och ägare.',

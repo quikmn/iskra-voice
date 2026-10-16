@@ -1,9 +1,11 @@
-// Keyword alerts and quiet hours, the pure part: cleaning words, matching them (the same rule as the server's), which
-// copy a server gets, and whether quiet hours are on at a moment in their time zone.
-import type { QuietHours, ServerAlerts } from '../core/protocol'
+// Keyword alerts, follows and quiet hours, the pure part: cleaning words, matching them and follows (the same rules as
+// the server's), which copy a server gets, and whether quiet hours are on at a moment in their time zone.
+import type { FollowRule, QuietHours, ServerAlerts } from '../core/protocol'
 
 export const MAX_WORDS = 25
 export const MAX_WORD_LENGTH = 50
+/** Follows per server. */
+export const MAX_FOLLOWS = 50
 
 /** An alert word or phrase; `server` limits it to one server (none: everywhere). */
 export interface AlertWord {
@@ -11,9 +13,18 @@ export interface AlertWord {
   server?: string
 }
 
+/** Alert me when `member` (or anyone with `role`) posts on `server`, in `channel` (none: any channel there). */
+export interface Follow {
+  server: string
+  member?: string
+  role?: number
+  channel?: number
+}
+
 export interface AlertSettings {
   words: AlertWord[]
-  /** "Also when Iskra is closed": servers keep the words so push can match them (channels that aren't encrypted). */
+  follows: Follow[]
+  /** "Also when Iskra is closed": servers keep the words and follows so push can match them (words only in channels that aren't encrypted). */
   closed: boolean
   quietOn: boolean
   quiet: QuietHours
@@ -31,7 +42,7 @@ export const localTimeZone = (): string => {
 /** Weeknights 22:00–07:00 here, off until chosen. */
 export const defaultQuiet = (): QuietHours => ({ days: 0b0111110, from: 22 * 60, to: 7 * 60, timeZone: localTimeZone(), mentions: true })
 
-export const emptyAlerts = (): AlertSettings => ({ words: [], closed: false, quietOn: false, quiet: defaultQuiet(), updatedAt: 0 })
+export const emptyAlerts = (): AlertSettings => ({ words: [], follows: [], closed: false, quietOn: false, quiet: defaultQuiet(), updatedAt: 0 })
 
 /** Trimmed, runs of spaces as one; null if it can't be an alert word. */
 export function cleanWord(raw: string): string | null {
@@ -64,6 +75,47 @@ export function wordsFor(words: AlertWord[], serverKey: string | null): string[]
     }
   }
   return out.slice(0, MAX_WORDS)
+}
+
+// ── Follows ─────────────────────────────────────────────────────────────────
+
+export const sameFollow = (a: Follow, b: Follow): boolean =>
+  a.server === b.server && (a.member ?? '') === (b.member ?? '') && (a.role ?? 0) === (b.role ?? 0) && (a.channel ?? 0) === (b.channel ?? 0)
+
+/** A well-formed follow: a person or a role (not both), in a channel or anywhere. */
+export function cleanFollow(raw: Follow): Follow | null {
+  const key = (s: unknown) => typeof s === 'string' && /^[A-Za-z0-9_-]{43}$/.test(s)
+  const id = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n > 0
+  if (!key(raw.server) || key(raw.member) === id(raw.role)) return null
+  if (raw.channel !== undefined && !id(raw.channel)) return null
+  const follow: Follow = { server: raw.server }
+  if (raw.member !== undefined) follow.member = raw.member
+  if (raw.role !== undefined) follow.role = raw.role
+  if (raw.channel !== undefined) follow.channel = raw.channel
+  return follow
+}
+
+/** Adds a follow (no duplicates, at most 50 per server). Null if it can't be added. */
+export function addFollow(follows: Follow[], raw: Follow): Follow[] | null {
+  const follow = cleanFollow(raw)
+  if (!follow || follows.some((f) => sameFollow(f, follow))) return null
+  if (follows.filter((f) => f.server === follow.server).length >= MAX_FOLLOWS) return null
+  return [...follows, follow]
+}
+
+export const removeFollow = (follows: Follow[], follow: Follow): Follow[] => follows.filter((f) => !sameFollow(f, follow))
+
+/** The follows on one server, as the server's copy wants them. */
+export const followsFor = (follows: Follow[], serverKey: string): FollowRule[] =>
+  follows.filter((f) => f.server === serverKey).map((f) => ({ member: f.member ?? null, role: f.role ?? null, channelId: f.channel ?? null }))
+
+/**
+ * Does one of the follows cover a message by `author` in `channelId` on `serverKey`? Same rule as the server
+ * (AlertFeature.FollowMatches): the followed person, or anyone with the followed role, in the followed channel or anywhere.
+ */
+export function matchesFollow(follows: Follow[], serverKey: string, author: { accountKey: string; roles?: number[] }, channelId: number): boolean {
+  return follows.some((f) => f.server === serverKey && (f.channel === undefined || f.channel === channelId)
+    && (f.member !== undefined ? f.member === author.accountKey : f.role !== undefined && (author.roles ?? []).includes(f.role)))
 }
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -103,20 +155,22 @@ export function alertRanges(pattern: RegExp | null, text: string): [number, numb
 }
 
 /**
- * What a server keeps: the words only with "Also when Iskra is closed", and quiet hours only where push needs them
- * (push is on for this device there, or another device already put them there).
+ * What a server keeps: the words and follows only with "Also when Iskra is closed", and quiet hours only where push
+ * needs them (push is on for this device there, or another device already put them there).
  */
-export function serverCopy(settings: AlertSettings, serverKey: string, pushHere: boolean, stored: ServerAlerts | null): ServerAlerts {
+export function serverCopy(settings: AlertSettings, serverKey: string, pushHere: boolean, stored: ServerAlerts | null): Required<ServerAlerts> {
   const quietThere = settings.quietOn && (pushHere || !!stored?.quiet)
   return {
     words: settings.closed ? wordsFor(settings.words, serverKey) : [],
+    follows: settings.closed ? followsFor(settings.follows, serverKey) : [],
     quiet: quietThere ? settings.quiet : null,
   }
 }
 
 export function sameCopy(a: ServerAlerts | null, b: ServerAlerts): boolean {
   const q = (x: ServerAlerts['quiet']) => (x ? `${x.days}|${x.from}|${x.to}|${x.timeZone}|${x.mentions}` : '')
-  return !!a && a.words.join('\n') === b.words.join('\n') && q(a.quiet) === q(b.quiet)
+  const f = (x: ServerAlerts['follows']) => (x ?? []).map((r) => `${r.member ?? ''}|${r.role ?? ''}|${r.channelId ?? ''}`).sort().join('\n')
+  return !!a && a.words.join('\n') === b.words.join('\n') && f(a.follows) === f(b.follows) && q(a.quiet) === q(b.quiet)
 }
 
 // ── Quiet hours ─────────────────────────────────────────────────────────────
@@ -178,11 +232,14 @@ export function parseAlerts(value: unknown): AlertSettings | null {
     const server = (w as AlertWord).server
     words = addWord(words, (w as AlertWord).text, typeof server === 'string' && /^[A-Za-z0-9_-]{43}$/.test(server) ? server : undefined) ?? words
   }
+  let follows: Follow[] = []
+  if (Array.isArray(v.follows))
+    for (const f of v.follows.slice(0, MAX_FOLLOWS * 20)) if (f && typeof f === 'object') follows = addFollow(follows, f as Follow) ?? follows
   const q = v.quiet as Partial<QuietHours> | undefined
   const minute = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n < 1440
   const quiet: QuietHours = q && typeof q === 'object' && typeof q.days === 'number' && q.days >= 1 && q.days <= 127 && Number.isInteger(q.days)
     && minute(q.from) && minute(q.to) && typeof q.timeZone === 'string' && q.timeZone.length <= 64 && wallClock(new Date(0), q.timeZone)
     ? { days: q.days, from: q.from!, to: q.to!, timeZone: q.timeZone, mentions: q.mentions === true }
     : defaultQuiet()
-  return { words, closed: v.closed === true, quietOn: v.quietOn === true, quiet, updatedAt: v.updatedAt }
+  return { words, follows, closed: v.closed === true, quietOn: v.quietOn === true, quiet, updatedAt: v.updatedAt }
 }
