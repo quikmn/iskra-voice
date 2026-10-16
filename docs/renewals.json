@@ -37,7 +37,7 @@
       "name": "Android release keystore",
       "expires": null,
       "note": "date unknown: owner to fill (docs say ~27 years, ~2053; the exact date is in keytool -list -v -keystore iskra-android.keystore)",
-      "renew": "Can't be renewed: enrol in Play App Signing long before, so Google holds the app key",
+      "renew": "Can't be renewed; Play App Signing is on (Google holds the app key, checked 2026-10-16), so Play installs survive a lost keystore via an upload key reset",
       "doc": "docs/ci-cd.md#android"
     },
     {

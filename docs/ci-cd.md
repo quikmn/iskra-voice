@@ -584,8 +584,10 @@ goes to CI; CI (`ci.yml` job `android`) only runs an unsigned build.
 
 **Losing the keystore means installed APKs can never be updated** (Android requires the same key); everyone would
 have to uninstall and reinstall. Keep an offline copy (encrypted USB stick and a password manager entry with the
-password). Plan: enrol in Play App Signing when publishing on Play; Google then holds the app key and the upload
-key can be replaced, and could live in CI. New personal Play accounts need a closed test with 12 testers for 14
+password). Play App Signing is on (checked 2026-10-16: the APK Play installs is signed with this same key, the
+fingerprint in assetlinks.json), so Google holds a copy of the app key: if the keystore is lost, Play installs can
+still be updated after an upload key reset; only GitHub APK installs would be stuck. The upload key can be replaced
+and could live in CI. New personal Play accounts need a closed test with 12 testers for 14
 days before production. If Play signs the app, add Play's app-signing fingerprint to assetlinks.json. Play also asks
 for a declaration of the foreground service types (microphone, media playback: "voice chat in the background").
 
@@ -686,7 +688,7 @@ must match renewals.json.
 | Yearly | Offline backups | Check the keystore, devkeys folder and admin SSH key copies still open |
 | After 60 days without commits | Uptime schedule | GitHub pauses scheduled workflows in inactive repos (it emails first): Actions → Uptime → Enable workflow |
 | **2031-08 (before 2031-09-17)** | Apple Developer ID certificate | New CSR, certificate, p12, secrets (section 4) |
-| ~2053 | Android keystore | Far future; Play App Signing removes the problem |
+| ~2053 | Android keystore | Far future; Play App Signing is on (Google holds the app key) |
 
 ### Renewal warnings
 
