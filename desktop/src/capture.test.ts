@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { captureAppPage, MAX_CAPTURE_SIDE, type CapturableContents } from './capture'
+import { captureAppPage, captureTarget, MAX_CAPTURE_SIDE, parseCaptureTarget, type CapturableContents } from './capture'
 
 function fake(width: number, height: number, options: { empty?: boolean; destroyed?: boolean } = {}) {
   const calls: string[] = []
@@ -42,4 +42,26 @@ test('nothing for an empty capture or a closed window', async () => {
   const closed = fake(100, 100, { destroyed: true })
   assert.equal(await captureAppPage(closed.contents), null)
   assert.deepEqual(closed.calls, [])
+})
+
+test('capture targets: the main window or one of the app’s own pop-outs, never the report window', () => {
+  assert.equal(parseCaptureTarget('main'), 'main')
+  assert.equal(parseCaptureTarget('iskra-popout-voice-1'), 'iskra-popout-voice-1')
+  assert.equal(parseCaptureTarget('iskra-popout-stream-a1'), 'iskra-popout-stream-a1')
+  assert.equal(parseCaptureTarget('iskra-popout-chat-z'), 'iskra-popout-chat-z')
+  for (const bad of ['iskra-popout-report-1', 'Main', 'screen', 'window:1:0', 'iskra-popout-voice-', 'iskra-popout-voice-1 ', '', null, undefined, 1, {}, ['main']]) {
+    assert.equal(parseCaptureTarget(bad), null, String(bad))
+  }
+})
+
+test('capture targets resolve only to windows that are open', () => {
+  const open = new Map([['iskra-popout-voice-1', 'voice page'], ['iskra-popout-report-2', 'report page']])
+  const lookup = (name: string) => open.get(name) ?? null
+  assert.equal(captureTarget('main', 'main page', lookup), 'main page')
+  assert.equal(captureTarget('main', null, lookup), null)
+  assert.equal(captureTarget('iskra-popout-voice-1', 'main page', lookup), 'voice page')
+  assert.equal(captureTarget('iskra-popout-voice-9', 'main page', lookup), null)
+  // Even when it's open, the report window is never a target.
+  assert.equal(captureTarget('iskra-popout-report-2', 'main page', lookup), null)
+  assert.equal(captureTarget('../../etc', 'main page', lookup), null)
 })

@@ -131,8 +131,11 @@ export interface DesktopBridge {
   onHotkey?(callback: (action: 'mute' | 'deafen' | 'clip') => void): () => void
   /** Whisper and priority keys: held, so both the press and the release arrive (missing in older desktop builds). */
   onHoldHotkey?(callback: (action: 'whisper1' | 'whisper2' | 'whisper3' | 'priority', down: boolean) => void): () => void
-  /** Bug reports: a PNG data URL of this app window only, never the screen (missing in older desktop builds). */
-  captureApp?(): Promise<string | null>
+  /**
+   * Bug reports: a PNG data URL of one of Iskra's own windows, 'main' or an open pop-out's name (never the report
+   * window), and never the screen. null if there's no such window or nothing to capture (missing in older desktop builds).
+   */
+  captureWindow?(target: string): Promise<string | null>
   /** macOS: opens a Privacy & Security page in System Settings. */
   openSystemSettings(pane: 'accessibility' | 'screen' | 'microphone' | 'camera'): Promise<void>
   /** Tells the shell the app's language, for the tray and native dialogs (older shells don't have it). */
@@ -150,10 +153,10 @@ export interface DesktopBridge {
   callAlert?(on: boolean): Promise<void>
   /**
    * Pop-out windows (missing in older desktop builds): the page opens them with window.open(popout.html, name) and
-   * renders into them; this sets always on top, click-through, and wakes a click-through window while the pointer is
-   * on its handle. Returns the window's flags, or null when there's no such pop-out.
+   * renders into them; this sets always on top, click-through, wakes a click-through window while the pointer is
+   * on its handle, and brings one to the front (focus: older shells ignore it). Returns the window's flags, or null when there's no such pop-out.
    */
-  popout?: { set(name: string, patch: { alwaysOnTop?: boolean; clickThrough?: boolean; handle?: boolean }): Promise<{ alwaysOnTop: boolean; clickThrough: boolean } | null> }
+  popout?: { set(name: string, patch: { alwaysOnTop?: boolean; clickThrough?: boolean; handle?: boolean; focus?: boolean }): Promise<{ alwaysOnTop: boolean; clickThrough: boolean } | null> }
   /** WebAuthn ceremonies for app lock passkeys, run by the main process on https://app.iskra.foo (desktop/src/passkeys.ts). */
   passkey?: { run(op: 'create' | 'get', request: unknown): Promise<{ ok: boolean; name?: string; message?: string } & Record<string, unknown>> }
   /** The OS keychain (Electron safeStorage). basic: Linux without a keyring, which protects nothing. */

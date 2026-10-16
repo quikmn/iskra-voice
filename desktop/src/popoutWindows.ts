@@ -1,4 +1,4 @@
-// The pop-out windows themselves (see popouts.ts): made from the main page's window.open, remembered in
+// The pop-out windows themselves (see popouts.ts; the bug report is one too): made from the main page's window.open, remembered in
 // userData/popouts.json, snapped to screen edges, kept on top or click-through when asked, and closed with the page.
 import { app, screen, shell, type BrowserWindow, type BrowserWindowConstructorOptions, type WebContents } from 'electron'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
@@ -140,7 +140,18 @@ export class PopoutWindows {
     if (patch.handle !== undefined && entry.clickThrough) {
       win.setIgnoreMouseEvents(!patch.handle, { forward: true })
     }
+    if (patch.focus) {
+      if (win.isMinimized()) win.restore()
+      win.show()
+      win.focus()
+    }
     return { alwaysOnTop: win.isAlwaysOnTop(), clickThrough: entry.clickThrough }
+  }
+
+  /** A pop-out's page, for a bug report screenshot (capture.ts): never the report window itself. */
+  contents(name: string): WebContents | null {
+    const entry = this.open.get(name)
+    return entry && entry.kind !== 'report' && !entry.win.isDestroyed() ? entry.win.webContents : null
   }
 
   /** The main page went away (reloaded, navigated, closed): its pop-outs go with it. */

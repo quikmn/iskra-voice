@@ -1,4 +1,5 @@
-// Pop-outs and picture-in-picture: the voice/call panel, a stream or a text channel in a small window of its own.
+// Pop-outs and picture-in-picture: the voice/call panel, a stream, a text channel or the bug report in a small window
+// of its own.
 // The window is only a document: this page renders into it (ui/popout/PopoutLayer.tsx, React portals), so there's
 // one app, one server connection and one LiveKit room, and videos show the same MediaStreamTracks.
 // Desktop app: window.open(popout.html) with a name the shell recognises (desktop/src/popouts.ts); always on top and
@@ -71,6 +72,8 @@ export async function popOut(target: PopoutTarget): Promise<boolean> {
   if (findPopout(target) || opening.has(key)) return true
   const mode = popoutModeFor(target.kind)
   if (mode !== 'window' && mode !== 'document') return false
+  // The bug report never takes the browser's one picture-in-picture window from a call or stream (it opens in the page).
+  if (mode === 'document' && target.kind === 'report' && usePopouts.getState().open.some((p) => p.mode === 'document')) return false
   opening.add(key)
   try {
     const name = popoutName(target.kind, ++counter)
@@ -106,6 +109,19 @@ export async function setPopoutFlags(id: string, patch: { alwaysOnTop?: boolean;
   const flags = await desktop?.popout?.set(id, patch).catch(() => null)
   if (!flags) return
   usePopouts.setState((s) => ({ open: s.open.map((p) => (p.id === id ? { ...p, ...flags } : p)) }))
+}
+
+/** Brings an open pop-out to the front. */
+export function focusPopout(id: string): void {
+  const popout = usePopouts.getState().open.find((p) => p.id === id)
+  if (popout?.mode === 'window') void desktop?.popout?.set(id, { focus: true }).catch(() => null)
+  else {
+    try {
+      popoutWindow(id)?.focus()
+    } catch {
+      // Gone.
+    }
+  }
 }
 
 /** Click-through is on and the pointer is over (or left) the handle: the window takes clicks only meanwhile. */
@@ -207,7 +223,10 @@ function watchClose(win: Window, closed: () => void): () => void {
   }
 }
 
-/** Pop-outs close with their call, stream or channel, and with this page. Returns a stop. */
+/**
+ * Pop-outs close with their call, stream or channel, and with this page. Returns a stop, which closes them too, except
+ * the bug report (it isn't rendered by the layer that stops: ui/bugReport/BugReportDialog.tsx).
+ */
 export function startPopouts(): () => void {
   const check = () => {
     const open = usePopouts.getState().open
@@ -229,6 +248,6 @@ export function startPopouts(): () => void {
   return () => {
     for (const stop of stops) stop()
     window.removeEventListener('pagehide', closeAll)
-    closeAll()
+    for (const p of usePopouts.getState().open) if (p.target.kind !== 'report') drop(p.id)
   }
 }

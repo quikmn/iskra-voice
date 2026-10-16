@@ -1,23 +1,34 @@
 // "Report a bug" (Help → Report a bug, the status menu, Ctrl+Shift+B): what happened, steps, what you expected,
-// screenshots (paste, drop, pick, or a picture of the Iskra window on desktop), logs on by default with a view of
-// exactly what's sent, an optional email. Sent to Iskra's bug inbox; if that fails, saved as a zip to email instead.
-import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from 'react'
+// screenshots (paste, drop, pick, or on desktop a picture of one of Iskra's own windows, now or in 5 seconds), logs on
+// by default with a view of exactly what's sent, an optional email. Sent to Iskra's bug inbox; if that fails, saved as
+// a zip to email instead.
+// It opens in a window of its own (desktop app; Chromium's Document Picture-in-Picture), so you can keep using the
+// app to show the bug; elsewhere in the page, where "Keep using Iskra" tucks it into a chip. The draft lives in the
+// store either way, so closing and opening it again loses nothing.
+import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { desktop } from '../../platform/desktop'
 import { native } from '../../platform/native'
 import { SAFETY_EMAIL } from '../../state/terms'
-import { closeBugReport, openBugReport, preparePayload, resetDraft, updateDraft, useBugReport } from '../../state/bugReport/bugReport'
+import { closeBugReport, openBugReport, preparePayload, resetDraft, tuckBugReport, untuckBugReport, updateDraft, useBugReport } from '../../state/bugReport/bugReport'
 import { prepareImage } from '../../state/bugReport/images'
 import { canSend, MAX_EMAIL, MAX_EXPECTED, MAX_IMAGES, MAX_STEPS, MAX_WHAT, previewPayload, reportFiles, validEmail, type ReportPayload } from '../../state/bugReport/payload'
+import { CAPTURE_DELAY_SECONDS, pngFromDataUrl, startCountdown } from '../../state/bugReport/reportWindow'
 import { BugSendError, sendBugReport, type SendFailure } from '../../state/bugReport/send'
 import { makeZip } from '../../state/bugReport/zip'
+import { captureTargets } from '../../state/popoutLogic'
+import { focusPopout, popoutRoot, usePopouts, type Popout } from '../../state/popouts'
 import { Modal, Spinner } from '../bits'
 import { Close } from '../icons'
+import { PopoutFrame, usePopoutTitle } from '../popout/PopoutLayer'
 import './bugReport.css'
 
-/** Mounted once: the dialog when open, and Ctrl+Shift+B (Cmd+Shift+B on a Mac) to open it. */
+/** Mounted once: the report (its window or the dialog), the chip, and Ctrl+Shift+B (Cmd+Shift+B on a Mac). */
 export function BugReportLayer() {
   const open = useBugReport((s) => s.open)
+  const tucked = useBugReport((s) => s.tucked)
+  const report = usePopouts((s) => s.open.find((p) => p.target.kind === 'report'))
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && e.code === 'KeyB') {
@@ -28,7 +39,35 @@ export function BugReportLayer() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
-  return open ? <BugReportDialog /> : null
+  const root = report ? popoutRoot(report.id) : null
+  return (
+    <>
+      {report && root && createPortal(
+        <PopoutFrame popout={report}>
+          <BugReport place="window" popoutId={report.id} />
+        </PopoutFrame>,
+        root, report.id,
+      )}
+      {!report && open && <BugReport place="page" />}
+      {!report && !open && tucked && <BugReportChip />}
+    </>
+  )
+}
+
+/** "Keep using Iskra": the report waits here. Tapping it (or its ×) brings the report back; discarding is in there. */
+function BugReportChip() {
+  const { t } = useTranslation()
+  const count = useBugReport((s) => s.draft.images.length)
+  return (
+    <div className="bug-report-chip" role="region" aria-label={t('bugReport.title')} data-testid="bug-report-chip">
+      <button className="bug-report-chip-open" onClick={untuckBugReport}>
+        {count ? t('bugReport.chipShots', { count }) : t('bugReport.chip')}
+      </button>
+      <button className="icon-button small" onClick={untuckBugReport} aria-label={t('bugReport.chipBack')} title={t('bugReport.chipBack')}>
+        <Close size={14} />
+      </button>
+    </div>
+  )
 }
 
 type Phase = { kind: 'form' } | { kind: 'sending' } | { kind: 'sent'; id: string } | { kind: 'failed'; reason: SendFailure }
@@ -53,7 +92,21 @@ async function saveZip(payload: ReportPayload): Promise<string> {
   return name
 }
 
-function BugReportDialog() {
+/** The report's surroundings: the dialog in the page, or the body and buttons of its own window. */
+function Shell({ place, className, footer, children }: { place: 'page' | 'window'; className?: string; footer: ReactNode; children: ReactNode }) {
+  const { t } = useTranslation()
+  if (place === 'page') {
+    return <Modal title={t('bugReport.title')} onClose={closeBugReport} className={className} footer={footer}>{children}</Modal>
+  }
+  return (
+    <div className={`bug-report-window ${className ?? ''}`} role="form" aria-label={t('bugReport.title')}>
+      <div className="bug-report-window-body">{children}</div>
+      <footer className="bug-report-window-footer">{footer}</footer>
+    </div>
+  )
+}
+
+function BugReport({ place, popoutId }: { place: 'page' | 'window'; popoutId?: string }) {
   const { t } = useTranslation()
   const draft = useBugReport((s) => s.draft)
   const [phase, setPhase] = useState<Phase>({ kind: 'form' })
@@ -82,7 +135,8 @@ function BugReportDialog() {
     setImageError(null)
     const images = blobs.filter((b) => b.type.startsWith('image/'))
     if (images.length < blobs.length) setImageError(t('bugReport.notImage'))
-    const take = images.slice(0, Math.max(0, room))
+    const free = MAX_IMAGES - useBugReport.getState().draft.images.length - adding
+    const take = images.slice(0, Math.max(0, free))
     if (images.length > take.length) setImageError(t('bugReport.tooMany', { max: MAX_IMAGES }))
     if (!take.length) return
     setAdding((n) => n + take.length)
@@ -111,17 +165,19 @@ function BugReportDialog() {
     void addBlobs([...e.dataTransfer.files])
   }
 
-  async function screenshot() {
-    if (!desktop?.captureApp || room <= 0) return
-    // The dialog steps aside so the picture shows the app, not this form.
-    setCapturing(true)
+  /** A picture of one of Iskra's own windows (desktop only): the main one, or a pop-out. */
+  async function screenshot(target: string) {
+    if (!desktop?.captureWindow) return
+    // In the page, the dialog steps aside so the picture shows the app, not this form.
+    const stepAside = place === 'page' && target === 'main'
+    if (stepAside) setCapturing(true)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 200))
-      const url = await desktop.captureApp()
-      const data = url?.startsWith('data:image/png;base64,') ? url.slice(22) : null
-      if (data) await addBlobs([new Blob([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))], { type: 'image/png' })])
+      if (stepAside) await new Promise((resolve) => setTimeout(resolve, 200))
+      const blob = pngFromDataUrl(await desktop.captureWindow(target).catch(() => null))
+      if (blob) await addBlobs([blob])
+      else setImageError(t('bugReport.captureFailed'))
     } finally {
-      setCapturing(false)
+      if (stepAside) setCapturing(false)
     }
   }
 
@@ -150,26 +206,25 @@ function BugReportDialog() {
 
   if (phase.kind === 'sent') {
     return (
-      <Modal title={t('bugReport.title')} onClose={closeBugReport}>
+      <Shell place={place} footer={<button className="button primary" onClick={closeBugReport}>{t('common.done')}</button>}>
         <div className="bug-report-sent" role="status">
           <strong>{t('bugReport.thanks')}</strong>
           <p>{t('bugReport.thanksBody', { id: phase.id })}</p>
         </div>
-        <div className="bug-report-actions">
-          <button className="button primary" onClick={closeBugReport}>{t('common.done')}</button>
-        </div>
-      </Modal>
+      </Shell>
     )
   }
 
   const failed = phase.kind === 'failed' ? phase.reason : null
   return (
-    <Modal
-      title={t('bugReport.title')}
-      onClose={closeBugReport}
+    <Shell
+      place={place}
       className={`bug-report ${capturing ? 'bug-report-capturing' : ''}`}
       footer={
         <>
+          {place === 'page' && (
+            <button className="button bug-report-keep" onClick={tuckBugReport} title={t('bugReport.keepUsingHint')}>{t('bugReport.keepUsing')}</button>
+          )}
           <button className="button" onClick={closeBugReport}>{t('common.cancel')}</button>
           <button className="button primary" onClick={() => void send()} disabled={!ready}>
             {phase.kind === 'sending' ? t('bugReport.sending') : t('bugReport.send')}
@@ -212,13 +267,12 @@ function BugReportDialog() {
             <p className="muted bug-report-small">{t('bugReport.screenshotsHint', { max: MAX_IMAGES })}</p>
             <div className="bug-report-shot-buttons">
               <button type="button" className="button small" disabled={room <= 0} onClick={() => picker.current?.click()}>{t('bugReport.addPictures')}</button>
-              {desktop?.captureApp && (
-                <button type="button" className="button small" disabled={room <= 0} title={t('bugReport.takeScreenshotHint')} onClick={() => void screenshot()}>
-                  {t('bugReport.takeScreenshot')}
-                </button>
-              )}
               {adding > 0 && <Spinner />}
             </div>
+            {desktop?.captureWindow && (
+              <WindowShot disabled={room <= 0} delayed={place === 'window'} onShoot={screenshot}
+                onDelayedDone={() => popoutId && focusPopout(popoutId)} />
+            )}
             <input ref={picker} type="file" accept="image/*" multiple hidden aria-label={t('bugReport.addPictures')}
               onChange={(e) => {
                 void addBlobs([...(e.target.files ?? [])])
@@ -265,6 +319,87 @@ function BugReportDialog() {
           </div>
         )}
       </div>
-    </Modal>
+    </Shell>
   )
+}
+
+/**
+ * Desktop: a picture of one of Iskra's own windows (the main one or an open pop-out), now or in 5 seconds. The
+ * countdown never moves focus, so a menu opened in the main window meanwhile is still open when it's taken.
+ */
+function WindowShot({ disabled, delayed, onShoot, onDelayedDone }: {
+  disabled: boolean
+  /** "In 5 seconds" (the report's own window; in the page, the dialog would be in the way). */
+  delayed: boolean
+  onShoot: (target: string) => Promise<void>
+  onDelayedDone: () => void
+}) {
+  const { t } = useTranslation()
+  const open = usePopouts((s) => s.open)
+  const others = captureTargets(open)
+  const [choice, setChoice] = useState('main')
+  const [left, setLeft] = useState<number | null>(null)
+  const [busy, setBusy] = useState(false)
+  const cancel = useRef<(() => void) | null>(null)
+  // The window that was picked closed: back to the main one.
+  const target = choice === 'main' || others.some((p) => p.id === choice) ? choice : 'main'
+  useEffect(() => () => cancel.current?.(), [])
+
+  const shoot = async (then?: () => void) => {
+    setBusy(true)
+    try {
+      await onShoot(target)
+    } finally {
+      setBusy(false)
+      then?.()
+    }
+  }
+  const startDelayed = () => {
+    cancel.current = startCountdown(CAPTURE_DELAY_SECONDS, setLeft, () => {
+      cancel.current = null
+      setLeft(null)
+      void shoot(onDelayedDone)
+    })
+  }
+  const stop = () => {
+    cancel.current?.()
+    cancel.current = null
+    setLeft(null)
+  }
+
+  return (
+    <div className="bug-report-window-shot">
+      <label className="bug-report-target">
+        <span>{t('bugReport.screenshotOf')}</span>
+        <select value={target} onChange={(e) => setChoice(e.target.value)} disabled={left !== null}>
+          <option value="main">{t('bugReport.target.main')}</option>
+          {others.map((p) => <TargetOption key={p.id} popout={p} />)}
+        </select>
+      </label>
+      {left === null ? (
+        <div className="bug-report-shot-buttons">
+          <button type="button" className="button small" disabled={disabled || busy} title={t('bugReport.takeScreenshotHint')} onClick={() => void shoot()}>
+            {t('bugReport.takeScreenshot')}
+          </button>
+          {delayed && (
+            <button type="button" className="button small" disabled={disabled || busy} title={t('bugReport.delayedHint')} onClick={startDelayed}>
+              {t('bugReport.delayed', { seconds: CAPTURE_DELAY_SECONDS })}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="bug-report-countdown">
+          <span role="status" aria-live="polite" data-testid="bug-report-countdown">{t('bugReport.countdown', { seconds: left })}</span>
+          <button type="button" className="button small" onClick={stop}>{t('common.cancel')}</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TargetOption({ popout }: { popout: Popout }) {
+  const { t } = useTranslation()
+  const title = usePopoutTitle(popout)
+  const kind = popout.target.kind === 'report' ? 'main' : popout.target.kind
+  return <option value={popout.id}>{t(`bugReport.target.${kind}`, { title })}</option>
 }

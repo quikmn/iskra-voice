@@ -1,6 +1,7 @@
 // What pop-out windows show (state/popouts.ts): rendered from the main page into each pop-out's document, so they
-// share its state, its server connection and its call. The voice/call panel, one stream, or a text channel.
-import { useEffect, useRef } from 'react'
+// share its state, its server connection and its call. The voice/call panel, one stream, or a text channel. (The bug
+// report's window uses the same frame, rendered by ui/bugReport/BugReportDialog.tsx, which is there before sign-in too.)
+import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { b64u } from '../../core/crypto'
@@ -16,7 +17,7 @@ import { popIn, popoutHandle, popoutRoot, popoutWindow, setPopoutFlags, startPop
 import { canSendIn } from '../../state/permissions'
 import { useServerRoles } from '../../state/roles'
 import { Avatar } from '../bits'
-import { Headphones, HeadphonesOff, Mic, MicOff, PhoneOff } from '../icons'
+import { Close, Headphones, HeadphonesOff, Mic, MicOff, PhoneOff } from '../icons'
 import { Composer, MessageList, TypingLine } from '../ChatView'
 import { ClickThroughIcon, PinIcon, PopInIcon } from './popoutIcons'
 import './popout.css'
@@ -28,14 +29,15 @@ export function PopoutLayer() {
   return (
     <>
       {open.map((p) => {
-        const root = popoutRoot(p.id)
+        const root = p.target.kind === 'report' ? null : popoutRoot(p.id)
         return root ? createPortal(<PopoutFrame popout={p} />, root, p.id) : null
       })}
     </>
   )
 }
 
-function PopoutFrame({ popout }: { popout: Popout }) {
+/** A pop-out's bar (title, always on top, pop back in) and what it shows; `children` replaces the usual content. */
+export function PopoutFrame({ popout, children }: { popout: Popout; children?: ReactNode }) {
   const { t } = useTranslation()
   const title = usePopoutTitle(popout)
   const { target, mode, id } = popout
@@ -84,19 +86,28 @@ function PopoutFrame({ popout }: { popout: Popout }) {
               <ClickThroughIcon size={15} />
             </button>
           )}
-          <button className="icon-button small" onClick={() => popIn(id)} aria-label={t('popout.popIn')} title={t('popout.popIn')}>
-            <PopInIcon size={15} />
-          </button>
+          {target.kind === 'report' ? (
+            // Nothing to pop back into: it closes (the draft stays).
+            <button className="icon-button small" onClick={() => popIn(id)} aria-label={t('common.close')} title={t('common.close')}>
+              <Close size={15} />
+            </button>
+          ) : (
+            <button className="icon-button small" onClick={() => popIn(id)} aria-label={t('popout.popIn')} title={t('popout.popIn')}>
+              <PopInIcon size={15} />
+            </button>
+          )}
         </header>
       )}
       <div className="popout-content">
-        {target.kind === 'voice' ? <PopoutVoice /> : target.kind === 'stream' ? <PopoutStream tileId={target.tileId} /> : <PopoutChat serverKey={target.serverKey} channelId={target.channelId} />}
+        {children ?? (target.kind === 'voice' ? <PopoutVoice /> : target.kind === 'stream' ? <PopoutStream tileId={target.tileId} />
+          : target.kind === 'chat' ? <PopoutChat serverKey={target.serverKey} channelId={target.channelId} /> : null)}
       </div>
     </div>
   )
 }
 
-function usePopoutTitle(popout: Popout): string {
+/** The pop-out's name: its channel, the person streaming, the call, or "Report a bug". */
+export function usePopoutTitle(popout: Popout): string {
   const { t } = useTranslation()
   const session = useVoice((s) => s.session)
   const tile = useVoice((s) => (popout.target.kind === 'stream' ? s.tiles.find((x) => x.id === (popout.target as { tileId: string }).tileId) : undefined))
@@ -104,6 +115,7 @@ function usePopoutTitle(popout: Popout): string {
   const group = useGroups((s) => (session?.group ? s.groups[session.group.key] : undefined))
   const chat = useApp((s) => (popout.target.kind === 'chat' ? s.servers[popout.target.serverKey] : undefined))
   const { target } = popout
+  if (target.kind === 'report') return t('bugReport.title')
   if (target.kind === 'chat') {
     const channel = chat?.channels.find((c) => c.id === target.channelId)
     return t('popout.channelTitle', { channel: channel?.name ?? '', server: chat?.name ?? '' })

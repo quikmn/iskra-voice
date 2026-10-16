@@ -32,7 +32,7 @@ import { desktopLanguage, languageFromLocales, parseLanguage, setDesktopLanguage
 import { initialLaunch, readyToShow, SERVER_WAIT_MS, splashView, updatedTo, updatingView, type LaunchState } from './launch'
 import { Splash } from './splash'
 import { logUncaughtErrors, settleWithin } from './quit'
-import { captureAppPage } from './capture'
+import { captureAppPage, captureTarget } from './capture'
 import { readBuildCommit, windowTitle } from './title'
 import { pickerChoices, placeTestWindow, realScreenThumbnails, testWindowArea, thumbnailSize } from './testMode'
 import { PopoutWindows } from './popoutWindows'
@@ -192,7 +192,7 @@ function showWindow(): void {
 
 const isAppUrl = (url: string) => isAppPage(url, APP_ORIGIN, DEV_URL)
 
-// Pop-outs (the voice panel, a stream, a text channel): the app's own page in a small window of its own (popouts.ts).
+// Pop-outs (the voice panel, a stream, a text channel, the bug report): the app's own page in a small window of its own (popouts.ts).
 const popouts = new PopoutWindows(isAppUrl, {
   icon: ICON, backgroundColor: '#0b0b14', preload: path.join(__dirname, 'preload.js'), spellcheck: !spellcheckDownloadsDictionaries(process.platform),
 }, !!TEST_WINDOW_AREA)
@@ -490,8 +490,13 @@ ipcMain.handle('iskra:capture-hotkey', (event) => {
 ipcMain.handle('iskra:cancel-hotkey-capture', (event) => {
   if (fromApp(event)) ptt.cancelCapture()
 })
-// "Take a screenshot of Iskra" (bug reports): the asking page itself, never the screen or other windows.
-ipcMain.handle('iskra:capture-app', (event) => (fromApp(event) ? captureAppPage(event.sender).catch(() => null) : null))
+// Bug report screenshots: one of the app's own windows (the main one or a pop-out, never the report window), asked for
+// by the main page, which renders the report. Never the screen or other apps (capture.ts).
+ipcMain.handle('iskra:capture-window', (event, target: unknown) => {
+  if (!fromApp(event) || !window || window.isDestroyed() || event.sender !== window.webContents) return null
+  const contents = captureTarget(target, window.webContents, (name) => popouts.contents(name))
+  return contents ? captureAppPage(contents).catch(() => null) : null
+})
 ipcMain.handle('iskra:ptt-status', (event) => (fromApp(event) ? pttStatus() : 'unavailable'))
 ipcMain.handle('iskra:open-settings', (event, pane: unknown) => {
   if (!fromApp(event) || !MAC || typeof pane !== 'string' || !Object.hasOwn(MAC_SETTINGS, pane)) return

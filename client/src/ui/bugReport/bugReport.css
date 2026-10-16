@@ -1,8 +1,35 @@
 /* ── Report a bug ── */
 .bug-report-form { display: flex; flex-direction: column; gap: 12px; }
 .bug-report-form .field textarea { resize: vertical; min-height: 56px; }
-/* "Take a screenshot of Iskra": the dialog steps aside while the window is captured. */
+/* A screenshot of the main window from the dialog: the dialog steps aside while it's captured. */
 .modal-backdrop:has(.bug-report-capturing) { visibility: hidden; }
+.modal-footer .bug-report-keep { margin-right: auto; }
+
+/* Its own window (desktop pop-out, or the browser's picture-in-picture): the form scrolls, the buttons stay. */
+.bug-report-window { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.bug-report-window-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; }
+.bug-report-window-footer {
+  display: flex; justify-content: flex-end; gap: 8px; flex: none; padding: 10px 16px;
+  background: var(--sidebar); border-top: 1px solid var(--border);
+}
+
+/* Desktop: a picture of one of Iskra's windows, now or after a countdown. */
+.bug-report-window-shot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 8px; border-top: 1px solid var(--border); }
+.bug-report-target { display: flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; flex: 1 1 220px; }
+.bug-report-target select { flex: 1; min-width: 0; padding: 4px 8px; }
+.bug-report-countdown { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* "Keep using Iskra": the report waits in a chip above the app. */
+.bug-report-chip {
+  position: fixed; z-index: 900; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 2px; padding: 4px 4px 4px 0; max-width: calc(100vw - 24px);
+  background: var(--sidebar); color: var(--text); border: 1px solid var(--border); border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+.bug-report-chip-open {
+  min-height: 36px; padding: 0 6px 0 14px; border: 0; background: none; color: inherit; font: inherit; font-size: 14px;
+  font-weight: 600; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .bug-report-drop {
   border: 1px dashed var(--border);
   border-radius: 10px;
@@ -48,6 +75,8 @@
 .bug-report-sent p { margin: 0; }
 @media (max-width: 520px) {
   .bug-report-thumbs img { width: 72px; height: 54px; }
+  .modal-footer .bug-report-keep { margin-right: 0; flex-basis: 100%; }
+  .modal-footer:has(.bug-report-keep) { flex-wrap: wrap; }
   .bug-report-actions .button { flex: 1 1 auto; }
 }
 

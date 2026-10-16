@@ -75,8 +75,13 @@ Report bugs right in the app. It's quick, and it includes the details we need.
    **Ctrl+Shift+B**.)
 2. Choose **Report a bug**.
 3. Write **what happened** and what you expected. Add **steps** if you can.
-4. Add a **screenshot**: take one on your phone, then tap **Add pictures**.
+4. Add a **screenshot**: take one on your phone, then tap **Add pictures**. Need to show the bug first? Tap **Keep
+   using Iskra**: the report waits in a small chip, and tapping the chip brings it back with everything you wrote.
 5. Tap **Send**. You get a report number.
+
+On a computer the report opens in a window of its own, so you can keep using Iskra to show the bug. In the desktop
+app it takes screenshots of Iskra's own windows (the main window or a popped-out one, never anything else on your
+screen), right away or **in 5 seconds**, so you have time to open the menu that misbehaves.
 
 **What gets sent:** your words and screenshots, the app version, your system and the app's language, and technical
 logs from the last 30 minutes (settings, connection and voice status, errors). Your email only if you type it in.
