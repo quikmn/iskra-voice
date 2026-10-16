@@ -833,6 +833,23 @@ export interface WatchParty {
 
 export type WatchSourceInput = { kind: 'url'; url: string } | { kind: 'file'; fileId: string } | { kind: 'youtube'; videoId: string }
 
+// Listen together: what plays next (see "Listen together" under Watch parties in PROTOCOL.md).
+export interface WatchItem {
+  id: string
+  source: WatchSource
+  addedBy: string
+  addedAt: number
+}
+
+export interface WatchParty {
+  /** What plays next, in order (missing from older servers). */
+  queue?: WatchItem[]
+  /** A jukebox: apps hide the video for everyone and show a now-playing bar. */
+  audioOnly?: boolean
+  /** Changes whenever the party moves on to another source; `watch.next` names it so only one app skips. */
+  playId?: string
+}
+
 export interface Welcome {
   watch?: WatchParty[]
 }
@@ -845,7 +862,11 @@ export interface Events {
 export interface Requests {
   'watch.start': [{ channelId: number; source: WatchSourceInput; title?: string }, { party: WatchParty }]
   'watch.control': [{ channelId: number; partyId: string; playing?: boolean; position?: number; rate?: number }, { party: WatchParty }]
-  'watch.settings': [{ channelId: number; partyId: string; anyoneControls: boolean }, Record<string, never>]
+  'watch.settings': [{ channelId: number; partyId: string; anyoneControls?: boolean; audioOnly?: boolean }, Record<string, never>]
+  'watch.queue.add': [{ channelId: number; partyId: string; source: WatchSourceInput; title?: string }, { party: WatchParty }]
+  'watch.queue.remove': [{ channelId: number; partyId: string; itemId: string }, { party: WatchParty }]
+  'watch.queue.move': [{ channelId: number; partyId: string; itemId: string; before?: string }, { party: WatchParty }]
+  'watch.next': [{ channelId: number; partyId: string; playId?: string }, { party: WatchParty }]
   'watch.stop': [{ channelId: number; partyId: string }, Record<string, never>]
   'watch.chat': [{ channelId: number; text: string }, Record<string, never>]
   'watch.clock': [Record<string, never>, { now: number }]

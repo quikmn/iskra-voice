@@ -306,6 +306,8 @@ export const errors = {
     voice_message_5_min: 'Voice messages can be up to 5 minutes.',
     voice_message_type: 'Voice messages must be Ogg, WebM or MP4 audio.',
     watch_voice_only: 'Watch parties happen in voice channels.',
+    watch_queue_full: 'The queue holds up to {{max}} items.',
+    watch_title: 'Titles can be up to {{max}} characters, on one line.',
     webhook_text_only: 'Webhooks can only post in text channels.',
     rules_write_first: 'Write the rules before asking people to agree to them.',
     already_owner: 'You already own this server.',

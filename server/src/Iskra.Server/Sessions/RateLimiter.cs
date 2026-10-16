@@ -32,6 +32,10 @@ public sealed class RateLimiter(TimeProvider time)
         ["watch.control"] = (10, 4),
         ["watch.chat"] = (5, 1),
         ["watch.clock"] = (10, 2),
+        ["watch.queue.add"] = (10, 1),
+        ["watch.queue.remove"] = (20, 4),
+        ["watch.queue.move"] = (20, 4),
+        ["watch.next"] = (10, 2),
         ["activity.change"] = (5, 0.1), // checked by ActivityFeature, only on real changes
         ["link.create"] = (3, 0.1),
         ["event.interest"] = (5, 1),

@@ -4,6 +4,8 @@ export interface PlayerAdapter {
   time(): number
   duration(): number
   paused(): boolean
+  /** Played to the end (listen together moves on to the next queued item). */
+  ended(): boolean
   /** Rejects when the browser blocks playback until the user clicks. */
   play(): Promise<void>
   pause(): void
@@ -19,6 +21,7 @@ export function videoAdapter(video: HTMLVideoElement): PlayerAdapter {
     time: () => video.currentTime,
     duration: () => (Number.isFinite(video.duration) ? video.duration : 0),
     paused: () => video.paused,
+    ended: () => video.ended,
     play: () => video.play(),
     pause: () => video.pause(),
     seek: (s) => {
@@ -141,6 +144,7 @@ export class YouTubeBridge {
       time: () => youTubeTime(this.info, Date.now()),
       duration: () => this.info.duration,
       paused: () => this.info.state !== 1 && this.info.state !== 3,
+      ended: () => this.info.state === 0,
       play: async () => {
         this.command('playVideo')
         this.info = { ...this.info, state: 1, at: Date.now() }

@@ -304,6 +304,8 @@ export const errors: Messages['errors'] = {
     voice_message_5_min: 'Röstmeddelanden kan vara upp till 5 minuter långa.',
     voice_message_type: 'Röstmeddelanden måste vara Ogg-, WebM- eller MP4-ljud.',
     watch_voice_only: 'Titta tillsammans finns bara i röstkanaler.',
+    watch_queue_full: 'Kön rymmer upp till {{max}} spår.',
+    watch_title: 'Titlar kan vara upp till {{max}} tecken, på en rad.',
     webhook_text_only: 'Webhooks kan bara skriva i textkanaler.',
     rules_write_first: 'Skriv reglerna innan du ber folk godkänna dem.',
     already_owner: 'Du äger redan den här servern.',

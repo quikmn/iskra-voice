@@ -1256,10 +1256,14 @@ Everyone in a voice channel (or stage) watches the same video in step. The serve
 |---|---|---|---|
 | `watch.start` | `channelId, source, title?` (≤ 200 chars) | `{ party }` | someone in the room (LiveKit's webhooks) who may host: in a voice channel its writers, on a stage its speakers and moderators. Replaces a running party only for its host or a moderator (else `bad_request`) |
 | `watch.control` | `channelId, partyId, playing? (bool), position? (seconds, 0–172800), rate? (0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75 or 2)` | `{ party }` | in the room and allowed to host, and the party's host, or anyone when `anyoneControls`, or a moderator. A missing `position` carries on from the shared clock |
-| `watch.settings` | `channelId, partyId, anyoneControls` (bool) | | the host or a moderator |
+| `watch.settings` | `channelId, partyId, anyoneControls? (bool), audioOnly? (bool)` (at least one) | | the host or a moderator |
 | `watch.stop` | `channelId, partyId` | | the host or a moderator |
 | `watch.chat` | `channelId, text` (1–500 chars, one line) | | in the room, while a party is on. Not stored |
 | `watch.clock` | | `{ now }` (server time, ms) | anyone (for clock sync) |
+| `watch.queue.add` | `channelId, partyId, source, title?` (as for `watch.start`) | `{ party }` | whoever may control the party (as for `watch.control`); ≤ 100 queued (`bad_request`, key `watch_queue_full`, args `{ max }`) |
+| `watch.queue.remove` | `channelId, partyId, itemId` | `{ party }` | whoever may control; an unknown item is `not_found` |
+| `watch.queue.move` | `channelId, partyId, itemId, before?` (another item's id; left out = to the end) | `{ party }` | whoever may control |
+| `watch.next` | `channelId, partyId, playId?` | `{ party }` | whoever may control: the first queued item starts playing from 0 (the speed stays). With `playId` that isn't the party's current one, or with nothing queued, nothing changes and the party comes back as it is |
 
 `source` is one of:
 - `{ kind: "url", url }`: `https://` only, absolute, a host, no credentials, no whitespace, ≤ 2048 chars.
@@ -1274,8 +1278,20 @@ WatchParty { "id": "<b64u 12>", "channelId": 3,
                          "fileId": "…" | null, "videoId": "…" | null, "title": "Movie night" | null },
              "host": "<accountKey>", "anyoneControls": false,
              "playing": true, "position": 61.5, "rate": 1,   // at server time updatedAt playback was at position (seconds)
-             "updatedAt": 1760000000000, "startedAt": 1760000000000, "updatedBy": "<accountKey>" }
+             "updatedAt": 1760000000000, "startedAt": 1760000000000, "updatedBy": "<accountKey>",
+             "queue": [{ "id": "<b64u 12>", "source": { /* as above */ }, "addedBy": "<accountKey>", "addedAt": 0 }],   // what plays next, in order
+             "audioOnly": false,                  // a jukebox: apps hide the video for everyone and show a now-playing bar
+             "playId": "<b64u 12>" }              // changes whenever the party moves on to another source
 ```
+
+**Listen together.** The queue (≤ 100 items; titles ≤ 200 characters, key `watch_title`) is kept with the party, in
+memory. Anyone who may control the party adds to it, reorders it and removes from it; the `watch.state` event carries
+every change. When the item playing ends, apps that may control send `watch.next` with the `playId` they were playing:
+the server moves the party on once, and later requests with the old `playId` change nothing, so several apps noticing
+the end at the same moment can't skip two items. Nothing queued: the party stays at the end, as before. `audioOnly`
+is the host's (or a moderator's) setting for everyone. Uploaded files in the queue are kept by the unused-upload sweep
+like the one playing. Rate limits: `watch.queue.add` 10, then 1 a second; `watch.queue.remove` and `watch.queue.move`
+20, then 4 a second; `watch.next` 10, then 2 a second.
 
 - **Where playback is now**: `position + (serverNow − updatedAt) / 1000 × rate` while playing, else `position`. Clients estimate the server clock with `watch.clock` (several round trips; the shortest one's midpoint wins) and correct drift: under 0.15 s is left alone, up to 1 s they play 5 % faster or slower, beyond that they jump (YouTube only jumps, from 1.5 s). A late joiner gets the party in `welcome` and starts at the right spot.
 - A party starts paused at 0. When its host leaves the room (or may no longer host), it passes to whoever has been in the room longest and may host; when the room empties, or nobody there may host, it ends.

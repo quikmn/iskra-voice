@@ -13,12 +13,15 @@ namespace Iskra.Server.Features;
 /// <summary>
 /// Watch parties: everyone in a voice channel (or stage) watches the same video in step. The server keeps the shared
 /// clock and checks who may change it; the video itself never passes through the server (except files uploaded to it).
+/// Listen together: a queue of what plays next (anyone who may control adds, reorders and removes), moving on when an
+/// item ends, and an audio-only mode for using the channel as a jukebox.
 /// </summary>
 public static partial class WatchFeature
 {
     public const int MaxUrlLength = 2048;
     public const int MaxTitleLength = 200;
     public const int MaxChatLength = 500;
+    public const int MaxQueue = 100;
     /// <summary>Positions are seconds, up to two days in.</summary>
     public const double MaxPosition = 2 * 86400;
     public static readonly double[] Rates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -34,7 +37,13 @@ public static partial class WatchFeature
         router.Add("watch.stop", Stop);
         router.Add("watch.chat", Chat);
         router.Add("watch.clock", (s, _, _) => new { now = s.Now });
+        router.Add("watch.queue.add", QueueAdd);
+        router.Add("watch.queue.remove", QueueRemove);
+        router.Add("watch.queue.move", QueueMove);
+        router.Add("watch.next", Next);
     }
+
+    private static string NewId() => Ed25519.ToB64u(RandomNumberGenerator.GetBytes(12));
 
     private static Channel VoiceChannel(Session s, Member me, Body body)
     {
@@ -97,11 +106,17 @@ public static partial class WatchFeature
         }
     }
 
+    /// <summary>`title` for a source: one line, up to 200 characters; a blank or missing title is none.</summary>
+    private static string? Title(Body body) =>
+        body.OptionalString("title", MaxTitleLength * 2) is { } t && t.Trim().Length > 0
+            ? Text.Normalize(t, MaxTitleLength, allowNewlines: false) ?? throw RequestException.BadRequest($"Titles can be up to {MaxTitleLength} characters, on one line.", "watch_title", new { max = MaxTitleLength })
+            : null;
+
     private static object Start(Session s, Member me, Body body)
     {
         var channel = VoiceChannel(s, me, body);
         var raw = body.Element("source");
-        var title = body.OptionalString("title", MaxTitleLength * 2) is { } t ? Text.Normalize(t, MaxTitleLength, allowNewlines: false) : null;
+        var title = Title(body);
         var watch = s.Voice.Watch;
         RequireInRoom(s, me, channel);
         if (!watch.MayHost(me, channel))
@@ -111,10 +126,79 @@ public static partial class WatchFeature
 
         var source = Source(s, raw, title);
         var now = s.Now;
-        var party = new WatchParty(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(12)), channel.Id, source, me.AccountKey,
-            AnyoneControls: false, Playing: false, Position: 0, Rate: 1, UpdatedAt: now, StartedAt: now, UpdatedBy: me.AccountKey);
+        var party = new WatchParty(NewId(), channel.Id, source, me.AccountKey,
+            AnyoneControls: false, Playing: false, Position: 0, Rate: 1, UpdatedAt: now, StartedAt: now, UpdatedBy: me.AccountKey) { PlayId = NewId() };
         watch.Set(party);
         return new { party = WatchRegistry.Public(party) };
+    }
+
+    // ── Listen together: the queue ───────────────────────────────────────────
+
+    /// <summary>The party, after checking you're in the room and may control it (add to, reorder, skip).</summary>
+    private static (Channel Channel, WatchParty Party) Controlled(Session s, Member me, Body body)
+    {
+        var channel = VoiceChannel(s, me, body);
+        var party = Party(s, channel, body);
+        RequireInRoom(s, me, channel);
+        if (!s.Voice.Watch.CanControl(me, channel, party)) throw RequestException.Forbidden("Only the host controls this watch party.", "watch_host_only");
+        return (channel, party);
+    }
+
+    private static object Changed(Session s, long channelId, string partyId, Func<WatchParty, WatchParty> change) =>
+        new { party = WatchRegistry.Public(s.Voice.Watch.Update(channelId, partyId, change) ?? throw RequestException.NotFound("Watch party")) };
+
+    private static object QueueAdd(Session s, Member me, Body body)
+    {
+        var (channel, party) = Controlled(s, me, body);
+        var raw = body.Element("source");
+        var title = Title(body);
+        if (party.Queue.Count >= MaxQueue) throw RequestException.BadRequest($"The queue holds up to {MaxQueue} items.", "watch_queue_full", new { max = MaxQueue });
+        var item = new WatchItem(NewId(), Source(s, raw, title), me.AccountKey, s.Now);
+        return Changed(s, channel.Id, party.Id, p => p.Queue.Count >= MaxQueue ? p : p with { Queue = [.. p.Queue, item] });
+    }
+
+    private static object QueueRemove(Session s, Member me, Body body)
+    {
+        var (channel, party) = Controlled(s, me, body);
+        var id = body.String("itemId", 32);
+        if (party.Queue.All(i => i.Id != id)) throw RequestException.NotFound("Queue item");
+        return Changed(s, channel.Id, party.Id, p => p with { Queue = p.Queue.Where(i => i.Id != id).ToList() });
+    }
+
+    /// <summary>Moves an item before another one (`before`), or to the end without it.</summary>
+    private static object QueueMove(Session s, Member me, Body body)
+    {
+        var (channel, party) = Controlled(s, me, body);
+        var id = body.String("itemId", 32);
+        var before = body.OptionalString("before", 32);
+        if (party.Queue.All(i => i.Id != id) || (before is not null && party.Queue.All(i => i.Id != before))) throw RequestException.NotFound("Queue item");
+        return Changed(s, channel.Id, party.Id, p =>
+        {
+            var item = p.Queue.FirstOrDefault(i => i.Id == id);
+            if (item is null) return p;
+            var rest = p.Queue.Where(i => i.Id != id).ToList();
+            var at = before is null ? rest.Count : rest.FindIndex(i => i.Id == before);
+            if (at < 0) at = rest.Count;
+            rest.Insert(at, item);
+            return p with { Queue = rest };
+        });
+    }
+
+    /// <summary>
+    /// Plays the next queued item from the start. `playId` (what the app thinks is playing) makes it safe for several
+    /// apps to ask at once when an item ends: only the first one moves the party on. Nothing queued: nothing changes.
+    /// </summary>
+    private static object Next(Session s, Member me, Body body)
+    {
+        var (channel, party) = Controlled(s, me, body);
+        var playId = body.OptionalString("playId", 32);
+        var now = s.Now;
+        return Changed(s, channel.Id, party.Id, p =>
+        {
+            if (p.Queue.Count == 0 || (playId is not null && playId != p.PlayId)) return p;
+            var next = p.Queue[0];
+            return p with { Source = next.Source, Queue = p.Queue.Skip(1).ToList(), Playing = true, Position = 0, UpdatedAt = now, UpdatedBy = me.AccountKey, PlayId = NewId() };
+        });
     }
 
     /// <summary>Play, pause, seek and speed. Missing fields keep their value (the position carries on from the shared clock).</summary>
@@ -141,14 +225,17 @@ public static partial class WatchFeature
         return new { party = WatchRegistry.Public(updated) };
     }
 
+    /// <summary>Who may control, and audio-only (the jukebox: video hidden for everyone). Missing fields keep their value.</summary>
     private static object? Settings(Session s, Member me, Body body)
     {
         var channel = VoiceChannel(s, me, body);
         var party = Party(s, channel, body);
-        var anyone = body.OptionalBool("anyoneControls") ?? throw RequestException.BadRequest("'anyoneControls' is required.");
+        var anyone = body.OptionalBool("anyoneControls");
+        var audioOnly = body.OptionalBool("audioOnly");
+        if (anyone is null && audioOnly is null) throw RequestException.BadRequest("'anyoneControls' or 'audioOnly' is required.");
         if (party.Host != me.AccountKey && !s.Voice.Watch.IsModerator(me, channel))
             throw RequestException.Forbidden("Only the host can change who controls the watch party.", "watch_host_control");
-        s.Voice.Watch.Update(channel.Id, party.Id, p => p with { AnyoneControls = anyone });
+        s.Voice.Watch.Update(channel.Id, party.Id, p => p with { AnyoneControls = anyone ?? p.AnyoneControls, AudioOnly = audioOnly ?? p.AudioOnly });
         return null;
     }
 

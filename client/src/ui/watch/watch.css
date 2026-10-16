@@ -73,9 +73,40 @@ button.watch-overlay { cursor: pointer; }
   .watch-chat { max-height: 40vh; }
 }
 
+/* ── Listen together: audio-only mode (the player plays on out of sight) and the queue ── */
+.watch-main { position: relative; }
+.watch-main.audio-only .watch-frame { position: absolute; width: 2px; height: 2px; max-height: none; aspect-ratio: auto; overflow: hidden; opacity: 0; pointer-events: none; }
+.watch-now-playing { display: flex; align-items: center; gap: 12px; padding: 12px 12px 0; min-width: 0; }
+.watch-art { display: grid; place-items: center; width: 56px; height: 56px; flex: none; border-radius: var(--radius); background: var(--surface-2); color: var(--accent); overflow: hidden; }
+.watch-art img { width: 100%; height: 100%; object-fit: cover; }
+.watch-now-text { display: grid; min-width: 0; }
+.watch-now-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.watch-now-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-strong); }
+.watch-now-text .muted { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.watch-queue-badge { font-size: 10px; font-weight: 700; margin-left: 2px; }
+.watch-queue { display: grid; gap: 8px; padding: 0 12px 12px; }
+.watch-queue.in-sheet { padding: 0 0 4px; }
+.watch-queue-head { display: flex; align-items: center; gap: 8px; }
+.watch-queue-head .spacer { flex: 1; }
+.watch-queue-empty { margin: 0; font-size: 13px; }
+.watch-queue-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 240px; overflow-y: auto; }
+.watch-queue-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: calc(var(--radius) * 0.6); background: var(--surface-2); min-height: 44px; }
+.watch-queue-n { width: 18px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); flex: none; }
+.watch-queue-kind { color: var(--text-2); flex: none; display: inline-grid; }
+.watch-queue-text { display: grid; min-width: 0; flex: 1; }
+.watch-queue-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.watch-queue-text .muted { font-size: 12px; }
+.watch-queue-actions { display: inline-flex; gap: 2px; flex: none; }
+.watch-queue-add { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto auto; gap: 6px; align-items: center; }
+.watch-queue-add .watch-upload { margin: 0; }
+.watch-queue-add .error-text { grid-column: 1 / -1; margin: 0; font-size: 12px; }
+.watch-queue-sheet .watch-queue-list { max-height: 40vh; }
+
 @media (max-width: 760px) {
   .watch-frame { max-height: 40vh; }
   .watch-bar { padding: 8px; }
   .watch-title { flex-direction: column; gap: 0; }
   .watch-chat { max-height: 34vh; }
+  .watch-queue-add { grid-template-columns: 1fr 1fr; }
+  .watch-queue-add .button { justify-content: center; }
 }
