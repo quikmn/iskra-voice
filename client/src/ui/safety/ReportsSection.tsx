@@ -14,6 +14,7 @@ import { useServerRoles } from '../../state/roles'
 import { connectionFor, fileUrl, type ServerState } from '../../state/store'
 import { Avatar, Spinner } from '../bits'
 import { fullTime, messageTime } from '../format'
+import { BanDeleteSelect } from '../moderation/ModPack'
 import './safety.css'
 
 /** In the channel list, for moderators with open reports or people waiting to be let in. */
@@ -149,6 +150,7 @@ function ReportCard({ server, report, onResolved, onJump }: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  const [deleteWindow, setDeleteWindow] = useState(0) // ban: also delete their recent messages
   const me = server.me
   const member = server.members[report.target]
   const below = !!member && outranks(me, member, roles)
@@ -156,7 +158,8 @@ function ReportCard({ server, report, onResolved, onJump }: {
   const canDelete = !!message && !message.deleted && has(me, roles, 'manageMessages') && (!member || below)
   const canTimeout = below && has(me, roles, 'timeoutMembers')
   const canKick = below && has(me, roles, 'kickMembers')
-  const canBan = below && has(me, roles, 'banMembers')
+  // Someone who left can still be banned (the server knows them from "people who left"); webhooks can't.
+  const canBan = (below || (!member && !report.target.startsWith('webhook:'))) && has(me, roles, 'banMembers')
   const name = report.targetName || member?.name || t('safety.queue.someone')
 
   /** Does the moderation action (if any), then marks the report handled. */
@@ -171,7 +174,7 @@ function ReportCard({ server, report, onResolved, onJump }: {
       setBusy(false)
     }
   }
-  const request = (type: 'member.kick' | 'member.ban', body: { accountKey: string }) => () => connectionFor(server.key)!.request(type, body)
+  const request = (type: 'member.kick' | 'member.ban', body: { accountKey: string; deleteMessagesMs?: number }) => () => connectionFor(server.key)!.request(type, body)
 
   return (
     <li className={`report-card ${report.status}`}>
@@ -253,11 +256,12 @@ function ReportCard({ server, report, onResolved, onJump }: {
               ) : (
                 <>
                   <p>{step === 'delete' ? t('safety.queue.confirmDelete') : step === 'kick' ? t('safety.queue.confirmKick', { name }) : t('safety.queue.confirmBan', { name })}</p>
+                  {step === 'ban' && <BanDeleteSelect value={deleteWindow} onChange={setDeleteWindow} />}
                   <div className="report-buttons">
                     <button className="button small danger" disabled={busy} onClick={
                       step === 'delete' ? act('deleted', () => connectionFor(server.key)!.request('chat.delete', { id: message!.id }))
                         : step === 'kick' ? act('kick', request('member.kick', { accountKey: report.target }))
-                          : act('ban', request('member.ban', { accountKey: report.target }))
+                          : act('ban', request('member.ban', { accountKey: report.target, ...(deleteWindow ? { deleteMessagesMs: deleteWindow } : {}) }))
                     }>
                       {step === 'delete' ? t('safety.queue.deleteMessage') : step === 'kick' ? t('safety.queue.kick') : t('safety.queue.ban')}
                     </button>

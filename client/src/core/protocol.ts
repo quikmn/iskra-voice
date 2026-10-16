@@ -156,7 +156,9 @@ export interface Requests {
   'profile.pages.configure': [{ enabled: boolean }, Record<string, never>]
   'member.setRole': [{ accountKey: string; role: Role }, { member: Member }]
   'member.kick': [{ accountKey: string }, Record<string, never>]
-  'member.ban': [{ accountKey: string; reason?: string }, Record<string, never>]
+  /** `deleteMessagesMs`: also delete what they wrote in the last 24 h or 7 d (see "Mod pack"). Works on someone who left too. */
+  'member.ban': [{ accountKey: string; reason?: string; deleteMessagesMs?: number }, { deletedMessages?: number }]
+  'member.unban': [{ accountKey: string }, Record<string, never>]
   'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean; approve?: boolean }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
@@ -1380,6 +1382,45 @@ export interface JoinSettings {
   /** Members younger than this many hours get at least `newcomerSlowmode` seconds between messages (0 = off). */
   newcomerHours: number
   newcomerSlowmode: number
+}
+
+// ── mod pack ──
+// See "Mod pack" in PROTOCOL.md: bulk delete, warnings, moderator notes, a person's history, people who left.
+
+/** A moderator's private note about a person. Never shown to them. */
+export interface ModNote {
+  id: number
+  text: string
+  author: string
+  authorName: string
+  createdAt: number
+}
+
+/** Someone who isn't a member any more. `name` is "" after an account deletion. */
+export interface Departed {
+  accountKey: string
+  name: string
+  reason: 'left' | 'kicked' | 'banned' | 'deleted'
+  at: number
+  by: string | null
+  byName: string | null
+  banned: boolean
+}
+
+export const BAN_DELETE_WINDOWS = [24 * 3600_000, 7 * 24 * 3600_000] as const
+
+export interface Events {
+  'member.warned': { reason: string; by: string; byName: string; at: number }
+}
+
+export interface Requests {
+  'chat.delete.bulk': [{ channelId: number; ids: number[] }, { deleted: number }]
+  'member.warn': [{ accountKey: string; reason: string }, Record<string, never>]
+  'member.notes.list': [{ accountKey: string }, { notes: ModNote[] }]
+  'member.notes.add': [{ accountKey: string; text: string }, { note: ModNote }]
+  'member.notes.delete': [{ id: number }, Record<string, never>]
+  'member.history': [{ accountKey: string; limit?: number }, { entries: AuditEntry[] }]
+  'member.departed': [{ limit?: number }, { people: Departed[] }]
 }
 
 export interface Events {

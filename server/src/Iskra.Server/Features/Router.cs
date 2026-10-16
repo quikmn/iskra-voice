@@ -93,6 +93,7 @@ public sealed class Router
         DisappearFeature.Register(this);
         WhiteboardFeature.Register(this);
         JoinFeature.Register(this);
+        ModPackFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

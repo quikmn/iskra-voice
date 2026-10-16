@@ -21,6 +21,7 @@ import { IncomingGroupCall } from './groups/GroupCall'
 import { SoundToasts } from './expressions/Soundboard'
 import { OuthookToast } from './OuthookToast'
 import { AfkToast } from './afk/AfkToast'
+import { WarnToast } from './moderation/ModPack'
 import { LfgLayer, LfgToast } from './lfg/Lfg'
 import { TeamsBar } from './teams/TeamsBits'
 import { TeamsLayer } from './teams/TeamsDialog'
@@ -105,6 +106,7 @@ export function Shell() {
       <SoundToasts />
       <OuthookToast />
       <AfkToast />
+      <WarnToast />
       <LfgToast />
       <TeamsLayer />
       <LfgLayer />

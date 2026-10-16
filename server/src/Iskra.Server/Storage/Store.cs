@@ -354,6 +354,8 @@ public sealed partial class Store : IDisposable
         ("role-groups-1", RoleGroupsMigration),
         // Invites that need approval, the people waiting on one, paused invites and newcomer slowmode.
         ("joins-1", JoinsMigration),
+        // Moderators' private notes about people, and who left the server (and how).
+        ("modpack-1", ModPackMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -267,6 +267,7 @@ export const chat: Messages['chat'] = {
     markUnread: 'Markera som oläst',
     viewReactions: 'Visa reaktioner',
     deleteMessage: 'Radera meddelandet',
+    selectMessages: 'Markera meddelanden…',
     failed: 'Det gick inte',
     options: 'Meddelandealternativ',
     linkCopied: 'Länken kopierades',

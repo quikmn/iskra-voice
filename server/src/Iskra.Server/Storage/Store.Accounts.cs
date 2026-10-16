@@ -52,6 +52,8 @@ public sealed partial class Store
                 DELETE FROM send_nonces WHERE account_key = $k;
                 DELETE FROM envelope_send_nonces WHERE account_key = $k;
                 DELETE FROM blocks WHERE account_key = $k;
+                DELETE FROM mod_notes WHERE account_key = $k;
+                UPDATE departures SET name = '' WHERE account_key = $k;
                 DELETE FROM bot_dm_prefs WHERE account_key = $k;
                 DELETE FROM bot_dm_peers WHERE account_key = $k OR bot_key = $k;
                 DELETE FROM event_interest WHERE account_key = $k;

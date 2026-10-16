@@ -18,6 +18,7 @@ import { NicknameField } from '../organize/ServerSettings'
 import { useServerRoles } from '../../state/roles'
 import { has, outranks } from '../../state/permissions'
 import { MemberRolesEditor, RoleChips, VoiceModControls } from '../roles/RoleSettings'
+import { BanDeleteSelect, ModTools } from '../moderation/ModPack'
 
 export function MemberDialog({ server, member, onClose }: { server: ServerState; member: Member; onClose: () => void }) {
   const { t } = useTranslation()
@@ -32,6 +33,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
   const canTimeout = below && has(me, roles, 'timeoutMembers')
   const grantable = me ? ROLES.filter((r) => roleRank(r) < roleRank(me.role)) : []
   const [confirm, setConfirm] = useState<'kick' | 'ban' | null>(null)
+  const [deleteWindow, setDeleteWindow] = useState(0) // ban: also delete their recent messages (ms, 0 = keep)
   const [error, setError] = useState<string | null>(null)
   const presence = useMemberPresence(member)
 
@@ -106,18 +108,22 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
             </div>
           )}
           {confirm ? (
-            <div className="copy-row">
+            <div className="member-confirm">
               <span>{confirm === 'kick' ? t('settings.member.kickConfirm', { name: member.name }) : t('settings.member.banConfirm', { name: member.name })}</span>
-              <button
-                className="button danger"
-                onClick={() => void run(async () => {
-                  await connection.request(confirm === 'kick' ? 'member.kick' : 'member.ban', { accountKey: member.accountKey })
-                  onClose()
-                })}
-              >
-                {confirm === 'kick' ? t('settings.member.kick') : t('settings.member.ban')}
-              </button>
-              <button className="button" onClick={() => setConfirm(null)}>{t('common.cancel')}</button>
+              {confirm === 'ban' && <BanDeleteSelect value={deleteWindow} onChange={setDeleteWindow} />}
+              <div className="copy-row">
+                <button
+                  className="button danger"
+                  onClick={() => void run(async () => {
+                    if (confirm === 'kick') await connection.request('member.kick', { accountKey: member.accountKey })
+                    else await connection.request('member.ban', { accountKey: member.accountKey, ...(deleteWindow ? { deleteMessagesMs: deleteWindow } : {}) })
+                    onClose()
+                  })}
+                >
+                  {confirm === 'kick' ? t('settings.member.kick') : t('settings.member.ban')}
+                </button>
+                <button className="button" onClick={() => setConfirm(null)}>{t('common.cancel')}</button>
+              </div>
             </div>
           ) : (canKick || canBan) && (
             <div className="copy-row">
@@ -129,6 +135,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
           {canTimeout && <TimeoutControls server={server} member={member} />}
         </section>
       )}
+      <ModTools server={server} member={member} />
     </Modal>
   )
 }

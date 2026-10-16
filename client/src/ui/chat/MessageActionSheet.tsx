@@ -19,6 +19,9 @@ import { pinThreadAbilities } from './abilities'
 import { copyMessageLink, ReactionsDialog } from './MessageMore'
 import { markUnread } from '../../state/unread'
 import { canReport, openReport } from '../../state/reports'
+import { startSelecting } from '../../state/modpack'
+import { has } from '../../state/permissions'
+import { rolesFor } from '../../state/roles'
 import { ChannelSaveRemind } from '../productivity/MessageTools'
 import { TranslateMenuItem } from '../translate/Translate'
 import { channelItem } from '../translate/items'
@@ -101,6 +104,9 @@ export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit
                 <button role="menuitem" className="danger" onClick={run(() => openReport({ kind: 'message', serverKey: server.key, message }))}><FlagIcon /> {t('safety.report.menuMessage')}</button>
               )}
               {canDelete && <button role="menuitem" className="danger" onClick={() => setView('delete')}><Trash /> {t('chat.actions.deleteMessage')}</button>}
+              {has(server.me, rolesFor(server.key), 'manageMessages') && (
+                <button role="menuitem" onClick={run(() => startSelecting(server.key, message.channelId, message.id))}><Trash /> {t('chat.actions.selectMessages')}</button>
+              )}
             </div>
           </>
         )}

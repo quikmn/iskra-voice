@@ -131,6 +131,9 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("notificationSettings", $"SELECT account_key, channel_id, level, muted_until FROM notify_settings WHERE account_key {Mine};");
         Section("alertSettings", $"SELECT account_key, words, follows, quiet, updated_at FROM alert_settings WHERE account_key {Mine};");
         Section("rulesAccepted", $"SELECT account_key, version, at FROM rules_accepted WHERE account_key {Mine};");
+        // Notes you wrote as a moderator are yours; notes about you are the moderators' (like reports about you).
+        Section("moderatorNotesWritten", $"SELECT id, account_key AS about, text, created_at FROM mod_notes WHERE author_key {Mine} ORDER BY id;");
+        Section("departure", $"SELECT account_key, name, reason, at FROM departures WHERE account_key {Mine};");
         Section("devices", $"SELECT account_key, device_key, name, platform, created, last_seen FROM devices WHERE account_key {Mine};");
         Section("removedDevices", $"SELECT account_key, device_key, revoked_at FROM device_revocations WHERE account_key {Mine};");
         Section("pushSubscriptions", $"SELECT account_key, device_key, created_at, updated_at FROM push_subscriptions WHERE account_key {Mine};");

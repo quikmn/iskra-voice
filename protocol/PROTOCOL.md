@@ -1108,6 +1108,41 @@ JoinSettings { "invitesPaused": false, "pausedAt": null, "pausedBy": "<accountKe
   `join.pending`, `join.approved`, `join.declined`, `invites.paused`, `invites.resumed`. The joiner's address is never
   shown to moderators (it reaches the security log only under the owner's IP setting, like every event).
 
+### Mod pack
+
+Moderators (the [reports](#reports) power) get a few more tools. Everything about a person works on members ranked
+below the moderator, and notes, history and bans also on people who left.
+
+```jsonc
+ModNote   { "id": 3, "text": "Warned twice about spoilers", "author": "<accountKey>", "authorName": "Mira", "createdAt": 1760000000000 }
+Departed  { "accountKey": "<b64u>", "name": "Troll", "reason": "left" | "kicked" | "banned" | "deleted", "at": 1760000000000,
+            "by": "<accountKey>" | null, "byName": "Mira" | null, "banned": false }   // name is "" after an account deletion
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `chat.delete.bulk` | `channelId`, `ids` (1–100 message ids in that channel) | `{ deleted }` | `manageMessages`; every message must be yours or from someone below you (`forbidden`, key `bulk_delete_rank`); ids already gone are skipped. Rate limited (5, then 1 every 5 s) |
+| `member.ban` | gains `deleteMessagesMs?` (86 400 000 or 604 800 000: also delete what they wrote in that time, everywhere) and works on someone who left (`accountKey` of a `Departed`) | `{ deletedMessages }` | `banMembers`; a member must rank below you |
+| `member.warn` | `accountKey`, `reason` (1–200) | | moderators, target below you. Rate limited (10, then 1 every 2 s) |
+| `member.notes.list` | `accountKey` | `{ notes: [ModNote] }` (newest first) | moderators |
+| `member.notes.add` | `accountKey`, `text` (1–1000, newlines allowed) | `{ note }` | moderators (a member must rank below you); ≤ 50 notes per person. Rate limited (10, then 1 every 2 s) |
+| `member.notes.delete` | `id` | | the note's author, or an admin |
+| `member.history` | `accountKey`, `limit?` (1–100, default 50) | `{ entries: [AuditEntry] }` (newest first) | moderators |
+| `member.departed` | `limit?` (1–100, default 50) | `{ people: [Departed] }` (newest first; people who came back are left out) | moderators |
+
+- `member.history` is the audit log filtered to the person as the target, for these actions only: `member.warn`,
+  `member.timeout`, `member.timeout.remove`, `member.kick`, `member.ban`, `member.unban`, `message.delete`,
+  `automod.block`, `report.resolve`, `join.approve`. It needs no `viewAuditLog`.
+- A warning sends `member.warned { reason, by, byName, at }` to the person's sessions; apps show it. Notes are never
+  sent to the person they're about, nor in their data export (notes you wrote are in yours, under
+  `moderatorNotesWritten`); they're deleted with the person's account. Departures: `departure` in the export; the name
+  is blanked by an account deletion.
+- End-to-end encrypted channels: deleting there removes the stored envelopes only (apps say so before a bulk delete);
+  copies already on other devices stay, as with any encrypted message.
+- Audit: `message.delete.bulk` `{ channelId, channelName, count, authors }` (one entry for the lot), `member.warn`
+  (reason), `member.note.add` / `member.note.delete` `{ noteId, name }` (never the text), `member.ban` details gain
+  `{ name, deletedMessages?, deleteMessagesMs? }`.
+
 ### Audit log
 
 | type | body | result | who |

@@ -75,6 +75,8 @@ import { messageListKeys, useAnnounceNew } from './a11y'
 import { useQueuedSend } from './chat/QueuedSend'
 import { JoinFailed } from './JoinFailed'
 import { JoinPending } from './JoinPending'
+import { BulkSelectBar, SelectBox } from './moderation/ModPack'
+import { toggleSelected, useIsSelected, useSelectingIn } from '../state/modpack'
 import { useReadableColor } from '../theme/useReadable'
 import { ChannelPopoutButton } from './popout/PopoutButtons'
 import { ChannelTopic } from './chat/ChannelTopic'
@@ -143,6 +145,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           <StartOverRecordLine server={server} channelId={channel.id} />
           <MessageList key={channel.id} server={server} channelId={channel.id} />
           <TypingLine server={server} channelId={channel.id} />
+          <BulkSelectBar server={server} channel={channel} />
           {canWrite && writeBlock ? (
             <EncryptedWriteBlock server={server} channel={channel} text={writeBlock} />
           ) : canWrite ? (
@@ -343,6 +346,9 @@ function MessageRow({
   const canForward = !message.tempId && !message.poll && !message.lfg && !message.e2ee && (!!message.text || message.attachments.length > 0)
   const canEdit = mine && !!message.text && !message.poll && !message.lfg
   const longPress = useLongPress(() => setSheet(true), !message.tempId && !editing)
+  // Selecting messages to delete together (moderators): the row becomes a tick box.
+  const selecting = useSelectingIn(server.key, message.channelId)
+  const selected = useIsSelected(message.id)
   const [error, setError] = useState<string | null>(null)
   const emojiLookup = useEmojiLookup(server.key)
   const alerts = useAlertPattern(server.key)
@@ -367,14 +373,17 @@ function MessageRow({
     <>
     <div
       id={message.tempId ? undefined : `msg-${message.id}`}
-      className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''} ${sheet ? 'pressed' : ''} ${alerted ? 'alerted' : ''}`}
+      className={`message ${grouped && !message.replyTo ? 'grouped' : ''} ${message.pending ?? ''} ${sheet ? 'pressed' : ''} ${alerted ? 'alerted' : ''} ${selecting && canDelete ? 'selectable' : ''} ${selected ? 'selected' : ''}`}
       role="article"
       tabIndex={-1}
       aria-label={t('chat.a11y.message', { name, time: fullTime(message.createdAt) })}
-      {...longPress}
+      onClick={selecting && canDelete ? () => toggleSelected(message.id) : undefined}
+      {...(selecting ? {} : longPress)}
     >
       <div className="message-gutter">
-        {grouped ? (
+        {selecting ? (
+          <SelectBox serverKey={server.key} channelId={message.channelId} id={message.id} allowed={canDelete} />
+        ) : grouped ? (
           <><time className="hover-time" title={fullTime(message.createdAt)}>{clockTime(message.createdAt)}</time>{message.expiresAt && <ExpiryBadge expiresAt={message.expiresAt} />}</>
         ) : canOpenProfile ? (
           <button className="avatar-button" onClick={(e) => openProfileCard(server.key, message.author, e.currentTarget)} {...userMenuProps(message.author, server.key)} aria-label={t('chat.message.profileOf', { name })}>
@@ -455,7 +464,7 @@ function MessageRow({
         )}
         {error && <div className="message-failed">{error}</div>}
       </div>
-      {!editing && !message.tempId && (
+      {!editing && !message.tempId && !selecting && (
         <div className={`message-actions ${picking ? 'open' : ''}`} role="toolbar" aria-label={t('chat.a11y.actions')}>
           {confirmDelete ? (
             <>

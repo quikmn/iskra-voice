@@ -267,6 +267,7 @@ export const chat = {
     markUnread: 'Mark unread',
     viewReactions: 'View reactions',
     deleteMessage: 'Delete message',
+    selectMessages: 'Select messages…',
     failed: "Couldn't do that",
     options: 'Message options',
     linkCopied: 'Link copied',

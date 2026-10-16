@@ -110,6 +110,7 @@ export const AUDIT_ACTIONS = [
   'server.images', 'automod.block', 'automod.update',
   'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
   'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers',
+  'message.delete.bulk', 'member.warn', 'member.note.add', 'member.note.delete',
 ] as const
 
 export type AuditFilter = (typeof AUDIT_ACTIONS)[number]
@@ -154,6 +155,10 @@ export function auditText(e: AuditEntry): string {
     case 'role.group.create': return t('moderation.audit.roleGroupCreate', { actor, title: str(d.title) })
     case 'role.group.update': return t('moderation.audit.roleGroupUpdate', { actor, title: str(d.title) })
     case 'role.group.delete': return t('moderation.audit.roleGroupDelete', { actor, title: str(d.title) })
+    case 'message.delete.bulk': return t('moderation.audit.messageDeleteBulk', { actor, count: Number(d.count) || 0, channel: channel(d.channelName) })
+    case 'member.warn': return t('moderation.audit.warn', { actor, target })
+    case 'member.note.add': return t('moderation.audit.noteAdd', { actor, target: e.targetName || str(d.name) || t('moderation.audit.someoneLower') })
+    case 'member.note.delete': return t('moderation.audit.noteDelete', { actor, target: e.targetName || str(d.name) || t('moderation.audit.someoneLower') })
     case 'join.approve': return t('moderation.audit.joinApprove', { actor, target })
     case 'join.decline': return t('moderation.audit.joinDecline', { actor, name: str(d.name) || t('moderation.audit.someoneLower') })
     case 'invites.pause': return t('moderation.audit.invitesPause', { actor })
