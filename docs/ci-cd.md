@@ -542,7 +542,9 @@ Layout: binaries in `/opt/iskra/app`, the world (database, keys, uploads, backup
 unit `iskra` (+ drop-in `quiet.conf`), HTTPS by the server's built-in Let's Encrypt, ufw allows 22, 80, 443,
 7881/tcp and 7882/udp (voice), 1 GB swap, unattended-upgrades for the OS, raised UDP buffer sysctls for LiveKit.
 `iskra-update X` downloads the X server bundle, verifies it against SHA256SUMS.txt, swaps it in, restarts, and
-rolls back to the previous bundle if the server doesn't come up.
+rolls back to the previous bundle if the server doesn't come up. Then it restarts the community server
+(community.iskra.foo, unit `iskra-review`, same `/opt/iskra/app`) onto the new version too (since 2026-10-16); if that
+one doesn't come back, it prints a warning and chat.iskra.foo stays as it is.
 
 **So friends see "restarting", not "went offline", during a deploy** (on the droplet since 2026-10-13):
 `/usr/local/bin/iskra-update` runs this line right before its first `systemctl stop iskra` (while the old bundle is
