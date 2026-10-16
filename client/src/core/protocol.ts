@@ -143,8 +143,8 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string }, { channel: Channel }]
-  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean; topic?: string }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
+  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate & ProfileStamp, { member: Member; stale?: boolean }]
   'profile.page.set': [{ file: string } & ProfileStamp, { member: Member; stale?: boolean }]
@@ -156,7 +156,7 @@ export interface Requests {
   'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
-  'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean; canHear?: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }]
+  'voice.join': [{ channelId: number }, { url: string; token: string; room: string; channelId?: number; canSpeak: boolean; canHear?: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }]
   'voice.state': [{ muted: boolean; deafened: boolean; clips?: boolean }, Record<string, never>]
   'dm.devices': [{ accountKey: string }, DeviceBundle]
   // ── signing out ──
@@ -2401,4 +2401,32 @@ export interface Events {
 export interface Requests {
   /** Your own upload's file id sets it, "" removes it; a field left out stays as it is. `serverImages` (admins by default). */
   'server.images.set': [{ icon?: string; banner?: string }, ServerImages]
+}
+
+// ── join-to-create voice rooms ──
+// See "Join-to-create voice rooms" in PROTOCOL.md.
+
+/** A temporary voice channel made by joining a lobby. */
+export interface VoiceRoomInfo {
+  /** The lobby it was made from (which may be gone by now). */
+  lobbyId: number
+  /** Whoever has been there longest once the maker leaves. */
+  host: string
+  /** Only the host, invited people, someone a moderator moved in and people who can move members may join. */
+  locked: boolean
+  invited: string[]
+}
+
+export interface Channel {
+  /** Voice channels: joining this one makes you a room of your own under it instead. */
+  lobby?: boolean
+  /** Set when this voice channel is a room made from a lobby. */
+  room?: VoiceRoomInfo | null
+}
+
+export interface Requests {
+  /** The room's host (or someone who manages channels): rename (1–60 characters, channel name rules), user limit, lock. */
+  'room.update': [{ channelId: number; name?: string; userLimit?: number; locked?: boolean }, { channel: Channel }]
+  'room.invite': [{ channelId: number; accountKey: string }, { channel: Channel }]
+  'room.uninvite': [{ channelId: number; accountKey: string }, { channel: Channel }]
 }

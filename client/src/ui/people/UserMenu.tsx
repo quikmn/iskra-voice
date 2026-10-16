@@ -24,6 +24,8 @@ import { MenuItem, MenuTitle, OrgMenu } from '../organize/OrgMenu'
 import { VolumeControls } from '../VolumeMenu'
 import { openServerSettings } from '../settings/open'
 import { canEditNickname, NicknameField } from '../organize/ServerSettings'
+import { setRoomInvite } from '../../state/rooms'
+import { hostedRoom } from '../../state/roomsLogic'
 import '../organize/organize.css'
 import './people.css'
 
@@ -84,6 +86,11 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   const canCall = !self && !blocked && !bot && callServers(accountKey).length > 0
   const canTransfer = !!member && !self && !member.bot && me?.role === 'owner'
   const canMessage = !self && !bot?.builtin && (sharedServers(accountKey).length > 0 || !!useDms.getState().conversations[accountKey])
+  // The room you host (join-to-create): invite them in, so they can join while it's locked.
+  const voiceSession = useVoice((s) => s.session)
+  const myRoom = server && voiceSession?.serverKey === server.key && !voiceSession.call && !voiceSession.group && member && !self && !member.bot
+    ? hostedRoom(server.channels, voiceSession.channelId, me, has(me, roles, 'manageChannels')) : null
+  const roomInvited = !!myRoom?.room?.invited.includes(accountKey)
 
   const run = (action: () => unknown) => async () => {
     try {
@@ -185,6 +192,14 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
               </>
             )}
             {relation === 'friends' && <MenuItem danger onClick={() => setView('remove')}>{t('friends.remove')}</MenuItem>}
+          </>
+        )}
+        {myRoom && (
+          <>
+            <div className="org-sep" />
+            <MenuItem onClick={run(() => setRoomInvite(server!.key, myRoom.id, accountKey, !roomInvited))}>
+              {roomInvited ? t('rooms.userMenu.uninvite', { room: myRoom.name }) : t('rooms.userMenu.invite', { room: myRoom.name })}
+            </MenuItem>
           </>
         )}
         {hears && !self && (

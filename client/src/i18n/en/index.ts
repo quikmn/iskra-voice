@@ -46,6 +46,7 @@ import { alerts } from './alerts'
 import { whisper } from './whisper'
 import { teams } from './teams'
 import { lfg } from './lfg'
+import { rooms } from './rooms'
 import { disappear } from './disappear'
 import { translate } from './translate'
 import { whiteboard } from './whiteboard'
@@ -98,6 +99,7 @@ export const en = {
   whisper,
   teams,
   lfg,
+  rooms,
   disappear,
   translate,
   whiteboard,

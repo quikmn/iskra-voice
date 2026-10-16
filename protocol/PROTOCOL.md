@@ -368,7 +368,7 @@ Voice runs on a LiveKit server that `iskra-server` starts next to itself (config
 
 | type | body | result | who |
 |---|---|---|---|
-| `voice.join` | `channelId` (a `voice` or `stage` channel) | `{ url, token, room, canSpeak }` | channel readers ([bots](#voice-bots) only when allowed); `canSpeak` = channel writers |
+| `voice.join` | `channelId` (a `voice` or `stage` channel) | `{ url, token, room, channelId, canSpeak }` (`channelId`: the channel the token is for, which differs from the one asked for only for a [lobby](#join-to-create-voice-rooms)) | channel readers ([bots](#voice-bots) only when allowed); `canSpeak` = channel writers |
 | `voice.state` | `muted, deafened` (booleans) | | anyone in voice (cosmetic flags shown to others) |
 
 - `token` is a LiveKit JWT for exactly one room (`voice-<channelId>`) with `canPublish = canSpeak`. The client connects to `url` with it.
@@ -3203,6 +3203,48 @@ Lfg { "game": "Valheim", "slots": 3,              // how many more people the po
 - Rate limits: posts that go ahead, 3, then 1 every 30 s; `lfg.join` and `lfg.leave` 10, then 1 a second.
 - Storage: `lfg_posts`, `lfg_members` and `lfg_notify` (migration `lfg-1`). Who joined which post and the notify
   setting are in "Download my data" and deleted with the account.
+
+## Join-to-create voice rooms
+
+An admin flags a voice channel as a **lobby**. Nobody stays in a lobby: joining it makes a temporary voice channel of
+your own ("alice's-room") right under it, puts you there, and makes you its **host**. The host renames it, sets a user
+limit and locks it; rooms are deleted once empty, like [team channels](#team-splits).
+
+```jsonc
+// Channel gains:
+"lobby": false,                                   // voice channels: joining makes a room instead (always false elsewhere)
+"room": null | { "lobbyId": 7,                    // the lobby it was made from (which may be gone by now)
+                 "host": "<accountKey>", "locked": false,
+                 "invited": ["<accountKey>"] }    // who may join while it's locked, in invite order (≤ 50)
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `channel.create`, `channel.update` | gain `lobby?` (bool) | | admins (`manageChannels`), voice channels only (`bad_request`, key `lobby_voice_only`); never a room (`lobby_room`) or an [encrypted](#end-to-end-encrypted-channels) channel (`lobby_encrypted`) |
+| `voice.join` | `channelId` of a lobby | as usual, for the new room; the result gains `channelId` (the channel the token is for: the room here, the channel asked for everywhere else) | anyone who may connect to the lobby; not bots (`lobby_bot`) |
+| `room.update` | `channelId` (a room you can see), `name?` (1–60 characters, channel name rules; key `room_name`, args `{ max }`), `userLimit?` (0–99), `locked?` (bool) | `{ channel }` | the host, or `manageChannels` (`forbidden`, key `room_host_only`); not a room: `bad_request`, key `room_only` |
+| `room.invite`, `room.uninvite` | `channelId`, `accountKey` (a member; for `room.invite` one who may connect, else `forbidden`, key `they_cant_join`) | `{ channel }` | the host or `manageChannels`; ≤ 50 invites (`room_invites_max`, args `{ max }`) |
+
+- **The room** is an ordinary voice channel the server creates when `voice.join` names a lobby: named `<display
+  name>'s room` under channel name rules (`alice's-room`, up to 60 characters), with the lobby's category, read and
+  write roles, role overrides, hi-fi setting and user limit, placed right after the lobby and the rooms it already has.
+  `voice.join` then hands out the token for the room, and the usual `channels` event (sent to everyone before the
+  answer) announces it. A LiveKit join to the lobby itself (an old token) is removed. Up to 100 rooms per server
+  (`rooms_max`, args `{ max }`).
+- **Locked:** `voice.join` answers `room_locked` (key `room_locked`, args `{ name, host }`) unless you are the host,
+  invited, someone a moderator moved there in the last minute (`voice.move` works as for a full channel) or someone who
+  can move members (`moveMembers`, as for [user limits](#voice-user-limits)); LiveKit joins are checked again. Locking
+  removes nobody already inside. Invites die with the room.
+- **Host:** whenever the room's voice state changes, if the host isn't in it the room passes to whoever has been there
+  longest (never a bot); an empty room keeps its last host until someone comes in. The `channels` event carries the change.
+- **Cleanup:** about every 10 seconds the server deletes rooms that have been empty for 30 seconds (counted from their
+  creation, from the server's start for older ones, and not while someone moved there is still on their way in).
+  Deleting the lobby, or turning its flag off, leaves its rooms alone until they empty.
+- Audit: `channel.create` details gain `lobby`; `channel.update` changes gain `lobby: { from, to }`. Rooms themselves
+  (their creation, renames, locks, invites) never reach the audit log.
+- Rate limits: rooms that get made, 5, then 1 every 10 s per session (refused joins only count towards the general
+  bucket); `room.update` 10, then 1 a second; `room.invite` and `room.uninvite` 20, then 2 a second.
+- Storage: `voice_lobbies`, `voice_rooms` and `voice_room_invites` (migration `rooms-1`), dropped with the channel.
 
 ## Disappearing messages
 

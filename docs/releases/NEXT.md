@@ -2,6 +2,8 @@
 
 ### What's new
 
+- Join-to-create voice rooms: admins can make a voice channel a lobby, and whoever joins it gets a room of their own under it, which they can rename, limit and lock; empty rooms clean themselves up.
+
 ### Fixes
 - Self-hosting: a server bound to `127.0.0.1` (`Https.BindAddress`) without `Https.ProxyProtocol` now warns at start that every client looks like the machine itself (one shared rate limit, no addresses in the security log).
 - Event reminders no longer cover the message box on phones.

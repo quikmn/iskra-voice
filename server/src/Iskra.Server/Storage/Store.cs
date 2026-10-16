@@ -339,6 +339,7 @@ public sealed partial class Store : IDisposable
         ("id-floors-1", IdFloorsMigration),
         ("id-floors-2", IdFloors2Migration),
         ("server-images-1", ServerImagesMigration),
+        ("rooms-1", RoomsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -15,7 +15,8 @@ public static class VoiceFeature
 
     /// <summary>
     /// Hands out a LiveKit token for one voice channel. Speaking needs the channel's write role;
-    /// readers can listen. The actual join is confirmed later by LiveKit's webhook.
+    /// readers can listen. The actual join is confirmed later by LiveKit's webhook. Joining a lobby makes a room of
+    /// your own (RoomFeature) and hands out the token for that instead: the answer's <c>channelId</c> says where you went.
     /// </summary>
     private static object Join(Session s, Member me, Body body)
     {
@@ -24,9 +25,15 @@ public static class VoiceFeature
         var bot = s.World.Store.IsBot(me.AccountKey);
         if (bot) VoiceBotFeature.CheckJoin(s.World.Store, me, channel);
         if (!Permissions.CanConnect(me, channel)) throw RequestException.Forbidden("You can't join this voice channel.", "voice_cant_join");
-        VoiceLimitFeature.CheckJoin(s, me, channel);
+        var lobby = channel.Kind == "voice" && RoomFeature.IsLobby(s.World.Store, channel.Id);
+        if (!lobby)
+        {
+            VoiceLimitFeature.CheckJoin(s, me, channel);
+            RoomFeature.CheckJoin(s, me, channel);
+        }
         var backend = s.Voice.Backend;
         if (!backend.Available) throw new RequestException("voice_unavailable", "Voice isn't available on this server right now.");
+        if (lobby) channel = RoomFeature.Create(s, me, channel);
 
         var room = VoiceRegistry.RoomName(channel.Id);
         // Everyone joins a stage listening; speaking is granted later through LiveKit's API (StageRegistry).
@@ -41,7 +48,7 @@ public static class VoiceFeature
         // Whisper and priority (WhisperFeature): what the app may offer here; the server checks each use again.
         var whisper = !bot && channel.Kind == "voice" && BaseRoles.Allows(me, BaseAbility.Whisper) && !E2eeChannelFeature.IsEncrypted(s.World.Store, channel);
         var priority = !bot && Permissions.Has(me, Perm.PrioritySpeaker);
-        return new { url, token, room, canSpeak, canHear = !afk && !bot, afk, whisper, priority };
+        return new { url, token, room, channelId = channel.Id, canSpeak, canHear = !afk && !bot, afk, whisper, priority };
     }
 
     private static object? State(Session s, Member me, Body body)

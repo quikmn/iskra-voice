@@ -37,6 +37,8 @@ export const organize = {
     slowmodeHint: "Members can send one message per interval here. Admins aren't limited.",
     hifi: 'Allow hi-fi audio',
     hifiHint: 'People who turn on hi-fi send stereo at 128 kbps with no processing here: for music, instruments and listening parties.',
+    lobby: 'Join to create a room',
+    lobbyHint: "Nobody stays here: joining makes a voice room of your own right under it (\"alice's-room\"), with this channel's permissions and user limit. The host can rename, limit and lock it; empty rooms are removed after 30 seconds.",
     category: 'Category',
     noCategory: 'No category',
     deleteTitle: 'Delete channel',

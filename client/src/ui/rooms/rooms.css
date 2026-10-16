@@ -1,0 +1,15 @@
+/* ── Join-to-create voice rooms: lobby and lock marks in the channel list, the room settings dialog ── */
+.channel .lobby-badge {
+  margin-left: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent);
+  padding: 0 5px; border-radius: 6px; background: var(--accent-subtle); flex: none;
+}
+.channel .room-lock { display: inline-grid; color: var(--muted); flex: none; }
+.channel.locked-out { opacity: 0.6; }
+.voice-participants li .host-badge { font-size: 10px; color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 0 4px; flex: none; }
+
+.room-dialog .modal-body { display: flex; flex-direction: column; gap: 12px; }
+.room-invites { display: flex; flex-direction: column; gap: 8px; }
+.room-invites ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; }
+.room-invites li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: calc(var(--radius) * 0.6); min-height: 40px; }
+.room-invites li .member-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-invites .room-invited-mark { font-size: 12px; color: var(--accent); }
