@@ -192,6 +192,24 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .server-icon.active::before {
   content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 4px; border-radius: 0 4px 4px 0; background: var(--text);
 }
+/* The active server sits on a tab of the channel panel's colour that reaches out of the panel, with curved inner
+   corners where it meets it. Layers: rounded left corners, the tab itself, then the two curves at the rail's edge. */
+.server-rail { isolation: isolate; }
+.server-icon.active::after {
+  --pad: 4px; --r: 8px; --c: calc(var(--radius) * 1.6 + var(--pad)); --s: var(--sidebar);
+  content: ''; position: absolute; z-index: -1; pointer-events: none;
+  left: calc(-1 * var(--pad)); right: -12px; top: calc(-1 * (var(--pad) + var(--r))); bottom: calc(-1 * (var(--pad) + var(--r)));
+  background:
+    radial-gradient(circle at 100% 100%, var(--s) calc(var(--c) - 0.5px), #0000 var(--c)) 0 var(--r) / var(--c) var(--c) no-repeat,
+    radial-gradient(circle at 100% 0, var(--s) calc(var(--c) - 0.5px), #0000 var(--c)) left 0 bottom var(--r) / var(--c) var(--c) no-repeat,
+    linear-gradient(var(--s), var(--s)) 0 calc(var(--r) + var(--c)) / var(--c) calc(100% - 2 * (var(--r) + var(--c))) no-repeat,
+    linear-gradient(var(--s), var(--s)) var(--c) var(--r) / calc(100% - var(--c)) calc(100% - 2 * var(--r)) no-repeat,
+    radial-gradient(circle at 0 0, #0000 calc(var(--r) - 0.5px), var(--s) var(--r)) right top / var(--r) var(--r) no-repeat,
+    radial-gradient(circle at 0 100%, #0000 calc(var(--r) - 0.5px), var(--s) var(--r)) right bottom / var(--r) var(--r) no-repeat;
+  animation: rail-tab-in 0.18s ease-out;
+}
+@keyframes rail-tab-in { from { opacity: 0; transform: translateX(-8px); } }
+@media (prefers-reduced-motion: reduce) { .server-icon.active::after { animation: none; } }
 .server-icon.offline { opacity: 0.55; }
 .server-icon.add { color: var(--green); display: grid; place-items: center; }
 .server-icon.add:hover { background: var(--green); color: var(--bg); }
