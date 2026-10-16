@@ -43,6 +43,9 @@ public static class AfkFeature
     {
         if (channelId is { } id && store.GetChannel(id) is not { Kind: "voice" })
             throw RequestException.BadRequest("The AFK channel must be a voice channel.", "afk_voice_only");
+        // Nobody stays in a lobby (joining one makes a room), so idle people couldn't be parked there.
+        if (channelId is { } lobbyId && store.IsLobby(lobbyId))
+            throw RequestException.BadRequest("A lobby can't be the AFK channel.", "afk_lobby");
         if (!Minutes.Contains(minutes))
             throw RequestException.BadRequest("Move idle people after 5, 15, 30 or 60 minutes, or never (0).", "afk_minutes");
         if (levels.Any(l => !Roles.IsValid(l)))

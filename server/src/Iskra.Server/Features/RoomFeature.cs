@@ -25,13 +25,15 @@ public static class RoomFeature
         router.Add("room.uninvite", (s, me, body) => Invite(s, me, body, on: false));
     }
 
-    /// <summary>`lobby` on channel.create / channel.update: voice channels only, never a room or an encrypted channel.</summary>
+    /// <summary>`lobby` on channel.create / channel.update: voice channels only, never a room, the AFK channel or an encrypted channel.</summary>
     internal static bool? Field(Session s, Body body, string kind, long? channelId)
     {
         if (body.OptionalBool("lobby") is not { } value) return null;
         if (kind != "voice") throw RequestException.BadRequest("Only voice channels can be lobbies.", "lobby_voice_only");
         if (value && channelId is { } id && s.World.Store.GetRoom(id) is not null)
             throw RequestException.BadRequest("A room can't be a lobby itself.", "lobby_room");
+        if (value && channelId is { } afkId && s.World.Store.Afk().ChannelId == afkId)
+            throw RequestException.BadRequest("The AFK channel can't be a lobby.", "lobby_afk");
         return value;
     }
 

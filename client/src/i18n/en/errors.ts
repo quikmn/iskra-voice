@@ -455,6 +455,8 @@ export const errors = {
     teams_max: 'A server can have up to {{max}} team splits at once.',
     lobby_voice_only: 'Only voice channels can be lobbies.',
     lobby_room: "A room can't be a lobby itself.",
+    lobby_afk: "The AFK channel can't be a lobby.",
+    afk_lobby: "A lobby can't be the AFK channel.",
     lobby_encrypted: "An encrypted voice channel can't be a lobby: its rooms couldn't be encrypted.",
     lobby_bot: "Bots can't make rooms. Join a room someone made.",
     rooms_max: 'A server can have up to {{max}} rooms at once.',

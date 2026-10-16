@@ -155,6 +155,27 @@ public class RoomTests
     }
 
     [Fact]
+    public async Task The_afk_channel_and_lobbies_stay_apart()
+    {
+        using var server = new IskraServer();
+        var store = server.World.Store;
+        var lounge = store.CreateChannel("lounge", "voice", "member", "member", 0).Id;
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var lobby = await Lobby(admin);
+
+        // The AFK channel can't become a lobby (idle people couldn't be parked in one)...
+        Assert.Equal("result", (await admin.RequestAsync("afk.update", new { channelId = lounge })).Type());
+        Assert.Equal("lobby_afk", Key(await admin.RequestAsync("channel.update", new { id = lounge, lobby = true })));
+        Assert.False(store.IsLobby(lounge));
+        // ...and a lobby can't be made the AFK channel.
+        Assert.Equal("afk_lobby", Key(await admin.RequestAsync("afk.update", new { channelId = lobby })));
+        Assert.Equal(lounge, store.Afk().ChannelId);
+        // Off again as a lobby, it can.
+        Assert.Equal("result", (await admin.RequestAsync("channel.update", new { id = lobby, lobby = false })).Type());
+        Assert.Equal("result", (await admin.RequestAsync("afk.update", new { channelId = lobby })).Type());
+    }
+
+    [Fact]
     public async Task Bots_cant_make_rooms_and_rooms_cant_be_lobbies()
     {
         using var server = new IskraServer();

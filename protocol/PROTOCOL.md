@@ -2906,7 +2906,7 @@ Afk { "channelId": 7 | null,               // a voice channel (never a stage); n
 | `voice.idle` | `idle` (bool), `idleMs?` (0–3 600 000: how long this device has already been idle) | | anyone |
 
 - Without a stored setting, `afk.get` answers `{ channelId: null, idleMinutes: 30, talkLevels: ["owner", "admin"], talkRoles: [] }`.
-- `afk.update`: `channelId` must be a `voice` channel (`bad_request`, key `afk_voice_only`); `idleMinutes` one of the
+- `afk.update`: `channelId` must be a `voice` channel (`bad_request`, key `afk_voice_only`) and not a [lobby](#join-to-create-voice-rooms) (`afk_lobby`); `idleMinutes` one of the
   values above (key `afk_minutes`); `talkLevels` built-in roles (key `afk_levels`); `talkRoles` existing roles (key
   `afk_roles`). Event `afk { afk }` to everyone. Deleting the channel turns it off; deleting a role takes it out of
   `talkRoles`. Audit `afk.update` (`{ channelId, idleMinutes }`).
@@ -3220,7 +3220,7 @@ limit and locks it; rooms are deleted once empty, like [team channels](#team-spl
 
 | type | body | result | who |
 |---|---|---|---|
-| `channel.create`, `channel.update` | gain `lobby?` (bool) | | admins (`manageChannels`), voice channels only (`bad_request`, key `lobby_voice_only`); never a room (`lobby_room`) or an [encrypted](#end-to-end-encrypted-channels) channel (`lobby_encrypted`) |
+| `channel.create`, `channel.update` | gain `lobby?` (bool) | | admins (`manageChannels`), voice channels only (`bad_request`, key `lobby_voice_only`); never a room (`lobby_room`), the [AFK channel](#afk-channel) (`lobby_afk`; and `afk.update` refuses a lobby, key `afk_lobby`) or an [encrypted](#end-to-end-encrypted-channels) channel (`lobby_encrypted`) |
 | `voice.join` | `channelId` of a lobby | as usual, for the new room; the result gains `channelId` (the channel the token is for: the room here, the channel asked for everywhere else) | anyone who may connect to the lobby; not bots (`lobby_bot`) |
 | `room.update` | `channelId` (a room you can see), `name?` (1–60 characters, channel name rules; key `room_name`, args `{ max }`), `userLimit?` (0–99), `locked?` (bool) | `{ channel }` | the host, or `manageChannels` (`forbidden`, key `room_host_only`); not a room: `bad_request`, key `room_only` |
 | `room.invite`, `room.uninvite` | `channelId`, `accountKey` (a member; for `room.invite` one who may connect, else `forbidden`, key `they_cant_join`) | `{ channel }` | the host or `manageChannels`; ≤ 50 invites (`room_invites_max`, args `{ max }`) |

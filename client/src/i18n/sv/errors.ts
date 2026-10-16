@@ -453,6 +453,8 @@ export const errors: Messages['errors'] = {
     teams_max: 'En server kan ha upp till {{max}} laguppdelningar samtidigt.',
     lobby_voice_only: 'Bara röstkanaler kan vara lobbyer.',
     lobby_room: 'Ett rum kan inte själv vara en lobby.',
+    lobby_afk: 'AFK-kanalen kan inte vara en lobby.',
+    afk_lobby: 'En lobby kan inte vara AFK-kanal.',
     lobby_encrypted: 'En krypterad röstkanal kan inte vara en lobby: dess rum skulle inte kunna krypteras.',
     lobby_bot: 'Bottar kan inte skapa rum. Gå med i ett rum som någon annan skapat.',
     rooms_max: 'En server kan ha upp till {{max}} rum samtidigt.',
