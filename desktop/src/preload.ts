@@ -41,8 +41,8 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     ipcRenderer.on('iskra:hold', listener)
     return () => ipcRenderer.off('iskra:hold', listener)
   },
-  // Bug reports: a picture of this app window only (PNG data URL), never the screen.
-  captureApp: (): Promise<string | null> => ipcRenderer.invoke('iskra:capture-app'),
+  // Bug reports: a picture of one of the app's own windows ('main' or a pop-out's name; PNG data URL), never the screen.
+  captureWindow: (target: string): Promise<string | null> => ipcRenderer.invoke('iskra:capture-window', target),
   openSystemSettings: (pane: string): Promise<void> => ipcRenderer.invoke('iskra:open-settings', pane),
   setLanguage: (language: string): Promise<void> => ipcRenderer.invoke('iskra:set-language', language),
 
@@ -69,9 +69,9 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   },
   pickScreen: (id: string | null): void => ipcRenderer.send('iskra:screen-picked', typeof id === 'string' ? id : null),
   callAlert: (on: boolean): Promise<void> => ipcRenderer.invoke('iskra:call-alert', on === true),
-  // Pop-out windows (opened with window.open by name): always on top, click-through, and its handle.
+  // Pop-out windows (opened with window.open by name): always on top, click-through, its handle, and focus.
   popout: {
-    set: (name: string, patch: { alwaysOnTop?: boolean; clickThrough?: boolean; handle?: boolean }): Promise<unknown> =>
+    set: (name: string, patch: { alwaysOnTop?: boolean; clickThrough?: boolean; handle?: boolean; focus?: boolean }): Promise<unknown> =>
       ipcRenderer.invoke('iskra:popout-set', name, patch),
   },
 

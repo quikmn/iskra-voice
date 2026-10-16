@@ -1,10 +1,10 @@
-// Pop-out windows (the voice panel, a stream, a text channel): which window.open requests become one, where they
+// Pop-out windows (the voice panel, a stream, a text channel, the bug report): which window.open requests become one, where they
 // open, what they remember, and snapping to the screen's edges. No Electron here, so it's unit-tested.
 // Each pop-out is the app's own page (popout.html, no scripts) that the main page renders into: one app, one
 // connection, one media pipeline.
 
-export type PopoutKind = 'voice' | 'stream' | 'chat'
-export const POPOUT_KINDS: readonly PopoutKind[] = ['voice', 'stream', 'chat']
+export type PopoutKind = 'voice' | 'stream' | 'chat' | 'report'
+export const POPOUT_KINDS: readonly PopoutKind[] = ['voice', 'stream', 'chat', 'report']
 
 export interface Rect {
   x: number
@@ -24,10 +24,16 @@ export const DEFAULT_SIZE: Record<PopoutKind, { width: number; height: number }>
   voice: { width: 280, height: 340 },
   stream: { width: 480, height: 300 },
   chat: { width: 380, height: 560 },
+  report: { width: 440, height: 680 },
 }
-/** Voice and streams float over games by default; a text channel is an ordinary window. */
-const DEFAULT_ON_TOP: Record<PopoutKind, boolean> = { voice: true, stream: true, chat: false }
+/**
+ * Voice and streams float over games by default; a text channel is an ordinary window. The bug report stays on top
+ * while you use the app to show the bug.
+ */
+const DEFAULT_ON_TOP: Record<PopoutKind, boolean> = { voice: true, stream: true, chat: false, report: true }
 export const MIN_SIZE = { width: 200, height: 120 }
+/** The bug report's form needs room; the others can be small. */
+export const minSizeFor = (kind: PopoutKind): { width: number; height: number } => (kind === 'report' ? { width: 420, height: 560 } : MIN_SIZE)
 const MAX_SIZE = 8192
 /** At most this many pop-outs at once. */
 export const MAX_POPOUTS = 6
@@ -43,7 +49,7 @@ export const POPOUT_PATH = '/popout.html'
 /** window.open's frame name: iskra-popout-<kind>-<id>. Anything else is not a pop-out. */
 export function parsePopoutName(name: unknown): { kind: PopoutKind; name: string } | null {
   if (typeof name !== 'string') return null
-  const m = /^iskra-popout-(voice|stream|chat)-([a-z0-9]{1,24})$/.exec(name)
+  const m = /^iskra-popout-(voice|stream|chat|report)-([a-z0-9]{1,24})$/.exec(name)
   return m ? { kind: m[1] as PopoutKind, name } : null
 }
 
@@ -72,8 +78,9 @@ export function parsePopoutState(raw: unknown): PopoutState {
   const state = {} as PopoutState
   for (const kind of POPOUT_KINDS) {
     const p = (o[kind] && typeof o[kind] === 'object' ? o[kind] : {}) as Record<string, unknown>
+    const min = minSizeFor(kind)
     const bounds = isRect(p.bounds)
-      ? { x: Math.round(p.bounds.x), y: Math.round(p.bounds.y), width: clampSize(p.bounds.width, MIN_SIZE.width), height: clampSize(p.bounds.height, MIN_SIZE.height) }
+      ? { x: Math.round(p.bounds.x), y: Math.round(p.bounds.y), width: clampSize(p.bounds.width, min.width), height: clampSize(p.bounds.height, min.height) }
       : null
     state[kind] = { bounds, alwaysOnTop: typeof p.alwaysOnTop === 'boolean' ? p.alwaysOnTop : DEFAULT_ON_TOP[kind] }
   }
@@ -133,18 +140,20 @@ export function snapBounds(bounds: Rect, area: Rect, distance = SNAP_DISTANCE): 
   return { ...bounds, x, y }
 }
 
-/** A change the page asks for: always on top, click-through, or the pointer over the click-through handle. */
+/** A change the page asks for: always on top, click-through, the pointer over the click-through handle, or focus. */
 export interface PopoutPatch {
   alwaysOnTop?: boolean
   clickThrough?: boolean
   /** While click-through is on: the pointer is over the handle, so the window takes clicks for a moment. */
   handle?: boolean
+  /** Bring it to the front ("Report a bug" again while the report is open). */
+  focus?: boolean
 }
 export function parsePopoutPatch(raw: unknown): PopoutPatch | null {
   if (!raw || typeof raw !== 'object') return null
   const o = raw as Record<string, unknown>
   const patch: PopoutPatch = {}
-  for (const key of ['alwaysOnTop', 'clickThrough', 'handle'] as const) {
+  for (const key of ['alwaysOnTop', 'clickThrough', 'handle', 'focus'] as const) {
     if (o[key] === undefined) continue
     if (typeof o[key] !== 'boolean') return null
     patch[key] = o[key] as boolean
@@ -159,12 +168,12 @@ export function parsePopoutPatch(raw: unknown): PopoutPatch | null {
 export function popoutWindowOptions(kind: PopoutKind, prefs: PopoutPrefs, bounds: Rect, base: { icon: string; backgroundColor: string; preload: string; spellcheck: boolean }) {
   return {
     ...bounds,
-    minWidth: MIN_SIZE.width,
-    minHeight: MIN_SIZE.height,
+    minWidth: minSizeFor(kind).width,
+    minHeight: minSizeFor(kind).height,
     frame: false,
     show: false,
     alwaysOnTop: prefs.alwaysOnTop,
-    minimizable: kind === 'chat',
+    minimizable: kind === 'chat' || kind === 'report',
     maximizable: false,
     fullscreenable: kind === 'stream',
     autoHideMenuBar: true,

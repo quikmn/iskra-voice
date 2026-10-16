@@ -26,8 +26,15 @@ describe('how a pop-out opens', () => {
     for (const kind of ['voice', 'stream', 'chat'] as const) expect(popoutMode(kind, env())).toBeNull()
   })
 
+  it('the bug report: a window on desktop, Document PiP in Chromium, else in the page', () => {
+    expect(popoutMode('report', env({ desktopWindows: true }))).toBe('window')
+    expect(popoutMode('report', env({ documentPip: true, videoPip: true }))).toBe('document')
+    expect(popoutMode('report', env({ videoPip: true }))).toBeNull()
+    expect(popoutMode('report', env())).toBeNull()
+  })
+
   it('phone apps: none, whatever the web view claims', () => {
-    for (const kind of ['voice', 'stream', 'chat'] as const) expect(popoutMode(kind, env({ phoneApp: true, documentPip: true, videoPip: true }))).toBeNull()
+    for (const kind of ['voice', 'stream', 'chat', 'report'] as const) expect(popoutMode(kind, env({ phoneApp: true, documentPip: true, videoPip: true }))).toBeNull()
   })
 })
 
@@ -42,6 +49,8 @@ describe('names and keys', () => {
     expect(targetKey({ kind: 'voice' })).toBe('voice')
     expect(targetKey({ kind: 'stream', tileId: 'abc:TR_1' })).toBe('stream:abc:TR_1')
     expect(targetKey({ kind: 'chat', serverKey: 'k', channelId: 7 })).toBe('chat:k:7')
+    expect(targetKey({ kind: 'report' })).toBe('report')
+    expect(popoutName('report', 2)).toBe('iskra-popout-report-2')
   })
 })
 
@@ -51,6 +60,7 @@ describe('pop-outs close with what they show', () => {
     { id: 's1', target: { kind: 'stream' as const, tileId: 'a:1' } },
     { id: 's2', target: { kind: 'stream' as const, tileId: 'b:2' } },
     { id: 'c', target: { kind: 'chat' as const, serverKey: 'k', channelId: 3 } },
+    { id: 'r', target: { kind: 'report' as const } },
   ]
   const channels = (ids: number[]) => (serverKey: string, channelId: number) => serverKey === 'k' && ids.includes(channelId)
 
@@ -64,6 +74,10 @@ describe('pop-outs close with what they show', () => {
 
   it('leaving the call closes the voice panel and every stream, not the channel', () => {
     expect(stalePopouts(open, { inVoice: false, tileIds: new Set(['a:1', 'b:2']), channelExists: channels([3]) })).toEqual(['v', 's1', 's2'])
+  })
+
+  it('the bug report stays whatever happens (it closes with the page)', () => {
+    expect(stalePopouts(open, { inVoice: false, tileIds: new Set(), channelExists: channels([]) })).not.toContain('r')
   })
 
   it('a deleted channel (or a server left) closes its pop-out', () => {

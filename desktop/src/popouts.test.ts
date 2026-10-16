@@ -8,10 +8,11 @@ import { isAppPage } from './platform'
 const isApp = (url: string) => isAppPage(url, 'app://iskra')
 const isAppDev = (url: string) => isAppPage(url, 'app://iskra', 'http://localhost:5173')
 
-test('only named pop-outs of the three kinds', () => {
+test('only named pop-outs of the four kinds', () => {
   assert.deepEqual(parsePopoutName('iskra-popout-voice-1'), { kind: 'voice', name: 'iskra-popout-voice-1' })
   assert.deepEqual(parsePopoutName('iskra-popout-stream-a1b2'), { kind: 'stream', name: 'iskra-popout-stream-a1b2' })
   assert.equal(parsePopoutName('iskra-popout-chat-x')?.kind, 'chat')
+  assert.equal(parsePopoutName('iskra-popout-report-1')?.kind, 'report')
   for (const bad of ['', '_blank', 'iskra-popout-voice', 'iskra-popout-admin-1', 'iskra-popout-voice-A', 'iskra-popout-voice-1 ', `iskra-popout-voice-${'a'.repeat(25)}`, 42, null]) {
     assert.equal(parsePopoutName(bad), null, String(bad))
   }
@@ -35,13 +36,17 @@ test('remembered state is checked, with defaults', () => {
     voice: { bounds: null, alwaysOnTop: true },
     stream: { bounds: null, alwaysOnTop: true },
     chat: { bounds: null, alwaysOnTop: false },
+    report: { bounds: null, alwaysOnTop: true },
   })
   const s = parsePopoutState({
     voice: { bounds: { x: 10.4, y: 20, width: 50, height: 9000 }, alwaysOnTop: false },
     stream: { bounds: { x: 'a', y: 0, width: 1, height: 1 }, alwaysOnTop: 'yes' },
     chat: { bounds: { x: 1, y: 2, width: 300, height: 400 }, alwaysOnTop: true },
+    report: { bounds: { x: 0, y: 0, width: 100, height: 100 } },
     extra: { bounds: { x: 0, y: 0, width: 1, height: 1 } },
   })
+  // The bug report's form never gets smaller than it fits in.
+  assert.deepEqual(s.report, { bounds: { x: 0, y: 0, width: 420, height: 560 }, alwaysOnTop: true })
   assert.deepEqual(s.voice, { bounds: { x: 10, y: 20, width: MIN_SIZE.width, height: 8192 }, alwaysOnTop: false })
   assert.deepEqual(s.stream, { bounds: null, alwaysOnTop: true })
   assert.deepEqual(s.chat, { bounds: { x: 1, y: 2, width: 300, height: 400 }, alwaysOnTop: true })
@@ -91,6 +96,8 @@ test('the page may only ask for booleans', () => {
   assert.deepEqual(parsePopoutPatch({ alwaysOnTop: false }), { alwaysOnTop: false })
   assert.deepEqual(parsePopoutPatch({ clickThrough: true, handle: false, other: 'x' }), { clickThrough: true, handle: false })
   assert.deepEqual(parsePopoutPatch({}), {})
+  assert.deepEqual(parsePopoutPatch({ focus: true }), { focus: true })
+  assert.equal(parsePopoutPatch({ focus: 1 }), null)
   assert.equal(parsePopoutPatch({ alwaysOnTop: 'yes' }), null)
   assert.equal(parsePopoutPatch(null), null)
   assert.equal(parsePopoutPatch('x'), null)
@@ -106,4 +113,6 @@ test('pop-out windows are frameless, sandboxed and get nothing the main window l
   assert.deepEqual(o.webPreferences, { preload: '/p/preload.js', contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true, spellcheck: true, webviewTag: false })
   assert.equal(popoutWindowOptions('chat', { bounds: null, alwaysOnTop: false }, { x: 0, y: 0, width: 1, height: 1 }, base).alwaysOnTop, false)
   assert.equal(popoutWindowOptions('stream', { bounds: null, alwaysOnTop: true }, { x: 0, y: 0, width: 1, height: 1 }, base).fullscreenable, true)
+  const report = popoutWindowOptions('report', { bounds: null, alwaysOnTop: true }, { x: 0, y: 0, width: 440, height: 680 }, base)
+  assert.deepEqual([report.minWidth, report.minHeight, report.minimizable, report.fullscreenable], [420, 560, true, false])
 })

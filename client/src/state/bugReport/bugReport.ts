@@ -1,5 +1,6 @@
-// "Report a bug": the dialog's state (the draft stays until it's sent, so going offline loses nothing) and gathering
-// what goes with it: the environment, allowlisted settings, voice stats and the diagnostics buffer.
+// "Report a bug": where it's open (its own window, or in the page), the draft (it stays until it's sent, so going
+// offline or closing the window loses nothing) and gathering what goes with it: the environment, allowlisted
+// settings, voice stats and the diagnostics buffer.
 import { create } from 'zustand'
 import { BUILD_COMMIT } from '../../buildInfo'
 import { currentLanguage, useLanguageChoice } from '../../i18n'
@@ -7,19 +8,55 @@ import { RELEASE_VERSION } from '../../links'
 import { desktop } from '../../platform/desktop'
 import { nativePlatform } from '../../platform/native'
 import { useAudio } from '../audio'
+import { findPopout, focusPopout, popIn, popOut, popoutModeFor, type PopoutTarget } from '../popouts'
+import { reportOpenAction } from './reportWindow'
 import { activeRoom, useVoice } from '../voice'
 import { diagnostics } from './diagnostics'
 import { buildPayload, emptyDraft, platformInfo, renderLogs, type Device, type ReportDraft, type ReportEnv, type ReportPayload, type SettingsSnapshot, type VoiceSnapshot } from './payload'
 
 interface BugReportState {
+  /** Shown in the page (where there's no window for it: phones, Firefox, Safari). */
   open: boolean
+  /** In the page, tucked into a small chip while you keep using the app ("Keep using Iskra"). */
+  tucked: boolean
   draft: ReportDraft
 }
 
-export const useBugReport = create<BugReportState>(() => ({ open: false, draft: emptyDraft() }))
+export const useBugReport = create<BugReportState>(() => ({ open: false, tucked: false, draft: emptyDraft() }))
 
-export const openBugReport = () => useBugReport.setState({ open: true })
-export const closeBugReport = () => useBugReport.setState({ open: false })
+const REPORT: PopoutTarget = { kind: 'report' }
+
+/**
+ * "Report a bug" (call it from a click or key press: browsers only open picture-in-picture for one). A window of its
+ * own where there can be one, so the app stays usable and can be photographed; else in the page. Again: brings it up.
+ */
+export function openBugReport(): void {
+  const shown = findPopout(REPORT)
+  const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+  const action = reportOpenAction({ windowOpen: !!shown, dialogOpen: useBugReport.getState().open, mode: popoutModeFor('report'), touch })
+  if (action === 'focus' && shown) return focusPopout(shown.id)
+  if (action === 'dialog') return useBugReport.setState({ open: true, tucked: false })
+  if (action !== 'window') return
+  useBugReport.setState({ tucked: false })
+  void popOut(REPORT).then((ok) => {
+    if (!ok) return useBugReport.setState({ open: true, tucked: false })
+    // Pop-outs open without taking focus; this one is for typing in straight away. (Not there yet: still opening.)
+    const opened = findPopout(REPORT)
+    if (opened) focusPopout(opened.id)
+  })
+}
+
+/** Closes the report wherever it is; the draft stays until it's sent. */
+export function closeBugReport(): void {
+  const shown = findPopout(REPORT)
+  if (shown) popIn(shown.id)
+  useBugReport.setState({ open: false, tucked: false })
+}
+
+/** "Keep using Iskra": the report in the page steps aside into a chip. */
+export const tuckBugReport = () => useBugReport.setState({ open: false, tucked: true })
+/** The chip: back to the report. */
+export const untuckBugReport = () => useBugReport.setState({ open: true, tucked: false })
 export const updateDraft = (patch: Partial<ReportDraft>) => useBugReport.setState((s) => ({ draft: { ...s.draft, ...patch } }))
 /** After sending: a fresh form next time. */
 export const resetDraft = () => useBugReport.setState({ draft: emptyDraft() })
