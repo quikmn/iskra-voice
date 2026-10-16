@@ -155,7 +155,7 @@ public class InviteTests
 
         // Years from now it still works (the link itself carries no expiry).
         var later = DateTimeOffset.UtcNow.AddYears(10).ToUnixTimeMilliseconds();
-        Assert.Equal("member", server.World.Store.TryUseInvite(code, later));
+        Assert.Equal("member", server.World.Store.TryUseInvite(code, later)?.Role);
         using (var friend = new TestIdentity())
         using (var client = await server.ConnectAsync())
             Assert.Equal("welcome", (await client.LoginAsync(friend, "Friend", code)).Type());

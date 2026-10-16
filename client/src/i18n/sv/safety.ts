@@ -103,6 +103,14 @@ export const safety: Messages['safety'] = {
     confirmBan: 'Bannlysa {{name}}? Personen kan inte komma tillbaka förrän bannlysningen tas bort.',
     resolutionNote: 'Kommentar till de andra moderatorerna (valfritt)',
   },
+  joins: {
+    title_one: '{{count}} person väntar på att få gå med',
+    title_other: '{{count}} personer väntar på att få gå med',
+    intro: 'De kom via en inbjudan som kräver godkännande. Släpp in dem eller avvisa dem (inbjudans användning är förbrukad oavsett).',
+    via: 'Inbjudan …{{tail}} av {{name}}',
+    approve: 'Släpp in',
+    decline: 'Avvisa',
+  },
   deleteAccount: {
     title: 'Radera konto',
     hint: 'Raderar ditt konto för gott på alla servrar du är med på, och allt på den här enheten.',

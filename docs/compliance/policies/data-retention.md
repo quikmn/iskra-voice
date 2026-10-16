@@ -38,6 +38,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Audit log (moderation and admin actions) | 90 days | `ModerationSweeper` | `Retention.AuditDays` (0 = keep) |
 | Security log (auth failures, rate-limit hits, joins, sign-ins from new devices, key rotations, deletions, backups, moves, exports, settings changes) | 365 days | `RetentionSweeper` | `Retention.SecurityLogDays` |
 | Resolved reports | 90 days after resolution | Report sweep (`ReportFeature`) | No |
+| Join requests (approval invites: the joiner's name and account key, which invite, when; a refusal's time) | Until a moderator decides: approved ones become memberships; refusals are kept a day (so the person is told no, not "need an invite") and unanswered requests 7 days | `ModerationSweeper` (hourly) | No |
 | Bug reports (bug inbox, when the owner turns it on: what the reporter wrote, screenshots without their metadata, logs from the app, an optional contact email; anonymous, never the sender's IP address) | 365 days at most (sooner with a shorter `Retention.MessagesDays`); their files a day later | `RetentionSweeper`; admins can delete one earlier | No (the year); the owner turns the inbox off |
 | Outgoing webhooks (name, address, events, who made it) and their delivery log (time, event, attempt, HTTP status, outcome; never the payload) | Webhooks until an admin deletes them; the last 50 log entries per webhook, deleted with it | Admins; each new log entry | No |
 | Ended or cancelled events | 30 days | `EventScheduler` | No |

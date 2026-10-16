@@ -6,6 +6,7 @@ import type { Invite } from '../../core/protocol'
 import { connectionFor, type ServerState } from '../../state/store'
 import { inviteServerUrl, loadHostStatus, tailscaleServerUrl, useHostedHere, useHosting } from '../../state/hosting'
 import { LIFETIMES, NEVER, inviteRequest, lifetimeChoices } from '../../state/inviteRules'
+import { updateJoinSettings, useInvitesPaused } from '../../state/joins'
 import { Modal, Spinner } from '../bits'
 import { appUrl } from '../format'
 import { InviteList } from './InviteList'
@@ -26,25 +27,41 @@ export function InviteDialog({ server, onClose, via: initialVia = 'network' }: {
   }, [admin, status, server.key])
   const [lifetime, setLifetime] = useState(LIFETIMES[2].ms)
   const [singleUse, setSingleUse] = useState(false)
+  const [approve, setApprove] = useState(false)
   // One invite per combination of options, created on demand.
-  const optionsKey = `${lifetime}:${singleUse}`
+  const optionsKey = `${lifetime}:${singleUse}:${approve}`
   const [invites, setInvites] = useState<Record<string, Invite>>({})
   const [error, setError] = useState<string | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const invite = invites[optionsKey] ?? null
   const copied = copiedKey === optionsKey
+  // Paused invites (an admin, or AutoMod's join-flood rule): links are made but nobody gets in until resumed.
+  const paused = useInvitesPaused(server.key)
+  const [resuming, setResuming] = useState(false)
 
   useEffect(() => {
     if (invites[optionsKey]) return
     let cancelled = false
     connectionFor(server.key)
-      ?.request('invite.create', inviteRequest(lifetime, singleUse))
+      ?.request('invite.create', inviteRequest(lifetime, singleUse, approve))
       .then((r) => !cancelled && setInvites((all) => ({ ...all, [optionsKey]: r.invite })))
       .catch((e: Error) => !cancelled && setError(errorMessage(e)))
     return () => {
       cancelled = true
     }
-  }, [server.key, lifetime, singleUse, optionsKey, invites])
+  }, [server.key, lifetime, singleUse, approve, optionsKey, invites])
+
+  async function resume() {
+    setResuming(true)
+    try {
+      await updateJoinSettings(server.key, { invitesPaused: false })
+      setError(null)
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setResuming(false)
+    }
+  }
 
   const serverUrl = overTailscale ? tailscaleUrl : inviteServerUrl(server)
   // With the p2p secret while the server lets friends connect without port forwarding (their desktop app uses it when the address can't be reached).
@@ -63,6 +80,12 @@ export function InviteDialog({ server, onClose, via: initialVia = 'network' }: {
   return (
     <Modal title={t('settings.invite.title', { name: server.name })} onClose={onClose}>
       <p className="muted">{t('settings.invite.intro')}</p>
+      {paused && (
+        <div className="banner warn invite-paused" role="status" data-testid="invites-paused">
+          <span>{admin ? t('settings.invite.pausedAdmin') : t('settings.invite.paused')}</span>
+          {admin && <button className="button small" disabled={resuming} onClick={() => void resume()}>{t('settings.invite.resume')}</button>}
+        </div>
+      )}
       {tailscaleUrl && (
         <div className="segmented" role="radiogroup" aria-label={t('hosting.tailscale.via')}>
           <button role="radio" aria-checked={!overTailscale} className={overTailscale ? '' : 'on'} onClick={() => setVia('network')}>
@@ -98,7 +121,12 @@ export function InviteDialog({ server, onClose, via: initialVia = 'network' }: {
           <input type="checkbox" checked={singleUse} onChange={(e) => setSingleUse(e.target.checked)} />
           {t('settings.invite.singleUse')}
         </label>
+        <label className="checkbox">
+          <input type="checkbox" checked={approve} onChange={(e) => setApprove(e.target.checked)} />
+          {t('settings.invite.approve')}
+        </label>
       </div>
+      {approve && <p className="muted invite-never-note">{t('settings.invite.approveHint')}</p>}
       {invite && invite.expiresAt === null && <p className="muted invite-never-note">{t('settings.invite.neverNote')}</p>}
       <InviteList server={server} current={invite?.code ?? null} refresh={invite?.code} onRevoked={dropRevoked} />
     </Modal>

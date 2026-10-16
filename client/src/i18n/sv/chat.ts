@@ -23,6 +23,10 @@ export const chat: Messages['chat'] = {
     welcome: 'Välkommen till #{{name}}',
     thisChannel: 'den här kanalen',
     channelStart: 'Här börjar kanalen. Säg hej! 👋',
+    pendingTitle: 'Väntar på att få gå med i {{name}}',
+    pendingBody: 'En moderator måste släppa in dig. Du kan lämna det här öppet eller komma tillbaka senare: Iskra kollar själv.',
+    pendingWaiting: 'Väntar på en moderator…',
+    pendingLeave: 'Strunt i det',
   },
   message: {
     profileOf: 'Profil för {{name}}',

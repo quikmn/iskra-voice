@@ -22,6 +22,10 @@ export const chat = {
     welcome: 'Welcome to #{{name}}',
     thisChannel: 'this channel',
     channelStart: 'This is the start of the channel. Say hi! 👋',
+    pendingTitle: 'Waiting to join {{name}}',
+    pendingBody: 'A moderator has to let you in. You can leave this open, or come back later: Iskra checks by itself.',
+    pendingWaiting: 'Waiting for a moderator…',
+    pendingLeave: 'Never mind',
   },
   message: {
     profileOf: 'Profile of {{name}}',

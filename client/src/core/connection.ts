@@ -14,6 +14,8 @@ export type ConnectionStatus =
   | { state: 'restarting'; since: number; etaMs?: number; update?: true }
   /** The server said no (no invite, banned, kicked, wrong server, key rotated). We don't retry. */
   | { state: 'rejected'; code: string; message: string; detail?: Record<string, unknown>; key?: string }
+  /** Joined through an invite that needs a moderator's approval: we knock again every PENDING_RETRY_MS until they decide. */
+  | { state: 'pending' }
 
 export interface ConnectionOptions {
   serverUrl: string
@@ -60,6 +62,8 @@ const MAX_BACKOFF_MS = 30_000
 /** After a restart signal: retry about this often (±25%), for at least RESTART_WINDOW_MS. */
 export const RESTART_RETRY_MS = 1000
 export const RESTART_WINDOW_MS = 120_000
+/** While a moderator decides whether to let us in: a steady, slow knock (the server answers `join_pending` each time). */
+export const PENDING_RETRY_MS = 15_000
 
 /** The reason of a 1012 or 1001 close: `{ v: 1, reason, etaMs? }`. Anything else counts as `restart`, without a hint. */
 export function restartHint(reason: string): { reason: string; etaMs?: number } {
@@ -87,6 +91,8 @@ export class Connection {
   private restart: { since: number; etaMs?: number; update?: true; until: number } | null = null
   /** The server said it stopped (not restarting), until we're back. */
   private serverStopped = false
+  /** Waiting for a moderator to approve our join (status `pending`), until a welcome or a refusal. */
+  private awaitingApproval = false
 
   constructor(options: ConnectionOptions) {
     this.options = options
@@ -150,7 +156,7 @@ export class Connection {
       )
       return
     }
-    this.options.onStatus(this.restartStatus() ?? { state: 'connecting' })
+    this.options.onStatus(this.restartStatus() ?? (this.awaitingApproval ? { state: 'pending' } : { state: 'connecting' }))
     const attempt = ++this.attempt
     if (!this.options.resolveUrl) return this.openSocket(this.options.serverUrl)
     const stillWanted = () => attempt === this.attempt && !this.stopped && !this.rejected
@@ -196,6 +202,7 @@ export class Connection {
         this.attempts = 0
         this.restart = null
         this.serverStopped = false
+        this.awaitingApproval = false
         this.invite = undefined // we're a member now
         this.options.onStatus({ state: 'online' })
         this.options.onWelcome(body as unknown as Welcome)
@@ -212,6 +219,12 @@ export class Connection {
             pending.reject(new RequestError(body.code as RequestError['code'], String(body.message ?? 'Request failed.'), pending.type, ...errorKey(body)))
           }
         } else if (frame.type === 'error' && !this.ready) {
+          if (body.code === 'join_pending') {
+            // Not a no: a moderator has to let us in. The socket closes; we knock again in a while (handleClose).
+            this.awaitingApproval = true
+            this.options.onStatus({ state: 'pending' })
+            return
+          }
           // Rejected during the handshake.
           this.reject(String(body.code ?? 'auth_failed'), String(body.message ?? 'The server refused the connection.'), body)
         }
@@ -263,6 +276,10 @@ export class Connection {
     this.ready = false
     this.failPending('disconnected', 'Connection lost.')
     if (this.stopped || this.rejected) return
+    if (this.awaitingApproval && code === CloseCodes.AuthFailed) {
+      this.schedule(PENDING_RETRY_MS)
+      return
+    }
     if (code === CloseCodes.Rotated) {
       this.reject('account_rotated', 'This account moved to a new key.')
       return

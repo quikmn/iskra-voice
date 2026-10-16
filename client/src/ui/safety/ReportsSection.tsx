@@ -2,8 +2,9 @@
 // (delete the message, time out, kick, ban) or dismissing it. Also the "Reports" badge in the channel list.
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Report, ReportOutcome } from '../../core/protocol'
+import type { JoinRequest, Report, ReportOutcome } from '../../core/protocol'
 import { errorMessage } from '../../i18n/errors'
+import { approveJoin, declineJoin, listJoinRequests, usePendingJoins } from '../../state/joins'
 import { jumpToMessage } from '../../state/jump'
 import { timeoutMember } from '../../state/moderation'
 import { durationLabel, TIMEOUT_OPTIONS } from '../../state/moderationRules'
@@ -15,10 +16,10 @@ import { Avatar, Spinner } from '../bits'
 import { fullTime, messageTime } from '../format'
 import './safety.css'
 
-/** In the channel list, for moderators with open reports. */
+/** In the channel list, for moderators with open reports or people waiting to be let in. */
 export function ReportsButton({ server, onOpen }: { server: ServerState; onOpen: () => void }) {
   const { t } = useTranslation()
-  const open = useReports((s) => s.open[server.key] ?? 0)
+  const open = useReports((s) => s.open[server.key] ?? 0) + usePendingJoins(server.key)
   const roles = useServerRoles(server.key)
   if (open === 0 || !isModerator(server.me, roles)) return null
   return (
@@ -26,6 +27,58 @@ export function ReportsButton({ server, onOpen }: { server: ServerState; onOpen:
       <ShieldIcon /> <span>{t('safety.queue.button')}</span>
       <span className="reports-badge" aria-label={t('safety.queue.openCount', { count: open })}>{open}</span>
     </button>
+  )
+}
+
+/** People who joined through an approval invite and wait outside: name, avatar, which invite, since when. Never an address. */
+function JoinQueue({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
+  const pending = usePendingJoins(server.key)
+  const [requests, setRequests] = useState<JoinRequest[] | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  // The server's `join.count` says when the list changed (someone asked, or another moderator decided).
+  useEffect(() => {
+    listJoinRequests(server.key).then(setRequests, () => setRequests([]))
+  }, [server.key, pending])
+  if (!requests?.length) return null
+  const nameOf = (key: string | null) => (key && server.members[key]?.name) || t('settings.invite.someone')
+  const decide = (accountKey: string, action: () => Promise<void>) => async () => {
+    setBusy(accountKey)
+    try {
+      await action()
+      setError(null)
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <div className="join-queue" data-testid="join-queue">
+      <h3 className="h4">{t('safety.joins.title', { count: requests.length })}</h3>
+      <p className="muted">{t('safety.joins.intro')}</p>
+      <ul className="report-list">
+        {requests.map((r) => (
+          <li key={r.accountKey} className="report-card join-request">
+            <header className="report-head">
+              <Avatar name={r.name} accountKey={r.accountKey} size={32} />
+              <div>
+                <strong>{r.name}</strong>
+                <span className="muted">
+                  {t('safety.joins.via', { tail: r.invite.tail, name: nameOf(r.invite.createdBy) })} · <time title={fullTime(r.requestedAt)}>{messageTime(r.requestedAt)}</time>
+                </span>
+              </div>
+            </header>
+            <div className="report-buttons">
+              <button className="button small primary" disabled={busy !== null} onClick={decide(r.accountKey, () => approveJoin(server.key, r.accountKey))}>{t('safety.joins.approve')}</button>
+              <button className="button small danger-outline" disabled={busy !== null} onClick={decide(r.accountKey, () => declineJoin(server.key, r.accountKey))}>{t('safety.joins.decline')}</button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {error && <p className="error-text" role="alert">{error}</p>}
+    </div>
   )
 }
 
@@ -62,6 +115,7 @@ export function ReportsSection({ server, onClose }: { server: ServerState; onClo
   return (
     <section className="settings-section reports-section">
       <h2>{t('settings.sections.reports')}</h2>
+      <JoinQueue server={server} />
       <p className="muted">{t('safety.queue.intro')}</p>
       <div className="segmented" role="tablist">
         <button role="tab" aria-selected={status === 'open'} className={status === 'open' ? 'on' : ''} onClick={() => { setReports(null); setStatus('open') }}>

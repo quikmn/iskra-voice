@@ -307,6 +307,12 @@ export const settings = {
     someone: 'someone',
     revoke: 'Revoke',
     revokeLabel: 'Revoke invite …{{code}}',
+    approve: 'Approve each person who joins',
+    approveHint: 'Whoever opens this link waits outside until a moderator lets them in (Server settings → Reports).',
+    approval: 'Approval',
+    paused: 'Invites are paused right now: links are made, but nobody gets in until an admin resumes them.',
+    pausedAdmin: 'Invites are paused: nobody gets in until you resume them.',
+    resume: 'Resume invites',
   },
   join: {
     title: 'Join a server',

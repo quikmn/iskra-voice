@@ -69,6 +69,8 @@ export interface Invite {
   expiresAt: number | null
   maxUses: number | null
   uses: number
+  /** Joining through it waits for a moderator's approval (PROTOCOL.md "Join gating and raid controls"). */
+  approve?: boolean
 }
 
 export interface VoiceParticipant {
@@ -92,6 +94,8 @@ export interface Welcome {
     p2p?: string | null
     /** The server's icon and banner (missing from older servers). */
     images?: ServerImages
+    /** Invites don't work right now: an admin or AutoMod paused them (see "Join gating and raid controls"). */
+    invitesPaused?: boolean
   }
   channels: Channel[]
   members: Member[]
@@ -153,7 +157,7 @@ export interface Requests {
   'member.setRole': [{ accountKey: string; role: Role }, { member: Member }]
   'member.kick': [{ accountKey: string }, Record<string, never>]
   'member.ban': [{ accountKey: string; reason?: string }, Record<string, never>]
-  'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean }, { invite: Invite }]
+  'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean; approve?: boolean }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
   'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean; canHear?: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }]
@@ -1331,23 +1335,66 @@ export interface AutoModConfig {
   flood: { enabled: boolean; count: number; seconds: number; action: AutoModAction }
   duplicates: { enabled: boolean; count: number; seconds: number; action: AutoModAction }
   links: { enabled: boolean; mode: 'invites' | 'all'; allowedDomains: string[]; action: AutoModAction }
+  /** Join flood: more than `count` invite joins within `minutes` pauses invites (older servers leave it out). */
+  joins?: { enabled: boolean; count: number; minutes: number }
   exemptRoles: number[]
   exemptChannels: number[]
   alertChannelId: number | null
 }
 
-export type AutoModRule = 'words' | 'mentions' | 'flood' | 'duplicates' | 'links'
+export type AutoModRule = 'words' | 'mentions' | 'flood' | 'duplicates' | 'links' | 'joins'
 
 /** On an AutoMod alert (author "automod:"): what was blocked. Channel and snippet are null when they'd reveal a private channel. */
 export interface AutoModAlert {
   rule: AutoModRule
-  what: 'message' | 'edit' | 'poll' | 'post' | 'thread' | 'event' | 'watch'
+  what: 'message' | 'edit' | 'poll' | 'post' | 'thread' | 'event' | 'watch' | 'join'
   member: string
   memberName: string
   channelId: number | null
   channelName: string | null
   snippet: string | null
   timeoutMs: number
+  /** Rule `joins`: how many joined within how many minutes. */
+  joins?: number
+  minutes?: number
+}
+
+// ── join gating and raid controls ──
+// See "Join gating and raid controls" in PROTOCOL.md.
+
+/** Someone who joined through an approval invite and waits for a moderator. */
+export interface JoinRequest {
+  accountKey: string
+  name: string
+  role: Role
+  requestedAt: number
+  /** The invite's last characters (never the whole code) and who made it. */
+  invite: { tail: string; createdBy: string | null }
+}
+
+export interface JoinSettings {
+  invitesPaused: boolean
+  pausedAt: number | null
+  /** An account key, or "automod:" when the join-flood rule paused them. */
+  pausedBy: string | null
+  /** Members younger than this many hours get at least `newcomerSlowmode` seconds between messages (0 = off). */
+  newcomerHours: number
+  newcomerSlowmode: number
+}
+
+export interface Events {
+  'join.count': { pending: number }
+  'invites.paused': { paused: boolean }
+  'join.settings': { settings: JoinSettings }
+}
+
+export interface Requests {
+  'join.list': [Record<string, never>, { requests: JoinRequest[] }]
+  'join.count': [Record<string, never>, { pending: number }]
+  'join.approve': [{ accountKey: string }, { member: Member }]
+  'join.decline': [{ accountKey: string }, Record<string, never>]
+  'join.settings.get': [Record<string, never>, { settings: JoinSettings }]
+  'join.settings.update': [{ invitesPaused?: boolean; newcomerHours?: number; newcomerSlowmode?: number }, { settings: JoinSettings }]
 }
 
 export interface Message {

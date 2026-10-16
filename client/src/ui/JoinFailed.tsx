@@ -45,6 +45,8 @@ export function JoinFailed({ server }: { server: ServerState }) {
     )
   }
 
+  // Paused invites are a "not now": the same link works again once an admin resumes them.
+  const pausedInvites = status.state === 'rejected' && status.code === 'invites_paused'
   return (
     <div className="empty-state join-failed" role="alert">
       <span className="empty-icon"><WifiOff size={32} /></span>
@@ -52,6 +54,7 @@ export function JoinFailed({ server }: { server: ServerState }) {
       <p>{status.state === 'rejected' ? errorMessage(status) : t('chat.view.joinFailed', { host })}</p>
       <div className="join-failed-actions">
         {status.state !== 'rejected' && <button className="button primary" onClick={() => retryServer(server.key)}>{t('common.tryAgain')}</button>}
+        {pausedInvites && <button className="button primary" onClick={() => void rejoinServer(server.key)}>{t('common.tryAgain')}</button>}
         <button className="button" onClick={() => leaveServer(server.key)}>{t('common.remove')}</button>
       </div>
     </div>

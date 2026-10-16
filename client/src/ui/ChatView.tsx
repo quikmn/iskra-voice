@@ -74,6 +74,7 @@ import { conversationLabel } from '../state/threads'
 import { messageListKeys, useAnnounceNew } from './a11y'
 import { useQueuedSend } from './chat/QueuedSend'
 import { JoinFailed } from './JoinFailed'
+import { JoinPending } from './JoinPending'
 import { useReadableColor } from '../theme/useReadable'
 import { ChannelPopoutButton } from './popout/PopoutButtons'
 import { ChannelTopic } from './chat/ChannelTopic'
@@ -135,9 +136,9 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
       </header>
       <ChannelTopic channel={channel} />
 
-      {failedJoin(server) ? <JoinFailed server={server} /> : <ConnectionBanner server={server} />}
+      {server.status.state === 'pending' ? <JoinPending server={server} /> : failedJoin(server) ? <JoinFailed server={server} /> : <ConnectionBanner server={server} />}
 
-      {failedJoin(server) ? null : channel ? (
+      {failedJoin(server) || server.status.state === 'pending' ? null : channel ? (
         <>
           <StartOverRecordLine server={server} channelId={channel.id} />
           <MessageList key={channel.id} server={server} channelId={channel.id} />

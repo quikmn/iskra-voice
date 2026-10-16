@@ -235,7 +235,7 @@ Servers before this rule may send no `createdAt`; then only a missing channel co
 | `member.ban` | `accountKey, reason?` | | same as above |
 | `member.unban` | `accountKey` | | admin+ |
 | `member.bans` | | `{ bans }` | admin+ |
-| `invite.create` | `role? (default member), maxUses? (1–1000), expiresInMs? (1 min – 30 days, default 7 days), neverExpires? (true: no expiry, can't be combined with expiresInMs)` | `{ invite }` | member+ for guest/member invites; higher roles need the right to grant them; `neverExpires` admin+ (`forbidden`, key `invite_never`) |
+| `invite.create` | `role? (default member), maxUses? (1–1000), expiresInMs? (1 min – 30 days, default 7 days), neverExpires? (true: no expiry, can't be combined with expiresInMs), approve? (joiners wait for a moderator, see [Join gating](#join-gating-and-raid-controls))` | `{ invite }` | member+ for guest/member invites; higher roles need the right to grant them; `neverExpires` admin+ (`forbidden`, key `invite_never`) |
 | `invite.list` | | `{ invites }` | admins see all, others their own |
 | `invite.revoke` | `code` | | the creator or admin+ |
 
@@ -1065,6 +1065,49 @@ BlockEntry { "accountKey": "<b64u 32>", "blocked": true, "at": 1760000000000 }  
 
 - Each member can send one message (`chat.send` or `poll.create`) per interval in that channel; sooner is `rate_limited` ("You can send again in 12 s"). Admins and the owner are exempt. Threads have no slowmode of their own. The server keeps the send times in memory, so a restart forgets them.
 
+### Join gating and raid controls
+
+Three ways to slow a raid or vet newcomers, all applied in the handshake:
+
+- **Approval invites.** `invite.create` takes `approve?` (default false); `Invite` gains `approve`. Joining through one
+  spends a use as usual but makes no member: the joiner gets `error` `join_pending` ("Waiting for a moderator to let
+  you in", close 4401) and their app retries the handshake now and then (every 15 s or so) until a moderator decides.
+  Approved: the next handshake gets its `welcome` (the invite's role). Declined: `join_declined` (close 4403; the use
+  stays spent, and after a day the request is forgotten, so a new invite is needed). Requests nobody answers are
+  forgotten after 7 days. Bots never wait.
+- **Paused invites.** While paused, every invite but the owner's first answers `invites_paused` (close 4401) before a
+  use is spent. Admins pause and resume by hand; AutoMod's join-flood rule pauses (never resumes).
+- **Newcomer slowmode.** Members younger than `newcomerHours` get at least `newcomerSlowmode` seconds between messages
+  in every channel (the channel's own slowmode if longer; the usual exemptions). 0 = off.
+
+```jsonc
+JoinRequest  { "accountKey": "<b64u>", "name": "Sam", "role": "member", "requestedAt": 1760000000000,
+               "invite": { "tail": "Xy9kQw", "createdBy": "<accountKey>" | null } }   // the invite's last 6 characters, never the whole code
+JoinSettings { "invitesPaused": false, "pausedAt": null, "pausedBy": "<accountKey>" | "automod:" | null,
+               "newcomerHours": 0, "newcomerSlowmode": 0 }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `join.list` | | `{ requests: [JoinRequest] }` (oldest first) | moderators (as [reports](#reports); `forbidden`, key `mods_joins`) |
+| `join.count` | | `{ pending }` (0 for everyone else) | anyone |
+| `join.approve` | `accountKey` | `{ member }` | moderators; `not_found` unless they're waiting; `bad_request` (key `join_banned`) if banned meanwhile |
+| `join.decline` | `accountKey` | | moderators |
+| `join.settings.get` | | `{ settings: JoinSettings }` | admin+ (`forbidden`, key `admins_joins`) |
+| `join.settings.update` | any of `invitesPaused`, `newcomerHours` (0–720), `newcomerSlowmode` (a slowmode step) | `{ settings }` | admin+. Rate limited (10, then 1 a second) |
+
+- Events: `join.count { pending }` to online moderators whenever the queue changes; `invites.paused { paused }` to
+  everyone when invites stop or start working (`welcome.server.invitesPaused` says how it stands); `join.settings
+  { settings }` to online admins after a change. Approving sends `member.joined` to everyone like any join.
+- [AutoMod](#automod) gains the rule `joins` `{ enabled, count (2–100), minutes (1–60) }`: more than `count` invite
+  joins (not bots, not approvals) within `minutes` pauses invites and, with an alert channel, posts an alert with
+  `rule: "joins"`, `what: "join"`, `joins` and `minutes` (no member). Its audit entry `invites.pause` is by AutoMod
+  with reason "join flood".
+- Audit: `join.approve` (target: the newcomer) `{ role }`, `join.decline` `{ accountKey, name }`, `invites.pause`,
+  `invites.resume`, `join.newcomers` `{ hours, slowmode }`; `invite.create` details gain `approve`. Security log:
+  `join.pending`, `join.approved`, `join.declined`, `invites.paused`, `invites.resumed`. The joiner's address is never
+  shown to moderators (it reaches the security log only under the owner's IP setting, like every event).
+
 ### Audit log
 
 | type | body | result | who |
@@ -1616,6 +1659,7 @@ AutoMod {
   "flood":      { "enabled": false, "count": 8, "seconds": 10, "action": Action },   // more than count messages within seconds
   "duplicates": { "enabled": false, "count": 3, "seconds": 60, "action": Action },   // the same text more than count times within seconds
   "links":      { "enabled": false, "mode": "invites" | "all", "allowedDomains": ["youtube.com"], "action": Action },
+  "joins":      { "enabled": false, "count": 10, "minutes": 10 },     // more than count joins within minutes pauses invites (Join gating)
   "exemptRoles": [roleId], "exemptChannels": [channelId], "alertChannelId": 7 | null
 }
 Action { "timeoutMs": 0, "alert": false }   // a block always happens; optionally also a timeout and an alert

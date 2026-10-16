@@ -12,6 +12,7 @@ import { useBugInbox } from '../../state/bugInbox'
 import { useServerRoles } from '../../state/roles'
 import { has } from '../../state/permissions'
 import { useReports } from '../../state/reports'
+import { usePendingJoins } from '../../state/joins'
 import { Avatar } from '../bits'
 import { ChevronLeft, ChevronRight, Close } from '../icons'
 import { useEscapeLayer, useFocusTrap } from '../layers'
@@ -282,7 +283,7 @@ export function ServerSettings({ serverKey, section, onClose }: { serverKey: str
   const { t } = useTranslation()
   const server = useApp((s) => s.servers[serverKey])
   const roles = useServerRoles(serverKey)
-  const reports = useReports((s) => s.open[serverKey] ?? 0)
+  const reports = useReports((s) => s.open[serverKey] ?? 0) + usePendingJoins(serverKey) // reports, and people waiting to be let in
   const me = server?.me
   const bugInbox = useBugInbox((s) => !!s.accepts[serverKey])
   const sections = serverSections(me?.role, (perm) => has(me, roles, perm), bugInbox)

@@ -109,6 +109,7 @@ export const AUDIT_ACTIONS = [
   'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'buginbox.update', 'afk.update', 'notify.default', 'server.template.export',
   'server.images', 'automod.block', 'automod.update',
   'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
+  'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers',
 ] as const
 
 export type AuditFilter = (typeof AUDIT_ACTIONS)[number]
@@ -153,6 +154,14 @@ export function auditText(e: AuditEntry): string {
     case 'role.group.create': return t('moderation.audit.roleGroupCreate', { actor, title: str(d.title) })
     case 'role.group.update': return t('moderation.audit.roleGroupUpdate', { actor, title: str(d.title) })
     case 'role.group.delete': return t('moderation.audit.roleGroupDelete', { actor, title: str(d.title) })
+    case 'join.approve': return t('moderation.audit.joinApprove', { actor, target })
+    case 'join.decline': return t('moderation.audit.joinDecline', { actor, name: str(d.name) || t('moderation.audit.someoneLower') })
+    case 'invites.pause': return t('moderation.audit.invitesPause', { actor })
+    case 'invites.resume': return t('moderation.audit.invitesResume', { actor })
+    case 'join.newcomers':
+      return Number(d.hours) > 0 && Number(d.slowmode) > 0
+        ? t('moderation.audit.joinNewcomers', { actor, hours: str(d.hours), slowmode: slowmodeLabel(Number(d.slowmode)).toLowerCase() })
+        : t('moderation.audit.joinNewcomersOff', { actor })
     case 'channel.overrides': return t('moderation.audit.overrides', { actor, role: str(d.role), channel: channel(d.name) })
     case 'voice.mute': return t('moderation.audit.voiceMute', { actor, target, channel: channel(d.channelName) })
     case 'voice.unmute': return t('moderation.audit.voiceUnmute', { actor, target, channel: channel(d.channelName) })

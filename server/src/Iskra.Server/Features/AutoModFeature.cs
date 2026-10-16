@@ -13,14 +13,16 @@ public sealed record AutoModMentions(bool Enabled, int Max, AutoModAction Action
 /// <summary>Flood (any messages) and duplicates (the same text): more than <c>Count</c> within <c>Seconds</c>.</summary>
 public sealed record AutoModRate(bool Enabled, int Count, int Seconds, AutoModAction Action);
 public sealed record AutoModLinks(bool Enabled, string Mode, string[] AllowedDomains, AutoModAction Action);
+/// <summary>Join flood: more than <c>Count</c> people joining within <c>Minutes</c> pauses invites (and alerts); admins resume by hand.</summary>
+public sealed record AutoModJoins(bool Enabled, int Count, int Minutes);
 
 public sealed record AutoModConfig(bool Enabled, AutoModWords Words, AutoModMentions Mentions, AutoModRate Flood, AutoModRate Duplicates,
-    AutoModLinks Links, long[] ExemptRoles, long[] ExemptChannels, long? AlertChannelId)
+    AutoModLinks Links, long[] ExemptRoles, long[] ExemptChannels, long? AlertChannelId, AutoModJoins Joins)
 {
     /// <summary>Off, with every rule off: nothing changes until an admin turns it on.</summary>
     public static readonly AutoModConfig Default = new(false,
         new(false, [], [], new()), new(false, 10, new()), new(false, 8, 10, new()), new(false, 3, 60, new()),
-        new(false, "invites", [], new()), [], [], null);
+        new(false, "invites", [], new()), [], [], null, new(false, 10, 10));
 }
 
 /// <summary>
@@ -89,7 +91,7 @@ public static class AutoModFeature
         var rules = new (string Name, bool On)[]
         {
             ("words", config.Words.Enabled), ("mentions", config.Mentions.Enabled), ("flood", config.Flood.Enabled),
-            ("duplicates", config.Duplicates.Enabled), ("links", config.Links.Enabled),
+            ("duplicates", config.Duplicates.Enabled), ("links", config.Links.Enabled), ("joins", config.Joins.Enabled),
         };
         Audit.Record(s, "automod.update", details: new
         {
@@ -128,6 +130,7 @@ public static class AutoModFeature
         var flood = Section("flood");
         var duplicates = Section("duplicates");
         var links = Section("links");
+        var joins = Section("joins");
 
         var mode = links.OptionalString("mode", 16) ?? "invites";
         if (mode is not ("invites" or "all")) throw RequestException.BadRequest("'links.mode' must be \"invites\" or \"all\".");
@@ -165,7 +168,9 @@ public static class AutoModFeature
                 (int)(duplicates.OptionalLong("count", 1, 20) ?? d.Duplicates.Count),
                 (int)(duplicates.OptionalLong("seconds", 5, 3600) ?? d.Duplicates.Seconds), Action(duplicates)),
             new AutoModLinks(links.OptionalBool("enabled") ?? false, mode, domains, Action(links)),
-            exemptRoles, exemptChannels, alertChannel);
+            exemptRoles, exemptChannels, alertChannel,
+            new AutoModJoins(joins.OptionalBool("enabled") ?? false,
+                (int)(joins.OptionalLong("count", 2, 100) ?? d.Joins.Count), (int)(joins.OptionalLong("minutes", 1, 60) ?? d.Joins.Minutes)));
     }
 
     /// <summary>Trimmed, blank lines dropped, duplicates (as AutoMod reads them) merged.</summary>
@@ -298,8 +303,33 @@ public static class AutoModFeature
         "flood" => "sending too fast",
         "duplicates" => "repeated message",
         "links" => "link",
+        "joins" => "join flood",
         _ => rule,
     };
+
+    /// <summary>
+    /// Someone joined through an invite (Session.Authenticate). More joins than the join-flood rule allows within its
+    /// window pause every invite (JoinFeature) and post an alert; admins resume by hand once it's calm.
+    /// </summary>
+    internal static void JoinSeen(World world, Hub hub, long now)
+    {
+        var engine = EngineFor(world);
+        var c = engine.Current(world.Store);
+        if (!c.Config.Enabled || !c.Config.Joins.Enabled) return;
+        var joins = engine.JoinSeen(now, c.Config.Joins.Minutes * 60_000L);
+        if (joins <= c.Config.Joins.Count) return;
+        var store = world.Store;
+        if (store.JoinSettings().InvitesPaused) return;
+        JoinFeature.PausedByAutoMod(store, hub, now, joins, c.Config.Joins.Minutes);
+        if (c.Config.AlertChannelId is not { } alertId || store.GetChannel(alertId) is not { Kind: "text" } alertChannel) return;
+        var details = new
+        {
+            rule = "joins", what = "join", member = "", memberName = "", channelId = (long?)null, channelName = (string?)null, snippet = (string?)null,
+            timeoutMs = 0L, joins, minutes = c.Config.Joins.Minutes,
+        };
+        var message = store.AddAutoModAlert(alertChannel.Id, Author, now, JsonSerializer.Serialize(details, Json.Options));
+        hub.BroadcastToReaders(alertChannel, Frames.Event("chat.message", new { message = MessageViews.Public(store, message) }));
+    }
 
     private static string Duration(long ms) => ms switch
     {
@@ -362,7 +392,21 @@ public static class AutoModFeature
                 Links = c.Links is null ? d.Links : c.Links with { AllowedDomains = c.Links.AllowedDomains ?? [], Action = c.Links.Action ?? new(), Mode = c.Links.Mode ?? "invites" },
                 ExemptRoles = c.ExemptRoles ?? [],
                 ExemptChannels = c.ExemptChannels ?? [],
+                Joins = c.Joins ?? d.Joins,
             };
+        }
+
+        private readonly Queue<long> _joins = new();
+
+        /// <summary>Counts a join and returns how many happened within the window.</summary>
+        public int JoinSeen(long now, long windowMs)
+        {
+            lock (_joins)
+            {
+                _joins.Enqueue(now);
+                while (_joins.Count > 0 && now - _joins.Peek() > windowMs) _joins.Dequeue();
+                return _joins.Count;
+            }
         }
 
         /// <summary>"flood" or "duplicates" if this message breaks one of them; otherwise remembers it and returns null.</summary>

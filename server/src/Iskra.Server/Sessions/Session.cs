@@ -195,6 +195,9 @@ public sealed class Session
                 AuthFailure.NameRequired => ("name_required", "Pick a name before joining this server.", CloseCodes.AuthFailed),
                 AuthFailure.DeviceRevoked => ("device_revoked", "This device was removed from its account.", CloseCodes.AuthFailed),
                 AuthFailure.KeyRotation => (_authError!.Value.Code, _authError.Value.Message, CloseCodes.AuthFailed),
+                AuthFailure.JoinPending => ("join_pending", "Waiting for a moderator to let you in.", CloseCodes.AuthFailed),
+                AuthFailure.JoinDeclined => ("join_declined", "The moderators didn't let you in.", CloseCodes.Forbidden),
+                AuthFailure.InvitesPaused => ("invites_paused", "This server isn't taking new members right now. Try again later.", CloseCodes.AuthFailed),
                 _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
             };
             SecurityLog.Record(_world.Store, Now, "auth.failed", _provenAccount, LoggedIp, new { reason = code }, source: RemoteIp);
@@ -215,7 +218,8 @@ public sealed class Session
                 bugInbox = _world.Settings.BugInbox.Accept,
                 moved = _world.Moved is { } moved ? MoveFeature.View(moved) : null,
                 p2p = P2pFeature.SecretForMembers(_world),
-                images = ServerImageFeature.View(_world.Store) },
+                images = ServerImageFeature.View(_world.Store),
+                invitesPaused = _world.Store.JoinSettings().InvitesPaused },
             presence = PresenceFeature.Mine(_world.Store, member.AccountKey, Now),
             channels = _hub.VisibleChannels(member),
             categories = _hub.VisibleCategories(member),
@@ -348,7 +352,7 @@ public sealed class Session
 
     // ── Auth ─────────────────────────────────────────────────────────────────
 
-    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked, KeyRotation, NameRequired }
+    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked, KeyRotation, NameRequired, JoinPending, JoinDeclined, InvitesPaused }
 
     /// <summary>Set when the handshake fails because the account was deleted or its key rotated (AccountFeature/KeyFeature.OnAuth).</summary>
     private (string Code, string Message, object Extra)? _authError;
@@ -432,8 +436,23 @@ public sealed class Session
         }
 
         if (name is null) return (null, AuthFailure.NameRequired);
-        var role = invite is null || !BotFeature.InviteFits(_world.Store, invite, isBot) ? null : _world.Store.TryUseInvite(invite, Now);
-        if (role is null) return (null, AuthFailure.InviteRequired);
+        // Already asked to join: the invite was used then; the answer is still pending, or was no (JoinFeature).
+        if (_world.Store.GetJoinRequest(cert.AccountKey) is { } request)
+            return (null, request.DeclinedAt is null ? AuthFailure.JoinPending : AuthFailure.JoinDeclined);
+        if (invite is null || !BotFeature.InviteFits(_world.Store, invite, isBot)) return (null, AuthFailure.InviteRequired);
+        // Paused invites turn people away before a use is spent (the owner's first invite always works).
+        if (_world.Store.JoinSettings().InvitesPaused && _world.Store.GetInvite(invite) is { Role: not Roles.Owner })
+            return (null, AuthFailure.InvitesPaused);
+        var used = _world.Store.TryUseInvite(invite, Now);
+        if (used is null) return (null, AuthFailure.InviteRequired);
+        var role = used.Role;
+        if (used.Approve && !isBot)
+        {
+            _world.Store.AddJoinRequest(cert.AccountKey, name, invite, role, Now);
+            SecurityLog.Record(_world.Store, Now, "join.pending", cert.AccountKey, LoggedIp, new { role });
+            JoinFeature.QueueChanged(_world.Store, _hub);
+            return (null, AuthFailure.JoinPending);
+        }
 
         if (isBot) BotFeature.Joined(_world.Store, cert.AccountKey, invite!, Now);
         var member = _world.Store.AddMember(cert.AccountKey, name, role, Now);
@@ -445,6 +464,7 @@ public sealed class Session
         SecurityLog.Record(_world.Store, Now, "member.joined", member.AccountKey, LoggedIp, new { role, bot = isBot });
         _hub.Broadcast(Frames.Event("member.joined", new { member = _hub.PublicMember(member) }));
         _hub.Outhooks?.MemberJoined(member);
+        if (!isBot && role != Roles.Owner) AutoModFeature.JoinSeen(_world, _hub, Now); // the join-flood rule
         return (member, AuthFailure.Invalid);
     }
 

@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import type { AutoModAction, AutoModConfig } from '../../core/protocol'
 import {
-  activeRules, AUTOMOD_LIMITS, parseDomains, parseList, suggestedAutoMod, wordListProblem,
+  activeRules, AUTOMOD_LIMITS, joinsRule, parseDomains, parseList, suggestedAutoMod, wordListProblem,
 } from '../../state/automod'
-import { durationLabel, TIMEOUT_OPTIONS } from '../../state/moderationRules'
-import { has } from '../../state/permissions'
+import { loadJoinSettings, updateJoinSettings, useJoins } from '../../state/joins'
+import { durationLabel, SLOWMODE_STEPS, slowmodeLabel, TIMEOUT_OPTIONS } from '../../state/moderationRules'
+import { has, isAdmin } from '../../state/permissions'
 import { useServerRoles } from '../../state/roles'
 import { connectionFor, type ServerState } from '../../state/store'
 import { Spinner } from '../bits'
@@ -206,6 +207,20 @@ export function AutoModSection({ server }: { server: ServerState }) {
         {action('links')}
       </Rule>
 
+      <Rule title={t('automod.joins.title')} hint={t('automod.joins.hint')}
+        on={joinsRule(c).enabled} onToggle={(on) => patch({ joins: { ...joinsRule(c), enabled: on } })}>
+        <div className="automod-inline">
+          <span>{t('automod.joins.before')}</span>
+          <NumberInput label={t('automod.joins.count')} value={joinsRule(c).count} min={2} max={100} onChange={(count) => patch({ joins: { ...joinsRule(c), count } })} />
+          <span>{t('automod.joins.middle')}</span>
+          <NumberInput label={t('automod.joins.minutes')} value={joinsRule(c).minutes} min={1} max={60} onChange={(minutes) => patch({ joins: { ...joinsRule(c), minutes } })} />
+          <span>{t('automod.joins.after')}</span>
+        </div>
+        <p className="muted">{c.alertChannelId !== null ? t('automod.joins.alerts') : t('automod.joins.noAlerts')}</p>
+      </Rule>
+
+      {isAdmin(server.me) && <JoiningSettings server={server} />}
+
       <div className="automod-group">
         <h3 className="h4">{t('automod.alerts.title')}</h3>
         <label className="field">
@@ -251,6 +266,75 @@ export function AutoModSection({ server }: { server: ServerState }) {
       </div>
       {done && !dirty && <p className="muted" role="status">{t('automod.saved')}</p>}
     </section>
+  )
+}
+
+/**
+ * Admins: pausing invites (also what the join-flood rule does; resuming is always by hand) and the newcomer slowmode.
+ * Saved on its own, apart from the AutoMod rules above, and shown as the server has it (`join.settings`).
+ */
+function JoiningSettings({ server }: { server: ServerState }) {
+  const { t } = useTranslation()
+  const settings = useJoins((s) => s.settings[server.key])
+  const [hours, setHours] = useState<number | null>(null)
+  const [slowmode, setSlowmode] = useState<number | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+  useEffect(() => {
+    loadJoinSettings(server.key).catch((e: unknown) => setError(errorMessage(e)))
+  }, [server.key])
+  if (!settings) return null
+  const draftHours = hours ?? settings.newcomerHours
+  const draftSlowmode = slowmode ?? settings.newcomerSlowmode
+  const dirty = draftHours !== settings.newcomerHours || draftSlowmode !== settings.newcomerSlowmode
+
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await action()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1800)
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  const pausedBy = settings.pausedBy === 'automod:' ? 'AutoMod' : settings.pausedBy ? server.members[settings.pausedBy]?.name ?? t('settings.invite.someone') : ''
+
+  return (
+    <div className="automod-group" data-testid="joining-settings">
+      <h3 className="h4">{t('automod.joining.title')}</h3>
+      <div className="internet-head">
+        <div>
+          <strong>{settings.invitesPaused ? t('automod.joining.paused') : t('automod.joining.open')}</strong>
+          <p className="internet-summary">{settings.invitesPaused ? t('automod.joining.pausedBy', { name: pausedBy }) : t('automod.joining.openHint')}</p>
+        </div>
+        <button className={`switch ${settings.invitesPaused ? 'on' : ''}`} role="switch" aria-checked={settings.invitesPaused} aria-label={t('automod.joining.pauseLabel')}
+          disabled={busy} onClick={() => void run(() => updateJoinSettings(server.key, { invitesPaused: !settings.invitesPaused }))}>
+          <span />
+        </button>
+      </div>
+      <p className="muted">{t('automod.joining.newcomersHint')}</p>
+      <div className="automod-inline">
+        <span>{t('automod.joining.newcomersBefore')}</span>
+        <NumberInput label={t('automod.joining.hours')} value={draftHours} min={0} max={720} onChange={setHours} />
+        <span>{t('automod.joining.newcomersMiddle')}</span>
+        <select value={draftSlowmode} aria-label={t('automod.joining.slowmode')} onChange={(e) => setSlowmode(Number(e.target.value))}>
+          {SLOWMODE_STEPS.map((s) => <option key={s} value={s}>{slowmodeLabel(s)}</option>)}
+        </select>
+      </div>
+      <div className="copy-row">
+        <button className="button primary small" disabled={!dirty || busy}
+          onClick={() => void run(async () => { await updateJoinSettings(server.key, { newcomerHours: draftHours, newcomerSlowmode: draftSlowmode }); setHours(null); setSlowmode(null) })}>
+          {t('automod.joining.save')}
+        </button>
+        {saved && <span className="muted" role="status">{t('automod.saved')}</span>}
+      </div>
+      {error && <p className="error-text">{error}</p>}
+    </div>
   )
 }
 

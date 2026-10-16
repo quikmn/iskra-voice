@@ -69,6 +69,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["data.export"] = (2, 1 / 600.0), // "Download my data": two, then one every 10 minutes
         ["role.base.update"] = (30, 2), // ticking powers one by one
         ["roles.self"] = (10, 1), // picking your own roles, one tap each
+        ["join.settings.update"] = (10, 1),
         ["notify.default.set"] = (10, 1),
         ["server.template.export"] = (3, 0.1), // builds a whole template
         ["outhook.create"] = (10, 0.5),

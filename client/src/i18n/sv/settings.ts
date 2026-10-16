@@ -308,6 +308,12 @@ export const settings: Messages['settings'] = {
     someone: 'någon',
     revoke: 'Återkalla',
     revokeLabel: 'Återkalla inbjudan …{{code}}',
+    approve: 'Godkänn var och en som går med',
+    approveHint: 'Den som öppnar länken väntar utanför tills en moderator släpper in hen (Serverinställningar → Anmälningar).',
+    approval: 'Godkännande',
+    paused: 'Inbjudningar är pausade just nu: länkar skapas, men ingen kommer in förrän en admin återupptar dem.',
+    pausedAdmin: 'Inbjudningar är pausade: ingen kommer in förrän du återupptar dem.',
+    resume: 'Återuppta inbjudningar',
   },
   join: {
     title: 'Gå med i en server',
