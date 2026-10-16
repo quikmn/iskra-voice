@@ -40,6 +40,11 @@
   --accent-subtle: rgba(124, 111, 255, 0.08);
   --on-accent: #fff;
   --avatar-radius: 50%;
+  /* The panel frame (desktop): the gutter of dark base between the panels, their corners, and the height the me bar
+     and the message box share. Phones are full-bleed (see "Phones and small windows"). */
+  --frame-gap: 8px;
+  --panel-radius: calc(var(--radius) * 1.2);
+  --bottom-bar: 50px;
   /* Not themeable: author-name lightness, layering, shadows, motion. */
   --name-l: 72%;
   --scrim: rgba(0, 0, 0, 0.6);
@@ -171,12 +176,24 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .fine-print { font-size: 12px; color: var(--muted); margin: 14px 0 0; text-align: center; }
 
 /* ── Shell layout ───────────────────────────────────────────────────── */
-.shell { display: grid; grid-template-columns: auto minmax(0, 1fr) 240px; height: 100dvh; }
+/* The channel panel, the main column and the members list are rounded panels on the dark base (the rail's colour,
+   which is also the shell's), with a thin gutter between them, along the bottom and along the right edge. The top
+   stays flush with the window: the base shows only in the notch of each rounded top corner. */
+.shell {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) 240px; height: 100dvh; column-gap: var(--frame-gap);
+  padding: 0 var(--frame-gap) var(--frame-gap) 0; background: var(--rail);
+}
 .shell.no-members { grid-template-columns: auto minmax(0, 1fr); }
 .nav-column { display: flex; min-height: 0; background: var(--rail); }
-.main-column { min-width: 0; min-height: 0; background: var(--surface); display: flex; flex-direction: column; }
+/* overflow: clip keeps children with their own background (the call screen, notices, the thread panel) out of the
+   corners without making the column scrollable; the popups in here are position: fixed (menus, pickers, cards) or
+   open inward (the mention popup, header popovers), so none of them is cut. */
+.main-column {
+  min-width: 0; min-height: 0; background: var(--surface); display: flex; flex-direction: column;
+  border-radius: var(--panel-radius); overflow: clip;
+}
 .main-column > .chat, .main-column > .stage, .main-column > .empty-state { flex: 1; min-height: 0; height: auto; }
-.members-column { background: var(--sidebar); border-left: 1px solid var(--border); min-height: 0; overflow-y: auto; }
+.members-column { background: var(--sidebar); min-height: 0; overflow-y: auto; border-radius: var(--panel-radius); }
 .scrim { display: none; }
 .mobile-only { display: none; }
 
@@ -219,10 +236,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 }
 .server-icon .badge { position: absolute; right: -4px; bottom: -4px; border: 3px solid var(--rail); height: 22px; border-radius: 11px; }
 
-/* The channel panel sits inside the rail's dark frame with rounded inner corners; the me bar floats in it as a card like the composer. */
+/* The channel panel is the first of the rounded panels on the base; the me bar floats in it as a card like the composer. */
 .channel-sidebar {
   width: 240px; background: var(--sidebar); display: flex; flex-direction: column; min-height: 0;
-  border-radius: calc(var(--radius) * 1.2) 0 0 calc(var(--radius) * 1.2);
+  border-radius: var(--panel-radius);
 }
 .sidebar-header {
   height: 52px; padding: 0 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); flex: none;
@@ -243,7 +260,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .server-header-icon { flex: none; width: 22px; height: 22px; border-radius: 6px; overflow: hidden; }
 .server-header-icon:empty { display: none; }
 .server-banner {
-  flex: none; height: 96px; overflow: hidden; border-radius: calc(var(--radius) * 1.2) 0 0 0; background: var(--surface-2);
+  flex: none; height: 96px; overflow: hidden; border-radius: var(--panel-radius) var(--panel-radius) 0 0; background: var(--surface-2);
   transition: height 0.2s ease, opacity 0.2s ease;
 }
 .server-banner img { display: block; width: 100%; height: 100%; object-fit: cover; user-select: none; }
@@ -275,9 +292,11 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .channel-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lock { font-size: 11px; opacity: 0.7; }
 
+/* The same height and bottom edge as the composer across the gutter: 7px around its 36px row (the 32px avatar's
+   button and the settings button) makes --bottom-bar, 16px above the panel's bottom like the composer. */
 .me-bar {
-  display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--rail); flex: none;
-  margin: 0 8px 16px; border-radius: calc(var(--radius) * 1.2);
+  display: flex; align-items: center; gap: 10px; min-height: var(--bottom-bar); padding: 7px 7px 7px 8px; background: var(--rail); flex: none;
+  margin: 0 8px 16px; border-radius: var(--panel-radius);
 }
 .me-text { display: grid; min-width: 0; flex: 1; line-height: 1.2; }
 .me-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
@@ -381,7 +400,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .typing-line { height: 22px; padding: 0 18px; font-size: 13px; color: var(--muted); flex: none; }
 .composer {
   margin: 0 16px 16px; display: flex; align-items: flex-end; gap: 8px; background: var(--surface-2);
-  border-radius: calc(var(--radius) * 1.2); padding: 6px 6px 6px 14px; flex: none;
+  border-radius: var(--panel-radius); padding: 6px 6px 6px 14px; flex: none; min-height: var(--bottom-bar);
 }
 .composer textarea { border: 0; background: transparent; resize: none; padding: 8px 0; box-shadow: none; max-height: 240px; }
 .composer textarea:focus { box-shadow: none; }
@@ -660,7 +679,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 @media (max-width: 1100px) {
   .shell { grid-template-columns: auto minmax(0, 1fr); }
   .members-column {
-    position: fixed; right: 0; top: 0; bottom: 0; width: min(280px, 85vw); z-index: var(--z-drawer);
+    position: fixed; right: 0; top: 0; bottom: 0; width: min(280px, 85vw); z-index: var(--z-drawer); border-radius: 0;
     transform: translateX(100%); transition: transform 0.22s var(--ease);
   }
   .panel-members .members-column { transform: none; box-shadow: -20px 0 50px var(--shadow-color); }
@@ -676,7 +695,11 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
   .segmented { flex-wrap: wrap; }
   .segmented button { flex: 1 1 auto; }
   body { font-size: 16px; } /* 16px inputs stop iOS from zooming in */
-  .shell { grid-template-columns: minmax(0, 1fr); }
+  /* Full-bleed: no frame, the chat fills the screen, the channel drawer is rounded against the rail only. */
+  .shell { grid-template-columns: minmax(0, 1fr); column-gap: 0; padding: 0; }
+  .main-column { border-radius: 0; }
+  .channel-sidebar { border-radius: var(--panel-radius) 0 0 var(--panel-radius); }
+  .server-banner { border-top-right-radius: 0; }
   .mobile-only { display: inline-grid; }
   .nav-column {
     position: fixed; left: 0; top: 0; bottom: 0; z-index: var(--z-drawer); max-width: 88vw;

@@ -9,5 +9,6 @@
 - The soundboard, status menu and profile card no longer stick out past the screen edge on narrow phones.
 - Screen readers now announce who is speaking in a voice channel.
 - The desktop app's own messages (update check, About) now appear inside Iskra instead of as Windows pop-up boxes.
+- The channel list, chat and members list now sit as rounded panels on the dark frame, and the bottom bars line up.
 
 ### Good to know
