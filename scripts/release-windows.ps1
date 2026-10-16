@@ -10,8 +10,9 @@
 #   release-windows.ps1 <version> -SkipAndroid # without the Android app (the Release workflow builds it on GitHub)
 #
 # Runs on the release commit (the vX tag), on this PC (scripts/release.ps1) or the home PC's runner (the Release
-# workflow, release-all.yml). SimplySign Desktop must be logged in; when it isn't, the stored seed logs it in once
-# (scripts/simplysign-login.ps1). It never prints secrets or asks anything.
+# workflow, release-all.yml). SimplySign Desktop must be logged in; when it isn't, the stored seed logs it in
+# (scripts/simplysign-login.ps1), also when SimplySign asks to log in again in the middle of the build (a watcher fills
+# its login dialog). It never prints secrets or asks anything.
 param(
   [Parameter(Mandatory)][string]$Version,
   [switch]$SkipBuild,
@@ -23,6 +24,8 @@ $tag = "v$Version"
 $repo = 'quikmn/iskra-voice'
 Import-Module (Join-Path $PSScriptRoot 'release-checks.psm1') -Force
 $subject = Get-SigningSubject
+# One run for SimplySign's login ledger, also when started on its own (release.ps1 and GitHub already set one).
+if (-not $env:ISKRA_RELEASE_RUN -and -not $env:GITHUB_RUN_ID) { $env:ISKRA_RELEASE_RUN = [guid]::NewGuid().ToString('N') }
 
 function Stop-Release([string]$message) {
   Write-Host ''
@@ -74,15 +77,18 @@ try {
     if (-not (Test-Path client\node_modules)) { Native 'npm ci (client)' { npm --prefix client ci } }
     if (-not (Test-Path desktop\node_modules)) { Native 'npm ci (desktop)' { npm --prefix desktop ci } }
     $log = Join-Path ([IO.Path]::GetTempPath()) "iskra-dist-$Version.log"
-    # SimplySign can log out during the build (its session times out): then it logs itself in again once (when a seed
-    # is stored and this run hasn't used its one login yet) and the build runs once more.
+    # SimplySign's session (2 hours per login) can end during the build. Then SimplySign shows its login dialog and the
+    # signature waits: a hidden watcher fills it with the stored seed while the signing steps run (or closes it when it
+    # can't, so the build fails here instead of waiting). If SimplySign is logged out outright, signing fails: then it
+    # logs itself in again once (when a seed is stored and the ledger allows it) and the build runs once more.
     for ($try = 1; ; $try++) {
       Remove-Item -Recurse -Force desktop\release -ErrorAction SilentlyContinue
       Push-Location desktop
+      $watcher = Start-LoginWatcher
       try {
         npm run dist 2>&1 | Tee-Object -FilePath $log
         $code = $LASTEXITCODE
-      } finally { Pop-Location }
+      } finally { Stop-LoginWatcher $watcher; Pop-Location }
       if ($code -eq 0) { break }
       $text = Get-Content $log -Raw
       if ($text -notmatch 'Signing failed|No provider was specified|No certificates were found|SignTool Error|Signing .* failed|cannot find the certificate|The specified PIN|smart card') {
@@ -95,10 +101,14 @@ try {
       Write-Host 'SimplySign logged out during the build and logged itself in again: building once more.'
     }
     # The standalone server's peer-to-peer tunnel: one executable, signed like the server (the desktop app runs its own).
-    $sidecarOut = node desktop\scripts\build-sidecar.mjs win-x64 2>&1 | ForEach-Object { Write-Host $_; "$_" }
-    if ($LASTEXITCODE -ne 0) {
+    $watcher = Start-LoginWatcher
+    try {
+      $sidecarOut = node desktop\scripts\build-sidecar.mjs win-x64 2>&1 | ForEach-Object { Write-Host $_; "$_" }
+      $code = $LASTEXITCODE
+    } finally { Stop-LoginWatcher $watcher }
+    if ($code -ne 0) {
       if (($sidecarOut -join "`n") -match 'Signing failed|Signing .* failed') { Stop-Release "signing failed during the build: SimplySign probably logged out (it does after a while). $(Get-SimplySignLoginLine)" }
-      Stop-Release "build-sidecar.mjs (iskra-p2p) failed (exit code $LASTEXITCODE)."
+      Stop-Release "build-sidecar.mjs (iskra-p2p) failed (exit code $code)."
     }
   }
 

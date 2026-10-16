@@ -113,6 +113,76 @@ test('ledger: one login attempt per run, none for 30 minutes after a failure; a 
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 
+test('ledger: a run may log in again only after its last login worked at least 90 minutes ago (sessions last 2 hours)', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'iskra-simplysign-'))
+  try {
+    const env = { ISKRA_SIMPLYSIGN_DIR: dir }
+    const allowed = (key, minutes) => ps(`(Test-LoginAllowed -RunKey '${key}' -Now ([DateTimeOffset]'2026-10-15T12:00:00Z').AddMinutes(${minutes})).Ok`, env)
+    const write = (key, result, minutes) => ps(`Write-LoginAttempt -Result ${result} -RunKey '${key}' -Now ([DateTimeOffset]'2026-10-15T12:00:00Z').AddMinutes(${minutes})`, env)
+    write('gh-1-1', 'ok', 0)
+    assert.equal(allowed('gh-1-1', 89), 'False', 'the session is still young')
+    assert.equal(allowed('gh-1-1', 90), 'True', 'the session has (nearly) ended')
+    write('gh-1-1', 'started', 125)
+    assert.equal(allowed('gh-1-1', 300), 'False', 'a login that was started but never confirmed: no more in this run')
+    write('gh-2-1', 'not-sent', 0)
+    assert.equal(allowed('gh-2-1', 300), 'False', 'only a login that worked earns another')
+    write('gh-3-1', 'ok', 0)
+    write('gh-4-1', 'failed', 100)
+    assert.equal(allowed('gh-3-1', 110), 'False', 'the pause after any failure still applies')
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+// Invoke-OpenDialogLogin with a fake seed and a fake dialog (never the real SimplySign window), in its own ledger folder.
+function dialogLogin({ ledger = '', find, submit = "{ throw 'must not fill' }", seed = "{ [pscustomobject]@{ Email = 'test@example.com'; Secret = [byte[]](1..20); Algorithm = 'SHA1'; Digits = 6; Period = 30 } }" }) {
+  const dir = mkdtempSync(join(tmpdir(), 'iskra-simplysign-'))
+  try {
+    const env = { ISKRA_SIMPLYSIGN_DIR: dir, GITHUB_RUN_ID: '9', GITHUB_RUN_ATTEMPT: '1' }
+    const out = ps(`$script:looks = 0; $script:typed = $null
+${ledger}
+$r = Invoke-OpenDialogLogin -ReadSeed ${seed} -FindForm ${find} -SubmitForm ${submit} -TimeoutSeconds 3 -PollSeconds 0.1
+[pscustomobject]@{ Code = $r.Code; Line = $r.Line; Typed = $script:typed; Looks = $script:looks; Ledger = @(if (Test-Path (Get-SimplySignLedgerPath)) { (Get-Content (Get-SimplySignLedgerPath) -Raw | ConvertFrom-Json).attempts | ForEach-Object { "$($_.key)=$($_.result)" } }) } | ConvertTo-Json -Compress`, env)
+    return JSON.parse(out)
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+}
+
+test('the open dialog login: filled with the e-mail and a 6-digit code, the dialog closes, the ledger says ok', { skip }, () => {
+  // The dialog is there for the first look (before filling) and gone after.
+  const r = dialogLogin({ find: "{ if (++$script:looks -le 1) { 'dialog' } }", submit: "{ param($form, $email, $code) $script:typed = \"$form $email $((& $code) -match '^\\d{6}$')\" }" })
+  assert.equal(r.Code, 0)
+  assert.equal(r.Typed, 'dialog test@example.com True')
+  assert.deepEqual(r.Ledger, ['gh-9-1=ok'])
+})
+
+test('the open dialog login: the ledger forbids, so nothing is looked at or filled', { skip }, () => {
+  const r = dialogLogin({ ledger: "Write-LoginAttempt -Result failed -RunKey 'gh-8-1'", find: "{ throw 'must not look' }" })
+  assert.equal(r.Code, 3)
+  assert.match(r.Line, /last SimplySign login failed .*Log in to SimplySign Desktop by hand\.$/)
+  const once = dialogLogin({ ledger: "Write-LoginAttempt -Result ok -RunKey 'gh-9-1'", find: "{ throw 'must not look' }" })
+  assert.equal(once.Code, 3, 'a login that worked minutes ago in this run: no second one')
+  assert.match(once.Line, /one login attempt in this run/)
+})
+
+test('the open dialog login: no seed is code 2; a dialog that stays open is a failed attempt (the pause starts)', { skip }, () => {
+  assert.equal(dialogLogin({ seed: '{ $null }', find: "{ throw 'must not look' }" }).Code, 2)
+  const stuck = dialogLogin({ find: "{ 'dialog' }", submit: '{ param($form, $email, $code) }' })
+  assert.equal(stuck.Code, 1)
+  assert.match(stuck.Line, /still open 3 s after the code went in/)
+  assert.deepEqual(stuck.Ledger, ['gh-9-1=failed'])
+  const gone = dialogLogin({ find: '{ $null }' })
+  assert.equal(gone.Code, 1, 'the dialog closed before filling: nothing sent, nothing counted')
+  assert.deepEqual(gone.Ledger, [])
+})
+
+test('the build watcher fills the dialog when it shows, and closes it when the login is not possible', { skip }, () => {
+  // The dialog opens on the second look; a login that works closes it, closing it closes it.
+  const run = (code) => JSON.parse(ps(`$script:looks = 0; $script:closed = 0; $script:logins = 0; $script:open = $false
+$null = Watch-LoginDialog -MaxPolls 5 -PollSeconds 0.05 -FindForm { if (++$script:looks -eq 2) { $script:open = $true }; if ($script:open) { 'dialog' } } -Login { $script:logins++; if (${code} -eq 0) { $script:open = $false }; @{ Code = ${code}; Line = 'x' } } -CloseForm { param($f) $script:closed++; $script:open = $false } 6>$null
+[pscustomobject]@{ Logins = $script:logins; Closed = $script:closed } | ConvertTo-Json -Compress`))
+  assert.deepEqual(run(0), { Logins: 1, Closed: 0 })
+  assert.deepEqual(run(3), { Logins: 1, Closed: 1 })
+  assert.deepEqual(run(2), { Logins: 1, Closed: 1 }, 'no seed: closed too, so the build fails instead of waiting')
+})
+
 test('the login and setup scripts parse, and never write the seed or a code to output', { skip }, () => {
   for (const f of ['simplysign-login.ps1', 'simplysign-setup.ps1', 'release-pc-checks.ps1']) {
     const out = ps(`$e = $null; $null = [System.Management.Automation.Language.Parser]::ParseFile('${join(here, f).replaceAll("'", "''")}', [ref]$null, [ref]$e); @($e).Count`)

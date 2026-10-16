@@ -4,17 +4,22 @@
 # - TOTP codes (RFC 6238 with .NET's HMAC; RFC 4648 Base32), from an otpauth:// URI or a Base32 seed.
 # - The seed, stored with DPAPI (CurrentUser) in %LOCALAPPDATA%\Iskra\simplysign.dat: only this Windows account can read
 #   it back. It is never printed or logged; nothing here writes it anywhere else.
-# - The attempt ledger: at most one login attempt per release run, and none for 30 minutes after one failed, so the
-#   Certum account can't get locked by a loop.
-# - The login itself: SimplySign Desktop's login dialog filled through UI Automation (default), or its /otpauth and
-#   /autologin switches.
-# Tested by scripts/simplysign.test.mjs (RFC 6238 vectors, a DPAPI round trip with a fake seed, the ledger).
+# - The attempt ledger: at most one login attempt per release run (another only after the last one worked and its
+#   session has since ended: 90 minutes or more), and none for 30 minutes after one failed, so the Certum account can't
+#   get locked by a loop.
+# - The login itself: SimplySign Desktop's login dialog filled with window messages (default), or its /otpauth and
+#   /autologin switches. Invoke-OpenDialogLogin fills a dialog SimplySign opened by itself (a signature waiting for a
+#   login); Watch-LoginDialog does that for as long as a build runs.
+# Tested by scripts/simplysign.test.mjs (RFC 6238 vectors, a DPAPI round trip with a fake seed, the ledger, the dialog
+# login and the watcher with fake dialogs).
 
 $script:FileHeader = 'ISKRA-SIMPLYSIGN-1'
 # DPAPI's optional entropy: a context string, so this blob can't be confused with any other DPAPI blob of the account.
 $script:Entropy = [Text.Encoding]::UTF8.GetBytes('iskra/simplysign-seed/v1')
 $script:Base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 $script:Cooldown = [TimeSpan]::FromMinutes(30)
+# A SimplySign login lasts 2 hours. A run may log in again once its last login worked at least this long ago.
+$script:Relogin = [TimeSpan]::FromMinutes(90)
 $script:DefaultExe = 'C:\Program Files\Certum\SimplySign Desktop\SimplySignDesktop.exe'
 
 function Get-SimplySignFolder {
@@ -177,11 +182,16 @@ function Get-LoginRunKey {
   "pid-$PID"
 }
 
-# Whether a login may be tried now: @{ Ok; Reason }.
+# Whether a login may be tried now: @{ Ok; Reason }. One attempt per run. A run that outlasts a SimplySign session
+# (2 hours) may log in again only when its last login worked and was at least 90 minutes ago; any other earlier
+# attempt in the run (started, failed, not sent, or a login that worked recently) means no.
 function Test-LoginAllowed {
   param([string]$RunKey = (Get-LoginRunKey), [DateTimeOffset]$Now = [DateTimeOffset]::UtcNow, [string]$Path = (Get-SimplySignLedgerPath))
   $attempts = Read-Ledger $Path
-  if ($attempts | Where-Object { $_.key -eq $RunKey }) { return @{ Ok = $false; Reason = 'SimplySign already had its one login attempt in this run' } }
+  $mine = $attempts | Where-Object { $_.key -eq $RunKey } | Select-Object -Last 1
+  if ($mine -and -not ($mine.result -eq 'ok' -and ([DateTimeOffset]$mine.at) + $script:Relogin -le $Now)) {
+    return @{ Ok = $false; Reason = 'SimplySign already had its one login attempt in this run' }
+  }
   $failed = $attempts | Where-Object { $_.result -eq 'failed' } | Sort-Object { [DateTimeOffset]$_.at } | Select-Object -Last 1
   if ($failed) {
     $until = ([DateTimeOffset]$failed.at) + $script:Cooldown
@@ -264,6 +274,7 @@ public static class IskraSimplySignWin {
   }
   public static void SetText(IntPtr h, string t) { SendMessage(h, WM_SETTEXT, IntPtr.Zero, t); }
   public static void Click(IntPtr h) { PostMessage(h, BM_CLICK, IntPtr.Zero, IntPtr.Zero); }
+  public static void Close(IntPtr h) { PostMessage(h, 0x0010 /* WM_CLOSE */, IntPtr.Zero, IntPtr.Zero); }
 }
 '@
 
@@ -312,6 +323,87 @@ function Submit-LoginForm {
   [IskraSimplySignWin]::Click($Form.Ok)
 }
 
+# Closes the login dialog (like its close button). Used when the dialog can't be filled automatically, so a signature
+# waiting for it fails at once instead of waiting for someone to look at it.
+function Close-LoginForm {
+  param([Parameter(Mandatory)]$Form)
+  Initialize-Win32
+  [IskraSimplySignWin]::Close($Form.Window)
+}
+
+# Fills the login dialog SimplySign Desktop opened by itself: a program asked it to sign after its session ended (a
+# login lasts 2 hours), and that signature now waits for the login. Never restarts SimplySign and never signs anything
+# itself, so it can run while the signature waits. Within the ledger's limits (Test-LoginAllowed). Returns
+# @{ Code (0 logged in: the dialog closed after the code went in; 2 no seed stored; 3 no attempt allowed now;
+# 1 failed); Line }. -ReadSeed, -FindForm and -SubmitForm replace the real ones (tests).
+function Invoke-OpenDialogLogin {
+  param(
+    [scriptblock]$ReadSeed = { Read-SimplySignSeed },
+    [scriptblock]$FindForm = { Find-LoginForm },
+    [scriptblock]$SubmitForm = { param($form, $email, $code) Submit-LoginForm -Form $form -Email $email -Code $code },
+    [int]$TimeoutSeconds = 60, [double]$PollSeconds = 1
+  )
+  try { $seed = & $ReadSeed } catch { return @{ Code = 1; Line = $_.Exception.Message } }
+  if (-not $seed) { return @{ Code = 2; Line = 'no seed stored (scripts/simplysign-setup.ps1); log in by hand' } }
+  $allowed = Test-LoginAllowed
+  if (-not $allowed.Ok) { return @{ Code = 3; Line = "$($allowed.Reason). Log in to SimplySign Desktop by hand." } }
+  $form = & $FindForm
+  if (-not $form) { return @{ Code = 1; Line = "SimplySign's login dialog closed before it could be filled" } }
+  # Counted from here on.
+  Write-LoginAttempt -Result started
+  # A code with at least 8 seconds left, so it doesn't change on the way.
+  $code = {
+    $left = Get-TotpSecondsLeft -Period $seed.Period
+    if ($left -lt 8) { Start-Sleep -Seconds ($left + 1) }
+    Get-Totp -Secret $seed.Secret -Algorithm $seed.Algorithm -Digits $seed.Digits -Period $seed.Period
+  }
+  try { & $SubmitForm $form $seed.Email $code } catch {
+    Write-LoginAttempt -Result failed
+    return @{ Code = 1; Line = "couldn't fill SimplySign's login dialog: $($_.Exception.Message)" }
+  }
+  # SimplySign closes the dialog once the login works. Two empty looks in a row, so a dialog being redrawn doesn't
+  # count as closed.
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  $gone = 0
+  while ((Get-Date) -lt $deadline) {
+    Start-Sleep -Seconds $PollSeconds
+    if (& $FindForm) { $gone = 0 } elseif (++$gone -ge 2) {
+      Write-LoginAttempt -Result ok
+      return @{ Code = 0; Line = 'logged in (the login dialog SimplySign opened)' }
+    }
+  }
+  Write-LoginAttempt -Result failed
+  @{ Code = 1; Line = "SimplySign's login dialog was still open $TimeoutSeconds s after the code went in" }
+}
+
+# For as long as a build runs (scripts/release-windows.ps1 starts it with simplysign-login.ps1 -Watch and stops it
+# afterwards): looks for SimplySign's login dialog about once a second and fills it (Invoke-OpenDialogLogin). When it
+# can't be filled (no seed, no attempt allowed, the login failed) it closes the dialog, so the waiting signature fails
+# and the build stops with the usual line instead of waiting for someone to look. Ends when -ParentPid exits (or after
+# -MaxPolls looks, tests). -FindForm, -Login and -CloseForm replace the real ones (tests).
+function Watch-LoginDialog {
+  param(
+    [int]$ParentPid = 0, [double]$PollSeconds = 1, [int]$MaxPolls = 0,
+    [scriptblock]$FindForm = { Find-LoginForm },
+    [scriptblock]$Login = { Invoke-OpenDialogLogin },
+    [scriptblock]$CloseForm = { param($form) Close-LoginForm -Form $form }
+  )
+  for ($n = 1; ; $n++) {
+    if ($ParentPid -and -not (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue)) { return }
+    if (& $FindForm) {
+      $r = & $Login
+      Write-Host "SimplySign login: SimplySign asked to log in; $($r.Line)"
+      if ($r.Code -ne 0) {
+        $still = & $FindForm
+        if ($still) { & $CloseForm $still; Write-Host "SimplySign login: closed SimplySign's login dialog, so the signature fails instead of waiting" }
+      }
+    }
+    if ($MaxPolls -and $n -ge $MaxPolls) { return }
+    Start-Sleep -Seconds $PollSeconds
+  }
+}
+
 Export-ModuleMember -Function Get-SimplySignFolder, Get-SimplySignSeedPath, Get-SimplySignLedgerPath, ConvertFrom-Base32, Get-Totp,
   Get-TotpSecondsLeft, ConvertFrom-SeedInput, Save-SimplySignSeed, Read-SimplySignSeed, Remove-SimplySignSeed, Get-LoginRunKey,
-  Test-LoginAllowed, Write-LoginAttempt, Get-SimplySignExe, Find-LoginForm, Open-LoginForm, Submit-LoginForm
+  Test-LoginAllowed, Write-LoginAttempt, Get-SimplySignExe, Find-LoginForm, Open-LoginForm, Submit-LoginForm, Close-LoginForm,
+  Invoke-OpenDialogLogin, Watch-LoginDialog

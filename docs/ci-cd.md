@@ -92,9 +92,9 @@ Everything below ships something only as a step of them (each file's header says
 | Step | Called by | What it does |
 |---|---|---|
 | `.github/workflows/release-all.yml` ("Release") | The owner (Run workflow), `release.ps1 -GitHub` | The whole release on GitHub ([2a](#2a-the-release-button)) |
-| `scripts/release-checks.psm1` | release.ps1, release-windows.ps1, release-pc-checks.ps1 | SimplySign's test signature (certificate in the store, a signed scratch file), `Confirm-Signing` (the test signature, then the automatic login once), the Android build prerequisites (presence only). Tests: `release-checks.test.mjs` (fake certificates, signer and login) |
+| `scripts/release-checks.psm1` | release.ps1, release-windows.ps1, release-pc-checks.ps1 | SimplySign's test signature (certificate in the store, a signed scratch file), `Confirm-Signing` (the test signature with a time limit, filling SimplySign's login dialog if it shows, then the automatic login once), the Android build prerequisites (presence only). Tests: `release-checks.test.mjs` (fake certificates, signer, login and dialog; a signer that never finishes) |
 | `scripts/release-pc-checks.ps1` | release-all.yml (home PC checks) | The checks only the home PC can answer, before anything changes |
-| `scripts/simplysign.psm1`, `simplysign-login.ps1` | Confirm-Signing | SimplySign logging itself in ([SimplySign auto-login](#simplysign-auto-login)). Tests: `simplysign.test.mjs` (RFC 6238 vectors, DPAPI round trip, the attempt ledger) |
+| `scripts/simplysign.psm1`, `simplysign-login.ps1` | Confirm-Signing, release-windows.ps1 (build watcher) | SimplySign logging itself in, also when its login dialog pops up mid-signature ([SimplySign auto-login](#simplysign-auto-login)). Tests: `simplysign.test.mjs` (RFC 6238 vectors, DPAPI round trip, the attempt ledger, the dialog fill and the watcher with fake dialogs) |
 | `scripts/release-preflight.mjs` | release.ps1 (check phase), release-all.yml (`release` subcommand) | The next version, `mobile/store.json` validity, the GitHub secret and variable names the release needs, environments with reviewers; on GitHub also the version, notes, links/site, file list and CI on main. Tests: `release-preflight.test.mjs` |
 | `scripts/ci-gate.mjs` | release.ps1 (check phase), release-preflight.mjs, release-finalize.yml | Exits 0 only when a push run of ci.yml concluded success on the given commit (waits up to `--wait-minutes`); `--run <id>`: the Release run's own `ci / …` jobs passed. Tests: `ci-gate.test.mjs` |
 | `scripts/release-notes.mjs` | release.ps1 ① | Writes docs/releases/X.md from docs/releases/NEXT.md (headline, sections, "Get started" from the previous notes) and empties NEXT.md; refuses lines that already shipped. `--dry-run` in the check phase |
@@ -243,8 +243,9 @@ Any red: it lists all of them (`N thing(s) to fix ... (nothing was changed or se
    (`branches: ['**']`): the tag's commit is main's, tested once.
 4. **Windows + Android.** `scripts/release-windows.ps1 X`. It test-signs a scratch file again, builds (`sign.ps1` fails
    instead of leaving a file unsigned), checks every signature (valid, right publisher, timestamped), builds the server
-   zip, APK and AAB, prints SHA256s, uploads and checks sizes on GitHub. SimplySign logging out mid-build: with a
-   stored seed (and this run's one login unused) it logs in and builds once more; otherwise it ends with
+   zip, APK and AAB, prints SHA256s, uploads and checks sizes on GitHub. SimplySign asking to log in mid-build (its
+   2-hour session ended): a watcher fills the dialog with the stored seed and the build goes on. SimplySign logged out
+   outright: with a stored seed (and the ledger allowing it) it logs in and builds once more; otherwise it ends with
    `STOP [SimplySign] Log in ..., then run scripts/release.ps1 -Resume`.
 5. **Finalize.** release.ps1 waits for `release.yml` (and checks both Macs were notarized), checks all 23 files are there
    and starts `release-finalize.yml`. The `release` environment has no required reviewers, so nothing waits for a click:
@@ -349,7 +350,20 @@ On the home PC, releases log SimplySign Desktop in by themselves, so nobody type
   stores it with **DPAPI for the owner's Windows account** (with a context string) in `%LOCALAPPDATA%\Iskra\simplysign.dat`.
   It is never printed, logged, committed or sent to GitHub. `-Remove` deletes it. Risk accepted by the owner
   (2026-10-13): anyone who can run code as this Windows account can sign as Iskra, like the devkeys on this PC.
-- **The login** (`scripts/simplysign-login.ps1`, called by `Confirm-Signing` only when a test signature fails):
+- **When SimplySign's session ends** (one login lasts 2 hours) while its certificate is still in the store, a signature
+  doesn't fail: SimplySign opens its own login dialog and the signature waits. So nothing waits on that dialog:
+  - **The test signature** (`Invoke-SigningProbe` in `release-checks.psm1`) runs in a hidden child process with a
+    time limit. While it runs, the release looks for SimplySign's login dialog about once a second. When the dialog
+    shows, the stored code goes in at once (`simplysign-login.ps1 -NoCheck`: fills the open dialog, no restart, no
+    test signature of its own) and the signature gets 2 more minutes to finish. No result in 60 seconds and no
+    dialog: the child is stopped and the check fails with "didn't finish within 60 s" (`sign-timeout`).
+  - **During the Windows build** (`release-windows.ps1`): a hidden watcher (`simplysign-login.ps1 -Watch`) runs while
+    `npm run dist` and `build-sidecar.mjs` sign, and fills the dialog the same way. It stops when each step ends.
+  - When the dialog can't be filled (no seed, the ledger says no, the login failed), the release closes it, so the
+    signature fails at once and the release stops with the usual "Log in to SimplySign Desktop ..." line. No window
+    is left waiting.
+- **The login** (`scripts/simplysign-login.ps1`, called by `Confirm-Signing` when a test signature fails because
+  SimplySign isn't logged in at all, e.g. no certificate in the store):
   - TOTP per RFC 6238 with .NET's HMAC (tested against the RFC's vectors), a code with at least 8 seconds left.
   - Method `dialog` (default): opens SimplySign Desktop's login dialog (restarting SimplySign, which isn't logged in at
     that point, so the dialog shows on start; option "show the login dialog on start" must stay on; the dialog that
@@ -359,8 +373,10 @@ On the home PC, releases log SimplySign Desktop in by themselves, so nobody type
     switches`): SimplySign's own undocumented `/otpauth "<link>"` then `/autologin` switches (it parses a seed and has
     a seed login built in); not needed so far.
   - **At most one attempt per release run** (GitHub run + attempt, or release.ps1's run), and **none for 30 minutes
-    after a failed one**, so a wrong seed can't lock the Certum account. The ledger is
-    `%LOCALAPPDATA%\Iskra\simplysign-attempts.json` (times and results only).
+    after a failed one**, so a wrong seed can't lock the Certum account. One exception: a run that outlasts a session
+    may log in again when its last login **worked** and was at least 90 minutes ago (sessions last 2 hours). After a
+    failure, never. The ledger is `%LOCALAPPDATA%\Iskra\simplysign-attempts.json` (times and results only); every
+    way in (test signature, login script, build watcher) goes through it.
   - Then the certificate must appear in CurrentUser\My and a test signature on a scratch file must pass.
 - Without a stored seed nothing changes: the release stops with "Log in to SimplySign Desktop ...".
 - Unverified until the owner's first run: UI Automation with the screen locked (the runner starts at logon; a locked
@@ -762,6 +778,8 @@ run CI as pull requests only.
 | Symptom | Cause and fix |
 |---|---|
 | `STOP [SimplySign] Log in to SimplySign Desktop ...` (at the start, or mid-build: "No provider was specified", "SignTool Error", "Signing failed") | SimplySign Desktop is logged out (it times out) and there's no stored seed, or its one automatic login this run is used. Log in with the phone code, then run release.ps1 again (`-Resume` once the tag is pushed); on GitHub re-run the failed jobs |
+| "SimplySign's test signature didn't finish within 60 s and SimplySign showed no login dialog" | SimplySign Desktop is stuck (no answer, no login dialog). Quit and start SimplySign Desktop (log in if it asks), then run release.ps1 again; on GitHub re-run the failed jobs |
+| "SimplySign's session ended (it asked to log in) and ..." | SimplySign's 2-hour session ended and its login dialog couldn't be filled; the reason follows ("no seed is stored", or the automatic login's reason as in the next row). The release closed the dialog. Log in by hand, then run again |
 | "the automatic login didn't help (...)" | The reason is in the brackets. "the last SimplySign login failed at HH:mm": a wrong seed or a changed dialog; log in by hand, then check the seed with `simplysign-setup.ps1` (it shows the code to compare). "login dialog's fields weren't found": SimplySign Desktop changed; report it |
 | Release run: "The home PC didn't pick up its job in 10 minutes" | The PC is off, asleep or not logged in (the runner starts at logon), or the runner is gone (Settings → Actions → Runners). Switch it on, log in, press Release again. Nothing was changed |
 | Release run: a job on the home PC fails at "Set up runner" with "Refused: ..." | The runner's job guard refused it: the run wasn't started by the owner on main with Run workflow. Start it that way |

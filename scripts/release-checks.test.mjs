@@ -101,6 +101,80 @@ test('Confirm-Signing: a failed or refused login says why, with the line to log 
   assert.match(still.Message, /^SimplySign logged in, but the test signature still fails: still no/)
 })
 
+test('Confirm-Signing: after the probe handled a login dialog or timed out, no second login is tried', { skip }, () => {
+  for (const reason of ['login-dialog', 'sign-timeout']) {
+    const r = confirm(`{ @{ Ok = $false; Reason = '${reason}'; Message = 'x' } }`, "{ throw 'must not log in' }")
+    assert.equal(r.Reason, reason)
+  }
+})
+
+// Invoke-SigningProbe: the test signature in a child process with a time limit, filling SimplySign's login dialog when
+// it shows (fakes for the signature, the dialog, the fill and the close; never the real SimplySign).
+function probe({ test: t, find = '{ $null }', fill = "{ throw 'must not fill' }", close = "{ throw 'must not close' }", timeout = 20 }) {
+  const dir = mkdtempSync(join(tmpdir(), 'iskra-probe-'))
+  const flag = join(dir, 'flag'), pidFile = join(dir, 'pid')
+  try {
+    const r = ps(`$script:closed = 0; $script:filled = 0
+$r = Invoke-SigningProbe -Test ${t} -FindDialog ${find} -Fill ${fill} -CloseDialog ${close} -TimeoutSeconds ${timeout} -LoginSeconds 20 -PollSeconds 0.2
+$childAlive = $false
+if (Test-Path $env:ISKRA_TEST_PID) { $childAlive = [bool](Get-Process -Id ([int](Get-Content $env:ISKRA_TEST_PID)) -ErrorAction SilentlyContinue) }
+[pscustomobject]@{ Ok = $r.Ok; Reason = $r.Reason; Message = $r.Message; AutoLogin = $r.AutoLogin; Filled = $script:filled; Closed = $script:closed; ChildAlive = $childAlive; PidSeen = (Test-Path $env:ISKRA_TEST_PID); NotAfter = $(if ($r.Certificate) { $r.Certificate.NotAfter.ToString('yyyy-MM-dd') }) } | ConvertTo-Json -Compress`,
+    { ISKRA_TEST_FLAG: flag, ISKRA_TEST_PID: pidFile })
+    return r
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+}
+const blockUntilFlag = "{ Set-Content $env:ISKRA_TEST_PID $PID; while (-not (Test-Path $env:ISKRA_TEST_FLAG)) { Start-Sleep -Milliseconds 100 }; @{ Ok = $true; Message = 'signing works (x)' } }"
+const blockForever = '{ Set-Content $env:ISKRA_TEST_PID $PID; Start-Sleep -Seconds 600 }'
+
+test('probe: a fast signature returns as before, certificate included, no dialog filled', { skip }, () => {
+  const r = probe({ test: `{ Test-Signing -Certificates @(${fakeCert(200)}) -Signer { param($f, $c) @{ Status = 'Valid' } } ${now} }` })
+  assert.equal(r.Ok, true)
+  assert.equal(r.AutoLogin, null)
+  assert.equal(r.Filled, 0)
+  assert.equal(r.NotAfter, '2027-05-03')
+  assert.match(r.Message, /signing works/)
+})
+
+test('probe: the signature waits on SimplySign\'s login dialog, the dialog is filled once, the signature finishes', { skip }, () => {
+  // The dialog shows once the signature has started; filling it lets the waiting signature finish.
+  const r = probe({
+    test: blockUntilFlag,
+    find: "{ if (Test-Path $env:ISKRA_TEST_PID) { 'dialog' } }",
+    fill: "{ $script:filled++; Set-Content $env:ISKRA_TEST_FLAG 'x'; @{ Code = 0; Line = 'logged in' } }",
+  })
+  assert.equal(r.Ok, true)
+  assert.equal(r.AutoLogin, true)
+  assert.equal(r.Filled, 1)
+  assert.match(r.Message, /SimplySign logged itself in$/)
+})
+
+test('probe: a signature that never finishes and no dialog times out with a clear line; the child is stopped', { skip }, () => {
+  const r = probe({ test: blockForever, timeout: 6 })
+  assert.equal(r.Ok, false)
+  assert.equal(r.Reason, 'sign-timeout')
+  assert.match(r.Message, /didn't finish within 6 s and SimplySign showed no login dialog .*Log in to SimplySign Desktop/)
+  assert.equal(r.PidSeen, true, "the child had started signing")
+  assert.equal(r.ChildAlive, false)
+})
+
+test('probe: the ledger forbids a login (or no seed): nothing filled, the dialog closed, the child stopped, a clear line', { skip }, () => {
+  const refused = probe({
+    test: blockForever,
+    find: "{ if (Test-Path $env:ISKRA_TEST_PID) { 'dialog' } }",
+    fill: "{ @{ Code = 3; Line = 'SimplySign already had its one login attempt in this run. Log in to SimplySign Desktop by hand.' } }",
+    close: '{ $script:closed++ }',
+  })
+  assert.equal(refused.Ok, false)
+  assert.equal(refused.Reason, 'login-dialog')
+  assert.match(refused.Message, /^SimplySign's session ended \(it asked to log in\) and the automatic login didn't help \(SimplySign already had its one login attempt in this run\..*\)\. Log in to SimplySign Desktop \(6-digit code from the app\), then run scripts\/release\.ps1 again\.$/)
+  assert.equal(refused.Closed, 1)
+  assert.equal(refused.PidSeen, true)
+  assert.equal(refused.ChildAlive, false)
+  const noSeed = probe({ test: blockForever, find: "{ 'dialog' }", fill: "{ @{ Code = 2; Line = 'no seed stored' } }", close: '{ $script:closed++ }' })
+  assert.match(noSeed.Message, /and no seed is stored\. Log in to SimplySign Desktop/)
+  assert.equal(noSeed.Closed, 1)
+})
+
 test("installed Windows apps accept updates signed by today's and a future publisher (electron-updater publisherName)", () => {
   const pkg = JSON.parse(readFileSync(join(here, '../desktop/package.json'), 'utf8'))
   const names = pkg.build.win.signtoolOptions.publisherName

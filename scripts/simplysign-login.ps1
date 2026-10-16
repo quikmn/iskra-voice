@@ -5,15 +5,22 @@
 #
 #   simplysign-login.ps1                     # log in if needed (the stored method)
 #   simplysign-login.ps1 -Method switches    # this once: SimplySign's own /otpauth + /autologin switches
+#   simplysign-login.ps1 -NoCheck            # fill the login dialog SimplySign has open now (a signature is waiting
+#                                            # for it); no test signature, no restart (Confirm-Signing's probe)
+#   simplysign-login.ps1 -Watch -ParentPid N # until process N ends: fill that dialog whenever it shows (the build)
 #
-# At most ONE login attempt per release run (GitHub run and attempt, or scripts/release.ps1's run), and none for 30
-# minutes after a failed one, so the Certum account can't get locked. Never prints the seed or a code.
-# Exit 0: signing works (it already did, or after the login). 2: no seed stored (log in by hand, as before).
-# 3: no attempt allowed now (one was made this run, or the pause after a failure). 1: the login didn't work.
-# The last line says why.
+# At most ONE login attempt per release run (GitHub run and attempt, or scripts/release.ps1's run); a second only when
+# the first one worked and its session has since ended (90 minutes or more; a login lasts 2 hours). None for 30 minutes
+# after a failed one, so the Certum account can't get locked. Never prints the seed or a code.
+# Exit 0: signing works (it already did, or after the login; -NoCheck: the dialog closed after the code went in).
+# 2: no seed stored (log in by hand, as before). 3: no attempt allowed now (one was made this run, or the pause after a
+# failure). 1: the login didn't work. The last line says why.
 param(
   [ValidateSet('', 'dialog', 'switches')][string]$Method = '',
-  [int]$TimeoutSeconds = 90
+  [int]$TimeoutSeconds = 90,
+  [switch]$NoCheck,
+  [switch]$Watch,
+  [int]$ParentPid = 0
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'simplysign.psm1') -Force
@@ -21,7 +28,15 @@ Import-Module (Join-Path $PSScriptRoot 'release-checks.psm1') -Force
 
 function Done([int]$exitCode, [string]$line) { Write-Host "SimplySign login: $line"; exit $exitCode }
 
-$before = Test-Signing
+if ($Watch) { Watch-LoginDialog -ParentPid $ParentPid; exit 0 }
+if ($NoCheck) {
+  $r = Invoke-OpenDialogLogin -TimeoutSeconds $TimeoutSeconds
+  Done $r.Code $r.Line
+}
+
+# Test signatures with a time limit and without the automatic login (this is it): one through a SimplySign whose
+# session ended waits for a login instead of failing.
+$before = Invoke-SigningProbe -NoLogin
 if ($before.Ok) { Done 0 'already logged in; signing works' }
 if ($before.Reason -eq 'expired') { Done 1 $before.Message }
 
@@ -66,7 +81,7 @@ try {
 # The certificate shows up in CurrentUser\My once SimplySign is connected; then a real test signature.
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 while (-not (Find-SigningCertificate) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-$after = Test-Signing
+$after = Invoke-SigningProbe -NoLogin
 if ($after.Ok) {
   Write-LoginAttempt -Result ok
   Done 0 "logged in ($Method); $($after.Message)"

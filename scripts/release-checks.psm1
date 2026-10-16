@@ -3,6 +3,9 @@
 # the code-signing test signature (SimplySign, with the automatic login) and the Android build prerequisites.
 # Tested by scripts/release-checks.test.mjs (fake certificates, a fake signer, a fake login, a fake tools folder).
 
+# Find-LoginForm and Close-LoginForm for the test signature's login dialog watch.
+Import-Module (Join-Path $PSScriptRoot 'simplysign.psm1')
+
 $script:Subject = 'Open Source Developer Viktor Lundgren'
 $script:CodeSigning = '1.3.6.1.5.5.7.3.3'
 $script:LoginLine = 'Log in to SimplySign Desktop (6-digit code from the app), then run scripts/release.ps1 again.'
@@ -53,23 +56,123 @@ function Test-Signing {
   @{ Ok = $true; Certificate = $cert; ExpiresSoon = ($cert.NotAfter -lt $Now.AddDays(30)); Message = "signing works ($script:Subject, valid until $($cert.NotAfter.ToString('yyyy-MM-dd')))" }
 }
 
-# Test-Signing, and when it fails because SimplySign isn't logged in, scripts/simplysign-login.ps1 once (it logs in with
-# the seed stored by simplysign-setup.ps1; at most one attempt per release run), then the test signature again.
-# Without a stored seed nothing changes: the result says to log in by hand. -Test and -Login replace the real
-# test signature and login (tests): -Login returns @{ Code (0 ok, 2 no seed, 3 not allowed now, 1 failed); Line }.
-# The result gets AutoLogin = $true when the login made it work.
+# Runs a login script (simplysign-login.ps1 with these arguments) in its own pwsh: @{ Code; Line }.
+function Invoke-LoginScript {
+  param([string[]]$Arguments = @())
+  $script = Join-Path $PSScriptRoot 'simplysign-login.ps1'
+  $out = & pwsh -NoProfile -NonInteractive -File $script @Arguments 2>&1 | ForEach-Object { "$_" }
+  @{ Code = $LASTEXITCODE; Line = (($out | Where-Object { $_ -like 'SimplySign login:*' } | Select-Object -Last 1) -replace '^SimplySign login:\s*', '') }
+}
+
+# Test-Signing in a child process with a time limit. A signature through SimplySign doesn't fail when SimplySign's
+# session has ended (a login lasts 2 hours) while its certificate is still in the store: SimplySign shows its login
+# dialog and the signature waits for someone to log in. So while the signature runs, this looks for that dialog about
+# once a second; when it shows, -Fill fills it once with the stored seed (simplysign-login.ps1 -NoCheck, within the
+# attempt ledger) and the signature gets -LoginSeconds more to finish. When it can't be filled, the child is stopped
+# and the dialog closed (Reason 'login-dialog'). No result within -TimeoutSeconds and no dialog: the child is stopped
+# (Reason 'sign-timeout'). -NoLogin: only the time limit (simplysign-login.ps1's own checks).
+# -Test runs in the child with this module loaded (default Test-Signing); -FindDialog, -Fill and -CloseDialog replace
+# Find-LoginForm, simplysign-login.ps1 -NoCheck and Close-LoginForm (tests). Result: Test-Signing's (Certificate
+# deserialized), with AutoLogin = $true when the filled dialog made it work.
+function Invoke-SigningProbe {
+  param(
+    [scriptblock]$Test = { Test-Signing },
+    [scriptblock]$FindDialog = { Find-LoginForm },
+    [scriptblock]$Fill = { Invoke-LoginScript -Arguments '-NoCheck' },
+    [scriptblock]$CloseDialog = { $f = Find-LoginForm; if ($f) { Close-LoginForm -Form $f } },
+    [switch]$NoLogin,
+    [int]$TimeoutSeconds = 60, [int]$LoginSeconds = 120, [double]$PollSeconds = 1
+  )
+  $out = Join-Path ([IO.Path]::GetTempPath()) "iskra-sign-probe-$PID-$([guid]::NewGuid().ToString('N').Substring(0, 8)).xml"
+  $module = (Join-Path $PSScriptRoot 'release-checks.psm1').Replace("'", "''")
+  $child = @"
+`$ErrorActionPreference = 'Stop'
+Import-Module '$module' -Force
+try { `$r = & { $Test } } catch { `$r = @{ Ok = `$false; Reason = 'sign-failed'; Message = "SimplySign can't sign (test signature failed: `$(`$_.Exception.Message)). `$(Get-SimplySignLoginLine)" } }
+Export-Clixml -LiteralPath '$($out.Replace("'", "''"))' -InputObject `$r -Depth 2
+"@
+  $start = @{
+    FilePath = (Get-Process -Id $PID).Path
+    ArgumentList = @('-NoProfile', '-NonInteractive', '-EncodedCommand', [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($child)))
+    PassThru = $true
+  }
+  if ($IsWindows) { $start.WindowStyle = 'Hidden' }
+  $p = Start-Process @start
+  $stop = { try { $p.Kill($true) } catch { $null = $_ }; $null = $p.WaitForExit(10000) }
+  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  $login = $null
+  try {
+    while (-not $p.WaitForExit([int]($PollSeconds * 1000))) {
+      if ((Get-Date) -ge $deadline) {
+        & $stop
+        if ($login) { return @{ Ok = $false; Reason = 'sign-timeout'; Message = "SimplySign asked to log in and the automatic login went in ($($login.Line)), but the test signature still didn't finish within $LoginSeconds s. $(Get-SimplySignLoginLine)" } }
+        return @{ Ok = $false; Reason = 'sign-timeout'; Message = "SimplySign's test signature didn't finish within $TimeoutSeconds s and SimplySign showed no login dialog (restart SimplySign Desktop). $(Get-SimplySignLoginLine)" }
+      }
+      if ($NoLogin -or $login -or -not (& $FindDialog)) { continue }
+      # SimplySign's session ended and it asks to log in: the stored seed goes in now.
+      $login = & $Fill
+      if ($login.Code -ne 0) {
+        & $stop
+        & $CloseDialog
+        $why = if ($login.Code -eq 2) { 'no seed is stored' } else { "the automatic login didn't help ($($login.Line))" }
+        return @{ Ok = $false; Reason = 'login-dialog'; Message = "SimplySign's session ended (it asked to log in) and $why. $(Get-SimplySignLoginLine)" }
+      }
+      $deadline = (Get-Date).AddSeconds($LoginSeconds)
+    }
+    if (-not (Test-Path -LiteralPath $out)) {
+      return @{ Ok = $false; Reason = 'sign-failed'; Message = "SimplySign's test signature stopped without a result (exit code $($p.ExitCode)). $(Get-SimplySignLoginLine)" }
+    }
+    $r = Import-Clixml -LiteralPath $out
+    if ($login) {
+      if ($r.Ok) { $r.AutoLogin = $true; $r.Message = "$($r.Message); SimplySign logged itself in" }
+      else { $r.Message = "SimplySign logged in, but the test signature still fails: $($r.Message)" }
+    }
+    $r
+  } finally {
+    if (-not $p.HasExited) { & $stop }
+    Remove-Item -LiteralPath $out -ErrorAction SilentlyContinue
+  }
+}
+
+# While a build signs (scripts/release-windows.ps1): a hidden pwsh running simplysign-login.ps1 -Watch, which fills
+# SimplySign's login dialog with the stored seed whenever it shows (or closes it when it can't), and ends with this
+# process. Stop-LoginWatcher stops it and prints what it did. Only one at a time, and never while Confirm-Signing runs
+# (both would fill the same dialog).
+function Start-LoginWatcher {
+  $log = Join-Path ([IO.Path]::GetTempPath()) "iskra-simplysign-watch-$PID-$([guid]::NewGuid().ToString('N').Substring(0, 8)).log"
+  $start = @{
+    FilePath = (Get-Process -Id $PID).Path
+    ArgumentList = @('-NoProfile', '-NonInteractive', '-File', (Join-Path $PSScriptRoot 'simplysign-login.ps1'), '-Watch', '-ParentPid', "$PID")
+    RedirectStandardOutput = $log
+    PassThru = $true
+  }
+  if ($IsWindows) { $start.WindowStyle = 'Hidden' }
+  [pscustomobject]@{ Process = (Start-Process @start); Log = $log }
+}
+
+function Stop-LoginWatcher {
+  param([Parameter(Mandatory)]$Watcher)
+  try { if (-not $Watcher.Process.HasExited) { $Watcher.Process.Kill($true) } } catch { $null = $_ }
+  $null = $Watcher.Process.WaitForExit(10000)
+  if (Test-Path -LiteralPath $Watcher.Log) {
+    Get-Content -LiteralPath $Watcher.Log | Where-Object { $_ -like 'SimplySign login:*' } | ForEach-Object { Write-Host $_ }
+    Remove-Item -LiteralPath $Watcher.Log -ErrorAction SilentlyContinue
+  }
+}
+
+# The test signature (Invoke-SigningProbe: time limit, and the dialog SimplySign opens when its session ended filled
+# with the stored seed), and when it fails because SimplySign isn't logged in at all, scripts/simplysign-login.ps1 once
+# (it logs in with the seed stored by simplysign-setup.ps1; within the attempt ledger), then the test signature again.
+# Without a stored seed nothing changes: the result says to log in by hand. -Test and -Login replace the real test
+# signature and login (tests): -Login returns @{ Code (0 ok, 2 no seed, 3 not allowed now, 1 failed); Line }.
+# The result gets AutoLogin = $true when a login made it work.
 function Confirm-Signing {
   param([scriptblock]$Test, [scriptblock]$Login)
-  if (-not $Test) { $Test = { Test-Signing } }
-  if (-not $Login) {
-    $Login = {
-      $script = Join-Path $PSScriptRoot 'simplysign-login.ps1'
-      $out = & pwsh -NoProfile -NonInteractive -File $script 2>&1 | ForEach-Object { "$_" }
-      @{ Code = $LASTEXITCODE; Line = (($out | Where-Object { $_ -like 'SimplySign login:*' } | Select-Object -Last 1) -replace '^SimplySign login:\s*', '') }
-    }
-  }
+  if (-not $Test) { $Test = { Invoke-SigningProbe } }
+  if (-not $Login) { $Login = { Invoke-LoginScript } }
   $s = & $Test
-  if ($s.Ok -or $s.Reason -eq 'expired') { return $s }
+  # Expired: renew, not log in. The probe already handled a login dialog, or timed out with none: no second login.
+  if ($s.Ok -or $s.Reason -in 'expired', 'login-dialog', 'sign-timeout') { return $s }
   $r = & $Login
   if ($r.Code -eq 2) { return $s }
   if ($r.Code -ne 0) {
@@ -119,4 +222,4 @@ function Get-AndroidProblems {
   $problems
 }
 
-Export-ModuleMember -Function Get-SigningSubject, Get-SimplySignLoginLine, Find-SigningCertificate, Test-Signing, Confirm-Signing, Get-DevRoot, Get-AndroidProblems
+Export-ModuleMember -Function Get-SigningSubject, Get-SimplySignLoginLine, Find-SigningCertificate, Test-Signing, Invoke-LoginScript, Invoke-SigningProbe, Start-LoginWatcher, Stop-LoginWatcher, Confirm-Signing, Get-DevRoot, Get-AndroidProblems
