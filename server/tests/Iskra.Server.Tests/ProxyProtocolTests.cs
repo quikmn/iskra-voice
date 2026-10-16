@@ -200,7 +200,12 @@ public class ProxyProtocolTests : IDisposable
         var tcp = new TcpClient();
         await tcp.ConnectAsync(IPAddress.Loopback, port);
         Stream stream = tcp.GetStream();
-        if (header is not null) await stream.WriteAsync(header);
+        if (header is not null)
+        {
+            // A listener that refuses the connection may close it before the header is even sent: that's a drop too.
+            try { await stream.WriteAsync(header); }
+            catch (IOException) { tcp.Dispose(); return null; }
+        }
         if (!tls) return stream;
         var ssl = new SslStream(stream, false, (_, _, _, _) => true);
         try
