@@ -1,8 +1,10 @@
 # The phone apps in the stores
 
-Every release puts the phone apps in the stores by itself: `scripts/release.ps1` dispatches
-`.github/workflows/mobile-ios.yml` on the release tag (build, upload, then `scripts/appstore.mjs`) and uploads the
-Android app bundle with `scripts/play-upload.mjs`. Where they go is one file, [mobile/store.json](../../mobile/store.json).
+Every release puts the phone apps in the stores by itself: the release tag starts `.github/workflows/mobile-ios.yml`
+(the iPhone build), `release-finalize.yml` uploads that build to TestFlight once the release is published and then runs
+`scripts/appstore.mjs`, and `scripts/release.ps1` uploads the Android app bundle with `scripts/play-upload.mjs`
+(`release.ps1 -Phones` does the iPhone part the old way, building and uploading in one mobile-ios.yml run). Where they
+go is one file, [mobile/store.json](../../mobile/store.json).
 The only thing the owner does per release is log in to SimplySign Desktop for the Windows signing (release.ps1 checks
 it first and says so).
 

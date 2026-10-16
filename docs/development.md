@@ -99,9 +99,10 @@ One command, from the repo root on the Windows PC with SimplySign Desktop logged
 ```
 
 It writes the notes from `docs/releases/NEXT.md`, bumps, commits "Version X", tags and pushes vX (release.yml builds
-Linux + macOS into a draft release), builds, signs and uploads the Windows apps and the Android app, then
-`release-finalize.yml` checks all 23 files, adds `SHA256SUMS.txt` and build-provenance attestations, publishes
-the release as Latest with the notes, deploys iskra.foo and app.iskra.foo, updates chat.iskra.foo and checks all three.
+Linux + macOS and the SBOMs into a draft release; mobile-ios.yml builds the iPhone app), builds, signs and uploads the
+Windows apps and the Android app, then `release-finalize.yml` checks all 26 files, adds `SHA256SUMS.txt` and
+build-provenance attestations, publishes the release as Latest with the notes, deploys iskra.foo and app.iskra.foo,
+updates chat.iskra.foo, uploads the iPhone build to TestFlight and checks all three sites.
 `scripts/release.ps1 -Redeploy site|webapp|server` redeploys any of those on its own. `npm test` at the root runs the release-script tests.
 
 It relies on: secrets `CLOUDFLARE_API_TOKEN`, `DROPLET_SSH_KEY`, `MAC_CERT_P12_BASE64`, `MAC_CERT_PASSWORD`,

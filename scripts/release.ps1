@@ -23,9 +23,10 @@
 # The usual way to release is GitHub's Release button (Actions -> Release -> Run workflow, also in GitHub Mobile; the
 # home PC must be on: docs/ci-cd.md). This script is the local alternative and the button's trigger (-GitHub).
 #
-# A release: notes (docs/releases/NEXT.md), version bump and tag, push, the Windows apps (signed through SimplySign),
-# server zip and Android app, the Linux and macOS builds (release.yml), finalize (refuses unless CI passed on the tag;
-# publishes, deploys iskra.foo, app.iskra.foo, chat.iskra.foo), the phones where mobile/store.json says, final checks.
+# A release: notes (docs/releases/NEXT.md), version bump and tag, push (which starts the Linux and macOS builds,
+# release.yml, and the iPhone build, mobile-ios.yml), the draft release, the Windows apps (signed through SimplySign),
+# server zip and Android app, finalize (refuses unless CI passed on the tag; publishes, deploys iskra.foo, app.iskra.foo
+# and chat.iskra.foo, uploads the iPhone build to TestFlight), Google Play where mobile/store.json says, final checks.
 # Run it from main in D:\Development_Projects\Iskra. It never prints secrets, never moves tags, never force-pushes.
 param(
   [Parameter(Position = 0)][string]$Version = '',
@@ -224,21 +225,37 @@ function Start-Workflow([string]$file, [string[]]$fields, [string]$title = '') {
   }
   return $null
 }
-# Waits for a run to complete (up to $minutes) and returns it with its jobs; $null at the deadline.
-function Wait-Run($run, [int]$minutes, [string]$label) {
+# Waits for a run to complete (up to $minutes), asking every 15 s, and returns it with its jobs; $null at the deadline.
+# With -Until, it returns as soon as those jobs (by name, or "<name> / …" for a called workflow's jobs) have completed
+# while the rest of the run may still be going (Test-JobsDone, release-checks.psm1): finalize's "TestFlight groups and
+# reviews" waits for Apple's processing, and nothing here needs it.
+function Wait-Run($run, [int]$minutes, [string]$label, [string[]]$Until = @()) {
   $deadline = (Get-Date).AddMinutes($minutes)
+  $fields = 'databaseId,status,conclusion,url,jobs'
   while ($run.status -ne 'completed') {
+    if ($Until.Count -and $run.jobs -and (Test-JobsDone -Jobs @($run.jobs) -Names $Until)) { return $run }
     if ((Get-Date) -gt $deadline) { return $null }
-    Start-Sleep -Seconds 30
-    $now = Gh-Json @('run', 'view', "$($run.databaseId)", '-R', $repo, '--json', 'databaseId,status,conclusion,url,jobs')
+    Start-Sleep -Seconds 15
+    $now = Gh-Json @('run', 'view', "$($run.databaseId)", '-R', $repo, '--json', $fields)
     if ($now) {
       $run = $now
       Info "  $(Get-Date -Format HH:mm) $label $($run.status): $(@($run.jobs | Where-Object status -eq 'completed').Count) of $(@($run.jobs).Count) jobs done"
     }
   }
-  return (Gh-Json @('run', 'view', "$($run.databaseId)", '-R', $repo, '--json', 'databaseId,status,conclusion,url,jobs'))
+  return (Gh-Json @('run', 'view', "$($run.databaseId)", '-R', $repo, '--json', $fields))
 }
 function Failed-Jobs($run) { (@($run.jobs | Where-Object { $_.conclusion -notin 'success', 'skipped' } | ForEach-Object name) -join ', ') }
+# What finalize's "TestFlight upload" job did: uploaded, failed, running, skipped (finalize with testflight off) or none
+# (no such job: an older finalize, or no run at all).
+function TestFlight-State($run) {
+  if (-not $run) { return 'none' }
+  $job = @($run.jobs | Where-Object name -eq 'TestFlight upload') | Select-Object -First 1
+  if (-not $job) { return 'none' }
+  if ($job.status -ne 'completed') { return 'running' }
+  if ($job.conclusion -eq 'success') { return 'uploaded' }
+  if ($job.conclusion -eq 'skipped') { return 'skipped' }
+  return 'failed'
+}
 
 $modes = @($Resume.IsPresent, [bool]$Redeploy, $BotSdk.IsPresent, $Phones.IsPresent, $GitHub.IsPresent) | Where-Object { $_ }
 if ($modes.Count -gt 1) { Stop-At 'one mode at a time' 'Use one of -Resume, -Redeploy, -BotSdk, -Phones, -GitHub.' }
@@ -263,7 +280,8 @@ try {
     }
     Warn-Reviewers @('release')
     End-Checks "checksums for $tag"
-    $run = Start-Workflow 'release-finalize.yml' @("tag=$tag", 'deploy=false')
+    # Sums and attestations only: no deploys, and no second TestFlight upload.
+    $run = Start-Workflow 'release-finalize.yml' @("tag=$tag", 'deploy=false', 'testflight=false')
     if (-not $run) { Stop-At 'finalize did not start' 'gh workflow run release-finalize.yml failed or no run appeared. Report it.' }
     Info "release-finalize.yml: $($run.url)"
     $run = Wait-Run $run 60 'finalize'
@@ -506,11 +524,19 @@ try {
     if ($script:code -ne 0 -or -not ($out -match "tagged $([regex]::Escape($tag))")) { Stop-At 'version bump failed' 'scripts/release-version.mjs stopped (see above). Report the exact message; nothing was pushed.' }
     Ok "committed Version $Version and tagged $tag"
 
-    # ── 3. Push: release.yml starts on the tag right away; CI runs on main in parallel (finalize checks it) ──
+    # ── 3. Push: release.yml (Linux, macOS, SBOMs) and mobile-ios.yml (the iPhone build) start on the tag right away;
+    #       CI runs on main in parallel (finalize checks it) ──
     Step "Push main and $tag"
     $null = Run git @('push', '--atomic', 'origin', 'main', $tag)
     if ($script:code -ne 0) { Stop-At 'git push rejected' 'Report the output above. Never force. The commit and tag stay local; the human decides.' }
     Ok "pushed main and $tag"
+    # The draft release now, before any build finishes: release.yml's jobs and the Windows step upload straight to it
+    # (a job that finds none makes it; one made here can't be made twice by two jobs finishing at the same moment).
+    gh release view $tag -R $repo *> $null
+    if ($LASTEXITCODE -ne 0) {
+      $null = Run gh @('release', 'create', $tag, '-R', $repo, '--draft', '--prerelease', '--verify-tag', '--title', "Iskra $Version", '--notes', 'Builds follow.')
+      if ($script:code -ne 0) { Warn "couldn't create the draft release $tag now; the first build to finish makes it." } else { Ok "draft release $tag created" }
+    }
   }
 
   if (-not $Phones) {
@@ -543,7 +569,7 @@ try {
       $run = @($list) | Where-Object { $_ -and $_.event -eq 'push' } | Select-Object -First 1
       if (-not $run) {
         if ((Get-Date) -gt $deadline) { Stop-At 'release.yml failed' "No release.yml run for $tag after $WaitMinutes minutes. Report it (gh run list -R $repo --workflow release.yml -L 3)." }
-        Start-Sleep -Seconds 20
+        Start-Sleep -Seconds 15
       }
     }
     $runs['release.yml'] = $run.url
@@ -565,22 +591,38 @@ try {
     Remove-Item $tmp -ErrorAction SilentlyContinue
     if ($script:code -ne 0) { Stop-At 'files missing on the release' 'Report the missing names above. (A failed build: rerun its workflow, then -Resume.)' }
 
-    # ── 7. Finalize: CI gate, checks, SBOMs, sums, attestations, publish, deploys. No approvals. ──
-    Step 'Release finalize (publish + deploy iskra.foo, app.iskra.foo, chat.iskra.foo)'
+    # ── 7. Finalize: CI gate, checks, sums, attestations, publish, then the deploys and the TestFlight upload side by
+    #       side. No approvals. Waits for publish, the deploys and the upload, not for "TestFlight groups and reviews"
+    #       (Apple's processing, up to an hour; a failure there reaches the Iskra channel on its own). ──
+    Step 'Release finalize (publish + deploy iskra.foo, app.iskra.foo, chat.iskra.foo + TestFlight upload)'
+    $script:finalizeRun = $null
     $rel = Gh-Json @('release', 'view', $tag, '-R', $repo, '--json', 'isDraft,isPrerelease')
     if ($rel -and -not $rel.isDraft -and (Latest-Tag) -eq $tag) {
       Ok "$tag is already published as Latest; not finalizing again"
+      # Its finalize run (titled "Release finalize vX"), for the TestFlight upload's result in step 8: the newest one
+      # whose upload job ran (a checksums rerun skips it), else the newest.
+      $earlier = @(Gh-Json @('run', 'list', '-R', $repo, '--workflow', 'release-finalize.yml', '-L', '20', '--json', 'databaseId,displayTitle')) |
+        Where-Object { $_ -and $_.displayTitle -eq "Release finalize $tag" }
+      foreach ($e in $earlier) {
+        $view = Gh-Json @('run', 'view', "$($e.databaseId)", '-R', $repo, '--json', 'databaseId,status,conclusion,url,jobs')
+        if (-not $view) { continue }
+        if (-not $script:finalizeRun) { $script:finalizeRun = $view }
+        if ((TestFlight-State $view) -notin 'none', 'skipped') { $script:finalizeRun = $view; break }
+      }
     } else {
-      $run = Start-Workflow 'release-finalize.yml' @("tag=$tag")
+      $run = Start-Workflow 'release-finalize.yml' @("tag=$tag", "testflight=$((-not $SkipPhones).ToString().ToLowerInvariant())")
       if (-not $run) { Stop-At 'finalize did not start' "gh workflow run failed, or no new release-finalize.yml run after 2.5 minutes. Check: gh run list -R $repo --workflow release-finalize.yml -L 3" }
       $runs['release-finalize.yml'] = $run.url
       Info "release-finalize.yml: $($run.url)"
-      $run = Wait-Run $run ($WaitMinutes + 45) 'finalize'
+      $run = Wait-Run $run ($WaitMinutes + 45) 'finalize' -Until @('publish', 'deploy', 'TestFlight upload')
       if (-not $run) { Stop-At 'finalize still running' 'Not done yet. When it is: scripts/release.ps1 -Resume (phones and final checks).' }
-      if ($run.conclusion -ne 'success') {
-        $bad = @($run.jobs | Where-Object { $_.conclusion -notin 'success', 'skipped' })
+      $script:finalizeRun = $run
+      # The release itself: publish and the deploys. The TestFlight upload is a phone matter (step 8).
+      $publish = @($run.jobs | Where-Object name -eq 'publish') | Select-Object -First 1
+      $bad = @($run.jobs | Where-Object { ($_.name -eq 'publish' -or $_.name -like 'deploy / *') -and $_.conclusion -notin 'success', 'skipped' })
+      if (-not $publish -or $bad.Count) {
         $failedStep = @($bad | ForEach-Object { $_.steps } | Where-Object conclusion -eq 'failure' | ForEach-Object name) | Select-Object -First 1
-        $jobs = ($bad | ForEach-Object name) -join ', '
+        $jobs = if ($bad.Count) { ($bad | ForEach-Object name) -join ', ' } else { "none ran ($($run.conclusion))" }
         switch -Regex ("$jobs | $failedStep") {
           'CI passed on the tagged commit' { Stop-At "CI didn't pass on $tag" 'Finalize refused: nothing was published. A flake: gh run rerun <id> --failed on that CI run, then scripts/release.ps1 -Resume. A real failure: fix main and release the next version; never move the tag.' }
           'Check every expected file' { Stop-At 'finalize: missing or mismatched files' "Report the log (gh run view $($run.databaseId) -R $repo --log-failed). The human decides which build to upload." }
@@ -605,20 +647,35 @@ try {
     Info 'skipped (-SkipPhones)'
     $phoneState['Phones'] = 'skipped (-SkipPhones)'
   } else {
-    # iOS: start the build now and wait for it after the Android upload. A run of an earlier attempt (same title) that
-    # succeeded or is still going is reused, so -Resume never uploads the same build twice.
-    $iosTitle = "Mobile iOS $tag (TestFlight)"
-    $iosRuns = @(Gh-Json @('run', 'list', '-R', $repo, '--workflow', 'mobile-ios.yml', '-L', '30', '--json', 'databaseId,displayTitle,status,conclusion,url,createdAt')) |
-      Where-Object { $_ -and $_.displayTitle -eq $iosTitle }
-    $iosRun = @($iosRuns) | Where-Object { $_.status -ne 'completed' -or $_.conclusion -eq 'success' } | Select-Object -First 1
-    if ($iosRun) {
-      Info "TestFlight: using the earlier run for $tag ($($iosRun.status) $($iosRun.conclusion)): $($iosRun.url)"
+    $iosRun = $null
+    if ($Phones) {
+      # -Phones: the iPhone app is built again and uploaded by mobile-ios.yml itself (workflow_dispatch, upload on), the
+      # fallback when finalize's upload didn't happen. Started now, waited for after the Android upload. A run of an
+      # earlier attempt (same title) that succeeded or is still going is reused, so it never uploads the same build twice.
+      $iosTitle = "Mobile iOS $tag (TestFlight)"
+      $iosRuns = @(Gh-Json @('run', 'list', '-R', $repo, '--workflow', 'mobile-ios.yml', '-L', '30', '--json', 'databaseId,displayTitle,status,conclusion,url,createdAt')) |
+        Where-Object { $_ -and $_.displayTitle -eq $iosTitle }
+      $iosRun = @($iosRuns) | Where-Object { $_.status -ne 'completed' -or $_.conclusion -eq 'success' } | Select-Object -First 1
+      if ($iosRun) {
+        Info "TestFlight: using the earlier run for $tag ($($iosRun.status) $($iosRun.conclusion)): $($iosRun.url)"
+      } else {
+        $iosRun = Start-Workflow 'mobile-ios.yml' @("ref=$tag", 'upload=true') $iosTitle
+        if (-not $iosRun) { Phone-Problem 'TestFlight build did not start' "gh workflow run mobile-ios.yml failed or no run appeared. Check: gh run list -R $repo --workflow mobile-ios.yml -L 3" }
+        else { Info "TestFlight build: $($iosRun.url)" }
+      }
+      if ($iosRun) { $runs['mobile-ios.yml'] = $iosRun.url }
     } else {
-      $iosRun = Start-Workflow 'mobile-ios.yml' @("ref=$tag", 'upload=true') $iosTitle
-      if (-not $iosRun) { Phone-Problem 'TestFlight build did not start' "gh workflow run mobile-ios.yml failed or no run appeared. Check: gh run list -R $repo --workflow mobile-ios.yml -L 3" }
-      else { Info "TestFlight build: $($iosRun.url)" }
+      # A release: the tag push built the iPhone app (mobile-ios.yml) and finalize's "TestFlight upload" job uploaded it
+      # (step 7). Anything else is reported after the Android upload; the fallback is -Phones.
+      $tfRun = $script:finalizeRun
+      $tfUrl = if ($tfRun) { " ($($tfRun.url))" } else { '' }
+      switch (TestFlight-State $tfRun) {
+        'uploaded' { Ok "uploaded to TestFlight by finalize$tfUrl; Apple processes it in 5-30 minutes, then finalize's TestFlight groups job does the rest"; $phoneState['TestFlight'] = 'uploaded' }
+        'running' { Phone-Problem 'TestFlight upload still running' "finalize's TestFlight upload job isn't done$tfUrl. When it is: scripts/release.ps1 -Resume"; $phoneState['TestFlight'] = 'still running' }
+        'failed' { Phone-Problem 'TestFlight upload failed' "finalize's TestFlight upload job failed${tfUrl}: gh run view $($tfRun.databaseId) -R $repo --log-failed (the Mobile iOS build of the tag, or the upload itself; the playbook's mobile-ios.yml rows). Then scripts/release.ps1 -Phones builds and uploads it again."; $phoneState['TestFlight'] = 'failed' }
+        default { Phone-Problem 'TestFlight not uploaded' "finalize didn't upload the iPhone app$tfUrl (no TestFlight upload job ran: finalize with testflight off, or from before this pipeline). scripts/release.ps1 -Phones builds and uploads it."; $phoneState['TestFlight'] = 'not uploaded' }
+      }
     }
-    if ($iosRun) { $runs['mobile-ios.yml'] = $iosRun.url }
 
     # Android: the app bundle from the Windows step (built with the APK), to Google Play's track.
     $aab = Join-Path $root "mobile\release\Iskra-$Version.aab"
@@ -640,7 +697,7 @@ try {
       }
     }
 
-    # Wait for the iOS run: build, upload, Apple's processing, then the TestFlight groups and reviews (scripts/appstore.mjs).
+    # -Phones: wait for the iOS run: build, upload, Apple's processing, then the TestFlight groups and reviews (scripts/appstore.mjs).
     if ($iosRun) {
       $done = Wait-Run $iosRun ($WaitMinutes + 45) 'TestFlight build'
       if (-not $done) {
@@ -690,6 +747,8 @@ try {
   if ($siteVersion -ne $Version) { $fails += "iskra.foo links to $siteVersion" } else { Ok "iskra.foo links to $Version" }
   if (-not $appHas) { $fails += "app.iskra.foo's bundle ($asset) doesn't have $Version" } else { Ok "app.iskra.foo serves $Version" }
   if ($chatVersion -ne $Version) { $fails += "chat.iskra.foo runs $chatVersion" } else { Ok "chat.iskra.foo runs $Version" }
+  # The phone apps aren't a final check (a problem there ends with STOP [phones] below), but the upload's result belongs here.
+  if ($phoneState['TestFlight'] -eq 'uploaded') { Ok 'TestFlight upload ok (finalize)' }
   if ($fails.Count) { Stop-At 'final checks failed' "$($fails -join '; '). A site/web app check: scripts/release.ps1 -Redeploy site (or webapp) once. Otherwise report." }
 
   Write-Host ''

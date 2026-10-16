@@ -222,4 +222,18 @@ function Get-AndroidProblems {
   $problems
 }
 
-Export-ModuleMember -Function Get-SigningSubject, Get-SimplySignLoginLine, Find-SigningCertificate, Test-Signing, Invoke-LoginScript, Invoke-SigningProbe, Start-LoginWatcher, Stop-LoginWatcher, Confirm-Signing, Get-DevRoot, Get-AndroidProblems
+# Whether the jobs of a workflow run that a caller waits for have all completed: for each name, at least one job is
+# named exactly that or "<name> / ..." (a called workflow's jobs, which only appear once it starts) and every such job
+# has status completed. release.ps1 waits for finalize's publish, deploy and TestFlight upload jobs this way, not for
+# the TestFlight groups job (Apple's processing, up to an hour). $Jobs: gh run view --json jobs (name, status).
+function Test-JobsDone {
+  param([AllowEmptyCollection()][AllowNull()][object[]]$Jobs, [Parameter(Mandatory)][string[]]$Names)
+  foreach ($n in $Names) {
+    $matched = @($Jobs | Where-Object { $_ -and ($_.name -eq $n -or "$($_.name)".StartsWith("$n / ")) })
+    if (-not $matched.Count) { return $false }
+    if (@($matched | Where-Object { $_.status -ne 'completed' }).Count) { return $false }
+  }
+  return $true
+}
+
+Export-ModuleMember -Function Get-SigningSubject, Get-SimplySignLoginLine, Find-SigningCertificate, Test-Signing, Invoke-LoginScript, Invoke-SigningProbe, Start-LoginWatcher, Stop-LoginWatcher, Confirm-Signing, Get-DevRoot, Get-AndroidProblems, Test-JobsDone

@@ -1,0 +1,81 @@
+name: TestFlight groups and reviews
+description: >
+  Everything App Store Connect needs after an upload, so nobody clicks anything (scripts/appstore.mjs in the store mode
+  of mobile/store.json, or the one given): waits for Apple's processing (up to an hour), export compliance, What to test,
+  the TestFlight groups and Beta App Review; in phase B the App Store version, listing, screenshots and App Review too.
+  Every step looks first, so a rerun submits nothing twice. Runs on the checked-out release ref (mobile/store.json,
+  docs/releases, scripts/). The one copy: release-finalize.yml and mobile-ios.yml both use it.
+inputs:
+  store:
+    description: auto (mobile/store.json), testflight, appstore, or upload (nothing more)
+    required: false
+    default: auto
+  app-version:
+    required: true
+    description: The app version, e.g. 2.0.0-alpha.25
+  marketing-version:
+    required: true
+    description: CFBundleShortVersionString of the uploaded build
+  build-number:
+    required: true
+    description: CFBundleVersion of the uploaded build
+  api-key-base64:
+    description: The App Store Connect API key (.p8), base64 (secret APPSTORE_API_KEY_BASE64)
+    required: true
+  key-id:
+    required: true
+    description: Its key id (secret APPSTORE_KEY_ID)
+  issuer-id:
+    required: true
+    description: Its issuer id (secret APPSTORE_ISSUER_ID)
+  review-phone:
+    required: false
+    description: The review contact's phone (secret APPSTORE_REVIEW_PHONE, optional)
+    default: ''
+  review-invite-url:
+    required: false
+    description: The never-expiring invite to the community server for the review notes (variable REVIEW_INVITE_URL)
+    default: ''
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: '24'
+    # scripts/appstore.mjs loads jose from mobile/.
+    - name: Release-script dependencies
+      shell: bash
+      run: npm ci --prefix mobile --no-audit --no-fund --ignore-scripts
+    - name: App Store Connect API key
+      shell: bash
+      env:
+        API_KEY: ${{ inputs.api-key-base64 }}
+        KEY_ID: ${{ inputs.key-id }}
+        ISSUER_ID: ${{ inputs.issuer-id }}
+      run: |
+        if [ -z "$API_KEY" ] || [ -z "$KEY_ID" ] || [ -z "$ISSUER_ID" ]; then
+          echo "::error::APPSTORE_API_KEY_BASE64, APPSTORE_KEY_ID and APPSTORE_ISSUER_ID must be set"
+          exit 1
+        fi
+        mkdir -p "$RUNNER_TEMP/appstore-keys"
+        echo "$API_KEY" | base64 --decode > "$RUNNER_TEMP/appstore-keys/AuthKey.p8"
+        chmod 600 "$RUNNER_TEMP/appstore-keys/AuthKey.p8"
+    - name: TestFlight groups and reviews (and the App Store in phase B)
+      shell: bash
+      env:
+        APPSTORE_KEY_ID: ${{ inputs.key-id }}
+        APPSTORE_ISSUER_ID: ${{ inputs.issuer-id }}
+        APPSTORE_REVIEW_PHONE: ${{ inputs.review-phone }}
+        REVIEW_INVITE_URL: ${{ inputs.review-invite-url }}
+        STORE: ${{ inputs.store || 'auto' }}
+        APP_VERSION: ${{ inputs.app-version }}
+        MARKETING_VERSION: ${{ inputs.marketing-version }}
+        BUILD_NUMBER: ${{ inputs.build-number }}
+      run: |
+        node scripts/appstore.mjs "$STORE" --version "$APP_VERSION" --marketing "$MARKETING_VERSION" --build-number "$BUILD_NUMBER" --key "$RUNNER_TEMP/appstore-keys/AuthKey.p8" | tee "$RUNNER_TEMP/appstore.log"
+        test "${PIPESTATUS[0]}" = 0
+        { echo "### App Store Connect"; grep -E '^App Store Connect' "$RUNNER_TEMP/appstore.log" || true; } >> "$GITHUB_STEP_SUMMARY"
+    - name: Remove the key
+      if: always()
+      shell: bash
+      run: rm -rf "$RUNNER_TEMP/appstore-keys"

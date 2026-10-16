@@ -1,0 +1,66 @@
+name: Attach to the release
+description: >
+  Attaches a job's files to the tag's GitHub release, with build-provenance attestations (Sigstore). Makes the draft
+  release when nothing has yet (scripts/release.ps1 makes it right after the tag push and the Release workflow's version
+  job before the builds; a tag pushed by hand gets it from the first job to finish), attests the files, uploads them
+  (--clobber) and checks each one is on the release with its size. The one copy of this for every job of release.yml.
+  The job needs permissions contents: write, id-token: write and attestations: write.
+inputs:
+  tag:
+    description: The release tag, e.g. v2.0.0-alpha.25
+    required: true
+  files:
+    description: The files to attach, one glob per line
+    required: true
+  token:
+    description: Token with contents write (the job's GITHUB_TOKEN)
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - name: The draft release
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GH_REPO: ${{ github.repository }}
+        TAG: ${{ inputs.tag }}
+      run: |
+        if ! gh release view "$TAG" > /dev/null 2>&1; then
+          echo "Release $TAG isn't there yet: creating it as a draft."
+          # Two jobs may get here in the same moment: a failed create is fine when the release is there afterwards.
+          gh release create "$TAG" --draft --prerelease --verify-tag --title "Iskra ${TAG#v}" --notes "Builds follow." \
+            || gh release view "$TAG" > /dev/null
+        fi
+        gh release view "$TAG" --json isDraft,isPrerelease,name --jq '"Release \(.name) (draft: \(.isDraft), prerelease: \(.isPrerelease))"'
+    # Provenance for the files: gh attestation verify <file> -R quikmn/iskra-voice. Standalone servers require it on
+    # their update packages (Updates/Attestations.cs: release.yml at the tag, or release-finalize.yml on main).
+    - name: Attest build provenance
+      uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      with:
+        subject-path: ${{ inputs.files }}
+    - name: Upload
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GH_REPO: ${{ github.repository }}
+        TAG: ${{ inputs.tag }}
+        FILES: ${{ inputs.files }}
+      run: |
+        shopt -s nullglob
+        files=()
+        while IFS= read -r pattern; do
+          [ -n "$pattern" ] || continue
+          matched=($pattern)
+          [ "${#matched[@]}" -gt 0 ] || { echo "::error::nothing matches $pattern"; exit 1; }
+          files+=("${matched[@]}")
+        done <<< "$FILES"
+        ls -l "${files[@]}"
+        gh release upload "$TAG" "${files[@]}" --clobber
+        # Each file is on the release with its size (finalize's checks would catch a short upload later; say so now).
+        gh release view "$TAG" --json assets --jq '.assets[] | "\(.size) \(.name)"' > "$RUNNER_TEMP/release-attach-assets.txt"
+        for f in "${files[@]}"; do
+          size="$(wc -c < "$f" | tr -d ' ')"
+          grep -qx "$size $(basename "$f")" "$RUNNER_TEMP/release-attach-assets.txt" || { echo "::error::$(basename "$f") isn't on the release with $size bytes"; exit 1; }
+        done
+        echo "Attached ${#files[@]} file(s) to $TAG."

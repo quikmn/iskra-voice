@@ -361,7 +361,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: gh release upload "$TAG" "$RUNNER_TEMP/Iskra-$VERSION.apk" --clobber
 
-  # ── 4. Finalize: CI gate (this run's CI), checks, SBOMs, sums, attestations, publish, deploy ──
+  # ── 4. Finalize: CI gate (this run's CI), checks, sums, attestations, publish, deploy ──
+  # (The SBOMs come from release.yml's sbom job, called in `builds`.) TestFlight stays with the `ios` job below: this
+  # run's tag push (GITHUB_TOKEN) starts no Mobile iOS build run for finalize's testflight job to upload.
   finalize:
     needs: [checks, version, ci, builds, windows, android-apk]
     if: ${{ !cancelled() && needs.ci.result == 'success' && needs.builds.result == 'success' && needs.windows.result == 'success' && (needs.android-apk.result == 'success' || needs.android-apk.result == 'skipped') }}
@@ -374,6 +376,7 @@ jobs:
     with:
       tag: ${{ needs.checks.outputs.tag }}
       deploy: true
+      testflight: false
       ci_run: ${{ github.run_id }}
     secrets: inherit
 

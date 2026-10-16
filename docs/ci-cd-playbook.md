@@ -72,12 +72,15 @@ the home PC runner is set up ([O.2](#o-owner-one-time-setup)):
      → tell the human exactly that line, wait for their answer, then run step 2 again.
    - `N thing(s) to fix` → each line is a decision-table row: do what it says (most are the human's), then step 2 again.
    ✔ Ends with `ALL CHECKS GREEN: release vV would go ahead. Nothing was changed (check only).`
-3. **Release.** Run in the background (60–90 min; it waits for the builds, finalize and the iPhone build):
+3. **Release.** Run in the background (about 15–25 min; it waits for the builds and for finalize, which also uploads
+   the iPhone build to TestFlight; Apple's processing and the TestFlight groups finish on their own afterwards):
    `pwsh -NoProfile -File scripts/release.ps1` (or with `V`). It runs the checks again, prints
-   `ALL CHECKS GREEN - SENDING`, then writes the notes, bumps and tags, pushes, builds, signs and uploads the Windows
-   files and the Android app, waits for release.yml, runs finalize (no approval: it refuses by itself unless CI passed
-   on the tag), the phones where `mobile/store.json` says, and the final checks. `-SkipPhones` only if the human asks.
-   ✔ Ends with `Result: done` and the report lines (Release, Runs, Checks, Phones).
+   `ALL CHECKS GREEN - SENDING`, then writes the notes, bumps and tags, pushes (which starts the Linux, macOS and
+   iPhone builds), makes the draft release, builds, signs and uploads the Windows files and the Android app, waits for
+   release.yml, runs finalize (no approval: it refuses by itself unless CI passed on the tag), uploads the Android app
+   to Google Play where `mobile/store.json` says, and the final checks. `-SkipPhones` only if the human asks.
+   ✔ Ends with `Result: done` and the report lines (Release, Runs, Checks, Phones). The first release on the faster
+   pipeline: [P](#p-the-first-release-on-the-faster-pipeline-alpha25).
 4. **A `STOP [case] ...` line:** find the case in the decision table and do exactly that. Once the tag is pushed, go on
    with [B](#b-resume-a-release). Never rerun more than once without the human.
 5. `git checkout main`, then report (format at the end).
@@ -129,12 +132,16 @@ Use after files on a published release were replaced.
 
 ## I. Phone apps
 
-Every release does this by itself (A, step 3): mobile-ios.yml on the tag ends with the step "TestFlight groups and
-reviews" (scripts/appstore.mjs: Apple's processing, What to test, TestFlight groups, Beta App Review), and the Android
-bundle goes to the Play track in `mobile/store.json`. To do only that for the latest release (for example after the human
-fixed something on Apple's or Google's side):
+Every release does this by itself (A, step 3): the tag push builds the iPhone app (mobile-ios.yml), finalize uploads it
+to TestFlight (job "TestFlight upload") and its job "TestFlight groups and reviews" (scripts/appstore.mjs: Apple's
+processing, What to test, TestFlight groups, Beta App Review) finishes after release.ps1 has ended; the Android bundle
+goes to the Play track in `mobile/store.json`. To do only that for the latest release (after the human fixed something
+on Apple's or Google's side, or when the release ended with `STOP [phones]` naming TestFlight): `-Phones` builds and
+uploads the iPhone app again in one mobile-ios.yml run and uploads the Android bundle (a version already on the track is
+left alone).
 1. The AAB must be in `mobile\release` (built by the release on this PC); otherwise `git checkout vV` first so it can be built.
-2. `pwsh -NoProfile -File scripts/release.ps1 -Phones` (or add `V`). Run it in the background (30–90 min).
+2. `pwsh -NoProfile -File scripts/release.ps1 -Phones` (or add `V`). Run it in the background (30–90 min: it waits for
+   Apple's processing and the groups too).
    ✔ Ends with `Phones: TestFlight uploaded, Google Play on the '<track>' track`.
 3. Tell the human: "Build <build> of <version> is in TestFlight for the internal and external groups; external testers get
    it when Beta App Review approves it."
@@ -286,6 +293,31 @@ opened for them in `D:\Development_Projects\Iskra` (CLAUDE.local.md): they never
    5. Once that worked: the release keystore goes to cold storage only (encrypted USB + password manager); it is no
       longer needed for releases.
 
+## P. The first release on the faster pipeline (alpha.25)
+
+Since 2.0.0-alpha.25 the release pipeline is shorter (26 → about 15 min): the iPhone app is built at the tag push and
+uploaded by finalize, release.yml's jobs attach their files to the draft themselves, the SBOMs are made beside the builds,
+and the web app deploy reuses the build release.yml made. Nothing changes in what you run (A). On the first run, watch
+these; anything else than described: stop and report with the exact line.
+
+| Expect (times from alpha.24, the new steps estimated) | Where |
+|---|---|
+| Checks ~1 min, then `pushed main and vV` and `draft release vV created` within seconds | release.ps1 |
+| Three runs for the push: `Release builds` on vV, `Mobile iOS vV` (no "(TestFlight)" in its title) on vV, `CI` on main | `gh run list -L 10` |
+| release.yml ~10 min: linux ~8, mac ~9 each, `sbom` ~1, `linux-arm64` ~1 after linux, `publish` ~1 after the macs. Every job ends with `Attached N file(s) to vV` (step "Attach to the release"); GitHub → Releases shows one draft vV | the run |
+| `Mobile iOS vV` ~5 min, green, with the artifact `iskra-ios-vV` | the run's Artifacts |
+| Windows step ~6 min in parallel; `all 26 files on the release` | release.ps1 |
+| finalize: `publish` ~1.5 min (no SBOM step), then side by side `deploy / site`, `deploy / webapp` (~40 s; its log says `Reusing the web app built by release.yml run …`), `deploy / server`, and `TestFlight upload` (~2–3 min; summary "Uploaded to App Store Connect"). release.ps1 prints `finalize succeeded (published, deployed)` and goes on while `TestFlight groups and reviews` still runs | the run, release.ps1 |
+| Phones: Google Play ~1 min; `uploaded to TestFlight by finalize (…)` | release.ps1 |
+| Final checks ~1 min with `TestFlight upload ok (finalize)`; `Result: done`; `Took ~15 min` | release.ps1 |
+| 10–60 min later: finalize's `TestFlight groups and reviews` green (`gh run view <finalize id>`); the Iskra channel then gets finalize's result. Its summary names the build and what App Store Connect did | the run |
+
+Fallbacks: `STOP [phones]` naming TestFlight (the upload failed, or no build run for the tag) → [I](#i-phone-apps),
+`-Phones`, once: it builds and uploads the iPhone app the old way, in one mobile-ios.yml run. The groups job failing
+later → `gh run rerun <id> --failed` once, then the decision table's App Store Connect rows. Anything about the
+`webapp` artifact or a second draft → report (ci-cd.md troubleshooting has the rows). Everything else: the decision
+table as always.
+
 ## Decision table
 
 | You see | Do |
@@ -328,11 +360,12 @@ opened for them in `D:\Development_Projects\Iskra` (CLAUDE.local.md): they never
 | Deploy `site`/`webapp` check failed after 5 minutes | Run that redeploy once (D/E). Still failing: report |
 | Deploy `server` failed | Report the log (`--log-failed`). The server rolled back by itself. Don't retry without the human |
 | `Host key verification failed` | Stop. The droplet's host key changed; the human must check it |
-| `STOP [phones]` | The release is out. Read which part: `TestFlight build failed` → the mobile-ios.yml rows below; `Google Play upload failed` → ci-cd.md troubleshooting (Play rows). Fixed by the human (or a flake): `-Resume` once |
-| `App Store Connect stopped: …` in mobile-ios.yml | Report the line. `couldn't process build` / `no external TestFlight group` / `already approved` / `REVIEW_INVITE_URL` (unset or revoked: a one-time never-expiring invite, docs/store/README.md): the human (ci-cd.md troubleshooting) |
+| `STOP [phones]` | The release is out. Read which part: `TestFlight upload failed` / `TestFlight not uploaded` / `TestFlight upload still running` → the line says what finalize's "TestFlight upload" job did; after the human fixed the cause (the mobile-ios.yml rows below for a failed build; nothing for "not uploaded"), `-Phones` once ([I](#i-phone-apps)); `TestFlight build failed` (a `-Phones` run) → the mobile-ios.yml rows below; `Google Play upload failed` → ci-cd.md troubleshooting (Play rows). Fixed by the human (or a flake): `-Resume` once for Play, `-Phones` once for TestFlight |
+| Finalize's job "TestFlight groups and reviews" failed after release.ps1 ended (the Iskra channel, or `gh run view <id>`) | The release and the upload are fine. `gh run view <id> --log-failed`: an `App Store Connect stopped` line → the row below; a flake of Apple's API → `gh run rerun <id> --failed` once (nothing is submitted twice) |
+| `App Store Connect stopped: …` (finalize's "TestFlight groups and reviews", or mobile-ios.yml's `groups`) | Report the line. `couldn't process build` / `no external TestFlight group` / `already approved` / `REVIEW_INVITE_URL` (unset or revoked: a one-time never-expiring invite, docs/store/README.md): the human (ci-cd.md troubleshooting) |
 | mobile-ios.yml: `Cloud signing permission error`, `No profiles for 'foo.iskra.app'`, `No Account for Team`, `agreement` | Stop. The human must fix the Apple side (ci-cd.md, "iOS app" and troubleshooting) |
 | mobile-ios.yml archive fails on signing | Rerun once with `-f archive_signing=automatic`. Fails again: stop and report |
-| mobile-ios.yml upload: `bundle version` / `redundant binary` | `gh run rerun <id>` once (the build number rises with the attempt) |
+| TestFlight upload: `bundle version` / `redundant binary` | That build number exists. In a `-Phones` run: `gh run rerun <id>` once (the build number rises with the attempt). In finalize's "TestFlight upload": `-Phones` once (a new build, a new number) |
 | `outage` issue open | Do [J](#j-outage-alert). Report what fails; the droplet and DNS are the human's |
 | Anything else | Stop and report the exact message |
 

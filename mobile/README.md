@@ -36,18 +36,21 @@ Generated and ignored: `ios/App/App/public`, `capacitor.config.json`, `config.xm
 
 ### iOS
 
-CI does everything (see [docs/ci-cd.md](../docs/ci-cd.md#ios-app) and the playbook's section I). Every release uploads
-to TestFlight by itself (`scripts/release.ps1`); `scripts/release.ps1 -Phones` does it again for the latest release.
+CI does everything (see [docs/ci-cd.md](../docs/ci-cd.md#ios-app) and the playbook's section I). Every release
+tag builds it (`mobile-ios.yml` starts on the tag push) and `release-finalize.yml` uploads that build to TestFlight once
+the release is published; `scripts/release.ps1 -Phones` builds and uploads again for the latest release.
 A test build that ships nothing:
 
 ```
 gh workflow run mobile-ios.yml -f upload=false      # build, sign and check only; the .ipa is a run artifact
 ```
 
-Steps: newest released Xcode on `macos-latest` → `client` `npm ci && npm run build` → `mobile`
+Steps of the `build` job: newest released Xcode on `macos-latest` → `client` `npm ci && npm run build` → `mobile`
 `npm ci && npx cap sync ios` → `xcodebuild archive` → `xcodebuild -exportArchive` with cloud signing → checks (bundle
-id, versions, encryption key, Associated Domains, background mode audio only, no push entitlement, no extensions) → a
-second export with `destination: upload` sends it to App Store Connect.
+id, versions, encryption key, Associated Domains, background mode audio only, no push entitlement, no extensions) → the
+signed `.ipa` and its version numbers (`ios-build.env`) become the artifact `iskra-ios-<ref>`. The upload
+(`.github/actions/testflight-upload`: `xcrun altool --upload-app` with the API key) and the App Store Connect steps
+(`.github/actions/appstore-connect`: `scripts/appstore.mjs`) run from that artifact, in finalize or in the same run.
 
 Signing is automatic with the App Store Connect API key; there are no certificates or profiles in the repo or in
 GitHub. The archive is signed ad hoc (`CODE_SIGN_IDENTITY=-`, so CI never creates development certificates), then the
