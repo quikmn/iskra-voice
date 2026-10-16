@@ -839,6 +839,12 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .switcher-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .switcher-context { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
 .switcher-empty { padding: 18px 10px; text-align: center; }
+/* "Search everywhere for …": the way from Ctrl+K into a search of every server and your DMs. */
+.switcher-search-everywhere {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 16px; border: 0; border-top: 1px solid var(--border);
+  background: none; color: var(--text); text-align: left; font-size: 14px;
+}
+.switcher-search-everywhere:hover, .switcher-search-everywhere:focus-visible { background: var(--hover); }
 .switcher-hint { display: flex; gap: 16px; padding: 10px 16px; font-size: 12px; border-top: 1px solid var(--border); background: var(--sidebar); }
 @media (max-width: 760px) {
   .switcher-backdrop { padding-top: calc(12px + var(--safe-top)); }
