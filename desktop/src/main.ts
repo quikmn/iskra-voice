@@ -19,9 +19,10 @@ import { DoRental, errorReply, testOverrides } from './digitalocean'
 import { DO_OAUTH_CLIENT_ID, oauthConfigured, oauthTestOverrides, oauthToken } from './doOAuth'
 import { SaveStreams, suggestedName } from './saveStreams'
 import {
-  aboutDetail, badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isKey43, isServerId, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
+  badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isKey43, isServerId, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
   keychainKind, serversToStart, setKeepRunning, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
 } from './platform'
+import { parseNoticeAction, updateCheckNotice, type DesktopNotice } from './notices'
 import { allowPageViews } from './pages'
 import { PushToTalk } from './ptt'
 import { ActivityDetector } from './activity'
@@ -294,7 +295,8 @@ function setUpSession(): void {
     const real = realScreenThumbnails(process.env, app.isPackaged)
     const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: thumbnailSize(real) })
     if (MAC && systemPreferences.getMediaAccessStatus('screen') !== 'granted') {
-      void explainScreenPermission()
+      // The Screen Recording permission is granted in System Settings: the page explains and offers to open it.
+      sendNotice({ kind: 'screen-permission' })
       return callback({})
     }
     if (skipScreenPicker(WAYLAND, sources.length)) return callback({ video: sources[0] })
@@ -313,18 +315,18 @@ function setUpSession(): void {
   })
 }
 
-/** macOS: screen sharing needs the Screen Recording permission, granted in System Settings. */
-async function explainScreenPermission(): Promise<void> {
-  if (!window) return
-  const { response } = await dialog.showMessageBox(window, {
-    type: 'info',
-    message: text().screen.message,
-    detail: text().screen.detail,
-    buttons: [text().screen.open, text().screen.notNow],
-    defaultId: 0,
-    cancelId: 1,
-  })
-  if (response === 0) void shell.openExternal(MAC_SETTINGS.screen)
+/**
+ * The shell's own messages (an update check's result, About, a permission to grant) show inside the app as its toasts
+ * and dialogs, in its language, never as native message boxes (notices.ts). The window comes up first: shown from the
+ * tray, or made again when it's gone (macOS keeps the app alive without one).
+ */
+function sendNotice(notice: DesktopNotice): void {
+  if (!window && !quitting && app.isReady()) createWindow()
+  showWindow()
+  const contents = window?.webContents
+  if (!contents) return
+  if (contents.isLoading()) contents.once('did-finish-load', () => contents.send('iskra:notice', notice))
+  else contents.send('iskra:notice', notice)
 }
 
 /** macOS: the standard app menu, so Cmd+C/V/Q and friends work. */
@@ -342,8 +344,6 @@ function createMacMenu(): void {
   )
 }
 
-const WEBSITE = 'https://iskra.foo'
-const LICENSE_URL = 'https://github.com/quikmn/iskra-voice/blob/main/LICENSE'
 let checking = false
 
 function createTray(): void {
@@ -366,7 +366,8 @@ function updateTray(): void {
 
 async function trayAction(action: TrayAction): Promise<void> {
   if (action === 'open') return showWindow()
-  if (action === 'about') return showAbout()
+  // About: the app's own About & legal page (version, what Iskra is built on, licences).
+  if (action === 'about') return sendNotice({ kind: 'about' })
   if (action === 'check') return checkForUpdates()
   if (action === 'restart') return void restartToUpdate()
   if (action === 'download') {
@@ -377,24 +378,7 @@ async function trayAction(action: TrayAction): Promise<void> {
   quitting = true
   app.quit()
 }
-
-/** A small native About box: version, what Iskra is built on, and links. */
-async function showAbout(): Promise<void> {
-  const detail = aboutDetail(
-    { app: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node },
-    process.platform,
-    process.arch,
-    text(),
-  )
-  const options: Electron.MessageBoxOptions = {
-    type: 'info', title: text().about.title, message: 'Iskra', detail, icon: nativeImage.createFromPath(path.join(ASSETS, 'icon.png')),
-    buttons: [...text().about.buttons], defaultId: 0, cancelId: 0, noLink: true,
-  }
-  const { response } = window ? await dialog.showMessageBox(window, options) : await dialog.showMessageBox(options)
-  if (response === 1) void shell.openExternal(WEBSITE)
-  if (response === 2) void shell.openExternal(LICENSE_URL)
-  if (response === 3) void openThirdPartyLicenses()
-}
+if (process.env.ISKRA_E2E) Object.assign(globalThis, { iskraTrayAction: (action: TrayAction) => trayAction(action), iskraUpdates: updates }) // for the desktop e2e test
 
 /** electron-builder ships Chromium's and Electron's notices next to the app. */
 async function openThirdPartyLicenses(): Promise<void> {
@@ -421,24 +405,22 @@ async function checkForUpdates(): Promise<void> {
   const status = updates.current()
   if (result === 'found' && status.state === 'ready') return void trayAction('restart')
   if (result === 'found' && status.state === 'available') return void trayAction('download')
-  const t = text().updates
-  const message =
-    result === 'found' ? t.downloading('version' in status ? status.version : '')
-    : result === 'up-to-date' ? t.upToDate
-    : result === 'off' ? t.off
-    : t.failed
-  const detail =
-    result === 'found' ? t.downloadingDetail
-    : result === 'up-to-date' ? t.upToDateDetail(app.getVersion())
-    : result === 'off' ? t.offDetail
-    : t.failedDetail
-  const options: Electron.MessageBoxOptions = { type: 'info', title: t.title, message, detail, buttons: [t.ok] }
-  if (window) await dialog.showMessageBox(window, options)
-  else await dialog.showMessageBox(options)
+  // Downloading, up to date, off, or failed: a toast in the app.
+  sendNotice(updateCheckNotice(result, status, app.getVersion()))
 }
 
 /** IPC is only accepted from the app's own page. */
 const fromApp = (event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent) => !!event.senderFrame && isAppUrl(event.senderFrame.url)
+
+// A button in one of the shell's notices (notices.ts): "Open System Settings" for the macOS Screen Recording
+// permission, and "Open source licences" on the About & legal page.
+ipcMain.handle('iskra:notice-action', (event, kind: unknown, action: unknown) => {
+  const act = fromApp(event) ? parseNoticeAction(kind, action) : null
+  if (!act) return
+  if (act.kind === 'screen-permission') {
+    if (MAC) void shell.openExternal(MAC_SETTINGS.screen)
+  } else void openThirdPartyLicenses()
+})
 
 /**
  * The global key hook. macOS only allows it with the Accessibility permission, so there it starts
@@ -707,6 +689,9 @@ ipcMain.handle('iskra:host-create', async (event, name: unknown, appUrl: unknown
 })
 // Starting a server from a template file: our own open dialog picks it, the bundled server checks it, and the page
 // only ever gets an id for it (never a path).
+// The file pickers (dialog.showOpenDialog, showSaveDialog) are the only native dialogs left: the OS's own picker is
+// the one that knows the person's folders, and the page never sees a path it didn't pick that way. Everything the
+// shell has to *say* goes through sendNotice (never dialog.showMessageBox), so it looks like the rest of the app.
 const pickedTemplates = new Map<string, string>()
 ipcMain.handle('iskra:host-pick-template', async (event) => {
   if (!fromApp(event) || !window) return null

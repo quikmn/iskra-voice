@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { b64u } from '../../core/crypto'
 import { errorMessage } from '../../i18n/errors'
 import { LINKS } from '../../links'
+import { desktop, osName } from '../../platform/desktop'
 import { native } from '../../platform/native'
 import { deleteAccount, deletionPlan, transferOwnership } from '../../state/accountDeletion'
 import { leaveServer, useApp } from '../../state/store'
@@ -160,10 +161,15 @@ function tipsAllowed(): boolean {
 export function AboutSection() {
   const { t } = useTranslation()
   const accepted = useTerms((s) => s.accepted)
+  const shell = desktop?.versions
   return (
     <section className="settings-section about-section">
       <h2>{t('settings.sections.about')}</h2>
       <BuildVersion />
+      {/* The desktop app: what the shell is built on (its tray's About opens this page). */}
+      {shell && desktop && (
+        <p className="muted about-shell">{t('safety.about.desktopBuild', { electron: shell.electron, chrome: shell.chrome, node: shell.node, os: osName(desktop.platform), arch: shell.arch })}</p>
+      )}
       <div className="about-bug">
         <div>
           <strong>{t('bugReport.open')}</strong>
@@ -171,7 +177,13 @@ export function AboutSection() {
         </div>
         <button className="button" onClick={openBugReport}>{t('bugReport.open')}</button>
       </div>
+      <p className="about-tagline">{t('safety.about.tagline')}</p>
+      <p className="muted">{t('safety.about.license')} {t('safety.about.builtOn')}</p>
       <ul className="legal-links">
+        <li><a href={LINKS.website} target="_blank" rel="noreferrer">{t('safety.about.website')}</a></li>
+        <li><a href={LINKS.license} target="_blank" rel="noreferrer">{t('safety.about.licenseLink')}</a></li>
+        {/* electron-builder ships Chromium's and Electron's notices next to the app; the shell opens them. */}
+        {desktop?.notices && <li><button className="link" onClick={() => void desktop?.notices?.act('about', 'licenses').catch(() => undefined)}>{t('safety.about.thirdParty')}</button></li>}
         <li><a href={LEGAL_LINKS.terms} target="_blank" rel="noreferrer">{t('safety.links.terms')}</a></li>
         <li><a href={LEGAL_LINKS.privacy} target="_blank" rel="noreferrer">{t('safety.links.privacy')}</a></li>
         <li><a href={LEGAL_LINKS.support} target="_blank" rel="noreferrer">{t('safety.links.support')}</a></li>

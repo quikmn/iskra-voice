@@ -43,6 +43,10 @@ export const voice: Messages['voice'] = {
   },
   share: {
     title: 'Dela skärmen',
+    macPermission: 'Låt Iskra dela din skärm',
+    macPermissionDetail: 'Slå på Iskra under Integritet och säkerhet → Skärm- och systemljudinspelning i Systeminställningar. Avsluta sedan Iskra och öppna appen igen.',
+    openSystemSettings: 'Öppna Systeminställningar',
+    notNow: 'Inte nu',
     screens: 'Skärmar',
     windows: 'Fönster',
     quality: 'Kvalitet',

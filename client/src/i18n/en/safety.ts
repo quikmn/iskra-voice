@@ -135,6 +135,14 @@ export const safety = {
   about: {
     version: 'Iskra {{version}}',
     copyVersion: 'Copy version',
+    // The desktop app: what the shell is built on (its About box used to say this; now this page does).
+    desktopBuild: 'Desktop app: Electron {{electron}} · Chromium {{chrome}} · Node {{node}} ({{os}}, {{arch}})',
+    tagline: 'Voice and text chat for friends, on servers you own.',
+    license: 'Iskra is source-available under the PolyForm Noncommercial License 1.0.0.',
+    builtOn: 'It builds on open source software, including Electron, Chromium, LiveKit, HyperDHT, libsodium, React, RNNoise, DeepFilterNet, Silero VAD, Whisper, ONNX Runtime and MediaPipe.',
+    website: 'Website',
+    licenseLink: 'License',
+    thirdParty: 'Open source licenses',
     accepted: 'You agreed to the terms (version {{version}}) on {{when}}.',
     safetyHint: 'For things a server’s moderators don’t handle: illegal content, someone in danger, or a server that ignores reports. Email {{email}}.',
     email: 'Email the Iskra team',

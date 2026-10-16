@@ -182,21 +182,6 @@ export function trayMenu(update: UpdateState, checking: boolean, updatesOn: bool
   return [item('open', t.open), sep, item('about', t.about), updateItem, sep, item('quit', t.quit)]
 }
 
-/** The About box's text. */
-export function aboutDetail(
-  versions: { app: string; electron: string; chrome: string; node: string }, platform: NodeJS.Platform, arch: string, text: DesktopText = DESKTOP_TEXT.en,
-): string {
-  const os = platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'macOS' : platform === 'linux' ? 'Linux' : platform
-  return [
-    text.about.version(versions.app, os, arch),
-    `Electron ${versions.electron} · Chromium ${versions.chrome} · Node ${versions.node}`,
-    '',
-    text.about.tagline,
-    text.about.license,
-    text.about.builtOn,
-  ].join('\n')
-}
-
 /** What YouTube sees as the embedding page for the desktop app (whose app:// origin it won't accept as a referrer). */
 export const YOUTUBE_REFERRER = 'https://app.iskra.foo/'
 

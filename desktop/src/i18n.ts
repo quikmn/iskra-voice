@@ -1,5 +1,7 @@
-// The desktop shell's own text (tray, About, native dialogs, update notices) in the app's language.
+// The desktop shell's own text (tray, file pickers, the splash, the window title) in the app's language.
 // The page tells us its language (My settings → Language, or the system's); until it has, the OS decides.
+// Anything the shell *says* to the person (an update check's result, About, permissions) is worded by the page
+// itself (client/src/i18n), which gets a structured notice (notices.ts).
 
 export type DesktopLanguage = 'en' | 'sv'
 
@@ -14,33 +16,9 @@ const en = {
     download: (version: string) => `Download Iskra ${version}`,
     quit: 'Quit Iskra',
   },
-  about: {
-    title: 'About Iskra',
-    version: (version: string, os: string, arch: string) => `Version ${version} (${os}, ${arch})`,
-    tagline: 'Voice and text chat for friends, on servers you own.',
-    license: 'Iskra is source-available under the PolyForm Noncommercial License 1.0.0.',
-    builtOn: 'It builds on open source software, including Electron, Chromium, LiveKit, HyperDHT, libsodium, React, RNNoise, DeepFilterNet, Silero VAD, Whisper, ONNX Runtime and MediaPipe.',
-    buttons: ['OK', 'Website', 'License', 'Open source licenses'],
-  },
   updates: {
-    title: 'Iskra updates',
-    downloading: (version: string) => `Iskra ${version} is downloading`,
-    downloadingDetail: "It installs in the background. When it's ready, choose Restart to update from this menu or the app.",
-    upToDate: "You're up to date",
-    upToDateDetail: (version: string) => `Iskra ${version} is the newest version.`,
-    off: 'Updates are off in this build',
-    offDetail: "Development builds don't update themselves.",
-    failed: "Couldn't check for updates",
-    failedDetail: 'Check your internet connection and try again.',
-    ok: 'OK',
     titleReady: 'Update ready',
     titleAvailable: 'Update available',
-  },
-  screen: {
-    message: 'Allow Iskra to share your screen',
-    detail: 'Turn on Iskra under Privacy & Security → Screen & System Audio Recording in System Settings, then quit and reopen Iskra.',
-    open: 'Open System Settings',
-    notNow: 'Not now',
   },
   menu: { view: 'View' },
   backup: {
@@ -100,33 +78,9 @@ const sv: DesktopText = {
     download: (version) => `Ladda ner Iskra ${version}`,
     quit: 'Avsluta Iskra',
   },
-  about: {
-    title: 'Om Iskra',
-    version: (version, os, arch) => `Version ${version} (${os}, ${arch})`,
-    tagline: 'Röst- och textchatt för vänner, på servrar du äger.',
-    license: 'Iskras källkod är tillgänglig under PolyForm Noncommercial License 1.0.0.',
-    builtOn: 'Iskra bygger på öppen källkod, bland annat Electron, Chromium, LiveKit, HyperDHT, libsodium, React, RNNoise, DeepFilterNet, Silero VAD, Whisper, ONNX Runtime och MediaPipe.',
-    buttons: ['OK', 'Webbplats', 'Licens', 'Licenser för öppen källkod'],
-  },
   updates: {
-    title: 'Iskra-uppdateringar',
-    downloading: (version) => `Iskra ${version} laddas ner`,
-    downloadingDetail: 'Den installeras i bakgrunden. När den är klar väljer du Starta om och uppdatera i den här menyn eller i appen.',
-    upToDate: 'Du har senaste versionen',
-    upToDateDetail: (version) => `Iskra ${version} är den senaste versionen.`,
-    off: 'Uppdateringar är avstängda i den här versionen',
-    offDetail: 'Utvecklingsversioner uppdaterar inte sig själva.',
-    failed: 'Kunde inte söka efter uppdateringar',
-    failedDetail: 'Kontrollera din internetanslutning och försök igen.',
-    ok: 'OK',
     titleReady: 'Uppdatering klar',
     titleAvailable: 'Uppdatering finns',
-  },
-  screen: {
-    message: 'Låt Iskra dela din skärm',
-    detail: 'Slå på Iskra under Integritet och säkerhet → Skärm- och systemljudinspelning i Systeminställningar. Avsluta sedan Iskra och öppna appen igen.',
-    open: 'Öppna Systeminställningar',
-    notNow: 'Inte nu',
   },
   menu: { view: 'Visa' },
   backup: {

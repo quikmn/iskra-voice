@@ -105,3 +105,9 @@
 
 .about-version { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .about-version span { user-select: text; font-variant-numeric: tabular-nums; }
+.about-shell { margin-top: -6px; font-size: 13px; user-select: text; font-variant-numeric: tabular-nums; }
+.about-tagline { margin: 16px 0 4px; font-weight: 600; }
+.legal-links .link { font: inherit; }
+
+/* The desktop shell's permission dialog (DesktopNotices.tsx): two buttons, the first one the way forward. */
+.desktop-notice-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }

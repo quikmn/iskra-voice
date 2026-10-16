@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { aboutDetail, autostartEntry, badgeText, compareVersions, macCanReplaceItself, macSigning, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
+import { autostartEntry, badgeText, compareVersions, macCanReplaceItself, macSigning, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -137,14 +137,6 @@ test('the tray menu follows the updater', () => {
   const available = trayMenu({ state: 'available', version: '2.1.0', url: 'https://github.com/x' }, false, true)
   assert.equal(available.find((i) => i.action === 'download')?.label, 'Download Iskra 2.1.0')
   assert.equal(trayMenu({ state: 'none' }, false, true).filter((i) => !i.action).length, 2)
-})
-
-test('the About box names the version and what Iskra is built on', () => {
-  const text = aboutDetail({ app: '2.0.0', electron: '44.4.5', chrome: '140.0', node: '24.1' }, 'darwin', 'arm64')
-  assert.match(text, /^Version 2\.0\.0 \(macOS, arm64\)/)
-  assert.match(text, /Electron 44\.4\.5/)
-  assert.match(text, /PolyForm Noncommercial/)
-  assert.match(text, /RNNoise, DeepFilterNet, Silero VAD, Whisper, ONNX Runtime and MediaPipe/)
 })
 
 test('YouTube embeds get the web app as referrer, only from the app and only for youtube-nocookie.com', () => {
