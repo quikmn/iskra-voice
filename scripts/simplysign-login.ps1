@@ -3,8 +3,7 @@
 # hand. Logs SimplySign Desktop in by itself with the TOTP seed stored by scripts/simplysign-setup.ps1, then checks it
 # with a test signature on a scratch file. docs/ci-cd.md, "SimplySign auto-login".
 #
-#   simplysign-login.ps1                     # log in if needed (the stored method)
-#   simplysign-login.ps1 -Method switches    # this once: SimplySign's own /otpauth + /autologin switches
+#   simplysign-login.ps1                     # log in if needed
 #   simplysign-login.ps1 -NoCheck            # fill the login dialog SimplySign has open now (a signature is waiting
 #                                            # for it); no test signature, no restart (Confirm-Signing's probe)
 #   simplysign-login.ps1 -Watch -ParentPid N # until process N ends: fill that dialog whenever it shows (the build)
@@ -16,7 +15,6 @@
 # 2: no seed stored (log in by hand, as before). 3: no attempt allowed now (one was made this run, or the pause after a
 # failure). 1: the login didn't work. The last line says why.
 param(
-  [ValidateSet('', 'dialog', 'switches')][string]$Method = '',
   [int]$TimeoutSeconds = 90,
   [switch]$NoCheck,
   [switch]$Watch,
@@ -42,8 +40,9 @@ if ($before.Reason -eq 'expired') { Done 1 $before.Message }
 
 try { $seed = Read-SimplySignSeed } catch { Done 1 $_.Exception.Message }
 if (-not $seed) { Done 2 'no seed stored (scripts/simplysign-setup.ps1); log in by hand' }
-if (-not $Method) { $Method = $seed.Method }
-if ($Method -eq 'switches' -and -not $seed.Uri) { Done 1 "the switches method needs the otpauth:// link, but only a bare seed is stored: store the link with scripts/simplysign-setup.ps1, or use the dialog method" }
+# The 'switches' method (SimplySign's own /otpauth and /autologin, which put the seed on a command line) is retired:
+# a seed stored for it logs in through the dialog like any other.
+if ($seed.Method -eq 'switches') { Write-Host "SimplySign login: the stored method 'switches' is retired; using the login dialog (store the seed again with scripts/simplysign-setup.ps1 to drop this note)" }
 
 $allowed = Test-LoginAllowed
 if (-not $allowed.Ok) { Done 3 "$($allowed.Reason). Log in to SimplySign Desktop by hand." }
@@ -52,30 +51,18 @@ if (-not $allowed.Ok) { Done 3 "$($allowed.Reason). Log in to SimplySign Desktop
 Write-LoginAttempt -Result started
 $sent = $false
 try {
-  if ($Method -eq 'switches') {
-    $exe = Get-SimplySignExe
-    if (-not (Test-Path -LiteralPath $exe)) { throw "SimplySign Desktop isn't installed ($exe)." }
-    if (-not (Get-Process SimplySignDesktop -ErrorAction SilentlyContinue)) { Start-Process -FilePath $exe | Out-Null; Start-Sleep -Seconds 5 }
-    # A second instance hands its switches to the running one over a named pipe and closes. The link is on that
-    # short-lived process's command line, visible only to this account and administrators.
-    Start-Process -FilePath $exe -ArgumentList '/otpauth', "`"$($seed.Uri)`"" -Wait | Out-Null
-    Start-Sleep -Seconds 2
-    $sent = $true
-    Start-Process -FilePath $exe -ArgumentList '/autologin' -Wait | Out-Null
-  } else {
-    $form = Open-LoginForm
-    # A code with at least 8 seconds left, so it doesn't change on the way.
-    $code = {
-      $left = Get-TotpSecondsLeft -Period $seed.Period
-      if ($left -lt 8) { Start-Sleep -Seconds ($left + 1) }
-      Get-Totp -Secret $seed.Secret -Algorithm $seed.Algorithm -Digits $seed.Digits -Period $seed.Period
-    }
-    $sent = $true
-    Submit-LoginForm -Form $form -Email $seed.Email -Code $code
+  $form = Open-LoginForm
+  # A code with at least 8 seconds left, so it doesn't change on the way.
+  $code = {
+    $left = Get-TotpSecondsLeft -Period $seed.Period
+    if ($left -lt 8) { Start-Sleep -Seconds ($left + 1) }
+    Get-Totp -Secret $seed.Secret -Algorithm $seed.Algorithm -Digits $seed.Digits -Period $seed.Period
   }
+  $sent = $true
+  Submit-LoginForm -Form $form -Email $seed.Email -Code $code
 } catch {
   Write-LoginAttempt -Result $(if ($sent) { 'failed' } else { 'not-sent' })
-  Done 1 "couldn't log in ($Method): $($_.Exception.Message)"
+  Done 1 "couldn't log in: $($_.Exception.Message)"
 }
 
 # The certificate shows up in CurrentUser\My once SimplySign is connected; then a real test signature.
@@ -84,7 +71,7 @@ while (-not (Find-SigningCertificate) -and (Get-Date) -lt $deadline) { Start-Sle
 $after = Invoke-SigningProbe -NoLogin
 if ($after.Ok) {
   Write-LoginAttempt -Result ok
-  Done 0 "logged in ($Method); $($after.Message)"
+  Done 0 "logged in; $($after.Message)"
 }
 Write-LoginAttempt -Result failed
-Done 1 "the login ($Method) didn't work within $TimeoutSeconds s: $($after.Message -replace ' Log in to SimplySign.*$', '')"
+Done 1 "the login didn't work within $TimeoutSeconds s: $($after.Message -replace ' Log in to SimplySign.*$', '')"

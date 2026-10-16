@@ -74,13 +74,18 @@ test('DPAPI round trip with a fake seed: stored unreadable as text, read back th
   try {
     const env = { ISKRA_SIMPLYSIGN_DIR: dir }
     const fake = 'otpauth://totp/Certum:test@example.com?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=Certum'
-    ps(`Save-SimplySignSeed -Seed (ConvertFrom-SeedInput '${fake}') -Email 'test@example.com' -Method switches`, env)
+    ps(`Save-SimplySignSeed -Seed (ConvertFrom-SeedInput '${fake}') -Email 'test@example.com'`, env)
     const file = join(dir, 'simplysign.dat')
     const text = readFileSync(file, 'utf8')
     assert.match(text, /^ISKRA-SIMPLYSIGN-1\n[A-Za-z0-9+/=]+\n$/)
     assert.ok(!text.includes('GEZDGNBV') && !text.includes('example.com'), 'nothing readable in the file')
     const back = JSON.parse(ps(`$s = Read-SimplySignSeed; [pscustomobject]@{ Email = $s.Email; Method = $s.Method; Uri = $s.Uri; Code = (Get-Totp -Secret $s.Secret -Time ${at(59)}) } | ConvertTo-Json -Compress`, env))
-    assert.deepEqual(back, { Email: 'test@example.com', Method: 'switches', Uri: fake, Code: '287082' })
+    assert.deepEqual(back, { Email: 'test@example.com', Method: 'dialog', Uri: fake, Code: '287082' })
+    // A seed stored by an older setup for the retired 'switches' method still reads back (the login script then uses the dialog).
+    const old = '{"v":1,"email":"old@example.com","method":"switches","secret":"GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ","algorithm":"SHA1","digits":6,"period":30,"uri":""}'
+    ps(`$blob = [Security.Cryptography.ProtectedData]::Protect([Text.Encoding]::UTF8.GetBytes('${old}'), [Text.Encoding]::UTF8.GetBytes('iskra/simplysign-seed/v1'), 'CurrentUser'); Set-Content -Path '${file.replaceAll("'", "''")}' -Value "ISKRA-SIMPLYSIGN-1\`n$([Convert]::ToBase64String($blob))"`, env)
+    const older = JSON.parse(ps(`$s = Read-SimplySignSeed; [pscustomobject]@{ Email = $s.Email; Method = $s.Method; Code = (Get-Totp -Secret $s.Secret -Time ${at(59)}) } | ConvertTo-Json -Compress`, env))
+    assert.deepEqual(older, { Email: 'old@example.com', Method: 'switches', Code: '287082' })
     // Another context (different entropy, i.e. not our blob) can't be read as a seed.
     assert.throws(() => ps(`Set-Content -Path '${file.replaceAll("'", "''")}' -Value "ISKRA-SIMPLYSIGN-1\`n$([Convert]::ToBase64String([Security.Cryptography.ProtectedData]::Protect([byte[]](1,2,3), $null, 'CurrentUser')))"; Read-SimplySignSeed`, env), /can't be read by this Windows account/)
     assert.equal(ps('Remove-SimplySignSeed', env), 'True')

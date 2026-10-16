@@ -7,9 +7,9 @@
 # - The attempt ledger: at most one login attempt per release run (another only after the last one worked and its
 #   session has since ended: 90 minutes or more), and none for 30 minutes after one failed, so the Certum account can't
 #   get locked by a loop.
-# - The login itself: SimplySign Desktop's login dialog filled with window messages (default), or its /otpauth and
-#   /autologin switches. Invoke-OpenDialogLogin fills a dialog SimplySign opened by itself (a signature waiting for a
-#   login); Watch-LoginDialog does that for as long as a build runs.
+# - The login itself: SimplySign Desktop's login dialog filled with window messages (its /otpauth and /autologin
+#   switches are retired: they put the seed on a command line). Invoke-OpenDialogLogin fills a dialog SimplySign opened
+#   by itself (a signature waiting for a login); Watch-LoginDialog does that for as long as a build runs.
 # Tested by scripts/simplysign.test.mjs (RFC 6238 vectors, a DPAPI round trip with a fake seed, the ledger, the dialog
 # login and the watcher with fake dialogs).
 
@@ -85,7 +85,7 @@ function Get-TotpSecondsLeft {
 }
 
 # What the owner pasted: an otpauth://totp/... URI (from the QR) or a bare Base32 seed. Returns the TOTP parameters;
-# Raw keeps the URI as given for SimplySign's own /otpauth switch.
+# Raw keeps the URI as pasted.
 function ConvertFrom-SeedInput {
   param([Parameter(Mandatory)][AllowEmptyString()][string]$Text)
   $t = $Text.Trim()
@@ -124,10 +124,10 @@ function Assert-Dpapi {
 
 # Stores the seed for this Windows account. $Seed: ConvertFrom-SeedInput's result. Written atomically.
 function Save-SimplySignSeed {
-  param([Parameter(Mandatory)]$Seed, [Parameter(Mandatory)][string]$Email, [ValidateSet('dialog', 'switches')][string]$Method = 'dialog', [string]$Path = (Get-SimplySignSeedPath))
+  param([Parameter(Mandatory)]$Seed, [Parameter(Mandatory)][string]$Email, [string]$Path = (Get-SimplySignSeedPath))
   Assert-Dpapi
   if ($Email -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') { throw "'$Email' doesn't look like the SimplySign account's e-mail address." }
-  $json = [ordered]@{ v = 1; email = $Email; method = $Method; secret = $Seed.Base32; algorithm = $Seed.Algorithm; digits = $Seed.Digits; period = $Seed.Period; uri = $Seed.Raw } | ConvertTo-Json -Compress
+  $json = [ordered]@{ v = 1; email = $Email; method = 'dialog'; secret = $Seed.Base32; algorithm = $Seed.Algorithm; digits = $Seed.Digits; period = $Seed.Period; uri = $Seed.Raw } | ConvertTo-Json -Compress
   $plain = [Text.Encoding]::UTF8.GetBytes($json)
   try {
     $blob = [System.Security.Cryptography.ProtectedData]::Protect($plain, $script:Entropy, [System.Security.Cryptography.DataProtectionScope]::CurrentUser)
@@ -140,6 +140,7 @@ function Save-SimplySignSeed {
 }
 
 # The stored seed, or $null when there is none. Throws when the file exists but this account can't read it.
+# Method is 'dialog', or 'switches' from an older setup (retired; simplysign-login.ps1 says so and uses the dialog).
 function Read-SimplySignSeed {
   param([string]$Path = (Get-SimplySignSeedPath))
   if (-not (Test-Path -LiteralPath $Path)) { return $null }

@@ -504,10 +504,12 @@ ipcMain.handle('iskra:open-settings', (event, pane: unknown) => {
   void shell.openExternal(MAC_SETTINGS[pane as SettingsPane])
 })
 
-// Pop-outs: always on top, click-through (the voice panel), and its handle while click-through is on.
+// Pop-outs: always on top, click-through (the voice panel), and its handle while click-through is on. Only the main
+// page asks (it renders the pop-outs); a pop-out's own page never does.
 ipcMain.handle('iskra:popout-set', (event, name: unknown, raw: unknown) => {
+  if (!fromApp(event) || !window || window.isDestroyed() || event.sender !== window.webContents) return null
   const patch = parsePopoutPatch(raw)
-  return fromApp(event) && patch ? popouts.set(name, patch) : null
+  return patch ? popouts.set(name, patch) : null
 })
 
 // Desktop settings.

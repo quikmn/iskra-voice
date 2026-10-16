@@ -376,6 +376,8 @@ app.MapReverseProxy();
 
 if (!https.Enabled && (https.ProxyProtocol || https.HttpProxyProtocol || https.BindAddress is { Length: > 0 }))
     app.Logger.LogWarning("Https.BindAddress, Https.ProxyProtocol and Https.HttpProxyProtocol only apply with Https.Mode \"acme\" or \"files\"; ignoring them.");
+if (https.ClientsLookLocal)
+    app.Logger.LogWarning("Https.BindAddress is {Address} and Https.ProxyProtocol is off: every client looks like this machine (one shared rate limit, no addresses in the security log). Behind a proxy, turn on Https.ProxyProtocol (docs/hosting.md, Two servers on one machine).", https.BindAddress);
 app.Logger.LogInformation("World '{Name}' at {Path}, reachable at {Url}", world.Settings.Name, world.Path, world.Settings.EffectivePublicUrl);
 var ownerLink = OwnerSetup.EnsureOwnerInvite(world, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), out var claimed);
 if (ownerLink is not null && claimed && world.Settings.OwnerClaim == OwnerSetup.Generate)

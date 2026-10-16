@@ -323,6 +323,9 @@ public sealed partial class BugInbox(World world, Hub hub, Uploads uploads, Time
                 if (total > MaxImagesTotalBytes) throw new PayloadException("The images are too big together.");
                 // The bytes decide, not the label.
                 if (FileSniffer.Sniff(bytes.AsSpan(0, Math.Min(bytes.Length, 64 * 1024))).Type != type) throw new PayloadException("An image isn't what its type says.");
+                // Like server pictures: stored without metadata (EXIF, text chunks, thumbnails), or not at all.
+                try { bytes = ImageMetadata.Strip(bytes, type); }
+                catch (ImageMetadata.Refused) { throw new PayloadException("An image can't be read."); }
                 images.Add(new BugImage(type, bytes));
             }
         }

@@ -13,6 +13,17 @@ Restart=on-failure
 RestartSec=5
 # Ports 80 and 443 without running as root.
 AmbientCapabilities=CAP_NET_BIND_SERVICE
+# Only what it needs of the system. It writes under /opt/iskra alone (the program and its updates, the world folder
+# with its database, certificates, uploads and backups) plus a private /tmp; the update guard runs under the same
+# rules. Backup copies to another disk (Backups.CopyTo) need that folder added here: systemctl edit iskra.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/iskra
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
 
 [Install]
 WantedBy=multi-user.target
