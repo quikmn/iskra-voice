@@ -34,7 +34,8 @@
 .call-button.accept:hover { background: #15803d; }
 
 .incoming-call {
-  position: fixed; inset: 0; z-index: var(--z-call); display: grid; place-items: center; padding: 16px;
+  position: fixed; inset: 0; z-index: var(--z-call); display: grid; place-items: center;
+  padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));
   background: color-mix(in srgb, var(--stage) 80%, transparent); backdrop-filter: blur(8px); animation: fade 0.18s ease-out;
 }
 .incoming-card {

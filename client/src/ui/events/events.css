@@ -74,6 +74,6 @@
 
 @media (max-width: 760px) {
   .event-times { grid-template-columns: 1fr; gap: 0; }
-  .event-toasts { left: 8px; right: 8px; bottom: calc(8px + var(--safe-bottom)); width: auto; }
+  .event-toasts { left: 8px; right: 8px; bottom: calc(76px + var(--safe-bottom)); width: auto; }
   .event-actions .button.small { padding: 7px 10px; }
 }

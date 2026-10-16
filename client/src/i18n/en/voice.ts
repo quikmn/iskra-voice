@@ -7,6 +7,7 @@ export const voice = {
   muted: 'Muted',
   deafened: 'Deafened',
   speaking: 'Speaking',
+  isSpeaking: '{{name}} is speaking',
   inVoice: 'In voice',
   hangUp: 'Hang up',
   leave: 'Leave voice',
