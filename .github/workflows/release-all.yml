@@ -244,7 +244,7 @@ jobs:
           ./scripts/release-windows.ps1 $env:VERSION @flags
       - name: Keep the app bundle for the Play upload
         if: env.ANDROID_BUILD != 'ci'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-bundle
           path: mobile/release/Iskra-${{ needs.checks.outputs.version }}.aab
@@ -301,7 +301,7 @@ jobs:
           "$JAVA_HOME_21_X64/bin/jarsigner" -keystore "$RUNNER_TEMP/upload.keystore" -storepass:env ISKRA_KS_PASS -keypass:env ISKRA_KS_PASS \
             -sigalg SHA256withRSA -digestalg SHA-256 "$RUNNER_TEMP/out/Iskra-$VERSION.aab" upload > /dev/null
           rm -f "$RUNNER_TEMP/upload.keystore"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-bundle
           path: ${{ runner.temp }}/out/Iskra-${{ needs.checks.outputs.version }}.aab
