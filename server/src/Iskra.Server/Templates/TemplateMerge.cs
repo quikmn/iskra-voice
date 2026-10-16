@@ -19,6 +19,7 @@ public static partial class ServerTemplates
 
         // Roles, by name.
         var roleIds = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        var pickable = store.AllRoles().Where(r => r.SelfAssign).Select(r => r.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var r in store.AllRoles()) roleIds.TryAdd(r.Name, r.Id);
         foreach (var role in template.Roles)
         {
@@ -29,11 +30,33 @@ public static partial class ServerTemplates
                 continue;
             }
             plan.Add($"role {role.Name}");
+            if (role.SelfAssign) pickable.Add(role.Name);
             if (!apply) { roleIds[role.Name] = 0; continue; }
             var created = store.CreateRole(role.Name, role.Color, role.Icon, role.Hoist,
                 role.Permissions.Aggregate(Perm.None, (all, p) => all | RoleFeature.PermNames[p]), now);
-            if (role.Mentionable) store.UpdateRole(created with { Mentionable = true });
+            if (role.Mentionable || role.SelfAssign) store.UpdateRole(created with { Mentionable = role.Mentionable, SelfAssign = role.SelfAssign });
             roleIds[role.Name] = created.Id;
+        }
+
+        // Pick groups by title, only when every role in them is one members may pick here (a role the server already
+        // had under that name may not be).
+        var groupTitles = store.AllRoleGroups().Select(g => g.Title).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in template.RoleGroups)
+        {
+            if (groupTitles.Contains(group.Title)) continue;
+            if (groupTitles.Count >= RoleFeature.MaxGroups)
+            {
+                plan.Add($"(skipped) pick group {group.Title}: the server already has {RoleFeature.MaxGroups} groups");
+                continue;
+            }
+            if (!group.Roles.All(pickable.Contains))
+            {
+                plan.Add($"(skipped) pick group {group.Title}: a role in it isn't one members can pick on this server");
+                continue;
+            }
+            plan.Add($"pick group {group.Title} ({string.Join(", ", group.Roles)})");
+            groupTitles.Add(group.Title);
+            if (apply) store.CreateRoleGroup(group.Title, group.Question, group.Multi, group.Roles.Select(n => roleIds[n]).ToArray(), now);
         }
 
         // Categories by name, channels by name and kind.

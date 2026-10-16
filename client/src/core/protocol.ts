@@ -1096,6 +1096,19 @@ export interface ServerRole {
   mentionable?: boolean
   position: number
   permissions: Permission[]
+  /** Members give it to and take it from themselves (never with permissions, never counted as rank). */
+  selfAssign?: boolean
+}
+
+/** A question new members answer by picking self-assignable roles (PROTOCOL.md "Self-assignable roles and pick groups"). */
+export interface RoleGroup {
+  id: number
+  title: string
+  question: string
+  /** Several answers at once; otherwise picking one drops the others. */
+  multi: boolean
+  /** Role ids, in the order shown. */
+  roles: number[]
 }
 
 export interface ChannelOverride {
@@ -1119,16 +1132,21 @@ export interface VoiceParticipant {
 }
 
 export interface Events {
-  roles: { roles: ServerRole[]; baseRoles?: BaseRoleInfo[] }
+  roles: { roles: ServerRole[]; baseRoles?: BaseRoleInfo[]; groups?: RoleGroup[] }
   'voice.moved': { channelId: number; reason?: 'afk' | 'teams' }
 }
 
 export interface Requests {
-  'role.list': [Record<string, never>, { roles: ServerRole[]; baseRoles?: BaseRoleInfo[] }]
-  'role.create': [{ name: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[] }, { role: ServerRole }]
-  'role.update': [{ id: number; name?: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[] }, { role: ServerRole }]
+  'role.list': [Record<string, never>, { roles: ServerRole[]; baseRoles?: BaseRoleInfo[]; groups?: RoleGroup[] }]
+  'role.create': [{ name: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[]; selfAssign?: boolean }, { role: ServerRole }]
+  'role.update': [{ id: number; name?: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[]; selfAssign?: boolean }, { role: ServerRole }]
   'role.delete': [{ id: number }, Record<string, never>]
   'role.reorder': [{ ids: number[] }, { roles: ServerRole[] }]
+  'role.group.create': [{ title: string; question?: string; multi?: boolean; roles: number[] }, { group: RoleGroup }]
+  'role.group.update': [{ id: number; title?: string; question?: string; multi?: boolean; roles?: number[] }, { group: RoleGroup }]
+  'role.group.delete': [{ id: number }, Record<string, never>]
+  /** Your own self-assignable roles: `add` and/or `remove`. */
+  'roles.self': [{ add?: number[]; remove?: number[] }, { member: Member }]
   'member.roles.set': [{ accountKey: string; roles: number[] }, { member: Member }]
   'channel.overrides.set': [{ id: number; roleId: number; allow?: ChannelPermission[]; deny?: ChannelPermission[] }, { channel: Channel }]
   'voice.mute': [{ accountKey: string; muted: boolean }, Record<string, never>]

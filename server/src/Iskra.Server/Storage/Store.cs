@@ -345,6 +345,9 @@ public sealed partial class Store : IDisposable
         ("alerts-2", Alerts2Migration),
         // Emoji and stickers brought over from other servers.
         ("external-expressions-1", ExternalExpressionsMigration),
+        // Roles members pick themselves, and the questions new members answer with them (Server settings → Onboarding).
+        ("roles-3", "ALTER TABLE roles ADD COLUMN self_assign INTEGER NOT NULL DEFAULT 0;"),
+        ("role-groups-1", RoleGroupsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -101,7 +101,8 @@ export function countdown(ms: number): string {
 /** Filter choices in the audit log viewer. */
 export const AUDIT_ACTIONS = [
   'member.kick', 'member.ban', 'member.unban', 'member.timeout', 'member.timeout.remove', 'member.role', 'member.roles',
-  'role.create', 'role.update', 'role.delete', 'role.reorder', 'role.base', 'role.base.powers', 'channel.overrides', 'voice.mute', 'voice.move', 'voice.disconnect',
+  'role.create', 'role.update', 'role.delete', 'role.reorder', 'role.group.create', 'role.group.update', 'role.group.delete',
+  'role.base', 'role.base.powers', 'channel.overrides', 'voice.mute', 'voice.move', 'voice.disconnect',
   'channel.create', 'channel.update', 'channel.delete', 'message.delete', 'thread.delete', 'message.pin', 'message.unpin',
   'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
   'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
@@ -149,6 +150,9 @@ export function auditText(e: AuditEntry): string {
     case 'role.update': return t('moderation.audit.roleUpdate', { actor, name: str(d.name) })
     case 'role.delete': return t('moderation.audit.roleDelete', { actor, name: str(d.name) })
     case 'role.reorder': return t('moderation.audit.roleReorder', { actor })
+    case 'role.group.create': return t('moderation.audit.roleGroupCreate', { actor, title: str(d.title) })
+    case 'role.group.update': return t('moderation.audit.roleGroupUpdate', { actor, title: str(d.title) })
+    case 'role.group.delete': return t('moderation.audit.roleGroupDelete', { actor, title: str(d.title) })
     case 'channel.overrides': return t('moderation.audit.overrides', { actor, role: str(d.role), channel: channel(d.name) })
     case 'voice.mute': return t('moderation.audit.voiceMute', { actor, target, channel: channel(d.channelName) })
     case 'voice.unmute': return t('moderation.audit.voiceUnmute', { actor, target, channel: channel(d.channelName) })

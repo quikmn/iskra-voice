@@ -38,8 +38,16 @@ public sealed record CustomRole(long Id, string Name, string? Color, string? Ico
 {
     /// <summary>Anyone may @mention it (otherwise only people who may mention everyone).</summary>
     public bool Mentionable { get; init; }
+    /// <summary>Members give it to and take it from themselves (RoleFeature.SelfAssign). Never grants permissions, never counts in the hierarchy.</summary>
+    public bool SelfAssign { get; init; }
 }
 public sealed record ChannelOverride(long RoleId, ChannelPerm Allow, ChannelPerm Deny);
+
+/// <summary>
+/// A question new members answer by picking self-assignable roles ("Platform: PC / PlayStation / Xbox"). <paramref name="Multi"/>:
+/// several answers at once; otherwise picking one drops the others. <paramref name="RoleIds"/> in the order shown.
+/// </summary>
+public sealed record RoleGroup(long Id, string Title, string Question, bool Multi, int Position, long[] RoleIds);
 
 public sealed partial class Store
 {
@@ -69,11 +77,28 @@ public sealed partial class Store
         );
         """;
 
-    private const string RoleColumns = "id, name, color, icon, hoist, position, perms, created_at, mentionable";
+    private const string RoleGroupsMigration = """
+        CREATE TABLE role_groups (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            title       TEXT NOT NULL,
+            question    TEXT NOT NULL,
+            multi       INTEGER NOT NULL DEFAULT 0,
+            position    INTEGER NOT NULL,
+            created_at  INTEGER NOT NULL
+        );
+        CREATE TABLE role_group_roles (
+            group_id    INTEGER NOT NULL REFERENCES role_groups(id) ON DELETE CASCADE,
+            role_id     INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+            position    INTEGER NOT NULL,
+            PRIMARY KEY (group_id, role_id)
+        );
+        """;
+
+    private const string RoleColumns = "id, name, color, icon, hoist, position, perms, created_at, mentionable, self_assign";
 
     private static CustomRole ReadRole(Microsoft.Data.Sqlite.SqliteDataReader r) =>
         new(r.GetInt64(0), r.GetString(1), r.IsDBNull(2) ? null : r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3),
-            r.GetInt64(4) != 0, r.GetInt32(5), (Perm)r.GetInt64(6), r.GetInt64(7)) { Mentionable = r.GetInt64(8) != 0 };
+            r.GetInt64(4) != 0, r.GetInt32(5), (Perm)r.GetInt64(6), r.GetInt64(7)) { Mentionable = r.GetInt64(8) != 0, SelfAssign = r.GetInt64(9) != 0 };
 
     /// <summary>Highest first.</summary>
     public List<CustomRole> AllRoles() => Query($"SELECT {RoleColumns} FROM roles ORDER BY position DESC;", ReadRole);
@@ -96,9 +121,9 @@ public sealed partial class Store
     }
 
     public void UpdateRole(CustomRole role) =>
-        Exec("UPDATE roles SET name = $n, color = $c, icon = $i, hoist = $h, perms = $p, mentionable = $m WHERE id = $id;",
+        Exec("UPDATE roles SET name = $n, color = $c, icon = $i, hoist = $h, perms = $p, mentionable = $m, self_assign = $s WHERE id = $id;",
             ("$id", role.Id), ("$n", role.Name), ("$c", role.Color), ("$i", role.Icon), ("$h", role.Hoist ? 1 : 0), ("$p", (long)role.Perms),
-            ("$m", role.Mentionable ? 1 : 0));
+            ("$m", role.Mentionable ? 1 : 0), ("$s", role.SelfAssign ? 1 : 0));
 
     public void DeleteRole(long id)
     {
@@ -140,29 +165,90 @@ public sealed partial class Store
     public List<string> MembersWithRole(long roleId) =>
         Query("SELECT account_key FROM member_roles WHERE role_id = $r;", r => r.GetString(0), ("$r", roleId));
 
-    /// <summary>Fills in the member's custom roles: ids (highest first), combined permissions and highest position.</summary>
-    private Member WithRoles(Member m, List<(long Id, int Position, Perm Perms)> roles) => m with
+    /// <summary>
+    /// Fills in the member's custom roles: ids (highest first), combined permissions and highest position. Self-assignable
+    /// roles are listed but grant nothing and don't lift the member in the hierarchy: anyone could pick them.
+    /// </summary>
+    private Member WithRoles(Member m, List<(long Id, int Position, Perm Perms, bool SelfAssign)> roles)
     {
-        RoleIds = roles.OrderByDescending(r => r.Position).Select(r => r.Id).ToArray(),
-        Perms = roles.Aggregate(Perm.None, (all, r) => all | r.Perms),
-        TopPosition = roles.Count == 0 ? 0 : roles.Max(r => r.Position),
-    };
+        var ranking = roles.Where(r => !r.SelfAssign).ToList();
+        return m with
+        {
+            RoleIds = roles.OrderByDescending(r => r.Position).Select(r => r.Id).ToArray(),
+            Perms = ranking.Aggregate(Perm.None, (all, r) => all | r.Perms),
+            TopPosition = ranking.Count == 0 ? 0 : ranking.Max(r => r.Position),
+        };
+    }
 
     private Member? HydrateMember(Member? m) =>
         m is null ? null : WithRoles(WithBase(m), Query("""
-            SELECT r.id, r.position, r.perms FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.account_key = $a;
-            """, r => (r.GetInt64(0), r.GetInt32(1), (Perm)r.GetInt64(2)), ("$a", m.AccountKey)));
+            SELECT r.id, r.position, r.perms, r.self_assign FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.account_key = $a;
+            """, r => (r.GetInt64(0), r.GetInt32(1), (Perm)r.GetInt64(2), r.GetInt64(3) != 0), ("$a", m.AccountKey)));
 
     private List<Member> HydrateMembers(List<Member> members)
     {
         if (ChangedBasePowers().Count > 0) members = members.Select(WithBase).ToList();
         var all = Query("""
-            SELECT mr.account_key, r.id, r.position, r.perms FROM member_roles mr JOIN roles r ON r.id = mr.role_id;
-            """, r => (Key: r.GetString(0), Role: (r.GetInt64(1), r.GetInt32(2), (Perm)r.GetInt64(3))));
+            SELECT mr.account_key, r.id, r.position, r.perms, r.self_assign FROM member_roles mr JOIN roles r ON r.id = mr.role_id;
+            """, r => (Key: r.GetString(0), Role: (r.GetInt64(1), r.GetInt32(2), (Perm)r.GetInt64(3), r.GetInt64(4) != 0)));
         if (all.Count == 0) return members;
         var byKey = all.GroupBy(x => x.Key).ToDictionary(g => g.Key, g => g.Select(x => x.Role).ToList());
         return members.Select(m => byKey.TryGetValue(m.AccountKey, out var roles) ? WithRoles(m, roles) : m).ToList();
     }
+
+    // ── Pick groups (onboarding) ─────────────────────────────────────────────
+
+    /// <summary>In the order shown, each with its roles in order.</summary>
+    public List<RoleGroup> AllRoleGroups()
+    {
+        lock (_gate)
+        {
+            var roles = Query("SELECT group_id, role_id FROM role_group_roles ORDER BY position;", r => (Group: r.GetInt64(0), Role: r.GetInt64(1)))
+                .GroupBy(x => x.Group).ToDictionary(g => g.Key, g => g.Select(x => x.Role).ToArray());
+            return Query("SELECT id, title, question, multi, position FROM role_groups ORDER BY position, id;",
+                r => new RoleGroup(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetInt64(3) != 0, r.GetInt32(4), roles.GetValueOrDefault(r.GetInt64(0)) ?? []));
+        }
+    }
+
+    public RoleGroup? GetRoleGroup(long id) => AllRoleGroups().FirstOrDefault(g => g.Id == id);
+
+    public int RoleGroupCount() => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM role_groups;"));
+
+    /// <summary>New groups go last.</summary>
+    public RoleGroup CreateRoleGroup(string title, string question, bool multi, IReadOnlyList<long> roleIds, long now)
+    {
+        lock (_gate)
+        {
+            var position = Convert.ToInt32(Scalar("SELECT COALESCE(MAX(position), 0) + 1 FROM role_groups;"));
+            var id = Convert.ToInt64(Scalar("""
+                INSERT INTO role_groups (title, question, multi, position, created_at) VALUES ($t, $q, $m, $p, $now) RETURNING id;
+                """, ("$t", title), ("$q", question), ("$m", multi ? 1 : 0), ("$p", position), ("$now", now)));
+            SetRoleGroupRoles(id, roleIds);
+            return GetRoleGroup(id)!;
+        }
+    }
+
+    public void UpdateRoleGroup(RoleGroup group)
+    {
+        lock (_gate)
+        {
+            Exec("UPDATE role_groups SET title = $t, question = $q, multi = $m WHERE id = $id;",
+                ("$id", group.Id), ("$t", group.Title), ("$q", group.Question), ("$m", group.Multi ? 1 : 0));
+            SetRoleGroupRoles(group.Id, group.RoleIds);
+        }
+    }
+
+    private void SetRoleGroupRoles(long groupId, IReadOnlyList<long> roleIds)
+    {
+        Exec("DELETE FROM role_group_roles WHERE group_id = $g;", ("$g", groupId));
+        for (var i = 0; i < roleIds.Count; i++)
+            Exec("INSERT OR IGNORE INTO role_group_roles (group_id, role_id, position) VALUES ($g, $r, $p);", ("$g", groupId), ("$r", roleIds[i]), ("$p", i));
+    }
+
+    public void DeleteRoleGroup(long id) => Exec("DELETE FROM role_groups WHERE id = $id;", ("$id", id));
+
+    /// <summary>When a role stops being self-assignable, no group offers it any more.</summary>
+    public void RemoveRoleFromGroups(long roleId) => Exec("DELETE FROM role_group_roles WHERE role_id = $r;", ("$r", roleId));
 
     // ── Channel overrides ────────────────────────────────────────────────────
 

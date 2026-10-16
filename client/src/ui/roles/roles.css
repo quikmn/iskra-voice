@@ -75,6 +75,31 @@
 .builtin-abilities { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .builtin-role-details .field { margin-bottom: 0; }
 
+/* Pick your roles */
+.role-picker { display: grid; gap: 12px; }
+.role-picker-group { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; min-width: 0; display: grid; gap: 8px; }
+.role-picker-group h3 { margin: 0; font-size: 15px; }
+.role-picker-group p { margin: 0; }
+.role-picker-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.role-option {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font-weight: 500; min-height: 36px;
+}
+.role-option.on { border-color: var(--accent); background: var(--accent-subtle); }
+.role-option:disabled { opacity: 0.7; }
+
+/* Settings → Onboarding */
+.onboarding-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.onboarding-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); flex-wrap: wrap; }
+.onboarding-text { min-width: 0; flex: 1 1 220px; }
+.onboarding-title { font-weight: 600; }
+.onboarding-roles { font-size: 13px; }
+.onboarding-row .spacer { flex: 1; }
+.onboarding-form { display: grid; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.onboarding-form .field { margin-bottom: 0; }
+.onboarding-form .segmented { margin-bottom: 0; max-width: 320px; }
+.settings-section .onboarding-list + .copy-row, .settings-section .onboarding-form + .copy-row { margin-top: 14px; }
+
 /* Built-in roles: adjustable powers */
 .builtin-powers { display: grid; gap: 8px; margin: 4px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid var(--border); min-width: 0; }
 .builtin-powers .role-perms-head { margin-top: 0; }

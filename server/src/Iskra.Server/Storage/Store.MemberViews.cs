@@ -17,9 +17,9 @@ public sealed partial class Store
         {
             var members = Query($"SELECT {MemberColumns} FROM members WHERE account_key IN (SELECT value FROM json_each($keys));", ReadMember, ("$keys", keys));
             var roles = Query("""
-                SELECT mr.account_key, r.id, r.position, r.perms FROM member_roles mr JOIN roles r ON r.id = mr.role_id
+                SELECT mr.account_key, r.id, r.position, r.perms, r.self_assign FROM member_roles mr JOIN roles r ON r.id = mr.role_id
                 WHERE mr.account_key IN (SELECT value FROM json_each($keys));
-                """, r => (Key: r.GetString(0), Role: (r.GetInt64(1), r.GetInt32(2), (Perm)r.GetInt64(3))), ("$keys", keys));
+                """, r => (Key: r.GetString(0), Role: (r.GetInt64(1), r.GetInt32(2), (Perm)r.GetInt64(3), r.GetInt64(4) != 0)), ("$keys", keys));
             var byKey = roles.GroupBy(x => x.Key).ToDictionary(g => g.Key, g => g.Select(x => x.Role).ToList());
             return members.Select(WithBase).ToDictionary(m => m.AccountKey, m => byKey.TryGetValue(m.AccountKey, out var r) ? WithRoles(m, r) : m);
         }

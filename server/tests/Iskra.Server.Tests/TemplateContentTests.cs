@@ -182,7 +182,7 @@ public class TemplateContentTests : IDisposable
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "disappear": 7 } ] }""", "'disappear' must be 0 (off) or one of")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "d", "kind": "docs", "disappear": 300 } ] }""", "only text and voice channels can have disappearing messages")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "disappear": 300, "messages": [ { "text": "hi" } ] } ] }""", "can't have 'messages'")]
-    [InlineData("""{ "version": 4, "name": "x" }""", "made by a newer version of Iskra (format 4)")]
+    [InlineData("""{ "version": 5, "name": "x" }""", "made by a newer version of Iskra (format 5)")]
     public void Bad_content_is_rejected_with_a_clear_error(string json, string expected)
     {
         var error = Assert.Throws<TemplateException>(() => ServerTemplates.Parse(json, "bad.json"));

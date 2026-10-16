@@ -48,6 +48,7 @@ import { AppLockSection, RotateKeySection } from '../keys/KeySettings'
 import { KeyTransparencySection } from '../keys/KeyTransparency'
 import { AuditLogSection, BlockedSection } from '../moderation/SafetySettings'
 import { RolesSection } from '../roles/RoleSettings'
+import { OnboardingSection } from '../roles/Onboarding'
 import { AutoModSection } from '../automod/AutoModSection'
 import { AboutSection, AccountSection } from '../safety/AccountSection'
 import { ReportsSection } from '../safety/ReportsSection'
@@ -330,6 +331,7 @@ function ServerSection({ id, server, onClose }: { id: ServerSectionId; server: S
     case 'sounds': return <SoundsSection server={server} />
     case 'pages': return <PagesSection server={server} />
     case 'rules': return <RulesSection server={server} />
+    case 'onboarding': return <OnboardingSection server={server} />
     case 'serverVoice': return <AfkSection server={server} />
     case 'members': return <MembersSection server={server} />
     case 'roles': return <RolesSection server={server} />

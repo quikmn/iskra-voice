@@ -7,7 +7,7 @@ export type MySectionId =
   | 'profile' | 'appearance' | 'language' | 'devices' | 'recovery' | 'security' | 'notifications' | 'voice' | 'video' | 'blocked' | 'desktop' | 'account' | 'privacy' | 'about'
 
 export type ServerSectionId =
-  | 'overview' | 'channels' | 'serverVoice' | 'emoji' | 'gifs' | 'sounds' | 'pages' | 'rules'
+  | 'overview' | 'channels' | 'serverVoice' | 'emoji' | 'gifs' | 'sounds' | 'pages' | 'rules' | 'onboarding'
   | 'members' | 'roles' | 'reports' | 'automod' | 'audit' | 'securityLog'
   | 'integrations' | 'bugInbox'
   | 'internet' | 'limits' | 'backup' | 'import' | 'updates' | 'translate'
@@ -40,6 +40,7 @@ const SERVER: { id: ServerSectionId; group: ServerGroup; min: Role; perms?: Perm
   { id: 'sounds', group: 'server', min: 'trusted', perms: ['manageExpressions'] },
   { id: 'pages', group: 'server', min: 'admin' },
   { id: 'rules', group: 'server', min: 'admin' },
+  { id: 'onboarding', group: 'server', min: 'admin', perms: ['manageRoles'] },
   { id: 'translate', group: 'server', min: 'owner' },
   { id: 'members', group: 'safety', min: 'admin', perms: [...MODERATION, 'manageRoles'] },
   { id: 'roles', group: 'safety', min: 'admin', perms: ['manageRoles'] },

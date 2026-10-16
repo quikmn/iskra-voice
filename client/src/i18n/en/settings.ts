@@ -27,6 +27,7 @@ export const settings = {
     internet: 'Internet access',
     audit: 'Activity log',
     rules: 'Server rules',
+    onboarding: 'Onboarding',
     limits: 'Limits',
     serverVoice: 'Voice',
     backup: 'Backup & move',

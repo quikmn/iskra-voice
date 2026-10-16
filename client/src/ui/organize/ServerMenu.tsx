@@ -19,6 +19,7 @@ import { Modal } from '../bits'
 import { CreateChannelDialog } from '../dialogs/CreateChannelDialog'
 import { InviteDialog } from '../dialogs/InviteDialog'
 import { ServerRulesItem } from '../rules/Rules'
+import { PickRolesItem } from '../roles/Onboarding'
 import { openServerSettings } from '../settings/open'
 import { serverSections, type ServerSectionId } from '../settings/sections'
 import { ServerTile } from '../settings/ServerTile'
@@ -93,6 +94,7 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
               }
             })}
             <ServerRulesItem serverKey={server.key} onDone={onClose} />
+            <PickRolesItem server={server} onDone={onClose} />
             <div className="org-sep" role="separator" />
             {me && <NotifyRows server={server} channelId={null} setView={setView} run={run} />}
             {me && <LfgNotifyItem server={server} run={run} />}

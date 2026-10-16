@@ -83,6 +83,18 @@ public sealed record TemplateRole
     public bool Hoist { get; init; }
     public bool Mentionable { get; init; }
     public string[] Permissions { get; init; } = [];
+    /// <summary>Members pick it themselves (format 4); then it can't have permissions.</summary>
+    public bool SelfAssign { get; init; }
+}
+
+/// <summary>A question new members answer by picking self-assignable roles of the template, by name (format 4).</summary>
+public sealed record TemplateRoleGroup
+{
+    public string Title { get; init; } = "";
+    public string Question { get; init; } = "";
+    /// <summary>Several answers at once (otherwise one).</summary>
+    public bool Multi { get; init; }
+    public string[] Roles { get; init; } = [];
 }
 
 /// <summary>A base role (owner … guest): its colour and, optionally, everything it can do (absent: the defaults).</summary>
@@ -148,7 +160,7 @@ public sealed record TemplateSettings
 /// </summary>
 public sealed record ServerTemplate
 {
-    /// <summary>The format: 1 (when absent), 2 or 3.</summary>
+    /// <summary>The format: 1 (when absent), 2, 3 or 4.</summary>
     public int Version { get; init; } = 1;
     public string Name { get; init; } = "";
     public string Description { get; init; } = "";
@@ -156,6 +168,8 @@ public sealed record ServerTemplate
     /// <summary>Channels outside any category (listed first).</summary>
     public TemplateChannel[] Channels { get; init; } = [];
     public TemplateRole[] Roles { get; init; } = [];
+    /// <summary>What new members are asked to pick (format 4).</summary>
+    public TemplateRoleGroup[] RoleGroups { get; init; } = [];
     /// <summary>The base roles, keyed by role ("admin", "trusted", ...). Optional; any left out keep the defaults.</summary>
     public Dictionary<string, TemplateBuiltinRole> BuiltinRoles { get; init; } = [];
     public TemplateRules? Rules { get; init; }
@@ -171,7 +185,7 @@ public static partial class ServerTemplates
     /// <summary>The templates that come with the server, in the order the setup wizard shows them.</summary>
     public static readonly string[] BuiltIn = ["gaming", "friends", "tabletop", "empty"];
 
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
     public const int MaxFileBytes = 256 * 1024;
     public const int MaxChannels = 500;
     public const int MaxRoles = RoleFeature.MaxRoles;
@@ -281,10 +295,29 @@ public static partial class ServerTemplates
             foreach (var perm in r.Permissions)
                 if (!RoleFeature.PermNames.ContainsKey(perm))
                     Fail($"role '{roleName}': unknown permission '{perm}'. Known: {string.Join(", ", RoleFeature.PermNames.Keys)}.");
+            if (r.SelfAssign && r.Permissions.Length > 0) Fail($"role '{roleName}': a role members pick themselves ('selfAssign') can't have permissions.");
             return r with { Name = roleName, Color = string.IsNullOrEmpty(r.Color) ? null : r.Color.ToLowerInvariant(), Icon = icon, Permissions = r.Permissions.Distinct().ToArray() };
         }).ToArray();
         if (roles.Select(r => r.Name.ToLowerInvariant()).Distinct().Count() != roles.Length) Fail("two roles have the same name.");
         string? RoleNamed(string raw) => roles.FirstOrDefault(r => r.Name.Equals(raw.Trim(), StringComparison.OrdinalIgnoreCase))?.Name;
+
+        if (t.RoleGroups.Length > RoleFeature.MaxGroups) Fail($"at most {RoleFeature.MaxGroups} roleGroups.");
+        var roleGroups = t.RoleGroups.Select((g, i) =>
+        {
+            var where = $"roleGroups {i + 1}";
+            var title = Text.Normalize(g.Title, RoleFeature.MaxGroupTitleLength, allowNewlines: false)
+                ?? Fail($"{where}: 'title' must be 1–{RoleFeature.MaxGroupTitleLength} characters.");
+            var question = g.Question.Trim().Length == 0 ? "" : Text.Normalize(g.Question, RoleFeature.MaxGroupQuestionLength, allowNewlines: false)
+                ?? Fail($"{where} ('{title}'): 'question' can be up to {RoleFeature.MaxGroupQuestionLength} characters.");
+            if (g.Roles.Length is 0 or > RoleFeature.MaxGroupRoles) Fail($"{where} ('{title}'): 'roles' needs 1–{RoleFeature.MaxGroupRoles} of the template's roles.");
+            var groupRoles = g.Roles.Select(raw =>
+            {
+                var role = RoleNamed(raw) ?? Fail($"{where} ('{title}'): '{raw}' isn't one of the template's roles.");
+                if (!roles.First(r => r.Name == role).SelfAssign) Fail($"{where} ('{title}'): '{role}' needs \"selfAssign\": true to be picked.");
+                return role;
+            }).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            return new TemplateRoleGroup { Title = title, Question = question, Multi = g.Multi, Roles = groupRoles };
+        }).ToArray();
 
         var total = 0;
         TemplateChannel Check(TemplateChannel c, string where)
@@ -398,7 +431,7 @@ public static partial class ServerTemplates
         return new ServerTemplate
         {
             Version = t.Version, Name = name, Description = description, Categories = categories, Channels = channels, Roles = roles,
-            BuiltinRoles = builtinRoles, Rules = rules, Afk = afk, Settings = settings,
+            RoleGroups = roleGroups, BuiltinRoles = builtinRoles, Rules = rules, Afk = afk, Settings = settings,
         };
     }
 
@@ -508,9 +541,11 @@ public static partial class ServerTemplates
         {
             var perms = role.Permissions.Aggregate(Perm.None, (all, p) => all | RoleFeature.PermNames[p]);
             var created = store.CreateRole(role.Name, role.Color, role.Icon, role.Hoist, perms, now);
-            if (role.Mentionable) store.UpdateRole(created with { Mentionable = true });
+            if (role.Mentionable || role.SelfAssign) store.UpdateRole(created with { Mentionable = role.Mentionable, SelfAssign = role.SelfAssign });
             roleIds[role.Name] = created.Id;
         }
+        foreach (var group in template.RoleGroups)
+            store.CreateRoleGroup(group.Title, group.Question, group.Multi, group.Roles.Select(n => roleIds[n]).ToArray(), now);
 
         // The starting #general becomes the template's first text channel, so there's never an extra one.
         var starter = store.AllChannels().FirstOrDefault();

@@ -1099,7 +1099,7 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 | type | body | result | who |
 |---|---|---|---|
 | `role.list` | | `{ roles: [Role], baseRoles: [BaseRole] }` (highest first; [built-in roles](#built-in-roles)) | anyone |
-| `role.create` | `name` (1–32), `color?` (`#rrggbb`), `icon?` (one emoji, ≤ 16 chars), `hoist?`, `permissions?` | `{ role }` | `manageRoles`; ≤ 100 roles |
+| `role.create` | `name` (1–32), `color?` (`#rrggbb`), `icon?` (one emoji, ≤ 16 chars), `hoist?`, `permissions?`, `selfAssign?` | `{ role }` | `manageRoles`; ≤ 100 roles |
 | `role.update` | `id` and any of the above (`""` clears `color`/`icon`) | `{ role }` | `manageRoles`, the role below your highest |
 | `role.delete` | `id` | | same (takes it off everyone and removes its overrides) |
 | `role.reorder` | `ids` (every role once, highest first) | `{ roles }` | `manageRoles`; roles at or above your highest can't move, and nothing can move up to them |
@@ -1120,6 +1120,37 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 **Role mentions**: `<@&roleId>` in message text, shown as `@Role`. `Role` gains `mentionable` (default false; set with `role.create`/`role.update`). A role mention notifies (push, and clients count it as a mention) the role's members when the role is mentionable or the author may mention everyone (trusted+ or `mentionEveryone`); otherwise it's just text. Webhook posts never ping roles. Clients autocomplete only roles the author may mention.
 
 **Pushes and blocks**: the server sends no mention or reply push from someone the recipient has blocked. Clients also leave messages from blocked people out of unread and mention counts and notifications.
+
+### Self-assignable roles and pick groups
+
+`Role` gains `selfAssign` (default false; set with `role.create`/`role.update`): members give it to and take it from
+themselves. Such a role **never grants anything above the member base role**: it can't carry a permission
+(`role.create`/`role.update` with both → `bad_request`, key `role_self_assign_perms`), it doesn't count in the
+[hierarchy](#roles-and-permissions) (a member holding only self-assignable roles ranks by their level, as if they held
+none), and `roles.self` checks both again on every call. Channel overrides for it still apply, which is how opt-in
+channels work ("pick PlayStation to see #playstation").
+
+Admins group them into the questions new members answer (Server settings → Onboarding):
+
+```jsonc
+RoleGroup { "id": 1, "title": "Platform", "question": "What do you play on?", "multi": true, "roles": [4, 5, 6] }   // role ids, in the order shown
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `role.group.create` | `title` (1–60), `question?` (≤ 200; `""` none), `multi?` (default false: picking one drops the group's others), `roles` (1–25 ids of roles with `selfAssign`, in order) | `{ group }` | `manageRoles`; ≤ 20 groups (`bad_request`, key `role_groups_max`) |
+| `role.group.update` | `id` and any of the above | `{ group }` | `manageRoles` |
+| `role.group.delete` | `id` | | `manageRoles` |
+| `roles.self` | `add?: [roleId]`, `remove?: [roleId]` (one of them; ≤ 100 each) | `{ member }` | any member who isn't a bot; every id must be a role with `selfAssign` and no permissions (`forbidden`, key `role_not_self_assign`). Rate limited (10, then 1 a second) |
+
+- `role.list` and the `roles` event gain `groups: [RoleGroup]` (in order). A role that stops being `selfAssign` leaves
+  every group; a deleted role too. A group may end up empty; clients skip those.
+- `roles.self` with a role from a single-choice group takes the group's other roles off you first. Changes send
+  `member.updated` and a fresh `channels` list like `member.roles.set`.
+- Audit: `role.create`/`role.update` details gain `selfAssign`; `role.group.create` / `role.group.update`
+  `{ id, title, roles }` (names), `role.group.delete` `{ id, title }`. Picking your own roles isn't audited.
+- Clients show the groups on the welcome screen after agreeing to the rules, from "Pick your roles" in the server menu,
+  and for `/roles`. Templates: `roles[].selfAssign` and `roleGroups` (format 4, see [Starter templates](#starter-templates)).
 
 ## Reliable sends
 
@@ -2823,6 +2854,8 @@ permission and ability.
 |---|---|---|---|
 | `role.base.update` | `role` (a built-in role); any of `color` (`#rrggbb`; `""` clears), `abilities` (the whole set, ≤ 19 names), `permissions` (the whole set, ≤ 14 names), `reset: true` (back to the default powers; not with `abilities`/`permissions`) | `{ baseRole: BaseRole }` | `manageRoles`. Colour: the owner may change any, everyone else only `trusted`, `member` and `guest` (`forbidden`, key `rank_base_roles`). Powers: see below. Rate limited (30, then 2 a second) |
 
+`role.list` and the `roles` event also carry `groups` ([pick groups](#self-assignable-roles-and-pick-groups)).
+
 Safety rules for powers, all checked on the server before anything changes:
 
 - The owner's role never changes, not even by the owner (`forbidden`, key `base_role_owner`); `runServer` and
@@ -2980,15 +3013,16 @@ Whoever runs the bot reads what's sent to it: that's the point of writing to a b
 A template (format in `docs/templates.md`) sets up a new server once: channels of every kind (text, voice, forum,
 stage, docs; hi-fi, user limits, slowmode, forum tags), who can see and use each (`readRole`/`writeRole` and per-role
 overrides for the template's own roles), custom roles, built-in role colours and powers, rules, the AFK channel and
-settings (default notifications, limits, built-in bots, bug inbox). `"version": 3` (format 3 adds starting content: see
-"Channel topics and template content"); formats 2 and 1 (no version) stay valid; a newer format is refused with a clear
-message. Unknown fields are an error. Up to 256 KB, 500
-channels, 50 categories, 100 roles. The server checks every template it reads with the same rules as the requests that
-make the same changes (built-in role powers included).
+settings (default notifications, limits, built-in bots, bug inbox). `"version": 4` (format 4 adds `roles[].selfAssign`
+and `roleGroups`, the pick groups of [self-assignable roles](#self-assignable-roles-and-pick-groups); format 3 added
+starting content: see "Channel topics and template content"); formats 3, 2 and 1 (no version) stay valid; a newer
+format is refused with a clear message. Unknown fields are an error. Up to 256 KB, 500
+channels, 50 categories, 100 roles, 20 pick groups. The server checks every template it reads with the same rules as the requests that
+make the same changes (built-in role powers and self-assignable roles included).
 
 | type | body | result | who |
 |---|---|---|---|
-| `server.template.export` | `{}` | `{ template: object }` (format 3, or 2 when it needs nothing newer) | admins (`forbidden`, key `admins_template_export`). Rate limited (3, then 1 every 10 s) |
+| `server.template.export` | `{}` | `{ template: object }` (the lowest format that holds everything in it: 4, 3 or 2) | admins (`forbidden`, key `admins_template_export`). Rate limited (3, then 1 every 10 s) |
 | `notify.default.set` | `level`: `auto` (all messages under 15 people, only @mentions above), `all` or `mentions` | `{ level }` | the `organize` ability (`forbidden`, key `admins_notify_default`). Rate limited (10, then 1 a second) |
 
 - `server.template.export` ("Save this server as a template") contains only structure and settings: never members,
@@ -3003,7 +3037,8 @@ make the same changes (built-in role powers included).
   list of names; `roleDetails`, `builtinRoles`, `settings` and per-channel `readRole`, `writeRole`, `hifi`, `slowmode`,
   `overrides`, `tags` are new).
 - `iskra-server templates apply <world> <file> [--apply]` adds a template to a server already in use, additive only:
-  roles and categories it doesn't have (by name), channels it doesn't have (by name and kind, anywhere on the server),
+  roles and categories it doesn't have (by name), pick groups it doesn't have (by title, when every role in them is one
+  members may pick), channels it doesn't have (by name and kind, anywhere on the server),
   and settings still at their defaults. It never deletes, renames or changes existing channels, roles, members or
   messages. Without `--apply` it only prints what it would add. It refuses while the server runs (its port answers on
   localhost). Security log `server.template.merge`.

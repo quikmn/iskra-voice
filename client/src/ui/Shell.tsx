@@ -35,6 +35,7 @@ import { DisputeNotices } from './keys/KeyScreens'
 import { KtNotices } from './keys/KeyTransparency'
 import { Shortcuts } from './organize/Shortcuts'
 import { RulesLayer } from './rules/Rules'
+import { RolePickerLayer } from './roles/Onboarding'
 import { ServerUpdateNotice } from './ServerUpdateNotice'
 import { RestartBanner } from './RestartBanner'
 import { ProductivityLayer } from './productivity/InboxButton'
@@ -118,6 +119,7 @@ export function Shell() {
       <EventsLayer />
       <Shortcuts />
       <RulesLayer />
+      <RolePickerLayer />
       <ProductivityLayer />
       <ClipLayer />
       <PopoutLayer />
