@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { desktop } from '../platform/desktop'
 import { parseUpdateStatus, updateNotice, type UpdateStatus } from '../platform/updates'
@@ -6,6 +6,36 @@ import { Close } from './icons'
 import './update-toast.css'
 
 const DISMISSED = 'iskra.update-dismissed'
+
+/**
+ * The app's toast, bottom right over the message box: a mark, a title and a line, maybe a button, and ✕. The update
+ * notice below and the desktop shell's own notices (DesktopNotices.tsx) share it, so they look the same.
+ */
+export function Toast({ mark, title, body, action, onClose, closeLabel, closeTitle, className, testId }: {
+  mark?: ReactNode
+  title: string
+  body: string
+  action?: ReactNode
+  onClose: () => void
+  closeLabel: string
+  closeTitle?: string
+  className?: string
+  testId?: string
+}) {
+  return (
+    <div className={`update-toast ${className ?? ''}`} role="status" aria-live="polite" data-testid={testId}>
+      {mark && <div className="update-toast-mark" aria-hidden="true">{mark}</div>}
+      <div className="update-toast-text">
+        <strong>{title}</strong>
+        <span>{body}</span>
+      </div>
+      {action}
+      <button className="icon-button" onClick={onClose} aria-label={closeLabel} title={closeTitle ?? closeLabel}>
+        <Close size={16} />
+      </button>
+    </div>
+  )
+}
 
 function readDismissed(): string | null {
   try {
@@ -87,21 +117,11 @@ export function UpdateToast() {
   }
 
   return (
-    <div className="update-toast" role="status" aria-live="polite">
-      <div className="update-toast-mark" aria-hidden="true">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 3v12" />
-          <path d="m7 10 5 5 5-5" />
-          <path d="M5 21h14" />
-        </svg>
-      </div>
-      <div className="update-toast-text">
-        <strong>{notice.kind === 'ready' ? t('app.update.ready') : t('app.update.available')}</strong>
-        <span>
-          {notice.kind === 'ready' ? t('app.update.readyBody', { version: notice.version }) : t('app.update.availableBody', { version: notice.version })}
-        </span>
-      </div>
-      {notice.kind === 'ready' ? (
+    <Toast
+      mark={<DownloadMark />}
+      title={notice.kind === 'ready' ? t('app.update.ready') : t('app.update.available')}
+      body={notice.kind === 'ready' ? t('app.update.readyBody', { version: notice.version }) : t('app.update.availableBody', { version: notice.version })}
+      action={notice.kind === 'ready' ? (
         <button className="button primary" onClick={() => void restart()} disabled={restarting}>
           {restarting ? t('app.update.restarting') : t('app.update.restart')}
         </button>
@@ -110,9 +130,18 @@ export function UpdateToast() {
           {t('common.download')}
         </a>
       )}
-      <button className="icon-button" onClick={dismiss} aria-label={notice.kind === 'ready' ? t('app.update.later') : t('app.dismiss')} title={notice.kind === 'ready' ? t('app.update.laterTitle') : t('app.dismiss')}>
-        <Close size={16} />
-      </button>
-    </div>
+      onClose={dismiss}
+      closeLabel={notice.kind === 'ready' ? t('app.update.later') : t('app.dismiss')}
+      closeTitle={notice.kind === 'ready' ? t('app.update.laterTitle') : t('app.dismiss')}
+    />
   )
 }
+
+/** The download arrow in a toast's mark. */
+export const DownloadMark = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3v12" />
+    <path d="m7 10 5 5 5-5" />
+    <path d="M5 21h14" />
+  </svg>
+)

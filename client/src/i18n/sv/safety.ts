@@ -137,6 +137,13 @@ export const safety: Messages['safety'] = {
   about: {
     version: 'Iskra {{version}}',
     copyVersion: 'Kopiera versionen',
+    desktopBuild: 'Skrivbordsapp: Electron {{electron}} · Chromium {{chrome}} · Node {{node}} ({{os}}, {{arch}})',
+    tagline: 'Röst- och textchatt för vänner, på servrar du äger.',
+    license: 'Iskras källkod är tillgänglig under PolyForm Noncommercial License 1.0.0.',
+    builtOn: 'Iskra bygger på öppen källkod, bland annat Electron, Chromium, LiveKit, HyperDHT, libsodium, React, RNNoise, DeepFilterNet, Silero VAD, Whisper, ONNX Runtime och MediaPipe.',
+    website: 'Webbplats',
+    licenseLink: 'Licens',
+    thirdParty: 'Licenser för öppen källkod',
     accepted: 'Du godkände villkoren (version {{version}}) {{when}}.',
     safetyHint: 'För sådant som en servers moderatorer inte hanterar: olagligt innehåll, någon i fara, eller en server som struntar i anmälningar. Mejla {{email}}.',
     email: 'Mejla Iskra-teamet',

@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { i18nReady } from './i18n'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
+import { DesktopNotices } from './ui/DesktopNotices'
 import { UpdatingOverlay } from './ui/UpdatingOverlay'
 import './styles.css'
 import { applySavedTheme } from './theme/theme'
@@ -19,6 +20,8 @@ void i18nReady.catch(() => undefined).then(() =>
       <ErrorBoundary variant="app">
         <App />
       </ErrorBoundary>
+      {/* The desktop shell's own notices and its update overlay, whatever the app is showing (first run, lock screen, signed in). */}
+      <DesktopNotices />
       <UpdatingOverlay />
     </StrictMode>,
   ),

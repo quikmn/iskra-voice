@@ -1,6 +1,7 @@
 // The only bridge between the web app and the desktop shell. Small on purpose:
 // push-to-talk and hotkeys, the screen picker, hosting (and restoring backups), renting a server on DigitalOcean, update notices,
-// saving backups and big files, a picture of this window for bug reports, the OS keychain, and pop-out windows, nothing else.
+// saving backups and big files, a picture of this window for bug reports, the OS keychain, pop-out windows, and the
+// shell's own notices (worded by the page), nothing else.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 export interface ScreenSource {
@@ -61,6 +62,19 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
       return () => ipcRenderer.off('iskra:updating', listener)
     },
   },
+
+  // The shell's own messages (the tray's update check result, About, the macOS screen permission) as structured
+  // notices the page puts into words and shows as its toasts and dialogs (desktop/src/notices.ts); `act` is a button in one.
+  notices: {
+    onNotice: (callback: (notice: unknown) => void): (() => void) => {
+      const listener = (_e: IpcRendererEvent, notice: unknown) => callback(notice)
+      ipcRenderer.on('iskra:notice', listener)
+      return () => ipcRenderer.off('iskra:notice', listener)
+    },
+    act: (kind: string, action: string): Promise<void> => ipcRenderer.invoke('iskra:notice-action', kind, action),
+  },
+  // What this shell is built on, for About & legal.
+  versions: { electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node, arch: process.arch },
 
   onPickScreen: (callback: (sources: ScreenSource[]) => void): (() => void) => {
     const listener = (_e: IpcRendererEvent, sources: ScreenSource[]) => callback(sources)

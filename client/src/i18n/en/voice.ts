@@ -41,6 +41,11 @@ export const voice = {
   },
   share: {
     title: 'Share your screen',
+    // macOS, in the desktop app: the Screen Recording permission is granted in System Settings.
+    macPermission: 'Allow Iskra to share your screen',
+    macPermissionDetail: 'Turn on Iskra under Privacy & Security → Screen & System Audio Recording in System Settings, then quit and reopen Iskra.',
+    openSystemSettings: 'Open System Settings',
+    notNow: 'Not now',
     screens: 'Screens',
     windows: 'Windows',
     quality: 'Quality',

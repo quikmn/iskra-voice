@@ -140,6 +140,16 @@ export interface DesktopBridge {
   openSystemSettings(pane: 'accessibility' | 'screen' | 'microphone' | 'camera'): Promise<void>
   /** Tells the shell the app's language, for the tray and native dialogs (older shells don't have it). */
   setLanguage?(language: string): Promise<void>
+  /**
+   * The shell's own messages (the tray's "Check for updates" result, About, the macOS screen permission) as structured
+   * notices the app words and shows itself (state/desktopNotices.ts); `act` answers one of its buttons. Missing in older shells.
+   */
+  notices?: {
+    onNotice(callback: (notice: unknown) => void): () => void
+    act(kind: string, action: string): Promise<void>
+  }
+  /** What the shell is built on, for About & legal (missing in older shells). */
+  versions?: { electron: string; chrome: string; node: string; arch: string }
   updates: {
     status(): Promise<unknown>
     onStatus(callback: (status: unknown) => void): () => void
@@ -272,6 +282,9 @@ export interface DoRented {
 }
 
 export const desktop: DesktopBridge | undefined = (globalThis as { iskraDesktop?: DesktopBridge }).iskraDesktop
+
+/** The OS's name for About & legal, from the shell's process.platform. */
+export const osName = (platform: string): string => (platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'macOS' : platform === 'linux' ? 'Linux' : platform)
 
 // The tray and native dialogs follow the app's language.
 if (desktop?.setLanguage) onLanguage((language) => void desktop!.setLanguage!(language).catch(() => undefined))

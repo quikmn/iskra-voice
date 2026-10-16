@@ -64,6 +64,16 @@ export const updates: Messages['updates'] = {
     attestation_invalid: 'Paketets byggintyg gick inte att verifiera, så det installerades inte.',
     attestation_unknown: 'Kunde inte hämta paketets byggintyg från GitHub. Det görs ett nytt försök senare.',
   },
+  desktopCheck: {
+    downloading: 'Iskra {{version}} laddas ner',
+    downloadingDetail: 'Den installeras i bakgrunden. När den är klar väljer du Starta om och uppdatera i menyn i systemfältet eller i appen.',
+    upToDate: 'Du har senaste versionen',
+    upToDateDetail: 'Iskra {{version}} är den senaste versionen.',
+    off: 'Uppdateringar är avstängda i den här versionen',
+    offDetail: 'Utvecklingsversioner uppdaterar inte sig själva.',
+    failed: 'Kunde inte söka efter uppdateringar',
+    failedDetail: 'Kontrollera din internetanslutning och försök igen.',
+  },
   notice: {
     available: 'Ny version för {{server}}: Iskra {{version}}.',
     installing: 'Uppdaterar {{server}} till Iskra {{version}}…',

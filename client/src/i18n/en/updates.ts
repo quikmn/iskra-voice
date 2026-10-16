@@ -62,6 +62,17 @@ export const updates = {
     attestation_invalid: 'The package’s build attestation doesn’t verify, so it wasn’t installed.',
     attestation_unknown: 'Couldn’t get the package’s build attestation from GitHub. It’s tried again later.',
   },
+  // The desktop app's own "Check for updates" (its tray menu): what it found, as a toast in the app.
+  desktopCheck: {
+    downloading: 'Iskra {{version}} is downloading',
+    downloadingDetail: "It installs in the background. When it's ready, choose Restart to update from the tray menu or the app.",
+    upToDate: "You're up to date",
+    upToDateDetail: 'Iskra {{version}} is the newest version.',
+    off: 'Updates are off in this build',
+    offDetail: "Development builds don't update themselves.",
+    failed: "Couldn't check for updates",
+    failedDetail: 'Check your internet connection and try again.',
+  },
   notice: {
     available: 'Update available for {{server}}: Iskra {{version}}.',
     installing: 'Updating {{server}} to Iskra {{version}}…',

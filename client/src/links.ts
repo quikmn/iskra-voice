@@ -17,6 +17,8 @@ export const LINKS = {
   serverMacAppleSilicon: download(`iskra-server-${RELEASE_VERSION}-osx-arm64.tar.gz`),
   serverMacIntel: download(`iskra-server-${RELEASE_VERSION}-osx-x64.tar.gz`),
   releases: 'https://github.com/quikmn/iskra-voice/releases',
+  website: 'https://iskra.foo',
+  license: 'https://github.com/quikmn/iskra-voice/blob/main/LICENSE',
   // The Android app (mobile/scripts/build-android.ps1) is attached to every release.
   androidApp: 'https://github.com/quikmn/iskra-voice/releases/latest',
   kofi: 'https://ko-fi.com/vlundgren',
