@@ -47,7 +47,6 @@ export const chat: Messages['chat'] = {
     mention: 'Nämn någon',
     role: 'roll',
     placeholder: 'Skriv i #{{name}}',
-    placeholderShort: '#{{name}}',
     reconnecting: 'Ansluter igen…',
     queued: 'Skickas när uppladdningen är klar',
     whenBack: 'Du kan fortsätta skriva: meddelandena skickas när {{name}} är tillbaka.',
