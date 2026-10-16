@@ -280,6 +280,8 @@ export interface DesktopSettings {
   activity: boolean
   /** Your own programs to show as games: display name and process name (e.g. "mygame.exe"). */
   customGames: { name: string; process: string }[]
+  /** Streamer mode turns itself on while one of `customGames` runs (OBS, Streamlabs, …); only those are looked for. */
+  streamerAuto: boolean
   /** The app's language as the page last reported it (null: not yet, follow the OS). */
   language: DesktopLanguage | null
   /** Hosted servers (folder ids) to keep running: they start with the app, also when it starts with the computer. */
@@ -291,7 +293,7 @@ export interface DesktopSettings {
 }
 
 export const DEFAULT_DESKTOP_SETTINGS: DesktopSettings = {
-  openAtLogin: false, closeToTray: true, hardwareAcceleration: true, activity: false, customGames: [], language: null, keepRunning: [], updateChecks: true, lastRunVersion: null,
+  openAtLogin: false, closeToTray: true, hardwareAcceleration: true, activity: false, customGames: [], streamerAuto: false, language: null, keepRunning: [], updateChecks: true, lastRunVersion: null,
 }
 
 export const MAX_CUSTOM_GAMES = 30
@@ -309,7 +311,7 @@ const cleanProcess = (v: unknown) =>
 
 export function parseDesktopSettings(raw: unknown): DesktopSettings {
   const s = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
-  const flag = (key: 'openAtLogin' | 'closeToTray' | 'hardwareAcceleration' | 'activity' | 'updateChecks') =>
+  const flag = (key: 'openAtLogin' | 'closeToTray' | 'hardwareAcceleration' | 'activity' | 'streamerAuto' | 'updateChecks') =>
     typeof s[key] === 'boolean' ? (s[key] as boolean) : DEFAULT_DESKTOP_SETTINGS[key]
   const customGames: DesktopSettings['customGames'] = []
   if (Array.isArray(s.customGames)) {
@@ -321,7 +323,7 @@ export function parseDesktopSettings(raw: unknown): DesktopSettings {
   }
   return {
     openAtLogin: flag('openAtLogin'), closeToTray: flag('closeToTray'), hardwareAcceleration: flag('hardwareAcceleration'),
-    activity: flag('activity'), customGames, language: parseLanguage(s.language), updateChecks: flag('updateChecks'),
+    activity: flag('activity'), customGames, streamerAuto: flag('streamerAuto'), language: parseLanguage(s.language), updateChecks: flag('updateChecks'),
     keepRunning: Array.isArray(s.keepRunning) ? [...new Set(s.keepRunning.filter(isServerId))].slice(0, MAX_KEEP_RUNNING) : [],
     lastRunVersion: isVersion(s.lastRunVersion) ? s.lastRunVersion : null,
   }

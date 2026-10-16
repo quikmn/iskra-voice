@@ -17,6 +17,7 @@ import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
 import { Avatar, Modal } from './bits'
 import { renderMarkdown } from './markdown'
 import { fingerprint } from '../core/connection'
+import { Secret } from './streamer/StreamerBits'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
 import { Lock, Menu, Settings, ShieldCheck, Users } from './icons'
 import { openMySettings } from './settings/open'
@@ -281,11 +282,11 @@ export function SafetyNumberDialog({ me, peer, onClose }: { me: string; peer: st
   return (
     <Modal title={t('app.home.verifyTitle', { name: nameOf(peer) })} onClose={onClose}>
       <p className="muted">{t('app.home.verifyBody', { name: nameOf(peer) })}</p>
-      <div className="safety-number">
-        {number.split(' ').map((group, i) => <span key={i}>{group}</span>)}
+      <div className="safety-number" data-testid="safety-number">
+        {number.split(' ').map((group, i) => <span key={i}><Secret value={group} /></span>)}
       </div>
       <p className="muted">
-        {t('app.home.theirId')} <code>{fingerprint(peer)}</code> · {t('app.home.yourId')} <code>{fingerprint(me)}</code>
+        {t('app.home.theirId')} <code><Secret value={fingerprint(peer)} /></code> · {t('app.home.yourId')} <code><Secret value={fingerprint(me)} /></code>
       </p>
       <KeyHistory peer={peer} />
     </Modal>

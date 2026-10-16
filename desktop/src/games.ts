@@ -65,15 +65,15 @@ export function processKey(raw: string): string {
   return base.toLowerCase().replace(/\.exe$/, '').trim()
 }
 
-/** The first game found running: your own programs first, then the bundled list. */
-export function matchGame(running: Iterable<string>, custom: { name: string; process: string }[]): string | null {
+/** The first game found running: your own programs first, then the bundled list (`[]` to look only at your own). */
+export function matchGame(running: Iterable<string>, custom: { name: string; process: string }[], builtins: KnownGame[] = GAMES): string | null {
   const keys = new Set<string>()
   for (const name of running) {
     const key = processKey(name)
     if (key) keys.add(key)
   }
   for (const c of custom) if (keys.has(processKey(c.process))) return c.name
-  for (const game of GAMES) if (game.processes.some((p) => keys.has(p))) return game.name
+  for (const game of builtins) if (game.processes.some((p) => keys.has(p))) return game.name
   return null
 }
 

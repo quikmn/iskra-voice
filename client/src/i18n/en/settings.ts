@@ -8,6 +8,7 @@ export const settings = {
     recovery: 'Recovery key',
     security: 'App lock',
     notifications: 'Notifications',
+    streamer: 'Streamer mode',
     voice: 'Voice & audio',
     video: 'Camera',
     blocked: 'Blocked people',

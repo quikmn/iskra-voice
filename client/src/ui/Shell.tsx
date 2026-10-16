@@ -25,6 +25,7 @@ import { LfgLayer, LfgToast } from './lfg/Lfg'
 import { TeamsBar } from './teams/TeamsBits'
 import { TeamsLayer } from './teams/TeamsDialog'
 import { RoomLayer } from './rooms/RoomDialog'
+import { StreamerPill } from './streamer/StreamerBits'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { UserMenuLayer } from './people/UserMenu'
 import { ServerActionLayer } from './organize/ServerMenu'
@@ -108,6 +109,7 @@ export function Shell() {
       <LfgToast />
       <TeamsLayer />
       <RoomLayer />
+      <StreamerPill floating />
       <LfgLayer />
       {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
       <IncomingCall />

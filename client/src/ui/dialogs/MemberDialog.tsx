@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { fingerprint } from '../../core/connection'
+import { Secret } from '../streamer/StreamerBits'
 import { ROLES, roleRank, type Member, type Role } from '../../core/protocol'
 import { connectionFor, type ServerState } from '../../state/store'
 import { maxVolume, setVolume, useVoice } from '../../state/voice'
@@ -58,7 +59,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
           <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge builtin={!!member.builtin} />}
           {member.nick && member.profileName && member.profileName !== member.name && <div className="muted">{t('profile.nameLine', { name: member.profileName })}</div>}
           <div className="muted">{[member.pronouns, t(`common.roles.${member.role}`), STATUS_LABELS[presence.status].toLowerCase()].filter(Boolean).join(' · ')}</div>
-          <div className="muted">{t('settings.member.id')} <code>{fingerprint(member.accountKey)}</code></div>
+          <div className="muted">{t('settings.member.id')} <code><Secret value={fingerprint(member.accountKey)} /></code></div>
           <RoleChips server={server} member={member} />
           {timeoutActive(member) && (
             <div className="member-timeout-line"><ClockIcon /> {t('settings.member.timedOutUntil', { until: untilText(member.timedOutUntil!) })}</div>

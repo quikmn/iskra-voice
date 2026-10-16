@@ -1,6 +1,7 @@
 // The invites that still work: admins see everyone's, others their own. Each can be revoked.
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Secret } from '../streamer/StreamerBits'
 import type { Invite } from '../../core/protocol'
 import { errorMessage } from '../../i18n/errors'
 import { formatDate } from '../../i18n/format'
@@ -55,7 +56,7 @@ export function InviteList({ server, current, refresh, onRevoked }: {
           {invites.map((invite) => (
             <li key={invite.code} className="invite-row" data-testid="invite-row" data-never={invite.expiresAt === null || undefined}>
               <div className="invite-main">
-                <span className="invite-code" title={invite.code}>…{invite.code.slice(-6)}</span>
+                <span className="invite-code"><Secret value={invite.code.slice(-6)} title={invite.code} prefix="…" /></span>
                 {invite.code === current && <span className="invite-this">{t('settings.invite.thisLink')}</span>}
                 <span className="invite-meta">
                   {levelName(invite.role)}

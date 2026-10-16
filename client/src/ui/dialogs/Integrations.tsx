@@ -10,6 +10,8 @@ import { Avatar, Spinner } from '../bits'
 import { FilePick } from '../FilePick'
 import { AuthorAvatar, BotBadge } from '../chat/BotBits'
 import { appUrl, messageTime } from '../format'
+import { useStreamerMode } from '../../state/streamer'
+import { maskSecret } from '../../state/streamerLogic'
 import '../bots.css'
 import { OutgoingWebhooks } from './OutgoingWebhooks'
 import { BuiltinBotsSection } from '../settings/BuiltinBotsSection'
@@ -244,6 +246,8 @@ function Bots({ server }: { server: ServerState }) {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+  const streamer = useStreamerMode() // the bot invite is an invite link too: dots on a stream, the real one when copied
+  const shownLink = link && streamer ? maskSecret(link) : link
   const bots = Object.values(server.members).filter((m) => m.bot && !m.builtin).sort((a, b) => a.name.localeCompare(b.name))
 
   async function createInvite() {
@@ -311,12 +315,12 @@ function Bots({ server }: { server: ServerState }) {
         <div className="secret-box" style={{ marginTop: 12 }}>
           <p>{t('settings.integrations.botInviteHint')}</p>
           <div className="copy-row">
-            <input readOnly value={link} aria-label={t('settings.integrations.botInviteLink')} onFocus={(e) => e.target.select()} />
+            <input readOnly value={shownLink ?? ''} aria-label={t('settings.integrations.botInviteLink')} onFocus={(e) => e.target.select()} />
             <button className="button primary" onClick={() => void navigator.clipboard.writeText(link).then(() => setCopied(true))}>
               {copied ? t('settings.recovery.copied') : t('common.copy')}
             </button>
           </div>
-          <pre>{`cd bots && npm install\nISKRA_INVITE='${link}' npm run dice\n\n# PowerShell\n$env:ISKRA_INVITE='${link}'; npm run dice`}</pre>
+          <pre>{`cd bots && npm install\nISKRA_INVITE='${shownLink}' npm run dice\n\n# PowerShell\n$env:ISKRA_INVITE='${shownLink}'; npm run dice`}</pre>
         </div>
       )}
       {error && <p className="error-text">{error}</p>}

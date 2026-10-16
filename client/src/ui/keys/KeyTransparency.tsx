@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { fingerprint } from '../../core/connection'
+import { Secret } from '../streamer/StreamerBits'
 import { b64u } from '../../core/crypto'
 import { emptyView, entryHash, extendView, LogError, readEntry, verifyHead, type LogEntry, type WireLogEntry } from '../../core/keylog'
 import { nameOf } from '../../state/dms'
@@ -228,7 +229,7 @@ export function KeyHistory({ peer }: { peer: string }) {
       <ul>
         {keys.map((key, i) => (
           <li key={key}>
-            <span>{i === 0 ? t('keys.kt.history.current') : t('keys.kt.history.earlier')}</span> <code>{fingerprint(key)}</code>
+            <span>{i === 0 ? t('keys.kt.history.current') : t('keys.kt.history.earlier')}</span> <code><Secret value={fingerprint(key)} /></code>
             {seen[key] && <span className="muted small-text"> · {t('keys.kt.history.firstSeen', { when: messageTime(seen[key].first) })}</span>}
           </li>
         ))}

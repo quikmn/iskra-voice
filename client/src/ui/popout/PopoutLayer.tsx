@@ -20,6 +20,7 @@ import { Avatar } from '../bits'
 import { Close, Headphones, HeadphonesOff, Mic, MicOff, PhoneOff } from '../icons'
 import { Composer, MessageList, TypingLine } from '../ChatView'
 import { ClickThroughIcon, PinIcon, PopInIcon } from './popoutIcons'
+import { StreamerPill } from '../streamer/StreamerBits'
 import './popout.css'
 
 /** Mounted once in the shell: one portal per open pop-out. */
@@ -64,6 +65,7 @@ export function PopoutFrame({ popout, children }: { popout: Popout; children?: R
       ) : (
         <header className="popout-bar" role="toolbar" aria-label={t('popout.windowBar')}>
           <strong className="popout-title">{title}</strong>
+          <StreamerPill />
           {desktopWindow && (
             <button
               className={`icon-button small ${popout.alwaysOnTop ? 'on' : ''}`}

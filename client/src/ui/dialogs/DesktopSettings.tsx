@@ -94,6 +94,14 @@ function ActivitySettings({ settings, update }: { settings: DesktopSettings; upd
         </span>
       </label>
       {settings.activity && <p className="muted" role="status">{game ? t('settings.desktop.nowPlaying', { game }) : t('settings.desktop.noGame')}</p>}
+      <h3 className="h4">{t('streamer.autoTitle')}</h3>
+      <label className="checkbox">
+        <input type="checkbox" checked={settings.streamerAuto ?? false} onChange={(e) => void update({ streamerAuto: e.target.checked })} data-testid="streamer-auto" />
+        <span>
+          {t('streamer.auto')}
+          <br /><small className="muted">{t('streamer.autoHint')}</small>
+        </span>
+      </label>
       <p className="muted">{t('settings.desktop.addGameHint')}</p>
       {settings.customGames.length > 0 && (
         <ul className="custom-games">

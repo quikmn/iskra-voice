@@ -209,7 +209,7 @@ test('desktop settings: safe defaults, only booleans kept', () => {
   assert.equal(DEFAULT_DESKTOP_SETTINGS.openAtLogin, false)
   assert.equal(DEFAULT_DESKTOP_SETTINGS.closeToTray, true)
   assert.deepEqual(parseDesktopSettings({ openAtLogin: true, closeToTray: 'no', hardwareAcceleration: false, extra: 1 }), {
-    openAtLogin: true, closeToTray: true, hardwareAcceleration: false, activity: false, customGames: [], language: null, keepRunning: [], updateChecks: true, lastRunVersion: null,
+    openAtLogin: true, closeToTray: true, hardwareAcceleration: false, activity: false, customGames: [], streamerAuto: false, language: null, keepRunning: [], updateChecks: true, lastRunVersion: null,
   })
   assert.equal(DEFAULT_DESKTOP_SETTINGS.activity, false) // opt-in
   const games = parseDesktopSettings({ customGames: [
