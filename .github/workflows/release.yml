@@ -42,7 +42,7 @@ jobs:
       id-token: write # sign the attestations (Sigstore)
       attestations: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.REF }}
           persist-credentials: false
@@ -142,7 +142,7 @@ jobs:
       attestations: write
     steps:
       # The checkout comes first: actions/checkout empties a workspace that isn't a git repository yet.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.REF }}
           sparse-checkout: .github/actions
@@ -190,7 +190,7 @@ jobs:
     env:
       ARCH: ${{ matrix.arch }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.REF }}
           persist-credentials: false
@@ -339,7 +339,7 @@ jobs:
       CYCLONEDX_NPM: '@cyclonedx/cyclonedx-npm@6.0.1'
       CYCLONEDX_DOTNET: '6.2.1'
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.REF }}
           persist-credentials: false
@@ -391,7 +391,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       # The checkout comes first: actions/checkout empties a workspace that isn't a git repository yet.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.REF }}
           sparse-checkout: |

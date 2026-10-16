@@ -64,7 +64,7 @@ jobs:
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$ ]] || { echo "::error::'$TAG' isn't a release tag (vX.Y.Z or vX.Y.Z-alpha.N)"; exit 1; }
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ inputs.tag }}
           persist-credentials: false
@@ -182,7 +182,7 @@ jobs:
         run: |
           gh run download "$RUN" --name "iskra-ios-$TAG" --dir "$RUNNER_TEMP/app" || { echo "::error::run $RUN has no artifact iskra-ios-$TAG (expired after 14 days?): $FALLBACK"; exit 1; }
           ls -l "$RUNNER_TEMP/app"
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ inputs.tag }}
           sparse-checkout: .github/actions
@@ -207,7 +207,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ inputs.tag }}
           persist-credentials: false
