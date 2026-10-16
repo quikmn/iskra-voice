@@ -46,6 +46,7 @@ export const chat = {
     mention: 'Mention someone',
     role: 'role',
     placeholder: 'Message #{{name}}',
+    placeholderShort: '#{{name}}',
     reconnecting: 'Reconnecting…',
     queued: 'Sends when the upload finishes',
     whenBack: 'You can keep writing: messages send when {{name}} is back.',

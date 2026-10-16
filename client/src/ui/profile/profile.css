@@ -18,7 +18,7 @@ button.author:hover { text-decoration: underline; }
 .profile-card {
   position: fixed; background: var(--float); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.4);
   box-shadow: var(--shadow-pop); overflow: hidden; outline: none; animation: pop 0.14s var(--ease);
-  max-height: calc(100dvh - 16px); display: flex; flex-direction: column;
+  max-height: calc(100dvh - 16px); max-width: calc(100vw - 16px); display: flex; flex-direction: column;
 }
 /* Everything but the buttons scrolls when the window is short; the buttons stay in sight. */
 .profile-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }

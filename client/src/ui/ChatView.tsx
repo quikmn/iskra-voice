@@ -539,6 +539,20 @@ interface PendingUpload {
   abort: AbortController
 }
 
+/** Phones: five or six icons share the bar, so the placeholder shrinks to just the channel name. */
+function useTinyScreen(): boolean {
+  const query = '(max-width: 480px)'
+  const [tiny, setTiny] = useState(() => typeof matchMedia === 'function' && matchMedia(query).matches)
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return
+    const list = matchMedia(query)
+    const update = () => setTiny(list.matches)
+    list.addEventListener('change', update)
+    return () => list.removeEventListener('change', update)
+  }, [])
+  return tiny
+}
+
 export function Composer({ server, channelId, channelName, thread, placeholder }: {
   server: ServerState
   channelId: number
@@ -549,6 +563,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
   const { t } = useTranslation()
+  const tiny = useTinyScreen()
   const [picker, setPicker] = useState<HTMLElement | null>(null)
   const [pickerTab, setPickerTab] = useState<ExpressionTab>('emoji')
   const openPicker = (anchor: HTMLElement, tab: ExpressionTab) => {
@@ -770,7 +785,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         onCaret={setCaret}
         aria={commandSuggest.inputProps}
         autoFocus
-        placeholder={writable ? (placeholder ?? t('chat.composer.placeholder', { name: channelName })) : t('chat.composer.reconnecting')}
+        placeholder={writable ? (placeholder ?? t(tiny ? 'chat.composer.placeholderShort' : 'chat.composer.placeholder', { name: channelName })) : t('chat.composer.reconnecting')}
         maxLength={4000}
         onChange={(value) => {
           setText(value)

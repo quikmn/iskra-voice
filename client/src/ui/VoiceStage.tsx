@@ -84,7 +84,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
                 className={`person-tile ${speaking[p.accountKey] ? 'speaking' : ''}`}
                 role="button"
                 tabIndex={0}
-                aria-label={[t('voice.stage.profileOf', { name }), p.deafened ? t('voice.stage.deafened') : p.muted ? t('voice.stage.muted') : null].filter(Boolean).join(', ')}
+                aria-label={[t('voice.stage.profileOf', { name }), speaking[p.accountKey] ? t('voice.isSpeaking', { name }) : null, p.deafened ? t('voice.stage.deafened') : p.muted ? t('voice.stage.muted') : null].filter(Boolean).join(', ')}
                 onClick={(e) => openProfileCard(server.key, p.accountKey, e.currentTarget)}
                 onKeyDown={(e) => {
                   if (e.key !== 'Enter' && e.key !== ' ') return
@@ -136,6 +136,7 @@ export function VideoTile({ tile, name, big, speaking, onClick }: { tile: Tile; 
       <span className="tile-label">
         {tile.source === 'screen' ? t('voice.stage.screenOf', { name }) : name}
       </span>
+      {speaking && tile.source === 'camera' && <span className="sr-only">{t('voice.isSpeaking', { name })}</span>}
       {/* The whole tile is the button that puts it in the big spot (a real button, so keyboards and screen readers get it). */}
       {onClick && <button className="tile-focus" onClick={onClick} aria-label={t('voice.stage.showBig', { name: tile.source === 'screen' ? t('voice.stage.screenOf', { name }) : name })} />}
       <VideoPopoutButton tile={tile} video={ref} />

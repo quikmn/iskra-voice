@@ -155,6 +155,7 @@ export function GroupCallPanel({ groupKey }: { groupKey: string }) {
             <div key={k} className={`person-tile ${speaking[k] ? 'speaking' : ''}`} {...userMenuProps(k)}>
               <Avatar name={knownName(k)} accountKey={k} size={narrow ? 48 : 64} />
               <span className="tile-label">{k === me ? t('calls.you') : knownName(k)}</span>
+              {speaking[k] && k !== me && <span className="sr-only">{t('voice.isSpeaking', { name: knownName(k) })}</span>}
             </div>
           )
         })}

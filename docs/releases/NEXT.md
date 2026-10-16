@@ -4,4 +4,10 @@
 
 ### Fixes
 
+- Event reminders no longer cover the message box on phones.
+- The "keep using Iskra" bug report chip and the incoming-call screen now respect the notch and the home bar on phones.
+- The soundboard, status menu and profile card no longer stick out past the screen edge on narrow phones.
+- The message box on phones now shows just the channel name as its hint, so it is no longer cut off.
+- Screen readers now announce who is speaking in a voice channel.
+
 ### Good to know

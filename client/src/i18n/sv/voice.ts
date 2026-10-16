@@ -8,6 +8,7 @@ export const voice: Messages['voice'] = {
   muted: 'Mikrofonen av',
   deafened: 'Ljudet av',
   speaking: 'Pratar',
+  isSpeaking: '{{name}} pratar',
   inVoice: 'I röst',
   hangUp: 'Lägg på',
   leave: 'Lämna röstkanalen',

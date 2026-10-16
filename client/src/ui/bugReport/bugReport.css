@@ -21,7 +21,7 @@
 
 /* "Keep using Iskra": the report waits in a chip above the app. */
 .bug-report-chip {
-  position: fixed; z-index: 900; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  position: fixed; z-index: 900; right: calc(12px + var(--safe-right)); bottom: calc(76px + var(--safe-bottom));
   display: flex; align-items: center; padding: 4px; max-width: calc(100vw - 24px);
   background: var(--sidebar); color: var(--text); border: 1px solid var(--border); border-radius: 999px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
