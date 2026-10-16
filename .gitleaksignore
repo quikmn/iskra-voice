@@ -28,3 +28,5 @@ db01296868ad012bf3a96d1b12694faa855a3450:client/src/ui/serverColor.test.ts:gener
 # DigitalOcean OAuth client ID: a public value (PKCE, no client secret anywhere)
 3a2e2292054b27caa6f64f30b52d1cfe86d0a8e9:desktop/src/doOAuth.ts:generic-api-key:14
 241458cc9f9a347ce7cae05471326adbca633b1e:desktop/src/doOAuth.ts:generic-api-key:16
+# scripts/simplysign.test.mjs: a made-up seed in a test fixture (an old stored file with the retired "switches" method), not a real secret
+e798453049ba69529ac0f358a4fb597a6316189b:scripts/simplysign.test.mjs:generic-api-key:85
