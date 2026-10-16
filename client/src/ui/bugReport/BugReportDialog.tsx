@@ -54,17 +54,14 @@ export function BugReportLayer() {
   )
 }
 
-/** "Keep using Iskra": the report waits here. Tapping it (or its ×) brings the report back; discarding is in there. */
+/** "Keep using Iskra": the report waits here. Tapping it brings the report back; discarding is in there. */
 function BugReportChip() {
   const { t } = useTranslation()
   const count = useBugReport((s) => s.draft.images.length)
   return (
     <div className="bug-report-chip" role="region" aria-label={t('bugReport.title')} data-testid="bug-report-chip">
-      <button className="bug-report-chip-open" onClick={untuckBugReport}>
+      <button className="bug-report-chip-open" onClick={untuckBugReport} title={t('bugReport.chipBack')}>
         {count ? t('bugReport.chipShots', { count }) : t('bugReport.chip')}
-      </button>
-      <button className="icon-button small" onClick={untuckBugReport} aria-label={t('bugReport.chipBack')} title={t('bugReport.chipBack')}>
-        <Close size={14} />
       </button>
     </div>
   )

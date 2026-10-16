@@ -22,12 +22,12 @@
 /* "Keep using Iskra": the report waits in a chip above the app. */
 .bug-report-chip {
   position: fixed; z-index: 900; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px));
-  display: flex; align-items: center; gap: 2px; padding: 4px 4px 4px 0; max-width: calc(100vw - 24px);
+  display: flex; align-items: center; padding: 4px; max-width: calc(100vw - 24px);
   background: var(--sidebar); color: var(--text); border: 1px solid var(--border); border-radius: 999px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 .bug-report-chip-open {
-  min-height: 36px; padding: 0 6px 0 14px; border: 0; background: none; color: inherit; font: inherit; font-size: 14px;
+  min-height: 36px; padding: 0 14px; border: 0; background: none; color: inherit; font: inherit; font-size: 14px;
   font-weight: 600; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .bug-report-drop {

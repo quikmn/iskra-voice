@@ -103,8 +103,8 @@ test('a bug report goes to the bug inbox channel, with only what the preview sho
   const chip = owner.getByTestId('bug-report-chip')
   await expect(chip.getByRole('button', { name: 'Bug report', exact: true })).toBeVisible()
   await owner.screenshot({ path: join(SHOTS, 'bug-report-chip.png') })
-  // Its × throws nothing away: it opens the report, where discarding is.
-  await chip.getByRole('button', { name: 'Back to the bug report' }).click()
+  // Tapping it throws nothing away: it opens the report, where discarding is.
+  await chip.getByRole('button', { name: 'Bug report', exact: true }).click()
   await expect(dialog.getByLabel('What happened?')).toHaveValue('Typing lags on the phone')
   await dialog.getByRole('button', { name: 'Cancel' }).click()
   await expect(dialog).toBeHidden()
