@@ -212,7 +212,9 @@ public class ProxyProtocolTests : IDisposable
     private static async Task<Stream?> ConnectAsync(int port, byte[]? header, bool tls)
     {
         var tcp = new TcpClient();
-        await tcp.ConnectAsync(IPAddress.Loopback, port);
+        // Linux: a listener that refuses can abort so fast that the reset arrives before connect even completes.
+        try { await tcp.ConnectAsync(IPAddress.Loopback, port); }
+        catch (SocketException e) when (e.SocketErrorCode == SocketError.ConnectionReset) { tcp.Dispose(); return null; }
         Stream stream = tcp.GetStream();
         if (header is not null)
         {
