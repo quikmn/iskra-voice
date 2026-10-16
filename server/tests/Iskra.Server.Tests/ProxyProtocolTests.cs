@@ -204,7 +204,7 @@ public class ProxyProtocolTests : IDisposable
         {
             // A listener that refuses the connection may close it before the header is even sent: that's a drop too.
             try { await stream.WriteAsync(header); }
-            catch (IOException) { tcp.Dispose(); return null; }
+            catch (Exception e) when (e is IOException or SocketException) { tcp.Dispose(); return null; }
         }
         if (!tls) return stream;
         var ssl = new SslStream(stream, false, (_, _, _, _) => true);
@@ -214,7 +214,8 @@ public class ProxyProtocolTests : IDisposable
             await ssl.AuthenticateAsClientAsync(new SslClientAuthenticationOptions { TargetHost = "localhost" }, timeout.Token);
             return ssl;
         }
-        catch (Exception e) when (e is IOException or System.Security.Authentication.AuthenticationException or OperationCanceledException)
+        // Linux reports a drop during the handshake as a bare SocketException (reset by peer), Windows as an IOException.
+        catch (Exception e) when (e is IOException or SocketException or System.Security.Authentication.AuthenticationException or OperationCanceledException)
         {
             ssl.Dispose();
             return null;
@@ -237,7 +238,7 @@ public class ProxyProtocolTests : IDisposable
             int read;
             while ((read = await stream.ReadAsync(buffer, timeout.Token)) > 0) memory.Write(buffer, 0, read);
         }
-        catch (IOException) { /* dropped (a reset) */ }
+        catch (Exception e) when (e is IOException or SocketException) { /* dropped (a reset) */ }
         var text = Encoding.UTF8.GetString(memory.ToArray());
         if (text.Length == 0) return (0, "", "");
         var split = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
