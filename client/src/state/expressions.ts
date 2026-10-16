@@ -1,4 +1,5 @@
-// Polls, server emoji and the soundboard: per-server lists, live updates, and playing sounds.
+// Polls, server emoji and the soundboard: per-server lists, live updates, and playing sounds. Also emoji from your
+// other servers: the picker shows them all, and sending one elsewhere copies its picture into that server (emoji.import).
 import { create } from 'zustand'
 import type { CustomEmoji, Events, FileInfo, Poll, Sound } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, uploadFile, useApp } from './store'
@@ -20,7 +21,12 @@ export interface PlayedSound {
 }
 
 interface ExpressionsState {
+  /** The server's own emoji (the picker, the settings list). */
   emojis: Record<string, CustomEmoji[]>
+  /** Emoji members brought over from other servers (`external: true`): in messages and reactions, never in the picker. */
+  external: Record<string, CustomEmoji[]>
+  /** Both together, the server's own first: what messages are rendered and encoded with. */
+  all: Record<string, CustomEmoji[]>
   sounds: Record<string, Sound[]>
   settings: SoundboardSettings
   /** Recently played sounds, shown briefly as "Alice played …". */
@@ -37,12 +43,24 @@ function loadSettings(): SoundboardSettings {
   }
 }
 
-export const useExpressions = create<ExpressionsState>(() => ({ emojis: {}, sounds: {}, settings: loadSettings(), played: [] }))
+export const useExpressions = create<ExpressionsState>(() => ({ emojis: {}, external: {}, all: {}, sounds: {}, settings: loadSettings(), played: [] }))
 
 const EMPTY_EMOJI: CustomEmoji[] = []
 const EMPTY_SOUNDS: Sound[] = []
-export const useServerEmojis = (serverKey: string) => useExpressions((s) => s.emojis[serverKey] ?? EMPTY_EMOJI)
+/** Every emoji usable on the server (its own and external ones): for rendering and for turning :name: into a token. */
+export const useServerEmojis = (serverKey: string) => useExpressions((s) => s.all[serverKey] ?? EMPTY_EMOJI)
+/** The server's own emoji only: the picker's section for it and the admin list. */
+export const useOwnEmojis = (serverKey: string) => useExpressions((s) => s.emojis[serverKey] ?? EMPTY_EMOJI)
 export const useServerSounds = (serverKey: string) => useExpressions((s) => s.sounds[serverKey] ?? EMPTY_SOUNDS)
+
+function setEmojiLists(serverKey: string, emojis: CustomEmoji[], external: CustomEmoji[] | undefined): void {
+  const ext = (external ?? []).map((e) => ({ ...e, external: true }))
+  useExpressions.setState((s) => ({
+    emojis: { ...s.emojis, [serverKey]: emojis },
+    external: { ...s.external, [serverKey]: ext },
+    all: { ...s.all, [serverKey]: [...emojis, ...ext] },
+  }))
+}
 
 export function updateSoundboardSettings(patch: Partial<SoundboardSettings>): void {
   const settings = { ...useExpressions.getState().settings, ...patch }
@@ -65,13 +83,11 @@ async function loadLists(serverKey: string): Promise<void> {
   const connection = connectionFor(serverKey)
   if (!connection) return
   const [emojis, sounds] = await Promise.all([
-    connection.request('emoji.list', {}).then((r) => r.emojis).catch(() => null),
+    connection.request('emoji.list', {}).catch(() => null),
     connection.request('sound.list', {}).then((r) => r.sounds).catch(() => null),
   ])
-  useExpressions.setState((s) => ({
-    emojis: emojis ? { ...s.emojis, [serverKey]: emojis } : s.emojis,
-    sounds: sounds ? { ...s.sounds, [serverKey]: sounds } : s.sounds,
-  }))
+  if (emojis) setEmojiLists(serverKey, emojis.emojis, emojis.external)
+  if (sounds) useExpressions.setState((s) => ({ sounds: { ...s.sounds, [serverKey]: sounds } }))
 }
 
 function patchPoll(serverKey: string, channelId: number, id: number, poll: Poll): void {
@@ -142,8 +158,8 @@ onServerEvent((serverKey, type, body) => {
       return
     }
     case 'emoji.updated': {
-      const { emojis } = body as Events['emoji.updated']
-      useExpressions.setState((s) => ({ emojis: { ...s.emojis, [serverKey]: emojis } }))
+      const { emojis, external } = body as Events['emoji.updated']
+      setEmojiLists(serverKey, emojis, external)
       return
     }
     case 'sounds.updated': {
@@ -231,6 +247,47 @@ export async function addEmoji(serverKey: string, file: File, name: string): Pro
 
 export async function renameEmoji(serverKey: string, id: string, name: string) {
   await connection(serverKey).request('emoji.rename', { id, name })
+}
+
+// ── Emoji from other servers ────────────────────────────────────────────────
+
+/** What an emoji or sticker from another server became here, so the picture travels once per device. */
+const imported = new Map<string, Promise<CustomEmoji>>()
+
+/**
+ * The picture of something a server serves (an emoji or sticker you can see there), as a file to upload elsewhere.
+ * Your app does the copying: the destination server never talks to the source.
+ */
+export async function fetchServerFile(sourceKey: string, url: string | null, name: string): Promise<File> {
+  const full = serverFileUrl(sourceKey, url)
+  if (!full) throw new Error(t('expressions.errors.cantReadImage'))
+  const response = await fetch(full, { mode: 'cors', credentials: 'omit' })
+  if (!response.ok) throw new Error(t('expressions.errors.cantReadImage'))
+  const blob = await response.blob()
+  return new File([blob], name, { type: blob.type || 'application/octet-stream' })
+}
+
+/**
+ * Makes `emoji` (from `sourceKey`) usable on `serverKey`: its picture is copied over and `emoji.import` gives back the
+ * emoji there (an existing one when the same picture is already on that server). Use the result's `<:name:id>`.
+ */
+export function importEmoji(serverKey: string, sourceKey: string, emoji: CustomEmoji): Promise<CustomEmoji> {
+  if (sourceKey === serverKey) return Promise.resolve(emoji)
+  const key = `${serverKey}|${sourceKey}|${emoji.id}`
+  const hit = imported.get(key)
+  if (hit) return hit
+  const job = (async () => {
+    const file = await fetchServerFile(sourceKey, emoji.url, `${emoji.name}.${emoji.animated ? 'gif' : 'png'}`)
+    const uploaded: FileInfo = await uploadFile(serverKey, file, () => undefined)
+    const { emoji: here } = await connection(serverKey).request('emoji.import', { name: emoji.name, fileId: uploaded.id })
+    // The server's emoji.updated carries it too; this makes it render at once.
+    const state = useExpressions.getState()
+    if (!(state.all[serverKey] ?? []).some((e) => e.id === here.id)) setEmojiLists(serverKey, state.emojis[serverKey] ?? [], [...(state.external[serverKey] ?? []), here])
+    return here
+  })()
+  imported.set(key, job)
+  job.catch(() => imported.delete(key))
+  return job
 }
 
 export async function deleteEmoji(serverKey: string, id: string) {

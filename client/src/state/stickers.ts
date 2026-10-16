@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { t } from '../i18n'
 import type { Events, Sticker } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, sendMessage, uploadFile, type SendOptions } from './store'
+import { fetchServerFile } from './expressions'
 
 export const MAX_STICKERS = 60
 const MAX_SIDE = 320
@@ -73,3 +74,26 @@ export async function addSticker(serverKey: string, file: File, name: string): P
 
 export const renameSticker = (serverKey: string, id: string, name: string) => connection(serverKey).request('sticker.rename', { id, name })
 export const deleteSticker = (serverKey: string, id: string) => connection(serverKey).request('sticker.delete', { id })
+
+// ── Stickers from other servers ─────────────────────────────────────────────
+
+const imported = new Map<string, Promise<Sticker>>()
+
+/**
+ * Makes `sticker` (from `sourceKey`) sendable on `serverKey`: the picture is copied over by this app and
+ * `sticker.import` gives back the sticker there (an existing one when that server already has the same picture).
+ */
+export function importSticker(serverKey: string, sourceKey: string, sticker: Sticker): Promise<Sticker> {
+  if (sourceKey === serverKey) return Promise.resolve(sticker)
+  const key = `${serverKey}|${sourceKey}|${sticker.id}`
+  const hit = imported.get(key)
+  if (hit) return hit
+  const job = (async () => {
+    const file = await fetchServerFile(sourceKey, sticker.url, `${sticker.name}.${sticker.animated ? 'gif' : 'png'}`)
+    const uploaded = await uploadFile(serverKey, file, () => undefined)
+    return (await connection(serverKey).request('sticker.import', { name: sticker.name, fileId: uploaded.id })).sticker
+  })()
+  imported.set(key, job)
+  job.catch(() => imported.delete(key))
+  return job
+}

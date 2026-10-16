@@ -17,9 +17,10 @@ function outsideCode(text: string, fn: (part: string) => string): string {
   return text.split(CODE).map((part, i) => (i % 2 === 1 ? part : fn(part))).join('')
 }
 
-/** ":name:" → "<:name:id>" for this server's emoji, ":fire:" → "🔥". Unknown names stay as typed. */
+/** ":name:" → "<:name:id>" for this server's emoji (its own before external ones of the same name), ":fire:" → "🔥". Unknown names stay as typed. */
 export function encodeEmoji(text: string, custom: CustomEmoji[]): string {
-  const byName = new Map(custom.map((e) => [e.name, e]))
+  const byName = new Map<string, CustomEmoji>()
+  for (const e of custom) if (!byName.has(e.name) || (byName.get(e.name)!.external && !e.external)) byName.set(e.name, e)
   return outsideCode(text, (part) =>
     part.replace(/(?<![<\w]):([a-z0-9_+-]{1,32}):(?![A-Za-z0-9_-]{12}>)/g, (whole, name: string) => {
       const mine = byName.get(name)

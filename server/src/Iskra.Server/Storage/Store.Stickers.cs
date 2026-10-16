@@ -1,6 +1,7 @@
 namespace Iskra.Server.Storage;
 
-public sealed record Sticker(string Id, string Name, string FileId, string CreatedBy, long CreatedAt);
+/// <summary>A server sticker; <see cref="External"/> ones were brought over from another server by a member (sticker.import) and aren't in the picker.</summary>
+public sealed record Sticker(string Id, string Name, string FileId, string CreatedBy, long CreatedAt, bool External = false);
 
 public sealed partial class Store
 {
@@ -26,8 +27,31 @@ public sealed partial class Store
 
     public List<Sticker> AllStickers() => Query($"SELECT {StickerColumns} FROM stickers ORDER BY created_at, id;", ReadSticker);
 
+    /// <summary>The server's own sticker with this id, else an external one.</summary>
     public Sticker? GetSticker(string id) =>
-        Query($"SELECT {StickerColumns} FROM stickers WHERE id = $id;", ReadSticker, ("$id", id)).FirstOrDefault();
+        Query($"SELECT {StickerColumns} FROM stickers WHERE id = $id;", ReadSticker, ("$id", id)).FirstOrDefault() ?? GetExternalSticker(id);
+
+    // ── External stickers ────────────────────────────────────────────────────
+
+    private static Sticker ReadExternalSticker(Microsoft.Data.Sqlite.SqliteDataReader r) => ReadSticker(r) with { External = true };
+
+    public Sticker? GetExternalSticker(string id) =>
+        Query($"SELECT {StickerColumns} FROM external_stickers WHERE id = $id;", ReadExternalSticker, ("$id", id)).FirstOrDefault();
+
+    /// <summary>A sticker here (the server's own first, else an external one) whose picture has these exact bytes.</summary>
+    public Sticker? StickerWithBytes(string sha256) =>
+        Query("SELECT s.id, s.name, s.file_id, s.created_by, s.created_at FROM stickers s JOIN files f ON f.id = s.file_id WHERE f.sha256 = $h ORDER BY s.created_at LIMIT 1;", ReadSticker, ("$h", sha256)).FirstOrDefault()
+        ?? Query($"SELECT {StickerColumns} FROM external_stickers WHERE sha256 = $h ORDER BY created_at LIMIT 1;", ReadExternalSticker, ("$h", sha256)).FirstOrDefault();
+
+    public void AddExternalSticker(Sticker s, string sha256) =>
+        Exec($"INSERT INTO external_stickers ({StickerColumns}, sha256) VALUES ($id, $n, $f, $by, $at, $h);",
+            ("$id", s.Id), ("$n", s.Name), ("$f", s.FileId), ("$by", s.CreatedBy), ("$at", s.CreatedAt), ("$h", sha256));
+
+    public void DeleteExternalSticker(string id) => Exec("DELETE FROM external_stickers WHERE id = $id;", ("$id", id));
+
+    /// <summary>Forgets the oldest external stickers beyond <paramref name="keep"/> (their messages then show the name).</summary>
+    public void TrimExternalStickers(int keep) =>
+        Exec("DELETE FROM external_stickers WHERE id NOT IN (SELECT id FROM external_stickers ORDER BY created_at DESC, id DESC LIMIT $keep);", ("$keep", keep));
 
     public int StickerCount() => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM stickers;"));
 

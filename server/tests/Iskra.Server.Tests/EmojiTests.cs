@@ -151,4 +151,76 @@ public class EmojiTests
         Assert.Equal("bad_request", (await bob.RequestAsync("chat.react", new { id = message, emoji = "<:x>" })).ErrorCode());
         Assert.Equal("result", (await bob.RequestAsync("chat.react", new { id = message, emoji = "🔥" })).Type());
     }
+
+    // ── Emoji from other servers ─────────────────────────────────────────────
+
+    private static async Task<JsonElement> Import(IskraServer server, User user, string name, byte[] image) =>
+        await user.RequestAsync("emoji.import", new { name, fileId = await Upload(server, user, image, name + ".png") });
+
+    [Fact]
+    public async Task Members_bring_emoji_over_from_other_servers_and_the_same_bytes_are_kept_once()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var bob = await server.JoinAsync("Bob");
+        using var carol = await server.JoinAsync("Carol");
+        var other = PngHeader(3, 2);
+        other[^1] ^= 1; // different bytes from Png
+
+        var imported = (await Import(server, bob, "wave", other)).Body().GetProperty("emoji");
+        Assert.True(imported.GetProperty("external").GetBoolean());
+        Assert.Equal("wave", imported.GetProperty("name").GetString());
+        var id = imported.GetProperty("id").GetString()!;
+        // Everyone learns about it so messages render, but it isn't in the picker's list.
+        var updated = (await carol.EventAsync("emoji.updated")).Body();
+        Assert.Empty(updated.GetProperty("emojis").EnumerateArray());
+        Assert.Equal(id, updated.GetProperty("external")[0].GetProperty("id").GetString());
+        var lists = (await carol.RequestAsync("emoji.list")).Body();
+        Assert.Empty(lists.GetProperty("emojis").EnumerateArray());
+        Assert.Single(lists.GetProperty("external").EnumerateArray());
+
+        // The same picture again (any name, anyone): the emoji already here, nothing new.
+        var again = (await Import(server, carol, "hello", other)).Body().GetProperty("emoji");
+        Assert.Equal(id, again.GetProperty("id").GetString());
+        Assert.Equal(1, server.World.Store.ExternalEmojiCount());
+        // A picture that is already one of the server's own emoji answers with that one.
+        var own = (await AddEmoji(server, admin, "blob")).Body().GetProperty("emoji").GetProperty("id").GetString();
+        await carol.EventAsync("emoji.updated");
+        Assert.Equal(own, (await Import(server, bob, "blob_copy", Png)).Body().GetProperty("emoji").GetProperty("id").GetString());
+
+        // Usable in messages and reactions like any emoji; admins can't rename it but can delete it.
+        var message = (await carol.RequestAsync("chat.send", new { channelId = server.General, text = $"<:wave:{id}>" })).Body().GetProperty("message").GetProperty("id").GetInt64();
+        Assert.Equal("result", (await carol.RequestAsync("chat.react", new { id = message, emoji = $"<:wave:{id}>" })).Type());
+        Assert.Equal("not_found", (await admin.RequestAsync("emoji.rename", new { id, name = "renamed" })).ErrorCode());
+        Assert.Equal("result", (await admin.RequestAsync("emoji.delete", new { id })).Type());
+        Assert.Equal(0, server.World.Store.ExternalEmojiCount());
+    }
+
+    [Fact]
+    public async Task Importing_needs_the_ability_and_keeps_only_the_newest()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var bob = await server.JoinAsync("Bob");
+        using var guest = await server.JoinAsync("Guest", "guest");
+        Assert.Equal("forbidden", (await Import(server, guest, "nope", Png)).ErrorCode());
+        Assert.Equal("bad_request", (await Import(server, bob, "Bad Name", Png)).ErrorCode());
+        Assert.Equal("bad_request", (await Import(server, bob, "big", PngHeader(129, 10))).ErrorCode());
+
+        // Members can lose the ability.
+        Assert.Equal("result", (await owner.RequestAsync("role.base.update", new { role = "member", abilities = new[] { "invite", "events", "whisper" } })).Type());
+        Assert.Equal("forbidden", (await Import(server, bob, "wave", Png)).ErrorCode());
+        Assert.Equal("result", (await owner.RequestAsync("role.base.update", new { role = "member", reset = true })).Type());
+
+        // Beyond the cap the oldest go.
+        var fileId = await Upload(server, bob, Png, "e.png");
+        for (var i = 0; i < EmojiFeature.MaxExternal; i++)
+            server.World.Store.AddExternalEmoji(new Storage.CustomEmoji($"ext{i:D9}", $"e{i}", fileId, bob.Key, i, External: true), $"hash{i}");
+        var fresh = PngHeader(3, 2);
+        fresh[^1] ^= 2;
+        Assert.Equal("result", (await Import(server, bob, "newest", fresh)).Type());
+        Assert.Equal(EmojiFeature.MaxExternal, server.World.Store.ExternalEmojiCount());
+        Assert.Null(server.World.Store.GetEmoji("ext000000000"));
+        Assert.NotNull(server.World.Store.GetEmoji("ext000000001"));
+    }
 }

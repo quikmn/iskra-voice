@@ -3,9 +3,11 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import type { Sticker } from '../../core/protocol'
+import { baseRolesFor } from '../../state/baseRoles'
 import { serverFileUrl } from '../../state/expressions'
-import { MAX_STICKERS, addSticker, deleteSticker, renameSticker, useServerStickers } from '../../state/stickers'
-import type { ServerState } from '../../state/store'
+import { baseAllows } from '../../state/permissions'
+import { MAX_STICKERS, addSticker, deleteSticker, importSticker, renameSticker, useServerStickers, useStickers } from '../../state/stickers'
+import { useApp, type ServerState } from '../../state/store'
 import { Trash } from '../icons'
 import './stickers.css'
 
@@ -19,23 +21,69 @@ export const StickerIcon = () => (
   </svg>
 )
 
-/** The stickers tab of the composer's picker: search and a grid; picking sends. */
+/**
+ * The stickers tab of the composer's picker: search and a grid; picking sends. Your other servers' stickers come after
+ * this server's, each under its name (when this server lets you use them); picking one copies it over first.
+ */
 export function StickerPanel({ server, onPick }: { server: ServerState; onPick: (sticker: Sticker) => void }) {
   const stickers = useServerStickers(server.key)
+  const order = useApp((s) => s.order)
+  const servers = useApp((s) => s.servers)
+  const lists = useStickers((s) => s.stickers)
   const [query, setQuery] = useState('')
+  /** The sticker being copied over from another server, if any. */
+  const [busy, setBusy] = useState<{ key: string; name: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const { t } = useTranslation()
-  const shown = stickers.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase()))
+  const q = query.trim().toLowerCase()
+  const matches = (list: Sticker[]) => list.filter((s) => s.name.toLowerCase().includes(q))
+  const shown = matches(stickers)
+  const crossServer = !!server.me && baseAllows(baseRolesFor(server.key), server.me, 'externalEmoji')
+  const others = crossServer
+    ? order.filter((k) => k !== server.key && servers[k]?.me && (lists[k] ?? []).length > 0).map((k) => ({ key: k, name: servers[k].name, stickers: matches(lists[k]) })).filter((o) => o.stickers.length > 0)
+    : []
+
+  async function pick(source: string, sticker: Sticker) {
+    if (source === server.key) return onPick(sticker)
+    if (busy) return
+    setBusy({ key: `${source}:${sticker.id}`, name: sticker.name })
+    setError(null)
+    try {
+      onPick(await importSticker(server.key, source, sticker))
+    } catch (e) {
+      setError(errorMessage(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const cell = (source: string, sticker: Sticker) => {
+    const copying = busy?.key === `${source}:${sticker.id}`
+    return (
+      <button key={`${source}:${sticker.id}`} className={`sticker-cell ${copying ? 'busy' : ''}`} onClick={() => void pick(source, sticker)}
+        aria-label={t('chat.stickers.send', { name: sticker.name })} title={sticker.name} aria-busy={copying || undefined}>
+        <img src={serverFileUrl(source, sticker.url) ?? undefined} alt="" loading="lazy" draggable={false} />
+      </button>
+    )
+  }
+
   return (
     <div className="sticker-panel">
       <input className="sticker-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('chat.stickers.find')} aria-label={t('chat.stickers.search')} />
-      <div className="sticker-grid">
-        {shown.map((sticker) => (
-          <button key={sticker.id} className="sticker-cell" onClick={() => onPick(sticker)} aria-label={t('chat.stickers.send', { name: sticker.name })} title={sticker.name}>
-            <img src={serverFileUrl(server.key, sticker.url) ?? undefined} alt="" loading="lazy" draggable={false} />
-          </button>
+      {error && <p className="error-text picker-empty" role="alert">{error}</p>}
+      {busy && <p className="muted picker-empty" role="status">{t('chat.stickers.copying', { name: busy.name, server: server.name })}</p>}
+      <div className="sticker-scroll">
+        <div className="sticker-grid">
+          {shown.map((sticker) => cell(server.key, sticker))}
+          {stickers.length === 0 && others.length === 0 && <p className="muted picker-empty">{t('chat.stickers.none')}</p>}
+          {stickers.length > 0 && shown.length === 0 && others.length === 0 && <p className="muted picker-empty">{t('chat.stickers.noMatch')}</p>}
+        </div>
+        {others.map((o) => (
+          <section key={o.key} className="sticker-from" aria-label={t('chat.stickers.fromServer', { server: o.name })}>
+            <h4 className="gif-heading">{t('chat.stickers.fromServer', { server: o.name })}</h4>
+            <div className="sticker-grid">{o.stickers.map((sticker) => cell(o.key, sticker))}</div>
+          </section>
         ))}
-        {stickers.length === 0 && <p className="muted picker-empty">{t('chat.stickers.none')}</p>}
-        {stickers.length > 0 && shown.length === 0 && <p className="muted picker-empty">{t('chat.stickers.noMatch')}</p>}
       </div>
     </div>
   )

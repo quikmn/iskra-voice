@@ -9,6 +9,8 @@ export const expressions = {
     search: 'Search emoji',
     categoriesLabel: 'Emoji categories',
     pickOne: 'Pick an emoji',
+    fromServer: '{{name}} (from {{server}})',
+    adding: 'Adding {{name}} to {{server}}…',
     /** The standard emoji groups, by their id in emojiData.ts. */
     categories: {
       Smileys: 'Smileys',

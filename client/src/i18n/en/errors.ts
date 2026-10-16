@@ -190,6 +190,7 @@ export const errors = {
     manage_automod: "You can't manage AutoMod on this server.",
     manage_channels: "You can't manage channels on this server.",
     manage_emoji: "You can't manage emoji on this server.",
+    external_emoji: "You can't use emoji or stickers from other servers here.",
     manage_roles: "You can't manage roles on this server.",
     manage_webhooks: "You can't manage webhooks on this server.",
     forum_cant_post: "You can't post in this forum.",

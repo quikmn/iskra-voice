@@ -343,6 +343,8 @@ public sealed partial class Store : IDisposable
         ("events-2", Events2Migration),
         // Follow people and roles in a channel (alert settings).
         ("alerts-2", Alerts2Migration),
+        // Emoji and stickers brought over from other servers.
+        ("external-expressions-1", ExternalExpressionsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

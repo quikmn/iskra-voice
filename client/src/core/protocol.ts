@@ -441,6 +441,8 @@ export interface CustomEmoji {
   url: string | null
   animated: boolean
   createdBy: string
+  /** Brought over from another server by a member (emoji.import): shown in messages, not in the picker. Missing from older servers. */
+  external?: boolean
 }
 
 export interface Sound {
@@ -455,7 +457,7 @@ export interface Sound {
 
 export interface Events {
   'poll.updated': { id: number; channelId: number; poll: Poll }
-  'emoji.updated': { emojis: CustomEmoji[] }
+  'emoji.updated': { emojis: CustomEmoji[]; external?: CustomEmoji[] }
   'sounds.updated': { sounds: Sound[] }
   'sound.played': { channelId: number; accountKey: string; sound: Sound }
 }
@@ -464,8 +466,9 @@ export interface Requests {
   'poll.create': [{ channelId: number; question: string; options: string[]; multi?: boolean; durationMs?: number }, { message: Message }]
   'poll.vote': [{ id: number; options: number[] }, Record<string, never>]
   'poll.end': [{ id: number }, Record<string, never>]
-  'emoji.list': [Record<string, never>, { emojis: CustomEmoji[] }]
+  'emoji.list': [Record<string, never>, { emojis: CustomEmoji[]; external?: CustomEmoji[] }]
   'emoji.create': [{ name: string; fileId: string }, { emoji: CustomEmoji }]
+  'emoji.import': [{ name: string; fileId: string }, { emoji: CustomEmoji }]
   'emoji.rename': [{ id: string; name: string }, { emoji: CustomEmoji }]
   'emoji.delete': [{ id: string }, Record<string, never>]
   'sound.list': [Record<string, never>, { sounds: Sound[] }]
@@ -1166,6 +1169,8 @@ export interface Sticker {
   url: string | null
   animated: boolean
   createdBy?: string
+  /** Brought over from another server by a member (sticker.import); never listed. */
+  external?: boolean
 }
 
 export interface Message {
@@ -1180,6 +1185,7 @@ export interface Events {
 export interface Requests {
   'sticker.list': [Record<string, never>, { stickers: Sticker[] }]
   'sticker.create': [{ name: string; fileId: string }, { sticker: Sticker }]
+  'sticker.import': [{ name: string; fileId: string }, { sticker: Sticker }]
   'sticker.rename': [{ id: string; name: string }, { sticker: Sticker }]
   'sticker.delete': [{ id: string }, Record<string, never>]
 }
@@ -2075,7 +2081,7 @@ export interface Requests {
 export type BaseAbility =
   | 'invite' | 'events' | 'pin' | 'mentionEveryone' | 'uploadSounds' | 'giveBaseRoles' | 'bots' | 'organize' | 'rules'
   | 'stickers' | 'gifs' | 'stageModerators' | 'forumTags' | 'profilePages' | 'resolveDisputes' | 'runServer' | 'transferOwnership'
-  | 'whisper' | 'serverImages'
+  | 'whisper' | 'serverImages' | 'externalEmoji'
 
 /** A base role (owner … guest) as listed next to custom roles: its colour and its powers (both adjustable, powers within limits). */
 export interface BaseRoleInfo {

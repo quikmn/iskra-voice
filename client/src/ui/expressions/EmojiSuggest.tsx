@@ -1,6 +1,6 @@
 // ":par" in the composer suggests emoji (server emoji first); Enter/Tab picks, arrows move, Esc dismisses.
 import { useState, type KeyboardEvent, type ReactNode } from 'react'
-import { serverFileUrl, useServerEmojis } from '../../state/expressions'
+import { serverFileUrl, useOwnEmojis } from '../../state/expressions'
 import { completeEmoji, emojiQueryAt, searchEmoji, type EmojiResult } from './emoji'
 import { useTranslation } from 'react-i18next'
 
@@ -8,7 +8,7 @@ export function useEmojiSuggest(
   serverKey: string, text: string, caret: number, apply: (next: { text: string; caret: number }) => void,
 ): { open: boolean; onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => boolean; popup: ReactNode } {
   const { t } = useTranslation()
-  const emojis = useServerEmojis(serverKey)
+  const emojis = useOwnEmojis(serverKey)
   const [pick, setPick] = useState(0)
   const [dismissed, setDismissed] = useState<string | null>(null)
   const query = emojiQueryAt(text, caret)

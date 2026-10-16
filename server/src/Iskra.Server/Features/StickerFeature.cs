@@ -10,10 +10,14 @@ namespace Iskra.Server.Features;
 /// <summary>
 /// Server stickers: bigger images than emoji that admins upload, sent on their own as a message (chat.send with
 /// <c>sticker</c>). Like emoji, the image goes through the normal upload first; sticker.create claims the file.
+/// Members may bring a sticker over from another server they're on (sticker.import): their app uploads the picture
+/// here and it becomes an external sticker, sendable but not in the picker; the same bytes are stored once.
 /// </summary>
 public static class StickerFeature
 {
     public const int MaxStickers = 60;
+    /// <summary>External stickers kept per server; beyond that the oldest are forgotten.</summary>
+    public const int MaxExternal = 100;
     public const int MaxSide = 320;
     public const int MaxNameLength = 30;
     private static readonly string[] Types = ["image/png", "image/gif", "image/webp"];
@@ -22,6 +26,7 @@ public static class StickerFeature
     {
         router.Add("sticker.list", (s, _, _) => new { stickers = List(s.World.Store) });
         router.Add("sticker.create", Create);
+        router.Add("sticker.import", Import);
         router.Add("sticker.rename", Rename);
         router.Add("sticker.delete", Delete);
     }
@@ -33,6 +38,7 @@ public static class StickerFeature
         url = file is null ? null : Uploads.UrlOf(file),
         animated = file?.Type == "image/gif",
         createdBy = sticker.CreatedBy,
+        external = sticker.External,
     };
 
     public static List<object> List(Store store) => store.AllStickers().Select(s => Public(s, store.GetFile(s.FileId))).ToList();
@@ -64,12 +70,10 @@ public static class StickerFeature
         if (!BaseRoles.Allows(me, BaseAbility.Stickers)) throw RequestException.Forbidden("Only admins can manage stickers.", "admins_stickers");
     }
 
-    private static object Create(Session s, Member me, Body body)
+    /// <summary>Your own upload, the right kind and size for a sticker here.</summary>
+    private static StoredFile CheckedImage(Session s, Member me, Body body)
     {
-        RequireAdmin(me);
         var store = s.World.Store;
-        var name = Name(body);
-        if (store.StickerCount() >= MaxStickers) throw RequestException.BadRequest($"This server already has {MaxStickers} stickers.", "stickers_max", new { max = MaxStickers });
         var file = store.GetFile(body.String("fileId", 64));
         if (file is null || file.Uploader != me.AccountKey || store.GetDmFile(file.Id) is not null) throw RequestException.BadRequest("Unknown file.");
         if (!Types.Contains(file.Type)) throw RequestException.BadRequest("Stickers must be PNG, GIF or WebP images.", "sticker_type");
@@ -78,6 +82,16 @@ public static class StickerFeature
         if (file.Width is not { } w || file.Height is not { } h || w < 1 || h < 1)
             throw RequestException.BadRequest("Couldn't read that image's size.", "image_size_unreadable");
         if (w > MaxSide || h > MaxSide) throw RequestException.BadRequest($"Stickers can be up to {MaxSide}×{MaxSide} pixels.", "sticker_pixels", new { side = MaxSide });
+        return file;
+    }
+
+    private static object Create(Session s, Member me, Body body)
+    {
+        RequireAdmin(me);
+        var store = s.World.Store;
+        var name = Name(body);
+        if (store.StickerCount() >= MaxStickers) throw RequestException.BadRequest($"This server already has {MaxStickers} stickers.", "stickers_max", new { max = MaxStickers });
+        var file = CheckedImage(s, me, body);
 
         var sticker = new Sticker(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(9)), name, file.Id, me.AccountKey, s.Now);
         store.AddSticker(sticker);
@@ -85,11 +99,29 @@ public static class StickerFeature
         return new { sticker = Public(sticker, file) };
     }
 
+    /// <summary>
+    /// A sticker from another server, as a member's app uploaded it here (see EmojiFeature.Import): checked like any
+    /// sticker, the same bytes answered with the sticker already here. Nothing is announced: a sent sticker carries its url.
+    /// </summary>
+    private static object Import(Session s, Member me, Body body)
+    {
+        if (!BaseRoles.Allows(me, BaseAbility.ExternalEmoji)) throw RequestException.Forbidden("You can't use emoji or stickers from other servers here.", "external_emoji");
+        var store = s.World.Store;
+        var name = Name(body);
+        var file = CheckedImage(s, me, body);
+        if (store.StickerWithBytes(file.Sha256) is { } same) return new { sticker = Public(same, store.GetFile(same.FileId)) };
+
+        store.TrimExternalStickers(MaxExternal - 1);
+        var sticker = new Sticker(Ed25519.ToB64u(RandomNumberGenerator.GetBytes(9)), name, file.Id, me.AccountKey, s.Now, External: true);
+        store.AddExternalSticker(sticker, file.Sha256);
+        return new { sticker = Public(sticker, file) };
+    }
+
     private static object Rename(Session s, Member me, Body body)
     {
         RequireAdmin(me);
         var store = s.World.Store;
-        var sticker = store.GetSticker(body.String("id", 64)) ?? throw RequestException.NotFound("Sticker");
+        var sticker = store.GetSticker(body.String("id", 64)) is { External: false } own ? own : throw RequestException.NotFound("Sticker");
         var name = Name(body);
         store.RenameSticker(sticker.Id, name);
         Changed(s);
@@ -100,7 +132,8 @@ public static class StickerFeature
     {
         RequireAdmin(me);
         var sticker = s.World.Store.GetSticker(body.String("id", 64)) ?? throw RequestException.NotFound("Sticker");
-        s.World.Store.DeleteSticker(sticker.Id);
+        if (sticker.External) s.World.Store.DeleteExternalSticker(sticker.Id);
+        else s.World.Store.DeleteSticker(sticker.Id);
         Changed(s);
         return null;
     }

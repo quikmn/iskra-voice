@@ -337,6 +337,8 @@ export const chat: Messages['chat'] = {
     send: 'Skicka klistermärket {{name}}',
     none: 'Servern har inga klistermärken än. Admins kan lägga till några under Serverinställningar → Emoji och klistermärken.',
     noMatch: 'Inga klistermärken matchar.',
+    fromServer: 'Från {{server}}',
+    copying: 'Lägger till {{name}} på {{server}}…',
     gone: 'Klistermärket ”{{name}}” finns inte längre på servern',
     alt: 'Klistermärke: {{name}}',
     title: 'Klistermärken',

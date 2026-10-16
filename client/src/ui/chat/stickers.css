@@ -6,9 +6,13 @@
   overflow: hidden; outline: none; animation: pop 0.14s var(--ease);
 }
 .sticker-search { margin: 10px 10px 6px; width: auto; }
-.sticker-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; padding: 6px 10px 10px; align-content: start; }
+.sticker-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+.sticker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; padding: 6px 10px 10px; align-content: start; }
+.sticker-from h4 { margin: 4px 10px 0; }
 .sticker-cell { aspect-ratio: 1; border: 0; border-radius: var(--radius); background: none; padding: 6px; display: grid; place-items: center; }
 .sticker-cell:hover, .sticker-cell:focus-visible { background: var(--surface-3); }
+/* A sticker from another server on its way into this one. */
+.sticker-cell.busy { opacity: 0.5; }
 .sticker-cell img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .sticker-layer.sheet { background: var(--scrim); animation: fade 0.14s ease-out; }
 .sticker-layer.sheet .sticker-picker {

@@ -353,14 +353,22 @@ Server emoji are written in message text and reactions as `<:name:id>` (`name`: 
 
 | type | body | result | who |
 |---|---|---|---|
-| `emoji.list` | | `{ emojis: [Emoji] }` | anyone |
+| `emoji.list` | | `{ emojis: [Emoji], external: [Emoji] }` | anyone |
 | `emoji.create` | `name, fileId` (your own upload: PNG, GIF or WebP by content, ≤ 256 KB, ≤ 128×128) | `{ emoji }` | admin+ |
-| `emoji.rename` | `id, name` | `{ emoji }` | admin+ |
-| `emoji.delete` | `id` | | admin+ |
+| `emoji.import` | `name, fileId` (the same rules; the picture of an emoji from another server, uploaded here by your app) | `{ emoji }` (`external: true`, or the emoji this server already had with the same bytes) | the `externalEmoji` [ability](#built-in-roles) (member+ by default) |
+| `emoji.rename` | `id, name` | `{ emoji }` | admin+; not external ones |
+| `emoji.delete` | `id` | | admin+ (external ones too) |
 
-- `Emoji { id, name, url: "/files/<fileId>/<name>", animated, createdBy }`. Names are unique; up to 200 per server.
-- `chat.react` also accepts `<:name:id>` for an emoji on this server (stored under its current name).
-- Event `emoji.updated` `{ emojis }` to everyone after any change.
+- `Emoji { id, name, url: "/files/<fileId>/<name>", animated, createdBy, external }`. Names are unique; up to 200 per server.
+- `chat.react` also accepts `<:name:id>` for an emoji on this server (stored under its current name), external ones included.
+- **Emoji from other servers:** apps show every joined server's emoji in the picker; sending one elsewhere means the app
+  downloads the picture from its home server and uploads it to the destination (the normal upload path, the
+  destination's upload rules), then `emoji.import` turns it into an external emoji there and the message or reaction
+  uses `<:name:id>` as usual. A server never fetches anything from another server. The same bytes (SHA-256) are kept
+  once: importing them again answers with the existing emoji, own or external, and names needn't be unique among
+  external ones. A server keeps at most 300 external emoji (the oldest are forgotten, their messages then show
+  `:name:`). External emoji are in `external`, not `emojis`, so pickers skip them while messages still render.
+- Event `emoji.updated` `{ emojis, external }` to everyone after any change, imports included.
 
 ## Voice
 
@@ -986,11 +994,12 @@ Admins upload stickers (bigger pictures than emoji); anyone who can write in a c
 |---|---|---|---|
 | `sticker.list` | | `{ stickers: [Sticker] }` | anyone |
 | `sticker.create` | `name` (1–30 chars, the same rules as names), `fileId` (your own upload: PNG, GIF or WebP, ≤ 512 KB, ≤ 320×320 px) | `{ sticker }` | admin+; ≤ 60 per server |
-| `sticker.rename` | `id, name` | `{ sticker }` | admin+ |
-| `sticker.delete` | `id` | | admin+ |
-| `chat.send` | adds `sticker?: id`; `text` must then be empty and there are no `attachments` | | channel writers |
+| `sticker.import` | `name, fileId` (the same rules; a sticker from another server, uploaded here by your app) | `{ sticker }` (`external: true`, or the sticker this server already had with the same bytes) | the `externalEmoji` [ability](#built-in-roles) (member+ by default) |
+| `sticker.rename` | `id, name` | `{ sticker }` | admin+; not external ones |
+| `sticker.delete` | `id` | | admin+ (external ones too) |
+| `chat.send` | adds `sticker?: id` (own or external); `text` must then be empty and there are no `attachments` | | channel writers |
 
-`Sticker { id, name, url: "/files/<id>/<name>", animated, createdBy }`. Event `stickers.updated { stickers }` goes to everyone on any change. `Message` gains `sticker: { id, name, url, animated } | null`: the name is kept as it was when sent, and `url` is `null` once the sticker is deleted. Sticker messages can't be edited.
+`Sticker { id, name, url: "/files/<id>/<name>", animated, createdBy, external }`. Event `stickers.updated { stickers }` goes to everyone on any change to the server's own stickers (external ones, like [emoji from other servers](#custom-emoji), are brought over by the app and never listed: a sent one carries its `url`; a server keeps at most 100, oldest forgotten). `Message` gains `sticker: { id, name, url, animated } | null`: the name is kept as it was when sent, and `url` is `null` once the sticker is deleted. Sticker messages can't be edited.
 
 Message links (client side, no protocol change): `<appUrl>/#/open/<serverKey>/c/<channelId>/m/<messageId>` opens the app at that message (it extends the push notification routes above). Spoiler attachments are files whose name starts with `SPOILER_`; apps show them covered until clicked. Encrypted DM attachments carry the same prefix inside their (encrypted) name.
 
@@ -2801,7 +2810,7 @@ BaseRole { "id": "trusted", "color": "#5b9bd5" | null,
 ```
 
 Abilities and the lowest role that has them **by default**: `invite` (invite guests and members), `events`, `whisper`
-([whisper](#whisper-and-priority-speakers)) (member);
+([whisper](#whisper-and-priority-speakers)), `externalEmoji` ([emoji and stickers from other servers](#custom-emoji)) (member);
 `pin`, `mentionEveryone`, `uploadSounds` (soundboard) (trusted); `giveBaseRoles` (`member.setRole`, invites and bot
 invites into roles below your own), `bots` (bot invites, voice bots, built-in bots), `organize` (categories, the
 default notification level), `rules`, `stickers`, `gifs`, `stageModerators`, `forumTags`, `profilePages`,
@@ -2823,7 +2832,7 @@ Safety rules for powers, all checked on the server before anything changes:
   and `guest`; only the owner changes `admin`.
 - Only powers you have yourself, to give or to take (`forbidden`, key `base_power_not_yours`), so nobody lifts a role
   past their own.
-- `guest` and `member` only get everyday powers: `invite`, `events`, `whisper`, `pin`, `mentionEveryone`, `uploadSounds` and the
+- `guest` and `member` only get everyday powers: `invite`, `events`, `whisper`, `externalEmoji`, `pin`, `mentionEveryone`, `uploadSounds` and the
   permission `mentionEveryone` (`bad_request`, key `base_power_not_allowed`, args `{ role }`). `trusted` and `admin` may
   get any ability but the owner's and any permission.
 - Unknown names → `bad_request`.

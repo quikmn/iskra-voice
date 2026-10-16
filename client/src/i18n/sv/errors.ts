@@ -188,6 +188,7 @@ export const errors: Messages['errors'] = {
     manage_automod: 'Du kan inte hantera AutoMod på den här servern.',
     manage_channels: 'Du kan inte hantera kanaler på den här servern.',
     manage_emoji: 'Du kan inte hantera emoji på den här servern.',
+    external_emoji: 'Du kan inte använda emoji eller klistermärken från andra servrar här.',
     manage_roles: 'Du kan inte hantera roller på den här servern.',
     manage_webhooks: 'Du kan inte hantera webhooks på den här servern.',
     forum_cant_post: 'Du kan inte skriva inlägg i det här forumet.',

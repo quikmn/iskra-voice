@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { roleRank, type CustomEmoji, type Sound } from '../../core/protocol'
 import {
   addEmoji, addSound, deleteEmoji, deleteSound, emojiNameFrom, playUrl, renameEmoji, serverFileUrl, updateSound,
-  updateSoundboardSettings, useExpressions, useServerEmojis, useServerSounds,
+  updateSoundboardSettings, useExpressions, useOwnEmojis, useServerSounds,
 } from '../../state/expressions'
 import type { ServerState } from '../../state/store'
 import { Trash } from '../icons'
@@ -52,7 +52,7 @@ export function ServerExpressionsSections({ server }: { server: ServerState }) {
 
 export function EmojiSection({ server }: { server: ServerState }) {
   const { t } = useTranslation()
-  const emojis = useServerEmojis(server.key)
+  const emojis = useOwnEmojis(server.key)
   const input = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<{ file: File; preview: string; name: string } | null>(null)
   const [busy, setBusy] = useState(false)

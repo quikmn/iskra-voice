@@ -337,6 +337,8 @@ export const chat = {
     send: 'Send sticker {{name}}',
     none: 'This server has no stickers yet. Admins can add some in Server settings → Emoji & stickers.',
     noMatch: 'No stickers match.',
+    fromServer: 'From {{server}}',
+    copying: 'Adding {{name}} to {{server}}…',
     gone: 'Sticker “{{name}}” is no longer on this server',
     alt: 'Sticker: {{name}}',
     title: 'Stickers',
