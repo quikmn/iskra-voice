@@ -12,6 +12,8 @@ namespace Iskra.Server.Features;
 /// Scheduled events: a title, a time (stored in UTC, with the creator's time zone for display), a place (a voice channel
 /// here or free text) and who is interested. <see cref="EventScheduler"/> reminds interested members and moves events
 /// to live and ended. An event in a voice channel is only visible to people who can see that channel.
+/// A repeating event is a series: one occurrence at a time, the next one made when the current one ends (or is
+/// cancelled on its own), at the same wall-clock time in the creator's zone; interest is per occurrence.
 /// </summary>
 public static partial class EventFeature
 {
@@ -22,9 +24,12 @@ public static partial class EventFeature
     public const int MaxImageBytes = 5 * 1024 * 1024;
     public const long MaxDurationMs = 7L * 24 * 60 * 60 * 1000;
     public const long MaxAheadMs = 366L * 24 * 60 * 60 * 1000;
+    /// <summary>How far ahead a series may run (<c>until</c>).</summary>
+    public const long MaxUntilAheadMs = 2 * MaxAheadMs;
     /// <summary>Clock slack for a start time "right now".</summary>
     public const long StartSlackMs = 60_000;
     private static readonly string[] ImageTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    public static readonly string[] Repeats = ["none", "daily", "weekly", "biweekly", "monthly"];
 
     public static void Register(Router router)
     {
@@ -54,6 +59,9 @@ public static partial class EventFeature
             createdAt = e.CreatedAt,
             status = e.Status,
             interested = store.Interested(e.Id),
+            repeat = e.Repeat,
+            until = e.Repeats ? e.Until : null,
+            seriesId = e.Repeats ? e.SeriesId : null,
         };
     }
 
@@ -146,6 +154,82 @@ public static partial class EventFeature
         if (end - start > MaxDurationMs) throw RequestException.BadRequest("Events can last up to 7 days.", "event_7_days");
     }
 
+    // ── Repeating ────────────────────────────────────────────────────────────
+
+    /// <summary>`repeat` and `until` from the body, on top of what the event has. `until: 0` clears it.</summary>
+    private static (string Repeat, long? Until) RepeatRule(Body body, string currentRepeat, long? currentUntil, long start, long now)
+    {
+        var repeat = body.OptionalString("repeat", 16) ?? currentRepeat;
+        if (!Repeats.Contains(repeat)) throw RequestException.BadRequest("Events can repeat daily, weekly, biweekly or monthly.", "event_repeat");
+        var until = body.OptionalLong("until", min: 0) is { } raw ? raw == 0 ? null : (long?)raw : currentUntil;
+        if (repeat == "none")
+        {
+            if (until is not null && body.Has("until")) throw RequestException.BadRequest("An end date only goes with a repeat.", "event_until_repeat");
+            return ("none", null);
+        }
+        if (until is { } u)
+        {
+            if (u < start) throw RequestException.BadRequest("The series has to end after the first event.", "event_until");
+            if (u > now + MaxUntilAheadMs) throw RequestException.BadRequest("A series can run up to 2 years ahead.", "event_until_2_years");
+        }
+        return (repeat, until);
+    }
+
+    /// <summary>
+    /// The start of the occurrence after one at <paramref name="startUtc"/>: the same wall-clock time in <paramref name="zone"/>
+    /// a day, a week, two weeks or a month later (the 31st becomes the 30th in a short month, as calendars do).
+    /// A time that doesn't exist that day (clocks going forward) moves an hour on.
+    /// </summary>
+    internal static long NextStart(long startUtc, string repeat, string zone)
+    {
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(zone);
+        var local = TimeZoneInfo.ConvertTimeFromUtc(DateTimeOffset.FromUnixTimeMilliseconds(startUtc).UtcDateTime, tz);
+        var next = repeat switch
+        {
+            "daily" => local.AddDays(1),
+            "weekly" => local.AddDays(7),
+            "biweekly" => local.AddDays(14),
+            "monthly" => local.AddMonths(1),
+            _ => throw new ArgumentOutOfRangeException(nameof(repeat)),
+        };
+        next = DateTime.SpecifyKind(next, DateTimeKind.Unspecified);
+        if (tz.IsInvalidTime(next)) next = next.AddHours(1);
+        return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(next, tz)).ToUnixTimeMilliseconds();
+    }
+
+    /// <summary>
+    /// Makes the next occurrence of a series after <paramref name="ending"/> (skipping any the server slept through),
+    /// unless the series is over (<c>until</c> passed) or already has one. The creator is interested, as for a new event.
+    /// </summary>
+    internal static ServerEvent? Materialise(Hub hub, Store store, ServerEvent ending, long now)
+    {
+        if (!ending.Repeats || ending.SeriesId is not { } seriesId || store.SeriesHasOpenOccurrence(seriesId)) return null;
+        var start = ending.StartAt;
+        var guard = 0;
+        do
+        {
+            start = NextStart(start, ending.Repeat, ending.TimeZone);
+            if (ending.Until is { } until && start > until) return null;
+        } while (start < now && ++guard < 2000);
+        if (start < now) return null;
+        var next = store.AddEvent(ending with
+        {
+            StartAt = start, EndAt = start + (ending.EndAt - ending.StartAt), CreatedAt = now, Status = "scheduled", RemindedAt = null,
+        });
+        store.SetInterest(next.Id, next.CreatedBy, true, now);
+        Broadcast(hub, store, next);
+        return next;
+    }
+
+    /// <summary>`scope`: "series" (default) or "one" (this occurrence only; nothing for an event that doesn't repeat).</summary>
+    private static bool WholeSeries(Body body) =>
+        (body.OptionalString("scope", 16) ?? "series") switch
+        {
+            "series" => true,
+            "one" => false,
+            _ => throw RequestException.BadRequest("'scope' must be \"one\" or \"series\"."),
+        };
+
     // ── Requests ─────────────────────────────────────────────────────────────
 
     private static object List(Session s, Member me, Body body) =>
@@ -163,11 +247,12 @@ public static partial class EventFeature
         var zone = TimeZone(body.String("timeZone", 64));
         var (kind, channelId, place) = Location(s, me, body.Element("location"));
         var image = body.OptionalString("image", 64) is { } fileId ? Image(s, me, fileId, null) : null;
+        var (repeat, until) = RepeatRule(body, "none", null, start, s.Now);
         AutoModFeature.Check(s, me, null, title + "\n" + description, "event");
         if (store.OpenEventCount() >= MaxOpenEvents) throw RequestException.BadRequest($"This server already has {MaxOpenEvents} upcoming events.", "events_max", new { max = MaxOpenEvents });
         if (!s.Hub.Limits.TryTake(me.AccountKey, "event.create")) throw new RequestException("rate_limited", "Too many new events. Try again in a few minutes.", "too_many_events");
 
-        var e = store.AddEvent(new ServerEvent(0, title, description, start, end, zone, kind, channelId, place, image, me.AccountKey, s.Now, "scheduled", null));
+        var e = store.AddEvent(new ServerEvent(0, title, description, start, end, zone, kind, channelId, place, image, me.AccountKey, s.Now, "scheduled", null, repeat, until));
         store.SetInterest(e.Id, me.AccountKey, true, s.Now); // whoever plans it is going
         Broadcast(s.Hub, store, e);
         return new { @event = View(store, e) };
@@ -203,16 +288,38 @@ public static partial class EventFeature
         if (body.OptionalString("image", 64) is { } fileId) e = e with { ImageFile = Image(s, me, fileId, e.ImageFile) };
         if (e.Title != before.Title || e.Description != before.Description) AutoModFeature.Check(s, me, null, e.Title + "\n" + e.Description, "event");
 
-        s.World.Store.UpdateEvent(e);
-        Broadcast(s.Hub, s.World.Store, e, before);
-        return new { @event = View(s.World.Store, e) };
+        var store = s.World.Store;
+        var wholeSeries = WholeSeries(body);
+        if (wholeSeries || !before.Repeats)
+        {
+            var (repeat, until) = RepeatRule(body, e.Repeat, e.Until, e.StartAt, s.Now);
+            // Starting to repeat makes this the first of a new series; stopping leaves a one-off.
+            e = e with { Repeat = repeat, Until = until, SeriesId = repeat == "none" ? null : e.SeriesId ?? e.Id };
+        }
+        else
+        {
+            // This occurrence only: it leaves the series, which carries on from the unchanged one.
+            if (body.Has("repeat") || body.Has("until")) throw RequestException.BadRequest("Change the whole series to change how it repeats.", "event_scope_repeat");
+            if (store.OpenEventCount() >= MaxOpenEvents) throw RequestException.BadRequest($"This server already has {MaxOpenEvents} upcoming events.", "events_max", new { max = MaxOpenEvents });
+            e = e with { Repeat = "none", Until = null, SeriesId = null };
+        }
+
+        store.UpdateEvent(e);
+        Broadcast(s.Hub, store, e, before);
+        if (before.Repeats && !wholeSeries) Materialise(s.Hub, store, before, s.Now);
+        return new { @event = View(store, e) };
     }
 
     private static object? Cancel(Session s, Member me, Body body)
     {
         var e = Managed(s, me, body);
+        var wholeSeries = WholeSeries(body);
         if (s.World.Store.SetEventStatus(e.Id, ["scheduled", "live"], "cancelled"))
+        {
             Broadcast(s.Hub, s.World.Store, e with { Status = "cancelled" });
+            // Skipping one occurrence brings the next one forward now; cancelling the series ends it.
+            if (!wholeSeries) Materialise(s.Hub, s.World.Store, e, s.Now);
+        }
         return null;
     }
 
@@ -262,7 +369,9 @@ public sealed class EventScheduler(World world, Hub hub, PushService push, TimeP
             {
                 if (now >= e.EndAt)
                 {
-                    if (store.SetEventStatus(e.Id, ["scheduled", "live"], "ended")) EventFeature.Broadcast(hub, store, e with { Status = "ended" });
+                    if (!store.SetEventStatus(e.Id, ["scheduled", "live"], "ended")) continue;
+                    EventFeature.Broadcast(hub, store, e with { Status = "ended" });
+                    EventFeature.Materialise(hub, store, e, now); // a series carries on with its next occurrence
                 }
                 else if (e.Status == "scheduled" && now >= e.StartAt)
                 {

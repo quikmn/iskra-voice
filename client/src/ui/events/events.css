@@ -48,7 +48,7 @@
 .event-card .error-text { padding: 0 14px; margin: 0; }
 
 /* Form */
-.event-times { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.event-times, .event-repeat { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .date-time { display: flex; gap: 6px; }
 .date-time input[type='date'] { flex: 1.4; min-width: 0; }
 .date-time input[type='time'] { flex: 1; min-width: 0; }
@@ -73,7 +73,7 @@
 .event-toast-text span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 760px) {
-  .event-times { grid-template-columns: 1fr; gap: 0; }
+  .event-times, .event-repeat { grid-template-columns: 1fr; gap: 0; }
   .event-toasts { left: 8px; right: 8px; bottom: calc(76px + var(--safe-bottom)); width: auto; }
   .event-actions .button.small { padding: 7px 10px; }
 }

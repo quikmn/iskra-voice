@@ -154,8 +154,29 @@ export function icsFold(line: string): string {
   return out.join('\r\n ')
 }
 
-/** A calendar file for one event, times in UTC. `place` is how the location reads ("Voice: lounge on Gaming"). */
+/** A wall-clock stamp in `zone` ("20261024T193000"), for a DTSTART with a TZID. */
+function icsLocalStamp(ms: number, zone: string): string {
+  const shifted = new Date(ms + zoneOffset(ms, zone))
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${shifted.getUTCFullYear()}${pad(shifted.getUTCMonth() + 1)}${pad(shifted.getUTCDate())}T${pad(shifted.getUTCHours())}${pad(shifted.getUTCMinutes())}${pad(shifted.getUTCSeconds())}`
+}
+
+/** The RRULE of a repeating event ("FREQ=WEEKLY;INTERVAL=2;UNTIL=20261231T225959Z"), or null for a one-off. */
+export function icsRule(event: Pick<ServerEvent, 'repeat' | 'until'>): string | null {
+  const freq = { none: null, daily: 'FREQ=DAILY', weekly: 'FREQ=WEEKLY', biweekly: 'FREQ=WEEKLY;INTERVAL=2', monthly: 'FREQ=MONTHLY' }[event.repeat]
+  if (!freq) return null
+  return event.until === null ? freq : `${freq};UNTIL=${icsStamp(event.until)}`
+}
+
+/**
+ * A calendar file for one event, times in UTC. `place` is how the location reads ("Voice: lounge on Gaming").
+ * A repeating event carries its RRULE and keeps its start in the creator's zone, so the series stays at the same
+ * wall-clock time across clock changes; its UID is the series', so a later export replaces it.
+ */
 export function eventIcs(event: ServerEvent, opts: { serverKey: string; place: string; now?: number }): string {
+  const rule = icsRule(event)
+  const zoned = rule !== null && event.timeZone !== 'UTC'
+  const stamp = (ms: number) => (zoned ? `;TZID=${event.timeZone}:${icsLocalStamp(ms, event.timeZone)}` : `:${icsStamp(ms)}`)
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -163,10 +184,11 @@ export function eventIcs(event: ServerEvent, opts: { serverKey: string; place: s
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:event-${event.id}-${opts.serverKey}@iskra`,
+    `UID:event-${rule !== null && event.seriesId !== null ? `series-${event.seriesId}` : event.id}-${opts.serverKey}@iskra`,
     `DTSTAMP:${icsStamp(opts.now ?? Date.now())}`,
-    `DTSTART:${icsStamp(event.startAt)}`,
-    `DTEND:${icsStamp(event.endAt)}`,
+    `DTSTART${stamp(event.startAt)}`,
+    `DTEND${stamp(event.endAt)}`,
+    ...(rule ? [`RRULE:${rule}`] : []),
     `SUMMARY:${icsText(event.title)}`,
     ...(event.description ? [`DESCRIPTION:${icsText(event.description)}`] : []),
     ...(opts.place ? [`LOCATION:${icsText(opts.place)}`] : []),
@@ -175,6 +197,25 @@ export function eventIcs(event: ServerEvent, opts: { serverKey: string; place: s
     'END:VCALENDAR',
   ]
   return lines.map(icsFold).join('\r\n') + '\r\n'
+}
+
+/** The UTC instant a series picked to end on `date` ("2026-12-31") runs out: the end of that day in `zone`. */
+export function untilEndOfDay(date: string, zone: string): number | null {
+  const start = zonedToUtc(date, '00:00', zone)
+  if (start === null) return null
+  // The next midnight, minus a millisecond; a DST day is 23 or 25 hours, so ask the zone rather than add 24 h.
+  const d = new Date(start + 36 * 3_600_000)
+  const next = zonedToUtc(utcToZoned(d.getTime(), zone).date, '00:00', zone)
+  return (next ?? start + 86_400_000) - 1
+}
+
+/** "Repeats weekly" / "Repeats weekly until Dec 31", or null for a one-off. */
+export function repeatText(event: Pick<ServerEvent, 'repeat' | 'until' | 'timeZone'>, locale = intlLocale()): string | null {
+  if (event.repeat === 'none') return null
+  const every = t(`events.repeat.${event.repeat}`)
+  if (event.until === null) return t('events.repeats', { every })
+  const until = new Intl.DateTimeFormat(locale, { timeZone: event.timeZone, month: 'short', day: 'numeric' }).format(new Date(event.until))
+  return t('events.repeatsUntil', { every, until })
 }
 
 /** A safe file name for the download: "game-night.ics". */

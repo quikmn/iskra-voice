@@ -1,6 +1,7 @@
 <!-- Release notes for the next version. Each change is its own line; the release step merges them. -->
 
 ### What's new
+- Events can repeat every day, week, two weeks or month (with an optional end date): the next one is planned when the current one ends, you can change or cancel just one or the whole series, and the calendar file carries the repeat.
 
 ### Fixes
 - Self-hosting: a server bound to `127.0.0.1` (`Https.BindAddress`) without `Https.ProxyProtocol` now warns at start that every client looks like the machine itself (one shared rate limit, no addresses in the security log).

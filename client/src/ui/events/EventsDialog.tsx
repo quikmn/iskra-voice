@@ -7,11 +7,11 @@ import { t as translate } from '../../i18n'
 import type { ServerEvent } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
 import { cancelEvent, canCreateEvent, canManageEvent, setInterested, useEvents } from '../../state/events'
-import { creatorTime, eventIcs, formatRange, icsFileName, localZone, openEvents, startsIn } from '../../state/eventTime'
+import { creatorTime, eventIcs, formatRange, icsFileName, localZone, openEvents, repeatText, startsIn } from '../../state/eventTime'
 import { joinVoice } from '../../state/voice'
 import { Avatar, Modal } from '../bits'
 import { Pencil, Plus, Volume } from '../icons'
-import { CalendarIcon, CalendarPlus, MapPin, StarIcon } from '../forums/icons'
+import { CalendarIcon, CalendarPlus, MapPin, RepeatIcon, StarIcon } from '../forums/icons'
 import { EventForm } from './EventForm'
 import { useNow } from './useNow'
 import { placeOf } from './place'
@@ -99,6 +99,7 @@ function EventCard({ server, event, now, focused, onEdit, onJoined }: {
   const creator = server.members[event.createdBy]
   const start = new Date(event.startAt)
   const soon = startsIn(event.startAt, now)
+  const repeats = repeatText(event)
 
   async function run(action: () => Promise<void>) {
     setBusy(true)
@@ -135,6 +136,12 @@ function EventCard({ server, event, now, focused, onEdit, onJoined }: {
             {place.voiceId !== null ? <Volume size={14} /> : <MapPin size={14} />}
             <span>{place.label}</span>
           </p>
+          {repeats && (
+            <p className="event-where event-repeats">
+              <RepeatIcon size={14} />
+              <span>{repeats}</span>
+            </p>
+          )}
         </div>
       </div>
       {event.description && <p className="event-description">{event.description}</p>}
@@ -174,8 +181,15 @@ function EventCard({ server, event, now, focused, onEdit, onJoined }: {
         {canManageEvent(server, event) && (
           confirmCancel ? (
             <span className="confirm-inline">
-              {t('events.dialog.cancelConfirm')}
-              <button className="button danger small" disabled={busy} onClick={() => void run(() => cancelEvent(server.key, event.id))}>{t('events.dialog.cancelEvent')}</button>
+              {repeats ? t('events.dialog.cancelSeriesConfirm') : t('events.dialog.cancelConfirm')}
+              {repeats ? (
+                <>
+                  <button className="button danger small" disabled={busy} onClick={() => void run(() => cancelEvent(server.key, event.id, 'one'))}>{t('events.dialog.cancelOne')}</button>
+                  <button className="button danger small" disabled={busy} onClick={() => void run(() => cancelEvent(server.key, event.id, 'series'))}>{t('events.dialog.cancelSeries')}</button>
+                </>
+              ) : (
+                <button className="button danger small" disabled={busy} onClick={() => void run(() => cancelEvent(server.key, event.id))}>{t('events.dialog.cancelEvent')}</button>
+              )}
               <button className="button small" onClick={() => setConfirmCancel(false)}>{t('events.dialog.keep')}</button>
             </span>
           ) : (

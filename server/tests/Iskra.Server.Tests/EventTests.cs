@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Iskra.Server.Crypto;
+using Iskra.Server.Features;
 using Iskra.Server.Tests.Support;
 
 namespace Iskra.Server.Tests;
@@ -200,5 +201,156 @@ public class EventTests
         Assert.Equal(file.Id, e.GetProperty("image").GetProperty("id").GetString());
         server.World.Store.DeleteUnreferencedFiles(Now, []);
         Assert.NotNull(server.World.Store.GetFile(file.Id));
+    }
+
+    // ── Repeating events ─────────────────────────────────────────────────────
+
+    private const long Day = 24 * Hour;
+
+    /// <summary>The next `event.updated` whose event satisfies <paramref name="match"/>, skipping others (interest, live, ...).</summary>
+    private static async Task<JsonElement> Updated(User user, Func<JsonElement, bool> match)
+    {
+        for (var i = 0; i < 12; i++)
+        {
+            var e = (await user.EventAsync("event.updated")).Body().GetProperty("event");
+            if (match(e)) return e;
+        }
+        throw new Xunit.Sdk.XunitException("no matching event.updated");
+    }
+
+    [Fact]
+    public void The_next_occurrence_keeps_the_wall_clock_time_in_the_creators_zone()
+    {
+        long Utc(int y, int mo, int d, int h) => new DateTimeOffset(y, mo, d, h, 0, 0, TimeSpan.Zero).ToUnixTimeMilliseconds();
+        Assert.Equal(Utc(2026, 10, 31, 17), EventFeature.NextStart(Utc(2026, 10, 24, 17), "weekly", "UTC"));
+        Assert.Equal(Utc(2026, 11, 7, 17), EventFeature.NextStart(Utc(2026, 10, 24, 17), "biweekly", "UTC"));
+        // Stockholm's clocks go back on 2026-10-25: 19:00 local is 17:00Z the day before and 18:00Z after.
+        Assert.Equal(Utc(2026, 10, 25, 18), EventFeature.NextStart(Utc(2026, 10, 24, 17), "daily", "Europe/Stockholm"));
+        // The 31st a month on is the 28th in February.
+        Assert.Equal(Utc(2026, 2, 28, 19), EventFeature.NextStart(Utc(2026, 1, 31, 19), "monthly", "UTC"));
+    }
+
+    [Fact]
+    public async Task A_repeating_event_makes_its_next_occurrence_when_one_ends()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        var start = Now + 1500;
+        var first = await Create(alice, new
+        {
+            title = "Daily standup", startAt = start, endAt = start + 1000, timeZone = "UTC", location = new { text = "here" }, repeat = "daily", until = start + 2 * Day,
+        });
+        var id = first.GetProperty("id").GetInt64();
+        Assert.Equal("daily", first.GetProperty("repeat").GetString());
+        Assert.Equal(start + 2 * Day, first.GetProperty("until").GetInt64());
+        Assert.Equal(id, first.GetProperty("seriesId").GetInt64());
+        await bob.RequestAsync("event.interest", new { id });
+
+        await Updated(bob, e => e.GetProperty("id").GetInt64() == id && e.GetProperty("status").GetString() == "ended");
+        var next = await Updated(bob, e => e.GetProperty("id").GetInt64() != id);
+        Assert.Equal(id, next.GetProperty("seriesId").GetInt64());
+        Assert.Equal("Daily standup", next.GetProperty("title").GetString());
+        Assert.Equal(start + Day, next.GetProperty("startAt").GetInt64());
+        Assert.Equal(start + Day + 1000, next.GetProperty("endAt").GetInt64());
+        Assert.Equal("scheduled", next.GetProperty("status").GetString());
+        // Interest is per occurrence: only the creator is in from the start.
+        Assert.Equal([alice.Key], next.GetProperty("interested").EnumerateArray().Select(k => k.GetString()));
+        var list = (await bob.RequestAsync("event.list")).Body().GetProperty("events");
+        Assert.Equal(next.GetProperty("id").GetInt64(), list.EnumerateArray().Single().GetProperty("id").GetInt64());
+    }
+
+    [Fact]
+    public async Task A_series_stops_at_until()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        var start = Now + 1500;
+        var id = (await Create(alice, new
+        {
+            title = "Last one", startAt = start, endAt = start + 1000, timeZone = "UTC", location = new { text = "here" }, repeat = "weekly", until = start,
+        })).GetProperty("id").GetInt64();
+        await Updated(bob, e => e.GetProperty("id").GetInt64() == id && e.GetProperty("status").GetString() == "ended");
+        await bob.NoEventAsync("event.updated");
+        Assert.Empty((await bob.RequestAsync("event.list")).Body().GetProperty("events").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Bad_repeat_rules_are_refused()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        var start = Now + Hour;
+        object Repeating(string repeat, long? until) => new { title = "x", startAt = start, endAt = start + Hour, timeZone = "UTC", location = new { text = "here" }, repeat, until };
+        Assert.Equal("bad_request", (await alice.RequestAsync("event.create", Repeating("yearly", null))).ErrorCode());
+        Assert.Equal("bad_request", (await alice.RequestAsync("event.create", Repeating("weekly", start - 1))).ErrorCode());
+        Assert.Equal("bad_request", (await alice.RequestAsync("event.create", Repeating("weekly", Now + 2 * EventFeature.MaxAheadMs + Day))).ErrorCode());
+        Assert.Equal("bad_request", (await alice.RequestAsync("event.create", Repeating("none", start + Day))).ErrorCode());
+        var id = (await Create(alice, Repeating("weekly", null))).GetProperty("id").GetInt64();
+        Assert.Equal("bad_request", (await alice.RequestAsync("event.update", new { id, scope = "one", repeat = "daily" })).ErrorCode());
+        Assert.Equal("bad_request", (await alice.RequestAsync("event.update", new { id, scope = "all" })).ErrorCode());
+    }
+
+    [Fact]
+    public async Task Editing_one_occurrence_detaches_it_and_the_series_carries_on()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        var start = Now + Hour;
+        var id = (await Create(alice, new
+        {
+            title = "Game night", startAt = start, endAt = start + 2 * Hour, timeZone = "UTC", location = new { text = "here" }, repeat = "weekly",
+        })).GetProperty("id").GetInt64();
+        await Updated(bob, e => e.GetProperty("id").GetInt64() == id);
+
+        // This one only: it becomes a one-off and next week's shows up right away, unchanged.
+        var special = (await alice.RequestAsync("event.update", new { id, scope = "one", title = "Special edition" })).Body().GetProperty("event");
+        Assert.Equal("none", special.GetProperty("repeat").GetString());
+        Assert.Equal(JsonValueKind.Null, special.GetProperty("seriesId").ValueKind);
+        await Updated(bob, e => e.GetProperty("id").GetInt64() == id && e.GetProperty("title").GetString() == "Special edition");
+        var next = await Updated(bob, e => e.GetProperty("id").GetInt64() != id);
+        Assert.Equal("Game night", next.GetProperty("title").GetString());
+        Assert.Equal("weekly", next.GetProperty("repeat").GetString());
+        Assert.Equal(id, next.GetProperty("seriesId").GetInt64());
+        Assert.Equal(start + 7 * Day, next.GetProperty("startAt").GetInt64());
+        Assert.Equal(2, (await bob.RequestAsync("event.list")).Body().GetProperty("events").GetArrayLength());
+
+        // The whole series (the default): the rule changes with it, and "none" ends it after this one.
+        var nextId = next.GetProperty("id").GetInt64();
+        var changed = (await alice.RequestAsync("event.update", new { id = nextId, repeat = "biweekly", until = start + 60 * Day })).Body().GetProperty("event");
+        Assert.Equal("biweekly", changed.GetProperty("repeat").GetString());
+        Assert.Equal(start + 60 * Day, changed.GetProperty("until").GetInt64());
+        Assert.Equal(id, changed.GetProperty("seriesId").GetInt64());
+        var single = (await alice.RequestAsync("event.update", new { id = nextId, repeat = "none" })).Body().GetProperty("event");
+        Assert.Equal("none", single.GetProperty("repeat").GetString());
+        Assert.Equal(JsonValueKind.Null, single.GetProperty("until").ValueKind);
+        Assert.Equal(JsonValueKind.Null, single.GetProperty("seriesId").ValueKind);
+    }
+
+    [Fact]
+    public async Task Cancelling_one_occurrence_skips_it_and_cancelling_the_series_ends_it()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        var start = Now + Hour;
+        var id = (await Create(alice, new
+        {
+            title = "Movie night", startAt = start, endAt = start + 2 * Hour, timeZone = "UTC", location = new { text = "here" }, repeat = "weekly",
+        })).GetProperty("id").GetInt64();
+        await Updated(bob, e => e.GetProperty("id").GetInt64() == id);
+
+        Assert.Equal("result", (await alice.RequestAsync("event.cancel", new { id, scope = "one" })).Type());
+        await Updated(bob, e => e.GetProperty("id").GetInt64() == id && e.GetProperty("status").GetString() == "cancelled");
+        var next = await Updated(bob, e => e.GetProperty("id").GetInt64() != id);
+        Assert.Equal(start + 7 * Day, next.GetProperty("startAt").GetInt64());
+        Assert.Equal(id, next.GetProperty("seriesId").GetInt64());
+
+        Assert.Equal("result", (await alice.RequestAsync("event.cancel", new { id = next.GetProperty("id").GetInt64() })).Type());
+        await Updated(bob, e => e.GetProperty("status").GetString() == "cancelled");
+        await bob.NoEventAsync("event.updated");
+        Assert.Empty((await bob.RequestAsync("event.list")).Body().GetProperty("events").EnumerateArray());
     }
 }

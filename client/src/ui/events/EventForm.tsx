@@ -4,13 +4,13 @@ import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { formatDate } from '../../i18n/format'
-import type { FileInfo, ServerEvent } from '../../core/protocol'
+import { EVENT_REPEATS, type EventRepeat, type EventScope, type FileInfo, type ServerEvent } from '../../core/protocol'
 import { uploadFile, type ServerState } from '../../state/store'
 import { createEvent, updateEvent } from '../../state/events'
-import { defaultEventStart, localZone, utcToZoned, zonedToUtc, zoneList } from '../../state/eventTime'
+import { defaultEventStart, localZone, untilEndOfDay, utcToZoned, zonedToUtc, zoneList } from '../../state/eventTime'
 import { Modal } from '../bits'
 import { Close, Volume } from '../icons'
-import { ImageIcon, MapPin } from '../forums/icons'
+import { ImageIcon, MapPin, RepeatIcon } from '../forums/icons'
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
@@ -34,23 +34,32 @@ export function EventForm({ server, event, onBack, onClose }: { server: ServerSt
   )
   const [place, setPlace] = useState(event?.location.kind === 'place' ? event.location.text : '')
   const [image, setImage] = useState<FileInfo | null>(event?.image ?? null)
+  const [repeat, setRepeat] = useState<EventRepeat>(event?.repeat ?? 'none')
+  const [untilDate, setUntilDate] = useState(event?.until != null ? utcToZoned(event.until, initialZone).date : '')
+  // Editing one occurrence of a series: this one only (it leaves the series), or the whole series (the default).
+  const [scope, setScope] = useState<EventScope>('series')
   const [uploading, setUploading] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [opened] = useState(() => Date.now())
   const fileInput = useRef<HTMLInputElement>(null)
   const zones = useMemo(() => zoneList(zone), [zone])
+  const inSeries = !!event && event.repeat !== 'none'
+  const repeats = repeat !== 'none' && !(inSeries && scope === 'one')
 
   const startAt = zonedToUtc(start.date, start.time, zone)
   const endAt = zonedToUtc(end.date, end.time, zone)
+  const until = repeats && untilDate ? untilEndOfDay(untilDate, zone) : null
   const problem = !title.trim() ? t('events.form.problems.title')
     : startAt === null || endAt === null ? t('events.form.problems.time')
       : !live && startAt < opened - 60_000 ? t('events.form.problems.future')
         : endAt <= startAt ? t('events.form.problems.endAfterStart')
           : endAt - startAt > 7 * 24 * 3_600_000 ? t('events.form.problems.tooLong')
-            : where === 'voice' && channelId === null ? t('events.form.problems.voice')
-              : where === 'place' && !place.trim() ? t('events.form.problems.place')
-                : null
+            : repeats && untilDate && (until === null || until < startAt) ? t('events.form.problems.until')
+              : repeats && until !== null && until > opened + 2 * 366 * 24 * 3_600_000 ? t('events.form.problems.untilFar')
+                : where === 'voice' && channelId === null ? t('events.form.problems.voice')
+                  : where === 'place' && !place.trim() ? t('events.form.problems.place')
+                    : null
 
   async function pickImage(file: File | undefined) {
     if (!file) return
@@ -89,11 +98,13 @@ export function EventForm({ server, event, onBack, onClose }: { server: ServerSt
       location: where === 'voice' ? { channelId: channelId! } : { text: place.trim() },
       image: image?.id ?? '',
     }
+    // One occurrence can't change how the series repeats; the server keeps the rule on the rest.
+    const rule = inSeries && scope === 'one' ? {} : { repeat, until: repeats ? until ?? 0 : 0 }
     try {
       if (event) {
-        await updateEvent(server.key, event.id, live ? { ...fields, startAt: event.startAt } : fields)
+        await updateEvent(server.key, event.id, { ...(live ? { ...fields, startAt: event.startAt } : fields), ...rule }, inSeries ? scope : 'series')
       } else {
-        await createEvent(server.key, { ...fields, image: image?.id })
+        await createEvent(server.key, { ...fields, image: image?.id, repeat, ...(repeats && until !== null ? { until } : {}) })
       }
       onBack()
     } catch (e) {
@@ -118,6 +129,20 @@ export function EventForm({ server, event, onBack, onClose }: { server: ServerSt
         </>
       }
     >
+      {inSeries && (
+        <div className="field">
+          <span>{t('events.form.scope')}</span>
+          <div className="segmented" role="radiogroup" aria-label={t('events.form.scope')}>
+            <button role="radio" aria-checked={scope === 'series'} className={scope === 'series' ? 'on' : ''} onClick={() => setScope('series')}>
+              <RepeatIcon size={16} /> {t('events.form.scopeSeries')}
+            </button>
+            <button role="radio" aria-checked={scope === 'one'} className={scope === 'one' ? 'on' : ''} onClick={() => setScope('one')}>
+              {t('events.form.scopeOne')}
+            </button>
+          </div>
+          <p className="muted event-local-hint">{scope === 'one' ? t('events.form.scopeOneHint') : t('events.form.scopeSeriesHint')}</p>
+        </div>
+      )}
       <label className="field">
         <span>{t('events.form.title')}</span>
         <input value={title} maxLength={100} autoFocus onChange={(e) => setTitle(e.target.value)} placeholder={t('events.form.titlePlaceholder')} />
@@ -151,6 +176,23 @@ export function EventForm({ server, event, onBack, onClose }: { server: ServerSt
       </label>
       {zone !== localZone() && startAt !== null && (
         <p className="muted event-local-hint">{t('events.form.yourTime', { time: formatDate(startAt, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) })}</p>
+      )}
+
+      {!(inSeries && scope === 'one') && (
+        <div className="event-repeat">
+          <label className="field">
+            <span>{t('events.form.repeat')}</span>
+            <select value={repeat} onChange={(e) => setRepeat(e.target.value as EventRepeat)}>
+              {EVENT_REPEATS.map((r) => <option key={r} value={r}>{t(`events.repeat.${r}`)}</option>)}
+            </select>
+          </label>
+          {repeat !== 'none' && (
+            <label className="field">
+              <span>{t('events.form.until')}</span>
+              <input type="date" value={untilDate} min={start.date} onChange={(e) => setUntilDate(e.target.value)} />
+            </label>
+          )}
+        </div>
       )}
 
       <div className="field">

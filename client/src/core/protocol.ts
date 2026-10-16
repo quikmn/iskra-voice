@@ -573,7 +573,18 @@ export interface ServerEvent {
   createdAt: number
   status: 'scheduled' | 'live' | 'ended' | 'cancelled'
   interested: string[]
+  repeat: EventRepeat
+  /** UTC ms: no occurrence starts after it. Null: open-ended (or no repeat). */
+  until: number | null
+  /** The first occurrence's id, shared by the whole series. Null when the event doesn't repeat. */
+  seriesId: number | null
 }
+
+export type EventRepeat = 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly'
+export const EVENT_REPEATS: readonly EventRepeat[] = ['none', 'daily', 'weekly', 'biweekly', 'monthly']
+
+/** Which part of a repeating event a change is about: this occurrence, or the whole series (the default). */
+export type EventScope = 'one' | 'series'
 
 export interface EventFields {
   title?: string
@@ -584,6 +595,9 @@ export interface EventFields {
   location?: { channelId: number } | { text: string }
   /** A file id; "" removes the cover. */
   image?: string
+  repeat?: EventRepeat
+  /** UTC ms; 0 clears it. Only with a repeat. */
+  until?: number
 }
 
 export interface Events {
@@ -609,8 +623,8 @@ export interface Requests {
   'forum.tags.set': [{ channelId: number; tags: { id?: number; name: string; emoji?: string | null }[] }, { tags: ForumTag[] }]
   'event.list': [Record<string, never>, { events: ServerEvent[] }]
   'event.create': [EventFields & Required<Pick<EventFields, 'title' | 'startAt' | 'endAt' | 'timeZone' | 'location'>>, { event: ServerEvent }]
-  'event.update': [EventFields & { id: number }, { event: ServerEvent }]
-  'event.cancel': [{ id: number }, Record<string, never>]
+  'event.update': [EventFields & { id: number; scope?: EventScope }, { event: ServerEvent }]
+  'event.cancel': [{ id: number; scope?: EventScope }, Record<string, never>]
   'event.interest': [{ id: number; on: boolean }, { event: ServerEvent }]
 }
 
