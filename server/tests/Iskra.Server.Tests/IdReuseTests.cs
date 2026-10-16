@@ -46,6 +46,20 @@ public class IdReuseTests
     }
 
     [Fact]
+    public async Task A_deleted_channels_notify_settings_go_with_it()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var store = server.World.Store;
+
+        var channel = Id(await owner.RequestAsync("channel.create", new { name = "ci" }), "channel");
+        store.SaveNotifySetting(owner.Key, new NotifySetting(channel, "all", null));
+        store.SaveNotifySetting(owner.Key, new NotifySetting(0, "none", null)); // the server-wide one stays
+        Assert.Equal("result", (await owner.RequestAsync("channel.delete", new { id = channel })).Type());
+        Assert.Equal([0L], store.NotifySettings(owner.Key).Select(s => s.ChannelId));
+    }
+
+    [Fact]
     public void Ids_stay_unused_across_a_restart()
     {
         var path = Path.Combine(Path.GetTempPath(), $"iskra-ids-{Guid.NewGuid():N}.db");

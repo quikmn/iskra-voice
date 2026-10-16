@@ -133,6 +133,20 @@ public class ProxyProtocolTests : IDisposable
         Assert.False(Features.WebhookIngress.RefuseOverPlainHttp(Request("127.0.0.1")));
     }
 
+    [Fact]
+    public void Bound_to_loopback_without_the_header_every_client_looks_local()
+    {
+        static Storage.HttpsSettings Https(string? bind, bool proxied, string mode = "files") =>
+            new() { Mode = mode, Domain = "localhost", BindAddress = bind, ProxyProtocol = proxied };
+        Assert.True(Https("127.0.0.1", false).ClientsLookLocal);
+        Assert.True(Https("::1", false).ClientsLookLocal);
+        Assert.False(Https("127.0.0.1", true).ClientsLookLocal); // the header names the client
+        Assert.False(Https("0.0.0.0", false).ClientsLookLocal);
+        Assert.False(Https("192.0.2.10", false).ClientsLookLocal);
+        Assert.False(Https(null, false).ClientsLookLocal);
+        Assert.False(Https("127.0.0.1", false, "off").ClientsLookLocal); // another warning says the setting is ignored
+    }
+
     // --- the real server ---
 
     private static int FreePort()
@@ -383,6 +397,22 @@ public class ProxyProtocolTests : IDisposable
         // A header isn't understood: it's just bytes before the TLS handshake, which then fails.
         Assert.Null(await ConnectAsync(httpsPort, V1(IPAddress.Parse("203.0.113.9")), tls: true));
         Assert.Equal(302, (await HttpAsync(await ConnectAsync(httpPort, null, tls: false), "GET", "/")).Status);
+        Assert.DoesNotContain(_log, l => l.Contains("Https.ProxyProtocol is off", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Bound_to_loopback_without_the_header_the_server_warns_and_runs()
+    {
+        var (cert, key) = Certificate();
+        int port = FreePort(), httpsPort = FreePort(), httpPort = FreePort();
+        var world = World(new { Mode = "files", Domain = "localhost", CertFile = cert, KeyFile = key, Port = httpsPort, HttpPort = httpPort, BindAddress = "127.0.0.1" }, new { Port = port });
+        var process = StartServer(world);
+        await WaitForServerAsync(process, port);
+
+        // A warning, not a refusal: a local-only setup is legitimate.
+        Assert.Equal(200, (await HttpAsync(await ConnectAsync(httpsPort, null, tls: true), "GET", "/")).Status);
+        for (var i = 0; i < 50 && !_log.Any(l => l.Contains("Https.ProxyProtocol is off", StringComparison.Ordinal)); i++) await Task.Delay(100);
+        Assert.Contains(_log, l => l.Contains("Https.BindAddress is 127.0.0.1 and Https.ProxyProtocol is off", StringComparison.Ordinal));
     }
 
     private static string? Pebble()

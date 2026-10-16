@@ -169,6 +169,30 @@ public class BugInboxTests
         Assert.Equal("result", (await owner.RequestAsync("chat.delete", new { id = message.GetProperty("id").GetInt64() })).Type());
     }
 
+    [Fact]
+    public async Task Images_are_stored_without_their_metadata_or_not_at_all()
+    {
+        using var server = new IskraServer { AcceptBugReports = true };
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var channel = await PrivateChannel(owner);
+        await TurnOn(owner, channel);
+
+        // A screenshot with a text chunk: the chunk goes, the picture stays byte for byte.
+        var tagged = ServerImageTests.Png(2, 2, ServerImageTests.Chunk("tEXt", [.. "Comment\0GPS secret"u8]));
+        using var response = await Post(server, Report(images: new[] { new { type = "image/png", data = Convert.ToBase64String(tagged) } }));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var message = (await owner.EventAsync("chat.message")).Body().GetProperty("message");
+        using var file = await server.CreateClient().GetAsync(message.GetProperty("attachments")[0].GetProperty("url").GetString());
+        var served = await file.Content.ReadAsByteArrayAsync();
+        Assert.Equal(ServerImageTests.Png(2, 2), served);
+        Assert.True(served.AsSpan().IndexOf("tEXt"u8) < 0 && served.AsSpan().IndexOf("secret"u8) < 0);
+
+        // One that can't be read whole (it ends inside a chunk) is refused, not stored as sent.
+        using var refused = await Post(server, Report(images: new[] { new { type = "image/png", data = Convert.ToBase64String(tagged[..40]) } }));
+        Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+        await owner.NoEventAsync("chat.message");
+    }
+
     [Theory]
     [InlineData("{}")]
     [InlineData("[1]")]

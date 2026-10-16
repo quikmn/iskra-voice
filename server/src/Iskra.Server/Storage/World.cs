@@ -261,6 +261,14 @@ public sealed record HttpsSettings
 
     [System.Text.Json.Serialization.JsonIgnore]
     public string DefaultUrl => $"https://{Domain}{(Port == 443 ? "" : $":{Port}")}";
+
+    /// <summary>
+    /// Bound to this machine only (as behind a proxy) but without the PROXY protocol header that says who connects:
+    /// every client looks like 127.0.0.1, so they share one rate limit and the security log has no addresses.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool ClientsLookLocal => Enabled && !ProxyProtocol
+        && BindAddress is { Length: > 0 } text && System.Net.IPAddress.TryParse(text, out var address) && System.Net.IPAddress.IsLoopback(address);
 }
 
 /// <summary>Voice runs on a LiveKit server that iskra-server starts and supervises.</summary>

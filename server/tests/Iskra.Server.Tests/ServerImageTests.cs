@@ -23,7 +23,7 @@ public class ServerImageTests
         return ~crc;
     }
 
-    private static byte[] Chunk(string type, byte[] data)
+    internal static byte[] Chunk(string type, byte[] data)
     {
         var typeBytes = Encoding.ASCII.GetBytes(type);
         var bytes = new byte[12 + data.Length];
