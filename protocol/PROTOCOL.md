@@ -285,7 +285,7 @@ A new world has no owner. On startup the server writes a single-use owner invite
 |---|---|---|---|
 | `link.preview` | `url` (http/https, no credentials) | `{ preview: { url, siteName, title, description } \| null }` | anyone |
 
-The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s, ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. IPv6 addresses that carry an IPv4 one (NAT64 `64:ff9b::/96`, 6to4 `2002::/16`, `::a.b.c.d`, `::ffff:…`) get the IPv4 rules; Teredo, local NAT64 and documentation ranges are refused. Push deliveries use the same check. No images are fetched or shown. Runs off the read loop.
+The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s for the headers and 8 s in all including the body (a page that trickles is cut off), ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. IPv6 addresses that carry an IPv4 one (NAT64 `64:ff9b::/96`, 6to4 `2002::/16`, `::a.b.c.d`, `::ffff:…`) get the IPv4 rules; Teredo, local NAT64 and documentation ranges are refused. Push deliveries use the same check. No images are fetched or shown. Runs off the read loop.
 
 ## Pins, search and threads
 
@@ -4320,7 +4320,7 @@ FeedSubscription {
   "intervalMinutes": 15, "paused": false,
   "createdBy": "<accountKey>", "createdAt": 0,
   "lastCheckAt": 0 | null, "lastOkAt": 0 | null, "lastPostAt": 0 | null, "nextCheckAt": 0,
-  "failures": 0, "lastError": null | "unreachable" | "blocked" | "http" | "not_feed" | "too_large" | "rate_limited" | "twitch_setup" | "twitch_auth",
+  "failures": 0, "lastError": null | "unreachable" | "http" | "not_feed" | "too_large" | "rate_limited" | "twitch_setup" | "twitch_auth",
   "canPing": true                         // whether the mention will notify, given the Feeds bot's own permissions
 }
 ```
@@ -4336,16 +4336,19 @@ FeedSubscription {
   (client credentials): `GET /helix/users?login=` when added (unknown: `feeds_twitch_unknown`), then `GET
   /helix/streams?user_login=`. The secret is stored in `iskra.db` and never sent to any app; credentials Twitch refuses
   are `feeds_twitch_credentials`.
-- **Adding** fetches the source once: unreachable `feeds_unreachable`, not allowed `feeds_address`, not a feed
-  `feeds_not_feed`, too big `feeds_too_large`, a bad address `feeds_url`. Everything already in it is marked as seen,
+- **Adding** fetches the source once: not reachable, refused, timed out or not allowed (a private address) are all
+  `feeds_unreachable` (one answer, so it can't be used to probe hosts or ports), not a feed `feeds_not_feed`, too big
+  `feeds_too_large`, a bad address `feeds_url` (also any port but 80, 443 or 1024 and up). Everything already in it is marked as seen,
   so nothing old is posted (a Twitch channel that's live right now is posted the next time it goes live). The same
   source twice in one channel: `feeds_duplicate`. At most 25 per server (`feeds_max`, args `{ max }`).
-- **Fields.** `channelId`: as for the other built-in bots (`builtin_bot_channel`, unknown or unreadable `not_found`);
-  the Feeds bot must be able to see it to post. `intervalMinutes`: RSS and YouTube 5–1440 (default 15), Twitch 2–60
+- **Fields.** `channelId`: as for the other built-in bots (`builtin_bot_channel`, unknown or unreadable `not_found`),
+  and one the admin can post in (`feeds_channel_send`); the Feeds bot must be able to post there too (unlike
+  Starboard's read-only board), else nothing is posted. `intervalMinutes`: RSS and YouTube 5–1440 (default 15), Twitch 2–60
   (default 3) (`feeds_interval`, args `{ min, max }`). `template` ≤ 500 characters, newlines allowed (`feeds_template`,
   args `{ max }`), with `{title}`, `{url}`, `{name}` (the feed's or channel's name); values from the feed are escaped
-  for markdown and can't mention anyone, and mentions typed into the template itself are defused (only `mention`
-  pings). `mention`: `null`, `"role"` (with `mentionRoleId`), `"everyone"` or `"here"`.
+  for markdown and get a joiner after every `@`, and the whole filled text is defused (`@everyone`, `@here`, `<@`), so
+  only `mention` pings. A placeholder right after `@`, `<` or `&` is refused (`feeds_template_placeholder`). The
+  filled text is cut to 3000 characters. `mention`: `null`, `"role"` (with `mentionRoleId`), `"everyone"` or `"here"`.
   An admin may only pick `everyone`/`here`, or a role that isn't mentionable, if they may mention everyone themselves
   (`forbidden`, key `feeds_mention_denied`); an unknown role is `not_found`. Whether it notifies then follows the
   usual rules for the Feeds bot as author ([role mentions](#roles-and-permissions), `@everyone`): `canPing` says
@@ -4356,9 +4359,11 @@ FeedSubscription {
   "twitch", "subscriptionId", "name", "title" (≤ 300, one line), "url" (http(s), ≤ 2048) | null, "mention": "everyone"
   | "here" | "role" | null, "mentionRoleId", "text": "<filled template>" | null }` (`null`: the default post, worded by
   the app). Posts push like any message from the bot. Paused subscriptions, a channel the bot can't see, an encrypted
-  channel or a timed-out bot: nothing is posted (items are still marked as seen).
+  channel or a timed-out bot: nothing is posted (items are still marked as seen). The subscription is read again after
+  the fetch: one removed meanwhile posts nothing, and changes made meanwhile (channel, mention, text) apply.
 - **Fetching.** `GET` with `If-None-Match`/`If-Modified-Since` from the last answer (304: nothing new), user agent
-  `Iskra-Feeds/1`, connect timeout 5 s, 15 s in all, at most 3 redirects. Like [link previews](#link-previews), only
+  `Iskra-Feeds/1`, connect timeout 5 s, 20 s in all for the request, its redirects and its whole body (a site that
+  trickles bytes is cut off; checks run side by side and never wait for each other's), at most 3 redirects. Like [link previews](#link-previews), only
   public addresses are reached, checked after DNS on every connection (redirects and DNS rebinding included); a
   LocalOnly server reaches only loopback addresses (for tests). Answers: an XML content type (or `text/plain`), at
   most 2 MiB; XML is read without DTDs, entities from them or any external resource. Images are never fetched (not

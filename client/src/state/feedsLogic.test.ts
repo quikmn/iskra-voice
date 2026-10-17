@@ -49,6 +49,9 @@ describe('feeds settings', () => {
     expect(fieldsProblem('twitch', fields({ intervalMinutes: 61 }))).toBe('interval')
     expect(fieldsProblem('rss', fields({ template: 'x'.repeat(501) }))).toBe('template')
     expect(fieldsProblem('rss', fields({ mention: 'role', mentionRoleId: null }))).toBe('role')
+    expect(fieldsProblem('rss', fields({ template: '@{title}' }))).toBe('placeholder')
+    expect(fieldsProblem('rss', fields({ template: 'New: <{url}>' }))).toBe('placeholder')
+    expect(fieldsProblem('rss', fields({ template: '@ {title}' }))).toBeNull()
     expect(fieldsProblem('rss', fields({ channelId: 0 }))).toBe('channel')
   })
 

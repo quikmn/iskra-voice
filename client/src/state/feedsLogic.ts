@@ -47,11 +47,12 @@ export function sourceProblem(kind: FeedKind, source: string): 'empty' | 'long' 
 }
 
 /** What's wrong with the fields (an i18n key under feeds.invalid), or null. */
-export function fieldsProblem(kind: FeedKind, fields: FeedFields): 'interval' | 'template' | 'role' | 'channel' | null {
+export function fieldsProblem(kind: FeedKind, fields: FeedFields): 'interval' | 'template' | 'placeholder' | 'role' | 'channel' | null {
   const { min, max } = FEED_INTERVALS[kind]
   if (!fields.channelId) return 'channel'
   if (!Number.isInteger(fields.intervalMinutes) || fields.intervalMinutes < min || fields.intervalMinutes > max) return 'interval'
   if (fields.template.trim().length > MAX_FEED_TEMPLATE) return 'template'
+  if (/[@<&]\{(title|name|url)\}/.test(fields.template)) return 'placeholder' // the server refuses these too
   if (fields.mention === 'role' && !fields.mentionRoleId) return 'role'
   return null
 }

@@ -34,6 +34,7 @@ public sealed partial class FeedService : BackgroundService
     private readonly ILogger<FeedService> _log;
     private readonly long _tickMs;
     private readonly ConcurrentDictionary<long, byte> _running = new();
+    private readonly ConcurrentDictionary<long, byte> _queued = new();
     private readonly SemaphoreSlim _parallel = new(4);
 
     public FeedService(World world, Hub hub, PushService push, FeedFetcher fetcher, TimeProvider time, IConfiguration config, ILogger<FeedService> log)
@@ -58,7 +59,8 @@ public sealed partial class FeedService : BackgroundService
         using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_tickMs), _time);
         try
         {
-            while (await timer.WaitForNextTickAsync(stopping)) await TickAsync(stopping);
+            // Not awaited: a slow site holds up only its own check (each has a deadline), never the next tick.
+            while (await timer.WaitForNextTickAsync(stopping)) _ = TickAsync(stopping);
         }
         catch (OperationCanceledException) { }
     }
@@ -71,12 +73,16 @@ public sealed partial class FeedService : BackgroundService
             var store = _world.Store;
             if (MoreBuiltinBots.BotIfOn(store, Id) is null) return;
             var now = Now;
-            var due = store.FeedSubscriptions().Where(f => !f.Paused && f.NextAt <= now).ToList();
+            var due = store.FeedSubscriptions().Where(f => !f.Paused && f.NextAt <= now && _queued.TryAdd(f.Id, 0)).ToList();
             await Task.WhenAll(due.Select(async f =>
             {
-                await _parallel.WaitAsync(cancel);
-                try { await CheckAsync(f.Id, manual: false, cancel); }
-                finally { _parallel.Release(); }
+                try
+                {
+                    await _parallel.WaitAsync(cancel);
+                    try { await CheckAsync(f.Id, manual: false, cancel); }
+                    finally { _parallel.Release(); }
+                }
+                finally { _queued.TryRemove(f.Id, out _); }
             }));
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not ObjectDisposedException)
@@ -156,9 +162,11 @@ public sealed partial class FeedService : BackgroundService
         new(FeedFetcher.Hash("stream:" + stream.Id), stream.Title, $"https://www.twitch.tv/{stream.Login}", stream.StartedAt);
 
     /// <summary>Posts the items not seen before (oldest first, at most 5) and marks everything in the source as seen.</summary>
-    internal void Deliver(FeedSubscription sub, List<FeedItem> items, long now)
+    internal void Deliver(FeedSubscription fetched, List<FeedItem> items, long now)
     {
         var store = _world.Store;
+        // As it is now, after the fetch: removed meanwhile means nothing at all; its current channel, mention and text.
+        if (store.GetFeedSubscription(fetched.Id) is not { } sub) return;
         var unseen = store.UnseenFeedItems(sub.Id, items.Select(i => i.Id));
         // Feeds list the newest first: oldest first is the reverse, or by date where every new item has one.
         var fresh = items.Where(i => unseen.Remove(i.Id)).Reverse().ToList();
@@ -166,7 +174,7 @@ public sealed partial class FeedService : BackgroundService
         store.MarkFeedItemsSeen(sub.Id, items.Select(i => i.Id).Distinct().Reverse(), now);
         if (fresh.Count == 0 || sub.Paused) return;
         if (MoreBuiltinBots.BotIfOn(store, Id) is not { } bot) return;
-        if (MoreBuiltinBots.PostChannel(store, bot, sub.ChannelId, now) is not { } channel) return;
+        if (MoreBuiltinBots.PostChannel(store, bot, sub.ChannelId, now) is not { } channel || !Permissions.CanSend(bot, channel)) return;
         var mention = sub.Mention is not null && (sub.LastMentionAt is not { } last || now - last >= MentionCooldownMs);
         foreach (var item in fresh.TakeLast(MaxPostsPerCheck))
         {
@@ -183,7 +191,9 @@ public sealed partial class FeedService : BackgroundService
         var store = _world.Store;
         var prefix = mention ? MentionToken(sub) : null;
         var custom = sub.Template.Length > 0;
-        var body = custom ? Fill(sub.Template, item.Title, item.Url, sub.Name) : DefaultText(sub.Kind, item.Title, item.Url, sub.Name);
+        // Mentions are defused in the whole filled text: only the subscription's own mention (checked when set) stays.
+        var body = Defuse(custom ? Fill(sub.Template, item.Title, item.Url, sub.Name) : DefaultText(sub.Kind, item.Title, item.Url, sub.Name));
+        if (body.Length > MaxPostText) body = body[..(char.IsHighSurrogate(body[MaxPostText - 2]) ? MaxPostText - 2 : MaxPostText - 1)] + "…";
         var text = prefix is null ? body : prefix + " " + body;
         var reply = MoreBuiltinBots.Reply(Id, "feed.item", bot.AccountKey, new
         {
@@ -222,19 +232,21 @@ public sealed partial class FeedService : BackgroundService
         return url is null ? line : line + "\n" + url;
     }
 
+    /// <summary>A post's text (without the mention) is cut to this, so a template can't grow it past a message.</summary>
+    public const int MaxPostText = 3000;
+
     /// <summary>
-    /// An admin's template with {title}, {url} and {name} filled in (escaped: they come from the feed). Mentions typed
-    /// into the template itself are defused: a post only mentions what <c>mention</c> says, which needs the permission.
+    /// An admin's template with {title}, {url} and {name} filled in (escaped: they come from the feed). The caller
+    /// defuses mentions in the result (<see cref="Defuse"/>), so a placeholder can't complete one either.
     /// </summary>
     public static string Fill(string template, string title, string? url, string name) =>
-        GroupMention().Replace(template, m => "@‍" + m.Groups[1].Value).Replace("<@", "<‍@", StringComparison.Ordinal)
-            .Replace("{title}", Escape(title), StringComparison.Ordinal).Replace("{name}", Escape(name), StringComparison.Ordinal)
+        template.Replace("{title}", Escape(title), StringComparison.Ordinal).Replace("{name}", Escape(name), StringComparison.Ordinal)
             .Replace("{url}", url ?? "", StringComparison.Ordinal);
 
     [GeneratedRegex(@"@(everyone|here)\b", RegexOptions.CultureInvariant)]
     private static partial Regex GroupMention();
 
-    /// <summary>Text from a feed: markdown characters escaped (so &lt;@…&gt; can't mention anyone) and @everyone/@here defused.</summary>
+    /// <summary>Text from a feed: markdown characters escaped, and a joiner after every @, so it can never mention anyone.</summary>
     public static string Escape(string text)
     {
         var sb = new StringBuilder(text.Length + 8);
@@ -242,9 +254,14 @@ public sealed partial class FeedService : BackgroundService
         {
             if (c is '\\' or '`' or '*' or '_' or '~' or '|' or '<' or '>' or '$' or '[' or ']') sb.Append('\\');
             sb.Append(c);
+            if (c == '@') sb.Append('‍'); // a joiner after every @: no @everyone, @here or <@…> from a feed
         }
-        return GroupMention().Replace(sb.ToString(), m => "@‍" + m.Groups[1].Value);
+        return sb.ToString();
     }
+
+    /// <summary>No @everyone, @here or &lt;@…&gt; (people, roles) left that could ping.</summary>
+    public static string Defuse(string text) =>
+        GroupMention().Replace(text, m => "@‍" + m.Groups[1].Value).Replace("<@", "<‍@", StringComparison.Ordinal);
 
     /// <summary>Whether this subscription's mention will notify people, given the Feeds bot's own permissions.</summary>
     public static bool CanPing(Store store, FeedSubscription sub)
@@ -314,7 +331,6 @@ public sealed partial class FeedService : BackgroundService
                 throw RequestException.BadRequest("Couldn't find that YouTube channel. Paste its channel id (it starts with UC).", "feeds_youtube_channel");
             throw e.Code switch
             {
-                "blocked" => RequestException.BadRequest("The server can't reach that address (it's on a private network).", "feeds_address"),
                 "too_large" => RequestException.BadRequest("That feed is too big (over 2 MB).", "feeds_too_large"),
                 "not_feed" => RequestException.BadRequest("That address isn't an RSS or Atom feed.", "feeds_not_feed"),
                 "twitch_auth" => RequestException.BadRequest("Twitch didn't accept the client id and secret.", "feeds_twitch_credentials"),

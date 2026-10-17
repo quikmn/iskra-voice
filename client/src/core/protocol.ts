@@ -2095,7 +2095,7 @@ export interface Requests {
 
 export type FeedKind = 'rss' | 'youtube' | 'twitch'
 export type FeedMention = 'role' | 'everyone' | 'here'
-export type FeedError = 'unreachable' | 'blocked' | 'http' | 'not_feed' | 'too_large' | 'rate_limited' | 'twitch_setup' | 'twitch_auth'
+export type FeedError = 'unreachable' | 'http' | 'not_feed' | 'too_large' | 'rate_limited' | 'twitch_setup' | 'twitch_auth'
 
 export interface FeedSubscription {
   id: number

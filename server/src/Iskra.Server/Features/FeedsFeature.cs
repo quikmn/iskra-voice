@@ -89,6 +89,7 @@ public static partial class FeedsFeature
         if (channel is null || !Permissions.CanRead(me, channel)) throw RequestException.NotFound("Channel");
         if (channel.Kind != "text" || E2eeChannelFeature.IsEncrypted(store, channel))
             throw RequestException.BadRequest("Pick a text channel that isn't encrypted.", "builtin_bot_channel");
+        if (!Permissions.CanSend(me, channel)) throw RequestException.BadRequest("Pick a channel you can post in.", "feeds_channel_send");
         return channel.Id;
     }
 
@@ -124,8 +125,12 @@ public static partial class FeedsFeature
         if (!body.Has("template")) return body.IsNull("template") ? "" : current;
         var raw = body.OptionalString("template", FeedService.MaxTemplate * 2) ?? "";
         if (raw.Trim().Length == 0) return "";
-        return Text.Normalize(raw, FeedService.MaxTemplate, allowNewlines: true)
+        var template = Text.Normalize(raw, FeedService.MaxTemplate, allowNewlines: true)
             ?? throw RequestException.BadRequest($"Keep the template to {FeedService.MaxTemplate} characters.", "feeds_template", new { max = FeedService.MaxTemplate });
+        // "@{title}" or "<{title}>" would let the feed finish a mention (they're defused anyway; this says why).
+        if (PlaceholderAfterMention().IsMatch(template))
+            throw RequestException.BadRequest("Put a space between @ or < and a placeholder.", "feeds_template_placeholder");
+        return template;
     }
 
     private static int Interval(Body body, string kind, int current)
@@ -229,6 +234,9 @@ public static partial class FeedsFeature
         await Service(s).CheckAsync(sub.Id, manual: true, CancellationToken.None);
         return new { subscription = View(store, store.GetFeedSubscription(sub.Id) ?? sub) };
     }
+
+    [GeneratedRegex(@"[@<&]\{(title|name|url)\}", RegexOptions.CultureInvariant)]
+    private static partial Regex PlaceholderAfterMention();
 
     [GeneratedRegex(@"^[A-Za-z0-9]{8,64}$", RegexOptions.CultureInvariant)]
     private static partial Regex TwitchCredential();

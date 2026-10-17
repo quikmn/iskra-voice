@@ -6,6 +6,7 @@ using System.Text.Json;
 using Iskra.Server.Features;
 using Iskra.Server.Storage;
 using Iskra.Server.Tests.Support;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Iskra.Server.Tests;
@@ -97,9 +98,9 @@ public class FeedTests
 
     // ── Server helpers ───────────────────────────────────────────────────────
 
-    private static IskraServer Server(Site? site = null, bool loopback = true)
+    private static IskraServer Server(Site? site = null, bool loopback = true, int deadlineMs = 20_000)
     {
-        var settings = new Dictionary<string, string> { ["Feeds:TickMs"] = "0", ["Feeds:AllowLoopbackForTests"] = loopback.ToString() };
+        var settings = new Dictionary<string, string> { ["Feeds:TickMs"] = "0", ["Feeds:AllowLoopbackForTests"] = loopback.ToString(), ["Feeds:DeadlineMs"] = deadlineMs.ToString() };
         if (site is not null)
         {
             settings["Feeds:YouTubeUrl"] = site.Url;
@@ -214,7 +215,7 @@ public class FeedTests
         await Feeds(server).CheckAsync(id, manual: false);
         var post = Assert.Single(Posts(server, server.General, bot));
         Assert.Contains(@"\*star\*", post.Text);
-        Assert.Contains(@"\<@AAAA", post.Text); // escaped: no mention token
+        Assert.Contains(@"\<@‍AAAA", post.Text); // escaped: no mention token
         Assert.Contains("@‍everyone", post.Text);
         Assert.Contains("https://blog.example/3", post.Text);
         var builtin = Builtin(server, post);
@@ -397,7 +398,7 @@ public class FeedTests
         {
             await TurnOn(admin);
             foreach (var url in new[] { site.Url + "/feed", "http://10.1.2.3/feed", "http://169.254.169.254/latest/meta-data/", "http://[::1]/feed", "http://[fd00::1]/feed", "http://0.0.0.0/feed" })
-                Assert.Equal("feeds_address", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = url, channelId = server.General })));
+                Assert.Equal("feeds_unreachable", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = url, channelId = server.General })));
             Assert.Empty(site.Hits);
         }
         // Loopback allowed (tests): a redirect to a private or metadata address is still refused, on the new connection.
@@ -405,8 +406,8 @@ public class FeedTests
         using (var admin = await server.JoinAsync("Admin", "admin"))
         {
             await TurnOn(admin);
-            Assert.Equal("feeds_address", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = site.Url + "/go", channelId = server.General })));
-            Assert.Equal("feeds_address", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = site.Url + "/meta", channelId = server.General })));
+            Assert.Equal("feeds_unreachable", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = site.Url + "/go", channelId = server.General })));
+            Assert.Equal("feeds_unreachable", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = site.Url + "/meta", channelId = server.General })));
         }
     }
 
@@ -466,7 +467,7 @@ public class FeedTests
         }
         using var fetcher = new FeedFetcher(localOnly: false, allowLoopback: true, Resolve, TimeProvider.System);
         var blocked = await Assert.ThrowsAsync<FeedException>(() => fetcher.GetAsync(new Uri($"http://rebind.test:{port}/feed"), null, null, CancellationToken.None));
-        Assert.Equal("blocked", blocked.Code);
+        Assert.Equal("unreachable", blocked.Code); // the same answer as a host that is down
         // Only allowed addresses are tried: the private one is skipped.
         var ok = await fetcher.GetAsync(new Uri($"http://mixed.test:{port}/feed"), null, null, CancellationToken.None);
         Assert.Equal("Rebound", FeedFetcher.Parse(ok.Body)!.Title);
@@ -669,7 +670,7 @@ public class FeedTests
         rejectNext = true;
         await Feeds(server).CheckAsync(id, manual: false);
         var post = Assert.Single(Posts(server, server.General, bot));
-        Assert.StartsWith("🔴 Streamer is live: **Blitz \\<@&1\\> @‍here**", post.Text);
+        Assert.StartsWith("🔴 Streamer is live: **Blitz \\<@‍&1\\> @‍here**", post.Text);
         Assert.EndsWith("https://www.twitch.tv/streamer", post.Text);
         Assert.Equal("twitch", Builtin(server, post).GetProperty("source").GetString());
         await Feeds(server).CheckAsync(id, manual: false);
@@ -741,11 +742,183 @@ public class FeedTests
         Assert.Equal("A & B", FeedFetcher.Clean("A &amp; B", 100));
         Assert.Equal("abcd…", FeedFetcher.Clean("abcdefgh", 5));
         Assert.Null(FeedFetcher.Clean("  ", 10));
-        Assert.Equal(@"\*bold\* \_x\_ \[link\](y) \<@abc\> @‍everyone", FeedService.Escape("*bold* _x_ [link](y) <@abc> @everyone"));
+        Assert.Equal(@"\*bold\* \_x\_ \[link\](y) \<@‍abc\> @‍everyone a@‍b.c", FeedService.Escape("*bold* _x_ [link](y) <@abc> @everyone a@b.c"));
         Assert.Null(FeedFetcher.LinkOf("javascript:alert(1)"));
         Assert.Null(FeedFetcher.LinkOf("/relative"));
         Assert.Equal("https://ok.example/a?b=c", FeedFetcher.LinkOf("https://ok.example/a?b=c"));
         Assert.Equal("streamer", FeedFetcher.ParseTwitch("twitch.tv/Streamer"));
         Assert.Null(FeedFetcher.ParseTwitch("https://evil.example/streamer"));
+    }
+
+    // ── Security review fixes ────────────────────────────────────────────────
+
+    /// <summary>A local server that sends headers and a few bytes, then nothing (until the test ends).</summary>
+    internal sealed class Trickle : IDisposable
+    {
+        private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
+        private readonly CancellationTokenSource _stop = new();
+        public int Port { get; }
+
+        public Trickle(string type = "application/rss+xml")
+        {
+            _listener.Start();
+            Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
+            _ = Task.Run(async () =>
+            {
+                while (!_stop.IsCancellationRequested)
+                {
+                    TcpClient client;
+                    try { client = await _listener.AcceptTcpClientAsync(_stop.Token); } catch (Exception) { return; }
+                    _ = Task.Run(async () =>
+                    {
+                        using (client)
+                        {
+                            try
+                            {
+                                var stream = client.GetStream();
+                                _ = await stream.ReadAsync(new byte[4096], _stop.Token);
+                                await stream.WriteAsync(Encoding.ASCII.GetBytes($"HTTP/1.1 200 OK\r\nContent-Type: {type}\r\nContent-Length: 100000\r\n\r\n<rss"), _stop.Token);
+                                await Task.Delay(Timeout.Infinite, _stop.Token);
+                            }
+                            catch (Exception) { }
+                        }
+                    });
+                }
+            });
+        }
+
+        public void Dispose()
+        {
+            _stop.Cancel();
+            _listener.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task A_site_that_stalls_after_its_headers_is_cut_off_and_holds_up_no_other_feed()
+    {
+        using var trickle = new Trickle();
+        using var fetcher = new FeedFetcher(localOnly: false, allowLoopback: true, null, TimeProvider.System, deadline: TimeSpan.FromSeconds(1));
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var stalled = await Assert.ThrowsAsync<FeedException>(() => fetcher.GetAsync(new Uri($"http://127.0.0.1:{trickle.Port}/feed"), null, null, CancellationToken.None));
+        Assert.Equal("unreachable", stalled.Code);
+        Assert.InRange(watch.Elapsed.TotalSeconds, 0.5, 10);
+
+        // Through the server: the stalled feed gets its deadline, the other one is checked and posts.
+        using var site = new Site();
+        var items = new List<(string, string)> { ("a", "A") };
+        site.Handle = c => Reply(c, 200, "application/rss+xml", Rss("Fine", [.. items]));
+        using var server = Server(site, deadlineMs: 1500);
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var bot = await TurnOn(admin);
+        var fine = (await Add(admin, new { kind = "rss", source = site.Url + "/feed", channelId = server.General })).GetProperty("id").GetInt64();
+        var template = server.World.Store.GetFeedSubscription(fine)!;
+        var slow = server.World.Store.AddFeedSubscription(template with { Source = $"http://127.0.0.1:{trickle.Port}/feed" }, [], 0).Id;
+        Due(server, fine);
+        Due(server, slow);
+        items.Insert(0, ("b", "B"));
+        watch.Restart();
+        await Feeds(server).TickAsync();
+        Assert.InRange(watch.Elapsed.TotalSeconds, 0, 15);
+        Assert.Single(Posts(server, server.General, bot));
+        Assert.Equal("unreachable", server.World.Store.GetFeedSubscription(slow)!.LastError);
+    }
+
+    [Fact]
+    public async Task Link_previews_of_a_page_that_stalls_after_its_headers_give_up()
+    {
+        using var trickle = new Trickle("text/html");
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Previews:AllowLoopbackForTests"] = "true",
+            ["Previews:DeadlineMs"] = "1000",
+        }).Build();
+        using var previews = new LinkPreviews(config, TimeProvider.System);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        Assert.Null(await previews.GetAsync($"http://127.0.0.1:{trickle.Port}/page", CancellationToken.None));
+        Assert.InRange(watch.Elapsed.TotalSeconds, 0.5, 10);
+    }
+
+    [Fact]
+    public async Task Placeholders_can_never_finish_a_mention()
+    {
+        using var site = new Site();
+        var items = new List<(string, string)> { ("a", "A") };
+        site.Handle = c => Reply(c, 200, "application/rss+xml", Rss("everyone", [.. items]));
+        using var server = Server(site);
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var bot = await TurnOn(owner);
+        var role = (await owner.RequestAsync("role.create", new { name = "Raiders" })).Body().GetProperty("role").GetProperty("id").GetInt64();
+        foreach (var template in new[] { "@{title}", "<{title}>", "<@&{title}>", "hi @{name}" })
+            Assert.Equal("feeds_template_placeholder", ErrorKey(await owner.RequestAsync("feeds.add", new { kind = "rss", source = site.Url + "/feed", channelId = server.General, template })));
+
+        // Even if such a template got in (an older server, a direct database edit), the finished post can't ping.
+        var id = (await Add(owner, new { kind = "rss", source = site.Url + "/feed", channelId = server.General })).GetProperty("id").GetInt64();
+        server.World.Store.UpdateFeedSettings(id, server.General, null, null, "@{name} <{title}> <@&{url}", 15, false);
+        items.Insert(0, ($"{role}", $"@&{role}"));
+        await Feeds(server).CheckAsync(id, manual: false);
+        var text = Assert.Single(Posts(server, server.General, bot)).Text;
+        Assert.False(text.Contains("@everyone", StringComparison.Ordinal), text);
+        Assert.False(text.Contains("<@&", StringComparison.Ordinal), text);
+        Assert.False(text.Contains("<@", StringComparison.Ordinal), text);
+
+        // Repeating {url} can't grow a post past a message: it's cut, not collapsed to "…".
+        server.World.Store.UpdateFeedSettings(id, server.General, null, null, string.Concat(Enumerable.Repeat("{url} ", 80)), 15, false);
+        items.Insert(0, ("long", "Long " + new string('x', 10)));
+        site.Handle = c => Reply(c, 200, "application/rss+xml", Rss("Blog", [.. items]).Replace("https://blog.example/long", "https://blog.example/" + new string('l', 1500)));
+        await Feeds(server).CheckAsync(id, manual: false);
+        var cut = Posts(server, server.General, bot).Last().Text;
+        Assert.InRange(cut.Length, 1000, FeedService.MaxPostText);
+        Assert.EndsWith("…", cut);
+    }
+
+    [Fact]
+    public async Task Feeds_post_only_where_the_bot_may_write_and_follow_changes_made_during_a_check()
+    {
+        using var site = new Site();
+        var items = new List<(string, string)> { ("a", "A") };
+        site.Handle = c => Reply(c, 200, "application/rss+xml", Rss("Blog", [.. items]));
+        using var server = Server(site);
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var bot = await TurnOn(admin);
+        var announce = (await admin.RequestAsync("channel.create", new { name = "announce", readRole = "member", writeRole = "admin" })).Body().GetProperty("channel").GetProperty("id").GetInt64();
+        var id = (await Add(admin, new { kind = "rss", source = site.Url + "/feed", channelId = announce })).GetProperty("id").GetInt64();
+        items.Insert(0, ("b", "B"));
+        await Feeds(server).CheckAsync(id, manual: false);
+        Assert.Empty(Posts(server, announce, bot)); // members can't write there, and the bot is a member
+
+        // Changed while the fetch ran: the delivery uses the subscription as it is now.
+        var stale = server.World.Store.GetFeedSubscription(id)!;
+        await admin.RequestAsync("feeds.update", new { id, channelId = server.General, paused = true });
+        Feeds(server).Deliver(stale, [new FeedItem(FeedFetcher.Hash("c"), "C", null, null)], 1);
+        Assert.Empty(Posts(server, server.General, bot)); // paused now
+        await admin.RequestAsync("feeds.update", new { id, paused = false });
+        Feeds(server).Deliver(stale, [new FeedItem(FeedFetcher.Hash("d"), "D", null, null)], 1);
+        Assert.Single(Posts(server, server.General, bot)); // its new channel, not the stale one
+        await admin.RequestAsync("feeds.remove", new { id });
+        Feeds(server).Deliver(stale, [new FeedItem(FeedFetcher.Hash("e"), "E", null, null)], 1);
+        Assert.Single(Posts(server, server.General, bot)); // removed: nothing
+    }
+
+    [Fact]
+    public async Task Only_web_ports_and_one_answer_for_anything_unreachable()
+    {
+        Assert.Null(FeedFetcher.CheckUrl("http://example.com:25/feed"));
+        Assert.Null(FeedFetcher.CheckUrl("https://example.com:22/feed"));
+        Assert.NotNull(FeedFetcher.CheckUrl("https://example.com/feed"));
+        Assert.NotNull(FeedFetcher.CheckUrl("http://example.com:8080/feed"));
+        using var site = new Site();
+        site.Handle = c => Reply(c, 302, "text/plain", "", ("Location", "http://127.0.0.1:25/feed.xml"));
+        using var server = Server(site);
+        using var admin = await server.JoinAsync("Admin", "admin");
+        await TurnOn(admin);
+        Assert.Equal("feeds_url", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = "http://127.0.0.1:22/feed", channelId = server.General })));
+        // A redirect to a closed port, to a refused port and to a private address all read the same.
+        Assert.Equal("feeds_unreachable", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = site.Url + "/go", channelId = server.General })));
+        var closed = new TcpListener(IPAddress.Loopback, 0);
+        closed.Start();
+        var port = ((IPEndPoint)closed.LocalEndpoint).Port;
+        closed.Stop();
+        Assert.Equal("feeds_unreachable", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = $"http://127.0.0.1:{port}/feed", channelId = server.General })));
     }
 }

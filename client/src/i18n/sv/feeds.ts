@@ -54,7 +54,6 @@ export const feeds: Messages['feeds'] = {
     lastPost: 'senaste inlägg {{when}}',
     error: {
       unreachable: 'sajten svarade inte',
-      blocked: 'den ligger på ett privat nätverk',
       http: 'sajten svarade med ett fel',
       not_feed: 'det är inte längre ett flöde',
       too_large: 'det är för stort',
@@ -71,6 +70,7 @@ export const feeds: Messages['feeds'] = {
       interval: 'Välj mellan {{min}} och {{max}} minuter.',
       template: 'Håll inläggets text under {{max}} tecken.',
       role: 'Välj en roll.',
+      placeholder: 'Sätt ett mellanslag mellan @ eller < och en platshållare.',
       channel: 'Välj en kanal.',
     },
     twitch: {

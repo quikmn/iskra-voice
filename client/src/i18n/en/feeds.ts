@@ -53,7 +53,6 @@ export const feeds = {
     lastPost: 'last post {{when}}',
     error: {
       unreachable: "the site didn't answer",
-      blocked: "it's on a private network",
       http: 'the site answered with an error',
       not_feed: "it isn't a feed any more",
       too_large: "it's too big",
@@ -70,6 +69,7 @@ export const feeds = {
       interval: 'Check every {{min}}–{{max}} minutes.',
       template: 'Keep the post text to {{max}} characters.',
       role: 'Pick a role.',
+      placeholder: 'Put a space between @ or < and a placeholder.',
       channel: 'Pick a channel.',
     },
     twitch: {

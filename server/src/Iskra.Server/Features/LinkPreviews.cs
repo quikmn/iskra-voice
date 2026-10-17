@@ -22,10 +22,13 @@ public sealed partial class LinkPreviews : IDisposable
     private readonly HttpClient _http;
     private readonly ConcurrentDictionary<string, (DateTimeOffset At, LinkPreview? Preview)> _cache = new();
     private readonly TimeProvider _time;
+    private readonly TimeSpan _deadline;
 
     public LinkPreviews(IConfiguration config, TimeProvider time)
     {
         _time = time;
+        // The request and its whole body: HttpClient.Timeout stops at the headers, so a page that trickles would never end.
+        _deadline = TimeSpan.FromMilliseconds(config.GetValue("Previews:DeadlineMs", 8_000));
         var allowLoopback = config.GetValue<bool>("Previews:AllowLoopbackForTests");
         var handler = new SocketsHttpHandler
         {
@@ -115,18 +118,20 @@ public sealed partial class LinkPreviews : IDisposable
             return cached.Preview;
 
         LinkPreview? preview = null;
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+        deadline.CancelAfter(_deadline);
         try
         {
-            using var response = await _http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancel);
+            using var response = await _http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
             if (response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType is "text/html" or "application/xhtml+xml")
             {
-                await using var stream = await response.Content.ReadAsStreamAsync(cancel);
+                await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token);
                 var buffer = new byte[MaxBytes];
-                var read = await stream.ReadAtLeastAsync(buffer, MaxBytes, throwOnEndOfStream: false, cancel);
+                var read = await stream.ReadAtLeastAsync(buffer, MaxBytes, throwOnEndOfStream: false, deadline.Token);
                 preview = Parse(response.RequestMessage?.RequestUri?.AbsoluteUri ?? uri.AbsoluteUri, Encoding.UTF8.GetString(buffer, 0, read));
             }
         }
-        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or IOException or SocketException) { }
+        catch (Exception e) when (e is HttpRequestException or OperationCanceledException or IOException or SocketException && !cancel.IsCancellationRequested) { }
 
         if (_cache.Count > 1000) _cache.Clear();
         _cache[uri.AbsoluteUri] = (_time.GetUtcNow(), preview);

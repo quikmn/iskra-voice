@@ -55,17 +55,22 @@ public sealed partial class FeedFetcher : IDisposable
     public string TwitchAuthBase { get; }
     public string TwitchApiBase { get; }
 
+    /// <summary>One request, its redirects and its whole body together: a site that trickles bytes is cut off.</summary>
+    public TimeSpan Deadline { get; }
+
     public FeedFetcher(IConfiguration config, World world, TimeProvider time)
         : this(world.Settings.LocalOnly, config.GetValue<bool>("Feeds:AllowLoopbackForTests"), null, time,
-            config["Feeds:YouTubeUrl"], config["Feeds:TwitchAuthUrl"], config["Feeds:TwitchApiUrl"])
+            config["Feeds:YouTubeUrl"], config["Feeds:TwitchAuthUrl"], config["Feeds:TwitchApiUrl"],
+            TimeSpan.FromMilliseconds(config.GetValue("Feeds:DeadlineMs", 20_000)))
     {
     }
 
     /// <param name="resolve">DNS lookup (tests hand in their own).</param>
     public FeedFetcher(bool localOnly, bool allowLoopback, Func<string, CancellationToken, Task<IPAddress[]>>? resolve, TimeProvider time,
-        string? youTube = null, string? twitchAuth = null, string? twitchApi = null)
+        string? youTube = null, string? twitchAuth = null, string? twitchApi = null, TimeSpan? deadline = null)
     {
         _time = time;
+        Deadline = deadline ?? TimeSpan.FromSeconds(20);
         YouTubeBase = (youTube ?? "https://www.youtube.com").TrimEnd('/');
         TwitchAuthBase = (twitchAuth ?? "https://id.twitch.tv").TrimEnd('/');
         TwitchApiBase = (twitchApi ?? "https://api.twitch.tv").TrimEnd('/');
@@ -100,6 +105,7 @@ public sealed partial class FeedFetcher : IDisposable
         Func<string, CancellationToken, Task<IPAddress[]>> resolve) =>
         async (context, cancel) =>
         {
+            if (!AllowedPort(context.DnsEndPoint.Port)) throw new FeedAddressException(); // redirects too
             var host = context.DnsEndPoint.Host;
             var addresses = IPAddress.TryParse(host.Trim('[', ']'), out var literal) ? [literal] : await resolve(host, cancel);
             // The address checked is the address connected to: a second lookup can't swap in a private one.
@@ -128,9 +134,12 @@ public sealed partial class FeedFetcher : IDisposable
     {
         url = url.Trim();
         if (url.Length > 512 || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")
-            || uri.Host.Length == 0 || !string.IsNullOrEmpty(uri.UserInfo)) return null;
+            || uri.Host.Length == 0 || !string.IsNullOrEmpty(uri.UserInfo) || !AllowedPort(uri.Port)) return null;
         return uri;
     }
+
+    /// <summary>The web's ports, 80 and 443, or any from 1024 up: not mail, SSH or other services' well-known ports.</summary>
+    public static bool AllowedPort(int port) => port is 80 or 443 || port is >= 1024 and <= 65535;
 
     // ── Fetching ─────────────────────────────────────────────────────────────
 
@@ -149,25 +158,28 @@ public sealed partial class FeedFetcher : IDisposable
     private async Task<FeedResponse> SendAsync(HttpRequestMessage request, CancellationToken cancel)
     {
         using var _ = request;
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+        deadline.CancelAfter(Deadline);
         try
         {
-            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancel);
+            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
             var final = response.RequestMessage?.RequestUri ?? request.RequestUri!;
             if (response.StatusCode == HttpStatusCode.NotModified) return new FeedResponse(true, [], null, null, null, final);
             if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
                 throw new FeedException("rate_limited", RetryAfter(response), (int)response.StatusCode);
             if (!response.IsSuccessStatusCode) throw new FeedException("http", RetryAfter(response), (int)response.StatusCode);
             if (response.Content.Headers.ContentLength > MaxBytes) throw new FeedException("too_large");
-            await using var stream = await response.Content.ReadAsStreamAsync(cancel);
+            await using var stream = await response.Content.ReadAsStreamAsync(deadline.Token);
             var buffer = new byte[MaxBytes + 1];
-            var read = await stream.ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, cancel);
+            var read = await stream.ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, deadline.Token);
             if (read > MaxBytes) throw new FeedException("too_large");
             return new FeedResponse(false, buffer[..read], response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant(),
                 response.Headers.ETag?.ToString(), response.Content.Headers.LastModified?.ToString("R", CultureInfo.InvariantCulture), final);
         }
         catch (FeedException) { throw; }
-        catch (Exception ex) when (Blocked(ex)) { throw new FeedException("blocked"); }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or SocketException or InvalidOperationException)
+        // Not allowed, refused, timed out: one answer, so the server can't be used to probe hosts and ports.
+        catch (Exception ex) when (Blocked(ex) && !cancel.IsCancellationRequested) { throw new FeedException("unreachable"); }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException or SocketException or InvalidOperationException)
         {
             if (cancel.IsCancellationRequested) throw;
             throw new FeedException("unreachable");
