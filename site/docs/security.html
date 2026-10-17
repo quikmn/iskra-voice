@@ -459,6 +459,9 @@ activities are off in end-to-end encrypted voice channels.</li>
 <li>
 <p>Servers you create in the app run on your computer and only open ports to the internet when you switch on <strong>Let friends anywhere join</strong>.</p>
 </li>
+<li>
+<p><strong>Bots on this PC</strong> (My settings) run as separate programs with your rights, not inside the app's page: gallery bots ship with the app (so they update with it and nothing is downloaded at run time) and run with the app's own Node.js; a bot from a folder runs that folder's code, so the app asks you to confirm you trust it first. Bots only connect out to their server (nothing listens on a port); the page can only name a gallery bot or have you pick a folder in the app's own dialog, and bot invite links are kept in memory only until the bot has joined.</p>
+</li>
 </ul>
 <h2 id="found-a-problem">Found a problem?<a class="anchor" href="#found-a-problem" aria-hidden="true" tabindex="-1">#</a></h2>
 <p>How this maps to SOC 2, ISO/IEC 27001, the GDPR and OWASP ASVS, with the policies and evidence: <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/compliance/README.md" target="_blank" rel="noopener">docs/compliance</a>.</p>

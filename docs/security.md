@@ -313,6 +313,7 @@ The desktop app is the same web app in a locked-down shell: sandboxed, no Node.j
 - **Windows:** every executable we ship is code-signed (Open Source Developer Viktor Lundgren, issued by Certum) and timestamped, so you can check it came from us and wasn't changed. The installer only installs updates signed with that same certificate.
 - **macOS and Linux:** the macOS app is signed with a Developer ID and notarized by Apple; the Linux packages aren't signed. Every release has `SHA256SUMS.txt` and build-provenance attestations (`gh attestation verify <file> -R quikmn/iskra-voice`). Download only from the GitHub releases page.
 - Servers you create in the app run on your computer and only open ports to the internet when you switch on **Let friends anywhere join**.
+- **Bots on this PC** (My settings) run as separate programs with your rights, not inside the app's page: gallery bots ship with the app (so they update with it and nothing is downloaded at run time) and run with the app's own Node.js; a bot from a folder runs that folder's code, so the app asks you to confirm you trust it first. Bots only connect out to their server (nothing listens on a port); the page can only name a gallery bot or have you pick a folder in the app's own dialog, and bot invite links are kept in memory only until the bot has joined.
 
 ## Found a problem?
 

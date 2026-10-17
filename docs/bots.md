@@ -282,12 +282,44 @@ The bot saves its keys and the server's address in `greeter.bot.json`, so from n
 |---|---|---|
 | **Dice** ([`examples/dice.ts`](../bots/examples/dice.ts)) | `npm run dice` | `/roll 2d6` (answers with a card and a **Roll again** button; `/roll d20 yes` answers only you), `/coin`, `/pick pizza, tacos`, `/echo`; commands with options; a button handler; reacting to "good bot" when mentioned; welcoming new members; answering in DMs |
 | **Music** ([`examples/music.ts`](../bots/examples/music.ts)) | `npm run music` | A [voice bot](#voice-bots) for the songs people upload: attach audio to a message that mentions @Music (or send it in a DM) and it joins your voice channel and plays it; `/play <link to a file on this server>`, a queue (`/queue`, `/remove`, `/clear`), `/pause`, `/resume`, `/skip`, `/stop`, `/volume`; a "Now playing" card with buttons; admins choose who controls it (`/music-control`) |
-| **Jukebox** ([`examples/jukebox.ts`](../bots/examples/jukebox.ts)) | `npm run jukebox` | A [voice bot](#voice-bots): `/play [song]` joins your voice channel and plays the files in a folder (and radio streams you list), `/skip`, `/stop`, `/songs`; a "Now playing" card with **Pause**, **Skip** and **Stop** buttons that it keeps up to date |
+| **Jukebox** ([`gallery/jukebox`](../bots/gallery/jukebox)) | `npm run jukebox` | A [voice bot](#voice-bots): `/play [song]` joins your voice channel and plays the files in a folder (and radio streams you list), `/skip`, `/stop`, `/songs`; a "Now playing" card with **Pause**, **Skip** and **Stop** buttons that it keeps up to date |
 | **Planner** ([`examples/planner.ts`](../bots/examples/planner.ts)) | `npm run planner` | `/poll Pizza or tacos? \| Pizza \| Tacos` (posts the result and a CSV file when it closes), `/remind 10m stretch`, `/event 2h Game night`, `/events` (a card); usage hints, edits, files, polls, events, an activity, and keeping state across restarts |
 | **Dice in Python** ([`python/examples/dice.py`](../bots/python/examples/dice.py)) | `python examples/dice.py` (in `bots/python`) | The Dice bot with the [Python SDK](#python) |
 | **Roll, any language** ([`roll.py`](../bots/examples/bridge/roll.py), [`Roll.cs`](../bots/examples/bridge/Roll.cs)) | `npm run bridge -- --name Roll -- python examples/bridge/roll.py` | A bot without any SDK, through [the bridge](#other-languages) |
 
 Start either one the first time with `ISKRA_INVITE='<bot invite link>' npm run planner` (PowerShell: `$env:ISKRA_INVITE='<link>'; npm run planner`). Each needs its own bot invite.
+
+### Gallery
+
+The [bot gallery](../bots/gallery) has ready-made bots to run as they are or copy and change. Each is a small folder
+with a README (what it does, its commands, settings and what it keeps), tests and its own `package.json`, so a copy
+works on its own with the SDK from npm (`npm install`, then `npm start`; Node runs the TypeScript directly).
+
+| Bot | What it does |
+|---|---|
+| **Trivia** ([`gallery/trivia`](../bots/gallery/trivia)) | `/trivia start`: questions with answer buttons (or answered by replying), points for the week and a results card every Monday. No levels, XP or all-time ranks. Your own question file works too. |
+| **Feeds Plus** ([`gallery/feeds-advanced`](../bots/gallery/feeds-advanced)) | Adds to the built-in [Feeds](#built-in-bots) bot: RSS, Atom and YouTube feeds with include and exclude keywords, and Twitch "went live" alerts in a channel or as a DM to each person who `/twitch follow`s a streamer, with your own Twitch app. It only fetches addresses on the internet, never your own network. |
+| **Server stats** ([`gallery/server-stats`](../bots/gallery/server-stats)) | A weekly card: members, new people, messages per channel. Counts only: never who wrote what. Needs **Can read all messages** for the full count. |
+| **Jukebox** ([`gallery/jukebox`](../bots/gallery/jukebox)) | Your music folder and radio stations in a voice channel (see [Voice bots](#voice-bots)). |
+| **Starter** ([`gallery/starter`](../bots/gallery/starter)) | A template for your own bot: commands, a card with a button, tests and a GitHub Actions workflow. Also [in Python](../bots/gallery/starter-python). |
+
+From this repository, in `bots/`: `ISKRA_INVITE='<bot invite link>' npm run trivia` the first time, then `npm run trivia`
+(likewise `feeds-advanced`, `server-stats`, `jukebox` and `starter`). Their tests run with `npm test`.
+
+#### Bots on this PC (desktop app)
+
+No Node.js needed: the desktop app runs gallery bots itself. In **My settings → Bots on this PC**, add one from the
+list (Starter, Trivia, Feeds Plus and Server stats come with the app and update with it), press **Start**, and either
+let the app make a bot invite on a server where you're an admin (with the rights that bot needs) or paste one. The app
+starts it with its own built-in Node.js, shows whether it's online, its last log lines and its settings (like the
+Twitch keys), and can start it with Iskra. Bots run while the app is open (also in the tray), connect out to their
+server like the app does, and nothing listens on a port.
+
+**Run a bot from a folder** runs your own bot or a copy from the gallery: a folder with a `package.json` "main", a
+`bot.js`/`bot.ts`, or a `bot.py` (with the Python installed on your computer). Only run bots you trust: a bot runs
+with your rights on your computer and can read and change your files. A bot's keys and data stay in the app's folder
+for it (gallery bots) or in its own folder; the bot invite link is only used to join and never saved. Removing a
+gallery bot deletes its keys there; it stays a member of the server until an admin removes it.
 
 ### The SDK
 
