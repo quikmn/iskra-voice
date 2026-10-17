@@ -92,7 +92,7 @@ test('the tray’s "Check for updates" and About show inside the app, never as n
     await expect(settings.getByText(`Desktop app: Electron ${ELECTRON_VERSION}`)).toBeVisible()
     await expect(settings.getByText('PolyForm Noncommercial License')).toBeVisible()
     await expect(settings.getByRole('link', { name: 'Website' })).toHaveAttribute('href', 'https://iskra.foo')
-    await expect(settings.getByRole('link', { name: 'License', exact: true })).toHaveAttribute('href', /\/LICENSE$/)
+    await expect(settings.getByRole('link', { name: 'License', exact: true })).toHaveAttribute('href', 'https://iskra.foo/license')
     await expect(settings.getByRole('button', { name: 'Open source licenses' })).toBeVisible()
     await page.screenshot({ path: join(SHOTS, 'desktop-about.png'), animations: 'disabled' })
     await page.keyboard.press('Escape')
