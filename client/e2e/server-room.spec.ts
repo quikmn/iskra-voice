@@ -11,7 +11,7 @@ const MINE = ['Profile', 'Appearance', 'Language', 'Devices', 'Recovery key', 'A
 const SERVER_SECTIONS = [
   'Overview', 'Channels', 'Voice', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Onboarding', 'Translation',
   'Members', 'Roles', 'Reports', 'AutoMod', 'Activity log', 'Sign-ins & security',
-  'Bots & webhooks',
+  'Bots & webhooks', 'Activities',
   'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates',
 ]
 
