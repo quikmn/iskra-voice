@@ -312,6 +312,7 @@ public sealed class VoiceRegistry
         Stages.Sync(channelId);
         Watch.Sync(channelId);
         Whisper.Sync();
+        Features.RoomFeature.Sync(world.Store, hub, this, channelId);
     }
 
     /// <summary>Handles a verified LiveKit webhook body.</summary>
@@ -344,13 +345,16 @@ public sealed class VoiceRegistry
         {
             case "participant_joined" when identity is not null:
                 // A token only works for members who could read the channel when it was issued; re-check anyway.
+                // (Nobody stays in a lobby: joining one hands out a token for a room of your own instead.)
                 var member = world.Store.GetMember(identity);
                 var channel = world.Store.GetChannel(channelId);
                 if (member is null || channel is null || !Permissions.CanConnect(member, channel)
                     || !Features.VoiceBotFeature.MayBeIn(world.Store, member, channel)
                     || Features.ModerationFeature.IsTimedOut(world.Store, identity, now)
                     || Features.RulesFeature.MustAgree(world.Store, member)
-                    || !Features.VoiceLimitFeature.HasRoom(world.Store, this, member, channel, now))
+                    || !Features.VoiceLimitFeature.HasRoom(world.Store, this, member, channel, now)
+                    || Features.RoomFeature.IsLobby(world.Store, channelId)
+                    || !Features.RoomFeature.MayEnter(world.Store, this, member, channel, now))
                 {
                     _ = backend.RemoveParticipantAsync(room!, identity);
                     return;

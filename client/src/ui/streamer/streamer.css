@@ -1,0 +1,17 @@
+/* ── Streamer mode: the pill, the masked values, the quick toggle in the status menu ── */
+.streamer-pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--accent);
+  background: var(--accent-subtle); color: var(--accent); font: inherit; font-size: 12px; font-weight: 700; letter-spacing: 0.02em;
+  line-height: 1.5; cursor: pointer; white-space: nowrap;
+}
+.streamer-pill::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex: none; }
+.streamer-pill:hover { background: var(--hover); }
+/* The main window's pill floats in a corner, out of the way of the composer on phones. */
+.streamer-pill.floating { position: fixed; right: 12px; bottom: 12px; z-index: var(--z-popover); box-shadow: var(--shadow-pop); }
+@media (max-width: 760px) {
+  .streamer-pill.floating { bottom: calc(env(safe-area-inset-bottom, 0px) + 72px); }
+}
+.streamer-hidden { letter-spacing: 0.1em; color: var(--muted); }
+.status-streamer-dot { width: 12px; text-align: center; color: var(--red); }
+.status-streamer .muted { margin-left: auto; font-size: 12px; }
+.captions-overlay .streamer-pill, .popout-bar .streamer-pill { font-size: 11px; padding: 1px 8px; }

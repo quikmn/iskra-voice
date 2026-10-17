@@ -96,6 +96,8 @@ builder.Services.AddSingleton<AfkSweeper>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AfkSweeper>());
 builder.Services.AddSingleton<TeamSweeper>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<TeamSweeper>());
+builder.Services.AddSingleton<RoomSweeper>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<RoomSweeper>());
 builder.Services.AddSingleton<LfgCloser>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<LfgCloser>());
 builder.Services.AddPush(world);

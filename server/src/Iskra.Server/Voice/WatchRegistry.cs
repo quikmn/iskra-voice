@@ -7,14 +7,23 @@ namespace Iskra.Server.Voice;
 /// <summary>What a watch party plays: an https media URL, a file on this server, or a YouTube video id.</summary>
 public sealed record WatchSource(string Kind, string? Url, string? FileId, string? VideoId, string? Title);
 
+/// <summary>Something queued to play next in a party (listen together).</summary>
+public sealed record WatchItem(string Id, WatchSource Source, string AddedBy, long AddedAt);
+
 /// <summary>
 /// One party per voice channel. <see cref="Position"/> is where playback was at server time <see cref="UpdatedAt"/>;
-/// while playing it moves on at <see cref="Rate"/>, so anyone can work out where it is now.
+/// while playing it moves on at <see cref="Rate"/>, so anyone can work out where it is now. <see cref="Queue"/> is what
+/// plays next, in order; <see cref="PlayId"/> changes whenever the party moves on to another source, so a late "next"
+/// can't skip twice. <see cref="AudioOnly"/>: a jukebox, video hidden.
 /// </summary>
 public sealed record WatchParty(
     string Id, long ChannelId, WatchSource Source, string Host, bool AnyoneControls,
     bool Playing, double Position, double Rate, long UpdatedAt, long StartedAt, string UpdatedBy)
 {
+    public IReadOnlyList<WatchItem> Queue { get; init; } = [];
+    public bool AudioOnly { get; init; }
+    public string PlayId { get; init; } = "";
+
     public double PositionAt(long now) => Playing ? Position + Math.Max(0, now - UpdatedAt) / 1000.0 * Rate : Position;
 }
 
@@ -46,10 +55,10 @@ public sealed class WatchRegistry
         lock (_gate) return _parties.GetValueOrDefault(channelId);
     }
 
-    /// <summary>Uploaded files that running parties play (kept by the upload sweep).</summary>
+    /// <summary>Uploaded files that running parties play, or have queued (kept by the upload sweep).</summary>
     public List<string> FileIds()
     {
-        lock (_gate) return _parties.Values.Select(p => p.Source.FileId).OfType<string>().ToList();
+        lock (_gate) return _parties.Values.SelectMany(p => p.Queue.Select(i => i.Source.FileId).Prepend(p.Source.FileId)).OfType<string>().Distinct().ToList();
     }
 
     public bool InRoom(long channelId, string accountKey) => voice.Participants(channelId).Any(p => p.AccountKey == accountKey);
@@ -66,11 +75,13 @@ public sealed class WatchRegistry
     public bool CanControl(Member member, Channel channel, WatchParty party) =>
         MayHost(member, channel) && (party.Host == member.AccountKey || party.AnyoneControls || IsModerator(member, channel));
 
+    private static object Public(WatchSource s) => new { kind = s.Kind, url = s.Url, fileId = s.FileId, videoId = s.VideoId, title = s.Title };
+
     public static object Public(WatchParty p) => new
     {
         id = p.Id,
         channelId = p.ChannelId,
-        source = new { kind = p.Source.Kind, url = p.Source.Url, fileId = p.Source.FileId, videoId = p.Source.VideoId, title = p.Source.Title },
+        source = Public(p.Source),
         host = p.Host,
         anyoneControls = p.AnyoneControls,
         playing = p.Playing,
@@ -79,6 +90,9 @@ public sealed class WatchRegistry
         updatedAt = p.UpdatedAt,
         startedAt = p.StartedAt,
         updatedBy = p.UpdatedBy,
+        queue = p.Queue.Select(i => new { id = i.Id, source = Public(i.Source), addedBy = i.AddedBy, addedAt = i.AddedAt }),
+        audioOnly = p.AudioOnly,
+        playId = p.PlayId,
     };
 
     private object StateOf(long channelId, WatchParty? party) => new { channelId, party = party is null ? null : Public(party), serverTime = Now };

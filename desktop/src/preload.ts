@@ -114,6 +114,13 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     ipcRenderer.on('iskra:activity', listener)
     return () => ipcRenderer.off('iskra:activity', listener)
   },
+  // Streamer mode: whether one of the user's own listed programs runs (a yes or no, never which).
+  streamerProgram: (): Promise<boolean | null> => ipcRenderer.invoke('iskra:streamer-program'),
+  onStreamerProgram: (callback: (running: boolean) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, running: unknown) => callback(running === true)
+    ipcRenderer.on('iskra:streamer-program', listener)
+    return () => ipcRenderer.off('iskra:streamer-program', listener)
+  },
   onDeepLink: (callback: (token: string) => void): (() => void) => {
     const listener = (_e: IpcRendererEvent, token: string) => callback(token)
     ipcRenderer.on('iskra:deep-link', listener)

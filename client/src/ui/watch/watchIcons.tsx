@@ -19,6 +19,35 @@ export const TvIcon = (p: P) => (
   </Svg>
 )
 
+/** The queue (listen together): a list. */
+export const QueueIcon = (p: P) => (
+  <Svg {...p}>
+    <line x1="8" y1="6" x2="21" y2="6" />
+    <line x1="8" y1="12" x2="21" y2="12" />
+    <line x1="8" y1="18" x2="21" y2="18" />
+    <line x1="3" y1="6" x2="3.01" y2="6" />
+    <line x1="3" y1="12" x2="3.01" y2="12" />
+    <line x1="3" y1="18" x2="3.01" y2="18" />
+  </Svg>
+)
+
+/** Audio-only items and the now-playing bar: a note. */
+export const MusicIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M9 18V5l12-2v13" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="18" cy="16" r="3" />
+  </Svg>
+)
+
+/** Skip to the next item. */
+export const NextIcon = (p: P) => (
+  <Svg {...p}>
+    <polygon points="5 4 15 12 5 20 5 4" />
+    <line x1="19" y1="5" x2="19" y2="19" />
+  </Svg>
+)
+
 export const PlayIcon = (p: P) => (
   <Svg {...p}>
     <polygon points="6 3 20 12 6 21 6 3" />

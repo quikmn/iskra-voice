@@ -10,6 +10,7 @@ import { SoundboardButton } from './expressions/Soundboard'
 import { VoicePopoutButton } from './popout/PopoutButtons'
 import './afk/afk.css'
 import { WhisperControls } from './whisper/WhisperControls'
+import { RoomButton } from './rooms/RoomBits'
 
 /** Shown above your name while you're in voice (or when joining failed). */
 export function VoiceBar() {
@@ -77,6 +78,7 @@ export function VoiceBar() {
           </button>
         )}
         <SoundboardButton variant="bar" />
+        <RoomButton />
         <VoicePopoutButton />
         <button
           className="icon-button hang-up"

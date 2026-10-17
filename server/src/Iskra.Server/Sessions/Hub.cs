@@ -111,11 +111,11 @@ public sealed class Hub(World world, TimeProvider time)
         return Features.ProfileFeature.Public(world.Store, m, presence, presence.Online ? Features.ActivityFeature.Public(Activities.Get(m.AccountKey)) : null);
     }
 
-    public static object PublicChannel(Channel c, int slowmode = 0, int userLimit = 0, object? e2ee = null, bool hifi = false, string topic = "") =>
+    public static object PublicChannel(Channel c, int slowmode = 0, int userLimit = 0, object? e2ee = null, bool hifi = false, string topic = "", bool lobby = false, object? room = null) =>
         new
         {
             id = c.Id, name = c.Name, kind = c.Kind, createdAt = c.CreatedAt, position = c.Position, readRole = c.ReadRole, writeRole = c.WriteRole, slowmode, categoryId = c.CategoryId, userLimit,
-            e2ee, hifi, topic,
+            e2ee, hifi, topic, lobby, room,
             overrides = c.Overrides.Select(o => new
             {
                 roleId = o.RoleId, allow = Features.RoleFeature.ChannelPermNames(o.Allow), deny = Features.RoleFeature.ChannelPermNames(o.Deny),
@@ -130,9 +130,13 @@ public sealed class Hub(World world, TimeProvider time)
         var e2ee = world.Store.AllE2ee();
         var hifi = world.Store.AllHifi();
         var topics = world.Store.AllTopics();
+        var lobbies = world.Store.AllLobbies();
+        var rooms = world.Store.AllRooms().ToDictionary(r => r.ChannelId);
+        var invites = world.Store.AllRoomInvites();
         return world.Store.AllChannels().Where(c => Permissions.CanRead(member, c))
             .Select(c => PublicChannel(c, slowmodes.GetValueOrDefault(c.Id), limits.GetValueOrDefault(c.Id),
-                Features.E2eeChannelFeature.Info(e2ee.GetValueOrDefault(c.Id)), hifi.Contains(c.Id), topics.GetValueOrDefault(c.Id) ?? "")).ToList();
+                Features.E2eeChannelFeature.Info(e2ee.GetValueOrDefault(c.Id)), hifi.Contains(c.Id), topics.GetValueOrDefault(c.Id) ?? "",
+                lobbies.Contains(c.Id), Features.RoomFeature.View(rooms.GetValueOrDefault(c.Id), invites.GetValueOrDefault(c.Id) ?? []))).ToList();
     }
 
     /// <summary>The categories this member can see (see <see cref="Features.OrganizeFeature.VisibleCategories"/>).</summary>

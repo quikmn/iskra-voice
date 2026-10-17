@@ -32,6 +32,10 @@ public sealed class RateLimiter(TimeProvider time)
         ["watch.control"] = (10, 4),
         ["watch.chat"] = (5, 1),
         ["watch.clock"] = (10, 2),
+        ["watch.queue.add"] = (10, 1),
+        ["watch.queue.remove"] = (20, 4),
+        ["watch.queue.move"] = (20, 4),
+        ["watch.next"] = (10, 2),
         ["activity.change"] = (5, 0.1), // checked by ActivityFeature, only on real changes
         ["link.create"] = (3, 0.1),
         ["event.interest"] = (5, 1),
@@ -87,6 +91,10 @@ public sealed class RateLimiter(TimeProvider time)
         ["interaction.respond"] = (20, 5),
         ["teams.created"] = (3, 0.1), // checked by TeamsFeature: only splits that go ahead count
         ["teams.end"] = (5, 0.5),
+        ["rooms.created"] = (5, 0.1), // checked by RoomFeature: only lobby joins that make a room count
+        ["room.update"] = (10, 1),
+        ["room.invite"] = (20, 2),
+        ["room.uninvite"] = (20, 2),
         ["lfg.created"] = (3, 1 / 30.0), // checked by LfgFeature: only posts that go ahead count
         ["lfg.join"] = (10, 1),
         ["lfg.leave"] = (10, 1),

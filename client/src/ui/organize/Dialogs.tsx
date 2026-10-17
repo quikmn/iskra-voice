@@ -66,6 +66,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
   const [slowmode, setSlowmode] = useState(channel.slowmode ?? 0)
   const [userLimit, setUserLimit] = useState(channel.userLimit ?? 0)
   const [hifi, setHifi] = useState(channel.hifi ?? false)
+  const [lobby, setLobby] = useState(channel.lobby ?? false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -91,6 +92,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
       id: channel.id, name: slug, readRole, writeRole: write, slowmode,
       userLimit: channel.kind === 'voice' ? userLimit : undefined,
       hifi: channel.kind === 'voice' && hifi !== (channel.hifi ?? false) ? hifi : undefined,
+      lobby: channel.kind === 'voice' && lobby !== (channel.lobby ?? false) ? lobby : undefined,
       topic: topic.trim() !== (channel.topic ?? '') ? topic.trim() : undefined,
     })
     if (categoryId !== (channel.categoryId ?? null)) await moveChannel(server.key, channel.id, categoryId, null)
@@ -140,6 +142,15 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
             {t('organize.channelSettings.hifi')}
           </label>
           <small className="muted">{t('organize.channelSettings.hifiHint')}</small>
+        </div>
+      )}
+      {channel.kind === 'voice' && !channel.room && (
+        <div className="field">
+          <label className="checkbox">
+            <input type="checkbox" checked={lobby} onChange={(e) => setLobby(e.target.checked)} />
+            {t('organize.channelSettings.lobby')}
+          </label>
+          <small className="muted">{t('organize.channelSettings.lobbyHint')}</small>
         </div>
       )}
       <ChannelOverrides server={server} channel={channel} />

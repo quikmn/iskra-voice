@@ -121,6 +121,37 @@ export async function setAnyoneControls(serverKey: string, party: WatchParty, an
   await connection(serverKey).request('watch.settings', { channelId: party.channelId, partyId: party.id, anyoneControls })
 }
 
+// ── Listen together: the queue ──────────────────────────────────────────────
+
+export async function setAudioOnly(serverKey: string, party: WatchParty, audioOnly: boolean): Promise<void> {
+  await connection(serverKey).request('watch.settings', { channelId: party.channelId, partyId: party.id, audioOnly })
+}
+
+export async function addToQueue(serverKey: string, party: WatchParty, source: WatchSourceInput, title?: string): Promise<void> {
+  await connection(serverKey).request('watch.queue.add', { channelId: party.channelId, partyId: party.id, source, ...(title ? { title } : {}) })
+}
+
+export async function removeFromQueue(serverKey: string, party: WatchParty, itemId: string): Promise<void> {
+  await connection(serverKey).request('watch.queue.remove', { channelId: party.channelId, partyId: party.id, itemId })
+}
+
+/** Puts the item before another one, or last (`before` null). */
+export async function moveInQueue(serverKey: string, party: WatchParty, itemId: string, before: string | null): Promise<void> {
+  await connection(serverKey).request('watch.queue.move', { channelId: party.channelId, partyId: party.id, itemId, ...(before ? { before } : {}) })
+}
+
+/** Plays the next queued item. With `playId` (what we were playing) only the first app asking moves the party on. */
+export async function nextWatch(serverKey: string, party: WatchParty, playId?: string): Promise<void> {
+  await connection(serverKey).request('watch.next', { channelId: party.channelId, partyId: party.id, ...(playId ? { playId } : {}) })
+}
+
+/** Jumps the queue: the item goes first, then the party moves on to it. */
+export async function playNow(serverKey: string, party: WatchParty, itemId: string): Promise<void> {
+  const first = party.queue?.[0]?.id
+  if (first && first !== itemId) await moveInQueue(serverKey, party, itemId, first)
+  await nextWatch(serverKey, party, party.playId)
+}
+
 export async function stopWatch(serverKey: string, party: WatchParty): Promise<void> {
   await connection(serverKey).request('watch.stop', { channelId: party.channelId, partyId: party.id })
 }

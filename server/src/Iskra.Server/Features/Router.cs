@@ -89,6 +89,7 @@ public sealed class Router
         AlertFeature.Register(this);
         WhisperFeature.Register(this);
         TeamsFeature.Register(this);
+        RoomFeature.Register(this);
         LfgFeature.Register(this);
         DisappearFeature.Register(this);
         WhiteboardFeature.Register(this);

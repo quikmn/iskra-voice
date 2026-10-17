@@ -418,7 +418,9 @@ Nothing to set up. On first start the server makes its push key (`vapid.json`) a
 
 ### Voice, stages and watch parties
 
-Voice channels, stages, DM and group calls and watch parties all use the same voice service (LiveKit), which the server starts and stops by itself: nothing extra to run or open beyond the voice ports above. Stages are voice channels where the server tells LiveKit who may speak. A watch party only shares a clock through the server; everyone's app plays the video from its source (YouTube, a link, or a file uploaded to your server, which then serves it to everyone watching).
+Voice channels, stages, DM and group calls and watch parties all use the same voice service (LiveKit), which the server starts and stops by itself: nothing extra to run or open beyond the voice ports above. Stages are voice channels where the server tells LiveKit who may speak. A watch party only shares a clock through the server; everyone's app plays the video from its source (YouTube, a link, or a file uploaded to your server, which then serves it to everyone watching). A party can queue what plays next (up to 100 items; uploads in the queue count as in use) and run audio-only as a jukebox.
+
+**Join-to-create rooms:** tick **Join to create a room** in a voice channel's settings to make it a lobby. Nobody stays in a lobby: whoever joins gets a voice room of their own right under it ("alice's-room"), with the lobby's permissions and user limit. The host can rename it, set a limit and lock it (then only people they invite, or a moderator moves in, can join); the room is removed about 30 seconds after the last person leaves. Only the lobby setting itself is in the audit log.
 
 ### GIFs
 

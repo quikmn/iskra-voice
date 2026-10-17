@@ -25,7 +25,7 @@ import {
 import { parseNoticeAction, updateCheckNotice, type DesktopNotice } from './notices'
 import { allowPageViews } from './pages'
 import { PushToTalk } from './ptt'
-import { ActivityDetector } from './activity'
+import { ActivityDetector, runningPrograms } from './activity'
 import { applyOpenAtLogin, loadDesktopSettings, saveDesktopSettings, startedHidden } from './settings'
 import { Updates, type UpdateStatus } from './updates'
 import { applyChromiumPrivacy, applySessionPrivacy } from './privacy'
@@ -103,6 +103,8 @@ const tunnelledVoice = new TunnelledVoice()
 if (process.env.ISKRA_E2E) Object.assign(globalThis, { iskraP2pDebug: () => ({ host: hostTunnels.debug(), client: clientTunnels.debug(), nat: p2pNode.nat() }) }) // for the desktop e2e test
 // "Playing X": only the matched game's name ever reaches the page.
 const activity = new ActivityDetector((game) => window?.webContents.send('iskra:activity', game))
+// Streamer mode: only the user's own listed programs (OBS, …) are looked for, and the page only hears yes or no.
+const streamerPrograms = new ActivityDetector((game) => window?.webContents.send('iskra:streamer-program', game !== null), runningPrograms, [])
 const updates = new Updates((status: UpdateStatus) => {
   window?.webContents.send('iskra:update', status)
   updateTray()
@@ -500,10 +502,13 @@ ipcMain.handle('iskra:set-desktop-settings', (event, patch: unknown) => {
   if (!fromApp(event) || !patch || typeof patch !== 'object') return settings
   const next = parseDesktopSettings({ ...settings, ...patch, lastRunVersion: settings.lastRunVersion })
   if (next.openAtLogin !== settings.openAtLogin) applyOpenAtLogin(next.openAtLogin)
-  const activityChanged = next.activity !== settings.activity || JSON.stringify(next.customGames) !== JSON.stringify(settings.customGames)
+  const gamesChanged = JSON.stringify(next.customGames) !== JSON.stringify(settings.customGames)
+  const activityChanged = next.activity !== settings.activity || gamesChanged
+  const streamerChanged = next.streamerAuto !== settings.streamerAuto || gamesChanged
   const checksChanged = next.updateChecks !== settings.updateChecks
   settings = next
   if (activityChanged) activity.configure(settings.activity, settings.customGames)
+  if (streamerChanged) streamerPrograms.configure(settings.streamerAuto, settings.customGames)
   if (checksChanged) updates.setAutomatic(settings.updateChecks)
   try {
     saveDesktopSettings(settings)
@@ -535,6 +540,7 @@ ipcMain.handle('iskra:relaunch', (event) => {
 })
 
 ipcMain.handle('iskra:activity', (event) => (fromApp(event) ? activity.game : null))
+ipcMain.handle('iskra:streamer-program', (event) => (fromApp(event) ? streamerPrograms.game !== null : null))
 // Seconds since the last keyboard or mouse input anywhere on the computer (the AFK channel's idle check).
 ipcMain.handle('iskra:system-idle', (event) => (fromApp(event) ? powerMonitor.getSystemIdleTime() : null))
 
@@ -926,6 +932,7 @@ app.whenReady().then(() => {
   setTimeout(() => launchChanged({ page: 'ready', serversGaveUp: true }), LAUNCH_GIVE_UP_MS)
   updates.start(settings.updateChecks)
   activity.configure(settings.activity, settings.customGames)
+  streamerPrograms.configure(settings.streamerAuto, settings.customGames)
 })
 
 // macOS: clicking the Dock icon brings the window back.

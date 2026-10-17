@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { b64u } from '../../core/crypto'
 import { fingerprint } from '../../core/connection'
+import { useStreamerMode } from '../../state/streamer'
+import { maskSecret } from '../../state/streamerLogic'
 import { refreshDevices, useDevices } from '../../state/devices'
 import { rotateAccountKey } from '../../state/keys'
 import { checkPassphrase, confirmWithPasskey, MIN_PASSPHRASE, setPassphrase, useLock } from '../../state/lock'
@@ -16,12 +18,14 @@ export function RotateKeySection() {
   const { t } = useTranslation()
   const identity = useApp((s) => s.identity)
   const [open, setOpen] = useState(false)
+  const streamer = useStreamerMode()
   if (!identity) return null
+  const id = fingerprint(b64u(identity.account.publicKey))
   return (
     <section className="settings-section">
       <h2>{t('keys.rotate.title')}</h2>
       <p className="muted">
-        <Trans i18nKey="keys.rotate.intro" values={{ id: fingerprint(b64u(identity.account.publicKey)) }}
+        <Trans i18nKey="keys.rotate.intro" values={{ id: streamer ? maskSecret(id) : id }}
           components={{ code: <code data-testid="account-id" /> }} />
       </p>
       <button className="button danger-outline" onClick={() => setOpen(true)}>{t('keys.rotate.button')}</button>

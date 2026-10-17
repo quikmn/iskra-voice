@@ -10,6 +10,7 @@ import { loadLiveKit } from './state/livekit'
 import { loadSettings } from './ui/settings/LazySettings'
 import { startHotkeys } from './state/hotkeys'
 import { startTitleBadge } from './state/notify'
+import { startStreamerWatch } from './state/streamer'
 import { startPush } from './state/push'
 import { startPresenceWatch } from './state/presence'
 import { startVoiceIdleWatch } from './state/afk'
@@ -88,7 +89,9 @@ export function App() {
     const stopNative = startNativeShell()
     const stopDiagnostics = startDiagnostics()
     const stopWhatsNew = startWhatsNew()
+    const stopStreamer = startStreamerWatch()
     return () => {
+      stopStreamer()
       stopWhatsNew()
       stopLinks()
       stopNative()

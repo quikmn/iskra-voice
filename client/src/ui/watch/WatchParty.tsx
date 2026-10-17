@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import type { Channel, StageState, WatchParty } from '../../core/protocol'
 import { uploadFile, type ServerState } from '../../state/store'
 import {
-  canControlWatch, controlWatch, isWatchModerator, mayHostWatch, partyFor, sendWatchChat, serverNow, setAnyoneControls, startWatch, stopWatch,
-  useWatch, watchKey, type WatchChatLine,
+  canControlWatch, controlWatch, isWatchModerator, mayHostWatch, nextWatch, partyFor, sendWatchChat, serverNow, setAnyoneControls, setAudioOnly,
+  startWatch, stopWatch, useWatch, watchKey, type WatchChatLine,
 } from '../../state/watch'
 import { correction, formatTime, parseWatchInput, positionAt, WATCH_RATES } from '../../state/watchSync'
+import { sourceKey } from '../../state/watchQueueLogic'
+import { needsGate, startedSites, withAgreedSite } from '../../state/watchConsentLogic'
 import { Avatar, Modal } from '../bits'
 import { Expand, Send } from '../icons'
 import { videoAdapter, YouTubeBridge, youTubeEmbedUrl, YOUTUBE_FRAME, type PlayerAdapter } from './players'
-import { ChatIcon, PauseIcon, PlayIcon, TvIcon, VolumeOffIcon, VolumeOnIcon } from './watchIcons'
+import { ChatIcon, NextIcon, PauseIcon, PlayIcon, QueueIcon, TvIcon, VolumeOffIcon, VolumeOnIcon } from './watchIcons'
+import { NowPlaying, usePhoneLike, WatchQueue } from './WatchQueue'
 import './watch.css'
 import { useTranslation } from 'react-i18next'
 import { t as i18t } from '../../i18n'
@@ -147,13 +150,22 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
   const [volume, setVolume] = useState(loadVolume)
   const [muted, setMuted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [queueOpen, setQueueOpen] = useState(false)
+  const phone = usePhoneLike()
   const control = canControlWatch(server, channel, stage, party)
+  const controlRef = useRef(control)
+  controlRef.current = control
+  /** The playId we already asked to move on from, so an ended item asks once (the server ignores late asks anyway). */
+  const advancedFrom = useRef<string | null>(null)
+  const queue = party.queue ?? []
+  const audioOnly = !!party.audioOnly
   const host = party.host === server.me?.accountKey
-  // Plays from another site: say so first (the host already did, by starting it), unless this device always allows it.
+  // Plays from another site: say so first, once per site for this party (a queued item from elsewhere asks again),
+  // unless this device always allows it. The host already agreed to the site of what they started themselves.
   const site = watchSourceSite(party.source, server.url)
   const always = useAlwaysLoads(site)
-  const [agreed, setAgreed] = useState(host)
-  const gated = !!site && !always && !agreed
+  const [agreed, setAgreed] = useState(() => startedSites(party, server.me?.accountKey, site))
+  const gated = needsGate(site, agreed, always)
   // A link that isn't a plain web address (or a file elsewhere than this server) never plays: it would skip the gate.
   const src = party.source.kind === 'youtube' ? null : watchVideoSrc(party.source, server.url)
   const badLink = party.source.kind !== 'youtube' && !src
@@ -175,12 +187,31 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
     if (running && player.paused()) {
       player.play().then(() => setBlocked(false), () => setBlocked(true))
     } else if (!p.playing && !player.paused()) player.pause()
+    // Listen together: this item ended and more is queued. Whoever may control asks the server to move on, once per
+    // playId; when several apps ask at the same moment, the server moves on for the first and ignores the rest.
+    if (controlRef.current && p.playing && player.ended() && (p.queue?.length ?? 0) > 0 && advancedFrom.current !== (p.playId ?? null)) {
+      advancedFrom.current = p.playId ?? null
+      void nextWatch(server.key, p, p.playId).catch(() => undefined)
+    }
     setNow({ time: player.time(), duration })
   }, [server.key])
 
   useEffect(() => {
     sync()
   }, [party, ready, sync])
+
+  // The party moved on to another source: the player below is a fresh one (keyed), so forget the old one's state.
+  const key = sourceKey(party.source)
+  const lastKey = useRef(key)
+  useEffect(() => {
+    if (lastKey.current === key) return
+    lastKey.current = key
+    if (party.source.kind === 'youtube') adapter.current = null // the new frame reports an adapter once it answers
+    setReady(false)
+    setFailed(null)
+    setBlocked(false)
+    setNow({ time: 0, duration: 0 })
+  }, [key, party.source.kind])
 
   useEffect(() => {
     const timer = setInterval(sync, 1000)
@@ -208,28 +239,33 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
   }
 
   const title = party.source.title || (party.source.kind === 'youtube' ? t('watch.youtubeVideo') : t('watch.video'))
+  // Audio only (a jukebox): the player keeps playing out of sight and a now-playing bar takes its place; the consent
+  // gate still shows first, since the player can't load before it.
+  const hidden = audioOnly && !gated && !badLink
   return (
-    <div className="watch-main">
+    <div className={`watch-main ${hidden ? 'audio-only' : ''}`}>
       <div className="watch-frame" ref={frame}>
-        {badLink ? (
-          <div className="watch-overlay" data-testid="watch-bad-link"><p>{t('watch.unplayableLink')}</p></div>
-        ) : gated ? (
-          <WatchGate site={site!} onWatch={() => setAgreed(true)} />
-        ) : party.source.kind === 'youtube' ? (
-          <YouTubeFrame videoId={party.source.videoId!} onReady={(a) => { adapter.current = a; setReady(true) }} onError={setFailed} />
-        ) : (
-          <video
-            ref={(v) => {
-              if (v && !adapter.current) adapter.current = videoAdapter(v)
-            }}
-            className="watch-video"
-            src={src!}
-            playsInline
-            preload="auto"
-            onLoadedMetadata={() => setReady(true)}
-            onError={() => setFailed(t('watch.cantPlay'))}
-          />
-        )}
+        <Fragment key={key}>
+          {badLink ? (
+            <div className="watch-overlay" data-testid="watch-bad-link"><p>{t('watch.unplayableLink')}</p></div>
+          ) : gated ? (
+            <WatchGate site={site!} onWatch={() => setAgreed((sites) => withAgreedSite(sites, site!))} />
+          ) : party.source.kind === 'youtube' ? (
+            <YouTubeFrame videoId={party.source.videoId!} onReady={(a) => { adapter.current = a; setReady(true) }} onError={setFailed} />
+          ) : (
+            <video
+              ref={(v) => {
+                if (v) adapter.current = videoAdapter(v)
+              }}
+              className="watch-video"
+              src={src!}
+              playsInline
+              preload="auto"
+              onLoadedMetadata={() => setReady(true)}
+              onError={() => setFailed(t('watch.cantPlay'))}
+            />
+          )}
+        </Fragment>
         {failed && !badLink && <div className="watch-overlay"><p>{failed}</p></div>}
         {!failed && !gated && !badLink && blocked && (
           <button className="watch-overlay" onClick={() => adapter.current?.play().then(() => setBlocked(false), () => undefined)}>
@@ -239,15 +275,30 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
         )}
       </div>
 
+      {hidden && <NowPlaying server={server} party={party} title={title} showArt={!gated} />}
       <div className="watch-bar">
-        <div className="watch-title">
-          <strong title={title}>{title}</strong>
-          <span className="muted">{t('watch.hostedBy', { name: nameIn(server, party.host) })}{party.anyoneControls ? t('watch.anyoneControlsSuffix') : ''}</span>
-        </div>
+        {!hidden && (
+          <div className="watch-title">
+            <strong title={title}>{title}</strong>
+            <span className="muted">{t('watch.hostedBy', { name: nameIn(server, party.host) })}{party.anyoneControls ? t('watch.anyoneControlsSuffix') : ''}</span>
+          </div>
+        )}
         <div className="watch-controls" role="toolbar" aria-label={t('watch.controls')}>
           {control && (
             <button className="icon-button" onClick={() => act({ playing: !party.playing, position: position() })} aria-label={party.playing ? t('watch.pause') : t('watch.play')} title={party.playing ? t('watch.pause') : t('watch.play')}>
               {party.playing ? <PauseIcon /> : <PlayIcon />}
+            </button>
+          )}
+          {control && queue.length > 0 && (
+            <button
+              className="icon-button" data-testid="watch-next" aria-label={t('watch.next')} title={t('watch.next')}
+              onClick={() => {
+                advancedFrom.current = party.playId ?? null
+                setError(null)
+                nextWatch(server.key, party, party.playId).catch((e: Error) => setError(errorMessage(e)))
+              }}
+            >
+              <NextIcon />
             </button>
           )}
           <span className="watch-time">{formatTime(drag ?? now.time)} / {formatTime(now.duration)}</span>
@@ -272,7 +323,10 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
             </select>
           )}
           <WatchVolume volume={volume} muted={muted} onVolume={(v) => { setVolume(v); setMuted(false) }} onMuted={setMuted} />
-          <button className="icon-button" onClick={() => void frame.current?.requestFullscreen?.()} aria-label={t('watch.fullScreen')} title={t('watch.fullScreen')}><Expand size={16} /></button>
+          {!hidden && <button className="icon-button" onClick={() => void frame.current?.requestFullscreen?.()} aria-label={t('watch.fullScreen')} title={t('watch.fullScreen')}><Expand size={16} /></button>}
+          <button className={`icon-button ${queueOpen ? 'on' : ''}`} data-testid="watch-queue-button" onClick={() => setQueueOpen(!queueOpen)} aria-pressed={queueOpen} aria-label={t('watch.queueOpen')} title={t('watch.queueOpen')}>
+            <QueueIcon />{queue.length > 0 && <span className="watch-queue-badge">{queue.length}</span>}
+          </button>
           <button className={`icon-button ${chatOpen ? 'on' : ''}`} onClick={onToggleChat} aria-pressed={chatOpen} aria-label={t('watch.partyChat')} title={t('watch.partyChat')}><ChatIcon /></button>
         </div>
         {(host || moderator) && (
@@ -281,11 +335,16 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
               <input type="checkbox" checked={party.anyoneControls} onChange={(e) => setAnyoneControls(server.key, party, e.target.checked).catch((err: Error) => setError(errorMessage(err)))} />
               {t('watch.anyoneControls')}
             </label>
+            <label className="watch-toggle" title={t('watch.audioOnlyHint')}>
+              <input type="checkbox" checked={audioOnly} onChange={(e) => setAudioOnly(server.key, party, e.target.checked).catch((err: Error) => setError(errorMessage(err)))} />
+              {t('watch.audioOnly')}
+            </label>
             <button className="button small danger-outline" onClick={() => stopWatch(server.key, party).catch((e: Error) => setError(errorMessage(e)))}>{t('watch.end')}</button>
           </div>
         )}
         {error && <p className="error-text" role="alert">{error}</p>}
       </div>
+      {queueOpen && <WatchQueue server={server} party={party} control={control} sheet={phone} onClose={() => setQueueOpen(false)} />}
     </div>
   )
 }

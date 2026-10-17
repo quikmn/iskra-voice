@@ -14,6 +14,7 @@ import { Close, Smile } from '../icons'
 import { bugShortcut, openBugReport } from '../../state/bugReport/bugReport'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { QuietStatusRow } from '../alerts/AlertSettings'
+import { StreamerStatusRow } from '../streamer/StreamerBits'
 import './presence.css'
 
 /** "🎮 Raiding tonight": emoji and text, rendered by React. */
@@ -106,6 +107,7 @@ function StatusMenu({ anchor, onClose, onCustom }: { anchor: HTMLElement; onClos
           ))}
         </div>
         <QuietStatusRow onClose={onClose} />
+        <StreamerStatusRow onClose={onClose} />
         <button className="status-menu-bug" role="menuitem" onClick={() => { onClose(); openBugReport() }}>
           <span>{t('bugReport.open')}</span>{bugShortcut() && <span className="muted">{bugShortcut()}</span>}
         </button>

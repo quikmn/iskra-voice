@@ -107,6 +107,8 @@ export interface DesktopSettings {
   hardwareAcceleration: boolean
   activity: boolean
   customGames: { name: string; process: string }[]
+  /** Streamer mode turns itself on while one of `customGames` runs (only those are looked for). Missing in older desktop builds. */
+  streamerAuto?: boolean
   /** Hosted servers kept running ("Keep my server running"). Missing in older desktop builds. */
   keepRunning?: string[]
   /** Looks for new versions on GitHub by itself (default on). Missing in older desktop builds. */
@@ -192,6 +194,9 @@ export interface DesktopBridge {
   /** Seconds since the last keyboard or mouse input on the computer (older desktop apps don't have it). */
   systemIdleSeconds?(): Promise<number | null>
   onActivity(callback: (game: string | null) => void): () => void
+  /** Streamer mode: whether one of your own listed programs runs right now, and when that changes (missing in older desktop builds). */
+  streamerProgram?(): Promise<boolean | null>
+  onStreamerProgram?(callback: (running: boolean) => void): () => void
   onDeepLink(callback: (token: string) => void): () => void
   host: {
     available(): Promise<boolean>

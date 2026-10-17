@@ -20,6 +20,7 @@ import { openMySettings } from '../settings/open'
 import { hueFor } from '../format'
 import { Close } from '../icons'
 import { renderMarkdown } from '../markdown'
+import { EmailSafe, Secret } from '../streamer/StreamerBits'
 import { useMemberPresence } from '../../state/presence'
 import { STATUS_LABELS } from '../../state/presenceRules'
 import { CustomStatusLine } from '../presence/Presence'
@@ -136,10 +137,10 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
             {member.activity && <div className="profile-activity"><ActivityLine activity={member.activity} /></div>}
             {member.bio && (
               <div className="profile-bio">
-                {renderMarkdown(member.bio, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })}
+                <EmailSafe text={member.bio} render={(bio) => renderMarkdown(bio, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })} />
               </div>
             )}
-            <div className="profile-id muted">{t('settings.member.id')} <code>{fingerprint(member.accountKey)}</code></div>
+            <div className="profile-id muted">{t('settings.member.id')} <code><Secret value={fingerprint(member.accountKey)} /></code></div>
           </div>
         </div>
         {/* Outside the scrolling part, so the buttons are always in sight. */}

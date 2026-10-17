@@ -491,7 +491,7 @@ export async function setCallKey(key: Uint8Array, index: number): Promise<void> 
 
 async function connect(
   session: VoiceSession,
-  target: () => Promise<{ url: string; token: string; canSpeak: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }>,
+  target: () => Promise<{ url: string; token: string; channelId?: number; canSpeak: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }>,
   options: { e2eeKey?: Uint8Array; groupKey?: { key: Uint8Array; index: number } | 'later'; camera?: boolean; stageOpen?: boolean } = {},
 ): Promise<boolean> {
   useVoice.setState({
@@ -499,8 +499,15 @@ async function connect(
   })
 
   try {
-    const [{ url, token, canSpeak, afk, whisper, priority }, { Room, RoomEvent, Track, ConnectionState, RemoteAudioTrack, VideoPresets, ScreenSharePresets }] =
+    const [{ url, token, channelId, canSpeak, afk, whisper, priority }, { Room, RoomEvent, Track, ConnectionState, RemoteAudioTrack, VideoPresets, ScreenSharePresets }] =
       await Promise.all([target(), loadLiveKit()])
+    // Joining a lobby put us in a room of our own: the session is for that channel from here on (the same session
+    // object stays in the store only if nobody hung up meanwhile, which the check below then sees).
+    if (channelId !== undefined && channelId !== session.channelId && !session.call && !session.group) {
+      const moved = { ...session, channelId }
+      if (useVoice.getState().session === session) useVoice.setState({ session: moved })
+      session = moved
+    }
     let encryption: RoomOptions['encryption']
     let worker: Worker | null = null
     let provider: CallKeyProvider | null = null

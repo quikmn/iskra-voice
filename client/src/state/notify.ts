@@ -19,6 +19,7 @@ import { isBlocked, useBlocks } from './moderation'
 import { useAudio } from './audio'
 import { desktop } from '../platform/desktop'
 import { overlayIcon } from '../platform/badge'
+import { streamerOn } from './streamer'
 
 interface NotifySettings {
   desktop: boolean
@@ -78,6 +79,7 @@ const TONES: Record<Tone, number[]> = {
 /** Message sounds follow Notifications; voice sounds (join, leave, mute, deafen) follow Voice & audio. */
 export function playTone(kind: Tone, test = false): void {
   if (kind === 'message' ? !useNotify.getState().sounds : !useAudio.getState().voiceSounds) return
+  if (!test && streamerOn()) return // streamer mode: nothing plays into the stream
   if (isDoNotDisturb() && !test) return
   try {
     audio ??= new AudioContext()
@@ -125,6 +127,7 @@ export function showNotification(serverKey: string, title: string, body: string,
 export function show(serverKey: string, title: string, body: string, onClick: () => void, ping = false, expiresAt?: number): void {
   if (pushActive.has(serverKey) && !document.hasFocus()) return
   if (isDoNotDisturb()) return // do not disturb: no sounds or notifications (unread badges still count)
+  if (streamerOn()) return // streamer mode: no previews or sounds on the stream (unread badges still count)
   const quiet = quietRules.now()
   if (quiet && !(quiet.mentions && ping)) return // quiet hours: nothing, or pings without a sound
   if (!quiet) playTone('message')

@@ -9,6 +9,7 @@ export const settings: Messages['settings'] = {
     recovery: 'Återställningsnyckel',
     security: 'Applås',
     notifications: 'Aviseringar',
+    streamer: 'Streamerläge',
     voice: 'Röst och ljud',
     video: 'Kamera',
     blocked: 'Blockerade',

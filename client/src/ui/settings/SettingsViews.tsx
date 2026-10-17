@@ -52,6 +52,7 @@ import { AutoModSection } from '../automod/AutoModSection'
 import { AboutSection, AccountSection } from '../safety/AccountSection'
 import { ReportsSection } from '../safety/ReportsSection'
 import { PrivacySection } from './PrivacySection'
+import { StreamerSection } from '../streamer/StreamerBits'
 import { CameraSettingsSection } from '../media/CameraSettings'
 import { CaptionSettingsSection } from '../media/CaptionSettings'
 import { SecurityLogSection } from './SecurityLogSection'
@@ -265,6 +266,7 @@ function MySection({ id }: { id: MySectionId }) {
     case 'recovery': return <><RecoveryKeySection /><RotateKeySection /><KeyTransparencySection /></>
     case 'security': return <AppLockSection />
     case 'notifications': return <NotificationSettingsSection server={null} />
+    case 'streamer': return <StreamerSection />
     case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><WhisperSettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><CaptionSettingsSection /><SoundboardSettingsSection /></>
     case 'video': return <CameraSettingsSection />
     case 'blocked': return <BlockedSection />

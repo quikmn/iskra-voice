@@ -9,6 +9,8 @@ import { LIFETIMES, NEVER, inviteRequest, lifetimeChoices } from '../../state/in
 import { Modal, Spinner } from '../bits'
 import { appUrl } from '../format'
 import { InviteList } from './InviteList'
+import { useStreamerMode } from '../../state/streamer'
+import { maskSecret } from '../../state/streamerLogic'
 
 /** `via: 'tailscale'` starts on the invite for friends on Tailscale (when it's on where the server runs). */
 export function InviteDialog({ server, onClose, via: initialVia = 'network' }: { server: ServerState; onClose: () => void; via?: 'network' | 'tailscale' }) {
@@ -19,6 +21,7 @@ export function InviteDialog({ server, onClose, via: initialVia = 'network' }: {
   const [via, setVia] = useState(initialVia)
   const overTailscale = via === 'tailscale' && tailscaleUrl !== null
   const admin = server.me?.role === 'owner' || server.me?.role === 'admin'
+  const streamer = useStreamerMode() // the link stays off the stream; copying still copies the real one
 
   // Admins: the server itself says whether Tailscale is on where it runs (for a server on another computer).
   useEffect(() => {
@@ -76,7 +79,7 @@ export function InviteDialog({ server, onClose, via: initialVia = 'network' }: {
       {overTailscale && <p className="muted">{t('hosting.tailscale.inviteNote')}</p>}
       {server.p2p && !overTailscale && <p className="muted" data-testid="invite-p2p-note">{t('hosting.p2p.inviteNote')}</p>}
       <div className="copy-row">
-        <input readOnly value={link} placeholder={t('settings.invite.creating')} onFocus={(e) => e.target.select()} />
+        <input readOnly value={streamer && link ? maskSecret(link) : link} placeholder={t('settings.invite.creating')} onFocus={(e) => e.target.select()} data-testid="invite-link" />
         <button className="button primary" onClick={() => void copy()} disabled={!invite}>
           {invite ? (copied ? t('settings.recovery.copied') : t('common.copy')) : <Spinner />}
         </button>

@@ -2,7 +2,7 @@
 // Only the matched name is reported; the program list is never kept or sent anywhere.
 import { execFile } from 'node:child_process'
 import { readdir, readFile } from 'node:fs/promises'
-import { matchGame, parseTasklist } from './games'
+import { GAMES, matchGame, parseTasklist, type KnownGame } from './games'
 
 const POLL_MS = 30_000
 /** tasklist took 17 to 42 s on a heavily loaded test machine (median 0.5 s); a slow answer still counts, up to the next poll. */
@@ -42,10 +42,13 @@ export class ActivityDetector {
   private custom: { name: string; process: string }[] = []
   private readonly onChange: (game: string | null) => void
   private readonly list: () => Promise<string[] | null>
+  private readonly builtins: KnownGame[]
 
-  constructor(onChange: (game: string | null) => void, list: () => Promise<string[] | null> = runningPrograms) {
+  /** `builtins`: the bundled game list; `[]` matches only the user's own programs (streamer mode). */
+  constructor(onChange: (game: string | null) => void, list: () => Promise<string[] | null> = runningPrograms, builtins: KnownGame[] = GAMES) {
     this.onChange = onChange
     this.list = list
+    this.builtins = builtins
   }
 
   get game(): string | null {
@@ -69,7 +72,7 @@ export class ActivityDetector {
     const programs = await this.list()
     // Turned off meanwhile, or the programs couldn't be listed this time: keep what's shown (not "no game").
     if (!this.timer || programs === null) return
-    this.report(matchGame(programs, this.custom))
+    this.report(matchGame(programs, this.custom, this.builtins))
   }
 
   private report(game: string | null): void {

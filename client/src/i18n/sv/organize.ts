@@ -38,6 +38,8 @@ export const organize: Messages['organize'] = {
     slowmodeHint: 'Medlemmar kan skicka ett meddelande per intervall här. Admins begränsas inte.',
     hifi: 'Tillåt hi-fi-ljud',
     hifiHint: 'Den som slår på hi-fi skickar stereo i 128 kbit/s utan bearbetning här: för musik, instrument och lyssningsfester.',
+    lobby: 'Gå med för att skapa ett rum',
+    lobbyHint: 'Ingen stannar här: den som går med får ett eget röstrum precis under kanalen ("alice\'s-room"), med kanalens behörigheter och gräns för antal personer. Värden kan byta namn, sätta en gräns och låsa det; tomma rum tas bort efter 30 sekunder.',
     category: 'Kategori',
     noCategory: 'Ingen kategori',
     deleteTitle: 'Radera kanal',

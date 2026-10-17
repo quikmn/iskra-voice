@@ -6,6 +6,7 @@ import { dismissBackgroundNotice, useBackground } from '../../state/background'
 import { activeRoom } from '../../state/voice'
 import { Captions, Close } from '../icons'
 import { CaptionStatusText } from './CaptionSettings'
+import { StreamerPill } from '../streamer/StreamerBits'
 import './media.css'
 
 /** At most this many speakers' captions at once (the newest). */
@@ -47,6 +48,7 @@ export function CaptionsOverlay({ nameOf }: { nameOf: (accountKey: string) => st
         {!shown.length && !note && <p className="caption-line muted">{t('media.captions.waiting')}</p>}
       </div>
       {note && <p className="caption-status" role="status"><CaptionStatusText /></p>}
+      <StreamerPill />
       <button className="icon-button captions-close" onClick={() => updateCaptions({ enabled: false })} aria-label={t('media.captions.turnOff')} title={t('media.captions.turnOff')}>
         <Close size={14} />
       </button>

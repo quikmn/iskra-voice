@@ -27,8 +27,11 @@ public static class ChannelFeature
     {
         var name = Text.Normalize(raw, MaxNameLength, allowNewlines: false)
             ?? throw RequestException.BadRequest($"Channel names must be 1–{MaxNameLength} characters.", "channel_name", new { max = MaxNameLength });
-        return string.Join('-', name.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        return Slug(name);
     }
+
+    /// <summary>The channel-name form of normalized text (rooms made from a lobby check their own, longer limit first).</summary>
+    internal static string Slug(string name) => string.Join('-', name.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries));
 
     /// <summary>A channel topic: one line, up to <see cref="MaxTopicLength"/>; blank means none (""). Null if not given.</summary>
     internal static string? CleanTopic(string? raw)
@@ -87,8 +90,10 @@ public static class ChannelFeature
         var userLimit = VoiceLimitFeature.Field(body, kind) ?? 0;
         var hifi = HifiFeature.Field(body, kind) ?? false;
         var topic = TopicField(body) ?? "";
+        var lobby = RoomFeature.Field(s, body, kind, null) ?? false;
         var categoryId = OrganizeFeature.OptionalCategory(s, body);
         var e2ee = E2eeChannelFeature.CheckCreate(s, me, body, kind, readRole, writeRole);
+        if (lobby && e2ee is not null) throw RequestException.BadRequest("An encrypted voice channel can't be a lobby: its rooms couldn't be encrypted.", "lobby_encrypted");
         var channel = s.World.Store.CreateChannel(ChannelName(body.String("name", 256)), kind, readRole, writeRole, s.Now);
         if (e2ee is not null)
         {
@@ -106,14 +111,15 @@ public static class ChannelFeature
         if (userLimit > 0) s.World.Store.SetUserLimit(channel.Id, userLimit);
         if (hifi) s.World.Store.SetHifi(channel.Id, true);
         if (topic.Length > 0) s.World.Store.SetTopic(channel.Id, topic);
+        if (lobby) s.World.Store.SetLobby(channel.Id, true);
         if (categoryId is not null)
         {
             s.World.Store.SetChannelCategory(channel.Id, categoryId);
             channel = channel with { CategoryId = categoryId };
         }
-        Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode, userLimit, encrypted = e2ee is not null, hifi });
+        Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode, userLimit, encrypted = e2ee is not null, hifi, lobby });
         BroadcastChannels(s);
-        return new { channel = Hub.PublicChannel(channel, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi, topic) };
+        return new { channel = Hub.PublicChannel(channel, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi, topic, lobby) };
     }
 
     private static object Update(Session s, Member me, Body body)
@@ -137,12 +143,17 @@ public static class ChannelFeature
         var hifi = HifiFeature.Field(body, channel.Kind) ?? oldHifi;
         var oldTopic = s.World.Store.Topic(channel.Id);
         var topic = TopicField(body) ?? oldTopic;
+        var oldLobby = s.World.Store.IsLobby(channel.Id);
+        var lobby = RoomFeature.Field(s, body, channel.Kind, channel.Id) ?? oldLobby;
+        if (lobby && !oldLobby && E2eeChannelFeature.IsEncrypted(s.World.Store, channel))
+            throw RequestException.BadRequest("An encrypted voice channel can't be a lobby: its rooms couldn't be encrypted.", "lobby_encrypted");
 
         s.World.Store.UpdateChannel(updated);
         if (slowmode != oldSlowmode) s.World.Store.SetSlowmode(channel.Id, slowmode);
         if (userLimit != oldLimit) s.World.Store.SetUserLimit(channel.Id, userLimit);
         if (hifi != oldHifi) s.World.Store.SetHifi(channel.Id, hifi);
         if (topic != oldTopic) s.World.Store.SetTopic(channel.Id, topic);
+        if (lobby != oldLobby) s.World.Store.SetLobby(channel.Id, lobby);
         var changes = new Dictionary<string, object>();
         if (updated.Name != channel.Name) changes["name"] = new { from = channel.Name, to = updated.Name };
         if (updated.ReadRole != channel.ReadRole) changes["readRole"] = new { from = channel.ReadRole, to = updated.ReadRole };
@@ -151,10 +162,11 @@ public static class ChannelFeature
         if (userLimit != oldLimit) changes["userLimit"] = new { from = oldLimit, to = userLimit };
         if (hifi != oldHifi) changes["hifi"] = new { from = oldHifi, to = hifi };
         if (topic != oldTopic) changes["topic"] = true; // the text itself stays out of the audit log
+        if (lobby != oldLobby) changes["lobby"] = new { from = oldLobby, to = lobby };
         if (changes.Count > 0) Audit.Record(s, "channel.update", details: new { channelId = channel.Id, name = updated.Name, changes });
         BroadcastChannels(s);
         s.Voice.EnforceAccess();
-        return new { channel = Hub.PublicChannel(updated, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi, topic) };
+        return new { channel = Hub.PublicChannel(updated, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi, topic, lobby, RoomFeature.View(s.World.Store, channel.Id)) };
     }
 
     private static object? Delete(Session s, Member me, Body body)

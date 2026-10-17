@@ -33,6 +33,8 @@ import '../afk/afk.css'
 import { VoiceChatRowButton } from '../clips/VoiceChatRowButton'
 import { ClipsMark } from '../clips/ClipControls'
 import { BotBadge } from '../chat/BotBits'
+import { RoomMarks } from '../rooms/RoomBits'
+import { canEnterRoom, isLobby } from '../../state/roomsLogic'
 
 type Drag = { kind: 'channel' | 'category'; id: number }
 type Over = { kind: 'channel' | 'category' | 'top'; id: number; after?: boolean }
@@ -301,16 +303,22 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
   const here = voiceSession?.serverKey === server.key && voiceSession.channelId === channel.id
   const mustAgree = useMustAgree(server.key)
   const bypass = has(server.me, useServerRoles(server.key), 'moveMembers')
-  const limit = limitLabel(participants.length, channel.userLimit)
+  const limit = isLobby(channel) ? null : limitLabel(participants.length, channel.userLimit)
   const full = !here && isFull(participants.length, channel.userLimit, bypass)
+  // A locked room (join-to-create): the row stays, so you see it's there, but joining needs an invite.
+  const lockedOut = !here && !canEnterRoom(channel, server.me, bypass)
   const afk = useAfkChannel(server.key) === channel.id
+  const title = !server.voiceAvailable ? t('organize.list.voiceUnavailable')
+    : lockedOut ? t('rooms.room.lockedHint', { name: channel.name })
+    : isLobby(channel) ? t('rooms.lobby.join', { name: channel.name })
+    : full ? t('organize.list.full', { name: channel.name }) : t('organize.list.join', { name: channel.name })
   return (
     <div className="voice-channel">
       <div {...rowProps}>
         <button
-          className={`channel ${here ? 'active' : ''}`}
-          disabled={!server.voiceAvailable}
-          title={!server.voiceAvailable ? t('organize.list.voiceUnavailable') : full ? t('organize.list.full', { name: channel.name }) : t('organize.list.join', { name: channel.name })}
+          className={`channel ${here ? 'active' : ''} ${lockedOut ? 'locked-out' : ''}`}
+          disabled={!server.voiceAvailable || lockedOut}
+          title={title}
           onClick={() => {
             if (mustAgree) return showRules(server.key)
             void joinVoice(server.key, channel.id)
@@ -320,6 +328,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
           <span className="hash"><Volume size={16} /></span>
           <span className="channel-name">{channel.name}</span>
           <LockBadge channel={channel} />
+          <RoomMarks channel={channel} />
           {afk && <span className="afk-badge" title={t('afk.channelHint')}>{t('afk.badge')}</span>}
           {here && voiceSession.state !== 'connected' && <span className="pill">…</span>}
           {limit && (
@@ -346,6 +355,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
                   <Avatar name={member?.name ?? '?'} accountKey={p.accountKey} size={22} />
                   <span className="member-name">{member?.name ?? t('common.someone')}</span>
                   {member?.bot && <BotBadge />}
+                  {channel.room?.host === p.accountKey && <span className="host-badge" title={t('rooms.room.hostOf', { name: member?.name ?? t('common.someone') })}>{t('rooms.room.host')}</span>}
                   <ClipsMark on={p.clips} />
                   {p.priority && <span className="priority-badge" title={t('whisper.priority.badge')}>{t('whisper.priority.badge')}</span>}
                 </button>

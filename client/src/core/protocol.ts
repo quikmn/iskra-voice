@@ -143,8 +143,8 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string }, { channel: Channel }]
-  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean; topic?: string }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
+  'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate & ProfileStamp, { member: Member; stale?: boolean }]
   'profile.page.set': [{ file: string } & ProfileStamp, { member: Member; stale?: boolean }]
@@ -156,7 +156,7 @@ export interface Requests {
   'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
-  'voice.join': [{ channelId: number }, { url: string; token: string; room: string; canSpeak: boolean; canHear?: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }]
+  'voice.join': [{ channelId: number }, { url: string; token: string; room: string; channelId?: number; canSpeak: boolean; canHear?: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }]
   'voice.state': [{ muted: boolean; deafened: boolean; clips?: boolean }, Record<string, never>]
   'dm.devices': [{ accountKey: string }, DeviceBundle]
   // ── signing out ──
@@ -850,6 +850,23 @@ export interface WatchParty {
 
 export type WatchSourceInput = { kind: 'url'; url: string } | { kind: 'file'; fileId: string } | { kind: 'youtube'; videoId: string }
 
+// Listen together: what plays next (see "Listen together" under Watch parties in PROTOCOL.md).
+export interface WatchItem {
+  id: string
+  source: WatchSource
+  addedBy: string
+  addedAt: number
+}
+
+export interface WatchParty {
+  /** What plays next, in order (missing from older servers). */
+  queue?: WatchItem[]
+  /** A jukebox: apps hide the video for everyone and show a now-playing bar. */
+  audioOnly?: boolean
+  /** Changes whenever the party moves on to another source; `watch.next` names it so only one app skips. */
+  playId?: string
+}
+
 export interface Welcome {
   watch?: WatchParty[]
 }
@@ -862,7 +879,11 @@ export interface Events {
 export interface Requests {
   'watch.start': [{ channelId: number; source: WatchSourceInput; title?: string }, { party: WatchParty }]
   'watch.control': [{ channelId: number; partyId: string; playing?: boolean; position?: number; rate?: number }, { party: WatchParty }]
-  'watch.settings': [{ channelId: number; partyId: string; anyoneControls: boolean }, Record<string, never>]
+  'watch.settings': [{ channelId: number; partyId: string; anyoneControls?: boolean; audioOnly?: boolean }, Record<string, never>]
+  'watch.queue.add': [{ channelId: number; partyId: string; source: WatchSourceInput; title?: string }, { party: WatchParty }]
+  'watch.queue.remove': [{ channelId: number; partyId: string; itemId: string }, { party: WatchParty }]
+  'watch.queue.move': [{ channelId: number; partyId: string; itemId: string; before?: string }, { party: WatchParty }]
+  'watch.next': [{ channelId: number; partyId: string; playId?: string }, { party: WatchParty }]
   'watch.stop': [{ channelId: number; partyId: string }, Record<string, never>]
   'watch.chat': [{ channelId: number; text: string }, Record<string, never>]
   'watch.clock': [Record<string, never>, { now: number }]
@@ -2429,4 +2450,32 @@ export interface Events {
 export interface Requests {
   /** Your own upload's file id sets it, "" removes it; a field left out stays as it is. `serverImages` (admins by default). */
   'server.images.set': [{ icon?: string; banner?: string }, ServerImages]
+}
+
+// ── join-to-create voice rooms ──
+// See "Join-to-create voice rooms" in PROTOCOL.md.
+
+/** A temporary voice channel made by joining a lobby. */
+export interface VoiceRoomInfo {
+  /** The lobby it was made from (which may be gone by now). */
+  lobbyId: number
+  /** Whoever has been there longest once the maker leaves. */
+  host: string
+  /** Only the host, invited people, someone a moderator moved in and people who can move members may join. */
+  locked: boolean
+  invited: string[]
+}
+
+export interface Channel {
+  /** Voice channels: joining this one makes you a room of your own under it instead. */
+  lobby?: boolean
+  /** Set when this voice channel is a room made from a lobby. */
+  room?: VoiceRoomInfo | null
+}
+
+export interface Requests {
+  /** The room's host (or someone who manages channels): rename (1–60 characters, channel name rules), user limit, lock. */
+  'room.update': [{ channelId: number; name?: string; userLimit?: number; locked?: boolean }, { channel: Channel }]
+  'room.invite': [{ channelId: number; accountKey: string }, { channel: Channel }]
+  'room.uninvite': [{ channelId: number; accountKey: string }, { channel: Channel }]
 }
