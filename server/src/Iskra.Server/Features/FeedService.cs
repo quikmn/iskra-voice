@@ -222,9 +222,13 @@ public sealed partial class FeedService : BackgroundService
         return url is null ? line : line + "\n" + url;
     }
 
-    /// <summary>An admin's template with {title}, {url} and {name} filled in (escaped: they come from the feed).</summary>
+    /// <summary>
+    /// An admin's template with {title}, {url} and {name} filled in (escaped: they come from the feed). Mentions typed
+    /// into the template itself are defused: a post only mentions what <c>mention</c> says, which needs the permission.
+    /// </summary>
     public static string Fill(string template, string title, string? url, string name) =>
-        template.Replace("{title}", Escape(title), StringComparison.Ordinal).Replace("{name}", Escape(name), StringComparison.Ordinal)
+        GroupMention().Replace(template, m => "@‍" + m.Groups[1].Value).Replace("<@", "<‍@", StringComparison.Ordinal)
+            .Replace("{title}", Escape(title), StringComparison.Ordinal).Replace("{name}", Escape(name), StringComparison.Ordinal)
             .Replace("{url}", url ?? "", StringComparison.Ordinal);
 
     [GeneratedRegex(@"@(everyone|here)\b", RegexOptions.CultureInvariant)]

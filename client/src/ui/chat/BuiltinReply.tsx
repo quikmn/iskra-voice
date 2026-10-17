@@ -6,7 +6,8 @@ import { replyLine, rollTerms } from '../../state/builtinBotsLogic'
 import { errorMessage } from '../../i18n/errors'
 import { whenText } from '../productivity/WhenPicker'
 import { isMoreReply, MoreBuiltinReply } from './MoreBuiltinReply'
-import { FeedPost, isFeedReply } from './FeedPost'
+import { FeedPost } from './FeedPost'
+import { isFeedReply } from '../../state/feedsLogic'
 import '../bots.css'
 
 export function BuiltinReply({ server, reply }: { server: ServerState; reply: Reply }) {

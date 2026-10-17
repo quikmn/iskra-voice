@@ -2693,7 +2693,7 @@ BuiltinBot { "id": "dice", "accountKey": "<b64u>" | null, "enabled": true }
   author). Event `builtin.bots { bots }` goes to everyone on a change, next to the usual `member.joined` and
   `bot.commands` (on) or `member.removed` (off). Turning on a bot that's on (or off one that's off) changes nothing.
 - The bot's key is a fresh Ed25519 public key whose private key is never kept, so nobody can sign in as it.
-- Members carry `builtin: "dice" | "polls" | "reminders" | "starboard" | "birthdays" | "welcome" | null`; built-in bots always show as online. Kicking one is
+- Members carry `builtin: "dice" | "polls" | "reminders" | "starboard" | "birthdays" | "welcome" | "feeds" | null`; built-in bots always show as online. Kicking one is
   the same as turning it off. Rate limit: 10, then one a second.
 
 ### Commands
@@ -4344,7 +4344,8 @@ FeedSubscription {
   the Feeds bot must be able to see it to post. `intervalMinutes`: RSS and YouTube 5–1440 (default 15), Twitch 2–60
   (default 3) (`feeds_interval`, args `{ min, max }`). `template` ≤ 500 characters, newlines allowed (`feeds_template`,
   args `{ max }`), with `{title}`, `{url}`, `{name}` (the feed's or channel's name); values from the feed are escaped
-  for markdown and can't mention anyone. `mention`: `null`, `"role"` (with `mentionRoleId`), `"everyone"` or `"here"`.
+  for markdown and can't mention anyone, and mentions typed into the template itself are defused (only `mention`
+  pings). `mention`: `null`, `"role"` (with `mentionRoleId`), `"everyone"` or `"here"`.
   An admin may only pick `everyone`/`here`, or a role that isn't mentionable, if they may mention everyone themselves
   (`forbidden`, key `feeds_mention_denied`); an unknown role is `not_found`. Whether it notifies then follows the
   usual rules for the Feeds bot as author ([role mentions](#roles-and-permissions), `@everyone`): `canPing` says

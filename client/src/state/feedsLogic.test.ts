@@ -78,6 +78,7 @@ describe('feeds settings', () => {
     expect(safeUrl('data:text/html,hi')).toBeNull()
     expect(safeUrl(null)).toBeNull()
     expect(fillFeedTemplate('New on {name}: {title} {url} {title}', { title: 'T', url: 'https://u', name: 'N' })).toBe('New on N: T https://u T')
+    expect(fillFeedTemplate('@everyone <@&3> {title}', { title: 'T', url: '', name: '' })).toBe('@‍everyone <‍@&3> T')
   })
 
   it('says how a feed is doing', () => {

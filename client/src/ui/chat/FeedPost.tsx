@@ -2,16 +2,12 @@
 // text is shown as written). Everything from the feed is rendered as text; the link preview below comes from the
 // message's own link, by the app's usual rules.
 import { useTranslation } from 'react-i18next'
-import type { BuiltinReply, FeedReply } from '../../core/protocol'
+import type { FeedReply } from '../../core/protocol'
 import { mentionToken, postKey, safeUrl } from '../../state/feedsLogic'
 import { useRoleLookup } from '../../state/roles'
 import type { ServerState } from '../../state/store'
 import { renderMarkdown } from '../markdown'
 import '../feeds.css'
-
-export function isFeedReply(reply: BuiltinReply): reply is BuiltinReply & FeedReply {
-  return reply.kind === 'feed.item'
-}
 
 export function FeedPost({ server, reply }: { server: ServerState; reply: FeedReply }) {
   const { t } = useTranslation()

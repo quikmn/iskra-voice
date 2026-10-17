@@ -1,5 +1,5 @@
 // Feeds (the built-in bot that posts new posts, videos and streams): pure helpers for its settings and its posts.
-import type { FeedFields, FeedKind, FeedMention, FeedReply, FeedSubscription } from '../core/protocol'
+import type { BuiltinReply, FeedFields, FeedKind, FeedMention, FeedReply, FeedSubscription } from '../core/protocol'
 
 export const FEED_KINDS: readonly FeedKind[] = ['rss', 'youtube', 'twitch']
 export const MAX_FEED_TEMPLATE = 500
@@ -104,9 +104,14 @@ export function safeUrl(url: string | null | undefined): string | null {
   }
 }
 
-/** The template filled in for the preview, as the server will fill it. */
+/** The template filled in for the preview, as the server will fill it (mentions typed into it don't ping). */
 export function fillFeedTemplate(template: string, values: { title: string; url: string; name: string }): string {
-  return template.split('{title}').join(values.title).split('{name}').join(values.name).split('{url}').join(values.url)
+  const defused = template.replace(/@(everyone|here)\b/g, '@‍$1').split('<@').join('<‍@')
+  return defused.split('{title}').join(values.title).split('{name}').join(values.name).split('{url}').join(values.url)
+}
+
+export function isFeedReply(reply: BuiltinReply): reply is BuiltinReply & FeedReply {
+  return reply.kind === 'feed.item'
 }
 
 /** The i18n key of a post's default line. */

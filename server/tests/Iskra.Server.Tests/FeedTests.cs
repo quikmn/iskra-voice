@@ -594,6 +594,13 @@ public class FeedTests
         Assert.Equal("everyone", Builtin(server, posts[0]).GetProperty("mention").GetString());
         Assert.StartsWith("📰 News: **C**", posts[1].Text); // within ten minutes: no second ping
         Assert.Equal(JsonValueKind.Null, Builtin(server, posts[1]).GetProperty("mention").ValueKind);
+
+        // Mentions typed into the post text never ping: only the mention setting does.
+        await admin.RequestAsync("feeds.update", new { id, template = $"@everyone @here <@&{role}> <@{owner.Key}> {{title}}" });
+        items.Insert(0, ("d", "D"));
+        await Feeds(server).CheckAsync(id, manual: false);
+        var templated = Posts(server, server.General, bot).Last().Text;
+        Assert.Equal($"@‍everyone @‍here <‍@&{role}> <‍@{owner.Key}> D", templated);
     }
 
     // ── Twitch ───────────────────────────────────────────────────────────────
