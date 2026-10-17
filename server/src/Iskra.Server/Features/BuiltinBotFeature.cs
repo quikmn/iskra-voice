@@ -19,19 +19,27 @@ namespace Iskra.Server.Features;
 /// </summary>
 public static partial class BuiltinBotFeature
 {
-    public sealed record Kind(string Id, string Name, string Command, string Description, string Usage);
+    /// <param name="Command">Null for bots that only react to what happens (Starboard, Welcome).</param>
+    public sealed record Kind(string Id, string Name, string? Command, string Description, string Usage);
 
     public static readonly Kind[] Bots =
     [
         new("dice", "Dice", "roll", "Rolls dice, like 2d6+3", "2d6+3"),
         new("polls", "Polls", "poll", "Starts a poll", "Question | Answer | Answer"),
         new("reminders", "Reminders", "remind", "Reminds you later", "me in 10m what"),
+        new("starboard", "Starboard", null, "", ""),
+        new("birthdays", "Birthdays", "birthday", "Birthday greetings", "set 14 March | remove | list"),
+        new("welcome", "Welcome", null, "", ""),
     ];
 
     /// <summary>Marks reminder data written by the Reminders bot (not sealed: the command was a plain channel message).</summary>
     public const string ReminderDataPrefix = "bot.";
 
-    public static void Register(Router router) => router.Add("builtin.bots.set", Set);
+    public static void Register(Router router)
+    {
+        router.Add("builtin.bots.set", Set);
+        MoreBuiltinBots.Register(router);
+    }
 
     // ── Views ────────────────────────────────────────────────────────────────
 
@@ -69,6 +77,7 @@ public static partial class BuiltinBotFeature
         {
             (member, var commands) = Enable(store, kind, me.AccountKey, s.Now);
             Audit.Record(s, "builtin.bot.on", key, details: new { bot = kind.Id });
+            MoreBuiltinBots.TurnedOn(s, kind.Id);
             s.Hub.Broadcast(Frames.Event("member.joined", new { member = s.Hub.PublicMember(member) }));
             using var doc = JsonDocument.Parse(commands);
             s.Hub.Broadcast(Frames.Event("bot.commands", new { bot = key, commands = doc.RootElement.Clone() }));
@@ -93,7 +102,8 @@ public static partial class BuiltinBotFeature
         store.RemoveBan(key); // turning it on is an explicit choice
         var member = store.AddMember(key, kind.Name, Roles.Member, now);
         store.AddBot(key, by, now, readAll: false); // server-run: it only ever sees its own command
-        var commands = new JsonArray(new JsonObject { ["name"] = kind.Command, ["description"] = kind.Description, ["usage"] = kind.Usage }).ToJsonString();
+        var commands = (kind.Command is null ? new JsonArray()
+            : new JsonArray(new JsonObject { ["name"] = kind.Command, ["description"] = kind.Description, ["usage"] = kind.Usage })).ToJsonString();
         store.SetBotCommands(key, commands, now);
         return (member, commands);
     }
@@ -130,7 +140,7 @@ public static partial class BuiltinBotFeature
         if (store.IsBot(me.AccountKey)) return;
         var match = CommandPattern().Match(message.Text);
         if (!match.Success) return;
-        var kind = Bots.FirstOrDefault(b => b.Command == match.Groups[1].Value.ToLowerInvariant());
+        var kind = Bots.FirstOrDefault(b => b.Command is not null && b.Command == match.Groups[1].Value.ToLowerInvariant());
         if (kind is null) return;
         var row = store.BuiltinBots().FirstOrDefault(r => r.Id == kind.Id);
         if (row is null || store.GetMember(row.AccountKey) is not { } bot) return;
@@ -146,6 +156,7 @@ public static partial class BuiltinBotFeature
                 {
                     case "dice": Roll(s, me, bot, channel, args); break;
                     case "polls": Poll(s, me, bot, channel, args); break;
+                    case "birthdays": BirthdayBot.Command(s, me, bot, channel, args); break;
                     default: Remind(s, me, bot, channel, message, args); break;
                 }
             }
@@ -163,7 +174,7 @@ public static partial class BuiltinBotFeature
     /// <summary>A bot's name as it can follow "@" in a command (no spaces), as apps write it.</summary>
     private static string Handle(string name) => string.Concat(name.Where(c => !char.IsWhiteSpace(c)));
 
-    private static JsonObject Reply(Kind kind, string type, Member asker, object? extra = null)
+    internal static JsonObject Reply(Kind kind, string type, Member asker, object? extra = null)
     {
         var reply = new JsonObject { ["bot"] = kind.Id, ["kind"] = type, ["for"] = asker.AccountKey };
         if (extra is not null && JsonSerializer.SerializeToNode(extra, Json.Options) is JsonObject more)
@@ -254,7 +265,7 @@ public static partial class BuiltinBotFeature
     }
 
     /// <summary>Hints and errors go only to the person who asked (a private answer, never stored), not into the channel.</summary>
-    private static void Private(Session s, Member bot, Member asker, Channel channel, string text, JsonObject reply) =>
+    internal static void Private(Session s, Member bot, Member asker, Channel channel, string text, JsonObject reply) =>
         InteractionFeature.PrivateNote(s, bot.AccountKey, asker.AccountKey, channel.Id,
             Text.Normalize(text, ChatFeature.MaxMessageLength, allowNewlines: false) ?? "…", reply);
 

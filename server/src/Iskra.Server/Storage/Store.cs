@@ -369,6 +369,8 @@ public sealed partial class Store : IDisposable
         ("activities-1", ActivitiesMigration),
         // Messages sent with /tts (read aloud for people who turned that on).
         ("tts-1", TtsMigration),
+        // Starboard, Birthdays and Welcome: their settings, cards, opted-in birthdays and welcomes waiting for the rules.
+        ("builtinbots2-1", BuiltinBots2Migration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

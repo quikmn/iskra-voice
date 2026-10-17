@@ -35,6 +35,7 @@ import { media } from './media'
 import { hosting } from './hosting'
 import { outhooks } from './outhooks'
 import { builtinBots } from './builtinBots'
+import { moreBots } from './moreBots'
 import { rental } from './rental'
 import { bugReport } from './bugReport'
 import { afk } from './afk'
@@ -113,4 +114,5 @@ export const en = {
   landing,
   activities,
   speech,
+  moreBots,
 } as const

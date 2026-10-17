@@ -467,6 +467,7 @@ public sealed class Session
         SecurityLog.Record(_world.Store, Now, "member.joined", member.AccountKey, LoggedIp, new { role, bot = isBot });
         _hub.Broadcast(Frames.Event("member.joined", new { member = _hub.PublicMember(member) }));
         _hub.Outhooks?.MemberJoined(member);
+        _hub.BuiltinBots?.Joined(member);
         if (!isBot && role != Roles.Owner) AutoModFeature.JoinSeen(_world, _hub, Now); // the join-flood rule
         return (member, AuthFailure.Invalid);
     }

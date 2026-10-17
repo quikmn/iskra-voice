@@ -356,12 +356,16 @@ public static class InteractionFeature
     /// A private answer from a built-in (server-run) bot to the person who used its command: hints and errors that shouldn't
     /// land in the channel. <paramref name="builtin"/> lets apps show it in their own language.
     /// </summary>
-    public static void PrivateNote(Session s, string bot, string user, long channelId, string text, JsonObject builtin)
+    public static void PrivateNote(Session s, string bot, string user, long channelId, string text, JsonObject builtin) =>
+        PrivateNote(s.Hub, s.Now, bot, user, channelId, text, builtin);
+
+    /// <summary>The same, outside a request (built-in bots' timers).</summary>
+    public static void PrivateNote(Hub hub, long now, string bot, string user, long channelId, string text, JsonObject builtin)
     {
-        var registry = s.Hub.Interactions;
+        var registry = hub.Interactions;
         var pending = registry.Start(bot, user, channelId, "command", null, null, null, isPrivate: true, capped: false);
         var content = new JsonObject { ["text"] = text, ["cards"] = new JsonArray(), ["components"] = new JsonArray(), ["builtin"] = builtin };
-        s.Hub.SendToAccount(user, AnswerFrame(registry.AddAnswer(pending, content, s.Now), updated: false));
+        hub.SendToAccount(user, AnswerFrame(registry.AddAnswer(pending, content, now), updated: false));
     }
 
     private static string AnswerFrame(PrivateAnswer a, bool updated)

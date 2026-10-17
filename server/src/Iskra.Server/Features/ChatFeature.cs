@@ -149,6 +149,7 @@ public static class ChatFeature
         var edited = View(s, message with { Text = text, EditedAt = s.Now });
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.edited", new { message = edited }));
         ForumFeature.Edited(s, channel, message);
+        StarboardBot.Edited(s, channel, message with { Text = text, EditedAt = s.Now });
         return new { message = edited };
     }
 
@@ -163,6 +164,7 @@ public static class ChatFeature
             Audit.Record(s, "message.delete", author?.AccountKey,
                 details: new { channelId = channel.Id, channelName = channel.Name, messageId = message.Id, author = message.AuthorKey });
 
+        StarboardBot.Deleting(s, message);
         s.World.Store.DeleteMessage(message.Id);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id = message.Id, channelId = channel.Id }));
         ThreadFeature.Touched(s, channel);
@@ -201,6 +203,7 @@ public static class ChatFeature
         if (on && !had) s.Hub.Outhooks?.ReactionAdded(channel, message, me.AccountKey, emoji);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.reactions",
             new { id = message.Id, channelId = channel.Id, reactions = MessageViews.Reactions(s.World.Store, message.Id) }));
+        StarboardBot.Reacted(s, channel, message);
         return null;
     }
 
