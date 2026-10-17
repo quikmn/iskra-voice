@@ -74,6 +74,17 @@ test('server icon and banner: the owner sets them, members see them live, invite
   await expect(banner).toHaveAttribute('alt', 'Picture Crew')
   await expect.poll(() => loaded(banner)).toBe(true)
   await expect(host.locator('.server-header-icon img')).toBeVisible()
+  // An inset card at the top of the channel panel, like the me bar at its bottom: 8px in, every corner rounded.
+  const card = await host.evaluate(() => {
+    const b = document.querySelector('.server-banner')!
+    const p = document.querySelector('.channel-sidebar')!.getBoundingClientRect()
+    const r = b.getBoundingClientRect()
+    const s = getComputedStyle(b)
+    return { top: r.top - p.top, left: r.left - p.left, right: p.right - r.right, corners: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomLeftRadius, s.borderBottomRightRadius] }
+  })
+  expect([card.top, card.left, card.right].map(Math.round)).toEqual([8, 8, 8])
+  for (const corner of card.corners) expect(parseFloat(corner), `banner corner ${corner}`).toBeGreaterThan(0)
+  await host.locator('.channel-sidebar').screenshot({ path: join(SHOTS, 'server-banner-card.png') })
 
   // A friend opening the invite sees the icon before joining (fetched from the server's public GET /icon).
   const link = await createInviteLink(host)

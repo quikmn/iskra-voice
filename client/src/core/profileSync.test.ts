@@ -1,13 +1,9 @@
 import sodium from 'libsodium-wrappers-sumo'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { openPrefs, prefsKey, sealPrefs } from './prefs'
 import { authProfile, profileForLink, profileFromLink, sha256Hex } from './profile'
 import { adopt, compareStamps, MAX_AHEAD, missing, nextStamp, parseSynced, PROFILE_PREF, stampOf, toSynced, wireStamp } from './profileSync'
 import type { Profile } from './storage'
-
-beforeAll(async () => {
-  await sodium.ready
-})
 
 const bytes = (text: string) => new TextEncoder().encode(text).buffer as ArrayBuffer
 

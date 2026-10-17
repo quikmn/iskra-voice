@@ -41,6 +41,6 @@ export default defineConfig({
   optimizeDeps: { include: ['onnxruntime-web/wasm', '@mediapipe/tasks-vision', 'eld/extrasmall'] },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    setupFiles: ['src/i18n/testSetup.ts'],
+    setupFiles: ['src/core/testSetup.ts', 'src/i18n/testSetup.ts'],
   },
 })

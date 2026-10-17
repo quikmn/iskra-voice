@@ -177,11 +177,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 
 /* ── Shell layout ───────────────────────────────────────────────────── */
 /* The channel panel, the main column and the members list are rounded panels on the dark base (the rail's colour,
-   which is also the shell's), with a thin gutter between them, along the bottom and along the right edge. The top
-   stays flush with the window: the base shows only in the notch of each rounded top corner. */
+   which is also the shell's), with the same thin gutter between them and above, below and to the right of them. */
 .shell {
   display: grid; grid-template-columns: auto minmax(0, 1fr) 240px; height: 100dvh; column-gap: var(--frame-gap);
-  padding: 0 var(--frame-gap) var(--frame-gap) 0; background: var(--rail);
+  padding: var(--frame-gap) var(--frame-gap) var(--frame-gap) 0; background: var(--rail);
 }
 .shell.no-members { grid-template-columns: auto minmax(0, 1fr); }
 .nav-column { display: flex; min-height: 0; background: var(--rail); }
@@ -259,12 +258,13 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .server-icon:has(.server-picture) { background: var(--surface-2); padding: 0; }
 .server-header-icon { flex: none; width: 22px; height: 22px; border-radius: 6px; overflow: hidden; }
 .server-header-icon:empty { display: none; }
+/* An inset card at the top of the channel panel, mirroring the me bar card at its bottom. */
 .server-banner {
-  flex: none; height: 96px; overflow: hidden; border-radius: var(--panel-radius) var(--panel-radius) 0 0; background: var(--surface-2);
-  transition: height 0.2s ease, opacity 0.2s ease;
+  flex: none; height: 96px; margin: 8px 8px 0; overflow: hidden; border-radius: var(--panel-radius); background: var(--surface-2);
+  transition: height 0.2s ease, opacity 0.2s ease, margin-top 0.2s ease;
 }
 .server-banner img { display: block; width: 100%; height: 100%; object-fit: cover; user-select: none; }
-.server-banner.collapsed { height: 0; opacity: 0; }
+.server-banner.collapsed { height: 0; margin-top: 0; opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .server-banner { transition: none; } }
 .pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--surface-2); color: var(--amber); white-space: nowrap; }
 .pill.rejected { color: var(--red); }
@@ -712,7 +712,6 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
   .shell { grid-template-columns: minmax(0, 1fr); column-gap: 0; padding: 0; }
   .main-column { border-radius: 0; }
   .channel-sidebar { border-radius: var(--panel-radius) 0 0 var(--panel-radius); }
-  .server-banner { border-top-right-radius: 0; }
   .mobile-only { display: inline-grid; }
   .nav-column {
     position: fixed; left: 0; top: 0; bottom: 0; z-index: var(--z-drawer); max-width: 88vw;

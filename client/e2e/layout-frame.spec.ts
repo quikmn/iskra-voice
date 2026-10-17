@@ -1,5 +1,5 @@
 // The desktop frame: the channel list, the chat column and the members list sit as rounded panels on the dark base
-// (--rail), with a thin gutter between them, along the bottom and along the right edge, flush with the top. The me bar
+// (--rail), with the same thin gutter between them and above, below and to the right of them. The me bar
 // and the message box share one height and one bottom edge. Phones stay full-bleed. Measured, not eyeballed: the
 // numbers go to e2e/screenshots/layout-frame.json next to the screenshots.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -101,13 +101,13 @@ function expectRounded(what: string, corners: Corners | null, base: Rgb) {
   for (const [corner, color] of Object.entries(corners!)) sameColor(`${what} ${corner}`, color, base)
 }
 
-/** The three panels on the base, 8px apart, 8px off the bottom and the right edge, flush with the top, every corner rounded. */
+/** The three panels on the base, 8px apart, 8px off the top, the bottom and the right edge, every corner rounded. */
 function expectFrame(m: Measured) {
   const { sidebar, main, members, viewport } = m
   expect(sidebar && main && members).toBeTruthy()
-  near('sidebar top', sidebar!.y, 0)
-  near('main top', main!.y, 0)
-  near('members top', members!.y, 0)
+  near('gutter above sidebar', sidebar!.y, GAP)
+  near('gutter above main', main!.y, GAP)
+  near('gutter above members', members!.y, GAP)
   near('gutter sidebar | main', main!.x - sidebar!.right, GAP)
   near('gutter main | members', members!.x - main!.right, GAP)
   near('gutter right of members', viewport.w - members!.right, GAP)
@@ -200,6 +200,7 @@ test('desktop: rounded panels on the base, bottom bars aligned, in three themes'
   expect(home.members).toBeNull()
   near('home: gutter sidebar | main', home.main!.x - home.sidebar!.right, GAP)
   near('home: gutter right of main', home.viewport.w - home.main!.right, GAP)
+  near('home: gutter above main', home.main!.y, GAP)
   near('home: gutter under main', home.viewport.h - home.main!.bottom, GAP)
   expectRounded('home: sidebar', home.corners.sidebar, rgb(home.colors.rail))
   expectRounded('home: main column', home.corners.main, rgb(home.colors.rail))
