@@ -30,8 +30,10 @@ so keep the names.
 [review-notes.txt](review-notes.txt) tells the reviewer how to get in (no account needed: an invite to **Iskra Review**,
 `https://chat.iskra.foo:8443`, the review server on the droplet, docs/ci-cd.md) and lists the measures Apple wants for
 apps with user content: Terms accepted before use with zero tolerance for objectionable content, Report on every
-message and person (to the server's moderators, with a queue), Block, moderation tools (delete, timeout, kick, ban,
-slow mode, AutoMod, activity log), and the contact for safety reports (spark@iskra.foo, iskra.foo/support#safety).
+message and person (to the server's moderators, with a queue), Block, moderation tools (delete one message or up to
+100 at once, warnings, timeout, kick, ban with the person's recent messages removed, private moderator notes and
+per-member history, invite approval and paused invites, newcomer slowmode, slow mode, AutoMod including join floods,
+activity log), and the contact for safety reports (spark@iskra.foo, iskra.foo/support#safety).
 App Review Information's contact (name, email from mobile/store.json, phone from the secret `APPSTORE_REVIEW_PHONE`) is
 set by the script; **Sign-in required: No**.
 

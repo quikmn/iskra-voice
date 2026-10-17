@@ -79,7 +79,7 @@ Gap: write a short STRIDE-style threat model per component (server, client, desk
 |---|---|---|
 | 4.1 Enforced on a trusted service layer, deny by default | Every request type has a server handler that checks permissions; unknown types refused; role read at the moment of each request ([Session.cs](../../server/src/Iskra.Server/Sessions/Session.cs) `CurrentMember`) | met |
 | 4.2 Operation-level, IDOR | Channel read/write levels and per-role overrides checked for messages, uploads, voice joins, broadcasts and search; DM files served only to conversation members via signed links ([DmFileFeature.cs](../../server/src/Iskra.Server/Features/DmFileFeature.cs)); private channels never leak | met |
-| 4.3 Administrative interfaces | Owner-only: limits, backups, move, import, retention, security log; admin-only audit log (`ViewAuditLog`); role managers can't exceed their own rank | met |
+| 4.3 Administrative interfaces | Owner-only: limits, backups, move, import, retention, security log; admin-only audit log (`ViewAuditLog`; moderators get only a per-person slice of fixed actions through `member.history`); moderators' notes, warnings, the join queue and the people-who-left list need the reports power and, where they act on someone, a target ranked below; role managers can't exceed their own rank | met |
 | Tests | [PermissionTests.cs](../../server/tests/Iskra.Server.Tests/PermissionTests.cs), [RoleTests.cs](../../server/tests/Iskra.Server.Tests/RoleTests.cs), [SafetyTests.cs](../../server/tests/Iskra.Server.Tests/SafetyTests.cs) and per-feature tests | met |
 
 ## V5 Validation, sanitization and encoding — met
@@ -106,7 +106,7 @@ Gap: write a short STRIDE-style threat model per component (server, client, desk
 
 | Area | Evidence | Verdict |
 |---|---|---|
-| 7.1 Log content | Security log (`security_log`, owner-only `security.log.list`) records auth failures (reason; IP address only when the owner opts in), rate-limit hits (throttled), joins, new-device sign-ins, key rotations and disputes, account deletions, device revocations, backups, moves, retention changes, data exports; the audit log records moderation/admin actions. No message text, invite codes, passphrases or keys | met |
+| 7.1 Log content | Security log (`security_log`, owner-only `security.log.list`) records auth failures (reason; IP address only when the owner opts in), rate-limit hits (throttled), joins (and join requests pending, approved or declined, invites paused or resumed), new-device sign-ins, key rotations and disputes, account deletions, device revocations, backups, moves, retention changes, data exports; the audit log records moderation/admin actions. No message text, invite codes, passphrases or keys | met |
 | 7.2 Log processing, 7.3 log protection | Stored in the server's database, readable only by the owner (security log) or `ViewAuditLog` holders (audit log); exportable as JSON; retention configurable (`Retention.SecurityLogDays`, `Retention.AuditDays`) | met |
 | 7.4 Error handling | Clients get generic errors (`internal`: "Something went wrong on the server."); details only in the server log ([Router.cs](../../server/src/Iskra.Server/Features/Router.cs)) | met |
 | 7.3.4 Time source | Host clock; Ubuntu's default NTP client on the droplet (to confirm with `timedatectl`) | partial |
@@ -117,7 +117,7 @@ Gap: write a short STRIDE-style threat model per component (server, client, desk
 |---|---|---|
 | 8.1 Server-side data protection | Files served with `Cache-Control: private`; backups encrypted; daily backups owner-only | met |
 | 8.2 Client-side data protection | Keys and decrypted DMs encrypted at rest; push notifications for DMs carry no content | met |
-| 8.3 Sensitive private data | Data minimisation (no email/phone/password, no analytics); "Download my data" export (`data.export`); account deletion on every server; retention settings ([policies/data-retention.md](policies/data-retention.md)) | met |
+| 8.3 Sensitive private data | Data minimisation (no email/phone/password, no analytics); "Download my data" export (`data.export`); account deletion on every server; retention settings ([policies/data-retention.md](policies/data-retention.md)); moderators' notes about a person are never sent to them (nor in their export, like reporters' identities) and are deleted with the account; join requests pruned after 7 days (refusals after 1 day); profile, per-server and server pictures and bug-report screenshots stored without metadata | met |
 | 8.3.x Sensitive data in URLs | Webhook secrets are in the URL by design (shown once, only a hash stored, `https` enforced for remote senders); export and file links are short-lived capabilities | partial (by design, documented) |
 | Metadata | Servers see who talks to whom and when (documented limitation) | partial (accepted) |
 
@@ -140,7 +140,7 @@ Gap: write a short STRIDE-style threat model per component (server, client, desk
 
 | Area | Evidence | Verdict |
 |---|---|---|
-| 11.1 Anti-automation, limits | Per-type token buckets, per-account upload quotas, call/thread limits, slowmode, timeouts, AutoMod, 10 device revocations/hour | met |
+| 11.1 Anti-automation, limits | Per-type token buckets, per-account upload quotas, call/thread limits, slowmode, timeouts, AutoMod, join gating (approval invites, paused invites, newcomer slowmode, AutoMod join-flood), 10 device revocations/hour | met |
 | Ordering and races | Single writer for SQLite; first-valid-replacement rule for key rotation with dispute handling | met |
 
 ## V12 Files and resources — met

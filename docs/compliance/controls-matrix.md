@@ -36,7 +36,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 | CC5.2 Technology general controls | Pinned actions, minimal permissions, protected `release` environment | [.github/workflows/][wf], CICD §1 | met |
 | CC5.3 Policies and procedures deployed | Policies + runbooks (CI/CD playbook, hosting guide) | policies/, [ci-cd-playbook.md][playbook], HOST | met |
 | CC6.1 Logical access security | Key-based auth with signed challenge; MFA on admin accounts required | [Session.cs][session], POL/access-control, OA 1 | owner-action |
-| CC6.2 User registration and authorisation | Joining needs an invite (expiring, single-use option); bot invites single-use | [InviteFeature.cs][invite], [BotFeature.cs][bot] | met |
+| CC6.2 User registration and authorisation | Joining needs an invite (expiring, single-use option; optionally a moderator's approval); admins can pause every invite (AutoMod's join-flood rule does it by itself) and slow newcomers; bot invites single-use | [InviteFeature.cs][invite], `JoinFeature.cs`, [BotFeature.cs][bot] | met |
 | CC6.3 Role-based access, least privilege | Roles and custom roles checked server-side per request; CI least privilege | [Permissions.cs][perms], [RoleTests.cs][roletests] | met |
 | CC6.4 Physical access | Cloudflare and DigitalOcean data centres (vendors' reports) | POL/vendor-register | met |
 | CC6.5 Disposal of assets | Uploads swept, retention sweeper, account deletion; droplet destroy wipes per DigitalOcean | [UploadSweeper.cs][upsweep], POL/data-retention | met |
@@ -172,12 +172,12 @@ Hosted services run at Cloudflare and DigitalOcean, whose data-centre controls a
 | 8.7 Protection against malware | Uploads typed by content and served sandboxed; signed releases; CodeQL | [Uploads.cs][uploads], CICD | met |
 | 8.8 Management of technical vulnerabilities | Policy with SLAs, Dependabot, CodeQL, Scorecard; GitHub alert settings pending | POL/vulnerability-management, OA 2–5 | partial |
 | 8.9 Configuration management | `server.json` documented; workflows and infrastructure steps in git/docs; droplet config documented, not code | HOST, CICD §4 | partial |
-| 8.10 Information deletion | Retention sweeper, upload sweeper, account deletion | POL/data-retention, [RetentionSweeper.cs][retention] | met |
-| 8.11 Data masking | Audit/report entries keep actions with names removed after deletion; push DM notifications have no content; KLIPY gets a pseudonym | SEC, PRIV | met |
+| 8.10 Information deletion | Retention sweeper, upload sweeper, account deletion (moderators' notes about the account included), join requests pruned (7 days; refusals 1 day), empty voice rooms removed | POL/data-retention, [RetentionSweeper.cs][retention] | met |
+| 8.11 Data masking | Audit/report entries and the "people who left" entry keep actions with names removed after deletion; join requests show moderators the invite's last characters, never the code or an address; push DM notifications have no content; KLIPY gets a pseudonym | SEC, PRIV | met |
 | 8.12 Data leakage prevention | No analytics; link previews fetched by server; gitleaks in CI; push protection pending; old v1 secrets to revoke | [secrets.yml][secretsyml], OA 2, OA 18 | partial |
 | 8.13 Information backup | Daily + encrypted backups; off-site copies pending | [BackupService.cs][backupsvc], OA 9 | partial |
 | 8.14 Redundancy | Single droplet; static sites on Cloudflare's network | POL/risk-register R9 (accepted) | partial |
-| 8.15 Logging | SecLog + Audit, no content or secrets, configurable retention, owner export | [ComplianceFeature.cs][seclog], [ModerationFeature.cs][moderation], [ComplianceTests.cs][compliancetests] | met |
+| 8.15 Logging | SecLog + Audit (join approvals, refusals and invite pauses included), no content or secrets (moderators' notes never reach the audit log), configurable retention, owner export | [ComplianceFeature.cs][seclog], [ModerationFeature.cs][moderation], [ComplianceTests.cs][compliancetests] | met |
 | 8.16 Monitoring activities | Owner reviews SecLog; no automated alerting/uptime monitor | OA 10 | partial |
 | 8.17 Clock synchronization | Ubuntu 24.04's default NTP client (systemd-timesyncd) on the droplet; not yet checked on the host (`timedatectl`) | CICD §4 "The server" | partial |
 | 8.18 Privileged utility programs | CLI commands (`backup`, `restore`, `move`, `import-discord`) need shell access to the world folder | [Cli.cs][cli] | met |
@@ -208,9 +208,9 @@ Hosted services run at Cloudflare and DigitalOcean, whose data-centre controls a
 | Art. 8 Children | Minimum age 13 / national age of consent; deletion on request | [site/terms.html][terms] §6, PRIV §12 | met |
 | Art. 12 Transparent communication | Plain-language policy; email contact; one month to answer | PRIV | met |
 | Art. 13–14 Information to data subjects | Privacy policy covers the security log (IP addresses only if a server's owner opts in), retention and Download my data | PRIV §3, §10, §13 | met |
-| Art. 15 Right of access | Download my data in the app (`data.export`); owner export for email requests | [DataExports.cs][export], [PROTOCOL.md][protocol] | met |
+| Art. 15 Right of access | Download my data in the app (`data.export`); owner export for email requests; moderators' private notes about a person are excluded from that person's export (like reporters' identities) and included in the author's | [DataExports.cs][export], [PROTOCOL.md][protocol] | met |
 | Art. 16 Rectification | Edit profile, messages | PRIV §11 | met |
-| Art. 17 Erasure | Delete account on every server (`account.delete`), delete messages, leave; email for chat.iskra.foo | [AccountFeature.cs][account], [site/delete-account.html][delete] | met |
+| Art. 17 Erasure | Delete account on every server (`account.delete`: profile, per-server picture, settings, moderators' notes about the account; names blanked in audit, report and people-who-left entries), delete messages, leave; email for chat.iskra.foo | [AccountFeature.cs][account], [site/delete-account.html][delete] | met |
 | Art. 18 Restriction | By email request; owner can time out/limit an account | PRIV §13 | partial |
 | Art. 19 Notification of rectification/erasure | Account deletion propagates to every reachable server | [AccountFeature.cs][account] | met |
 | Art. 20 Portability | JSON export (server) and device export (local data) | [DataExports.cs][export] | met |
@@ -243,7 +243,7 @@ Details and evidence: [asvs-l2-self-assessment.md](asvs-l2-self-assessment.md).
 | V8 Data protection | Encryption at rest on devices, export, deletion; secrets in webhook URLs by design | SEC | partial |
 | V9 Communication | TLS 1.2+, HSTS; plain HTTP possible on LAN servers | [Program.cs][program] | partial |
 | V10 Malicious code | CodeQL, signed updates, attestations | CICD | met |
-| V11 Business logic | Rate limits, quotas, timeouts | [RateLimiter.cs][rate] | met |
+| V11 Business logic | Rate limits, quotas, timeouts, join gating (approval invites, paused invites, newcomer slowmode, join-flood rule) | [RateLimiter.cs][rate] | met |
 | V12 Files and resources | Content sniffing, sandboxed serving, quotas | [Uploads.cs][uploads] | met |
 | V13 API and web service | Documented protocol with limits, tests per message | [PROTOCOL.md][protocol] | met |
 | V14 Configuration | Pipeline hardening, server headers; no CSP on app.iskra.foo yet | [client/public/_headers][headers] | partial |

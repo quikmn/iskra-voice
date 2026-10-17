@@ -33,6 +33,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Key log (account keys shown, salted name hashes, key changes; key transparency) | Entries as long as the server: append-only and hash-chained by design, so members' apps can check it. The names beside them (and their salts) until the account is deleted; then only the key and an unopenable salted hash stay. Entries logged before name hashes (until 2026-10-13) keep the name inside the hashed entry | Account deletion (names) | No |
 | Uploaded files still in use | Until their message/avatar/etc. is deleted, or the retention period (files used by avatars, emoji, stickers, sounds, events and webhooks are kept) | `RetentionSweeper` | `Retention.UploadsDays` (0 = keep) |
 | Server icon and banner (the pictures, without their metadata, and which admin set each one and when) | The picture until an admin changes or removes it (the old file then goes with the 24-hour sweep); who set it until that account is deleted | `ServerImageFeature`; account deletion | No |
+| Emoji and stickers members bring over from their other servers (the picture, its name, who brought it, when, and the SHA-256 of the bytes, so the same picture is stored once) | Until an admin deletes them, or until newer ones push the oldest out (300 emoji, 100 stickers per server); their files then go with the 24-hour sweep | Admins (`emoji.delete`, `sticker.delete`); `emoji.import` / `sticker.import` trimming; `UploadSweeper` | No |
 | Uploads nothing uses | 24 hours | `UploadSweeper` | No |
 | Unfinished uploads in parts (part of a file, often encrypted DM ciphertext) | 10 minutes after the last part arrived, deleted with the next upload or the hourly sweep | `Uploads`, `UploadSweeper` | No |
 | Audit log (moderation and admin actions) | 90 days | `ModerationSweeper` | `Retention.AuditDays` (0 = keep) |
@@ -43,21 +44,23 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Ended or cancelled events | 30 days | `EventScheduler` | No |
 | Looking-for-group posts (game, slots, time, voice channel, note; who joined) and the "Notify me for LFG" setting | Posts: same as messages (they go with their message), closed 2 hours after their time or after 24 hours; who joined: with the post, or until the account is deleted; the setting: until turned off or the account is deleted | `RetentionSweeper` and message deletion; `LfgCloser` (closing); account deletion | `Retention.MessagesDays` |
 | Team splits (who started one, the voice channel, the game, its temporary team channels) | Until the split ends: team channels are deleted after 5 minutes empty, or when everyone is brought back | `TeamSweeper`; `teams.end` | No |
+| Join-to-create voice rooms (a temporary voice channel named after its host; the host, whether it's locked, who's invited) | About 30 seconds after the room is empty (checked every 10 s); invites go with the room | `RoomSweeper` | No |
+| Watch party queue (what plays next, who added each item and when; the audio-only switch) | In memory while the party runs; queued uploads count as in use until the party ends, then the 24-hour sweep | Process memory; `UploadSweeper` | No |
 | Daily backups (`backups/auto-*.zip`) | Last 7 (disappearing messages and their files are never in them) | `BackupService` | `Backups.Keep` (1–30) |
 | Encrypted copies of daily backups on another disk (`Backups.CopyTo`, off by default; `.iskrabackup` with the owner's copy passphrase) | Same as daily backups: the newest `Keep` there | `BackupService` | `Backups.CopyTo`, `Backups.Keep` |
 | Downloaded encrypted backups | Wherever the owner keeps them | The owner | — |
 | Data exports (`/export/{token}`) | 10 minutes (the link; files in `world/exports`, never in backups) | Export cleanup | No |
 | Presence, voice state, IP addresses of connected clients | In memory while connected (stored in the security log only if the owner turns on `Retention.SecurityLogIps`, off by default) | Process memory | No |
 | Profiles (and the stamp of the newest profile edit, `profile_stamps`), memberships, roles, devices, push subscriptions | While the person is a member | Leaving, kick/ban, account deletion, device revocation | — |
-| Alert words and quiet hours (`alert_settings`): words only if the member turned on "Also when Iskra is closed", the schedule (days, times, time zone) only where their push is on | Until they change or turn them off, or stop being a member | The member's app (`alerts.set`), leaving, kick/ban, account deletion | — |
+| Alert words, follows (people and roles followed, per channel) and quiet hours (`alert_settings`): words and follows only if the member turned on "Also when Iskra is closed", the schedule (days, times, time zone) only where their push is on | Until they change or turn them off, or stop being a member | The member's app (`alerts.set`), leaving, kick/ban, account deletion | — |
 | Captions model (`models/`; no personal data) | Until the owner deletes it | The owner | `Captions.ModelDownload` (off: not fetched or served) |
 | Translation models (`models/translate/`; no personal data) | Until the owner deletes them | The owner | Server settings → Translation (off: not fetched or served) |
 | Owner claim of a rented server (`owner-claim`), or a server image's claim code (`owner-claim`, `owner-claim-code.txt`) | Until the owner joins; a claim code also stops working after 24 hours and is replaced on the next start | `OwnerSetup` | — |
 
-Account deletion (Settings → Account → Delete my account; `account.delete`) removes the profile, roles, settings,
-devices, push subscriptions and server copies of DMs and group chats on every reachable server, and optionally all
-messages ([site/delete-account.html](../../../site/delete-account.html)). Audit and report entries keep the action
-with the name removed until they expire.
+Account deletion (Settings → Account → Delete my account; `account.delete`) removes the profile, per-server picture,
+roles, settings, devices, push subscriptions, moderators' notes about the person and server copies of DMs and group
+chats on every reachable server, and optionally all messages ([site/delete-account.html](../../../site/delete-account.html)).
+Audit and report entries, and the "people who left" record, keep the action with the name removed until they expire.
 
 ## chat.iskra.foo (owner's settings)
 
@@ -75,6 +78,9 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 
 - Clips are recorded on the device and kept only if the person saves or shares them; Catch up summaries are worked out
   on the device and not stored.
+- Streamer mode is a synced setting; the desktop app's "Turn on by itself" looks at the programs running on that
+  computer for the ones the person listed and keeps nothing but the switch. "Search everywhere" keeps no index: direct
+  messages and groups are searched in what the device already holds.
 - Apps keep keys, decrypted DMs, settings and the server list on the device until the user signs out, deletes the
   account or removes the app. Disappearing messages are deleted from the device (screen, storage, notifications) when
   their time is up, also if the app was closed then (on its next start). "Download data on this device" (Settings → Privacy & data) exports it.
@@ -113,3 +119,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-15 | Looking-for-group posts and team splits |
 | 2026-10-15 | Message translation on the device (texts never leave it); translation models folder on the server |
 | 2026-10-15 | Whiteboards: board objects, unfolded batches and their authors, pictures on boards |
+| 2026-10-17 | Follows in alert settings; emoji and stickers brought over from other servers; join-to-create voice rooms; watch party queues; account deletion covers the per-server picture and moderators' notes; streamer mode and search everywhere stay on the device |
