@@ -542,6 +542,9 @@ export const errors = {
     lfg_full: 'Every slot is taken.',
     lfg_close_author: 'Only the poster or a moderator can close this post.',
     lfg_no_edit: "Looking-for-group posts can't be edited.",
+    // Text to speech
+    tts_forbidden: "You can't send /tts messages on this server.",
+    tts_needs_text: 'A /tts message needs text.',
     // Backup buddies
     buddy_code: "That isn't a backup buddy pairing code. Ask your friend for a new one.",
     buddy_self: "That code is from this server. Backups need to go to a friend's server.",

@@ -65,6 +65,7 @@ public static class ChatFeature
         var voice = VoiceMessageFeature.Parse(s, body, attachments, text);
         var sticker = StickerFeature.Parse(s, body, attachments, text);
         var gif = GifFeature.Parse(s, body, attachments, text);
+        var tts = TtsFeature.Parse(me, body, text, voice is not null);
 
         long? replyTo = body.OptionalLong("replyTo", min: 1);
         if (replyTo is { } replyId && s.World.Store.GetMessage(replyId)?.ChannelId != channel.Id)
@@ -90,6 +91,7 @@ public static class ChatFeature
         VoiceMessageFeature.Saved(s.World.Store, message, voice);
         if (sticker is not null) s.World.Store.SetMessageSticker(message.Id, sticker);
         GifFeature.Saved(s.World.Store, message, gif);
+        TtsFeature.Saved(s.World.Store, message, tts);
         BotCommandFeature.Saved(s.World.Store, message.Id, cards);
         if (components is { Count: > 0 }) s.World.Store.SetMessageComponents(message.Id, components.ToJsonString());
         saved?.Invoke(message);

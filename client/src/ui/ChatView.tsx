@@ -28,6 +28,8 @@ import type { Panel } from './Shell'
 import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, Volume, WifiOff } from './icons'
 import { HeaderTools } from './chat/HeaderTools'
 import { AutoTranslateButton, TranslationBlock } from './translate/Translate'
+import { ReadAloudHeaderButton } from './speech/ReadAloud'
+import { parseTtsCommand, ttsBlocked } from '../state/speech'
 import { channelItem } from './translate/items'
 import { convKey } from '../state/translate'
 import { EncryptedBits, EncryptedWriteBlock, EncryptionButton, LockBadge, StartOverRecordLine, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
@@ -129,6 +131,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         <span className="spacer" />
         <HeaderTools key={channel?.id} server={server} channel={channel} />
         {channel && channel.kind === 'text' && <AutoTranslateButton conv={convKey.channel(server.key, channel.id)} />}
+        {channel && <ReadAloudHeaderButton serverKey={server.key} channelId={channel.id} />}
         <EncryptionButton server={server} channel={channel} />
         <ChannelSettingsButton server={server} channel={channel} />
         {channel?.kind === 'text' && <ChannelPopoutButton serverKey={server.key} channelId={channel.id} />}
@@ -685,6 +688,17 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   function submit() {
     if (!canSend) {
       if (canQueue) queue.queue()
+      return
+    }
+    // "/tts hello": a message read aloud for people who turned that on (the app command says why when it can't be).
+    const tts = uploads.length === 0 ? parseTtsCommand(text) : null
+    if (tts !== null && !ttsBlocked(server.key, tts)) {
+      const encoded = encodeEmoji(encodeMentions(tts, Object.values(server.members), mentionableRoles), emojis)
+      setText('')
+      setReply(server.key, channelId, null)
+      const send = () => void sendMessage(server.key, channelId, encoded, { replyTo, tts: true })
+      if (server.detached?.[channelId]) void jumpToPresent(server.key, channelId).then(send)
+      else send()
       return
     }
     // A command for a bot that takes interactions goes to the bot, not into the channel.

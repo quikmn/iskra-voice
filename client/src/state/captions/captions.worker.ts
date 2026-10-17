@@ -1,9 +1,11 @@
 // Live captions, off the main thread: each incoming voice arrives here as 16 kHz audio over its own port, Silero VAD
-// cuts it into phrases, and Whisper (ONNX Runtime, WebAssembly) turns one phrase at a time into text. The text only
-// goes back to the page that asked; nothing is stored or sent anywhere.
+// cuts it into phrases, and Whisper (ONNX Runtime, WebAssembly) turns one phrase at a time into text. Voice message
+// transcripts come as a whole recording ('transcribe'). The text only goes back to the page that asked; nothing is
+// stored or sent anywhere.
 import * as ort from 'onnxruntime-web/wasm'
 import { parseOnnxWeights, SileroVad } from '../audio/silero'
 import { CaptionQueue, cleanCaption, FRAME, SpeechSegmenter } from './segments'
+import { packPhrases, phrasesOf } from './offline'
 import { looksLikeSpeech, Whisper, type CaptionLanguage } from './whisper'
 import { sameOriginOnly } from '../localOnly'
 
@@ -25,6 +27,7 @@ type Incoming =
   | { type: 'language'; language: CaptionLanguage | 'auto' }
   | { type: 'voice'; id: string; port: MessagePort }
   | { type: 'drop'; id: string }
+  | { type: 'transcribe'; job: number; audio: Float32Array; language: CaptionLanguage | 'auto' }
 
 const post = (m: unknown) => (self as unknown as Worker).postMessage(m)
 
@@ -37,6 +40,13 @@ let busy = false
 let wasPaused = false
 let audioSeconds = 0
 let spentMs = 0
+/** One Whisper run at a time (live phrases and transcripts take turns). */
+let lock: Promise<unknown> = Promise.resolve()
+function exclusive<T>(fn: () => Promise<T>): Promise<T> {
+  const run = lock.then(fn)
+  lock = run.catch(() => undefined)
+  return run
+}
 
 self.onmessage = async (e: MessageEvent<Incoming>) => {
   const m = e.data
@@ -58,6 +68,27 @@ self.onmessage = async (e: MessageEvent<Incoming>) => {
     addVoice(m.id, m.port)
   } else if (m.type === 'drop') {
     dropVoice(m.id)
+  } else if (m.type === 'transcribe') {
+    void transcribe(m.job, m.audio, m.language)
+  }
+}
+
+/** A whole recording: its speech, packed into as few Whisper windows as fit, each turned into text. */
+async function transcribe(job: number, audio: Float32Array, lang: CaptionLanguage | 'auto'): Promise<void> {
+  try {
+    if (!whisper || !sileroWeights) throw new Error('not ready')
+    const started = performance.now()
+    const vad = new SileroVad(sileroWeights)
+    const windows = packPhrases(phrasesOf(audio, (frame) => vad.process(frame)))
+    const texts: string[] = []
+    for (const window of windows) {
+      const result = await exclusive(() => whisper!.transcribe(window, lang))
+      const text = cleanCaption(result.text)
+      if (text && looksLikeSpeech(result)) texts.push(text)
+    }
+    post({ type: 'transcript', job, text: texts.join(' '), ms: performance.now() - started, seconds: audio.length / 16000 })
+  } catch (err) {
+    post({ type: 'transcriptFailed', job, message: (err as Error)?.message ?? String(err) })
   }
 }
 
@@ -118,7 +149,7 @@ async function work(): Promise<void> {
       const phrase = queue.next(now)
       if (!phrase) break
       const started = performance.now()
-      const result = await whisper.transcribe(phrase.audio, language)
+      const result = await exclusive(() => whisper!.transcribe(phrase.audio, language))
       const ms = performance.now() - started
       const seconds = phrase.audio.length / 16000
       audioSeconds += seconds
