@@ -1,10 +1,11 @@
 // The page's side of "Bots on this PC" (My settings): IPC for the bot runner (bots.ts). Only the app's own page may
 // call these; it never names a file or a program, only a gallery bot's id or a folder the person picked here.
-import { app, dialog, ipcMain, shell, type BrowserWindow } from 'electron'
+import { app, dialog, ipcMain, safeStorage, shell, type BrowserWindow } from 'electron'
 import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { BotRunner, isInvite, parseGallery, type GalleryBot } from './bots'
+import { BotRunner, isInvite, parseGallery, type Confirm, type GalleryBot, type SecretBox } from './bots'
+import { text } from './i18n'
 import { deskLog } from './log'
 
 type IpcEvent = Electron.IpcMainInvokeEvent
@@ -23,6 +24,44 @@ function loadGallery(): GalleryBot[] {
   }
 }
 
+/** Secret settings (like a Twitch app secret) encrypted with the OS keychain; where there's none, the runner stores them as-is. */
+const keychain: SecretBox = {
+  encrypt: (text) => {
+    try {
+      if (!safeStorage.isEncryptionAvailable() || safeStorage.getSelectedStorageBackend?.() === 'basic_text') return null
+      return safeStorage.encryptString(text).toString('base64')
+    } catch {
+      return null
+    }
+  },
+  decrypt: (text) => {
+    try {
+      return safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(Buffer.from(text, 'base64')) : null
+    } catch {
+      return null
+    }
+  },
+}
+
+/** Native dialogs (never the page) before a folder bot runs for the first time, or starts by itself with the app. */
+function confirmer(window: () => BrowserWindow | null): Confirm {
+  return async (kind, bot) => {
+    const words = text().bots
+    const options = {
+      type: 'warning' as const,
+      buttons: [kind === 'trust-folder' ? words.run : words.autostart, words.cancel],
+      defaultId: 1,
+      cancelId: 1,
+      title: words.warnTitle,
+      message: kind === 'trust-folder' ? words.runQuestion(bot.name) : words.autostartQuestion(bot.name),
+      detail: words.warnDetail(bot.folder),
+    }
+    const win = window()
+    const result = win ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options)
+    return result.response === 0
+  }
+}
+
 const isId = (v: unknown): v is string => typeof v === 'string' && /^[a-z0-9-]{1,60}$/.test(v)
 
 /** Sets up the runner and its IPC; call once the app is ready (it needs userData). */
@@ -34,6 +73,8 @@ export function registerBots(window: () => BrowserWindow | null, fromApp: (event
     galleryDir: galleryDir(),
     gallery,
     spawn,
+    secrets: keychain,
+    confirm: confirmer(window),
     onChange: () => window()?.webContents.send('iskra:bots'),
     // The app's own log says that a bot started or stopped (never its name, folder or output: that's in its bot.log).
     onEvent: (event, _id, detail) => {
@@ -52,12 +93,18 @@ export function registerBots(window: () => BrowserWindow | null, fromApp: (event
     if (isId(galleryId)) return runner.add({ gallery: galleryId }, name)
     if (galleryId !== null) return null
     const win = window()
-    const options = { properties: ['openDirectory' as const] }
+    // The warning again, in the app's own dialog (the page can't word it away).
+    const options = {
+      title: text().bots.pickTitle,
+      message: text().bots.pickMessage,
+      buttonLabel: text().bots.pickButton,
+      properties: ['openDirectory' as const],
+    }
     const picked = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     if (picked.canceled || !picked.filePaths[0]) return null
     return runner.add({ folder: picked.filePaths[0] }, name)
   })
-  ipcMain.handle('iskra:bots-update', (event, id: unknown, patch: unknown) => {
+  ipcMain.handle('iskra:bots-update', async (event, id: unknown, patch: unknown) => {
     if (!fromApp(event) || !isId(id) || !patch || typeof patch !== 'object') return null
     const { name, autostart, settings } = patch as Record<string, unknown>
     return runner.update(id, { name, autostart, settings })

@@ -206,17 +206,21 @@ function BotSettings({ bot, info, onNewInvite }: { bot: PcBot; info: GalleryBotI
   const { t } = useTranslation()
   const bridge = desktop!.bots!
   const [name, setName] = useState(bot.name)
-  const [values, setValues] = useState<Record<string, string>>(bot.settings)
+  // Secret settings start empty: the page never gets their values, only whether they're set. Left empty, they're kept.
+  const [values, setValues] = useState<Record<string, string | null>>(bot.settings)
   const [saved, setSaved] = useState(false)
+  const secretsSet = bot.secretsSet ?? []
 
   const save = async () => {
     await bridge.update(bot.id, { name, settings: values })
+    setValues((v) => Object.fromEntries(Object.entries(v).filter(([key]) => !info?.settings.some((s) => s.env === key && s.kind === 'secret'))))
     setSaved(true)
   }
 
   return (
     <div className="pc-bot-settings">
       <label className="checkbox">
+        {/* For a bot from a folder, the app asks in its own dialog before turning this on. */}
         <input type="checkbox" checked={bot.autostart} onChange={(e) => void bridge.update(bot.id, { autostart: e.target.checked })} />
         <span>
           {t('pcBots.autostart')}
@@ -233,9 +237,16 @@ function BotSettings({ bot, info, onNewInvite }: { bot: PcBot; info: GalleryBotI
           <label className="field" key={s.env}>
             <span>{t(`pcBots.setting.${s.env}`, { defaultValue: s.env })}</span>
             <input type={s.kind === 'secret' ? 'password' : 'text'} inputMode={s.kind === 'number' ? 'numeric' : undefined} autoComplete="off" spellCheck={false}
-              value={values[s.env] ?? ''} placeholder={s.default} maxLength={300}
+              value={values[s.env] ?? ''} placeholder={s.kind === 'secret' && secretsSet.includes(s.env) && values[s.env] !== null ? '••••••••' : s.default} maxLength={300}
               onChange={(e) => { setValues({ ...values, [s.env]: e.target.value }); setSaved(false) }} />
-            {s.kind === 'secret' && <small className="muted">{t('pcBots.secretHint')}</small>}
+            {s.kind === 'secret' && (
+              <small className="muted">
+                {secretsSet.includes(s.env) && values[s.env] !== null ? `${t('pcBots.secretSaved')} ` : ''}{t('pcBots.secretHint')}
+                {secretsSet.includes(s.env) && values[s.env] !== null && (
+                  <> <button type="button" className="button small" onClick={() => { setValues({ ...values, [s.env]: null }); setSaved(false) }}>{t('pcBots.secretClear')}</button></>
+                )}
+              </small>
+            )}
           </label>
         ))}
         <p className="muted">{t('pcBots.settingsHint')}</p>

@@ -35,6 +35,7 @@ export const pcBots: Messages['pcBots'] = {
     noEntry: 'Det finns inget att köra i den mappen: den behöver en package.json med "main", eller en bot.js, bot.ts eller bot.py.',
     noPython: 'Python är inte installerat här (eller finns inte i PATH). Installera Python 3.11 eller nyare.',
     spawn: 'Den gick inte att starta.',
+    notTrusted: 'Inte startad: Iskra frågar innan en bot från en mapp körs första gången.',
     exit: 'Den stoppade av sig själv (slutkod {{code}}). Loggen berättar varför.',
   },
   start: 'Starta',
@@ -63,6 +64,8 @@ export const pcBots: Messages['pcBots'] = {
     STATS_HOUR: 'På måndagar klockan (timme, 0–23)',
   },
   secretHint: 'Sparas i Iskras filer på den här datorn, precis som botens egna nycklar.',
+  secretSaved: 'Sparad (dold). Skriv en ny för att byta.',
+  secretClear: 'Rensa',
   invite: {
     title: 'Anslut den till en server',
     intro: 'En bot går med via en botinbjudan, som fungerar en gång. Iskra kan skapa en på en server där du är admin.',

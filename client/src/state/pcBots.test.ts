@@ -38,6 +38,7 @@ describe('bots on this PC', () => {
     expect(problemKey(null)).toBeNull()
     expect(problemKey('no-python')).toEqual({ key: 'noPython' })
     expect(problemKey('no-entry')).toEqual({ key: 'noEntry' })
+    expect(problemKey('not-trusted')).toEqual({ key: 'notTrusted' })
     expect(problemKey('3')).toEqual({ key: 'exit', code: '3' })
   })
 })

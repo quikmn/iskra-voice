@@ -104,8 +104,10 @@ export interface PcBot {
   state: 'stopped' | 'starting' | 'running' | 'failed'
   online: boolean
   needsInvite: boolean
-  /** Why the last run ended by itself: an exit code, or no-entry / no-python / spawn. */
+  /** Why the last run ended by itself: an exit code, or no-entry / no-python / spawn / not-trusted. */
   problem: string | null
+  /** Secret settings that have a value (the values never come to the page). */
+  secretsSet?: string[]
 }
 
 export interface PickedBackup {
@@ -259,7 +261,7 @@ export interface DesktopBridge {
     list(): Promise<PcBot[]>
     /** A gallery bot by id, or null: a folder the person picks in the app's own dialog (null if they cancel). */
     add(galleryId: string | null, name?: string): Promise<PcBot | null>
-    update(id: string, patch: { name?: string; autostart?: boolean; settings?: Record<string, string> }): Promise<PcBot | null>
+    update(id: string, patch: { name?: string; autostart?: boolean; settings?: Record<string, string | null> }): Promise<PcBot | null>
     /** `invite`: a bot invite link, used until the bot has joined (kept in memory only). */
     start(id: string, invite?: string | null): Promise<PcBot | null>
     stop(id: string): Promise<PcBot | null>

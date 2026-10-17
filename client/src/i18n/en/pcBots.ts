@@ -34,6 +34,7 @@ export const pcBots = {
     noEntry: 'There is nothing to run in that folder: it needs a package.json with "main", or a bot.js, bot.ts or bot.py.',
     noPython: "Python isn't installed here (or isn't on the PATH). Install Python 3.11 or newer.",
     spawn: "It couldn't be started.",
+    notTrusted: 'Not started: Iskra asks before running a bot from a folder for the first time.',
     exit: 'It stopped by itself (exit code {{code}}). Its log says why.',
   },
   start: 'Start',
@@ -62,6 +63,8 @@ export const pcBots = {
     STATS_HOUR: 'On Mondays at (hour, 0–23)',
   },
   secretHint: 'Kept in Iskra’s files on this computer, like the bot’s own keys.',
+  secretSaved: 'Saved (hidden). Type a new one to replace it.',
+  secretClear: 'Clear',
   invite: {
     title: 'Connect it to a server',
     intro: 'A bot joins with a bot invite, which works once. Iskra can make one on a server where you’re an admin.',

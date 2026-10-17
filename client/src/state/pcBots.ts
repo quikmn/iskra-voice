@@ -37,8 +37,9 @@ export function botLight(bot: PcBot): BotLight {
 }
 
 /** The i18n key (under pcBots.problem) for why a bot ended, with its exit code. */
-export function problemKey(problem: string | null): { key: 'noEntry' | 'noPython' | 'spawn' | 'exit'; code?: string } | null {
+export function problemKey(problem: string | null): { key: 'noEntry' | 'noPython' | 'spawn' | 'notTrusted' | 'exit'; code?: string } | null {
   if (!problem) return null
+  if (problem === 'not-trusted') return { key: 'notTrusted' }
   if (problem === 'no-entry') return { key: 'noEntry' }
   if (problem === 'no-python') return { key: 'noPython' }
   if (problem === 'spawn') return { key: 'spawn' }

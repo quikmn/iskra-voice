@@ -26,6 +26,20 @@ const en = {
     filter: 'Iskra backups',
     notBackup: "That file isn't an Iskra backup.",
   },
+  bots: {
+    pickTitle: 'Choose a bot you trust',
+    pickMessage: 'Only run bots you trust: a bot runs with your rights on this computer and can read and change your files.',
+    pickButton: 'Use this folder',
+    warnTitle: 'Only run bots you trust',
+    runQuestion: (name: string) => `Run "${name}" on this computer?`,
+    autostartQuestion: (name: string) => `Start "${name}" every time Iskra starts?`,
+    warnDetail: (folder: string) => `${folder}
+
+This bot runs with your rights on this computer: it can read and change your files. Only run bots you trust.`,
+    run: 'Run it',
+    autostart: 'Start it with Iskra',
+    cancel: 'Cancel',
+  },
   template: {
     pickTitle: 'Start a server from a template file',
     filter: 'Iskra templates',
@@ -87,6 +101,20 @@ const sv: DesktopText = {
     pickTitle: 'Återställ en server från en säkerhetskopia',
     filter: 'Säkerhetskopior från Iskra',
     notBackup: 'Den filen är ingen säkerhetskopia från Iskra.',
+  },
+  bots: {
+    pickTitle: 'Välj en bot du litar på',
+    pickMessage: 'Kör bara bottar du litar på: en bot körs med dina rättigheter på den här datorn och kan läsa och ändra dina filer.',
+    pickButton: 'Använd den här mappen',
+    warnTitle: 'Kör bara bottar du litar på',
+    runQuestion: (name: string) => `Köra "${name}" på den här datorn?`,
+    autostartQuestion: (name: string) => `Starta "${name}" varje gång Iskra startar?`,
+    warnDetail: (folder: string) => `${folder}
+
+Botten körs med dina rättigheter på den här datorn: den kan läsa och ändra dina filer. Kör bara bottar du litar på.`,
+    run: 'Kör den',
+    autostart: 'Starta den med Iskra',
+    cancel: 'Avbryt',
   },
   template: {
     pickTitle: 'Starta en server från en mallfil',

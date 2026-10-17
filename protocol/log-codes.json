@@ -81,7 +81,7 @@
     { "code": "DSK-140", "level": "WARN", "sources": ["desk"], "area": "store", "meaning": "The desktop app couldn't save its settings.", "action": "Check that the app's data folder is writable." },
     { "code": "DSK-150", "level": "WARN", "sources": ["desk"], "area": "ui", "meaning": "The app's window stopped responding for a while.", "action": "Nothing unless it repeats; then report it with the bug report." },
     { "code": "DSK-160", "level": "WARN", "sources": ["desk"], "area": "life", "meaning": "A bot run by the desktop app (My settings → Bots on this PC) stopped without being asked (exit= is its exit code).", "action": "Open the bot's log in Bots on this PC: its last lines say why." },
-    { "code": "DSK-170", "level": "WARN", "sources": ["desk"], "area": "life", "meaning": "A bot run by the desktop app couldn't start (why=: no-entry, no-python, spawn).", "action": "For your own folder: check it has a package.json main, bot.js or bot.py; Python bots need Python 3.11+ installed." },
+    { "code": "DSK-170", "level": "WARN", "sources": ["desk"], "area": "life", "meaning": "A bot run by the desktop app couldn't start (why=: no-entry, no-python, spawn, not-trusted: the person said no in the confirm dialog).", "action": "For your own folder: check it has a package.json main, bot.js or bot.py; Python bots need Python 3.11+ installed." },
     { "code": "DSK-900", "level": "ERROR", "sources": ["desk"], "area": "life", "meaning": "An uncaught error in the desktop app's main process.", "action": "Report it with the log lines around it." },
     { "code": "ERR-900", "level": "ERROR", "sources": ["app"], "area": "ui", "meaning": "An uncaught error (area unknown).", "action": "Report it with the bug report." }
   ]

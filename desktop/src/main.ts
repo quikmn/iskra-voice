@@ -1003,7 +1003,10 @@ app.whenReady().then(() => {
   setTimeout(() => launchChanged({ page: 'ready', serversGaveUp: true }), LAUNCH_GIVE_UP_MS)
   updates.start(settings.updateChecks)
   // Bots set to start with the app (opt-in, per bot).
-  for (const id of pcBots.autostartIds()) pcBots.start(id)
+  // Bots left running by a crash go first, so none runs twice.
+  const leftovers = pcBots.killLeftovers()
+  if (leftovers > 0) deskLog.info('life', 'bot-leftovers', [['n', leftovers]])
+  for (const id of pcBots.autostartIds()) void pcBots.start(id)
   powerMonitor.on('suspend', () => deskLog.info('life', 'sleep'))
   powerMonitor.on('resume', () => deskLog.info('life', 'resumed'))
   powerMonitor.on('lock-screen', () => deskLog.info('life', 'locked'))
@@ -1033,7 +1036,6 @@ app.on('before-quit', () => {
   })
   ptt.stop()
   void clientTunnels.closeAll()
-  void pcBots.stopAll() // asks each bot to stop now; they don't outlive the app
   // Restarting (a relaunch, an update): hosted servers tell members "restarting", since they're back in a moment.
   if (host.running()) serversStopped ??= settleWithin(host.stopAll(serverStop).finally(() => p2pNode.destroy()), QUIT_WAIT_MS)
   else void p2pNode.destroy()
@@ -1042,6 +1044,8 @@ app.on('before-quit', () => {
 // Give hosted servers a moment to shut down cleanly (they also stop by themselves once the app is gone).
 let readyToQuit = false
 app.on('will-quit', (event) => {
+  // Bots never outlive the app: ended now, synchronously, with whatever they started.
+  pcBots.killAll()
   if (readyToQuit || !serversStopped) return
   event.preventDefault()
   void serversStopped.finally(() => {
