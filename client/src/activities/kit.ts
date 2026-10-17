@@ -84,6 +84,7 @@ const BASE_CSS = `
   --muted: #8484a8; --accent: #695bff; --green: #4ade80; --red: #f87171; --amber: #fbbf24; }
 :root.light { color-scheme: light; }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
 #app { min-height: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; }
 button, input, select, textarea { font: inherit; color: inherit; }

@@ -3,18 +3,24 @@ import { fill, fmt, h, run, type Ctx } from '../kit'
 import { COLS, initialFour, landingRow, parseFour, reduceFour, ROWS, seatOf, type FourState } from './logic'
 
 const CSS = `
+#app { gap: 8px; padding: 8px; }
+h1 { font-size: 1rem; }
 .seats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; max-width: 460px; }
-.seat { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 10px; border-radius: 10px; background: var(--surface); border: 2px solid transparent; min-width: 0; }
+.seat { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; padding: 6px 10px; border-radius: 10px; background: var(--surface); border: 2px solid transparent; min-width: 0; }
 .seat.turn { border-color: var(--accent); }
 .seat strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.seat button { min-height: 32px; padding: 4px 10px; }
 .disc { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; margin-right: 6px; }
-.p1 { background: #ef4444; } .p2 { background: #facc15; }
-.board { display: grid; grid-template-columns: repeat(${COLS}, 1fr); gap: 4px; padding: 8px; border-radius: 14px; background: #1d4ed8;
-  width: min(100%, 460px); }
+.disc.p1 { background: #ef4444; } .disc.p2 { background: #facc15; }
+.status { margin: 0; }
+/* As big as fits: the frame can be short (a call) or narrow (a phone). */
+.board { display: grid; grid-template-columns: repeat(${COLS}, 1fr); gap: 4px; padding: 6px; border-radius: 14px; background: #1d4ed8;
+  width: min(100%, 460px, calc((100vh - 150px) * ${COLS} / ${ROWS})); min-width: 210px; }
 .col { display: grid; grid-template-rows: repeat(${ROWS}, 1fr); gap: 4px; padding: 0; background: transparent; border: 0; border-radius: 8px; min-height: 0; }
 .col:hover:not(:disabled) { background: rgba(255,255,255,.12); filter: none; }
 .col:disabled { opacity: 1; }
 .cell { aspect-ratio: 1; border-radius: 50%; background: var(--bg); }
+.cell.p1 { background: #ef4444; } .cell.p2 { background: #facc15; }
 .cell.win { box-shadow: 0 0 0 3px #fff inset; }
 .cell.last { outline: 2px dashed rgba(255,255,255,.7); outline-offset: -5px; }
 `
@@ -26,7 +32,7 @@ function mount(ctx: Ctx<FourState>) {
   const seats = h('div', { className: 'seats' })
   const board = h('div', { className: 'board', role: 'group', 'aria-label': s.board })
   const actions = h('div', { className: 'row' })
-  fill(ctx.root, h('h1', {}, s.title), seats, status, board, actions)
+  fill(ctx.root, h('h1', { className: 'sr-only' }, s.title), seats, status, board, actions)
 
   const present = (id: string | null) => !!id && ctx.players().some((p) => p.id === id)
 

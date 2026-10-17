@@ -3,7 +3,7 @@
 .call-button.act-off { opacity: 0.45; }
 
 .activity-call {
-  flex: 1 1 60%; min-height: 360px; display: flex; flex-direction: column; border-radius: calc(var(--radius) * 1.2);
+  flex: 1 1 70%; min-height: 420px; display: flex; flex-direction: column; border-radius: calc(var(--radius) * 1.2);
   overflow: hidden; border: 1px solid var(--border); background: var(--surface);
 }
 .activity-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
@@ -31,7 +31,8 @@
 .activity-choice-text strong, .activity-choice-text span { overflow-wrap: anywhere; }
 
 /* Server settings → Activities */
-.activity-settings-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.activity-settings-list { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 8px; }
+.activity-upload { margin-top: 4px; }
 .activity-settings-list li { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); }
 .activity-settings-list .activity-choice-text { flex: 1; }
 .activity-channels { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }

@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert'
 import { test } from 'node:test'
-import { MAX_PREVIEW_URL, pageRequestAllowed, pageViewSource, PREVIEW_PREFIX } from './pageRules'
+import { MAX_PREVIEW_URL, pageFetchAllowed, pageRequestAllowed, pageViewSource, PREVIEW_PREFIX } from './pageRules'
 
 const PAGE = 'http://localhost:47070/pages/AAAAAAAAAAAAAAAAAAAAAA?scripts=1'
 
@@ -48,4 +48,38 @@ test('opaque origins never match each other (security review)', () => {
   assert.equal(pageRequestAllowed(preview, 'file:///files/AAAAAAAAAAAAAAAAAAAA', 'image', 'GET'), false)
   assert.equal(pageRequestAllowed(preview, 'app://iskra/files/AAAAAAAAAAAAAAAAAAAA', 'image', 'GET'), false)
   assert.equal(pageRequestAllowed('app://iskra/x', 'app://iskra/files/AAAAAAAAAAAAAAAAAAAA', 'image', 'GET'), false)
+})
+
+const ACTIVITY = 'http://localhost:47070/activities/AAAAAAAAAAAAAAAAAAAAAA/index.html'
+
+test("an activity view opens only an activity's start page", () => {
+  assert.deepEqual(pageViewSource(ACTIVITY), { kind: 'activity', url: ACTIVITY })
+  for (const bad of [
+    'http://localhost:47070/activities/AAAAAAAAAAAAAAAAAAAAAA/game.html',
+    'http://localhost:47070/activities/AAAAAAAAAAAAAAAAAAAAAA/index.html?x=1',
+    'http://localhost:47070/activities/AAAAAAAAAAAAAAAAAAAAAA/index.html#x',
+    'http://localhost:47070/activities/short/index.html',
+    'http://u:p@localhost:47070/activities/AAAAAAAAAAAAAAAAAAAAAA/index.html',
+    'file:///activities/AAAAAAAAAAAAAAAAAAAAAA/index.html',
+  ]) assert.equal(pageViewSource(bad), null, bad)
+})
+
+test("an activity's session lets through only that activity's own files", () => {
+  const file = (path: string) => `http://localhost:47070/activities/AAAAAAAAAAAAAAAAAAAAAA/${path}`
+  assert.equal(pageRequestAllowed(ACTIVITY, ACTIVITY, 'mainFrame', 'GET'), true)
+  for (const type of ['script', 'stylesheet', 'image', 'font', 'media']) assert.equal(pageRequestAllowed(ACTIVITY, file('a/b.js'), type, 'GET'), true, type)
+  assert.equal(pageRequestAllowed(ACTIVITY, file('game.js'), 'script', 'POST'), false)
+  for (const type of ['xhr', 'webSocket', 'subFrame', 'ping', 'object', 'other']) assert.equal(pageRequestAllowed(ACTIVITY, file('game.js'), type, 'GET'), false, type)
+  // Another activity, another server, the server's other paths, hidden files, queries.
+  assert.equal(pageRequestAllowed(ACTIVITY, 'http://localhost:47070/activities/BBBBBBBBBBBBBBBBBBBBBB/game.js', 'script', 'GET'), false)
+  assert.equal(pageRequestAllowed(ACTIVITY, 'http://127.0.0.1:47070/activities/AAAAAAAAAAAAAAAAAAAAAA/game.js', 'script', 'GET'), false)
+  assert.equal(pageRequestAllowed(ACTIVITY, 'http://localhost:47070/files/AAAAAAAAAAAAAAAAAAAAAA/cat.png', 'image', 'GET'), false)
+  assert.equal(pageRequestAllowed(ACTIVITY, file('.env'), 'script', 'GET'), false)
+  assert.equal(pageRequestAllowed(ACTIVITY, file('game.js?x=1'), 'script', 'GET'), false)
+  assert.equal(pageRequestAllowed(ACTIVITY, 'https://evil.example/x.js', 'script', 'GET'), false)
+  // The app's fetches for the view: the same files, and for pages still only their images.
+  assert.equal(pageFetchAllowed(ACTIVITY, file('sounds/pop.mp3')), true)
+  assert.equal(pageFetchAllowed(ACTIVITY, 'http://localhost:47070/health'), false)
+  assert.equal(pageFetchAllowed(PAGE, 'http://localhost:47070/files/AAAAAAAAAAAAAAAAAAAAAA/cat.png'), true)
+  assert.equal(pageFetchAllowed(PAGE, 'http://localhost:47070/activities/AAAAAAAAAAAAAAAAAAAAAA/index.html'), false)
 })

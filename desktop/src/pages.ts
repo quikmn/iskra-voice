@@ -1,9 +1,9 @@
-// Profile pages get their own wall here, so their scripts can run for everyone: each page is a <webview> in a
-// session nothing else uses. In it, no request reaches the network except the page's own document (fetched for it
+// Profile pages (and activities added to a server) get their own wall here, so their scripts can run for everyone:
+// each one is a <webview> in a session nothing else uses. In it, no request reaches the network except the page's own document (fetched for it
 // by the app), WebRTC has no socket to use, and there's no Node, preload, permission, pop-up or navigation.
 // The rules are in pageRules.ts; the probes that check them are in client/e2e/page-sandbox.spec.ts.
 import { app, session, type BrowserWindow, type Session, type WebContents } from 'electron'
-import { PAGES_PARTITION, pageRequestAllowed, pageViewSource } from './pageRules'
+import { PAGES_PARTITION, pageFetchAllowed, pageRequestAllowed, pageViewSource } from './pageRules'
 
 /**
  * The page session's proxy, for everything Chromium would otherwise send straight to the network (preconnects,
@@ -40,8 +40,7 @@ function pagesSession(): Session {
 
   // The page document (and its server's images) come through the app's own session; everything else gets a 404.
   const serve = async (request: Request): Promise<Response> => {
-    const ok = request.method === 'GET' && [...allowedBy.values()].some((page) =>
-      pageRequestAllowed(page, request.url, request.url === page ? 'mainFrame' : 'image', 'GET'))
+    const ok = request.method === 'GET' && [...allowedBy.values()].some((page) => pageFetchAllowed(page, request.url))
     if (!ok) return new Response('', { status: 404 })
     const response = await session.defaultSession.fetch(request.url, { redirect: 'error', credentials: 'omit' })
     const headers = new Headers(response.headers)

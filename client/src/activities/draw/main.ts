@@ -10,11 +10,14 @@ import { WORDS, threeWords } from './words'
 const COLOR_NAMES = ['black', 'red', 'orange', 'green', 'blue', 'purple', 'pink', 'eraser'] as const
 
 const CSS = `
+#app { gap: 6px; padding: 8px; }
+.status { margin: 0; }
 .top { display: flex; gap: 8px; align-items: center; justify-content: space-between; width: 100%; max-width: 760px; flex-wrap: wrap; }
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px; width: 100%; max-width: 960px; }
 @media (max-width: 700px) { .layout { grid-template-columns: 1fr; } }
 .board { position: relative; width: 100%; }
-canvas { width: 100%; aspect-ratio: 4 / 3; background: #fff; border-radius: 12px; touch-action: none; display: block; }
+/* As big as fits the frame: wide on a computer, short in a call. */
+canvas { width: min(100%, calc((100vh - 120px) * 4 / 3)); min-width: 240px; aspect-ratio: 4 / 3; background: #fff; border-radius: 12px; touch-action: none; display: block; margin: 0 auto; }
 canvas.mine { cursor: crosshair; }
 .mask { font: 600 1.4rem/1.2 ui-monospace, monospace; letter-spacing: .35em; text-align: center; overflow-wrap: anywhere; }
 .tools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
@@ -28,7 +31,7 @@ canvas.mine { cursor: crosshair; }
 .words { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .words button { font-size: 1.1rem; min-width: 120px; }
 .timer { font-variant-numeric: tabular-nums; }
-form.guess { display: flex; gap: 6px; } form.guess input { flex: 1; min-width: 0; }
+.guess { display: flex; gap: 6px; } .guess input { flex: 1; min-width: 0; }
 `
 
 interface Local {
@@ -57,7 +60,7 @@ function mount(ctx: Ctx<DrawState>) {
   const g = canvas.getContext('2d')!
   const mainCol = h('div', {})
   const side = h('div', { className: 'side' })
-  fill(ctx.root, h('h1', {}, s.title), top, status, h('div', { className: 'layout' }, mainCol, side))
+  fill(ctx.root, h('h1', { className: 'sr-only' }, s.title), top, status, h('div', { className: 'layout' }, mainCol, side))
   const present = (id: string | null) => !!id && ctx.players().some((p) => p.id === id)
 
   // ── Drawing ──────────────────────────────────────────────────────────────
@@ -162,10 +165,10 @@ function mount(ctx: Ctx<DrawState>) {
     local.word = null
   }
 
-  function guess(form: HTMLFormElement) {
-    const input = form.querySelector('input')!
-    const text = input.value.trim().slice(0, MAX_GUESS)
-    input.value = ''
+  // Sandboxed frames can't submit forms (no allow-forms): Enter and the button send the guess.
+  function guess() {
+    const text = guessInput.value.trim().slice(0, MAX_GUESS)
+    guessInput.value = ''
     if (!text) return
     const state = ctx.state()
     if (isRight(state, text)) {
@@ -174,19 +177,31 @@ function mount(ctx: Ctx<DrawState>) {
     } else ctx.send({ t: 'g', text })
   }
 
-  function tools() {
-    return h('div', { className: 'tools', role: 'toolbar', 'aria-label': s.tools },
-      ...COLORS.map((color, i) => h('button', {
-        className: 'swatch', style: `background:${color}`, 'aria-label': s.colors[COLOR_NAMES[i]], 'aria-pressed': String(local.color === i),
-        onclick: () => { local.color = i; update(ctx.state()) },
-      })),
-      ...SIZES.map((_, i) => h('button', {
-        className: 'size', 'aria-label': [s.small, s.medium, s.large][i], 'aria-pressed': String(local.size === i),
-        onclick: () => { local.size = i; update(ctx.state()) },
-      }, ['S', 'M', 'L'][i])),
-      h('button', { onclick: () => ctx.send({ t: 'undo' }) }, s.undo),
-      h('button', { onclick: () => ctx.send({ t: 'clear' }) }, s.clear))
-  }
+  // The parts that stay put (a canvas mid-stroke or a guess being typed must not be rebuilt); update() fills the rest.
+  const words = h('div', { className: 'words' })
+  const mask = h('p', { className: 'mask' })
+  const swatches = COLORS.map((color, i) => h('button', {
+    className: 'swatch', style: `background:${color}`, 'aria-label': s.colors[COLOR_NAMES[i]],
+    onclick: () => { local.color = i; update(ctx.state()) },
+  }))
+  const sizes = SIZES.map((_, i) => h('button', {
+    className: 'size', 'aria-label': [s.small, s.medium, s.large][i],
+    onclick: () => { local.size = i; update(ctx.state()) },
+  }, ['S', 'M', 'L'][i]))
+  const tools = h('div', { className: 'tools', role: 'toolbar', 'aria-label': s.tools }, ...swatches, ...sizes,
+    h('button', { onclick: () => ctx.send({ t: 'undo' }) }, s.undo),
+    h('button', { onclick: () => ctx.send({ t: 'clear' }) }, s.clear))
+  const timer = h('p', { className: 'muted timer' })
+  const actions = h('div', { className: 'row' })
+  fill(mainCol, words, mask, h('div', { className: 'board' }, canvas), tools, timer, actions)
+  const guessInput = h('input', { maxlength: MAX_GUESS, 'aria-label': s.guessHere, placeholder: s.guessHere, autocomplete: 'off',
+    onkeydown: (e: Event) => { if ((e as KeyboardEvent).key === 'Enter') guess() } })
+  const guessForm = h('div', { className: 'guess' }, guessInput, h('button', { className: 'primary', onclick: () => guess() }, s.guess))
+  const guessList = h('ul', { className: 'guesses', 'aria-live': 'polite' })
+  const guessBox = h('div', {}, h('h2', {}, s.guesses), guessList)
+  const playerList = h('ul', { className: 'scores' })
+  fill(side, guessForm, guessBox, h('div', {}, h('h2', {}, s.players), playerList))
+  const show = (el: HTMLElement, on: boolean) => (el.hidden = !on)
 
   function update(state: DrawState) {
     const drawer = drawerOf(state)
@@ -240,28 +255,30 @@ function mount(ctx: Ctx<DrawState>) {
 
     canvas.className = iDraw && state.phase === 'drawing' ? 'mine' : ''
     canvas.setAttribute('aria-label', fmt(s.canvas, { name: ctx.nameOf(drawer) }))
-    const left = state.phase === 'drawing' && local.startedAt ? Math.max(0, ROUND_SECONDS - Math.floor((Date.now() - local.startedAt) / 1000)) : null
-    fill(mainCol,
-      state.phase === 'picking' && iDraw ? h('div', { className: 'words' }, ...local.choices.map((word) => h('button', { className: 'primary', onclick: () => pick(word) }, word))) : null,
-      state.phase === 'drawing' && !iDraw ? h('p', { className: 'mask', 'aria-label': fmt(s.letters, { count: state.mask.replace(/[\s-]/g, '').length }) }, state.mask.split('').join('')) : null,
-      h('div', { className: 'board' }, canvas),
-      state.phase === 'drawing' && iDraw ? tools() : null,
-      state.phase === 'drawing' && left !== null ? h('p', { className: 'muted timer' }, fmt(s.timeLeft, { seconds: left })) : null,
+
+    show(words, state.phase === 'picking' && iDraw)
+    if (state.phase === 'picking' && iDraw && words.childElementCount !== local.choices.length)
+      fill(words, ...local.choices.map((word) => h('button', { className: 'primary', onclick: () => pick(word) }, word)))
+    show(mask, state.phase === 'drawing' && !iDraw)
+    mask.textContent = state.mask
+    mask.setAttribute('aria-label', fmt(s.letters, { count: state.mask.replace(/[\s-]/g, '').length }))
+    show(tools, state.phase === 'drawing' && iDraw)
+    swatches.forEach((b, i) => b.setAttribute('aria-pressed', String(local.color === i)))
+    sizes.forEach((b, i) => b.setAttribute('aria-pressed', String(local.size === i)))
+    show(timer, state.phase === 'drawing' && !!local.startedAt)
+    if (local.startedAt) timer.textContent = fmt(s.timeLeft, { seconds: Math.max(0, ROUND_SECONDS - Math.floor((Date.now() - local.startedAt) / 1000)) })
+    fill(actions,
       (state.phase === 'drawing' || state.phase === 'picking') && drawer && !present(drawer) && inGame ? h('button', { onclick: () => ctx.send({ t: 'skip' }) }, s.skip) : null,
       state.phase === 'between' && inGame && !iDraw ? h('button', { onclick: () => ctx.send({ t: 'next' }) }, s.next) : null)
 
     const canGuess = state.phase === 'drawing' && inGame && !iDraw && !state.guessed.includes(ctx.me.id) && !local.got
-    fill(side,
-      canGuess ? h('form', { className: 'guess', onsubmit: (e: Event) => { e.preventDefault(); guess(e.target as HTMLFormElement) } },
-        h('input', { maxlength: MAX_GUESS, 'aria-label': s.guessHere, placeholder: s.guessHere, autocomplete: 'off' }),
-        h('button', { type: 'submit', className: 'primary' }, s.guess)) : null,
-      state.phase === 'drawing' || state.phase === 'between' ? h('div', {}, h('h2', {}, s.guesses), h('ul', { className: 'guesses', 'aria-live': 'polite' },
-        ...state.guessed.map((id) => h('li', { className: 'ok' }, fmt(s.gotItOther, { name: ctx.nameOf(id) }))),
-        ...state.guesses.map((x) => h('li', {}, h('strong', {}, ctx.nameOf(x.from)), ': ', x.text)))) : null,
-      h('div', {}, h('h2', {}, s.players), h('ul', { className: 'scores' }, ...state.roster.map((id) => h('li', { className: id === ctx.me.id ? 'me' : '' },
-        h('span', {}, ctx.nameOf(id), id === drawer && playing ? ' ✎' : ''), h('strong', {}, String(state.scores[id] ?? 0)))))))
-    // Keep focus in the guess box between guesses.
-    if (canGuess && document.activeElement === document.body) side.querySelector('input')?.focus()
+    show(guessForm, canGuess)
+    show(guessBox, state.phase === 'drawing' || state.phase === 'between')
+    fill(guessList,
+      ...state.guessed.map((id) => h('li', { className: 'ok' }, fmt(s.gotItOther, { name: ctx.nameOf(id) }))),
+      ...state.guesses.map((x) => h('li', {}, h('strong', {}, ctx.nameOf(x.from)), ': ', x.text)))
+    fill(playerList, ...state.roster.map((id) => h('li', { className: id === ctx.me.id ? 'me' : '' },
+      h('span', {}, ctx.nameOf(id), id === drawer && playing ? ` (${s.drawer})` : ''), h('strong', {}, String(state.scores[id] ?? 0)))))
     redraw()
   }
 
@@ -271,8 +288,7 @@ function mount(ctx: Ctx<DrawState>) {
     if (state.phase !== 'drawing' || !local.startedAt) return
     const elapsed = (Date.now() - local.startedAt) / 1000
     if (drawerOf(state) === ctx.me.id && elapsed >= ROUND_SECONDS) endRound()
-    const timer = ctx.root.querySelector('.timer')
-    if (timer) timer.textContent = fmt(s.timeLeft, { seconds: Math.max(0, ROUND_SECONDS - Math.floor(elapsed)) })
+    timer.textContent = fmt(s.timeLeft, { seconds: Math.max(0, ROUND_SECONDS - Math.floor(elapsed)) })
   }, 500)
 
   return { update }

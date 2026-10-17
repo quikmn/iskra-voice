@@ -104,7 +104,8 @@ export function ActivityLauncher({ server, channel, onClose }: { server: ServerS
 
   const builtins = catalog?.builtins.filter((b) => b.enabled) ?? []
   const added = catalog?.activities.filter((a) => a.enabled) ?? []
-  const players = (min: number, max: number) => (max >= 25 ? t('activities.playersFrom', { min }) : t('activities.players', { min, max }))
+  const players = (min: number, max: number) =>
+    min === max ? t('activities.playersExact', { n: min }) : max >= 25 ? t('activities.playersFrom', { min }) : t('activities.players', { min, max })
   return (
     <Modal title={t('activities.start')} onClose={onClose} wide>
       <p className="muted">{t('activities.intro')}</p>
