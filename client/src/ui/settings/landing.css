@@ -1,0 +1,12 @@
+/* Server settings → Overview → Public page */
+.landing-settings { margin-top: 24px; display: grid; gap: 10px; }
+.landing-settings h3 { margin: 0; }
+.landing-settings p { margin: 0; }
+.landing-fields { display: grid; gap: 10px; }
+.landing-fields textarea { width: 100%; resize: vertical; min-height: 72px; }
+.landing-description-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.landing-fields select { max-width: 100%; }
+.landing-open { overflow-wrap: anywhere; }
+.landing-switch-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.landing-switch-row strong { display: block; }
+.landing-switch-row .switch { flex: none; }

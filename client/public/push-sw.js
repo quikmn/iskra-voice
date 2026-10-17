@@ -47,6 +47,7 @@ const SV = {
     lfgJoined: '{{name}} gick med i din grupp för {{game}}',
     lfgFull: 'Din grupp för {{game}} är full',
     lfgPosted: '{{name}} söker {{slots}} till {{game}}',
+    digest: 'Medan det var tyst',
   },
   body: {
     openToRead: 'Öppna Iskra för att läsa det.',
@@ -69,6 +70,25 @@ const SV = {
   dmCount: '{{count}} nya meddelanden från {{from}}',
   groupCount: '{{count}} nya meddelanden i en gruppchatt',
   more: ' (+{{n}} till)',
+  // The quiet hours summary's body ("digestBody"), built from its counts: [one, many] per kind, in the server's order.
+  digest: [
+    ['mentions', '1 omnämnande', '{{n}} omnämnanden'],
+    ['messages', '1 meddelande', '{{n}} meddelanden'],
+    ['keywords', '1 bevakat ord', '{{n}} bevakade ord'],
+    ['follows', '1 inlägg av någon du följer', '{{n}} inlägg av personer du följer'],
+    ['events', '1 evenemang', '{{n}} evenemang'],
+    ['reminders', '1 påminnelse', '{{n}} påminnelser'],
+  ],
+}
+
+/** "2 omnämnanden, 1 meddelande" from the summary's counts; empty if there are none. */
+function digestBody(args) {
+  const parts = []
+  for (const [name, one, many] of SV.digest) {
+    const n = Number.isSafeInteger(args[name]) && args[name] > 0 ? args[name] : 0
+    if (n > 0) parts.push(n === 1 ? one : fill(many, { n }))
+  }
+  return parts.join(', ')
 }
 
 function language() {
@@ -90,10 +110,11 @@ function swedish(data) {
   if (!text || typeof text !== 'object' || typeof text.title !== 'string' || !Object.hasOwn(SV.title, text.title)) return null
   const args = text.args && typeof text.args === 'object' ? text.args : {}
   const count = Number.isSafeInteger(data.count) ? data.count : 1
-  const own = typeof text.body === 'string' && Object.hasOwn(SV.body, text.body)
+  const digest = text.body === 'digestBody' ? digestBody(args) : ''
+  const own = typeof text.body === 'string' && (Object.hasOwn(SV.body, text.body) || digest !== '')
   if (text.body != null && !own) return null
   let title = fill(SV.title[text.title], args)
-  let body = own ? fill(SV.body[text.body], args) : String(data.body || '').replace(/ \(\+\d+ more\)$/, '')
+  let body = digest || (own ? fill(SV.body[text.body], args) : String(data.body || '').replace(/ \(\+\d+ more\)$/, ''))
   if (count > 1 && data.kind === 'dm') title = fill(SV.dmCount, { count, from: data.from })
   else if (count > 1 && data.kind === 'group') title = fill(SV.groupCount, { count })
   else if (count > 1) body += fill(SV.more, { n: count - 1 })

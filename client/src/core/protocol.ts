@@ -2330,6 +2330,8 @@ export interface QuietHours {
   timeZone: string
   /** Let mentions, replies, alert words, DMs and calls through, silently. */
   mentions: boolean
+  /** A summary when they end ("Quiet hours digest" in PROTOCOL.md); missing means on (older servers and settings). */
+  digest?: boolean
 }
 
 /** "Alert me when this person (or anyone with this role) posts", in one channel or anywhere on the server (channelId null). */
@@ -2592,6 +2594,34 @@ export interface Requests {
   'room.invite': [{ channelId: number; accountKey: string }, { channel: Channel }]
   'room.uninvite': [{ channelId: number; accountKey: string }, { channel: Channel }]
 }
+
+// ── public page ──
+// See "Public page" in PROTOCOL.md: what a browser sees at the server's own address.
+
+export interface LandingSettings {
+  /** Off: the page only says this is an Iskra server. */
+  enabled: boolean
+  /** Plain text, up to 500 characters (newlines allowed); "" = none. */
+  description: string
+  showRules: boolean
+  /** An approximate count of members and of members online. */
+  showCounts: boolean
+  /** Lets search engines list the page (otherwise noindex). */
+  indexable: boolean
+  /** The invite behind the page's Join button, while it still works. */
+  invite: Invite | null
+  /** An invite was chosen but has expired, been used up or been revoked. */
+  inviteGone: boolean
+}
+
+export interface Events {
+  'landing.settings': { settings: LandingSettings }
+}
+
+export interface Requests {
+  'landing.get': [Record<string, never>, { settings: LandingSettings }]
+  /** Owner only. `invite: ''` or `null` removes the invite. */
+  'landing.update': [Partial<Omit<LandingSettings, 'invite' | 'inviteGone'>> & { invite?: string | null }, { settings: LandingSettings }]
 
 // ── backup buddies ──
 // See "Backup buddies" in PROTOCOL.md.

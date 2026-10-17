@@ -252,6 +252,11 @@ export function QuietHoursSettings() {
             <input type="checkbox" checked={quiet.mentions} onChange={(e) => setQuiet({ mentions: e.target.checked })} />
             {t('alerts.quiet.mentions')}
           </label>
+          <label className="checkbox">
+            <input type="checkbox" checked={quiet.digest !== false} onChange={(e) => setQuiet({ digest: e.target.checked })} />
+            {t('alerts.quiet.digest')}
+          </label>
+          <p className="muted quiet-note">{t('alerts.quiet.digestHint')}</p>
           {pushOn && <p className="muted alert-privacy">{t('alerts.quiet.pushNote')}</p>}
         </div>
       )}

@@ -57,7 +57,7 @@ export const compliance: Messages['compliance'] = {
     },
     hosting: {
       who: 'När du kör en server',
-      when: 'Låt vänner var som helst gå med (Internetåtkomst): din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let’s Encrypt för HTTPS-certifikatet och sslip.io för den gratis adressen om du inte har en egen domän. Textning: servern hämtar talmodellen en gång från Hugging Face. Serveruppdateringar: GitHub.',
+      when: 'Låt vänner var som helst gå med (Internetåtkomst): din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let’s Encrypt för HTTPS-certifikatet och sslip.io för den gratis adressen om du inte har en egen domän. Textning: servern hämtar talmodellen en gång från Hugging Face. Serveruppdateringar: GitHub. Backupkompisar: krypterade säkerhetskopior till en väns Iskra-server, bara om ägaren kopplar ihop dem (den kan inte läsa dem).',
       off: 'De ser serverns adress, inte dina medlemmars. Internetvärd och serveruppdateringar slår du av och på i Serverinställningar, textningsmodellen i server.json.',
     },
     previews: {
@@ -157,6 +157,7 @@ export const compliance: Messages['compliance'] = {
     join_declined: 'Avvisad av en moderator',
     invites_paused: 'Inbjudningar pausade',
     invites_resumed: 'Inbjudningar återupptagna',
+    landing_settings: 'Ändrade den offentliga sidan',
     device_revoke: 'Tog bort en enhet',
     account_rotate: 'Bytte kontonyckel',
     account_rotate_disputed: 'Omstridd kontonyckel',

@@ -140,4 +140,23 @@ describe('push service worker', () => {
     await w.push({ ...mention, text: { title: 'mention', body: null, args: { name: 'Alice', channel: 'general' } } })
     expect(w.shown[0].title).toBe('Alice in #general')
   })
+
+  it('shows the quiet hours summary in Swedish from its counts, quietly, opening the server', async () => {
+    const digest = {
+      v: 1, kind: 'digest', server: SERVER, title: 'While it was quiet', body: '2 mentions, 1 message, 1 alert word', tag: 'digest', count: 1, at: 1, silent: true,
+      text: { title: 'digest', body: 'digestBody', args: { mentions: 2, messages: 1, keywords: 1, follows: 0, events: 0, reminders: 0 } },
+    }
+    const sv = worker([], 'push-sw.js?lang=sv')
+    await sv.push(digest)
+    await sv.push({ ...digest, text: { ...digest.text, args: { follows: 3, events: 1, reminders: 2 } } })
+    expect(sv.shown.map((n) => [n.title, n.options.body])).toEqual([
+      ['Medan det var tyst', '2 omnämnanden, 1 meddelande, 1 bevakat ord'],
+      ['Medan det var tyst', '3 inlägg av personer du följer, 1 evenemang, 2 påminnelser'],
+    ])
+    expect(sv.shown[0].options.silent).toBe(true)
+    expect(sv.shown[0].options.data).toEqual({ route: `/open/${SERVER}` })
+    const en = worker([], 'push-sw.js?lang=en')
+    await en.push(digest)
+    expect([en.shown[0].title, en.shown[0].options.body]).toEqual(['While it was quiet', '2 mentions, 1 message, 1 alert word'])
+  })
 })

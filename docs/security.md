@@ -186,6 +186,10 @@ How each app keeps that promise:
 
 We test this: the tests point a page at a fake attacker on the same machine with 70 different ways to reach it, check that a page without the wall *does* reach it, and require zero connections from a page in each app. Admins can turn pages off for their server or remove a member's page.
 
+### The server's public page
+
+Opening a server's address in a browser shows a small page made by the server itself. While the owner hasn't turned it on (the default), it says only that this is an Iskra server, with links to get Iskra: no name, picture, member count or invite. The owner can turn it on in Server settings → Overview → Public page and pick what it shows: a description, the rules, a rounded count of members and of members online, and a Join button for one invite they choose (for members only; while invites are paused the page says so instead). The page has no scripts, loads nothing from anywhere but the server, encodes everything people wrote as text, asks search engines not to list it unless the owner allows that, and is rate-limited per address. Changes go in the activity log and the security log.
+
 ### GIFs
 
 The GIF picker uses KLIPY. An admin adds a KLIPY key and chooses how members' apps reach it:

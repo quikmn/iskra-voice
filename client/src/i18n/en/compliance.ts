@@ -55,7 +55,7 @@ export const compliance = {
     },
     hosting: {
       who: 'When you run a server',
-      when: "Let friends anywhere join (Internet access): your router (UPnP or NAT-PMP, on your own network), Let's Encrypt for the HTTPS certificate, and sslip.io for the free address if you have no domain. Captions: the server fetches the speech model once from Hugging Face. Server updates: GitHub.",
+      when: "Let friends anywhere join (Internet access): your router (UPnP or NAT-PMP, on your own network), Let's Encrypt for the HTTPS certificate, and sslip.io for the free address if you have no domain. Captions: the server fetches the speech model once from Hugging Face. Server updates: GitHub. Backup buddies: encrypted backups to a friend's Iskra server, only if the owner pairs one (it can't read them).",
       off: "They see the server's address, not your members'. Internet hosting and server updates are switched in Server settings, the captions model in server.json.",
     },
     previews: {
@@ -155,6 +155,7 @@ export const compliance = {
     join_declined: 'Turned away by a moderator',
     invites_paused: 'Invites paused',
     invites_resumed: 'Invites resumed',
+    landing_settings: 'Changed the public page',
     device_revoke: 'Removed a device',
     account_rotate: 'Replaced their account key',
     account_rotate_disputed: 'Account key disputed',
