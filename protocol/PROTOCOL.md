@@ -4613,3 +4613,132 @@ FeedSubscription {
 
 Migration `feeds-1`: `feed_subscriptions` (deleted with their channel), `feed_seen` (deleted with the subscription)
 and `feed_settings` (the Twitch credentials).
+
+## Tags, Suggestions, Giveaways and Counting
+
+Four more [built-in bots](#built-in-bots), turned on and off like the others (`builtin.bots.set`, `bot: "tags" |
+"suggestions" | "giveaways" | "counting"`), bot members like the others (role, channel overrides, `builtin` on the
+member) and listed after Feeds in `welcome.builtinBots`. Commands are read as in [Commands](#commands) (`/tag`,
+`/suggest`, `/giveaway`; never in [encrypted channels](#end-to-end-encrypted-channels)); per sender, answers are
+limited (Tags 10 then 1/s, Suggestions 5 then one per 2 s, Giveaways 10 then 1/s). Hints and errors are [private
+answers](#answering) (`builtin.kind` as below, or `error`). Posts carry the bot's `builtin` like the other built-in
+bots, with plain English `text` for any app. Settings go through `builtin.bots.config.get`/`set` (admins; audit
+`builtin.bot.config` with the changed fields) and stay when a bot is turned off:
+
+```jsonc
+TagsConfig        { "managerRoleId": 4 | null }                                          // null: admins only
+SuggestionsConfig { "channelId": 9 | null, "staffRoleId": 4 | null, "anonymous": false }
+GiveawaysConfig   { "staffRoleId": 4 | null }
+CountingConfig    { "channelId": 10 | null, "math": false, "current": 0, "best": 0, "bestAt": null }  // current, best, bestAt: read-only
+```
+
+- `channelId`: as for [Starboard](#starboard-birthdays-and-welcome) (`builtin_bot_channel`, `not_found`); `null` turns
+  it off. Turned on, Suggestions uses a text channel called `suggestions` (made if missing: members read, admins
+  write) and Counting one called `counting` (made if missing: members read and write); audit `channel.create`.
+- `managerRoleId`/`staffRoleId`: an existing role (`not_found`) that members can't give themselves (`bad_request`, key
+  `builtin_bot_role`); `null` means admins only. **Staff** (or managers) are admins (the `bots` ability) and members
+  with that role.
+- The bots read only their own commands, except Counting, which reads plain messages in its channel only.
+
+**Tags.** Saved snippets anyone can post. Names `[a-z0-9-]{1,32}` (given in any case, stored lowercased; not `list`,
+`set` or `remove`: `tags_name`, args `{ max }`), text 1–2000 characters with newlines (`tags_text`, args `{ max }`),
+at most 200 per server (`tags_max`, args `{ max }`).
+
+| type | body | result | who |
+|---|---|---|---|
+| `tags.list` | | `{ tags: [Tag], max: 200, canManage }` | anyone |
+| `tags.set` | `name`, `text` | `{ tag, created }` | managers (`forbidden`, key `tags_manage`); audit `tag.set` (`{ name, created }`, never the text) |
+| `tags.remove` | `name` | `{}` | managers; unknown: `tags_unknown` (args `{ name }`); audit `tag.remove` (`{ name }`) |
+
+```jsonc
+Tag { "name": "rules", "text": "Be kind.", "updatedBy": "<accountKey>" | null, "updatedAt": 0 }
+```
+
+- `/tag <name>` posts the snippet in that channel: `{ "kind": "tag", "for": "<asker>", "name", "text" }`, where `text`
+  (and the message text) is the snippet **defused**: `@everyone`, `@here` and `<@` (people and roles) get a joiner, so a
+  tag never pings; it pushes like a message without mentions. `/tag list` (private `tag.list`, `names`), `/tag set
+  <name> <text>` (managers, private `tag.saved` `{ name, created }`), `/tag remove <name>` (managers, `tag.removed`).
+  `/tag` alone is `tag.usage`; an unknown name `tag.unknown` (`name`, ≤ 40 characters of the input).
+- Rate limits: `tags.list` 10 then 2/s, `tags.set` and `tags.remove` 20 then 2/s.
+
+**Suggestions.** `/suggest <idea>` (or `suggestion.create`, the Suggest button on the bot's prompt card) posts a card in
+the suggestions channel. It needs the bot on (`suggestions_off`), a channel it can see (`suggestions_channel`), text
+1–1000 characters with newlines (`suggestion_text`, args `{ max }`), and per person at most 3 suggestions in 10 minutes
+(`suggestions_slow`, args `{ max, minutes }`; counted in the database, so reconnecting doesn't reset it). Bots can't
+(`suggestion_bot`). The `/suggest` message itself is deleted once the card is posted (`chat.deleted`), so an anonymous
+suggestion stays anonymous; the answer is private: `{ "kind": "suggestion.posted", "channelId", "messageId" }`
+(`suggestion.usage` without an idea).
+
+| type | body | result | who |
+|---|---|---|---|
+| `suggestion.create` | `text` | `{ messageId, channelId }` | anyone but bots |
+| `suggestion.vote` | `messageId` (a suggestion card), `vote: 1 \| -1 \| 0` (0 takes it back) | `{ vote, up, down }` | anyone who can read the card; not bots (`suggestion_bot_vote`); only while open (`suggestion_closed`) |
+| `suggestion.decide` | `messageId`, `status: "open" \| "accepted" \| "declined" \| "implemented"`, optional `reason` (one line, ≤ 300: `suggestion_reason`, args `{ max }`) | `{ status, reason }` | staff (`forbidden`, key `suggestions_staff`); audit `suggestion.decide` (`{ messageId, status }`, the reason as the entry's reason) |
+| `suggestion.author` | `messageId` | `{ accountKey \| null }` | staff; for an anonymous card, audit `suggestion.author` |
+| `suggestions.prompt` | | `{ messageId, channelId }` | admins (`builtin_bots_config_admin`): posts the prompt card (`{ "kind": "suggestion.prompt" }`) in the suggestions channel |
+| `builtin.cards.mine` | `messageIds` (≤ 100) | `{ votes: { "<messageId>": 1 | -1 }, entered: [messageId], staff: { suggestions, giveaways } }` | anyone: their own votes and giveaway entries on cards they can read (others are skipped), and whether they are staff of each bot |\| -1 }, entered: [messageId] }` | anyone: their own votes and giveaway entries on cards they can read (others are skipped) |
+
+- One vote per person per card, changeable; the card is updated in place (`chat.edited`, no edit mark) with the counts.
+- The card: `{ "kind": "suggestion", "for": "<author>" (anonymous: the bot's key), "text" (defused), "anonymous",
+  "author": "<accountKey>" | null, "status", "reason": null | "...", "decidedBy": null | "<accountKey>", "up", "down" }`.
+  Text: `💡 Suggestion from Anna` (or `💡 Anonymous suggestion`), the idea, then `👍 3 · 👎 1 · Open`.
+- `anonymous` (default off): new cards don't name the author (neither the card's text nor `builtin`), but the server
+  keeps who it was (`suggestion.author`, data export). Changing it doesn't change earlier cards.
+- When staff decide (anything but `open`), the author gets a private answer if online: `{ "kind":
+  "suggestion.decided", "messageId", "status", "reason" }`. Back to `open` clears the reason and opens voting again.
+- A card goes with its message (and its votes with it); votes go when the voter leaves, and the author is forgotten
+  when they leave. Rate limits: `suggestion.create` 5 then one per 5 s, `suggestion.vote` 20 then 4/s,
+  `suggestion.decide` 10 then 1/s, `suggestion.author` 10 then one per 2 s, `suggestions.prompt` 3 then one per 10 s,
+  `builtin.cards.mine` 20 then 4/s.
+
+**Giveaways.** Staff start one with `/giveaway <duration> [<n>w] [<@&role>] <prize>` in a channel the bot can post in:
+the duration is one or more `<number>m|h|d` (`1h30m`), 1 minute to 30 days (`giveaway_duration`); `<n>w` is the number
+of winners, 1–10 (default 1; `giveaway_winners`, args `{ max }`); a role mention means only members with that role may
+enter (an unknown role is `not_found`); the prize is one line of ≤ 200 characters (`giveaway_prize`, args `{ max }`),
+defused. At most 25 open giveaways per server (`giveaways_max`, args `{ max }`). Anyone else: `giveaways_staff`;
+unparsable: private `giveaway.usage`. `/giveaway end`, `/giveaway cancel` and `/giveaway reroll [n]` act on the newest
+open (end, cancel) or ended (reroll) giveaway in that channel (`giveaway_none_here`).
+
+| type | body | result | who |
+|---|---|---|---|
+| `giveaway.enter` | `messageId` (a giveaway card), `entered: bool` | `{ entered, entrants }` | anyone who can read it, while it's open (`giveaway_ended`); not bots (`giveaway_bot`); with the role if one is needed (`giveaway_role`, args `{ role }` = its name) |
+| `giveaway.end` | `messageId` | `{ giveaway: { messageId, status } }` | staff (`giveaways_staff`): draws now; audit `giveaway.end` |
+| `giveaway.cancel` | `messageId` | same | staff; no draw; audit `giveaway.cancel` |
+| `giveaway.reroll` | `messageId`, optional `count` (1–10, default 1) | same | staff, within 7 days of the end (`giveaway_reroll_expired`, args `{ days }`; not ended, or cancelled: `giveaway_not_ended`); nobody left: `giveaway_nobody`; audit `giveaway.reroll` |
+
+- The card: `{ "kind": "giveaway", "for": "<host>", "prize", "winners", "roleId": null | 4, "endsAt", "endedAt": null |
+  0, "entrants", "status": "open" | "ended" | "cancelled", "winnerKeys": [accountKey] }`, kept current in place
+  (`chat.edited`) as people enter and when it ends. Giveaways need the bot on (`giveaways_off`).
+- **The draw.** When `endsAt` has passed (checked every second; giveaways are stored, so one that was due while the
+  server was off ends at its first check after starting; while the bot is off they wait), the eligible entrants are the
+  ones who are still members, aren't bots, have the role (if one is needed) and weren't drawn before. Sorted by account
+  key, up to `winners` of them are picked with a partial Fisher–Yates shuffle driven by the system's cryptographically
+  secure random generator, so every eligible entrant is equally likely. A giveaway ends once.
+- **Announcement:** `{ "kind": "giveaway.won", "for": "<first winner>", "prize", "winners": [accountKey], "giveawayId",
+  "reroll": false }`, text `🎉 Congratulations <@…>, <@…>! You won …`: the winners are mentioned and notified (push and
+  mention rules as for a person's message). Nobody eligible: `{ "kind": "giveaway.none", "prize", "giveawayId" }`.
+  A reroll draws `count` new winners from the eligible entrants not drawn before; they replace `winnerKeys` and are
+  announced with `reroll: true`.
+- Entries go when the person leaves, and 7 days after the giveaway ends (no reroll after that). The host is forgotten
+  when they leave. Rate limits: `giveaway.enter` 20 then 4/s, `giveaway.end`/`cancel`/`reroll` 5 then one per 2 s.
+
+**Counting.** In the counting channel (a text channel, not its threads), each plain message from a person that is a
+number is a count: digits only (`^\d{1,15}$`, spaces around allowed), or with `math` on also a sum of whole numbers
+with `+ - * / × ÷ x` and brackets (≤ 40 characters; a division must come out whole). Anything else is chat and is
+ignored. The bot must see the channel (else it stays quiet).
+- The next number (the count + 1) from someone other than the last counter: the bot reacts ✅ and the count goes up; a
+  new best updates the card. Anything else (a wrong number, or the same person twice in a row): ❌, and the count
+  starts over at 0 with a line `{ "kind": "counting.broken", "for": "<who>", "reason": "wrong" | "double", "count",
+  "expected", "said", "best" }`. At 0 a wrong number only gets ❌ and a private `{ "kind": "counting.start" }`.
+- The count is kept by the server with the id of the message that made it. Editing that message so it no longer says
+  the number, or deleting it, doesn't change the count; the bot posts `{ "kind": "counting.changed", "for":
+  "<author>", "how": "edited" | "deleted", "count", "next" }` once. Edits and deletes of older numbers change nothing.
+- The card, posted and pinned (when there's room) when the channel is picked: `{ "kind": "counting.card", "best",
+  "bestAt", "math" }`, updated in place. There are no points and no ranking of people.
+
+**Your data.** `data.export` gains `suggestionsMade` (anonymous ones too), `suggestionVotes`, `giveawayEntries`,
+`giveawaysHosted`, `giveawaysWon` and `tagsSaved`; built-in answers that are `for` you are in `builtinBotAnswers`.
+
+Migration `builtinbots3-1`: `tags`, `suggestions` and `suggestion_votes`, `giveaways` and `giveaway_entries`, `counting`
+(cards and their votes and entries go with their message; votes and entries with the member; authors, hosts and the last
+counter are set to null when they leave; a counting row goes with its channel).

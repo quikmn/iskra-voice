@@ -2023,7 +2023,7 @@ export interface Requests {
 
 // ── built-in bots ──
 
-export type BuiltinBotId = 'dice' | 'polls' | 'reminders' | MoreBuiltinBotId | 'feeds'
+export type BuiltinBotId = 'dice' | 'polls' | 'reminders' | MoreBuiltinBotId | 'feeds' | Bots3Id
 
 export interface BuiltinBot {
   id: BuiltinBotId
@@ -2042,6 +2042,7 @@ export type BuiltinReply = { bot: BuiltinBotId; for: string } & (
   | { kind: 'error'; error: { code: string; message: string; key?: string | null; args?: Record<string, unknown> | null } }
   | MoreBuiltinReply
   | FeedReply
+  | Bots3Reply
 )
 
 export interface Member {
@@ -2162,6 +2163,61 @@ export interface Requests {
   'feeds.remove': [{ id: number }, Record<string, never>]
   'feeds.check': [{ id: number }, { subscription: FeedSubscription }]
   'feeds.twitch.set': [{ clientId: string; clientSecret: string }, { twitch: FeedTwitch }]
+}
+
+// ── built-in bots 3 (Tags, Suggestions, Giveaways, Counting) ──
+
+export type Bots3Id = 'tags' | 'suggestions' | 'giveaways' | 'counting'
+export type SuggestionStatus = 'open' | 'accepted' | 'declined' | 'implemented'
+export type GiveawayStatus = 'open' | 'ended' | 'cancelled'
+
+export type Bots3Reply =
+  | { kind: 'tag'; name: string; text: string }
+  | { kind: 'tag.list'; names: string[] }
+  | { kind: 'tag.saved'; name: string; created: boolean }
+  | { kind: 'tag.removed'; name: string }
+  | { kind: 'tag.unknown'; name: string }
+  | { kind: 'tag.usage' }
+  | { kind: 'suggestion'; text: string; anonymous: boolean; author: string | null; status: SuggestionStatus; reason: string | null;
+      decidedBy: string | null; up: number; down: number }
+  | { kind: 'suggestion.prompt' }
+  | { kind: 'suggestion.posted'; channelId: number; messageId: number }
+  | { kind: 'suggestion.usage' }
+  | { kind: 'suggestion.decided'; messageId: number; status: SuggestionStatus; reason: string | null }
+  | { kind: 'giveaway'; prize: string; winners: number; roleId: number | null; endsAt: number; endedAt: number | null; entrants: number;
+      status: GiveawayStatus; winnerKeys: string[] }
+  | { kind: 'giveaway.won'; prize: string; winners: string[]; giveawayId: number; reroll: boolean }
+  | { kind: 'giveaway.none'; prize: string; giveawayId: number }
+  | { kind: 'giveaway.usage' }
+  | { kind: 'counting.card'; best: number; bestAt: number | null; math: boolean }
+  | { kind: 'counting.broken'; reason: 'wrong' | 'double'; count: number; expected: number; said: number; best: number }
+  | { kind: 'counting.changed'; how: 'edited' | 'deleted'; count: number; next: number }
+  | { kind: 'counting.start' }
+
+export interface TagsConfig { managerRoleId: number | null }
+export interface SuggestionsConfig { channelId: number | null; staffRoleId: number | null; anonymous: boolean }
+export interface GiveawaysConfig { staffRoleId: number | null }
+export interface CountingConfig { channelId: number | null; math: boolean; current: number; best: number; bestAt: number | null }
+export interface Bots3Configs { tags: TagsConfig; suggestions: SuggestionsConfig; giveaways: GiveawaysConfig; counting: CountingConfig }
+
+export interface Tag { name: string; text: string; updatedBy: string | null; updatedAt: number }
+
+export interface CardsMine { votes: Record<string, 1 | -1>; entered: number[]; staff: { suggestions: boolean; giveaways: boolean } }
+
+export interface Requests {
+  'tags.list': [Record<string, never>, { tags: Tag[]; max: number; canManage: boolean }]
+  'tags.set': [{ name: string; text: string }, { tag: Tag; created: boolean }]
+  'tags.remove': [{ name: string }, Record<string, never>]
+  'suggestion.create': [{ text: string }, { messageId: number; channelId: number }]
+  'suggestion.vote': [{ messageId: number; vote: 1 | -1 | 0 }, { vote: 1 | -1 | 0; up: number; down: number }]
+  'suggestion.decide': [{ messageId: number; status: SuggestionStatus; reason?: string }, { status: SuggestionStatus; reason: string | null }]
+  'suggestion.author': [{ messageId: number }, { accountKey: string | null }]
+  'suggestions.prompt': [Record<string, never>, { messageId: number; channelId: number }]
+  'giveaway.enter': [{ messageId: number; entered: boolean }, { entered: boolean; entrants: number }]
+  'giveaway.end': [{ messageId: number }, { giveaway: { messageId: number; status: GiveawayStatus } }]
+  'giveaway.cancel': [{ messageId: number }, { giveaway: { messageId: number; status: GiveawayStatus } }]
+  'giveaway.reroll': [{ messageId: number; count?: number }, { giveaway: { messageId: number; status: GiveawayStatus } }]
+  'builtin.cards.mine': [{ messageIds: number[] }, CardsMine]
 }
 
 // ── bot interactions ──

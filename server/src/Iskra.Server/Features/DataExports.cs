@@ -202,6 +202,16 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             """);
         // Your birthday, if you shared it with the Birthdays bot (day and month only), and the year it was last announced.
         Section("birthday", $"SELECT account_key, month, day, set_at, last_posted_year FROM birthdays WHERE account_key {Mine};");
+        // Suggestions you made (anonymous ones too: the server keeps who made them), your votes, giveaways you entered or hosted, tags you last saved.
+        Section("suggestionsMade", $"SELECT message_id, channel_id, anonymous, text, status, reason, decided_at, created_at FROM suggestions WHERE author_key {Mine} ORDER BY message_id;");
+        Section("suggestionVotes", $"SELECT message_id, vote, at FROM suggestion_votes WHERE account_key {Mine} ORDER BY message_id;");
+        Section("giveawayEntries", $"SELECT message_id, at FROM giveaway_entries WHERE account_key {Mine} ORDER BY message_id;");
+        Section("giveawaysHosted", $"SELECT message_id, channel_id, prize, winners, role_id, ends_at, ended_at, cancelled, created_at FROM giveaways WHERE host_key {Mine} ORDER BY message_id;");
+        Section("giveawaysWon", """
+            SELECT message_id, channel_id, prize, ended_at FROM giveaways g
+            WHERE EXISTS (SELECT 1 FROM json_each($keys) k WHERE ' ' || g.drawn_keys || ' ' LIKE '% ' || k.value || ' %') ORDER BY message_id;
+            """);
+        Section("tagsSaved", $"SELECT name, text, updated_at FROM tags WHERE updated_by {Mine} ORDER BY name;");
         // Encrypted scheduled DMs and group messages are left out (the server can't read them); channel ones include their text.
         Section("scheduledMessages", $"""
             SELECT id, account_key, kind, channel_id, peer_key, group_id, text, reply_to, send_at, created_at, status, error
@@ -267,6 +277,11 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
           cards about your messages, and Welcome and Birthdays greetings that name you first.
         - birthday: the day and month you shared with the Birthdays bot (never a year), and the year it was last announced.
         - feedsAdded: feeds you set the Feeds bot to follow (RSS, YouTube or Twitch, where it posts, when).
+        - suggestionsMade, suggestionVotes: suggestions you made with the Suggestions bot (also anonymous ones: the server
+          keeps who made them, only the card hides it) and your 👍/👎 votes.
+        - giveawayEntries, giveawaysHosted, giveawaysWon: giveaways you entered (kept until 7 days after they end), ones
+          you started, and ones you were drawn as a winner of.
+        - tagsSaved: Tags bot snippets you were the last to save.
         - activitiesAdded: activities you added to this server (name, version, size, when). What activities send while
           people play is never stored.
         - timeouts, bans, reportsMade, reportsAboutYou, auditLog, securityLog: moderation and security records about you.

@@ -20,7 +20,9 @@ namespace Iskra.Server.Tests.Support;
 /// <summary>A real Iskra server on a throwaway world folder.</summary>
 public sealed class IskraServer : WebApplicationFactory<Program>
 {
-    public string WorldPath { get; } = Path.Combine(Path.GetTempPath(), "iskra-test-" + Guid.NewGuid().ToString("N"));
+    public string WorldPath { get; init; } = Path.Combine(Path.GetTempPath(), "iskra-test-" + Guid.NewGuid().ToString("N"));
+    /// <summary>Leaves the world folder when disposed, so a second server can open it (a restart).</summary>
+    public bool KeepWorld { get; init; }
     public int AuthTimeoutMs { get; init; } = 5_000;
     public bool AllowLoopbackPreviews { get; init; }
     public int RingTimeoutMs { get; init; } = 45_000;
@@ -113,7 +115,7 @@ public sealed class IskraServer : WebApplicationFactory<Program>
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        try { Directory.Delete(WorldPath, recursive: true); } catch (IOException) { }
+        if (!KeepWorld) try { Directory.Delete(WorldPath, recursive: true); } catch (IOException) { }
     }
 }
 

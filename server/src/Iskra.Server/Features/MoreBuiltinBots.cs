@@ -74,7 +74,7 @@ public static partial class MoreBuiltinBots
     private static string Configurable_(Body body)
     {
         var id = body.String("bot", 32);
-        if (!Configurable.Contains(id)) throw RequestException.BadRequest("That built-in bot has no settings.", "builtin_bot_no_settings");
+        if (!Configurable.Contains(id) && !BuiltinBots3.Ids.Contains(id)) throw RequestException.BadRequest("That built-in bot has no settings.", "builtin_bot_no_settings");
         return id;
     }
 
@@ -90,7 +90,7 @@ public static partial class MoreBuiltinBots
         return new { bot = id, config = View(s, id) };
     }
 
-    internal static object View(Session s, string id) => id switch
+    internal static object View(Session s, string id) => BuiltinBots3.Ids.Contains(id) ? BuiltinBots3.View(s.World.Store, id) : id switch
     {
         "starboard" => Config<StarboardConfig>(s.World.Store, id),
         "birthdays" => BirthdayView(Config<BirthdayConfig>(s.World.Store, id), s.Time),
@@ -107,6 +107,7 @@ public static partial class MoreBuiltinBots
     {
         RequireAdmin(me);
         var id = Configurable_(body);
+        if (BuiltinBots3.Ids.Contains(id)) return BuiltinBots3.SetConfig(s, me, body, id);
         var store = s.World.Store;
         var changed = new List<string>();
         long? Channel(long? current)
@@ -188,6 +189,7 @@ public static partial class MoreBuiltinBots
     /// </summary>
     internal static void TurnedOn(Session s, string id)
     {
+        BuiltinBots3.TurnedOn(s, id);
         if (!Configurable.Contains(id)) return;
         var store = s.World.Store;
         Channel? Usable(long? channelId) =>

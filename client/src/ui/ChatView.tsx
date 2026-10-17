@@ -154,7 +154,11 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           ) : canWrite ? (
             <Composer server={server} channelId={channel.id} channelName={channel.name} />
           ) : (
-            <div className="composer read-only">{t('chat.view.readOnly')}</div>
+            <>
+              {/* Private answers from bots (a decision on your suggestion) show here too. */}
+              <InteractionTray server={server} channelId={channel.id} />
+              <div className="composer read-only">{t('chat.view.readOnly')}</div>
+            </>
           )}
         </>
       ) : (
@@ -431,7 +435,7 @@ function MessageRow({
           )
         )}
         {!editing && <TranslationBlock item={translateItem} />}
-        {message.builtin && <BuiltinReply server={server} reply={message.builtin} />}
+        {message.builtin && <BuiltinReply server={server} reply={message.builtin} messageId={message.tempId ? undefined : message.id} />}
         {message.poll && <PollCard server={server} message={message} />}
         {message.lfg && <LfgCard server={server} message={message} />}
         {message.automod && <AutoModAlertCard server={server} alert={message.automod} />}

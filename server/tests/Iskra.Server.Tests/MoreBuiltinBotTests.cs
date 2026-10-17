@@ -60,7 +60,7 @@ public class MoreBuiltinBotTests
         using var alice = await server.JoinAsync("Alice");
 
         var listed = alice.Welcome.Body().GetProperty("builtinBots").EnumerateArray().Select(b => b.GetProperty("id").GetString());
-        Assert.Equal(["dice", "polls", "reminders", "starboard", "birthdays", "welcome", "feeds"], listed);
+        Assert.Equal(["dice", "polls", "reminders", "starboard", "birthdays", "welcome", "feeds", "tags", "suggestions", "giveaways", "counting"], listed);
 
         Assert.Equal("forbidden", (await alice.RequestAsync("builtin.bots.set", new { bot = "starboard", enabled = true })).ErrorCode());
         Assert.Equal("forbidden", (await alice.RequestAsync("builtin.bots.config.get", new { bot = "starboard" })).ErrorCode());

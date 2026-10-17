@@ -8,9 +8,12 @@ import { whenText } from '../productivity/WhenPicker'
 import { isMoreReply, MoreBuiltinReply } from './MoreBuiltinReply'
 import { FeedPost } from './FeedPost'
 import { isFeedReply } from '../../state/feedsLogic'
+import { isBots3Reply } from '../../state/bots3Logic'
+import { Bots3Reply } from './Bots3Reply'
 import '../bots.css'
 
-export function BuiltinReply({ server, reply }: { server: ServerState; reply: Reply }) {
+export function BuiltinReply({ server, reply, messageId }: { server: ServerState; reply: Reply; messageId?: number }) {
+  if (isBots3Reply(reply)) return <Bots3Reply server={server} reply={reply} messageId={messageId} />
   if (isMoreReply(reply)) return <MoreBuiltinReply server={server} reply={reply} />
   if (isFeedReply(reply)) return <FeedPost server={server} reply={reply} />
   return <ClassicReply server={server} reply={reply} />

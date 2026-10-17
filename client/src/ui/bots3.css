@@ -1,0 +1,81 @@
+/* ── Tags, Suggestions, Giveaways and Counting ────────────────────────── */
+
+/* Their cards in chat: a soft panel with an accent edge, like the starboard's. */
+.bots3-card {
+  display: grid; gap: 6px; max-width: 520px; min-width: 0; margin-top: 2px; padding: 10px 12px; border-radius: 10px;
+  background: var(--surface-2); box-shadow: inset 3px 0 0 var(--accent); overflow-wrap: anywhere;
+}
+.bots3-card-head { font-weight: 700; }
+.bots3-card-text { white-space: pre-wrap; min-width: 0; }
+.bots3-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.bots3-actions .link { font-size: 13px; }
+.bots3-card .small { font-size: 12px; margin: 0; }
+
+.tag-post { display: grid; gap: 2px; min-width: 0; }
+.tag-post-name { font-size: 12px; color: var(--muted); }
+.bots3-tag-names { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; }
+
+/* Suggestions: votes as pill buttons; the card's edge says the status. */
+.suggestion-card.status-accepted { box-shadow: inset 3px 0 0 var(--green, #3ba55d); }
+.suggestion-card.status-implemented { box-shadow: inset 3px 0 0 var(--accent); }
+.suggestion-card.status-declined { box-shadow: inset 3px 0 0 var(--red, #d83c3e); }
+.suggestion-status { font-size: 13px; font-weight: 600; }
+.suggestion-reason { font-weight: 400; }
+.bots3-vote {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 2px 12px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg); color: inherit; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.bots3-vote.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.bots3-vote:disabled { cursor: default; opacity: 0.75; }
+.bots3-decide { display: grid; gap: 6px; padding-top: 4px; border-top: 1px solid var(--border); }
+.bots3-decide input[type='text'] { width: 100%; max-width: 100%; }
+.bots3-decide .button { justify-self: start; }
+.bots3-status-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.bots3-status-choice {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border);
+  font-size: 13px; cursor: pointer;
+}
+.bots3-status-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.bots3-status-choice.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.bots3-status-choice:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.suggest-prompt .button { justify-self: start; }
+.bots3-suggest-form { display: grid; gap: 6px; }
+.bots3-suggest-form textarea { width: 100%; max-width: 100%; resize: vertical; }
+
+/* Giveaways. */
+.giveaway-card { box-shadow: inset 3px 0 0 var(--amber, #f0b232); }
+.giveaway-card.status-cancelled { opacity: 0.8; }
+.giveaway-prize { font-size: 16px; font-weight: 700; }
+.giveaway-facts { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.giveaway-winners { font-weight: 600; }
+.giveaway-won { font-weight: 600; }
+
+/* Counting. */
+.counting-card { box-shadow: inset 3px 0 0 var(--muted); }
+.counting-best { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Settings, under each bot's switch. */
+.bots3-settings { gap: 10px; }
+.bots3-settings-form { display: grid; gap: 6px; min-width: 0; }
+.bots3-settings .checkbox { display: flex; align-items: center; gap: 8px; }
+.bots3-tags { display: grid; gap: 6px; min-width: 0; padding-top: 8px; border-top: 1px solid var(--border); }
+.bots3-tags h4 { margin: 0; font-size: 13px; }
+.bots3-tags-search { width: 100%; max-width: 100%; }
+.bots3-tag-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 320px; overflow: auto; }
+.bots3-tag-list li {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 8px;
+  background: var(--surface-2); min-width: 0;
+}
+.bots3-tag-list li.editing { box-shadow: inset 0 0 0 1px var(--accent); }
+.bots3-tag-main { display: grid; gap: 2px; min-width: 0; }
+.bots3-tag-text { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bots3-tag-buttons { display: flex; gap: 8px; flex: none; }
+.bots3-tag-buttons .link { font-size: 13px; }
+.bots3-tag-form { display: grid; gap: 6px; min-width: 0; }
+.bots3-tag-form input, .bots3-tag-form textarea { width: 100%; max-width: 100%; }
+.bots3-tag-form textarea { resize: vertical; }
+
+@media (max-width: 600px) {
+  .bots3-card { max-width: 100%; }
+  .bots3-tag-list li { flex-direction: column; }
+}

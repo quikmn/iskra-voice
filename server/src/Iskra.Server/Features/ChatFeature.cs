@@ -151,6 +151,7 @@ public static class ChatFeature
         s.Hub.Outhooks?.MessageUpdated(channel, message with { Text = text, EditedAt = s.Now });
         ForumFeature.Edited(s, channel, message);
         StarboardBot.Edited(s, channel, message with { Text = text, EditedAt = s.Now });
+        CountingBot.Edited(s, channel, message with { Text = text, EditedAt = s.Now });
         return new { message = edited };
     }
 
@@ -166,6 +167,7 @@ public static class ChatFeature
                 details: new { channelId = channel.Id, channelName = channel.Name, messageId = message.Id, author = message.AuthorKey });
 
         StarboardBot.Deleting(s, message);
+        CountingBot.Deleting(s, channel, message);
         s.World.Store.DeleteMessage(message.Id);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id = message.Id, channelId = channel.Id }));
         s.Hub.Outhooks?.MessageDeleted(channel, message.Id);

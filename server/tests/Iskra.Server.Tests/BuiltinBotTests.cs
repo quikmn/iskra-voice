@@ -74,7 +74,7 @@ public class BuiltinBotTests
         using var alice = await server.JoinAsync("Alice");
 
         var listed = alice.Welcome.Body().GetProperty("builtinBots");
-        Assert.Equal(["dice", "polls", "reminders", "starboard", "birthdays", "welcome", "feeds"], listed.EnumerateArray().Select(b => b.GetProperty("id").GetString()));
+        Assert.Equal(["dice", "polls", "reminders", "starboard", "birthdays", "welcome", "feeds", "tags", "suggestions", "giveaways", "counting"], listed.EnumerateArray().Select(b => b.GetProperty("id").GetString()));
         Assert.All(listed.EnumerateArray(), b => Assert.False(b.GetProperty("enabled").GetBoolean()));
 
         var key = await TurnOn(admin, "dice");

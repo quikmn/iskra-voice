@@ -31,6 +31,10 @@ public static partial class BuiltinBotFeature
         new("birthdays", "Birthdays", "birthday", "Birthday greetings", "set 14 March | remove | list"),
         new("welcome", "Welcome", null, "", ""),
         new("feeds", "Feeds", null, "", ""),
+        new("tags", "Tags", "tag", "Posts a saved snippet", "name | list"),
+        new("suggestions", "Suggestions", "suggest", "Suggests an idea", "your idea"),
+        new("giveaways", "Giveaways", "giveaway", "Starts a giveaway", "1h 2w prize | end | cancel | reroll"),
+        new("counting", "Counting", null, "", ""),
     ];
 
     /// <summary>Marks reminder data written by the Reminders bot (not sealed: the command was a plain channel message).</summary>
@@ -136,6 +140,14 @@ public static partial class BuiltinBotFeature
     /// </summary>
     public static void Heard(Session s, Member me, Channel channel, Message message)
     {
+        try
+        {
+            CountingBot.Heard(s, me, channel, message);
+        }
+        catch (Exception e) when (e is not OperationCanceledException and not ObjectDisposedException)
+        {
+            // The message itself went out fine; the count just doesn't react to it.
+        }
         if (message.Text.Length < 2 || message.Text[0] != '/') return;
         var store = s.World.Store;
         if (store.IsBot(me.AccountKey)) return;
@@ -158,6 +170,9 @@ public static partial class BuiltinBotFeature
                     case "dice": Roll(s, me, bot, channel, args); break;
                     case "polls": Poll(s, me, bot, channel, args); break;
                     case "birthdays": BirthdayBot.Command(s, me, bot, channel, args); break;
+                    case TagsBot.Id: TagsBot.Command(s, me, bot, channel, args); break;
+                    case SuggestionsBot.Id: SuggestionsBot.Command(s, me, bot, channel, message, args); break;
+                    case GiveawayBot.Id: GiveawayBot.Command(s, me, bot, channel, args); break;
                     default: Remind(s, me, bot, channel, message, args); break;
                 }
             }
