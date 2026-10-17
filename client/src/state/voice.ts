@@ -19,6 +19,7 @@ import { iosApp } from '../platform/native'
 import { tunnelFor } from './p2p'
 import { routeVoiceThroughTunnel } from './p2pVoice'
 import { leftReasonOf, type VoiceLeftReason } from './voiceLeft'
+import { log, logError } from '../core/log'
 
 export interface VoiceSession {
   serverKey: string
@@ -434,7 +435,7 @@ export async function joinVoice(serverKey: string, channelId: number): Promise<v
     useVoice.setState({ stageOpen: true })
     return
   }
-  await leaveVoice()
+  await leaveVoice('switched')
   await joinChannel(serverKey, channelId, true)
 }
 
@@ -470,7 +471,7 @@ export function setChannelVoiceKeys(provider: ChannelVoiceKeys): void {
 export async function joinCall(
   serverKey: string, call: { id: string; peer: string }, target: { url: string; token: string }, key: Uint8Array, camera: boolean,
 ): Promise<boolean> {
-  await leaveVoice() // one room at a time: a voice channel or a call
+  await leaveVoice('switched') // one room at a time: a voice channel or a call
   return connect(
     { serverKey, channelId: 0, state: 'connecting', canSpeak: true, call, encrypted: false },
     async () => ({ ...target, canSpeak: true }),
@@ -486,7 +487,7 @@ export async function joinGroupCall(
   serverKey: string, group: { key: string; callId: string }, target: { url: string; token: string }, key: { key: Uint8Array; index: number } | null,
   camera: boolean,
 ): Promise<boolean> {
-  await leaveVoice()
+  await leaveVoice('switched')
   return connect(
     { serverKey, channelId: 0, state: 'connecting', canSpeak: true, group, encrypted: false },
     async () => ({ ...target, canSpeak: true }),
@@ -570,7 +571,7 @@ async function connect(
     })
     room = next
     if (listener && audio.outputDevice && 'setSinkId' in listener.ctx) {
-      void (listener.ctx as AudioContext & { setSinkId(id: string): Promise<void> }).setSinkId(audio.outputDevice).catch(() => undefined)
+      void (listener.ctx as AudioContext & { setSinkId(id: string): Promise<void> }).setSinkId(audio.outputDevice).catch((e) => logError('voice', 'set-sink', e))
     }
 
     // A few frames fail while a new key goes round (someone left, the key changed): only failures that keep
@@ -582,7 +583,10 @@ async function connect(
       const now = Date.now()
       if (now - lastFailure > 2000) failingSince = now
       lastFailure = now
-      if (now - failingSince >= 3000) useVoice.setState({ error: DECRYPT_ERROR })
+      if (now - failingSince >= 3000) {
+        if (useVoice.getState().error !== DECRYPT_ERROR) log('WARN', 'e2ee', 'failed', 'E2E-110', [['op', 'decrypt']])
+        useVoice.setState({ error: DECRYPT_ERROR })
+      }
       setTimeout(() => {
         if (room === next && Date.now() - lastFailure >= 3000 && useVoice.getState().error === DECRYPT_ERROR) useVoice.setState({ error: null })
       }, 3100)
@@ -654,7 +658,7 @@ async function connect(
       .on(RoomEvent.AudioPlaybackStatusChanged, () => {
         // The browser held back playback until the next tap or key press.
         if (next.canPlaybackAudio) return
-        const start = () => void next.startAudio().catch(() => undefined)
+        const start = () => void next.startAudio().catch((e) => logError('voice', 'start-audio', e))
         window.addEventListener('pointerdown', start, { once: true, capture: true })
         window.addEventListener('keydown', start, { once: true, capture: true })
       })
@@ -677,6 +681,8 @@ async function connect(
       .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
         if (room !== next) return
         rememberDrop(reason)
+        // LiveKit's own word for it, next to ours on the `voice left` line.
+        log('INFO', 'voice', 'disconnected', null, [['why', reason === undefined ? 'none' : String(lk().DisconnectReason[reason] ?? reason).toLowerCase().replace(/_/g, '-')]])
         void cleanup(leftReasonOf(reason, lk().DisconnectReason))
       })
 
@@ -705,6 +711,7 @@ async function connect(
     reportFlags()
     return true
   } catch (e) {
+    logError('voice', 'connect', e, 'VOI-120', [['path', tunnelFor(session.serverKey) ? 'tunnel' : 'direct']])
     if (useVoice.getState().session === session) await cleanup('failed')
     useVoice.setState({ error: (e as Error)?.message ? errorMessage(e) : t('voice.errors.join') })
     return false
@@ -765,7 +772,8 @@ async function publishMic(current: Room): Promise<boolean> {
     }
     await current.localParticipant.publishTrack(track, publish)
     await applyMic()
-  } catch {
+  } catch (e) {
+    logError('media', 'publish-mic', e, 'MED-170')
     useVoice.setState({ muted: true, error: t('voice.errors.mic') })
   }
   return room === current
@@ -799,7 +807,7 @@ async function permissionsChanged(current: Room): Promise<void> {
   if (room === current && session && !session.call && !session.group && session.state === 'connected' && forced !== !!session.afk) {
     const { serverKey, channelId } = session
     const open = useVoice.getState().stageOpen
-    await leaveVoice()
+    await leaveVoice('switched')
     await joinChannel(serverKey, channelId, open)
     return
   }

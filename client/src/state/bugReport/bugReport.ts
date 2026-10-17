@@ -5,13 +5,14 @@ import { create } from 'zustand'
 import { BUILD_COMMIT } from '../../buildInfo'
 import { currentLanguage, useLanguageChoice } from '../../i18n'
 import { RELEASE_VERSION } from '../../links'
-import { desktop } from '../../platform/desktop'
+import { desktop, osName } from '../../platform/desktop'
 import { nativePlatform } from '../../platform/native'
 import { useAudio } from '../audio'
 import { findPopout, focusPopout, popIn, popOut, popoutModeFor, type PopoutTarget } from '../popouts'
 import { reportOpenAction } from './reportWindow'
 import { activeRoom, useVoice } from '../voice'
-import { diagnostics } from './diagnostics'
+import { parseLine } from '../../core/log'
+import { APP_STARTED_AT, diagnostics } from './diagnostics'
 import { buildPayload, emptyDraft, platformInfo, renderLogs, type Device, type ReportDraft, type ReportEnv, type ReportPayload, type SettingsSnapshot, type VoiceSnapshot } from './payload'
 
 interface BugReportState {
@@ -71,7 +72,8 @@ export function collectEnv(): ReportEnv {
   return {
     version: RELEASE_VERSION,
     commit: BUILD_COMMIT,
-    os,
+    // The desktop app knows its OS for sure (a user agent can be changed, or say Windows on a Mac).
+    os: desktop && typeof desktop.platform === 'string' ? osName(desktop.platform).slice(0, 20) : os,
     ...(browser ? { browser } : {}),
     device: deviceKind(),
     language: currentLanguage(),
@@ -157,10 +159,19 @@ export async function collectVoice(): Promise<VoiceSnapshot> {
   return snapshot
 }
 
+/** The desktop app's own lines (main process, updater, and this page's from before a reload); none elsewhere. */
+async function desktopLines(): Promise<string[]> {
+  const lines = await desktop?.logs?.tail().catch(() => null)
+  if (!Array.isArray(lines)) return []
+  // This page's lines are already in its own buffer: from the file only the ones from before it started.
+  const started = new Date(APP_STARTED_AT).toISOString()
+  return lines.filter((l): l is string => typeof l === 'string' && (parseLine(l)?.src !== 'app' || l.slice(0, 24) < started)).slice(-2000)
+}
+
 /** The logs that go with a report, if the reporter keeps "Include logs" on. */
 export async function collectLogs(env: ReportEnv, now = Date.now()): Promise<string> {
-  const [settings, voice] = await Promise.all([collectSettings(), collectVoice()])
-  return renderLogs({ now, env, settings, voice, entries: diagnostics.entries(now) })
+  const [settings, voice, extra] = await Promise.all([collectSettings(), collectVoice(), desktopLines()])
+  return renderLogs({ now, env, settings, voice, entries: diagnostics.entries(now), startedAt: APP_STARTED_AT, extra })
 }
 
 /** The payload exactly as it will be sent. */

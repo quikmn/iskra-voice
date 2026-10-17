@@ -44,7 +44,7 @@ function dispatch(event: CallEvent): void {
 
 function onEnded(call: CallInfo): void {
   keys.delete(call.id)
-  if (useVoice.getState().session?.call?.id === call.id) void leaveVoice()
+  if (useVoice.getState().session?.call?.id === call.id) void leaveVoice('call_ended')
   const log = callLog(call)
   if (log) {
     void sendDm(call.peer, callLogText(call.video, log.outcome, log.duration), {

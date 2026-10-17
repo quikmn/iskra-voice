@@ -7,8 +7,9 @@ import { CloseCodes, RequestError, type Events, type Requests, type Welcome } fr
 export type ConnectionStatus =
   | { state: 'connecting' }
   | { state: 'online' }
-  /** `stopped`: the server said it stopped for good (close 1001, reason "stop"), not a restart; the usual backoff. */
-  | { state: 'offline'; retryInMs: number; stopped?: boolean }
+  /** `closeCode`: the WebSocket close code of the attempt that just ended (none: the socket couldn't even be made).
+   * `stopped`: the server said it stopped for good (close 1001, reason "stop"), not a restart; the usual backoff. */
+  | { state: 'offline'; retryInMs: number; stopped?: boolean; closeCode?: number }
   /** The server said it's restarting (close 1012): we retry about every second for a while. `etaMs` is its own estimate;
    * `update`: it's restarting into a new version. */
   | { state: 'restarting'; since: number; etaMs?: number; update?: true }
@@ -93,6 +94,8 @@ export class Connection {
   private serverStopped = false
   /** Waiting for a moderator to approve our join (status `pending`), until a welcome or a refusal. */
   private awaitingApproval = false
+  /** The close code of the attempt that just ended, for the next offline status (diagnostics). */
+  private lastCloseCode: number | undefined
 
   constructor(options: ConnectionOptions) {
     this.options = options
@@ -326,6 +329,7 @@ export class Connection {
 
   private handleClose(code: number, reason = ''): void {
     this.socket = null
+    this.lastCloseCode = code
     this.ready = false
     this.failPending('disconnected', 'Connection lost.')
     if (this.stopped || this.rejected) return
@@ -378,9 +382,11 @@ export class Connection {
     const base = Math.min(MAX_BACKOFF_MS, MIN_BACKOFF_MS * 2 ** this.attempts)
     const delay = Math.round(base * (0.7 + Math.random() * 0.6)) // jitter so clients don't stampede after a restart
     this.attempts++
+    const closeCode = this.lastCloseCode
+    this.lastCloseCode = undefined
     // The timer first: nothing the status update does can stop the next attempt.
     this.schedule(delay)
-    this.status({ state: 'offline', retryInMs: delay, ...(this.serverStopped ? { stopped: true } : {}) })
+    this.status({ state: 'offline', retryInMs: delay, ...(this.serverStopped ? { stopped: true } : {}), ...(closeCode !== undefined ? { closeCode } : {}) })
   }
 
   private schedule(delay: number): void {

@@ -1,6 +1,7 @@
 // What a bug report sends, built from pure parts so tests can check every field. The reporter's own words go as they
 // typed them (and they see them in "See what's included"); everything else is structured, allowlisted and netted.
-import { finalNet, type DiagEntry } from './diagnostics'
+import { cleanLine, duration, formatLine, parseLine, type LogEntry, type ParsedLine } from '../../core/log'
+import { finalNet, MAX_AGE_MS } from './diagnostics'
 
 export const MAX_WHAT = 1500
 export const MAX_STEPS = 1400
@@ -136,34 +137,103 @@ export function platformInfo(userAgent: string): { os: string; browser?: string 
 
 // ── Logs ────────────────────────────────────────────────────────────────────
 
-const time = (at: number) => new Date(at).toISOString().slice(11, 23)
-
-function line(e: DiagEntry): string {
-  switch (e.kind) {
-    case 'connection':
-      return `connection s${e.server} ${e.state}${e.code ? ` ${e.code}` : ''}${e.retryMs !== undefined ? ` retry ${e.retryMs}ms` : ''}`
-    case 'request': return `request ${e.type} failed ${e.code}`
-    case 'voice': return `voice ${e.state}${e.call ? ` ${e.call}` : ''}${e.engine ? ` engine ${e.engine}` : ''}${e.reason ? ` (${e.reason.replace('_', ' ')})` : ''}`
-    case 'error': return `error ${e.source} ${e.name}${e.frame ? ` at ${e.frame}` : ''}`
-    case 'update': return `update ${e.state}${e.version ? ` ${e.version}` : ''}`
-    case 'app': return `app ${e.event}`
-  }
-}
-
 const value = (v: string | number | boolean | null) => (v === null ? 'auto' : String(v))
 const SETTING_KEY = /^[a-zA-Z]{1,22}$/
 const SETTING_VALUE = /^[a-z0-9.-]{1,16}$/i
 
-/** The logs as text, then the final net over all of it. */
-export function renderLogs(input: { now: number; env: ReportEnv; settings: SettingsSnapshot; voice: VoiceSnapshot; entries: DiagEntry[] }): string {
-  const { env, settings, voice, entries } = input
-  const out: string[] = []
-  out.push(`Iskra ${env.version} (${env.commit}) on ${env.device}, ${env.os}${env.browser ? `, ${env.browser}` : ''}${env.language ? `, ${env.language}` : ''}`)
-  out.push(`report at ${new Date(input.now).toISOString()}`)
+export interface LogsInput {
+  now: number
+  env: ReportEnv
+  settings: SettingsSnapshot
+  voice: VoiceSnapshot
+  /** This app's entries (the diagnostics buffer). */
+  entries: LogEntry[]
+  /** When this app started (the header's uptime). */
+  startedAt?: number
+  /** Lines from the desktop app's log (main process, updater, and this page's lines from before a reload). */
+  extra?: string[]
+}
+
+const clock = (time: string) => time.slice(11, 19)
+
+function uptime(ms: number): string {
+  const minutes = Math.max(0, Math.floor(ms / 60_000))
+  return minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, '0')}m`
+}
+
+/** One row per server (srv=): its connection id, path, state, how long the last connect took, retries, last close. */
+function serverRows(lines: ParsedLine[]): string[] {
+  const rows = new Map<string, { conn?: string; path?: string; state: string; took?: string; retries: number; close?: string; code?: string }>()
+  for (const l of lines) {
+    if (l.src !== 'app' || l.area !== 'conn' || !l.fields.srv) continue
+    const row = rows.get(l.fields.srv) ?? { state: '?', retries: 0 }
+    row.state = l.event
+    if (l.fields.conn) row.conn = l.fields.conn
+    if (l.fields.path) row.path = l.fields.path
+    if (l.event === 'online') {
+      row.took = l.fields.took
+      row.retries = 0
+    }
+    if (l.event === 'offline') row.retries++
+    if (l.fields.close) row.close = l.fields.close
+    if (l.code) row.code = l.code
+    rows.set(l.fields.srv, row)
+  }
+  return [...rows].map(([srv, r]) =>
+    [`srv=${srv}`, r.conn && `conn=${r.conn}`, r.path && `path=${r.path}`, `state=${r.state}`, r.took && `took=${r.took}`,
+      r.retries > 0 && `retries=${r.retries}`, r.close && `last-close=${r.close}`, r.code && `last-code=${r.code}`].filter(Boolean).join(' '))
+}
+
+/** Each voice session: when it started and ended, where, why it ended (and the code), how long it lasted. */
+function voiceRows(lines: ParsedLine[]): string[] {
+  const rows: string[] = []
+  let open: ParsedLine | null = null
+  const where = (l: ParsedLine) => ['srv', 'conn', 'chan', 'call'].filter((k) => l.fields[k]).map((k) => `${k}=${l.fields[k]}`).join(' ')
+  for (const l of lines) {
+    if (l.src !== 'app' || l.area !== 'voice') continue
+    if (l.event === 'connecting') open = l
+    else if (l.event === 'joined') open = open ? { ...l, time: open.time } : l
+    else if (l.event === 'left') {
+      const start = open ? clock(open.time) : '?'
+      rows.push(`${start} → ${clock(l.time)} ${where(open ?? l)} reason=${l.fields.reason ?? '?'}${l.code ? ` ${l.code}` : ''}${l.fields.dur ? ` (${l.fields.dur})` : ''}`)
+      open = null
+    }
+  }
+  if (open) rows.push(`${clock(open.time)} → now ${where(open)}`)
+  return rows
+}
+
+/** Codes with how often and when they came (first and last). */
+function problemRows(lines: ParsedLine[]): string[] {
+  const codes = new Map<string, { count: number; first: string; last: string }>()
+  for (const l of lines) {
+    if (!l.code) continue
+    const c = codes.get(l.code)
+    if (c) {
+      c.count++
+      c.last = l.time
+    } else codes.set(l.code, { count: 1, first: l.time, last: l.time })
+  }
+  return [...codes].sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
+    .map(([code, c]) => `${code.padEnd(7)} x${c.count}  ${clock(c.first)}${c.count > 1 ? ` .. ${clock(c.last)}` : ''}`)
+}
+
+const stamp = (line: string) => line.slice(0, 24)
+
+/**
+ * The logs as text: a header (version, platform, report time, uptime, settings, voice), then sections built from the
+ * lines (Servers, Voice, Problems), then the Timeline in the log line format, with a gap marker where more than 5 s
+ * passed. Over the size cap the oldest timeline lines go first. Then the final net over all of it.
+ */
+export function renderLogs(input: LogsInput): string {
+  const { env, settings, voice } = input
+  const head: string[] = []
+  head.push(`Iskra ${env.version} (${env.commit}) ${env.device}, ${env.os}${env.browser ? `, ${env.browser}` : ''}${env.language ? `, ${env.language}` : ''}`)
+  head.push(`report at ${new Date(input.now).toISOString()}${input.startedAt ? `, up ${uptime(input.now - input.startedAt)}` : ''}`)
   const shown = Object.entries(settings)
     .filter(([k, v]) => SETTING_KEY.test(k) && (typeof v !== 'string' || SETTING_VALUE.test(v)) && (typeof v !== 'number' || Number.isFinite(v)))
     .map(([k, v]) => `${k}=${value(v)}`)
-  out.push(`settings: ${shown.join(' ')}`)
+  head.push(`settings: ${shown.join(' ')}`)
   const v = voice
   const parts = [`voice: ${v.state}`]
   if (v.call) parts.push(v.call)
@@ -175,10 +245,37 @@ export function renderLogs(input: { now: number; env: ReportEnv; settings: Setti
   if (v.lossIn !== undefined) parts.push(`loss in ${v.lossIn.toFixed(1)}%`)
   if (v.jitterMs !== undefined) parts.push(`jitter ${Math.round(v.jitterMs)}ms`)
   if (v.rttMs !== undefined) parts.push(`rtt ${Math.round(v.rttMs)}ms`)
-  out.push(parts.join(', '))
-  out.push(`--- ${entries.length} entries, last 30 minutes (UTC) ---`)
-  for (const e of entries) out.push(`${time(e.at)} ${line(e)}`)
-  return finalNet(out.join('\n')).slice(0, MAX_LOGS)
+  head.push(parts.join(', '))
+
+  // One timeline ordered by time: this app's entries and the desktop app's lines (each checked against the format).
+  const since = new Date(input.now - MAX_AGE_MS).toISOString()
+  const extra = (input.extra ?? []).flatMap((line) => {
+    const clean = cleanLine(line)
+    return clean && clean.slice(0, 24) >= since && parseLine(clean)?.level !== 'DEBUG' ? [clean] : []
+  })
+  const timeline = [...input.entries.map(formatLine), ...extra].sort((a, b) => (stamp(a) < stamp(b) ? -1 : stamp(a) > stamp(b) ? 1 : 0))
+  const parsed = timeline.map(parseLine).filter((l): l is ParsedLine => l !== null)
+
+  const section = (title: string, rows: string[]) => (rows.length ? ['', `== ${title} ==`, ...rows] : [])
+  head.push(...section('Servers', serverRows(parsed)), ...section('Voice', voiceRows(parsed)), ...section('Problems', problemRows(parsed)))
+
+  // The timeline, the newest lines kept when it doesn't all fit.
+  const withGaps: string[] = []
+  let previous = 0
+  for (const line of timeline) {
+    const at = Date.parse(stamp(line))
+    if (previous && at - previous > 5000) withGaps.push(`-- +${duration(at - previous)} --`)
+    withGaps.push(line)
+    previous = at
+  }
+  const budget = MAX_LOGS - head.join('\n').length - 200
+  let used = 0
+  let first = withGaps.length
+  while (first > 0 && used + withGaps[first - 1].length + 1 <= budget) used += withGaps[--first].length + 1
+  const kept = withGaps.slice(first).filter((l) => !l.startsWith('-- ')).length
+  const dropped = timeline.length - kept
+  head.push('', `== Timeline (UTC, last 30 minutes, ${timeline.length} lines${dropped ? `, the oldest ${dropped} left out` : ''}) ==`)
+  return finalNet([...head, ...withGaps.slice(first)].join('\n')).slice(0, MAX_LOGS)
 }
 
 // ── Saving instead of sending ───────────────────────────────────────────────

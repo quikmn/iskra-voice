@@ -5,6 +5,7 @@
 // app: the first time, you're asked before it's downloaded from the server of the call (models.ts), and it's kept on
 // the device after that.
 import type { RemoteParticipant, RemoteTrack, RemoteTrackPublication, Room } from 'livekit-client'
+import { errorFields, log, logError } from '../core/log'
 import { lk } from './livekit'
 import { create } from 'zustand'
 import tapWorkletUrl from './captions/tap.worklet.ts?worker&url'
@@ -207,6 +208,7 @@ async function start(current: Room): Promise<void> {
   } catch (e) {
     if (mine !== generation) return
     console.warn('[iskra] captions could not start', e)
+    log('WARN', 'media', 'failed', 'MED-150', [['what', 'captions'], ['op', 'start'], ['why', e instanceof ModelError ? e.kind : undefined], ...errorFields(e)])
     // The call goes on as it is; captions wait for "Try again" (no new download on their own).
     stop()
     room = current
@@ -229,7 +231,7 @@ function stop(): void {
   worker = null
   stopResuming?.()
   stopResuming = null
-  void ctx?.close().catch(() => undefined)
+  void ctx?.close().catch((e) => logError('media', 'audio-close', e))
   ctx = null
   sink = null
   room = null
@@ -274,6 +276,7 @@ function addTap(id: string, source: MediaStreamTrack): void {
     taps.set(id, { source, input, node })
   } catch (e) {
     console.warn('[iskra] captions: could not listen to a voice', e)
+    log('WARN', 'media', 'failed', 'MED-150', [['what', 'captions'], ['op', 'tap'], ...errorFields(e)])
   }
 }
 
@@ -318,6 +321,7 @@ function onWorker(e: MessageEvent<WorkerMessage>): void {
     }
   } else if (m.type === 'error') {
     console.warn('[iskra] captions', m.message)
+    log('WARN', 'media', 'failed', 'MED-150', [['what', 'captions'], ['op', 'worker']])
   }
 }
 

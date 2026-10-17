@@ -1,0 +1,50 @@
+{
+  "$comment": "Golden log lines: the app (client/src/core/log.ts) and the desktop app (desktop/src/log.ts) must render each entry exactly as `line`, the same format as the server's LogLine (docs/development.md \"Logs\"). fields is an ordered list of [key, value]; keys off the allowlist are dropped.",
+  "cases": [
+    {
+      "at": "2026-10-17T13:41:37.650Z", "level": "INFO", "src": "app", "area": "voice", "event": "left", "code": "VOI-201",
+      "fields": [["srv", "7c2e"], ["conn", "k3f"], ["chan", 12], ["reason", "other-device"], ["dur", "6.7s"]],
+      "line": "2026-10-17T13:41:37.650Z INFO  app   voice  left        VOI-201 srv=7c2e conn=k3f chan=12 reason=other-device dur=6.7s"
+    },
+    {
+      "at": "2026-10-17T13:29:48.582Z", "level": "WARN", "src": "app", "area": "conn", "event": "offline", "code": "CON-110",
+      "fields": [["srv", "1a90"], ["path", "direct"], ["close", 1006], ["why", "socket-error"], ["retry", "497ms"], ["n", 1]],
+      "line": "2026-10-17T13:29:48.582Z WARN  app   conn   offline     CON-110 srv=1a90 path=direct close=1006 why=socket-error retry=497ms n=1"
+    },
+    {
+      "at": "2026-10-17T13:30:11.703Z", "level": "ERROR", "src": "app", "area": "voice", "event": "failed", "code": "ERR-910",
+      "fields": [["op", "audio-close"], ["name", "InvalidStateError"], ["msg", "Cannot close a closed AudioContext"]],
+      "line": "2026-10-17T13:30:11.703Z ERROR app   voice  failed      ERR-910 op=audio-close name=InvalidStateError msg=\"Cannot close a closed AudioContext\""
+    },
+    {
+      "at": "2026-10-17T13:00:00.000Z", "level": "INFO", "src": "desk", "area": "life", "event": "start", "code": null,
+      "fields": [["ver", "2.0.0-alpha.31"], ["os", "win32"], ["arch", "x64"]],
+      "line": "2026-10-17T13:00:00.000Z INFO  desk  life   start       -       ver=2.0.0-alpha.31 os=win32 arch=x64"
+    },
+    {
+      "at": "2026-10-17T13:00:00.000Z", "level": "INFO", "src": "app", "area": "life", "event": "stop", "code": null,
+      "fields": [],
+      "line": "2026-10-17T13:00:00.000Z INFO  app   life   stop        -"
+    },
+    {
+      "at": "2026-10-17T13:00:00.000Z", "level": "WARN", "src": "upd", "area": "update", "event": "failed", "code": "UPD-110",
+      "fields": [["why", "err-updater-channel-file-not-found"], ["msg", "Cannot find latest.yml"]],
+      "line": "2026-10-17T13:00:00.000Z WARN  upd   update failed      UPD-110 why=err-updater-channel-file-not-found msg=\"Cannot find latest.yml\""
+    },
+    {
+      "at": "2026-10-17T13:00:00.000Z", "level": "INFO", "src": "app", "area": "nowhere", "event": "Bad Event", "code": "nope",
+      "fields": [["secret", "hunter2"], ["loss", 0.125], ["chan", 7], ["why", "has space"]],
+      "line": "2026-10-17T13:00:00.000Z INFO  app   misc   note        -       loss=0.13 chan=7"
+    },
+    {
+      "at": "2026-10-17T13:00:00.000Z", "level": "WARN", "src": "app", "area": "media", "event": "failed", "code": "MED-150",
+      "fields": [["msg", "line one\nline \"two\"\tend"]],
+      "line": "2026-10-17T13:00:00.000Z WARN  app   media  failed      MED-150 msg=\"line one line 'two' end\""
+    },
+    {
+      "at": "2026-10-17T13:00:00.000Z", "level": "ERROR", "src": "desk", "area": "life", "event": "failed", "code": "DSK-900",
+      "fields": [["msg", "connect to 203.0.113.5:443 via https://example.com/path?x=1 failed for alice@example.org in C:\\Users\\alice\\x"]],
+      "line": "2026-10-17T13:00:00.000Z ERROR desk  life   failed      DSK-900 msg=\"connect to <ip> via https://example.com/… failed for <email> in <path>\""
+    }
+  ]
+}

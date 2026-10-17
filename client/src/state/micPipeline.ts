@@ -8,6 +8,7 @@ import type { TrackProcessor, Track, AudioProcessorOptions } from 'livekit-clien
 import gateWorkletUrl from './micGate.worklet.ts?worker&url'
 import deepFilterWorkletUrl from './audio/deepfilter.worklet.ts?worker&url'
 import type { AudioSettings } from './audio'
+import { errorFields, log, logError } from '../core/log'
 import { gateParams } from './audio/micParams'
 import { loadRnnoiseWasm, loadSilero } from './audio/assets'
 import { DF_STRENGTH_DB } from './audio/strength'
@@ -80,6 +81,7 @@ async function startDeepFilter(ctx: AudioContext, strength: number, onLoad: (loa
   } catch (e) {
     worker?.terminate()
     console.warn(`[iskra] AI noise removal could not start (${(e as Error)?.message ?? e}); using RNNoise`)
+    log('WARN', 'media', 'fallback', 'MED-110', [['what', 'mic'], ['engine', 'rnnoise'], ['why', 'start-failed'], ...errorFields(e)])
     markBroken('ai')
     return null
   }
@@ -114,7 +116,7 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
   const stopResuming = keepRunning(ctx)
   const fail = () => {
     stopResuming()
-    void ctx.close().catch(() => undefined)
+    void ctx.close().catch((e) => logError('media', 'audio-close', e))
     return null
   }
 
@@ -137,6 +139,7 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
     if (!alive || gaveUp) return
     gaveUp = true
     console.warn(`[iskra] AI noise removal is too slow here (${why}); switching to RNNoise`)
+    log('WARN', 'media', 'fallback', 'MED-110', [['what', 'mic'], ['engine', 'rnnoise'], ['why', 'slow']])
     callbacks.onSlow?.()
   }
   let lastLog = 0
@@ -176,11 +179,17 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
     if (!alive) return
     const m = e.data
     if ('level' in m) callbacks.onLevel(m.level, m.open)
-    else if (m.type === 'vad-error') console.warn('[iskra] voice activity detection could not start', m.message)
+    else if (m.type === 'vad-error') {
+      console.warn('[iskra] voice activity detection could not start', m.message)
+      log('WARN', 'media', 'failed', 'MED-130', [['what', 'vad']])
+    }
   }
   gate.port.postMessage(gateParams(settings, ptt))
   // Silero arrives when it's loaded; until then the mic opens by level.
-  void loadSilero().then((model) => alive && gate.port.postMessage({ type: 'vad-model', model }), (e) => console.warn('[iskra] voice activity model', e))
+  void loadSilero().then((model) => alive && gate.port.postMessage({ type: 'vad-model', model }), (e) => {
+    console.warn('[iskra] voice activity model', e)
+    log('WARN', 'media', 'failed', 'MED-130', [['what', 'vad-model'], ...errorFields(e)])
+  })
 
   if (deepFilter) {
     let lastLate = 0
@@ -215,7 +224,7 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
       rnnoise?.destroy()
       input.disconnect()
       track.stop()
-      void ctx.close().catch(() => undefined)
+      void ctx.close().catch((e) => logError('media', 'audio-close', e))
     },
   }
 }

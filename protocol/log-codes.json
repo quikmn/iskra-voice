@@ -69,6 +69,18 @@
     { "code": "E2E-110", "level": "WARN", "sources": ["app"], "area": "e2ee", "meaning": "Decrypting encrypted voice failed.", "action": "Rejoin the channel; report it if it repeats." },
     { "code": "UPD-110", "level": "WARN", "sources": ["upd"], "area": "update", "meaning": "The desktop app couldn't check for updates.", "action": "Nothing: it checks again later." },
     { "code": "UPD-120", "level": "WARN", "sources": ["upd"], "area": "update", "meaning": "Installing a desktop app update failed.", "action": "Download the app again from iskra.foo." },
+    { "code": "ERR-910", "level": "ERROR", "sources": ["app"], "area": "ui", "meaning": "A known step failed (area= and op= say which, name= and frame= where; msg= is the browser's own wording).", "action": "Report it with the bug report." },
+    { "code": "MED-130", "level": "WARN", "sources": ["app"], "area": "media", "meaning": "Voice activity detection couldn't start; the microphone uses the volume threshold instead.", "action": "Nothing; report it if voice activity misbehaves." },
+    { "code": "MED-140", "level": "WARN", "sources": ["app"], "area": "media", "meaning": "Cleaning incoming voices isn't available here (or fell back, why= says why).", "action": "Nothing; others' voices play as they come." },
+    { "code": "MED-150", "level": "WARN", "sources": ["app"], "area": "media", "meaning": "Captions, a transcript or a translation couldn't start or stopped (what= says which).", "action": "Try again; on slow devices turn it off." },
+    { "code": "MED-160", "level": "WARN", "sources": ["app"], "area": "media", "meaning": "The camera background effect couldn't start or was turned off (why= says why).", "action": "Nothing; the camera keeps working without it." },
+    { "code": "MED-170", "level": "WARN", "sources": ["app"], "area": "media", "meaning": "The microphone couldn't be captured or sent; you stay muted.", "action": "Check the microphone permission and device in Settings → Voice." },
+    { "code": "DSK-110", "level": "WARN", "sources": ["desk"], "area": "life", "meaning": "A part of the desktop app stopped unexpectedly (kind=: page, gpu, utility; reason= from Electron).", "action": "The window reloads by itself; report it if it repeats." },
+    { "code": "DSK-120", "level": "WARN", "sources": ["desk"], "area": "life", "meaning": "A server hosted in the desktop app stopped without being asked (exit= is its exit code).", "action": "Look at that server's logs/ folder for the same time." },
+    { "code": "DSK-130", "level": "WARN", "sources": ["desk"], "area": "life", "meaning": "A server hosted in the desktop app couldn't start (why=).", "action": "Look at server.log and logs/ in that server's folder." },
+    { "code": "DSK-140", "level": "WARN", "sources": ["desk"], "area": "store", "meaning": "The desktop app couldn't save its settings.", "action": "Check that the app's data folder is writable." },
+    { "code": "DSK-150", "level": "WARN", "sources": ["desk"], "area": "ui", "meaning": "The app's window stopped responding for a while.", "action": "Nothing unless it repeats; then report it with the bug report." },
+    { "code": "DSK-900", "level": "ERROR", "sources": ["desk"], "area": "life", "meaning": "An uncaught error in the desktop app's main process.", "action": "Report it with the log lines around it." },
     { "code": "ERR-900", "level": "ERROR", "sources": ["app"], "area": "ui", "meaning": "An uncaught error (area unknown).", "action": "Report it with the bug report." }
   ]
 }
