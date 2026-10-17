@@ -14,6 +14,8 @@ export interface AssistantConfig {
   model: string
   /** The provider's API key; empty for local models. Kept sealed at rest (core/storage.ts), never in localStorage. */
   key: string
+  /** The origin (scheme://host:port) the key was saved for. A key is only ever sent there; another address drops it. */
+  keyOrigin: string
   /** Moderation and Server admin tools stay off until the user turns them on. */
   moderation: boolean
   admin: boolean
@@ -43,6 +45,7 @@ export const DEFAULT_CONFIG: AssistantConfig = {
   baseUrl: PRESETS.anthropic.baseUrl,
   model: DEFAULT_ANTHROPIC_MODEL,
   key: '',
+  keyOrigin: '',
   moderation: false,
   admin: false,
   mcp: false,

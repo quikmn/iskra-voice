@@ -178,6 +178,7 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   // The personal assistant: requests to the user's AI provider (checked in the main process), and the local MCP bridge.
   assistant: {
     fetch: (request: unknown): Promise<unknown> => ipcRenderer.invoke('iskra:assistant-fetch', request),
+    setBase: (baseUrl: string | null): Promise<void> => ipcRenderer.invoke('iskra:assistant-base', typeof baseUrl === 'string' ? baseUrl : null),
     setMcp: (on: boolean): Promise<unknown> => ipcRenderer.invoke('iskra:mcp-set', on === true),
     onMcp: (callback: (request: unknown) => void): (() => void) => {
       const listener = (_e: IpcRendererEvent, request: unknown) => callback(request)

@@ -40,6 +40,7 @@ export const READ_TOOLS: ToolDef[] = [
       const query = str(args.query, 'query', 200)
       return {
         summary: { key: 'help', args: { query } },
+        untrusted: false, // Iskra's own docs
         async run() {
           const found = searchHelp(await ctx.host.helpSections(), query, 3)
           if (!found.length) return 'Nothing in the docs matches that. Try other words.'

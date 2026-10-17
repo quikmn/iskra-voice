@@ -12,7 +12,7 @@ export const ORGANIZE_TOOLS: ToolDef[] = [
   {
     name: 'create_channel',
     category: 'organize',
-    risk: 'low',
+    risk: 'write',
     needsServer: true,
     description: 'Creates a channel (text by default) on the server, optionally in a category. Needs admin or the manage channels permission.',
     schema: {
@@ -36,6 +36,7 @@ export const ORGANIZE_TOOLS: ToolDef[] = [
       return {
         summary: (category ? { key: 'createChannelIn', args: { name, kind, category: category.name } } : { key: 'createChannel', args: { name, kind } }) as Prepared['summary'],
         request: { type: 'channel.create', body },
+        texts: [{ field: 'name', value: name }],
         async run() {
           const { channel } = (await ctx.request('channel.create', body)) as { channel: Channel }
           return `Created #${channel.name} (id ${channel.id}).`
@@ -46,7 +47,7 @@ export const ORGANIZE_TOOLS: ToolDef[] = [
   {
     name: 'rename_channel',
     category: 'organize',
-    risk: 'low',
+    risk: 'write',
     needsServer: true,
     description: 'Renames a channel.',
     schema: {
@@ -62,6 +63,7 @@ export const ORGANIZE_TOOLS: ToolDef[] = [
       return {
         summary: { key: 'renameChannel', args: { from: channel.name, to: name } },
         request: { type: 'channel.update', body },
+        texts: [{ field: 'name', value: name }],
         run: async () => (await ctx.request('channel.update', body), `Renamed #${channel.name} to #${name}.`),
       }
     },
@@ -99,7 +101,7 @@ export const ORGANIZE_TOOLS: ToolDef[] = [
   {
     name: 'create_category',
     category: 'organize',
-    risk: 'low',
+    risk: 'write',
     needsServer: true,
     description: 'Creates a channel category (1–32 characters).',
     schema: { type: 'object', properties: { server: SERVER_ARG, name: { type: 'string' } }, required: ['name'], additionalProperties: false },
@@ -109,6 +111,7 @@ export const ORGANIZE_TOOLS: ToolDef[] = [
       return {
         summary: { key: 'createCategory', args: { name } },
         request: { type: 'category.create', body },
+        texts: [{ field: 'name', value: name }],
         async run() {
           const { category } = (await ctx.request('category.create', body)) as { category: { id: number; name: string } }
           return `Created the category "${category.name}" (id ${category.id}).`
@@ -119,7 +122,7 @@ export const ORGANIZE_TOOLS: ToolDef[] = [
   {
     name: 'rename_category',
     category: 'organize',
-    risk: 'low',
+    risk: 'write',
     needsServer: true,
     description: 'Renames a category.',
     schema: { type: 'object', properties: { server: SERVER_ARG, category: { type: 'string' }, name: { type: 'string' } }, required: ['category', 'name'], additionalProperties: false },
@@ -130,6 +133,7 @@ export const ORGANIZE_TOOLS: ToolDef[] = [
       return {
         summary: { key: 'renameCategory', args: { from: category.name, to: name } },
         request: { type: 'category.update', body },
+        texts: [{ field: 'name', value: name }],
         run: async () => (await ctx.request('category.update', body), `Renamed the category to "${name}".`),
       }
     },
@@ -194,6 +198,7 @@ export const ORGANIZE_TOOLS: ToolDef[] = [
         summary: { key: 'createTheme', args: { name } },
         request: { type: 'theme (this device only)', body: theme },
         preview: { theme },
+        texts: [{ field: 'theme', value: name }],
         run: async () => (ctx.host.applyTheme(theme), `Applied the theme "${name}" on this device.`),
       }
     },

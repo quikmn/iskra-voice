@@ -38,9 +38,9 @@ import { readBuildCommit, windowTitle } from './title'
 import { pickerChoices, placeTestWindow, realScreenThumbnails, testWindowArea, thumbnailSize } from './testMode'
 import { PopoutWindows } from './popoutWindows'
 import { deskLog, duration, errorFields, type LogFields } from './log'
-import { sendAssistantRequest } from './assistantNet'
+import { AssistantBase, sendAssistantRequest } from './assistantNet'
 import { pageAnswer } from './mcp'
-import { McpHost, mcpSocketPath, mcpTokenPath } from './mcpPipe'
+import { McpHost, mcpTokenPath } from './mcpPipe'
 import { parsePopoutPatch } from './popouts'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
@@ -964,7 +964,13 @@ ipcMain.handle('iskra:do-forget', (event) => {
 
 // ── Personal assistant ───────────────────────────────────────────────────
 // Requests to the AI provider the user chose (assistantNet.ts: https or this computer, provider endpoints only).
-ipcMain.handle('iskra:assistant-fetch', (event, raw: unknown) => (fromApp(event) && event.sender === window?.webContents ? sendAssistantRequest(raw) : { ok: false, error: 'blocked' }))
+// The page registers the provider address the user saved; only its endpoints are reachable (kept in assistant.json).
+const assistantBase = new AssistantBase(path.join(app.getPath('userData'), 'assistant.json'))
+ipcMain.handle('iskra:assistant-base', (event, base: unknown) => {
+  if (fromApp(event) && event.sender === window?.webContents) assistantBase.set(base)
+})
+ipcMain.handle('iskra:assistant-fetch', (event, raw: unknown) =>
+  fromApp(event) && event.sender === window?.webContents ? sendAssistantRequest(raw, assistantBase.current) : { ok: false, error: 'blocked' })
 
 // The local MCP bridge (mcp.ts, mcpPipe.ts): only while the page has it turned on. Tool calls go to the main window's
 // page, which runs the assistant's tools and shows their approval cards.
@@ -988,7 +994,7 @@ function askPage(method: 'list' | 'call', name?: string, args?: unknown): Promis
   })
 }
 const mcpHost = new McpHost({
-  socketPath: mcpSocketPath(app.getPath('userData')),
+  userData: app.getPath('userData'),
   tokenFile: mcpTokenPath(app.getPath('userData')),
   version: app.getVersion(),
   link: () => (window ? {

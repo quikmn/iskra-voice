@@ -1,9 +1,10 @@
-// The local channel between `Iskra --mcp` (the bridge an MCP client starts) and the running Iskra: a named pipe on
-// Windows, a socket file in the app's data folder elsewhere (owner-only). Never a network port. Both sides prove they
-// know a random token kept in the app's data folder (mcp.ts), so another user on the computer, or a program that took
-// the pipe's name first, learns nothing and gets nothing. The running app only listens while the user has it turned on.
+// The local channel between `Iskra --mcp` (the bridge an MCP client starts) and the running Iskra: a named pipe with a
+// random name on Windows, a socket file in the app's data folder elsewhere (owner-only). Never a network port. The
+// pipe's name and a random token are kept together in the app's data folder (mcp-token); both sides prove they know
+// the token (mcp.ts), so another user on the computer, or a program that took the pipe's name first, learns nothing and
+// gets nothing. The running app only listens while the user has it turned on.
 import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { createHash } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import net from 'node:net'
 import path from 'node:path'
 import { checkProof, isNonce, LineReader, McpSession, newNonce, newToken, proof, type PageLink } from './mcp'
@@ -11,16 +12,17 @@ import { checkProof, isNonce, LineReader, McpSession, newNonce, newToken, proof,
 export const HANDSHAKE_MS = 5_000
 export const MAX_CONNECTIONS = 4
 
-/** Where the running app listens, for a given data folder. */
-export function mcpSocketPath(userData: string, platform = process.platform): string {
-  if (platform === 'win32') return `\\\\.\\pipe\\iskra-mcp-${createHash('sha256').update(userData.toLowerCase()).digest('hex').slice(0, 24)}`
+/** A new place to listen: a random pipe name on Windows (fresh each time it's turned on), the data folder elsewhere. */
+export function newSocketPath(userData: string, platform = process.platform): string {
+  if (platform === 'win32') return `\\\\.\\pipe\\iskra-mcp-${randomBytes(16).toString('hex')}`
   return path.join(userData, 'mcp.sock')
 }
 
 export const mcpTokenPath = (userData: string) => path.join(userData, 'mcp-token')
 
 export interface HostOptions {
-  socketPath: string
+  /** The app's data folder (the socket file lives here on macOS and Linux). */
+  userData: string
   tokenFile: string
   version: string
   /** The page's tools, or null while it can't answer (locked, loading). */
@@ -33,6 +35,7 @@ export class McpHost {
   #server: net.Server | null = null
   #sockets = new Set<net.Socket>()
   #token = ''
+  #socketPath = ''
   #options: HostOptions
 
   constructor(options: HostOptions) {
@@ -46,18 +49,27 @@ export class McpHost {
   async start(): Promise<void> {
     if (this.#server) return
     this.#token = newToken()
-    writeFileSync(this.#options.tokenFile, this.#token, { mode: 0o600 })
-    if (process.platform !== 'win32' && existsSync(this.#options.socketPath)) rmSync(this.#options.socketPath, { force: true })
+    this.#socketPath = newSocketPath(this.#options.userData)
+    if (process.platform !== 'win32' && existsSync(this.#socketPath)) rmSync(this.#socketPath, { force: true })
     const server = net.createServer((socket) => this.#accept(socket))
     server.maxConnections = MAX_CONNECTIONS
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject)
-      server.listen({ path: this.#options.socketPath, readableAll: false, writableAll: false }, () => {
-        server.off('error', reject)
-        resolve()
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject)
+        server.listen({ path: this.#socketPath, readableAll: false, writableAll: false }, () => {
+          server.off('error', reject)
+          resolve()
+        })
       })
-    })
-    if (process.platform !== 'win32') chmodSync(this.#options.socketPath, 0o600)
+      if (process.platform !== 'win32') chmodSync(this.#socketPath, 0o600)
+      // Only once it listens: where, and the token, for the bridge.
+      writeFileSync(this.#options.tokenFile, JSON.stringify({ token: this.#token, socket: this.#socketPath }), { mode: 0o600 })
+    } catch (error) {
+      server.close()
+      rmSync(this.#options.tokenFile, { force: true })
+      this.#token = ''
+      throw error
+    }
     server.on('error', () => undefined)
     this.#server = server
   }
@@ -69,7 +81,7 @@ export class McpHost {
     this.#sockets.clear()
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()))
     rmSync(this.#options.tokenFile, { force: true })
-    if (process.platform !== 'win32') rmSync(this.#options.socketPath, { force: true })
+    if (process.platform !== 'win32' && this.#socketPath) rmSync(this.#socketPath, { force: true })
     this.#token = ''
   }
 
@@ -117,7 +129,6 @@ export class McpHost {
 }
 
 export interface BridgeOptions {
-  socketPath: string
   tokenFile: string
   version: string
   input: NodeJS.ReadableStream
@@ -128,16 +139,18 @@ export interface BridgeOptions {
 }
 
 /** Connects and proves itself; resolves with the socket, or null (off, not running, or not the real Iskra). */
-export function openChannel(options: Pick<BridgeOptions, 'socketPath' | 'tokenFile' | 'connect'>): Promise<{ socket: net.Socket; rest: LineReader | null } | { error: string }> {
-  let token: string
+export function openChannel(options: Pick<BridgeOptions, 'tokenFile' | 'connect'>): Promise<{ socket: net.Socket } | { error: string }> {
+  let token: unknown
+  let socketPath: unknown
   try {
-    token = readFileSync(options.tokenFile, 'utf8').trim()
+    ({ token, socket: socketPath } = JSON.parse(readFileSync(options.tokenFile, 'utf8')) as { token?: unknown; socket?: unknown })
   } catch {
     return Promise.resolve({ error: 'off' })
   }
-  if (!/^[0-9a-f]{64}$/.test(token)) return Promise.resolve({ error: 'off' })
+  if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token) || typeof socketPath !== 'string' || !socketPath) return Promise.resolve({ error: 'off' })
+  const secret = token
   return new Promise((resolve) => {
-    const socket = (options.connect ?? ((p) => net.connect(p)))(options.socketPath)
+    const socket = (options.connect ?? ((p) => net.connect(p)))(socketPath)
     const nonce = newNonce()
     let stage: 'hello' | 'ok' | 'done' = 'hello'
     const fail = (error: string) => {
@@ -162,17 +175,17 @@ export function openChannel(options: Pick<BridgeOptions, 'socketPath' | 'tokenFi
       if (stage === 'hello') {
         if (message.iskra !== 'mcp-1' || !isNonce(message.nonce)) return fail('auth')
         stage = 'ok'
-        socket.write(`${JSON.stringify({ proof: proof(token, 'client', message.nonce), nonce })}\n`)
+        socket.write(`${JSON.stringify({ proof: proof(secret, 'client', message.nonce), nonce })}\n`)
         return
       }
-      if (message.ok !== true || !checkProof(token, 'server', nonce, message.proof)) return fail('auth')
+      if (message.ok !== true || !checkProof(secret, 'server', nonce, message.proof)) return fail('auth')
       stage = 'done'
       clearTimeout(timer)
       socket.removeAllListeners('data')
       socket.removeAllListeners('close')
       socket.removeAllListeners('error')
       socket.on('error', () => undefined)
-      resolve({ socket, rest: null })
+      resolve({ socket })
     }, () => fail('too-long'))
     socket.on('data', (chunk) => reader.push(chunk))
   })

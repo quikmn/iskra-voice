@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ServerState } from '../../store'
 import { ALL_TOOLS } from './index'
-import { FORBIDDEN_REQUESTS, MAX_CALLS_PER_MINUTE, MAX_WRITES_PER_MINUTE, ToolRunner, type ApprovalRequest, type Decision, type ToolHost } from './registry'
+import { ALLOWED_REQUESTS, MAX_CALLS_PER_MINUTE, MAX_WRITES_PER_MINUTE, MAX_WRITES_PER_SESSION, SESSION_GRANTABLE, ToolRunner, type ApprovalRequest, type Decision, type ToolHost } from './registry'
 
 const OWNER = 'o'.repeat(43)
 const BOB = 'b'.repeat(43)
@@ -24,13 +24,14 @@ function server(): ServerState {
 
 function setup(options: { decision?: Decision; moderation?: boolean; admin?: boolean } = {}) {
   const s = server()
+  const other = { ...server(), key: 'srvkey2', name: 'Other Place' } as ServerState
   const sent: { type: string; body: unknown }[] = []
   const approvals: ApprovalRequest[] = []
   const secrets: string[] = []
   const log = vi.fn()
   let now = 1_000_000
   const host: ToolHost = {
-    servers: () => [s],
+    servers: () => [s, other],
     activeServerKey: () => s.key,
     activeChannelId: () => 1,
     categoriesOf: () => [{ id: 7, name: 'Games', position: 0 }],
@@ -127,17 +128,69 @@ describe('assistant tool registry', () => {
     expect(log).toHaveBeenCalledWith(expect.objectContaining({ tool: 'kick_member', status: 'denied' }))
   })
 
-  it('"allow for this session" only skips the card for low-risk tools', async () => {
-    const { runner, approvals } = setup({ decision: 'session', moderation: true })
-    await runner.call('create_channel', { name: 'a' }, 'chat')
-    await runner.call('create_channel', { name: 'b' }, 'chat')
-    expect(approvals).toHaveLength(1)
+  it('"allow for this session" covers only moves and themes, per server, in chat only, until a new conversation', async () => {
+    const { runner, approvals, tick } = setup({ decision: 'session', moderation: true })
+    expect(SESSION_GRANTABLE).toEqual(['move_channel', 'move_category', 'create_theme'])
+    // Anything that puts text in front of others asks every time, even after "session".
+    for (const name of ['a', 'b']) await runner.call('create_channel', { name }, 'chat')
+    for (const name of ['c', 'd']) await runner.call('rename_channel', { channel: 'general', name }, 'chat')
+    for (const name of ['e', 'f']) await runner.call('create_category', { name }, 'chat')
+    expect(approvals).toHaveLength(6)
+    expect(approvals.every((a) => !a.grantable)).toBe(true)
+    tick(61_000)
+    // A move: once, then not again on this server…
+    await runner.call('move_channel', { channel: 'general', category: 'Games' }, 'chat')
+    await runner.call('move_channel', { channel: 'general', category: 'none' }, 'chat')
+    expect(approvals).toHaveLength(7)
+    expect(approvals[6].grantable).toBe(true)
+    // …but it asks again on another server, and from an MCP client (never granted, never offered).
+    await runner.call('move_channel', { channel: 'general', category: 'Games', server: 'Other Place' }, 'chat')
+    expect(approvals).toHaveLength(8)
+    await runner.call('move_channel', { channel: 'general', category: 'Games' }, 'mcp')
+    await runner.call('move_channel', { channel: 'general', category: 'Games' }, 'mcp')
+    expect(approvals).toHaveLength(10)
+    expect(approvals.at(-1)).toMatchObject({ source: 'mcp', grantable: false })
+    // Destructive tools never.
+    tick(61_000)
     await runner.call('kick_member', { member: 'Bob' }, 'chat')
-    await runner.call('kick_member', { member: 'Bob' }, 'mcp')
-    await runner.call('set_up_bot', {}, 'chat')
-    await runner.call('set_up_bot', {}, 'chat')
-    expect(approvals).toHaveLength(5)
-    expect(approvals.at(-3)?.source).toBe('mcp')
+    await runner.call('kick_member', { member: 'Bob' }, 'chat')
+    expect(approvals).toHaveLength(12)
+    // A new conversation forgets every grant.
+    runner.clearSession()
+    await runner.call('move_channel', { channel: 'general', category: 'Games' }, 'chat')
+    expect(approvals).toHaveLength(13)
+  })
+
+  it('caps the changes in one conversation', async () => {
+    const { runner, tick } = setup({ decision: 'approve' })
+    for (let i = 0; i < MAX_WRITES_PER_SESSION; i++) {
+      if (i % MAX_WRITES_PER_MINUTE === 0) tick(61_000)
+      expect((await runner.call('move_category', { category: 'Games' }, 'chat')).isError).toBe(false)
+    }
+    tick(61_000)
+    expect((await runner.call('move_category', { category: 'Games' }, 'chat')).content).toMatch(/limit of 40 changes/)
+    runner.clearSession()
+    expect((await runner.call('move_category', { category: 'Games' }, 'chat')).isError).toBe(false)
+  })
+
+  it('shows every text others will see on the card, in full', async () => {
+    const { runner, approvals } = setup({ moderation: true, admin: true })
+    await runner.call('create_channel', { name: 'leaked-secret-plans' }, 'chat')
+    await runner.call('ban_member', { member: 'Bob', reason: 'the private text' }, 'chat')
+    await runner.call('update_rules', { text: 'Rule 1\nRule 2' }, 'chat')
+    await runner.call('create_theme', { name: 'Forest', colors: { bgDeep: '#0b140e', accent: '#3ba55c' } }, 'chat')
+    expect(approvals.map((a) => a.texts)).toEqual([
+      [{ field: 'name', value: 'leaked-secret-plans' }],
+      [{ field: 'reason', value: 'the private text' }],
+      [{ field: 'rules', value: 'Rule 1\nRule 2' }],
+      [{ field: 'theme', value: 'Forest' }],
+    ])
+  })
+
+  it('every result and server error reaches the model as data; only the help docs do not', async () => {
+    const { runner } = setup()
+    expect((await runner.call('create_channel', { name: 'plans' }, 'chat')).content).toMatch(/^<iskra-data source="create_channel result">/)
+    expect((await runner.call('help_search', { query: 'bot' }, 'chat')).content).not.toContain('<iskra-data')
   })
 
   it('reads run without a card, wrap other people\'s words as data, and never read encrypted channels', async () => {
@@ -170,7 +223,18 @@ describe('assistant tool registry', () => {
       expect(tool.name).not.toMatch(/key|token|secret|recovery|passkey|device|link|password|account|invite|webhook|backup/)
       expect(tool.schema.additionalProperties).toBe(false)
     }
-    expect(FORBIDDEN_REQUESTS).toEqual(expect.arrayContaining(['invite.create', 'webhook.create', 'account.rotate', 'backup.create', 'chat.send', 'dm.send']))
+    for (const type of ['invite.create', 'invite.list', 'webhook.create', 'account.rotate', 'backup.create', 'chat.send', 'dm.send', 'p2p.status', 'prefs.get']) {
+      expect(ALLOWED_REQUESTS).not.toContain(type)
+    }
+  })
+
+  it('refuses a request that is not on the allowlist, even from a tool', async () => {
+    const { host } = setup()
+    const sneaky = { ...ALL_TOOLS[0], name: 'sneaky', needsServer: true, prepare: (_a: unknown, ctx: { request(t: string, b: unknown): Promise<unknown> }) => ({ summary: { key: 'x', args: {} }, run: async () => String(await ctx.request('invite.create', {})) }) }
+    const runner = new ToolRunner(host, [sneaky as unknown as (typeof ALL_TOOLS)[number]])
+    const result = await runner.call('sneaky', {}, 'chat')
+    expect(result.isError).toBe(true)
+    expect(result.content).toMatch(/not allowed/)
   })
 
   it('caps calls per minute', async () => {

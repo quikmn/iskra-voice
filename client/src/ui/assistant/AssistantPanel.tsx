@@ -214,6 +214,17 @@ function ApprovalCard({ request }: { request: ApprovalRequest }) {
       </div>
       <strong className="assistant-action">{actionText(t, request.summary, request.tool)}</strong>
       {request.serverName && <span className="muted small">{t('assistant.approval.onServer', { server: request.serverName })}</span>}
+      {request.texts.length > 0 && (
+        <div className="assistant-texts" data-testid="assistant-texts">
+          <span className="muted small">{t(request.texts.some((x) => x.field !== 'theme') ? 'assistant.approval.posted' : 'assistant.approval.local')}</span>
+          {request.texts.map((x, i) => (
+            <div key={i} className="assistant-text-field">
+              <span className="muted small">{t(`assistant.approval.fields.${x.field}`)}</span>
+              <div className="assistant-text-value">{x.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
       {request.preview?.theme && <ThemePreview theme={request.preview.theme} />}
       {request.request && (
         <details className="assistant-raw">
@@ -224,7 +235,7 @@ function ApprovalCard({ request }: { request: ApprovalRequest }) {
       <div className="assistant-card-buttons">
         <button className={`button small ${danger ? 'danger' : 'primary'}`} onClick={() => decide(request.id, 'approve')}>{t('assistant.approval.approve')}</button>
         <button className="button small" onClick={() => decide(request.id, 'deny')}>{t('assistant.approval.deny')}</button>
-        {request.risk === 'low' && (
+        {request.grantable && (
           <button className="button small subtle" title={t('assistant.approval.sessionHint')} onClick={() => decide(request.id, 'session')}>{t('assistant.approval.session')}</button>
         )}
       </div>

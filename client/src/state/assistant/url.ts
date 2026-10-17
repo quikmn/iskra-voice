@@ -20,6 +20,12 @@ export function checkBaseUrl(raw: string): { ok: true; url: string } | { ok: fal
   return { ok: true, url: `${url.origin}${url.pathname.replace(/\/+$/, '')}` }
 }
 
+/** The origin of a base URL ("https://api.openai.com"), or '' when it isn't usable. */
+export function originOf(raw: string): string {
+  const checked = checkBaseUrl(raw)
+  return checked.ok ? new URL(checked.url).origin : ''
+}
+
 export const isLocalUrl = (raw: string): boolean => {
   try {
     return LOCAL_HOSTS.has(new URL(raw).hostname)

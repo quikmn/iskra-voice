@@ -95,6 +95,8 @@ export class McpSession {
   #send: (line: string) => void
   #version: string
   #onCall?: (name: string, outcome: string) => void
+  /** Tool names the page listed: only these are named in logs (anything an MCP client makes up is "unknown"). */
+  #known = new Set<string>()
 
   constructor(link: PageLink | null, send: (line: string) => void, version: string, onCall?: (name: string, outcome: string) => void) {
     this.#link = link
@@ -141,17 +143,19 @@ export class McpSession {
       case 'tools/list': {
         const listed = this.#link ? await this.#link.list().catch(() => ({ error: 'failed' })) : { error: 'off' }
         const tools = 'tools' in listed ? listed.tools : []
+        for (const t of tools) this.#known.add(t.name)
         return this.#reply(id, { tools: tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.schema })) })
       }
       case 'tools/call': {
         const name = typeof params.name === 'string' ? params.name : ''
         if (!name) return this.#error(id, -32602, 'Missing tool name')
         const result = this.#link ? await this.#link.call(name, params.arguments ?? {}).catch(() => ({ error: 'failed' })) : { error: 'off' }
+        const logged = this.#known.has(name) && /^[a-z_]{1,40}$/.test(name) ? name : 'unknown'
         if ('error' in result) {
-          this.#onCall?.(name, result.error)
+          this.#onCall?.(logged, /^[a-z_]{1,20}$/.test(result.error) ? result.error : 'failed')
           return this.#reply(id, { content: [{ type: 'text', text: result.error === 'off' ? OFF_TEXT : 'Iskra could not run that tool.' }], isError: true })
         }
-        this.#onCall?.(name, result.isError ? 'error' : 'ok')
+        this.#onCall?.(logged, result.isError ? 'error' : 'ok')
         return this.#reply(id, { content: [{ type: 'text', text: result.content }], isError: result.isError })
       }
       default:

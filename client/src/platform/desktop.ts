@@ -240,6 +240,8 @@ export interface DesktopBridge {
    */
   assistant?: {
     fetch(request: { url: string; method: 'GET' | 'POST'; headers: Record<string, string>; body?: string }): Promise<{ ok: true; status: number; body: string } | { ok: false; error: string }>
+    /** The provider address the user saved (null: none); the main process sends requests only to its endpoints. */
+    setBase?(baseUrl: string | null): Promise<void>
     /** Turns the local MCP bridge on or off; `command` is what an MCP client runs before --mcp (this app). */
     setMcp(on: boolean): Promise<{ on: boolean; command: string[] | null }>
     /** A request from a local MCP client: list the tools, or call one. Answer with mcpReply. */

@@ -1,6 +1,14 @@
-import { describe, expect, it } from 'vitest'
-import { mcpRequest, parseConfig, useAssistant, validHistory } from './assistant'
+import { describe, expect, it, vi } from 'vitest'
+import { mcpRequest, newConversation, parseConfig, runner, saveConfig, useAssistant, validHistory } from './assistant'
 import { DEFAULT_CONFIG } from './types'
+
+// The vault is locked in tests: settings are saved to nowhere.
+vi.mock('../../core/storage', async (original) => ({
+  ...(await original<typeof import('../../core/storage')>()),
+  saveAssistant: vi.fn(async () => undefined),
+  loadAssistant: vi.fn(async () => undefined),
+  clearAssistant: vi.fn(async () => undefined),
+}))
 
 describe('assistant state', () => {
   it('local MCP clients get nothing while the assistant or MCP is off', async () => {
@@ -15,6 +23,33 @@ describe('assistant state', () => {
     const refused = await mcpRequest('call', 'ban_member', { member: 'x' })
     expect(refused).toEqual({ content: expect.stringMatching(/turned off/), isError: true })
     expect(await mcpRequest('nope', undefined, undefined)).toEqual({ error: 'bad_request' })
+  })
+
+  it('a saved key goes with its address: changing the address to another origin drops it', async () => {
+    useAssistant.setState({ config: { ...DEFAULT_CONFIG, enabled: true } })
+    expect(await saveConfig({ key: 'sk-ant-1' })).toBe(false)
+    expect(useAssistant.getState().config).toMatchObject({ key: 'sk-ant-1', keyOrigin: 'https://api.anthropic.com' })
+    expect(await saveConfig({ baseUrl: 'https://api.anthropic.com/v1' })).toBe(false) // same origin
+    expect(useAssistant.getState().config.key).toBe('sk-ant-1')
+    expect(await saveConfig({ preset: 'openai', kind: 'openai', baseUrl: 'https://api.openai.com/v1', model: '' })).toBe(true)
+    expect(useAssistant.getState().config).toMatchObject({ key: '', keyOrigin: '' })
+    // Stored without an origin (or for another one): never used.
+    expect(parseConfig({ key: 'k', baseUrl: 'https://api.openai.com/v1' }).key).toBe('')
+    expect(parseConfig({ key: 'k', keyOrigin: 'https://api.anthropic.com', baseUrl: 'https://api.openai.com/v1' }).key).toBe('')
+  })
+
+  it('a new conversation forgets session grants; turning MCP off denies its waiting cards', async () => {
+    const clear = vi.spyOn(runner, 'clearSession')
+    newConversation()
+    expect(clear).toHaveBeenCalled()
+    useAssistant.setState({ config: { ...DEFAULT_CONFIG, enabled: true, mcp: true } })
+    const pending = runner.call('move_category', { category: 'x' }, 'mcp') // no server open: refused before a card
+    expect((await pending).isError).toBe(true)
+    const card = { id: 'm1', tool: 'move_channel', category: 'organize' as const, risk: 'low' as const, source: 'mcp' as const, serverName: null, summary: { key: 'x', args: {} }, texts: [], grantable: false }
+    const chat = { ...card, id: 'c1', source: 'chat' as const }
+    useAssistant.setState({ approvals: [card, chat] })
+    await saveConfig({ mcp: false })
+    expect(useAssistant.getState().approvals.map((a) => a.id)).toEqual(['c1'])
   })
 
   it('stored settings are read defensively, off by default', () => {

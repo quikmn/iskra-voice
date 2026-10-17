@@ -79,3 +79,6 @@
 .assistant-command pre { flex: 1; min-width: 0; margin: 0; }
 .assistant-command pre code { display: block; white-space: pre-wrap; }
 .assistant-settings .field > label > span { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.assistant-texts { display: grid; gap: 6px; padding: 8px 10px; border-radius: calc(var(--radius) * 0.7); background: var(--bg); border: 1px solid var(--border); }
+.assistant-text-field { display: grid; gap: 2px; }
+.assistant-text-value { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow-y: auto; color: var(--text-strong); }

@@ -7,7 +7,7 @@ import { searchHelp, splitMarkdown } from './helpCorpus'
 import { DEFAULT_CONFIG, type AssistantConfig, type Turn } from './types'
 import { ToolRunner, type ToolDef, type ToolHost } from './tools/registry'
 
-const anthropic: AssistantConfig = { ...DEFAULT_CONFIG, enabled: true, key: 'sk-ant-test' }
+const anthropic: AssistantConfig = { ...DEFAULT_CONFIG, enabled: true, key: 'sk-ant-test', keyOrigin: 'https://api.anthropic.com' }
 const openai: AssistantConfig = { ...DEFAULT_CONFIG, enabled: true, preset: 'ollama', kind: 'openai', baseUrl: 'http://localhost:11434/v1', model: 'llama3.2', key: '' }
 const tools = [{ name: 'create_channel', description: 'Creates a channel', schema: { type: 'object', properties: { name: { type: 'string' } } } }]
 
@@ -45,7 +45,7 @@ describe('provider adapters', () => {
   })
 
   it('OpenAI-compatible: chat completions, Bearer only with a key, tool calls parsed', async () => {
-    const req = openAiRequest({ ...openai, key: 'sk-x' }, 'sys', [{ role: 'user', text: 'hi' }], tools)
+    const req = openAiRequest({ ...openai, key: 'sk-x', keyOrigin: 'http://localhost:11434' }, 'sys', [{ role: 'user', text: 'hi' }], tools)
     expect(req.url).toBe('http://localhost:11434/v1/chat/completions')
     expect(req.headers.authorization).toBe('Bearer sk-x')
     expect(openAiRequest(openai, 'sys', [], tools).headers.authorization).toBeUndefined()
@@ -74,6 +74,17 @@ describe('provider adapters', () => {
     expect(transport).not.toHaveBeenCalled()
     await expect(complete({ ...anthropic, enabled: false }, 's', turn, [], transport, true)).rejects.toMatchObject({ code: 'not_configured' })
     await expect(complete({ ...anthropic, key: '' }, 's', turn, [], transport, true)).rejects.toMatchObject({ code: 'not_configured' })
+  })
+
+  it('a key is only ever sent to the origin it was saved for', async () => {
+    const transport = reply(200, '{}')
+    for (const baseUrl of ['https://evil.example', 'https://api.anthropic.com.evil.example', 'http://localhost:11434']) {
+      await expect(complete({ ...anthropic, baseUrl }, 's', [{ role: 'user', text: 'x' }], [], transport, true)).rejects.toMatchObject({ code: 'blocked' })
+      await expect(listModels({ ...anthropic, baseUrl }, transport, true)).rejects.toMatchObject({ code: 'blocked' })
+    }
+    expect(transport).not.toHaveBeenCalled()
+    // Same origin, another path: fine.
+    expect(anthropicRequest({ ...anthropic, baseUrl: 'https://api.anthropic.com/v1' }, 's', [], [], true).headers['x-api-key']).toBe('sk-ant-test')
   })
 
   it('test connection lists models without spending tokens', async () => {
@@ -158,6 +169,6 @@ describe('the conversation loop', () => {
     expect(created).toEqual(['plans'])
     expect(approve).toHaveBeenCalledTimes(1)
     expect(turns.map((t) => t.role)).toEqual(['assistant', 'tool', 'assistant'])
-    expect((bodies[1] as { messages: unknown[] }).messages.at(-1)).toEqual({ role: 'tool', tool_call_id: 'c1', content: 'Created' })
+    expect((bodies[1] as { messages: unknown[] }).messages.at(-1)).toEqual({ role: 'tool', tool_call_id: 'c1', content: '<iskra-data source="create_channel result">\nCreated\n</iskra-data>' })
   })
 })

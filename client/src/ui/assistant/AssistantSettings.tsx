@@ -27,6 +27,8 @@ function Settings() {
   const [models, setModels] = useState<string[]>([])
   const [test, setTest] = useState<{ state: 'idle' | 'testing' } | { state: 'ok'; count: number } | { state: 'error'; text: string }>({ state: 'idle' })
   const [copied, setCopied] = useState<string | null>(null)
+  const [keyDropped, setKeyDropped] = useState(false)
+  const save = (patch: Parameters<typeof saveConfig>[0]) => void saveConfig(patch).then((dropped) => dropped && setKeyDropped(true))
   const url = checkBaseUrl(baseUrl)
 
   function pickPreset(preset: ProviderPreset) {
@@ -35,7 +37,7 @@ function Settings() {
     setModel(p.model)
     setModels([])
     setTest({ state: 'idle' })
-    void saveConfig({ preset, kind: p.kind, baseUrl: p.baseUrl, model: p.model })
+    save({ preset, kind: p.kind, baseUrl: p.baseUrl, model: p.model })
   }
 
   async function runTest() {
@@ -83,7 +85,7 @@ function Settings() {
           <label htmlFor="assistant-base-url"><span>{t('assistant.settingsSection.baseUrl')}</span></label>
           <input id="assistant-base-url" aria-describedby="assistant-base-url-hint" value={baseUrl} spellCheck={false} autoComplete="off" inputMode="url" placeholder="https://…"
             onChange={(e) => setBaseUrl(e.target.value)}
-            onBlur={() => url.ok && url.url !== config.baseUrl && void saveConfig({ baseUrl: url.url })} />
+            onBlur={() => url.ok && url.url !== config.baseUrl && save({ baseUrl: url.url })} />
           <small id="assistant-base-url-hint" className={url.ok || !baseUrl ? 'muted' : 'error-text'}>
             {url.ok || !baseUrl ? t('assistant.settingsSection.baseUrlHint') : t(`assistant.settingsSection.badUrl.${url.problem}`)}
           </small>
@@ -102,6 +104,7 @@ function Settings() {
               e.preventDefault()
               if (!key.trim()) return
               void saveConfig({ key: key.trim() }).then(() => {
+                setKeyDropped(false)
                 setKey('')
                 setReplacing(false)
               })
@@ -111,6 +114,7 @@ function Settings() {
               <button className="button small primary" type="submit" disabled={!key.trim()}>{t('assistant.settingsSection.saveKey')}</button>
             </form>
           )}
+          {keyDropped && !config.key && <small className="warning-text" role="note">{t('assistant.settingsSection.keyDropped')}</small>}
           <small className="muted">{t('assistant.settingsSection.keyHint')}{isLocalUrl(config.baseUrl) ? ` ${t('assistant.settingsSection.keyOptional')}` : ''}</small>
         </div>
 

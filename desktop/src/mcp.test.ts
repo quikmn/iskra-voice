@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { test } from 'node:test'
 import { checkProof, LineReader, MAX_LINE, McpSession, newToken, pageAnswer, proof, type PageLink } from './mcp'
-import { McpHost, mcpSocketPath, mcpTokenPath, openChannel, runBridge } from './mcpPipe'
+import { McpHost, mcpTokenPath, newSocketPath, openChannel, runBridge } from './mcpPipe'
 
 const tools = [{ name: 'list_channels', description: 'Lists channels', schema: { type: 'object', properties: {} } }]
 
@@ -85,25 +85,48 @@ test('the page answer is checked before it goes out', () => {
 
 function folder() {
   const dir = mkdtempSync(path.join(tmpdir(), 'iskra-mcp-'))
-  return { dir, socketPath: mcpSocketPath(dir), tokenFile: mcpTokenPath(dir) }
+  return { dir, tokenFile: mcpTokenPath(dir) }
 }
 
+const socketOf = (tokenFile: string) => (JSON.parse(readFileSync(tokenFile, 'utf8')) as { socket: string }).socket
+
+test('the pipe name is random each time (not derivable from the data folder)', () => {
+  const a = newSocketPath('C:\\Users\\x\\AppData', 'win32')
+  const b = newSocketPath('C:\\Users\\x\\AppData', 'win32')
+  assert.match(a, /^\\\\\.\\pipe\\iskra-mcp-[0-9a-f]{32}$/)
+  assert.notEqual(a, b)
+})
+
+test('no token is left behind when listening fails', async () => {
+  const { dir, tokenFile } = folder()
+  const host = new McpHost({ userData: path.join(dir, 'missing', 'deeper'), tokenFile, version: 'x', link: () => null })
+  if (process.platform === 'win32') {
+    // A pipe name can't fail on its own here; the unix case covers the socket file. Still: stop leaves nothing.
+    await host.start()
+    await host.stop()
+  } else {
+    await assert.rejects(host.start())
+  }
+  assert.ok(!existsSync(tokenFile))
+  rmSync(dir, { recursive: true, force: true })
+})
+
 test('the local channel: an approval round trip from the bridge to the page and back', async () => {
-  const { dir, socketPath, tokenFile } = folder()
+  const { dir, tokenFile } = folder()
   let approve: ((value: { content: string; isError: boolean }) => void) | null = null
   const host = new McpHost({
-    socketPath, tokenFile, version: '2.0.0-test',
+    userData: dir, tokenFile, version: '2.0.0-test',
     // The page holds the call until the user approves it in the Iskra window.
     link: () => ({ list: async () => ({ tools }), call: () => new Promise((resolve) => (approve = resolve)) }),
   })
   await host.start()
   try {
-    if (process.platform !== 'win32') assert.equal((await import('node:fs')).statSync(socketPath).mode & 0o777, 0o600)
+    if (process.platform !== 'win32') assert.equal((await import('node:fs')).statSync(socketOf(tokenFile)).mode & 0o777, 0o600)
     const input = new PassThrough()
     const output = new PassThrough()
     const lines: Record<string, unknown>[] = []
     output.on('data', (chunk: Buffer) => chunk.toString().split('\n').filter(Boolean).forEach((l) => lines.push(JSON.parse(l))))
-    const done = runBridge({ socketPath, tokenFile, version: 'x', input, output })
+    const done = runBridge({ tokenFile, version: 'x', input, output })
     input.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'create_channel', arguments: { name: 'plans' } } })}\n`)
     await waitFor(() => approve !== null)
     await new Promise((r) => setTimeout(r, 100))
@@ -121,33 +144,34 @@ test('the local channel: an approval round trip from the bridge to the page and 
 })
 
 test('the local channel: a wrong token, or a server that is not Iskra, gets nothing', async () => {
-  const { dir, socketPath, tokenFile } = folder()
-  const host = new McpHost({ socketPath, tokenFile, version: 'x', link: () => ({ list: async () => ({ tools }), call: async () => ({ content: 'no', isError: false }) }) })
+  const { dir, tokenFile } = folder()
+  const host = new McpHost({ userData: dir, tokenFile, version: 'x', link: () => ({ list: async () => ({ tools }), call: async () => ({ content: 'no', isError: false }) }) })
   await host.start()
+  const socketPath = socketOf(tokenFile)
   try {
     // A client with the wrong token is cut off before it can send anything.
     const wrong = path.join(dir, 'wrong-token')
-    writeFileSync(wrong, newToken())
-    assert.deepEqual(await openChannel({ socketPath, tokenFile: wrong }), { error: 'socket' })
+    writeFileSync(wrong, JSON.stringify({ token: newToken(), socket: socketPath }))
+    assert.deepEqual(await openChannel({ tokenFile: wrong }), { error: 'socket' })
     // The right one gets in.
-    const ok = await openChannel({ socketPath, tokenFile })
+    const ok = await openChannel({ tokenFile })
     assert.ok('socket' in ok)
     if ('socket' in ok) ok.socket.destroy()
   } finally {
     await host.stop()
   }
   // Off: no token file, no channel; the bridge answers by itself with no tools.
-  assert.deepEqual(await openChannel({ socketPath, tokenFile }), { error: 'off' })
+  assert.deepEqual(await openChannel({ tokenFile }), { error: 'off' })
   // Something else took the name: it can't prove it knows the token, so the bridge never trusts it.
-  const token = newToken()
-  writeFileSync(tokenFile, token)
+  const fakePath = newSocketPath(dir)
+  writeFileSync(tokenFile, JSON.stringify({ token: newToken(), socket: fakePath }))
   const fake = net.createServer((socket) => {
     socket.write(`${JSON.stringify({ iskra: 'mcp-1', nonce: 'c'.repeat(32) })}\n`)
     socket.once('data', () => socket.write(`${JSON.stringify({ ok: true, proof: 'f'.repeat(64) })}\n`))
   })
-  await new Promise<void>((resolve) => fake.listen(socketPath, resolve))
+  await new Promise<void>((resolve) => fake.listen(fakePath, resolve))
   try {
-    assert.deepEqual(await openChannel({ socketPath, tokenFile }), { error: 'auth' })
+    assert.deepEqual(await openChannel({ tokenFile }), { error: 'auth' })
   } finally {
     await new Promise<void>((resolve) => fake.close(() => resolve()))
     rmSync(dir, { recursive: true, force: true })
@@ -161,3 +185,13 @@ async function waitFor(check: () => boolean, ms = 3000) {
     await new Promise((r) => setTimeout(r, 10))
   }
 }
+
+test('logs name only tools the page listed', async () => {
+  const logged: string[] = []
+  const s = new McpSession({ list: async () => ({ tools }), call: async () => ({ content: 'x', isError: false }) }, () => undefined, 'x', (name, outcome) => logged.push(`${name} ${outcome}`))
+  await s.handle(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'list_channels', arguments: {} } }))
+  await s.handle(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }))
+  await s.handle(JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'list_channels', arguments: {} } }))
+  await s.handle(JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'Bob@evil.example secret', arguments: {} } }))
+  assert.deepEqual(logged, ['unknown ok', 'list_channels ok', 'unknown ok'])
+})

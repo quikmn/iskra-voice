@@ -35,7 +35,8 @@ api.anthropic.com. Iskra never sees it."
   read for that question go to the provider you chose, under that provider's own terms. Iskra and your servers never
   see it.
 - **Your key stays on your device**, encrypted with the device's other secrets (the same protection as your account
-  keys), never in plain browser storage. It goes only to the provider you chose.
+  keys), never in plain browser storage. It goes only to the address it was saved for: if you change the address to
+  another site, the saved key is removed and you save it again.
 - **Encrypted chats are never read for you.** The tools can't open direct messages, groups or end-to-end encrypted
   channels. If you want help with text from one, paste it yourself.
 - **Reads are small.** Tools return names, ids and short message texts (at most 50 recent messages of one channel),
@@ -60,9 +61,9 @@ Any other OpenAI-compatible service works too. Addresses must use `https`; plain
 (a model on the same computer). The model has to support tool calls for the assistant to act; without them it can still
 answer questions.
 
-**The desktop app** sends provider requests from its main process, so browser rules (CORS) don't get in the way. It
-sends them only to the address you set, only to the provider endpoints the assistant uses (`/v1/messages`,
-`/chat/completions`, `/models`), without following redirects.
+**The desktop app** sends provider requests from its main process, so browser rules (CORS) don't get in the way. The
+page tells the app the address you saved, and the app sends requests only to that address's provider endpoints
+(`/v1/messages`, `/chat/completions`, `/models`), without following redirects, and stops reading an answer past 4 MB.
 
 **The web app and the phone apps** send requests from the page, so the provider must allow that. Anthropic does (with
 the header above). For a model on your own computer, allow Iskra's web address:
@@ -79,17 +80,19 @@ server checks your rights for every one of them, exactly as when you click.
 | Group | Tools | Asks you first |
 |---|---|---|
 | Search & read (always on) | help search, list servers, list channels, list members, list roles, search messages, read a channel's recent messages | No (what they read goes to your provider) |
-| Organize (always on) | create, rename and move channels and categories; make a theme; set up a bot | Yes, every change. Channels, categories and themes can be allowed **for this session** |
+| Organize (always on) | create, rename and move channels and categories; make a theme; set up a bot | Yes, every change. Only moving channels and categories and making a theme can be allowed **for this session** (per server, until you start a new conversation) |
 | Moderation (off until you turn it on) | time out, end a timeout, warn, kick, ban, delete messages | Yes, every single time |
 | Server admin (off until you turn it on) | change someone's role, create a role, set someone's roles, delete a channel, replace the rules | Yes, every single time |
 
-- The approval card says what will happen in plain words, on which server, and shows the exact request under
-  **Exact request**. **Deny** is final for that action.
+- The approval card says what will happen in plain words, on which server, shows in full any text others will see
+  (a channel name, a reason, the rules), and shows the exact request under **Exact request**. **Deny** is final for
+  that action.
 - **Set up a bot** creates a single-use bot invite (valid 7 days). The link is shown to you in the panel to copy; the
   model never sees it. Bot code reads it from the `ISKRA_INVITE` environment variable (see [Bots](bots.md)).
 - There are no tools for keys, recovery codes, tokens, invite links, webhooks, passkeys, linking devices, backups or
   deleting your account, and none that send messages or direct messages for you.
-- At most 30 tool calls a minute (10 changes), and at most 12 steps for one question.
+- At most 30 tool calls a minute (10 changes), 40 changes in one conversation, and at most 12 steps for one question.
+- Requests from an MCP client are never allowed "for this session": each change asks.
 - Text from other people (messages, names, topics) reaches the model marked as data, with the rule that it is never an
   instruction. If a message tries to talk the model into something, the approval card is still there: nothing changes
   without your OK.
@@ -117,9 +120,12 @@ The desktop app can offer the same tools to an AI app on the same computer throu
    computer (MCP) wants to"; the same groups and limits apply.
 
 How it works: `Iskra --mcp` starts a small bridge with no window. It connects to the running Iskra over a private local
-channel (a named pipe on Windows, a socket file in Iskra's data folder on macOS and Linux), never a network port. Both
-sides prove they know a random token kept in Iskra's data folder, so other users on the computer can't use it. While
-**Allow local MCP clients** is off, Iskra doesn't listen at all and the bridge offers no tools. The other app sends what
+channel (a named pipe with a random name on Windows, a socket file in Iskra's data folder on macOS and Linux), never a
+network port. Both sides prove they know a random token kept in Iskra's data folder, so other users on the computer
+can't use it. While **Allow local MCP clients** is off, Iskra doesn't listen at all and the bridge offers no tools;
+turning it off also denies any of its changes still waiting for your OK. On Windows the bridge runs as a second copy
+of the app in Node mode (Electron's `ELECTRON_RUN_AS_NODE`), because the app's main process can't read the pipes an MCP
+client starts it with. The other app sends what
 it reads through the tools to its own AI provider, under that provider's terms.
 
 ## When it doesn't work

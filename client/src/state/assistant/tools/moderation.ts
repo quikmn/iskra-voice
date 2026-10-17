@@ -31,6 +31,7 @@ export const MODERATION_TOOLS: ToolDef[] = [
       return {
         summary: { key: 'timeout', args: { name: target.name, duration: String(args.duration) } },
         request: { type: 'member.timeout', body },
+        texts: reason ? [{ field: 'reason', value: reason }] : [],
         run: async () => (await ctx.request('member.timeout', body), `Timed out ${target.name} for ${String(args.duration)}.`),
       }
     },
@@ -66,6 +67,7 @@ export const MODERATION_TOOLS: ToolDef[] = [
       return {
         summary: { key: 'warn', args: { name: target.name } },
         request: { type: 'member.warn', body },
+        texts: [{ field: 'reason', value: reason }],
         run: async () => (await ctx.request('member.warn', body), `Warned ${target.name}.`),
       }
     },
@@ -101,6 +103,7 @@ export const MODERATION_TOOLS: ToolDef[] = [
       return {
         summary: { key: 'ban', args: { name: target.name } },
         request: { type: 'member.ban', body },
+        texts: reason ? [{ field: 'reason', value: reason }] : [],
         run: async () => (await ctx.request('member.ban', body), `Banned ${target.name}.`),
       }
     },
@@ -182,6 +185,7 @@ export const ADMIN_TOOLS: ToolDef[] = [
       return {
         summary: { key: 'createRole', args: { name, count: permissions.length } },
         request: { type: 'role.create', body },
+        texts: [{ field: 'name', value: name }],
         run: async () => (await ctx.request('role.create', body), `Created the role "${name}".`),
       }
     },
@@ -240,6 +244,7 @@ export const ADMIN_TOOLS: ToolDef[] = [
       return {
         summary: { key: 'rules', args: {} },
         request: { type: 'rules.update', body },
+        texts: [{ field: 'rules', value: text }],
         run: async () => (await ctx.request('rules.update', body), 'Updated the server rules.'),
       }
     },

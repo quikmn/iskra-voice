@@ -15,6 +15,7 @@ import { fetchTransport, isConfigured, listModels, ProviderError, type Transport
 import { runLoop } from './loop'
 import { systemPrompt } from './prompt'
 import { HELP_DOCS, type HelpSection } from './helpCorpus'
+import { checkBaseUrl, originOf } from './url'
 import { ALL_TOOLS } from './tools'
 import { ToolRunner, type ActivityEntry, type ApprovalRequest, type Decision, type ToolHost } from './tools/registry'
 import { DEFAULT_CONFIG, type AssistantConfig, type Turn } from './types'
@@ -127,8 +128,8 @@ export function decide(id: string, decision: Decision): void {
   useAssistant.setState((s) => ({ approvals: s.approvals.filter((a) => a.id !== id) }))
 }
 
-function denyAll(): void {
-  for (const id of [...resolvers.keys()]) decide(id, 'deny')
+function denyAll(source?: 'chat' | 'mcp'): void {
+  for (const approval of useAssistant.getState().approvals) if (!source || approval.source === source) decide(approval.id, 'deny')
 }
 
 export const openAssistant = () => useAssistant.setState({ open: true })
@@ -152,7 +153,10 @@ export function parseConfig(raw: unknown): AssistantConfig {
     kind,
     baseUrl: typeof c.baseUrl === 'string' ? c.baseUrl : DEFAULT_CONFIG.baseUrl,
     model: typeof c.model === 'string' ? c.model : DEFAULT_CONFIG.model,
-    key: typeof c.key === 'string' ? c.key : '',
+    // A key saved for another address (or with none) is dropped, never sent elsewhere.
+    ...(typeof c.key === 'string' && c.key && typeof c.keyOrigin === 'string' && c.keyOrigin && c.keyOrigin === originOf(typeof c.baseUrl === 'string' ? c.baseUrl : DEFAULT_CONFIG.baseUrl)
+      ? { key: c.key, keyOrigin: c.keyOrigin }
+      : { key: '', keyOrigin: '' }),
     moderation: c.moderation === true,
     admin: c.admin === true,
     mcp: c.mcp === true,
@@ -166,21 +170,36 @@ async function loadConfig(): Promise<void> {
   } catch {
     useAssistant.setState({ loaded: true })
   }
+  await syncBase()
   void syncMcp()
 }
 
-export async function saveConfig(patch: Partial<AssistantConfig>): Promise<void> {
+/** Saves settings. Returns true when a saved key was dropped because the address moved to another origin. */
+export async function saveConfig(patch: Partial<AssistantConfig>): Promise<boolean> {
   const before = useAssistant.getState().config
-  const config = parseConfig({ ...before, ...patch })
+  // A new key belongs to the address it's saved with.
+  const keyOrigin = patch.key ? originOf(patch.baseUrl ?? before.baseUrl) : before.keyOrigin
+  const config = parseConfig({ ...before, ...patch, keyOrigin })
+  const keyDropped = !!before.key && !config.key && patch.key === undefined
   // Another provider can't read this one's conversation (thinking blocks, tool call formats): start over.
   const fresh = config.kind !== before.kind || config.baseUrl !== before.baseUrl || config.model !== before.model
   if (!config.enabled) {
     denyAll()
-    runner.sessionAllowed.clear()
-  }
+    runner.clearSession()
+  } else if (!config.mcp) denyAll('mcp') // MCP turned off: its waiting cards are denied
+  if (fresh) runner.clearSession()
   useAssistant.setState((s) => ({ config, ...(fresh || !config.enabled ? { turns: [], error: null, ended: null } : {}), open: config.enabled && s.open }))
   await storage.saveAssistant('config', config)
+  await syncBase()
   void syncMcp()
+  return keyDropped
+}
+
+/** Desktop app: the main process sends provider requests only to this address's endpoints. */
+async function syncBase(): Promise<void> {
+  const { config } = useAssistant.getState()
+  const base = checkBaseUrl(config.baseUrl)
+  await desktop?.assistant?.setBase?.(config.enabled && base.ok ? base.url : null).catch(() => undefined)
 }
 
 /** "Test connection": the models the key can use, or a ProviderError. */
@@ -255,11 +274,12 @@ export function validHistory(turns: Turn[]): Turn[] {
 
 export function stopAssistant(): void {
   abort?.abort()
-  denyAll()
+  denyAll('chat')
 }
 
 export function newConversation(): void {
   stopAssistant()
+  runner.clearSession()
   useAssistant.setState({ turns: [], error: null, ended: null, secrets: [] })
 }
 

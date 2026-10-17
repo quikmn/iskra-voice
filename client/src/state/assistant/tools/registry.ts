@@ -24,8 +24,13 @@ export interface Prepared {
   preview?: { theme?: ThemeFile }
   /** Runs it; the text goes back to the model. */
   run(): Promise<string>
-  /** The text holds other people's words (names, messages): wrapped as data for the model. */
+  /**
+   * Results are wrapped as data for the model (they hold names and words people chose). Only results that are
+   * entirely Iskra's own text (the help docs) set this to false.
+   */
   untrusted?: boolean
+  /** Free text other people will see (names, reasons, rules): shown in full on the approval card. */
+  texts?: { field: 'name' | 'reason' | 'rules' | 'theme'; value: string }[]
 }
 
 export interface ToolContext {
@@ -60,6 +65,10 @@ export interface ApprovalRequest {
   summary: Prepared['summary']
   request?: Prepared['request']
   preview?: Prepared['preview']
+  /** Free text others will see, shown in full. */
+  texts: NonNullable<Prepared['texts']>
+  /** The card may offer "Allow for this session". */
+  grantable: boolean
 }
 
 export type ActivityStatus = 'done' | 'failed' | 'denied' | 'refused'
@@ -95,16 +104,28 @@ export interface ToolHost {
   now(): number
 }
 
-/** Request types no tool may ever send: secrets, keys, devices, accounts, invites (their codes are secrets). */
-export const FORBIDDEN_REQUESTS = [
-  'invite.create', 'invite.list', 'invite.revoke', 'webhook.create', 'webhook.list', 'webhook.regenerate', 'webhook.signing.set',
-  'outhook.create', 'outhook.list', 'backup.create', 'buddy.add', 'buddy.status', 'p2p.status', 'p2p.rotate', 'p2p.set',
-  'account.rotate', 'account.delete', 'device.list', 'device.revoke', 'link.offer', 'link.accept', 'keylog.entries', 'keylog.alert',
-  'prefs.get', 'prefs.set', 'gif.configure', 'landing.update', 'member.leave', 'dm.send', 'chat.send', 'security.log.list',
+/**
+ * The only protocol requests tools may send (an allowlist): nothing about keys, invites, webhooks, devices, accounts,
+ * backups or sending messages. Anything else is refused before it reaches the connection.
+ */
+export const ALLOWED_REQUESTS: readonly string[] = [
+  'role.list', 'search', 'chat.history',
+  'channel.create', 'channel.update', 'channel.move', 'category.create', 'category.update', 'category.move', 'bot.invite',
+  'member.timeout', 'member.timeout.remove', 'member.warn', 'member.kick', 'member.ban', 'chat.delete', 'chat.delete.bulk',
+  'member.setRole', 'role.create', 'member.roles.set', 'channel.delete', 'rules.update',
 ]
+/** Local-only actions shown on cards like a request (never sent to a server). */
+const LOCAL_ACTIONS = ['theme (this device only)']
 
 export const MAX_CALLS_PER_MINUTE = 30
 export const MAX_WRITES_PER_MINUTE = 10
+/** Changes in one conversation (until New conversation, or the assistant is turned off). */
+export const MAX_WRITES_PER_SESSION = 40
+/**
+ * The only tools "Allow for this session" can cover: they put no new text in front of other people. Everything else
+ * asks every time, and MCP clients never get a session grant.
+ */
+export const SESSION_GRANTABLE: readonly string[] = ['move_channel', 'move_category', 'create_theme']
 
 // ── Lookups shared by the tools ──────────────────────────────────────────────
 
@@ -197,14 +218,26 @@ let approvalIds = 0
 export class ToolRunner {
   readonly #tools: Map<string, ToolDef>
   readonly #cap = new RateCap()
-  /** Low-risk tools the user allowed for this session (until the app restarts or the assistant is turned off). */
-  readonly sessionAllowed = new Set<string>()
+  /** "Allow for this session" grants, per tool and server, chat only (cleared by clearSession). */
+  readonly #granted = new Set<string>()
+  #writes = 0
 
   readonly host: ToolHost
 
   constructor(host: ToolHost, tools: readonly ToolDef[]) {
     this.host = host
     this.#tools = new Map(tools.map((t) => [t.name, t]))
+  }
+
+  /** A new conversation (or the assistant turned off): grants and the session's change count start over. */
+  clearSession(): void {
+    this.#granted.clear()
+    this.#writes = 0
+  }
+
+  /** Whether the card may offer "Allow for this session". */
+  static grantable(tool: string, risk: Risk, source: 'chat' | 'mcp'): boolean {
+    return source === 'chat' && risk === 'low' && SESSION_GRANTABLE.includes(tool)
   }
 
   isOn(tool: ToolDef): boolean {
@@ -247,27 +280,40 @@ export class ToolRunner {
       log('failed', server?.name ?? null, null, describeError(e))
       return { content: describeError(e), isError: true }
     }
-    if (prepared.request && FORBIDDEN_REQUESTS.includes(prepared.request.type)) throw new Error(`tool ${name} may not send ${prepared.request.type}`)
+    if (prepared.request && !ALLOWED_REQUESTS.includes(prepared.request.type) && !LOCAL_ACTIONS.includes(prepared.request.type)) {
+      throw new Error(`tool ${name} may not send ${prepared.request.type}`)
+    }
 
-    if (tool.risk !== 'read' && !(tool.risk === 'low' && this.sessionAllowed.has(name))) {
-      const decision = await this.host.approve({
-        id: `a${++approvalIds}`, tool: name, category: tool.category, risk: tool.risk, source, serverName: server?.name ?? null,
-        summary: prepared.summary, request: prepared.request, preview: prepared.preview,
-      })
-      if (decision === 'deny') {
-        log('denied', server?.name ?? null, prepared.summary)
-        return { content: 'The user denied this action. Do not retry it; ask what they want instead.', isError: true }
+    if (tool.risk !== 'read') {
+      if (this.#writes >= MAX_WRITES_PER_SESSION) {
+        const detail = `This conversation reached its limit of ${MAX_WRITES_PER_SESSION} changes. The user can start a new conversation.`
+        log('refused', server?.name ?? null, prepared.summary, detail)
+        return { content: detail, isError: true }
       }
-      if (decision === 'session' && tool.risk === 'low') this.sessionAllowed.add(name)
+      const grant = `${name}|${server?.key ?? ''}`
+      const grantable = ToolRunner.grantable(name, tool.risk, source)
+      if (!(grantable && this.#granted.has(grant))) {
+        const decision = await this.host.approve({
+          id: `a${++approvalIds}`, tool: name, category: tool.category, risk: tool.risk, source, serverName: server?.name ?? null,
+          summary: prepared.summary, request: prepared.request, preview: prepared.preview, texts: prepared.texts ?? [], grantable,
+        })
+        if (decision === 'deny') {
+          log('denied', server?.name ?? null, prepared.summary)
+          return { content: 'The user denied this action. Do not retry it; ask what they want instead.', isError: true }
+        }
+        if (decision === 'session' && grantable) this.#granted.add(grant)
+      }
+      this.#writes++
     }
 
     try {
       const out = await prepared.run()
       log('done', server?.name ?? null, prepared.summary)
-      return { content: prepared.untrusted ? dataBlock(`${name} result`, out) : out, isError: false }
+      return { content: prepared.untrusted === false ? out : dataBlock(`${name} result`, out), isError: false }
     } catch (e) {
       log('failed', server?.name ?? null, prepared.summary, describeError(e))
-      return { content: describeError(e), isError: true }
+      // A server's error can quote names people chose: data too.
+      return { content: dataBlock(`${name} error`, describeError(e)), isError: true }
     }
   }
 
@@ -286,7 +332,7 @@ export class ToolRunner {
   }
 
   async #send(server: ServerState | null, type: string, body: unknown): Promise<unknown> {
-    if (FORBIDDEN_REQUESTS.includes(type)) throw new Error(`forbidden request ${type}`)
+    if (!ALLOWED_REQUESTS.includes(type)) throw new Error(`request ${type} is not allowed for assistant tools`)
     if (!server) throw new ToolError('No server.')
     if (server.status.state !== 'online') throw new ToolError(`${server.name} isn't connected right now.`)
     return this.host.request(server.key, type, body)

@@ -309,6 +309,11 @@ We'd rather tell you than have you find out:
 The desktop app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker, call alerts, updates, opening the system's privacy settings, hosting and restoring backups, its own settings, the taskbar badge, the keychain that protects your keys, passkey prompts for the app lock (in a separate window that can only show Iskra's own prompt page), profile page views and server-added activities (in their own walled session, see [Profile pages](#profile-pages)), and the game you're playing (when you turned that on).
 
 - `iskra://` links only ever open an invite: anything else in them is ignored.
+- **Electron's RunAsNode fuse stays on.** The app relies on starting itself as plain Node (`ELECTRON_RUN_AS_NODE=1`):
+  the [assistant's MCP bridge](assistant.md#use-iskras-tools-from-claude-desktop-or-claude-code-mcp) (`Iskra --mcp`) and
+  the bot gallery's "Run this bot on this PC" do. The flip side: anyone who can already run programs as you can run
+  the Iskra binary as Node, as they could run any Node or script interpreter. It gives them nothing they don't have;
+  the keys stay protected by the OS keychain. If the fuse is ever turned off, both features need another way to start.
 
 - **Windows:** every executable we ship is code-signed (Open Source Developer Viktor Lundgren, issued by Certum) and timestamped, so you can check it came from us and wasn't changed. The installer only installs updates signed with that same certificate.
 - **macOS and Linux:** the macOS app is signed with a Developer ID and notarized by Apple; the Linux packages aren't signed. Every release has `SHA256SUMS.txt` and build-provenance attestations (`gh attestation verify <file> -R quikmn/iskra-voice`). Download only from the GitHub releases page.

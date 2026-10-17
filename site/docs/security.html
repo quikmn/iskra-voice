@@ -452,6 +452,13 @@ activities are off in end-to-end encrypted voice channels.</li>
 <p><code>iskra://</code> links only ever open an invite: anything else in them is ignored.</p>
 </li>
 <li>
+<p><strong>Electron's RunAsNode fuse stays on.</strong> The app relies on starting itself as plain Node (<code>ELECTRON_RUN_AS_NODE=1</code>):
+the <a href="/docs/assistant#use-iskras-tools-from-claude-desktop-or-claude-code-mcp">assistant's MCP bridge</a> (<code>Iskra --mcp</code>) and
+the bot gallery's &quot;Run this bot on this PC&quot; do. The flip side: anyone who can already run programs as you can run
+the Iskra binary as Node, as they could run any Node or script interpreter. It gives them nothing they don't have;
+the keys stay protected by the OS keychain. If the fuse is ever turned off, both features need another way to start.</p>
+</li>
+<li>
 <p><strong>Windows:</strong> every executable we ship is code-signed (Open Source Developer Viktor Lundgren, issued by Certum) and timestamped, so you can check it came from us and wasn't changed. The installer only installs updates signed with that same certificate.</p>
 </li>
 <li>

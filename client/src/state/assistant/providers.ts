@@ -2,7 +2,7 @@
 // OpenAI-compatible chat completions API (OpenAI, Mistral, Groq, OpenRouter, Gemini's compatible API, Ollama, LM Studio).
 // Never through Iskra or a server. The desktop app sends the requests from its main process (no browser CORS); the web
 // and phone apps use fetch. Not streamed: a reply arrives whole, then any tool calls run.
-import { checkBaseUrl, type Endpoint } from './url'
+import { checkBaseUrl, originOf, type Endpoint } from './url'
 import type { AssistantConfig, ProviderReply, ToolCall, ToolSpec, Turn } from './types'
 
 export interface HttpRequest {
@@ -70,7 +70,9 @@ function endpoint(config: Pick<AssistantConfig, 'baseUrl'>, path: Endpoint): str
   return url
 }
 
-function headers(config: Pick<AssistantConfig, 'kind' | 'key'>, browser: boolean): Record<string, string> {
+function headers(config: Pick<AssistantConfig, 'kind' | 'key' | 'keyOrigin' | 'baseUrl'>, browser: boolean): Record<string, string> {
+  // A key goes only to the origin it was saved for, never to another address.
+  if (config.key && config.keyOrigin !== originOf(config.baseUrl)) throw new ProviderError('blocked', undefined, 'key-origin')
   const h: Record<string, string> = { 'content-type': 'application/json' }
   if (config.kind === 'anthropic') {
     h['x-api-key'] = config.key
