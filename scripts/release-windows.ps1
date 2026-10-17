@@ -74,8 +74,8 @@ try {
     Step 'Building the Windows apps (npm run dist; signs as it goes)'
     # sign.ps1 fails instead of leaving files unsigned when the certificate is gone (SimplySign logged out).
     $env:ISKRA_REQUIRE_SIGNING = '1'
-    if (-not (Test-Path client\node_modules)) { Native 'npm ci (client)' { npm --prefix client ci } }
-    if (-not (Test-Path desktop\node_modules)) { Native 'npm ci (desktop)' { npm --prefix desktop ci } }
+    if (Test-NodeModulesStale client) { Native 'npm ci (client)' { npm --prefix client ci } }
+    if (Test-NodeModulesStale desktop) { Native 'npm ci (desktop)' { npm --prefix desktop ci } }
     $log = Join-Path ([IO.Path]::GetTempPath()) "iskra-dist-$Version.log"
     # SimplySign's session (2 hours per login) can end during the build. Then SimplySign shows its login dialog and the
     # signature waits: a hidden watcher fills it with the stored seed while the signing steps run (or closes it when it

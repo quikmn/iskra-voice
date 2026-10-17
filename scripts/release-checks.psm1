@@ -236,4 +236,16 @@ function Test-JobsDone {
   return $true
 }
 
-Export-ModuleMember -Function Get-SigningSubject, Get-SimplySignLoginLine, Find-SigningCertificate, Test-Signing, Invoke-LoginScript, Invoke-SigningProbe, Start-LoginWatcher, Stop-LoginWatcher, Confirm-Signing, Get-DevRoot, Get-AndroidProblems, Test-JobsDone
+# Whether a folder needs `npm ci` before building: no node_modules, or package-lock.json changed since the last install
+# (npm writes node_modules/.package-lock.json on every install). A merge that updates the lockfile otherwise leaves the
+# old packages in place, and the release builds against them (alpha.29 stopped this way after a dependency update).
+function Test-NodeModulesStale {
+  param([Parameter(Mandatory)][string]$Folder)
+  $lock = Join-Path $Folder 'package-lock.json'
+  $installed = Join-Path $Folder 'node_modules/.package-lock.json'
+  if (-not (Test-Path $installed)) { return $true }
+  if (-not (Test-Path $lock)) { return $false }
+  return (Get-Item $lock).LastWriteTimeUtc -gt (Get-Item $installed).LastWriteTimeUtc
+}
+
+Export-ModuleMember -Function Get-SigningSubject, Get-SimplySignLoginLine, Find-SigningCertificate, Test-Signing, Invoke-LoginScript, Invoke-SigningProbe, Start-LoginWatcher, Stop-LoginWatcher, Confirm-Signing, Get-DevRoot, Get-AndroidProblems, Test-JobsDone, Test-NodeModulesStale

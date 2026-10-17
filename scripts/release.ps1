@@ -354,7 +354,7 @@ try {
     if (npm view "iskra-bots@$Version" version 2>$null) { Red 'already on npm' "iskra-bots $Version is already published; pick the next version." } else { Ok "iskra-bots $Version isn't on npm yet" }
     Push-Location bots
     try {
-      if (-not (Test-Path node_modules)) { $null = Quiet npm @('ci', '--no-audit', '--no-fund') }
+      if (Test-NodeModulesStale .) { $null = Quiet npm @('ci', '--no-audit', '--no-fund') }
       $out = Quiet npm @('run', 'typecheck')
       if ($script:code -ne 0) { Red 'bot SDK type-check' "npm run typecheck in bots/ fails: $(($out | Select-Object -Last 3) -join ' ')" } else { Ok 'the SDK and examples type-check' }
       $out = Quiet npm @('run', 'build:sdk')
