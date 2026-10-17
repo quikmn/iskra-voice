@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hosting guide - Iskra</title>
+<meta name="description" content="Run an Iskra server for your friends: from the desktop app in a few clicks, on a small rented server, or as a standalone server at home. Letting friends anywhere join, CGNAT, ports, backups and moving.">
+<link rel="canonical" href="https://iskra.foo/hosting">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/fonts.css">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="/">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#bolt)" stroke="none"/>
+      <defs>
+        <linearGradient id="bolt" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7c6fff"/>
+          <stop offset="100%" stop-color="#00cfff"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    Iskra
+  </a>
+  <div class="nav-links">
+    <a class="btn btn-ghost nav-hide-sm" href="/docs/">Docs</a>
+    <a class="btn btn-ghost nav-hide-sm" href="/support">Help</a>
+    <a class="btn btn-ghost nav-hide-sm" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
+    <a class="btn btn-primary" href="/#download">Download</a>
+  </div>
+</nav>
+
+<main class="guide" id="top">
+
+  <header class="guide-hero">
+    <div class="doc-kicker">Hosting guide</div>
+    <h1>Your own server, <span class="grad">in a few clicks</span></h1>
+    <p>An Iskra server is a folder on a computer you choose: messages, members, files and keys, all in one place you own. Pick the way that fits your group. You can move it later, and everyone follows.</p>
+    <p class="note">Your server, your choice. Iskra charges nothing; it's just a guide. (One exception, said plainly below: the DigitalOcean link is our referral link.)</p>
+  </header>
+
+  <!-- THREE PATHS -->
+  <section aria-labelledby="paths-title">
+    <h2 id="paths-title" class="sr-only">Pick your way</h2>
+    <div class="paths">
+      <a class="path-card featured" href="#pc">
+        <span class="badge">Easiest</span>
+        <span class="path-icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </span>
+        <h3>Host on your computer</h3>
+        <p>Click <strong>Create a server</strong> in the desktop app. It runs on your Windows, Mac or Linux computer, voice included, and you're the owner.</p>
+        <span class="path-meta"><span class="tag green">zero setup</span><span class="tag">2 minutes</span><span class="tag">free</span></span>
+        <span class="path-go">Show me how &rarr;</span>
+      </a>
+      <a class="path-card" href="#rent">
+        <span class="path-icon cyan" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0-1.2-8.84A6 6 0 0 0 4.5 12.5 3.5 3.5 0 0 0 6 19z"/></svg>
+        </span>
+        <h3>Rent a small server</h3>
+        <p>Always on, even when your computer is off, and it works on any home connection. The app sets it up for you: no terminal.</p>
+        <span class="path-meta"><span class="tag cyan">always on</span><span class="tag">about 15 minutes</span><span class="tag">a few euros a month</span></span>
+        <span class="path-go">Show me how &rarr;</span>
+      </a>
+      <a class="path-card" href="#standalone">
+        <span class="path-icon green" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6M12 19h8"/></svg>
+        </span>
+        <h3>Standalone server</h3>
+        <p>For tinkerers: one program for Windows, Linux, macOS or a Raspberry Pi. Great for an always-on box at home or your own VPS.</p>
+        <span class="path-meta"><span class="tag">terminal</span><span class="tag">Raspberry Pi</span><span class="tag">VPS</span></span>
+        <span class="path-go">Show me how &rarr;</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- 1. ON YOUR COMPUTER -->
+  <section class="guide-section" id="pc">
+    <div class="path-detail">
+      <div>
+        <div class="doc-kicker">1 &middot; On your computer</div>
+        <h2>Create a server in the app</h2>
+        <p class="section-intro">The server runs on your computer while Iskra is open. Friends on your home network can join right away.</p>
+        <ol class="steps">
+          <li><strong>Get the app</strong>Download Iskra for <a href="/#download">Windows, macOS or Linux</a> and install it. Phones can join servers, but a server needs a computer.</li>
+          <li><strong>Click Create a server</strong>Give it a name and pick a starting point: <em>Gaming group</em>, <em>Friends hangout</em>, <em>Board games and tabletop</em> or <em>Empty</em>. Channels, voice channels, roles and rules are ready; change anything later.</li>
+          <li><strong>Tick Keep my server running</strong>Iskra then starts with your computer, quietly in the tray, and starts your server, so friends can join when you're not around.</li>
+          <li><strong>Invite friends</strong>Click <strong>Invite friends</strong> and send them the link. They pick a name and they're in: no email, no password.</li>
+        </ol>
+      </div>
+      <div class="shots">
+        <figure class="shot">
+          <img src="/img/hosting/create-template.webp" width="1264" height="761" alt="The Create a server dialog: four starting points, Gaming group, Friends hangout, Board games and tabletop, and Empty, each listing its channels.">
+          <figcaption>Pick a starting point. Each one lists the channels you get.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="/img/hosting/create-ready.webp" width="1264" height="761" alt="Game Night is ready: your server is running on this computer, with voice. A ticked box says Keep my server running." loading="lazy">
+          <figcaption>Running, with voice. You're the owner.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- LET FRIENDS ANYWHERE JOIN -->
+  <section class="guide-section" id="internet">
+    <div class="path-detail flip">
+      <div class="shots">
+        <figure class="shot">
+          <img src="/img/hosting/internet-access.webp" width="1280" height="720" alt="Server settings, Internet access: the Let friends anywhere join switch is on, with a checklist below: find your router, open the ports, public address, HTTPS certificate." loading="lazy">
+          <figcaption>One switch, and a checklist that says how each step went.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="/img/hosting/ai-prompt.webp" width="1280" height="720" alt="Ask an AI assistant: a ready-made prompt with the router's address, this computer's address and every port to forward, with a Copy button." loading="lazy">
+          <figcaption>Stuck on your router? Copy a ready-made prompt for an AI assistant.</figcaption>
+        </figure>
+      </div>
+      <div>
+        <div class="doc-kicker">Friends elsewhere</div>
+        <h2>Let friends anywhere join</h2>
+        <p class="section-intro">For friends outside your home, open <span class="path">Server settings &rarr; Internet access</span> and turn on <strong>Let friends anywhere join</strong>. It works the same for the desktop app and the standalone server.</p>
+        <ol class="steps">
+          <li><strong>Opens the ports</strong>Iskra asks your router to open them (UPnP or NAT-PMP) while the server runs, and closes them when it stops.</li>
+          <li><strong>Gives your server an address</strong>A free name that points at your home connection, like <code>203-0-113-7.sslip.io</code>.</li>
+          <li><strong>Gets an HTTPS certificate</strong>From Let's Encrypt, so friends can join from any browser, phones included.</li>
+        </ol>
+        <p>New invite links use the public address, and Iskra checks again every few minutes, so a router restart or a new address is picked up by itself. No outside service is asked: everything comes from your router's own answers.</p>
+        <div class="callout ai">
+          <div class="callout-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10l-6.1 1.2L12 17l-1.9-5.8L4 10l6.1-1.2z"/></svg>
+            Tip: copy a prompt for an AI assistant
+          </div>
+          <p>If your router won't open the ports by itself, <strong>Forward the ports yourself</strong> lists every step. <strong>Copy a prompt for an AI assistant</strong> fills in a question for ChatGPT, Gemini, Claude or any other assistant with your router's model, this computer's address and the ports. You can edit it before copying; it never includes your public address, keys or invite links.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CGNAT -->
+  <section class="guide-section" id="cgnat">
+    <div class="cgnat">
+      <div class="cgnat-grid">
+        <div>
+          <div class="doc-kicker">Plain words</div>
+          <h2>What's CGNAT, and what can I do?</h2>
+          <p>Some internet providers share one internet address between many homes. It's called carrier-grade NAT, or CGNAT, and it's common on fiber, cable and mobile broadband. It's normal, but it means nobody outside can reach a server in your home, and opening ports on your own router can't fix it: the provider's equipment sits in front of it.</p>
+          <p><strong>Iskra tells you when it finds this.</strong> Friends behind CGNAT can always <em>join</em> a server that's reachable; only the person who hosts needs an open connection. Your options, quickest first:</p>
+          <ol class="options">
+            <li><strong>Connect without port forwarding</strong>An experimental switch in <span class="path">Internet access</span>: friends with the desktop app connect straight to you, encrypted end to end. Nothing to open, nothing to install.</li>
+            <li><strong>Rent a small server</strong>Ready in about 15 minutes, a few euros a month, paid and owned by your group. <a href="#rent">How it works</a></li>
+            <li><strong>Check for a public address</strong>Many fiber connections already have one. The check in the app shows what your router says.</li>
+            <li><strong>Ask your provider</strong>For a public IPv4 address. Often free and done once; mobile broadband (4G/5G) almost never gets one.</li>
+            <li><strong>Use Tailscale (free)</strong>A free app that links your group's devices as if they were on one network. Everyone installs it once. <a href="/docs/hosting#use-tailscale-free">Step by step</a></li>
+            <li><strong>Let a friend host</strong>Someone in your group with an open connection runs it. The server is one folder, so you can <a href="#faq-moving">move it</a> any time.</li>
+          </ol>
+        </div>
+        <div class="shots">
+          <figure class="shot phone">
+            <img src="/img/hosting/cgnat-phone.webp" width="390" height="844" alt="You're behind CGNAT: the app explains it in plain words and lists the options, quickest first, with a Rent a small server button." loading="lazy">
+            <figcaption>The app explains it, and lists your options.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. RENT -->
+  <section class="guide-section" id="rent">
+    <div class="path-detail">
+      <div>
+        <div class="doc-kicker">2 &middot; Rent a small server</div>
+        <h2>Always on, set up by the app</h2>
+        <p class="section-intro">A small virtual server at a hosting company runs Iskra for your group all the time, even when every computer at home is off. Your group picks the provider, pays it and owns the server.</p>
+        <ol class="steps">
+          <li><strong>Start in the desktop app</strong><span class="path">Create a server &rarr; Rent one on DigitalOcean</span>, or <span class="path">Server settings &rarr; Internet access &rarr; Rent a small server</span>.</li>
+          <li><strong>Connect your account</strong>Sign in to DigitalOcean in your browser and allow Iskra. The key stays in the app on your computer and is forgotten when setup is done.</li>
+          <li><strong>Pick a place and a name</strong>The app suggests the nearest location and shows DigitalOcean's own price first: about $6 a month. Nothing is created before you press the button.</li>
+          <li><strong>Wait a few minutes</strong>The app sets up the server, its firewall and HTTPS, checks it really is your server, and makes you the owner. Daily backups and automatic updates are on.</li>
+          <li><strong>Save your server document</strong>One file with the address, costs and how to cancel, backups, moving, and a prompt for an AI assistant. No passwords or keys in it.</li>
+        </ol>
+        <div class="callout">
+          <p><strong>Another provider?</strong> Rent a small server works anywhere you can make an Ubuntu or Debian server (Hetzner, for example, at about &euro;4 a month): the app gives you a setup text to paste when you create it, then connects and makes you the owner.</p>
+          <p><strong>Plain about money:</strong> Iskra charges nothing. The DigitalOcean sign-up link in the app is Iskra's referral link, and the app says so: Iskra gets a little DigitalOcean credit that helps pay for our own server. You pay DigitalOcean directly; we never see your server or your card.</p>
+        </div>
+      </div>
+      <div class="shots">
+        <figure class="shot">
+          <img src="/img/hosting/rent-digitalocean.webp" width="1264" height="761" alt="Rent a server on DigitalOcean, step 3, Your server: a name, a starting point, the location Frankfurt for $6 a month, and Create server for $6 a month." loading="lazy">
+          <figcaption>The exact price, before anything is created.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="/img/hosting/voice.webp" width="1264" height="761" alt="Two friends, Ada and Grace, together in the Lobby voice channel." loading="lazy">
+          <figcaption>Then: friends in, voice on.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. STANDALONE -->
+  <section class="guide-section" id="standalone">
+    <div class="doc-kicker">3 &middot; Standalone server</div>
+    <h2>For tinkerers: the server on its own</h2>
+    <p class="section-intro">One program, voice included, for Windows, Linux (x64 and ARM, Raspberry Pi 4 and 5), and macOS. Ideal for an old PC, a mini PC or a Raspberry Pi that's always on.</p>
+    <div class="path-detail">
+      <ol class="steps">
+        <li><strong>Download and unpack</strong>Get the server for your system from the <a href="/#download">download section</a>.</li>
+        <li><strong>Start it</strong>Run <code>iskra-server my-server</code>. It creates the folder <code>my-server</code> that holds everything.</li>
+        <li><strong>Become the owner</strong>Open the one-time owner link it prints, in the Iskra app or at app.iskra.foo, then invite your friends.</li>
+        <li><strong>Start it with the computer</strong><code>iskra-server install-autostart my-server</code> sets it up for Windows, Linux or macOS.</li>
+      </ol>
+      <div class="callout ok">
+        <div class="callout-title">Guides for the details</div>
+        <ul>
+          <li><a href="/docs/home-server">An Iskra box at home</a>: picking a box, a Raspberry Pi on a microSD card or SSD, starting with the computer, updates and power use.</li>
+          <li><a href="/docs/hosting#on-a-linux-vps-with-systemd">On a Linux VPS with systemd</a>, <a href="/docs/hosting#your-own-domain-and-https-setup">your own domain and HTTPS</a>, and <a href="/docs/hosting#serverjson-reference">every setting in server.json</a>.</li>
+          <li><a href="/docs/templates">Server templates</a>: start from a template, or write your own.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="guide-section" id="faq">
+    <div class="doc-kicker">Questions</div>
+    <h2>Good to know</h2>
+    <p class="section-intro">The short answers. Each one links to the full details.</p>
+    <div class="faq">
+      <details id="faq-ports">
+        <summary>Which ports does a server use?</summary>
+        <ul>
+          <li><code>47070/tcp</code>: the server itself (app, invites, uploads). Always.</li>
+          <li><code>80/tcp</code> and <code>443/tcp</code> to the server's port: HTTPS for friends, with Let friends anywhere join.</li>
+          <li><code>7881/tcp</code> and <code>7882/udp</code>: voice and video from outside your network.</li>
+        </ul>
+        <p>Let friends anywhere join opens them for you when your router allows it. <a href="/docs/hosting#ports-at-a-glance">Ports at a glance</a></p>
+      </details>
+      <details id="faq-firewall">
+        <summary>Windows or macOS asked about the firewall. What do I pick?</summary>
+        <p>The first time a server starts, Windows may ask once to allow Iskra and its voice service on your network, and macOS may ask to let Iskra accept incoming connections. Click <strong>Allow</strong> so friends can join. If you clicked the other button, friends on your network can't reach the server: allow Iskra in your system's firewall settings.</p>
+      </details>
+      <details id="faq-phone">
+        <summary>Can I host a server on my phone?</summary>
+        <p>No. A server runs on a computer that stays on: your own Windows, Mac or Linux computer with the Iskra app, or a small rented server. Once it's running, you can chat and talk from your phone, in the browser or the app.</p>
+      </details>
+      <details id="faq-off">
+        <summary>What happens when my computer is off?</summary>
+        <p>Your server is offline until it starts again; nothing is lost. With <strong>Keep my server running</strong>, it starts by itself with your computer. For a server that's always there, <a href="#rent">rent a small one</a> or use an <a href="/docs/home-server">always-on box at home</a>.</p>
+      </details>
+      <details id="faq-backups">
+        <summary>How do backups work? What are backup buddies?</summary>
+        <p>Every server keeps a backup of itself every day (the last 7). As the owner you can also download a full, encrypted backup any time in <span class="path">Server settings &rarr; Backup &amp; move</span>, or copy the daily ones to another disk.</p>
+        <p><strong>Backup buddies</strong> send each daily backup to a friend's Iskra server, encrypted so they can't read it, and you can keep theirs. If your computer is lost, you restore from theirs with your recovery code. <a href="/docs/hosting#backups-moving-and-importing">Backups in detail</a></p>
+      </details>
+      <details id="faq-moving">
+        <summary>Can I move my server to another computer later?</summary>
+        <p>Yes. The whole server is one folder. Use <span class="path">Server settings &rarr; Backup &amp; move &rarr; Move this server</span>: make a backup, restore it on the new computer (in the app: <strong>Create a server &rarr; Restore from a backup</strong>), and enter the new address. Everyone's app checks the server's signed notice and follows by itself, with members, roles, channels and history. <a href="/docs/hosting#moving-a-server-to-another-computer">Moving in detail</a></p>
+      </details>
+      <details id="faq-discord">
+        <summary>Can I bring my Discord history over?</summary>
+        <p>Yes. Export your Discord channels with DiscordChatExporter, then upload the export in <span class="path">Server settings &rarr; Import from Discord</span>. Each channel comes along with its messages, replies, pins and files, labelled as imported. <a href="/docs/hosting#importing-from-discord">Importing from Discord</a></p>
+      </details>
+    </div>
+  </section>
+
+  <div class="reference">
+    <p><strong>Want every detail?</strong> The hosting reference covers each way to run a server, the internet settings, Tailscale, backups, moving and every setting in <code>server.json</code>.</p>
+    <a class="btn btn-primary" href="/docs/hosting">Full technical reference &rarr;</a>
+  </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2026 Viktor Lundgren · <a href="/license">PolyForm Noncommercial 1.0.0</a></span>
+  <div class="footer-links">
+    <a href="/github">GitHub</a>
+    <a href="/hosting" aria-current="page">Hosting guide</a>
+    <a href="/docs/">Docs</a>
+    <a href="/docs/security">Security</a>
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/privacy#third">Who Iskra talks to</a>
+    <a href="/support">Support</a>
+    <a href="/delete-account">Delete account</a>
+    <a href="https://ko-fi.com/vlundgren" target="_blank" rel="noopener">Ko-fi</a>
+    <a href="https://paypal.me/iskrafoo" target="_blank" rel="noopener">PayPal</a>
+  </div>
+</footer>
+
+</body>
+</html>

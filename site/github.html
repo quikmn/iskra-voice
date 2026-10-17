@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iskra on GitHub - Iskra</title>
+<meta name="description" content="What's in Iskra's GitHub repository and what it's for: downloads, the bot SDK and example bots, themes, the source code, bug reports and the license.">
+<link rel="canonical" href="https://iskra.foo/github">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/fonts.css">
+<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/guide.css">
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="/">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#bolt)" stroke="none"/>
+      <defs>
+        <linearGradient id="bolt" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7c6fff"/>
+          <stop offset="100%" stop-color="#00cfff"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    Iskra
+  </a>
+  <div class="nav-links">
+    <a class="btn btn-ghost nav-hide-sm" href="/docs/">Docs</a>
+    <a class="btn btn-ghost nav-hide-sm" href="/support">Help</a>
+    <a class="btn btn-ghost nav-hide-sm" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
+    <a class="btn btn-primary" href="/#download">Download</a>
+  </div>
+</nav>
+
+<main class="guide" id="top">
+
+  <header class="guide-hero">
+    <div class="doc-kicker">GitHub</div>
+    <h1>What's on GitHub, <span class="grad">and what for?</span></h1>
+    <p>Iskra's code, downloads and tools live in one public repository on GitHub. You don't need it to use Iskra. Here's what's there, and who each part is for.</p>
+  </header>
+
+  <div class="gh-grid">
+
+    <section class="gh-card" aria-labelledby="gh-downloads">
+      <span class="path-icon" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>
+      </span>
+      <div class="who">For everyone</div>
+      <h2 id="gh-downloads">Downloads</h2>
+      <p>Every version of the apps for Windows, macOS, Linux and Android, and the server for Windows, Linux, macOS and Raspberry Pi, each with what's new.</p>
+      <div class="spacer"></div>
+      <div class="gh-actions">
+        <a class="btn btn-primary" href="/#download">Download Iskra</a>
+        <a class="btn btn-ghost" href="https://github.com/quikmn/iskra-voice/releases" target="_blank" rel="noopener">All releases</a>
+      </div>
+    </section>
+
+    <section class="gh-card wide" aria-labelledby="gh-bots">
+      <span class="path-icon cyan" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 17h5"/></svg>
+      </span>
+      <div class="who">For people who like to tinker</div>
+      <h2 id="gh-bots">Bots you can use and change</h2>
+      <p>No code needed for the basics: six small bots (dice, polls and more) come with every server; an admin turns them on in <span class="path">Server settings &rarr; Bots &amp; webhooks</span>. Want more? The bot kit and ready-made example bots are on GitHub: <strong>Dice</strong>, <strong>Music</strong> (plays the songs people upload, in voice), <strong>Jukebox</strong> and <strong>Planner</strong> (polls, reminders, events). Copy one, change it, and run it with one command:</p>
+      <pre>git clone https://github.com/quikmn/iskra-voice.git
+cd iskra-voice/bots
+npm install
+npm run dice</pre>
+      <div class="spacer"></div>
+      <div class="gh-actions">
+        <a class="btn btn-primary" href="/docs/bots">Bot guide</a>
+        <a class="btn btn-ghost" href="https://github.com/quikmn/iskra-voice/tree/main/bots/examples" target="_blank" rel="noopener">Example bots</a>
+      </div>
+    </section>
+
+    <section class="gh-card" aria-labelledby="gh-themes">
+      <span class="path-icon" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0 0 21 9.8C21 6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="14.5" cy="7" r="1"/></svg>
+      </span>
+      <div class="who">For everyone</div>
+      <h2 id="gh-themes">Themes</h2>
+      <div class="swatches" aria-hidden="true"><span class="sw-1"></span><span class="sw-2"></span><span class="sw-3"></span><span class="sw-4"></span><span class="sw-5"></span><span class="sw-6"></span><span class="sw-7"></span><span class="sw-8"></span><span class="sw-9"></span><span class="sw-10"></span><span class="sw-11"></span></div>
+      <p>Eleven themes are built in. Make your own in <span class="path">My settings &rarr; Appearance &rarr; Write your own</span>: a small JSON file with a name and your colours. The app checks that text stays readable. Export it to share it with friends; they import it in the same place.</p>
+      <pre>{
+  "meta": {
+    "name": "Midnight",
+    "scheme": "dark"
+  },
+  "colors": { "accent": "#ff7a59" }
+}</pre>
+      <div class="spacer"></div>
+      <div class="gh-actions">
+        <a class="btn btn-ghost" href="https://github.com/quikmn/iskra-voice/blob/main/client/src/theme/themes.ts" target="_blank" rel="noopener">The built-in themes</a>
+      </div>
+    </section>
+
+    <section class="gh-card" aria-labelledby="gh-bugs">
+      <span class="path-icon green" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6a4 4 0 0 1 8 0M6 10h12v4a6 6 0 0 1-12 0zM12 10v10M3 13h3M18 13h3M4 7l2.5 2M20 7l-2.5 2M4 20l2.5-2.5M20 20l-2.5-2.5"/></svg>
+      </span>
+      <div class="who">For everyone</div>
+      <h2 id="gh-bugs">Report a bug, share an idea</h2>
+      <p>The quickest way is in the app: tap your name at the bottom of the channel list and choose <strong>Report a bug</strong> (on a computer: <kbd>Ctrl+Shift+B</kbd>). It adds the details we need, and screenshots if you like. Developers can also open an issue on GitHub.</p>
+      <div class="spacer"></div>
+      <div class="gh-actions">
+        <a class="btn btn-primary" href="/docs/testers#4-report-a-bug">How to report a bug</a>
+        <a class="btn btn-ghost" href="https://github.com/quikmn/iskra-voice/issues" target="_blank" rel="noopener">Issues</a>
+      </div>
+    </section>
+
+    <section class="gh-card" aria-labelledby="gh-code">
+      <span class="path-icon cyan" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg>
+      </span>
+      <div class="who">For developers</div>
+      <h2 id="gh-code">Source code and how it's built</h2>
+      <ul>
+        <li>The server (C#, .NET), the app (TypeScript, React), the desktop and phone apps.</li>
+        <li>The wire protocol and its crypto, written down.</li>
+        <li>How to build it, run it locally and test it.</li>
+      </ul>
+      <div class="spacer"></div>
+      <div class="gh-actions">
+        <a class="btn btn-primary" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">Source code</a>
+        <a class="btn btn-ghost" href="https://github.com/quikmn/iskra-voice/blob/main/docs/development.md" target="_blank" rel="noopener">Developer guide</a>
+        <a class="btn btn-ghost" href="https://github.com/quikmn/iskra-voice/blob/main/protocol/PROTOCOL.md" target="_blank" rel="noopener">Protocol</a>
+      </div>
+    </section>
+
+    <section class="gh-card full" aria-labelledby="gh-license">
+      <span class="path-icon green" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
+      </span>
+      <div class="who">Good to know</div>
+      <h2 id="gh-license">License and security</h2>
+      <p>Iskra is source-available under the PolyForm Noncommercial License: free for personal and noncommercial use. Found a security problem? Please report it privately, never in a public issue.</p>
+      <div class="spacer"></div>
+      <div class="gh-actions">
+        <a class="btn btn-ghost" href="/license">The license</a>
+        <a class="btn btn-ghost" href="/docs/security">How Iskra keeps you safe</a>
+        <a class="btn btn-ghost" href="https://github.com/quikmn/iskra-voice/security/advisories/new" target="_blank" rel="noopener">Report privately</a>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="reference">
+    <p><strong>Running a server?</strong> You don't need GitHub for that either: the hosting guide walks you through it.</p>
+    <a class="btn btn-primary" href="/hosting">Hosting guide &rarr;</a>
+  </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2026 Viktor Lundgren · <a href="/license">PolyForm Noncommercial 1.0.0</a></span>
+  <div class="footer-links">
+    <a href="/github" aria-current="page">GitHub</a>
+    <a href="/hosting">Hosting guide</a>
+    <a href="/docs/">Docs</a>
+    <a href="/docs/security">Security</a>
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/privacy#third">Who Iskra talks to</a>
+    <a href="/support">Support</a>
+    <a href="/delete-account">Delete account</a>
+    <a href="https://ko-fi.com/vlundgren" target="_blank" rel="noopener">Ko-fi</a>
+    <a href="https://paypal.me/iskrafoo" target="_blank" rel="noopener">PayPal</a>
+  </div>
+</footer>
+
+</body>
+</html>

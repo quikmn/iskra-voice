@@ -61,8 +61,14 @@ jobs:
           v="$(node -p "require('./desktop/package.json').version")"
           grep -qF "releases/download/v$v/Iskra-Setup-$v.exe" site/index.html || { echo "::error::site/index.html doesn't link to $v"; exit 1; }
           echo "VERSION=$v" >> "$GITHUB_ENV"
-      # Only the site's own files (every page, the stylesheets, fonts/, .well-known/ (security.txt), worker.js, .assetsignore;
-      # never wrangler.toml or .wrangler/),
+      # The docs pages (site/docs/, site/license.html) are generated from docs/*.md and committed; CI skips pushes that
+      # only change *.md, so check here that nobody forgot to run node scripts/build-site-docs.mjs.
+      - name: Docs pages are current
+        run: |
+          npm ci --no-audit --no-fund --ignore-scripts
+          node scripts/build-site-docs.mjs --check
+      # Only the site's own files (every page, the stylesheets, docs/ and img/, fonts/, .well-known/ (security.txt),
+      # worker.js, .assetsignore; never wrangler.toml or .wrangler/),
       # from a folder outside git, so Pages deploys to production as deploy-hero.ps1 did. Pages serves terms.html at /terms.
       - name: Deploy iskra.foo (Pages project iskra-hero-page)
         env:
@@ -72,7 +78,7 @@ jobs:
           out="$RUNNER_TEMP/site"
           mkdir -p "$out"
           cp site/*.html site/*.css site/*.svg site/*.ico site/*.png site/worker.js site/.assetsignore "$out/"
-          cp -r site/fonts site/.well-known "$out/"
+          cp -r site/fonts site/.well-known site/docs site/img "$out/"
           ls -la "$out"
           cd "$out"
           npx --yes "$WRANGLER" pages deploy . --project-name=iskra-hero-page --commit-dirty=true
@@ -87,9 +93,10 @@ jobs:
           echo "::error::iskra.foo doesn't link to $VERSION after 5 minutes"; exit 1
       - name: Check the other pages
         run: |
-          # Every site/<page>.html must be served at https://iskra.foo/<page> (terms, privacy, support, delete-account, ...).
+          # Every site/<page>.html must be served at https://iskra.foo/<page> (terms, privacy, support, hosting, docs/..., ...).
           # Pages answers unknown paths with index.html and 200, so look for the page's own canonical link.
-          pages="$(cd site && ls *.html | sed 's/\.html$//' | grep -vx index)"
+          # docs/<page>.html is served at /docs/<page>, docs/index.html at /docs/.
+          pages="$(cd site && ls *.html docs/*.html | sed 's/\.html$//' | grep -vx index | sed 's#^docs/index$#docs/#')"
           for page in $pages; do
             for i in $(seq 1 8); do
               if curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "https://iskra.foo/$page?deploy=$GITHUB_RUN_ID-$i" | grep -F "<link rel=\"canonical\" href=\"https://iskra.foo/$page\">" >/dev/null; then

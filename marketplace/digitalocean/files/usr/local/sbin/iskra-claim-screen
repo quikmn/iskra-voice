@@ -7,7 +7,7 @@ set -euo pipefail
 
 WORLD=/opt/iskra/world
 CODE_FILE="$WORLD/owner-claim-code.txt"
-DOCS="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#digitalocean-marketplace"
+DOCS="https://iskra.foo/docs/hosting#digitalocean-marketplace"
 
 address="$(head -n 1 /etc/iskra/address 2>/dev/null || true)"
 [[ "$address" =~ ^https://[0-9a-z.-]+$ ]] || address="(starting, check back in a minute)"

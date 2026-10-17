@@ -28,7 +28,7 @@ testers join your test*), and the invite is the community server's never-expirin
 
 **Instructions for testers** (paste as the task description):
 
-> Thank you for testing Iskra! The full guide: https://github.com/quikmn/iskra-voice/blob/main/docs/testers.md
+> Thank you for testing Iskra! The full guide: https://iskra.foo/docs/testers
 >
 > **Day 1 (about 10 minutes)**
 > 1. Join the test with the opt-in link: https://play.google.com/apps/testing/foo.iskra.app Then install **Iskra** from Google Play: https://play.google.com/store/apps/details?id=foo.iskra.app
@@ -54,7 +54,7 @@ testers join your test*), and the invite is the community server's never-expirin
 Play Console → Testing → Closed testing → the track → **Testers** → *Feedback URL or email address*:
 
 ```
-https://github.com/quikmn/iskra-voice/blob/main/docs/testers.md#4-report-a-bug
+https://iskra.foo/docs/testers#4-report-a-bug
 ```
 
 (It explains the in-app **Report a bug**, which sends the version and logs with the report. Use

@@ -9,7 +9,7 @@ A self-hosted voice and text app for friend groups: like Discord, but free, easy
 | `protocol/`, `server/`, `client/`, `desktop/`, `mobile/`, `bots/`, `scripts/` | The app (see below) |
 | `marketplace/digitalocean/` | The DigitalOcean Marketplace 1-Click image (Packer, first boot, claim code); `marketplace.yml` lints it, builds only by hand |
 | `docs/` | Public docs: `hosting.md` (the app links to it), `security.md`, `voice-processing.md` (on-device audio, video and captions, third-party notices), `bots.md`, `development.md`, `ci-cd.md` + `ci-cd-playbook.md` (releases and deploys), `releases/` (release notes), `compliance/` (controls matrix, ASVS self-assessment, policies, owner actions) |
-| `site/` | The iskra.foo website (Cloudflare Pages project `iskra-hero-page`). Keep it in sync with what the app actually does. |
+| `site/` | The iskra.foo website (Cloudflare Pages project `iskra-hero-page`). Keep it in sync with what the app actually does. `site/docs/` and `site/license.html` are generated from the user guides in `docs/` and `LICENSE`: after editing those, run `node scripts/build-site-docs.mjs`. Link `https://iskra.foo/hosting`, `/github` and `/docs/...`, never GitHub, for a doc that has a page there. |
 
 An older, retired codebase lives on the `v1` branch (tag `v1-final`); don't add features to it. **In anything public the product is just "Iskra"**: never "Iskra 2", no "rebuilt", no mention of v1.
 

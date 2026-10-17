@@ -80,7 +80,7 @@ test('GIFs: off until an admin adds a key, through the server by default, or dir
   // Off: the GIF tab says how to turn it on.
   await friend.getByRole('button', { name: 'GIFs', exact: true }).click()
   await expect(friend.getByText("GIFs aren't on for this server yet")).toBeVisible()
-  await expect(friend.getByRole('link', { name: 'How to set up GIFs' })).toHaveAttribute('href', /hosting\.md#gifs/)
+  await expect(friend.getByRole('link', { name: 'How to set up GIFs' })).toHaveAttribute('href', 'https://iskra.foo/docs/hosting#gifs')
   await friend.keyboard.press('Escape')
 
   // The host pastes a key in Server settings → GIFs. Through this server is the default.

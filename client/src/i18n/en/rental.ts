@@ -162,7 +162,7 @@ export const rental = {
       '- Ports: 80/tcp (certificate check), 443/tcp (web and WebSocket), 7881/tcp and 7882/udp (voice). Open in ufw on the droplet (with 22/tcp) and in the DigitalOcean cloud firewall "{{droplet}}-firewall": {{ssh}}.\n' +
       '- Automatic updates from GitHub releases (server.json "Updates": {"Mode": "auto"}) and daily backups into /opt/iskra/world/backups.\n' +
       '- Logs: journalctl -u iskra -n 200 --no-pager. Status: systemctl status iskra. Health: curl -s {{url}}/health\n' +
-      '- Guide: https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md\n\n' +
+      '- Guide: https://iskra.foo/docs/hosting\n\n' +
       'My problem: <describe it here>',
   },
 }

@@ -1,7 +1,7 @@
 import type { Messages } from '../types'
 
 export const hosting: Messages['hosting'] = {
-  ownership: 'Din server, ditt val. Iskra får ingenting av det här, det är bara en guide.',
+  ownership: 'Din server, ditt val. Iskra tar inget betalt, det är bara en guide.',
   wizard: {
     stepName: 'Namn',
     stepTemplate: 'Kanaler',

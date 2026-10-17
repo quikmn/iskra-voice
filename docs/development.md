@@ -13,6 +13,14 @@
 | `scripts/` | Pinned tools (LiveKit, Pebble) into `.tools/` with checksum checks; `get-models.mjs` (the captions model, never committed); `build-deepfilter.sh`; the release scripts; `dev-firewall.ps1` (see below) |
 | `site/` | The iskra.foo website |
 
+The user guides in `docs/` (hosting, home-server, templates, security, privacy-connections, voice-processing,
+activities, testers, bots) and `LICENSE` are also pages on iskra.foo: `site/docs/<name>.html` (at
+`https://iskra.foo/docs/<name>`) and `site/license.html`, made by `node scripts/build-site-docs.mjs` (run `npm ci` in the
+repo root once). The pages are committed: after changing one of those files, run it and commit the result. The root
+`npm test` (`scripts/build-site-docs.test.mjs`) and the site deploy fail when a page is stale, and the test also fails
+when a link in the site or the apps points at GitHub for a doc that has a page on iskra.foo. `site/hosting.html` (the
+hosting guide) and `site/github.html` (what's on GitHub) are written by hand; link those, and `/docs/...` for details.
+
 Inside the server, each feature lives in `Features/<Feature>Feature.cs` (registered with one line in `Router.cs`) and keeps its store methods in `Storage/Store.<Feature>.cs`. Background work (event reminders, poll expiry, timeouts, retention, reminders and scheduled messages, the upload sweep, daily backups, updates) runs in hosted services next to the features. In the client, `src/core/` holds protocol, crypto and connection code shared with the bot SDK, `src/state/` holds app state, one file per feature (rules that need no React or store are in separate `*Logic.ts`/`*Rules.ts` files with unit tests), and `src/ui/` holds components grouped by area (`forums/`, `events/`, `stage/`, `watch/`, `groups/`, `roles/`, `moderation/`, `organize/`, ...).
 
 ## Prerequisites

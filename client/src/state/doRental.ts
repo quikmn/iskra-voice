@@ -94,7 +94,7 @@ export function serverDocument(s: RentedServer): string {
     section(t('rental.doc.keysTitle'), t('rental.doc.keys')),
     section(t('rental.doc.costTitle'), t('rental.doc.cost', { price, billing: LINKS.digitalOceanBilling, droplets: LINKS.digitalOceanDroplets, droplet: s.dropletName })),
     section(t('rental.doc.updatesTitle'), t('rental.doc.updates')),
-    section(t('rental.doc.moveTitle'), t('rental.doc.move', { guide: `${LINKS.hostingGuide}#moving-a-server-to-another-computer` })),
+    section(t('rental.doc.moveTitle'), t('rental.doc.move', { guide: `${LINKS.hostingReference}#moving-a-server-to-another-computer` })),
     section(t('rental.doc.seesTitle'), t('rental.doc.sees')),
     section(t('rental.doc.aiTitle'), `${t('rental.doc.aiIntro')}\n\n\`\`\`text\n${aiHelpPrompt(s)}\n\`\`\``),
   ].join('\n')
