@@ -160,7 +160,9 @@ export function findEntry(folder: string, exists: (p: string) => boolean = exist
  * (WindowsApps); elsewhere `python3` on the PATH. Null when there's none.
  */
 export function resolvePython(platform: NodeJS.Platform, where: (name: string) => string[]): { command: string; args: string[] } | null {
-  const real = (p: string) => path.isAbsolute(p) && !/[\\/]WindowsApps[\\/]/i.test(p)
+  // Judge the path by the platform it's for, not the one we run on (the tests check Windows paths on Linux too).
+  const absolute = platform === 'win32' ? path.win32.isAbsolute : path.posix.isAbsolute
+  const real = (p: string) => absolute(p) && !/[\\/]WindowsApps[\\/]/i.test(p)
   if (platform === 'win32') {
     const py = where('py').find(real)
     if (py) return { command: py, args: ['-3'] }
