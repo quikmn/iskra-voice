@@ -15,3 +15,4 @@
 - Listen together: a link you type while the previous one is still being added no longer disappears, and someone still answering "watch from another site?" no longer keeps hearing the last item or skips the party ahead for everyone.
 
 ### Good to know
+- Servers keep a tidy daily log in their folder: one line per event, with a code that says what to do, and nothing personal in it (no names, messages, keys or IP addresses). Old logs are compressed after 60 days and deleted after 180, so the log never fills the disk.
