@@ -1,7 +1,9 @@
 // Escape closes only the top layer (modal, popover, sheet), however many are open.
 import { useEffect, useRef, useState, type RefObject } from 'react'
 
-const stack: { close: () => void }[] = []
+/** `back`: what the phone's back button does on this layer (default: close). `kind: 'nav'` marks the channels drawer. */
+export interface LayerOptions { back?: () => void; kind?: 'nav' }
+const stack: { close: () => void; options: () => LayerOptions | undefined }[] = []
 
 function onKey(e: KeyboardEvent) {
   // Something inside already handled it (an inline editor, a reply being cancelled).
@@ -13,14 +15,16 @@ function onKey(e: KeyboardEvent) {
 }
 
 /** Registers a layer while mounted (and `active`); Escape calls onClose only when it's the top one. */
-export function useEscapeLayer(onClose: () => void, active = true): void {
+export function useEscapeLayer(onClose: () => void, active = true, options?: LayerOptions): void {
   const latest = useRef(onClose)
+  const opts = useRef(options)
   useEffect(() => {
     latest.current = onClose
+    opts.current = options
   })
   useEffect(() => {
     if (!active) return
-    const layer = { close: () => latest.current() }
+    const layer = { close: () => latest.current(), options: () => opts.current }
     stack.push(layer)
     if (stack.length === 1) window.addEventListener('keydown', onKey)
     return () => {
@@ -33,6 +37,14 @@ export function useEscapeLayer(onClose: () => void, active = true): void {
 
 /** How many layers are open (for tests and global shortcuts that shouldn't fire under a dialog). */
 export const openLayers = () => stack.length
+
+/** The top layer, for the back button: its kind and what back does on it. */
+export function topLayer(): { kind?: 'nav'; back: () => void } | null {
+  const top = stack.at(-1)
+  if (!top) return null
+  const options = top.options()
+  return { kind: options?.kind, back: options?.back ?? top.close }
+}
 
 const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled):not([type=hidden]), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 

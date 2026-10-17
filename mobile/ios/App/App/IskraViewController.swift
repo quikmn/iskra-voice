@@ -5,5 +5,7 @@ import UIKit
 class IskraViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(IskraNative())
+        // Sideways swipes belong to the page (they move the channel and member drawers), not to web view history.
+        webView?.allowsBackForwardNavigationGestures = false
     }
 }
