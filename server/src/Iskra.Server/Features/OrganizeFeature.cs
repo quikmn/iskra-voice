@@ -151,6 +151,7 @@ public static class OrganizeFeature
         var nick = raw.Trim().Length == 0 ? null : Names.Normalize(raw)
             ?? throw RequestException.BadRequest($"Server nicknames must be 1–{Names.MaxLength} characters, with no invisible characters.", "nickname_length", new { max = Names.MaxLength });
         s.World.Store.SetNickname(target.AccountKey, nick);
+        s.Hub.Outhooks?.MemberUpdated(target.AccountKey, "nick");
         var member = s.Hub.PublicMember(target);
         s.Hub.Broadcast(Frames.Event("member.updated", new { member }));
         return new { member };

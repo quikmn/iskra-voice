@@ -312,6 +312,7 @@ public sealed class VoiceRegistry
     {
         var channel = world.Store.GetChannel(channelId);
         if (channel is not null) hub.BroadcastToReaders(channel, Frames.Event("voice.state", PublicState(channelId)));
+        hub.Outhooks?.VoicePresence(channelId, channel, Participants(channelId).Select(p => p.AccountKey));
         Stages.Sync(channelId);
         Watch.Sync(channelId);
         Features.ActivitiesFeature.Sync(hub, world.Store, this, channelId);

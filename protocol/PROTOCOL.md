@@ -695,7 +695,7 @@ Webhook { "id": "<b64u 16>", "channelId": 1, "name": "GitHub", "avatar": File | 
 - Mentions: unless an admin turned on `mentions` for the webhook, `<@accountKey>` becomes plain `@Name` and `@everyone`/`@here` get a zero-width joiner, so nobody is pinged.
 - Body ≤ 64 KB (`413`). Rate limit per webhook: 5 at once, then one every 2 s (`429` with `Retry-After` and `{ message, retry_after, global: false }`). Wrong ids or secrets count against the caller's address (20 at once, then 1/s).
 - Answers: `204` (posted), `200` with a Discord-style message for `?wait=true`, `400 { message, code }` for invalid payloads, `404` for an unknown webhook or wrong secret (indistinguishable). `GET` on the URL returns `{ type: 1, id, name, channel_id }`.
-- `POST <server>/hooks/<id>/<secret>/github` accepts GitHub's own webhook format (JSON, or form with `payload`) and posts a short embed for `ping`, `push`, `issues`, `pull_request`, `issue_comment`, `release` and `star`; other actions are answered `204` without a message. Body ≤ 1 MB.
+- `POST <server>/hooks/<id>/<secret>/github` (also `/gitea`, `/gitlab`, `/slack`) accepts that service's own webhook format (JSON, or form with `payload`) and posts a short card; other events are answered `204` without a message. Body ≤ 1 MB. See [Webhook formats](#webhook-formats).
 
 The message is a normal `chat.message` to channel readers, with `author: "webhook:<id>"` (never an account key) and:
 
@@ -2623,6 +2623,8 @@ Outcome = "ok" | "http" | "timeout" | "network" | "blocked" | "redirect" | "rate
 | `event.started` | `{ event: { id, title, description, startAt, endAt, channel \| null, location } }` | events without a channel, or in a chosen channel |
 | `ping` | `{ hook: { id, name } }` | `outhook.test` only |
 
+More events (voice, threads, edits, deletions, members, roles, channels): [More outgoing webhook events](#more-outgoing-webhook-events).
+
 - Managers only see (list, update, regenerate, delete, log, test) webhooks whose channels they can all read; others are
   `not_found`, so nobody can point a webhook for a channel they can't read at their own address.
 - `channelIds` are text, voice, stage or forum channels you can read, never [end-to-end encrypted](#end-to-end-encrypted-channels)
@@ -4158,3 +4160,80 @@ account keys; a person keeps their id for the whole session (on another device t
 **Your data:** `data.export` gains `activitiesAdded` (the activities you added: id, name, when). What activities send is
 never stored, so there is nothing else to export or delete. Deleting an account keeps the activities it added (they
 belong to the server) and clears who added them (`addedBy` becomes `""`).
+
+## Invite tracking
+
+Moderators (the people who can see [join requests](#join-gating-and-raid-controls)) can see which invite each member
+joined with: its public id, label and maker, never its code.
+
+- `Invite` gains `id` (11 base64url characters: the first 66 bits of SHA-256 of `"iskra-invite-id-v1\n" + code`; it
+  names the invite without letting anyone join with it) and `label` (string or null).
+- `invite.create` takes `label?` (≤ 40 characters, one line, no invisible characters; `""` means none; else
+  `bad_request`, key `invite_label`, args `{ max }`).
+
+| type | body | result | who |
+|---|---|---|---|
+| `invite.joins` | `accountKey?`, `inviteId?` (filters), `limit?` (1–1000, default 500) | `{ joins: [JoinedVia] }`, newest first | moderators (else `forbidden`, key `mods_only`) |
+
+```jsonc
+JoinedVia { "accountKey": "...", "joinedAt": 0,
+            "invite": { "id": "<11 chars>", "label": "Reddit post" | null, "createdBy": accountKey | "server" | null,
+                        "createdByName": "Anna" | null, "role": "member" },   // label, maker and role as they were at the join
+            "approvedBy": accountKey | null, "approvedByName": "..." | null }  // who let them in, for approval invites
+```
+
+- Recorded at the join (bots too). Only current members are listed: the record is deleted when the member leaves, is
+  kicked or banned, or deletes their account. A member who comes back gets a new one.
+- Audit log: a direct join adds `member.join` (actor and target: the new member) `{ role, invite: { id, label, createdBy } }`;
+  `join.approve` details gain the same `invite`. Both show in the person's `member.history`. `invite.create` details
+  gain `id` and `label`.
+- Your data: `data.export` gains `joinedVia` (your own record), and `invitesCreated` gains `label`.
+
+## Webhook formats
+
+Besides the Discord-style body, an incoming webhook URL takes other services' own formats on a suffix (like Discord's
+`/github`): `POST <server>/hooks/<id>/<secret>/<format>`. Any other suffix is `404`. Bodies ≤ 1 MB (`413`); same rate
+limits as the plain URL. Events and actions that aren't posted are answered `204` with no message, so senders don't
+retry. No pictures are ever fetched or shown (avatars, gravatars, Slack images and icons are dropped), and nothing pings.
+
+| suffix | event from | posts a card for |
+|---|---|---|
+| `/github` | `X-GitHub-Event` | `ping`, `push` (with commits), `pull_request` and `issues` (opened, closed/merged, reopened), `issue_comment` (created), `release` (published), `workflow_run` (completed: failures; successes of CI/Release/Deploy-like workflows not run on a schedule), `star` (created) |
+| `/gitea` | `X-Gitea-Event` (or `X-Gogs-Event`, `X-GitHub-Event`) | the same as GitHub (Gitea's payloads copy GitHub's; `compare_url` is used for pushes) |
+| `/gitlab` | the body's `object_kind` | `push` (with commits), `tag_push` (a new tag), `merge_request` (open, close, reopen, merge), `issue` (open, close, reopen), `note` (comments on merge requests, issues, commits, snippets), `pipeline` (success unless scheduled, failed). Confidential issues and notes are never posted. |
+| `/slack` | | Slack-style `text` (mrkdwn: `<url\|label>` links, `<@user>`, `<#channel>`, `<!here>` as plain text, `*bold*`, `~strike~`, `&amp;` escapes), `blocks` (header → title, section text and fields, rich_text, context → footer; images, buttons and inputs dropped; with blocks, `text` is ignored), legacy `attachments` (title, title_link, pretext, text, color, author_name/author_link, fields, footer, ts) and `username`. Answers `200` `ok` (Slack's answer); `400` when there's nothing to post. Also as a form with `payload`. |
+
+Cards are the message's `webhook.embeds`: `title` (≤ 256), `url`, `description` (≤ 4096), `color`, `author.name` (the
+sender's user name), and for Slack `fields`, `footer` and `timestamp`. Text from the sender is cut to these limits
+rather than refused.
+
+**Signing secrets.** An admin who manages the webhook can give it a signing secret, the one entered at GitHub, Gitea or
+GitLab. Once set, posts to `/github` and `/gitea` must carry `X-Hub-Signature-256: sha256=<hex HMAC-SHA256(secret, body)>`
+(Gitea: or `X-Gitea-Signature: <hex>`), and posts to `/gitlab` `X-Gitlab-Token: <secret>`; anything else is
+`401 { message, code: 50014 }` and nothing is posted. Compared in constant time. The plain URL and `/slack` have no
+signatures (their senders don't sign); the secret URL stays their only key.
+
+| type | body | result | who |
+|---|---|---|---|
+| `webhook.signing.set` | `id`, `secret` (16–256 printable ASCII characters, spaces allowed but not at the start or end; `""` removes it) | `{ webhook }` | admin+ who can read the webhook's channel (else `not_found`); a bad secret is `bad_request`, key `webhook_signing_secret`, args `{ min, max }` |
+
+- `Webhook` gains `signed` (boolean). The secret itself is never returned. It's stored as given (an HMAC needs it) and
+  goes with the webhook. Setting or removing it is audited as `webhook.update` `{ id, name, channelId, signed }`.
+
+## More outgoing webhook events
+
+[Outgoing webhooks](#outgoing-webhooks) can also send these `EventType`s (same signing, retries, limits and log):
+
+| type | `data` | sent for |
+|---|---|---|
+| `voice.joined`, `voice.left` | `{ channel, member: { accountKey, name, bot } }` | voice and stage channels the webhook lists; nothing about mute, audio or video |
+| `thread.created` | `{ thread: { id, name, rootId, channel, createdBy: { accountKey, name, bot }, createdAt } }` | threads and forum posts in the chosen channels |
+| `message.updated` | `{ message: { id, channel, author, text, createdAt, editedAt } }` | edits in the chosen channels and their threads |
+| `message.deleted` | `{ messageId, channel }` (never the text) | deletions there, also in bulk and by moderators |
+| `member.updated` | `{ member: { accountKey, name, nick, role, bot, roles: [{ id, name }] }, changes: ["role" \| "roles" \| "nick"] }` | the whole server: built-in level, custom roles (also self-picked) and server nickname changes. Never profile data (bio, pronouns, pictures, presence) |
+| `role.created`, `role.updated` | `{ role: Role }` (as in `role.list`) | the whole server |
+| `role.deleted` | `{ role: { id, name } }` | the whole server |
+| `channel.created`, `channel.updated`, `channel.deleted` | `{ channel: { id, name, kind, categoryId, readRole, writeRole }, changes: [field] \| null }` (`changes` for updates: `name`, `readRole`, `writeRole`, `slowmode`, `userLimit`, `hifi`, `topic`, `lobby`; never the topic's text) | channels every member can read, or that the webhook lists; never [end-to-end encrypted](#end-to-end-encrypted-channels) channels or threads |
+
+- `voice.*`, `thread.created`, `message.updated` and `message.deleted` need at least one channel, like `message.created`
+  (`bad_request`, key `outhook_channels`). Encrypted channels, DMs and group chats are never sent, as before.

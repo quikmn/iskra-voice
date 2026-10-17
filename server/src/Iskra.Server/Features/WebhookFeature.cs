@@ -47,6 +47,7 @@ public static class WebhookFeature
         createdBy = w.CreatedBy,
         createdAt = w.CreatedAt,
         lastUsedAt = w.LastUsedAt,
+        signed = store.WebhookSigningSecret(w.Id) is not null,
     };
 
     /// <summary>The <c>webhook</c> part of a message: who posted it and its embeds. Null for everyone else's messages.</summary>
@@ -61,7 +62,7 @@ public static class WebhookFeature
         return new { id = post.WebhookId, name = post.Name, avatar = avatar is null ? null : Uploads.Public(avatar), embeds };
     }
 
-    private static void RequireAdmin(Member me)
+    internal static void RequireAdmin(Member me)
     {
         if (!Permissions.Has(me, Perm.ManageWebhooks)) throw RequestException.Forbidden("You can't manage webhooks on this server.", "manage_webhooks");
     }
@@ -75,7 +76,7 @@ public static class WebhookFeature
     }
 
     /// <summary>The webhook, if it's in a channel you can read (otherwise it doesn't exist for you).</summary>
-    private static Webhook Find(Session s, Member me, Body body)
+    internal static Webhook Find(Session s, Member me, Body body)
     {
         var hook = s.World.Store.GetWebhook(body.String("id", 64)) ?? throw RequestException.NotFound("Webhook");
         var channel = s.World.Store.GetChannel(hook.ChannelId);

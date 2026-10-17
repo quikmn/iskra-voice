@@ -241,6 +241,7 @@ public static class ForumFeature
         s.Hub.BroadcastToReaders(forum, Frames.Event("thread.updated", new { thread = ThreadFeature.View(thread) }));
         Broadcast(s, forum, post);
         s.Push.ChatMessage(forum, root);
+        s.Hub.Outhooks?.ThreadCreated(forum, thread);
         return new { post = View(store, post), message };
     }
 
