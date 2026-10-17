@@ -34,6 +34,7 @@ export const settings: Messages['settings'] = {
     serverVoice: 'Röst',
     onboarding: 'Introduktion',
     backup: 'Säkerhetskopia och flytt',
+    export: 'Exportera kanaler',
     import: 'Importera från Discord',
     updates: 'Serveruppdateringar',
     translate: 'Översättning',

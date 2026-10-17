@@ -379,6 +379,8 @@ public sealed partial class Store : IDisposable
         ("webhookformats-1", WebhookFormatsMigration),
         // Media channels: posts made without a title (their title is a stand-in from the caption or file name).
         ("media-1", "ALTER TABLE forum_posts ADD COLUMN untitled INTEGER NOT NULL DEFAULT 0;"),
+        // Feeds bot: RSS/Atom, YouTube and Twitch subscriptions, the items they have seen, the Twitch app credentials.
+        ("feeds-1", FeedsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

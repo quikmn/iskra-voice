@@ -22,7 +22,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
     'Overview', 'Channels', 'Voice', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Onboarding', 'Translation',
     'Members', 'Roles', 'Reports', 'AutoMod', 'Activity log', 'Sign-ins & security',
     'Bots & webhooks', 'Activities',
-    'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates',
+    'Internet access', 'Limits', 'Backup & move', 'Export channels', 'Import from Discord', 'Server updates',
   ])
   await expect(roomNav.getByRole('button', { name: 'Overview', exact: true })).toHaveAttribute('aria-current', 'page')
   await host.keyboard.press('Escape')

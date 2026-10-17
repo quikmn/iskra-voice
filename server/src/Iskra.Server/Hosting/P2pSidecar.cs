@@ -28,6 +28,9 @@ public sealed class P2pSidecar : BackgroundService
     /// <summary>The desktop app runs the tunnel for this server.</summary>
     public bool HostedByApp { get; }
 
+    /// <summary>The program's exit code from its last run (for the log), or null.</summary>
+    internal int? LastExit { get; private set; }
+
     /// <summary>Times the program was started (tests).</summary>
     public int Starts { get; private set; }
 
@@ -140,7 +143,7 @@ public sealed class P2pSidecar : BackgroundService
             if (binary is null)
             {
                 if (!warnedMissing)
-                    _log.LogWarning("Friends can't connect without port forwarding: {Name} was not found (put it next to iskra-server, or set P2p.SidecarPath).", BinaryName);
+                    _log.Warn("TUN-140", "tunnel", "missing", ("what", BinaryName));
                 warnedMissing = true;
                 Set(new("missing", null, null, 0));
                 await WaitAsync(Timeout.InfiniteTimeSpan, stopping);
@@ -158,7 +161,7 @@ public sealed class P2pSidecar : BackgroundService
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "The peer-to-peer tunnel failed");
+                _log.Error(ex, "TUN-150", "tunnel", "failed", ("what", "sidecar"));
             }
             if (stopping.IsCancellationRequested) break;
             if (!Settings.Enabled) continue; // turned off: it was stopped on purpose
@@ -167,7 +170,7 @@ public sealed class P2pSidecar : BackgroundService
             var delay = TimeSpan.FromSeconds(Math.Min(60, Math.Pow(2, failures)));
             var last = Current;
             Set(last with { State = "failed", Error = last.Error ?? "stopped", Connections = 0 });
-            _log.LogWarning("The peer-to-peer tunnel stopped; starting it again in {Delay}s", delay.TotalSeconds);
+            _log.Warn("TUN-130", "tunnel", "stopped", ("what", "sidecar"), ("exit", LastExit), ("retry", delay), ("n", failures));
             await WaitAsync(delay, stopping);
         }
     }
@@ -207,13 +210,14 @@ public sealed class P2pSidecar : BackgroundService
         lock (_gate) _process = process;
         Starts++;
         process.OutputDataReceived += (_, e) => { if (e.Data is not null) OnLine(e.Data); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log.LogInformation("p2p: {Line}", e.Data.Length > 500 ? e.Data[..500] : e.Data); };
+        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log.Write(LogLevel.Information, "p2p", null, "tunnel", "output", null, ("msg", e.Data.Length > 500 ? e.Data[..500] : e.Data)); };
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
-        _log.LogInformation("Peer-to-peer tunnel started ({Name})", Path.GetFileName(binary));
+        _log.Info("tunnel", "start", ("what", "sidecar"), ("n", Starts));
         try
         {
             await process.WaitForExitAsync(stopping);
+            LastExit = process.ExitCode;
         }
         finally
         {
@@ -241,7 +245,12 @@ public sealed class P2pSidecar : BackgroundService
             var connections = s.TryGetProperty("connections", out var c) && c.TryGetInt32(out var count) ? Math.Clamp(count, 0, 100_000) : 0;
             var error = s.TryGetProperty("error", out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
             if (error is { Length: > 200 }) error = error[..200];
+            var before = Current;
             Set(new(state, error, nat, connections));
+            // State and NAT changes only (never the public address); the connection count changes too often.
+            if (before.State != state || before.Nat?.Firewalled != nat?.Firewalled || before.Nat?.Randomized != nat?.Randomized)
+                _log.Write(state == "failed" ? LogLevel.Warning : LogLevel.Information, "p2p", state == "failed" ? "TUN-150" : null, "tunnel", "changed", null,
+                    ("state", state), ("nat", nat is null ? null : nat.Randomized ? "randomized" : nat.Firewalled ? "firewalled" : "open"));
         }
         catch (JsonException) { }
 

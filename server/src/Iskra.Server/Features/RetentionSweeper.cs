@@ -30,6 +30,7 @@ public sealed class RetentionSweeper(World world, Hub hub, Uploads uploads, Data
         try
         {
             exports.Expire();
+            ChannelExports.For(world).SweepFiles(); // channel exports left behind
             var now = time.GetUtcNow();
             var r = world.Settings.Retention;
             long Cutoff(int days) => (now - TimeSpan.FromDays(days)).ToUnixTimeMilliseconds();
@@ -57,12 +58,11 @@ public sealed class RetentionSweeper(World world, Hub hub, Uploads uploads, Data
             if (r.SecurityLogDays > 0) result.Security = world.Store.PruneSecurityLog(Cutoff(r.SecurityLogDays));
 
             if (result.Messages + result.Envelopes + result.Files > 0)
-                log.LogInformation("Retention: deleted {Messages} messages, {Envelopes} encrypted DM and group messages and {Files} files",
-                    result.Messages, result.Envelopes, result.Files);
+                log.Info("sweep", "done", ("what", "retention"), ("msgs", result.Messages), ("envelopes", result.Envelopes), ("files", result.Files));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            log.LogWarning(ex, "Retention sweep failed");
+            log.Warn(ex, "SWP-110", "sweep", "failed", ("what", "retention"));
         }
         return result;
     }

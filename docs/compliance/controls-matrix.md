@@ -102,7 +102,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 | 5.14 Information transfer | TLS, E2EE, encrypted backups (passphrase sealed to the server key) | SEC | met |
 | 5.15 Access control | Policy and product access control | POL/access-control | met |
 | 5.16 Identity management | Accounts are keys; device certificates; signed per-server key log (key transparency) with client-side checks and gossip; admin accounts listed | POL/access-control, POL/asset-inventory | met |
-| 5.17 Authentication information | Recovery keys user-held; secrets in GitHub/devkeys; MFA and old v1 secrets to handle | OA 1, OA 18 | owner-action |
+| 5.17 Authentication information | Recovery keys user-held; secrets in GitHub/devkeys; third-party keys a server holds (KLIPY key, the Feeds bot's Twitch app secret) stay in `iskra.db`, never sent to apps, removable by admins/the owner (docs/security.md, Feeds); MFA and old v1 secrets to handle | OA 1, OA 18 | owner-action |
 | 5.18 Access rights | Yearly access review defined | POL/access-control "Access review" | owner-action |
 | 5.19 Supplier relationships | Vendor register with checks before adding | POL/vendor-register | met |
 | 5.20 Security in supplier agreements | DPAs to confirm and file | OA 12 | owner-action |
@@ -177,7 +177,7 @@ Hosted services run at Cloudflare and DigitalOcean, whose data-centre controls a
 | 8.12 Data leakage prevention | No analytics; link previews fetched by server; gitleaks in CI; push protection pending; old v1 secrets to revoke | [secrets.yml][secretsyml], OA 2, OA 18 | partial |
 | 8.13 Information backup | Daily + encrypted backups; off-site to backup buddies (encrypted at the source, signed server-to-server requests, holder quota, versions, rate limits and grace period; [BuddyBackupTests.cs][buddytests]; the CI restore drill also restores the buddy copy); off-site copies for chat.iskra.foo pending | [BackupService.cs][backupsvc], [BuddyBackupService.cs][buddysvc], OA 9 | partial |
 | 8.14 Redundancy | Single droplet; static sites on Cloudflare's network | POL/risk-register R9 (accepted) | partial |
-| 8.15 Logging | SecLog + Audit (join approvals, refusals and invite pauses included), no content or secrets (moderators' notes never reach the audit log), configurable retention, owner export | [ComplianceFeature.cs][seclog], [ModerationFeature.cs][moderation], [ComplianceTests.cs][compliancetests] | met |
+| 8.15 Logging | SecLog + Audit (join approvals, refusals and invite pauses included), no content or secrets (moderators' notes never reach the audit log), configurable retention, owner export. The server's operational log: one UTC line per event with codes, a fixed field allowlist and scrubbing (no names, text, keys, tokens, IPs or paths), daily files trimmed by age and size; a canary test proves a busy session leaves nothing personal | [ComplianceFeature.cs][seclog], [ModerationFeature.cs][moderation], [ComplianceTests.cs][compliancetests], [LogLine.cs][logline], [LoggingTests.cs][loggingtests] | met |
 | 8.16 Monitoring activities | Owner reviews SecLog; no automated alerting/uptime monitor | OA 10 | partial |
 | 8.17 Clock synchronization | Ubuntu 24.04's default NTP client (systemd-timesyncd) on the droplet; not yet checked on the host (`timedatectl`) | CICD §4 "The server" | partial |
 | 8.18 Privileged utility programs | CLI commands (`backup`, `restore`, `move`, `import-discord`) need shell access to the world folder | [Cli.cs][cli] | met |
@@ -239,7 +239,7 @@ Details and evidence: [asvs-l2-self-assessment.md](asvs-l2-self-assessment.md).
 | V4 Access control | Server-side, per request and broadcast | [Permissions.cs][perms] | met |
 | V5 Validation, sanitization, encoding | Typed validation, React rendering, SSRF protection, parameterised SQL | [LinkPreviews.cs][previews] | met |
 | V6 Stored cryptography | libsodium primitives (plus WebCrypto HKDF for passkey PRF), secrets `0600`, signed hash-chained key log | SEC | met |
-| V7 Error handling and logging | SecLog, Audit, generic errors | [ComplianceFeature.cs][seclog] | met |
+| V7 Error handling and logging | SecLog, Audit, generic errors; the operational log's content rules and retention ([log-codes.md](../log-codes.md)) | [ComplianceFeature.cs][seclog], [LogLine.cs][logline] | met |
 | V8 Data protection | Encryption at rest on devices, export, deletion; secrets in webhook URLs by design | SEC | partial |
 | V9 Communication | TLS 1.2+, HSTS; plain HTTP possible on LAN servers | [Program.cs][program] | partial |
 | V10 Malicious code | CodeQL, signed updates, attestations | CICD | met |
@@ -310,6 +310,8 @@ Details and evidence: [asvs-l2-self-assessment.md](asvs-l2-self-assessment.md).
 [buddyholder]: ../../server/src/Iskra.Server/Backups/BuddyHolder.cs
 [buddytests]: ../../server/tests/Iskra.Server.Tests/BuddyBackupTests.cs
 [seclog]: ../../server/src/Iskra.Server/Features/ComplianceFeature.cs
+[logline]: ../../server/src/Iskra.Server/Logging/LogLine.cs
+[loggingtests]: ../../server/tests/Iskra.Server.Tests/LoggingTests.cs
 [retention]: ../../server/src/Iskra.Server/Features/RetentionSweeper.cs
 [disappear]: ../../server/src/Iskra.Server/Features/DisappearFeature.cs
 [export]: ../../server/src/Iskra.Server/Features/DataExports.cs

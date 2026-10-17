@@ -61,6 +61,8 @@ import { sounds } from './sounds'
 import { voiceStatus } from './voiceStatus'
 import { invitetrack } from './invitetrack'
 import { mediaChannels } from './mediaChannels'
+import { channelExport } from './channelExport'
+import { feeds } from './feeds'
 
 export const sv: Messages = {
   common,
@@ -124,4 +126,6 @@ export const sv: Messages = {
   sounds,
   voiceStatus,
   invitetrack,
+  channelExport,
+  feeds,
 }

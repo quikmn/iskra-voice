@@ -96,6 +96,12 @@ public sealed class RateLimiter(TimeProvider time)
         ["builtin.bots.config.set"] = (20, 2),
         ["birthday.set"] = (5, 0.5),
         ["builtin.bots.set"] = (10, 1),
+        ["feeds.get"] = (10, 2),
+        ["feeds.added"] = (10, 0.2), // checked by FeedsFeature: only adds that go on to fetch count
+        ["feeds.update"] = (20, 2),
+        ["feeds.remove"] = (20, 2),
+        ["feeds.check"] = (5, 0.2),
+        ["feeds.twitch.set"] = (5, 0.1),
         ["interaction.invoke"] = (5, 2),
         ["interaction.respond"] = (20, 5),
         ["teams.created"] = (3, 0.1), // checked by TeamsFeature: only splits that go ahead count
@@ -131,6 +137,9 @@ public sealed class RateLimiter(TimeProvider time)
         if (OwnBucketOnly.Contains(type)) return Take(type, now);
         return Take("*", now) && (!Limits.ContainsKey(type) || Take(type, now));
     }
+
+    /// <summary>A limit's name for the log's rate summary: a known limit, or "all" (the shared bucket); never client text.</summary>
+    public static string KindOf(string type) => Limits.ContainsKey(type) && type != "*" ? type : "all";
 
     private static readonly HashSet<string> OwnBucketOnly = ["act.send", "act.snapshot"];
 

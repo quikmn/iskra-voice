@@ -195,7 +195,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         try
         {
             if (_process is not { HasExited: false } process || _startedSettings == Volatile.Read(ref _settings)) return;
-            _log.LogInformation("Restarting voice for its new settings");
+            _log.Info("voice", "restarting", ("why", "settings"));
             process.Kill(entireProcessTree: true);
         }
         catch (InvalidOperationException) { }
@@ -223,17 +223,20 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         {(_world.Settings.P2p.Enabled ? TurnYaml(Settings, OwnAddresses()) : "")}
         """;
 
+    /// <summary>LiveKit's exit code from its last run (for the log), or null.</summary>
+    private int? _lastExit;
+
     protected override async Task ExecuteAsync(CancellationToken stopping)
     {
         if (!Settings.Enabled)
         {
-            _log.LogInformation("Voice is turned off in server.json.");
+            _log.Info("voice", "off", ("why", "settings"));
             return;
         }
         var binary = FindBinary();
         if (binary is null)
         {
-            _log.LogWarning("Voice is unavailable: livekit-server was not found (put it next to iskra-server, set Voice.LiveKitPath, or ISKRA_LIVEKIT).");
+            _log.Warn("LK-140", "voice", "missing", ("what", "livekit-server"));
             return;
         }
 
@@ -251,7 +254,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "Voice server failed");
+                _log.Error(ex, "LK-150", "voice", "failed", ("what", "livekit"));
             }
             Available = false;
             if (stopping.IsCancellationRequested) break;
@@ -263,7 +266,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
 
             failures = DateTime.UtcNow - started > TimeSpan.FromMinutes(1) ? 1 : failures + 1;
             var delay = TimeSpan.FromSeconds(Math.Min(60, Math.Pow(2, failures)));
-            _log.LogWarning("Voice server stopped; restarting in {Delay}s", delay.TotalSeconds);
+            _log.Warn("LK-110", "voice", "stopped", ("what", "livekit"), ("exit", _lastExit), ("retry", delay), ("n", failures));
             await Task.Delay(delay, stopping).ContinueWith(_ => { }, TaskScheduler.Default);
         }
     }
@@ -282,13 +285,15 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         _startedSettings = Volatile.Read(ref _settings); // before reading them: a change from here on restarts it
         info.Environment["LIVEKIT_CONFIG"] = ConfigYaml(iskraPort);
 
+        var startedAt = DateTime.UtcNow;
         BeforeStart?.Invoke();
         using var process = Process.Start(info) ?? throw new InvalidOperationException("Could not start livekit-server.");
         Hosting.ChildProcesses.Bind(process); // dies with us, even if we're killed
         _process = process;
         StopIfOutdated(); // the settings changed while it was starting
-        process.OutputDataReceived += (_, e) => { if (e.Data is not null) _log.LogDebug("livekit: {Line}", e.Data); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log.LogInformation("livekit: {Line}", e.Data); };
+        // LiveKit's own lines can carry participant identities and addresses: only its level and a scrubbed message pass.
+        process.OutputDataReceived += (_, e) => { if (e.Data is not null) LiveKitLines.Relay(_log, e.Data); };
+        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) LiveKitLines.Relay(_log, e.Data); };
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
@@ -303,8 +308,9 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
                 catch (HttpRequestException) { }
                 if (!Available) await Task.Delay(100, stopping);
             }
-            if (Available) _log.LogInformation("Voice ready (LiveKit on port {Port}, clients use {Url})", Settings.Port, ClientUrl);
+            if (Available) _log.Info("voice", "start", ("what", "livekit"), ("port", Settings.Port), ("took", DateTime.UtcNow - startedAt));
             await process.WaitForExitAsync(stopping);
+            _lastExit = process.ExitCode;
         }
         finally
         {
@@ -325,11 +331,11 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         {
             using var response = await _http.SendAsync(request);
             if (!response.IsSuccessStatusCode && response.StatusCode != System.Net.HttpStatusCode.NotFound)
-                _log.LogWarning("Removing {Identity} from {Room} failed: {Status}", identity[..8], room, response.StatusCode);
+                _log.Warn("LK-130", "voice", "failed", ("op", "remove"), ("room", room), ("status", (int)response.StatusCode));
         }
         catch (HttpRequestException ex)
         {
-            _log.LogWarning(ex, "Could not reach the voice server to remove a participant");
+            _log.Warn(ex, "LK-130", "voice", "failed", ("op", "remove"));
         }
     }
 
@@ -348,7 +354,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            _log.LogWarning(ex, "Could not reach the voice server ({Method})", method);
+            _log.Warn(ex, "LK-130", "voice", "failed", ("op", method));
             return null;
         }
     }
@@ -368,7 +374,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         using var response = await RoomServiceAsync("UpdateParticipant", room, new { room, identity, permission });
         if (response is null) return false;
         if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.NotFound) return true;
-        _log.LogWarning("Changing {Identity}'s permissions in {Room} failed: {Status}", identity[..Math.Min(8, identity.Length)], room, response.StatusCode);
+        _log.Warn("LK-130", "voice", "failed", ("op", "permissions"), ("room", room), ("status", (int)response.StatusCode));
         return false;
     }
 
@@ -376,7 +382,7 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
     {
         using var response = await RoomServiceAsync("DeleteRoom", room, new { room }, create: true);
         if (response is { IsSuccessStatusCode: false, StatusCode: not System.Net.HttpStatusCode.NotFound })
-            _log.LogWarning("Closing {Room} failed: {Status}", room, response.StatusCode);
+            _log.Warn("LK-130", "voice", "failed", ("op", "close-room"), ("room", room), ("status", (int)response.StatusCode));
     }
 
     public async Task MuteMicrophoneAsync(string room, string identity)

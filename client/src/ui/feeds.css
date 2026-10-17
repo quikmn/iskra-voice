@@ -1,0 +1,41 @@
+/* ── Feeds (built-in bot) ─────────────────────────────────────────────── */
+
+/* A post: the mention, what's new and its link (the link preview follows, from the message's link). */
+.feed-post { display: grid; gap: 2px; overflow-wrap: anywhere; min-width: 0; }
+.feed-post-line { min-width: 0; }
+.feed-post-link { justify-self: start; font-size: 13px; overflow-wrap: anywhere; }
+
+/* Settings. */
+.feed-settings { gap: 8px; }
+.feed-settings .feed-privacy { padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
+.feed-count { color: var(--muted); }
+.feed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.feed-item { display: grid; gap: 4px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); min-width: 0; }
+.feed-item.paused { opacity: 0.75; }
+.feed-item p { margin: 0; }
+.feed-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.feed-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-kind { flex: none; font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; background: var(--surface-3); color: var(--muted); }
+.feed-kind-youtube { color: #e5484d; }
+.feed-kind-twitch { color: #9b6bff; }
+.feed-meta { overflow-wrap: anywhere; }
+.feed-status.error { color: var(--red); }
+.feed-warning { color: var(--amber); }
+.feed-actions { margin-top: 2px; }
+.feed-edit, .feed-add, .feed-fields { display: grid; gap: 6px; min-width: 0; }
+.feed-add { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
+.feed-add-title { margin: 0; font-size: 14px; }
+.feed-kinds { margin-bottom: 4px; }
+.feed-interval input { width: 100%; max-width: 120px; }
+.feed-customize { justify-self: start; }
+.feed-preview .feed-post { font-size: 14px; }
+.feed-twitch { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
+.feed-twitch summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+.feed-twitch-form { display: grid; gap: 6px; margin-top: 6px; }
+.feed-twitch-form p { margin: 0; }
+
+@media (max-width: 600px) {
+  .feed-head { flex-wrap: wrap; }
+  .feed-name { white-space: normal; }
+  .feed-kinds button { padding: 8px 4px; font-size: 13px; }
+}

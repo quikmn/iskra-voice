@@ -97,7 +97,8 @@ public static class Autostart
     /// <summary>
     /// The Windows scheduled task. Elevated: at startup, as this user without a stored password (S4U), so it runs
     /// before anyone logs in. Otherwise: when this user logs on. Either way without a window (a headless console),
-    /// output appended to server.log, restarted if it crashes, and no time limit.
+    /// its log in logs/ (written by the server itself; only error output goes to server.log, which the server caps),
+    /// restarted if it crashes, and no time limit.
     /// </summary>
     public static string WindowsTaskXml(string exe, string[] prefixArgs, string world, string user, bool elevated)
     {
@@ -105,8 +106,9 @@ public static class Autostart
         var server = string.Join(' ', new[] { exe }.Concat(prefixArgs).Concat([world]).Select(Q));
         // A Windows path whatever OS builds it (Path.Combine would use '/' on Linux).
         var log = Q(world.TrimEnd('\\', '/') + @"\server.log");
-        // conhost --headless hosts the console without a window; cmd appends the output to server.log.
-        var arguments = $"--headless cmd.exe /d /s /c \"{server} >> {log} 2>&1\"";
+        // conhost --headless hosts the console without a window. The server keeps its own log in logs/; cmd keeps only
+        // error output in server.log (a failed start says why there; the server empties it at start once it's over 5 MB).
+        var arguments = $"--headless cmd.exe /d /s /c \"{server} > nul 2>> {log}\"";
         var x = SecurityElement.Escape;
         var trigger = elevated
             ? "<BootTrigger><Enabled>true</Enabled><Delay>PT30S</Delay></BootTrigger>"
@@ -185,7 +187,10 @@ public static class Autostart
             """;
     }
 
-    /// <summary>The launchd agent: starts when the user logs in, restarts if it crashes, output to server.log.</summary>
+    /// <summary>
+    /// The launchd agent: starts when the user logs in, restarts if it crashes. The server keeps its own log in logs/;
+    /// error output goes to server.log (the server empties it at start once it's over 5 MB).
+    /// </summary>
     public static string LaunchdPlist(string label, string exe, string[] prefixArgs, string world)
     {
         var x = SecurityElement.Escape;
@@ -211,7 +216,7 @@ public static class Autostart
                     <false/>
                 </dict>
                 <key>StandardOutPath</key>
-                <string>{log}</string>
+                <string>/dev/null</string>
                 <key>StandardErrorPath</key>
                 <string>{log}</string>
             </dict>

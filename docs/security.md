@@ -167,6 +167,7 @@ When an admin creates a text or voice channel they can tick **End-to-end encrypt
 
 - **Security log** (Server settings → Sign-ins & security, the owner only): failed sign-ins, rate-limit hits, new members and devices (and people waiting to be let in, let in or turned away, invites paused or resumed), account key changes, account deletions, removed devices, backups and restores, moves, retention changes and data downloads, with the account key and time. Never message text, invite codes, passphrases or keys. IP addresses only if the owner turns that on (off by default). Bursts of the same event are capped, so a flood can't fill the disk. Moderators' actions stay in the audit log.
 - **Disappearing messages:** a timer per channel, DM and group (5 minutes to 4 weeks). Each message's expiry is fixed when it's sent; in DMs, groups and encrypted channels it is also in the encrypted message's authenticated header (signed, in channels), so a server can't stretch it: apps delete at the sooner of the two. The server deletes expired messages with their files every few seconds (overwritten on disk, checkpointed out of the write-ahead log). **Backups never contain them**: they're taken out of every backup as it is made, so a backup can't keep a message past its time. Apps delete their own copies on time, even after being offline. People can still screenshot or copy them, and apps from before disappearing messages can't open the encrypted ones at all.
+- **The server's own log** (`logs/` in its folder, for whoever runs it): what the server did and what went wrong, one line per event with a code. Never names (people's, channels', webhooks', files'), message text, keys, tokens, invite or p2p secrets, IP addresses or file paths; LiveKit's own lines are cut down to their level and fixed wording. People appear only as a short code that matches up inside that one server's log (`acct=`), connections as `conn=` (an id your app is told too, so a bug report and the log can be matched). Kept 180 days at most and 200 MB at most ([hosting.md](hosting.md#logs)).
 - **Retention:** the owner chooses how long the server keeps messages (and encrypted DM and group envelopes), files in messages and DMs, the audit log (90 days by default) and the security log (365 days). 0 keeps forever; older data is deleted every hour.
 - **Download my data** (Settings → Privacy & data): a zip of everything a server keeps about you, through a link that works for 10 minutes; the owner can make one for a member who asks. The content of your DMs and group chats is only on your devices, so **Download data on this device** exports it from there (without your keys).
 - **HTTP:** every response refuses MIME sniffing, referrers and framing by other sites; HTTPS uses TLS 1.2 or 1.3 and HSTS for domain names. The voice service's own API only listens on the server itself.
@@ -198,6 +199,18 @@ The GIF picker uses KLIPY. An admin adds a KLIPY key and chooses how members' ap
 - **Straight from KLIPY** (only if the owner picks it): your app searches KLIPY itself, so **KLIPY sees your IP address and what you search for**, under a per-member pseudonym rather than your account key. GIFs in messages don't load until you click them (you can turn on auto-load for your device), and they're shown in a sandboxed frame that can only load images from KLIPY's own image hosts.
 
 Ads stay off, and anything that isn't a GIF from KLIPY's own hosts is left out.
+
+### Feeds
+
+The Feeds bot (off until an admin turns it on) makes the server fetch the RSS/Atom feeds, YouTube channel feeds and,
+with the owner's own Twitch app, Twitch's API that admins pick. It reaches only public addresses (checked after DNS on
+every connection, redirects included), only ports 80, 443 and 1024 and up, gives every unreachable or refused address
+the same answer, cuts each request off after 20 seconds including its body, reads at most 2 MB, reads XML without DTDs
+or external entities, and never fetches images. Text from feeds can't mention anyone. **The Twitch app's client secret
+is stored in the server's database (`iskra.db`) as it is, like the KLIPY key**, so it's in the world folder and in
+its backups: it's never sent to any app, and the owner can remove it (Server settings → Bots → Feeds → Twitch app) and
+make a new one at dev.twitch.tv if a copy of the world folder or a backup gets out. Use a Twitch app made just for this
+server; it can only read public data.
 
 ### Watch parties
 

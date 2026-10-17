@@ -78,6 +78,7 @@ public sealed class Router
         Translate.TranslateFeature.Register(this, translations);
         OutgoingWebhookFeature.Register(this);
         BuiltinBotFeature.Register(this);
+        FeedsFeature.Register(this);
         ServerImageFeature.Register(this);
         BotScope.Register(this);
         InteractionFeature.Register(this);
@@ -102,6 +103,7 @@ public sealed class Router
         VoiceStatusFeature.Register(this);
         WebhookSigningFeature.Register(this);
         InviteTrackFeature.Register(this);
+        ChannelExportFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);
@@ -139,7 +141,7 @@ public sealed class Router
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Handler {Type} failed", request.Type);
+            _log.Error(ex, "SRV-910", "sess", "failed", ("conn", session.LogId), ("op", request.Type));
             session.Send(Frames.Error(request.Id, "internal", "Something went wrong on the server."));
         }
     }
@@ -171,7 +173,7 @@ public sealed class Router
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Handler {Type} failed", request.Type);
+            _log.Error(ex, "SRV-910", "sess", "failed", ("conn", session.LogId), ("op", request.Type));
             session.Send(Frames.Error(request.Id, "internal", "Something went wrong on the server."));
         }
     }

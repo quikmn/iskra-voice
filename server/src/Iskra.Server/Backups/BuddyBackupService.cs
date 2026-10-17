@@ -114,7 +114,7 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
         var buddy = new BuddyRow(BuddyHolder.NewId(), url, holderKey, paired.Name.Length > 0 ? paired.Name : url, paired.SpotId,
             paired.QuotaBytes, paired.Keep, Now, null, null, null, null, 0, Now, null, null, false);
         world.Store.AddBuddy(buddy);
-        log.LogInformation("Backups now also go to {Url}", url);
+        log.Info("backup", "paired", ("what", "buddy"), ("id", buddy.Id));
         Wake();
         return (buddy, made ? BuddyCrypto.FormatRecoveryCode(recovery) : null);
     }
@@ -131,7 +131,7 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BuddyHttpException or BuddyAddressException)
         {
-            log.LogInformation("Couldn't tell {Url} that it no longer keeps backups: {Reason}", buddy.Url, Reason(ex));
+            log.Note("BAK-140", "backup", "failed", ("what", "buddy-remove"), ("id", buddy.Id), ex is HttpRequestException { StatusCode: { } status } ? ("status", (int)status) : ("name", ex.GetType().Name));
         }
     }
 
@@ -321,7 +321,7 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
             await http.FinishAsync(buddy.Url, holderKey, world.ServerKey, id, copy.Sha256, Now, cancel);
             var spot = await http.SpotAsync(buddy.Url, holderKey, world.ServerKey, Now, cancel);
             world.Store.BuddySucceeded(buddy.Id, Now, newest.Name, copy.Size, spot.QuotaBytes, spot.Keep);
-            log.LogInformation("Daily backup sent to backup buddy {Url}", buddy.Url);
+            log.Info("backup", "sent", ("what", "buddy"), ("id", buddy.Id), ("bytes", copy.Size));
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancel.IsCancellationRequested)
         {
@@ -382,7 +382,7 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
         var previousKey = buddy.Error is null ? null : JsonSerializer.Deserialize<JsonElement>(buddy.Error).GetProperty("key").GetString();
         if (previousKey != problem.Key)
         {
-            log.LogWarning("Backup not sent to backup buddy {Url}: {Problem}", buddy.Url, problem.Message);
+            log.Warn("BAK-120", "backup", "failed", ("what", "buddy"), ("id", buddy.Id), ("why", problem.Key));
             SecurityLog.Record(world.Store, Now, "buddy.upload.failed", details: new { url = buddy.Url, error = problem.Key });
         }
         world.Store.BuddyFailed(buddy.Id, json, failures, next, removed);
@@ -404,7 +404,7 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
                 try { await RunOnceAsync(stoppingToken); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
                 {
-                    log.LogWarning(ex, "Sending backups to backup buddies failed");
+                    log.Warn(ex, "BAK-120", "backup", "failed", ("what", "buddy"));
                 }
                 await _wake.WaitAsync(_tick, stoppingToken);
             }

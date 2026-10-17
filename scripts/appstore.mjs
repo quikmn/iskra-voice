@@ -100,17 +100,30 @@ async function maybe(promise) {
 
 // ── Texts ──
 
+/**
+ * App Store Connect refuses emoji in What to test ("Text for whatsNew contains invalid characters", alpha.31 with
+ * "CS2 ranked 🔫"): pictographs, their variation selectors and joiners go, and the spaces they leave are tidied.
+ */
+export function appleText(text) {
+  return text
+    .replace(/[\p{Extended_Pictographic}\p{Regional_Indicator}\u{1F3FB}-\u{1F3FF}︎️‍⃣]/gu, '')
+    .replace(/[ \t]+([,.;:!?)”])/g, '$1')
+    .replace(/[ \t]+"(?=[\s,.;:!?)]|$)/gm, '"')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+$/gm, '')
+}
+
 /** What to test / What's New: the release notes' lines in full, plain text, at most 4000 characters. */
 export function whatsNew(version, dir = join(root, 'docs', 'releases')) {
   const en = join(dir, `${version}.md`)
   if (!existsSync(en)) throw new AscError(`docs/releases/${version}.md is missing`)
   const sv = join(dir, `${version}.sv.md`)
   return [
-    { locale: 'en-US', text: playNotes(readFileSync(en, 'utf8'), { version, lang: 'en', max: 4000, full: true }) },
+    { locale: 'en-US', text: appleText(playNotes(readFileSync(en, 'utf8'), { version, lang: 'en', max: 4000, full: true })) },
     {
       locale: 'sv',
       text: existsSync(sv)
-        ? playNotes(readFileSync(sv, 'utf8'), { version, lang: 'sv', max: 4000, full: true })
+        ? appleText(playNotes(readFileSync(sv, 'utf8'), { version, lang: 'sv', max: 4000, full: true }))
         : `Nyheter och fixar i Iskra ${version}. Allt som är nytt (på engelska): ${REPO_URL}/releases/tag/v${version}`,
     },
   ]

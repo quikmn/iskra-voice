@@ -47,6 +47,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Which invite a member joined with (moderators only: the invite's public id, never its code; its label, maker and role; who approved them; when). In the member's data export (`joinedVia`) and the join's audit entry | While they're a member: deleted when they leave, are kicked or banned, or delete their account (the audit entry follows the audit log's 90 days) | Database trigger on leaving; account deletion | No |
 | Join requests (approval invites: the joiner's name and account key, which invite, when; a refusal's time) | Until a moderator decides: approved ones become memberships; refusals are kept a day (so the person is told no, not "need an invite") and unanswered requests 7 days | `ModerationSweeper` (hourly) | No |
 | Bug reports (bug inbox, when the owner turns it on: what the reporter wrote, screenshots without their metadata, logs from the app, an optional contact email; anonymous, never the sender's IP address) | 365 days at most (sooner with a shorter `Retention.MessagesDays`); their files a day later | `RetentionSweeper`; admins can delete one earlier | No (the year); the owner turns the inbox off |
+| Feeds bot: what it follows (RSS/Atom address, YouTube channel id or Twitch login, its name, channel, mention, template, who added it), its check state (validators, errors), hashes of the items it has seen (the last 500 per feed) and the owner's Twitch app credentials | Until an admin removes the feed (or its channel is deleted); credentials until the owner removes them | `feeds.remove`, channel deletion; `feeds.twitch.set` | No |
 | Outgoing webhooks (name, address, events, who made it) and their delivery log (time, event, attempt, HTTP status, outcome; never the payload) | Webhooks until an admin deletes them; the last 50 log entries per webhook, deleted with it | Admins; each new log entry | No |
 | Ended or cancelled events | 30 days | `EventScheduler` | No |
 | Looking-for-group posts (game, slots, time, voice channel, note; who joined) and the "Notify me for LFG" setting | Posts: same as messages (they go with their message), closed 2 hours after their time or after 24 hours; who joined: with the post, or until the account is deleted; the setting: until turned off or the account is deleted | `RetentionSweeper` and message deletion; `LfgCloser` (closing); account deletion | `Retention.MessagesDays` |
@@ -63,11 +64,13 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Spots we keep for friends' servers (label, the friend's server key, name and restore key, sizes and times of the copies) and the copies (`buddy-held/`, never in our own backups) | Until removed, plus the spot's grace period; unused pairing codes 24 hours; unfinished uploads 24 hours | `BuddyHolder` sweep (hourly) | Settings → Backup & move → Keep backups for a friend |
 | Downloaded encrypted backups | Wherever the owner keeps them | The owner | — |
 | Data exports (`/export/{token}`) | 10 minutes (the link; files in `world/exports`, never in backups) | Export cleanup | No |
+| Channel exports (`/channel-export/{token}`: a zip of channels' messages, names and files an admin exported; never encrypted channels or DMs) | 1 hour (the link and the file in `world/exports`, never in backups; a restart deletes them sooner); the downloaded zip is the admin's | Export cleanup (a timer per export, and on start) | No |
 | Presence, voice state, IP addresses of connected clients | In memory while connected (stored in the security log only if the owner turns on `Retention.SecurityLogIps`, off by default) | Process memory | No |
 | Per-server avatar (the picture, without its metadata, and when it was set) | While the person is a member (goes with their nickname when they leave, and with their account) | Leaving, kick/ban, account deletion; `member.avatar` with `""` | — |
 | Profiles (and the stamp of the newest profile edit, `profile_stamps`), memberships, roles, devices, push subscriptions | While the person is a member | Leaving, kick/ban, account deletion, device revocation | — |
 | Alert words, follows (people and roles followed, per channel) and quiet hours (`alert_settings`): words and follows only if the member turned on "Also when Iskra is closed", the schedule (days, times, time zone) only where their push is on | Until they change or turn them off, or stop being a member | The member's app (`alerts.set`), leaving, kick/ban, account deletion | — |
 | When the member's current quiet stretch began (`alert_settings.quiet_since`), for the summary push when quiet hours end; whether they want that summary (`digest` in the schedule) | Until the stretch ends (cleared then), or with the rest of the alert settings | The scheduler when quiet hours end, the member's app (`alerts.set`), leaving, kick/ban, account deletion | — |
+| The server's own log (`logs/YYYY-MM-DD.log`: what the server did, its problems; no personal data by design: no names, message text, keys, tokens or IP addresses; people only as a short per-server code, `acct=`) | Plain 60 days, gzipped until 180 days, then deleted; all of `logs/` under 200 MB (oldest first). Its error output in `server.log` (desktop app, autostart): emptied at start once over 5 MB. Console output under systemd: journald's own retention | `LogMaintenance` (at start and daily) | `server.json` → `Logs.PlainDays`, `Logs.KeepDays` (1–365), `Logs.MaxMb` (10–2000) |
 | Captions model (`models/`; no personal data) | Until the owner deletes it | The owner | `Captions.ModelDownload` (off: not fetched or served) |
 | Translation models (`models/translate/`; no personal data) | Until the owner deletes them | The owner | Server settings → Translation (off: not fetched or served) |
 | Owner claim of a rented server (`owner-claim`), or a server image's claim code (`owner-claim`, `owner-claim-code.txt`) | Until the owner joins; a claim code also stops working after 24 hours and is replaced on the next start | `OwnerSetup` | — |
@@ -88,6 +91,7 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | `Retention.AuditDays` | 90 | Moderation context |
 | `Retention.SecurityLogDays` | 365 | Investigating incidents |
 | `Backups.Keep` | 7 | Undo mistakes |
+| `Logs.KeepDays` / `Logs.MaxMb` | 180 / 200 | Troubleshooting (no personal data in the log) |
 
 ## Apps and websites
 
@@ -143,4 +147,6 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-17 | Quiet hours digest: when the current quiet stretch began, cleared when it ends |
 | 2026-10-17 | Activities: bundles admins add (in `iskra.db`), running activities only in memory |
 | 2026-10-17 | Built-in bots Starboard, Birthdays and Welcome: birthdays, starboard cards, waiting welcomes |
+| 2026-10-17 | Feeds bot: followed feeds, seen-item hashes, Twitch app credentials |
 | 2026-10-17 | Voice channel status in memory only; notification sounds (synced choices, your own sound stays on the device) |
+| 2026-10-17 | The server's own log files (`logs/`): no personal data, 180 days at most |

@@ -8,6 +8,7 @@ export const builtinBots = {
     starboard: 'Starboard',
     birthdays: 'Birthdays',
     welcome: 'Welcome',
+    feeds: 'Feeds',
   },
   about: {
     dice: 'Rolls dice for games: /roll 2d6+3',
@@ -16,6 +17,7 @@ export const builtinBots = {
     starboard: 'Shows the most-starred messages in one channel',
     birthdays: 'Wishes members a happy birthday: /birthday set 14 March',
     welcome: 'Greets people when they join',
+    feeds: 'Posts new blog posts, YouTube videos and Twitch streams',
   },
   commands: {
     roll: { description: 'Roll dice, like 2d6+3', usage: '2d6+3' },

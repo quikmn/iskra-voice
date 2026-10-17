@@ -220,7 +220,7 @@ public sealed class TeamSweeper(World world, Hub hub, VoiceRegistry voice, TimeP
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    log.LogWarning(ex, "Cleaning up team channels failed");
+                    log.Warn(ex, "SCH-110", "sched", "failed", ("what", "teams"));
                 }
             }
         }

@@ -17,6 +17,7 @@ export const roles: Messages['roles'] = {
     manageAutoMod: { label: 'Hantera AutoMod', hint: 'Ändra blockerade ord och spamregler' },
     prioritySpeaker: { label: 'Prioriterad talare', hint: 'Sänker alla andra för lyssnarna medan de pratar med prioritet' },
     sendTts: { label: 'Skicka /tts-meddelanden', hint: 'Skicka meddelanden som läses upp för dem som har slagit på det' },
+    exportChannels: { label: 'Exportera kanaler', hint: 'Ladda ner kanaler de kan läsa som en läsbar sida och JSON, med filerna' },
   },
   base: {
     title: 'Inbyggda roller',
