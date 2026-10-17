@@ -18,7 +18,8 @@ export function AfkSection({ server }: { server: ServerState }) {
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
-  const voiceChannels = server.channels.filter((c) => c.kind === 'voice')
+  // Lobbies and encrypted channels can't be the AFK channel (the server refuses them); one already picked stays listed.
+  const voiceChannels = server.channels.filter((c) => c.kind === 'voice' && ((!c.lobby && !c.e2ee) || c.id === afk?.channelId))
 
   async function run(change: () => Promise<AfkSettings>) {
     setBusy(true)

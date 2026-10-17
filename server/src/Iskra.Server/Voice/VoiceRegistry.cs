@@ -280,7 +280,8 @@ public sealed class VoiceRegistry
             {
                 var member = world.Store.GetMember(accountKey);
                 if (channel is not null && member is not null && Permissions.CanConnect(member, channel)
-                    && Features.VoiceBotFeature.MayBeIn(world.Store, member, channel)) continue;
+                    && Features.VoiceBotFeature.MayBeIn(world.Store, member, channel)
+                    && Features.E2eeVoiceFeature.MayBeIn(world.Store, member, channel)) continue;
                 room.TryRemove(accountKey, out _);
                 _ = backend.RemoveParticipantAsync(RoomName(channelId), accountKey);
                 Publish(channelId);
@@ -350,6 +351,7 @@ public sealed class VoiceRegistry
                 var channel = world.Store.GetChannel(channelId);
                 if (member is null || channel is null || !Permissions.CanConnect(member, channel)
                     || !Features.VoiceBotFeature.MayBeIn(world.Store, member, channel)
+                    || !Features.E2eeVoiceFeature.MayBeIn(world.Store, member, channel)
                     || Features.ModerationFeature.IsTimedOut(world.Store, identity, now)
                     || Features.RulesFeature.MustAgree(world.Store, member)
                     || !Features.VoiceLimitFeature.HasRoom(world.Store, this, member, channel, now)

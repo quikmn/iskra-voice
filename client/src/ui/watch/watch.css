@@ -110,3 +110,6 @@ button.watch-overlay { cursor: pointer; }
   .watch-queue-add { grid-template-columns: 1fr 1fr; }
   .watch-queue-add .button { justify-content: center; }
 }
+
+/* Off in encrypted voice channels (a tap says why). */
+.call-button.watch-off { opacity: 0.45; }
