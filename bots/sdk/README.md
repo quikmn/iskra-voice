@@ -66,7 +66,7 @@ the SDK has no extractors for them and never will.
 
 `npx iskra-bots bridge --name Roll -- python roll.py` logs in as the bot and runs your program with its stdin and stdout
 connected: events come in as JSON lines, requests go out as JSON lines. No HTTP and no open ports. The line protocol:
-[docs/bots.md → Other languages](https://github.com/quikmn/iskra-voice/blob/main/docs/bots.md#other-languages). There's
+[docs/bots.md → Other languages](https://iskra.foo/docs/bots#other-languages). There's
 also a Python SDK, in [bots/python](https://github.com/quikmn/iskra-voice/tree/main/bots/python).
 
 ## DMs and privacy
