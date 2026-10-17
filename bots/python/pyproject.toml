@@ -33,4 +33,4 @@ where = ["src"]
 iskra = ["py.typed"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "../gallery/starter-python"]  # and the gallery's Python starter

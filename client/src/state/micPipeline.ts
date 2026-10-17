@@ -135,11 +135,12 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
   const slowWatch = new SlowWatch()
   const bridgeWatch = new BridgeWatch()
   let gaveUp = false
-  const tooSlow = (why: string) => {
+  /** `kind`: cpu (the worker's realtime load, `load` a fraction of one core) or late (its frames kept coming back late). */
+  const tooSlow = (why: string, kind: 'cpu' | 'late', load?: number) => {
     if (!alive || gaveUp) return
     gaveUp = true
     console.warn(`[iskra] AI noise removal is too slow here (${why}); switching to RNNoise`)
-    log('WARN', 'media', 'fallback', 'MED-110', [['what', 'mic'], ['engine', 'rnnoise'], ['why', 'slow']])
+    log('WARN', 'media', 'fallback', 'MED-110', [['what', 'mic'], ['engine', 'rnnoise'], ['why', 'slow'], ['kind', kind], ['count', load === undefined ? undefined : Math.round(load * 100)]])
     callbacks.onSlow?.()
   }
   let lastLog = 0
@@ -150,7 +151,7 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
       lastLog = Date.now()
       console.info(`[iskra] AI noise removal: realtime factor ${load.rtf.toFixed(3)} (${(load.rtf * 100).toFixed(1)}% of one core), slowest frame ${load.slowest.toFixed(1)} ms`)
     }
-    if (slowWatch.report(load.rtf)) tooSlow(`realtime factor ${load.rtf.toFixed(2)}`)
+    if (slowWatch.report(load.rtf)) tooSlow(`realtime factor ${load.rtf.toFixed(2)}`, 'cpu', load.rtf)
   }
 
   let engine: NoiseEngine = wasm ? 'browser' : wanted
@@ -200,7 +201,7 @@ export async function createMicPipeline(source: MediaStreamTrack, settings: Audi
         lastLate = Date.now()
         console.info(`[iskra] AI noise removal: ${m.overruns} frame(s) came back late from the worker in the last second; ${(m.share * 100).toFixed(0)}% of it went out unprocessed (${m.dropped} not sent)`)
       }
-      if (bridgeWatch.report(m.share)) tooSlow(`its worker was late for more than ${MAX_BRIDGED * 100}% of each second, ${SLOW_WINDOWS} s in a row`)
+      if (bridgeWatch.report(m.share)) tooSlow(`its worker was late for more than ${MAX_BRIDGED * 100}% of each second, ${SLOW_WINDOWS} s in a row`, 'late')
     }
   }
   const track = destination.stream.getAudioTracks()[0]

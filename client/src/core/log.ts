@@ -8,8 +8,8 @@ import sodium from 'libsodium-wrappers-sumo'
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
 export const LOG_LEVELS: readonly LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR']
 
-/** `app` this app (web, phone, desktop page), `desk` the desktop app's main process, `upd` its updater. */
-export const LOG_SOURCES = ['app', 'desk', 'upd'] as const
+/** `app` this app (web, phone, desktop page), `desk` the desktop app's main process, `upd` its updater, `p2p` its tunnel. */
+export const LOG_SOURCES = ['app', 'desk', 'upd', 'p2p'] as const
 export type LogSource = (typeof LOG_SOURCES)[number]
 
 export const LOG_AREAS = [
@@ -24,6 +24,8 @@ export const LOG_FIELDS: ReadonlySet<string> = new Set([
   'kind', 'count', 'status', 'port',
   // the apps
   'frame', 'state', 'code', 'type', 'what', 'from', 'to', 'mode', 'exit', 'browser', 'lang', 'arch', 'gz', 'deleted',
+  // the network route and voice quality (numbers and fixed words only)
+  'peer', 'turn', 'lossout', 'kbps', 'conceal', 'in', 'out',
 ])
 
 /** The only text a line may carry (`msg=`): an error message the browser wrote. Made by {@link errorFields}. */
@@ -64,6 +66,7 @@ const VERSION = /^\d{1,4}\.\d{1,4}\.\d{1,4}(-[0-9A-Za-z.-]{1,30})?$/
 const SCHEMA: Record<string, RegExp> = {
   srv: /^([0-9a-f]{4}|s\d{1,3})$/, conn: /^[0-9a-z]{1,8}$/, acct: /^[0-9a-f]{6}$/,
   chan: NUM, room: NUM, n: NUM, count: NUM, close: NUM, port: NUM, exit: NUM, status: NUM, loss: NUM, gz: NUM, deleted: NUM,
+  lossout: NUM, kbps: NUM, conceal: NUM, in: NUM, out: NUM,
   rtt: /^\d{1,9}(\.\d{1,2})?(ms)?$/, jitter: /^\d{1,9}(\.\d{1,2})?(ms)?$/,
   took: DUR, dur: DUR, retry: DUR,
   ver: VERSION, from: VERSION, to: VERSION,

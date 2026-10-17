@@ -11,11 +11,17 @@ namespace Iskra.Server.Hosting;
 /// stdout carries its status as JSON lines. Not when the desktop app hosts this server (ISKRA_P2P_TUNNEL=app): the
 /// app runs the tunnel in its own process.
 /// </summary>
-public sealed class P2pSidecar : BackgroundService
+public sealed partial class P2pSidecar : BackgroundService
 {
     public const string BinaryName = "iskra-p2p";
     private static readonly TimeSpan GracefulStop = TimeSpan.FromSeconds(3);
     private static readonly HashSet<string> ReportedStates = ["starting", "ready", "unavailable", "failed", "off"];
+
+    // The program's own log lines ({"log":{...}}, desktop/src/p2p/tunnelLog.ts), checked again here: known events,
+    // codes and keys, values that are short words or numbers. Never an address, a key or text.
+    private static readonly HashSet<string> TunnelEvents = ["announced", "peers", "turn", "changed", "connected", "failed", "closed"];
+    private static readonly HashSet<string> TunnelCodes = ["TUN-150", "TUN-160", "TUN-170"];
+    private static readonly HashSet<string> TunnelKeys = ["took", "dur", "nat", "count", "n", "in", "out", "what", "path", "kind", "why"];
 
     private readonly World _world;
     private readonly ILogger<P2pSidecar> _log;
@@ -233,6 +239,11 @@ public sealed class P2pSidecar : BackgroundService
         try
         {
             using var doc = JsonDocument.Parse(line);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("log", out var entry) && entry.ValueKind == JsonValueKind.Object)
+            {
+                OnLog(entry);
+                return;
+            }
             if (doc.RootElement.ValueKind != JsonValueKind.Object || !doc.RootElement.TryGetProperty("status", out var s) || s.ValueKind != JsonValueKind.Object) return;
             var state = s.TryGetProperty("state", out var st) && st.ValueKind == JsonValueKind.String ? st.GetString()! : "";
             if (!ReportedStates.Contains(state)) return;
@@ -247,15 +258,48 @@ public sealed class P2pSidecar : BackgroundService
             if (error is { Length: > 200 }) error = error[..200];
             var before = Current;
             Set(new(state, error, nat, connections));
-            // State and NAT changes only (never the public address); the connection count changes too often.
+            // State and NAT type changes only (never the public address); the connection count changes too often. A
+            // failure names the NAT type it last saw.
             if (before.State != state || before.Nat?.Firewalled != nat?.Firewalled || before.Nat?.Randomized != nat?.Randomized)
                 _log.Write(state == "failed" ? LogLevel.Warning : LogLevel.Information, "p2p", state == "failed" ? "TUN-150" : null, "tunnel", "changed", null,
-                    ("state", state), ("nat", nat is null ? null : nat.Randomized ? "randomized" : nat.Firewalled ? "firewalled" : "open"));
+                    ("state", state), ("nat", NatType(nat ?? (state == "failed" ? before.Nat : null))));
         }
         catch (JsonException) { }
 
         static bool Flag(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
     }
+
+    /// <summary>HyperDHT's view of the NAT as one word (the same as the desktop app's): open, consistent, randomized.</summary>
+    internal static string? NatType(Nat? nat) => nat is null ? null : nat.Randomized ? "randomized" : nat.Firewalled ? "consistent" : "open";
+
+    /// <summary>One of the program's log lines, written as a <c>p2p</c> line if every part of it is what we expect.</summary>
+    private void OnLog(JsonElement entry)
+    {
+        var evt = entry.TryGetProperty("event", out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
+        if (evt is null || !TunnelEvents.Contains(evt)) return;
+        var code = entry.TryGetProperty("code", out var c) && c.ValueKind == JsonValueKind.String && TunnelCodes.Contains(c.GetString()!) ? c.GetString() : null;
+        var warn = entry.TryGetProperty("level", out var l) && l.ValueKind == JsonValueKind.String && l.GetString() is "WARN" or "ERROR";
+        var fields = new List<(string, object?)>();
+        if (entry.TryGetProperty("fields", out var list) && list.ValueKind == JsonValueKind.Array)
+            foreach (var pair in list.EnumerateArray().Take(16))
+            {
+                if (pair.ValueKind != JsonValueKind.Array || pair.GetArrayLength() != 2 || pair[0].ValueKind != JsonValueKind.String) continue;
+                var key = pair[0].GetString()!;
+                if (!TunnelKeys.Contains(key) || fields.Any(f => f.Item1 == key)) continue;
+                object? value = pair[1].ValueKind switch
+                {
+                    JsonValueKind.Number when pair[1].TryGetInt64(out var n) && n is >= 0 and < 1_000_000_000_000 => n,
+                    JsonValueKind.String when TunnelWord().IsMatch(pair[1].GetString()!) => pair[1].GetString(),
+                    _ => null,
+                };
+                if (value is not null) fields.Add((key, value));
+            }
+        _log.Write(warn && code is not null ? LogLevel.Warning : LogLevel.Information, "p2p", code, "tunnel", evt, null, [.. fields]);
+    }
+
+    /// <summary>A word (open, punched-random, holepunch-aborted) or a duration (840ms, 1.4s): never an address.</summary>
+    [System.Text.RegularExpressions.GeneratedRegex(@"^([a-z][a-z-]{0,39}|\d{1,9}(\.\d)?(ms|s))$")]
+    private static partial System.Text.RegularExpressions.Regex TunnelWord();
 
     private void StopProcess()
     {

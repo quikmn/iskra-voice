@@ -14,6 +14,7 @@ import { HostTunnels } from './p2p/hostTunnel'
 import { p2pNetwork } from './p2p/network'
 import { P2pNode } from './p2p/node'
 import { TunnelledVoice } from './p2p/webrtcPolicy'
+import { natType, type TunnelLogger } from './p2p/tunnelLog'
 import { isBackupDownload, isBuddyAddress, readBackupInfo } from './restore'
 import { DoRental, errorReply, testOverrides } from './digitalocean'
 import { DO_OAUTH_CLIENT_ID, oauthConfigured, oauthTestOverrides, oauthToken } from './doOAuth'
@@ -41,6 +42,7 @@ import { deskLog, duration, errorFields, type LogFields } from './log'
 import { AssistantBase, sendAssistantRequest } from './assistantNet'
 import { pageAnswer } from './mcp'
 import { McpHost, mcpTokenPath } from './mcpPipe'
+import { registerBots } from './botsIpc'
 import { parsePopoutPatch } from './popouts'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
@@ -100,16 +102,18 @@ const ptt = new PushToTalk(
 // Development builds and ISKRA_LOCAL_ONLY runs bind 127.0.0.1 and only join a testnet named by ISKRA_P2P_BOOTSTRAP.
 const p2pNode = new P2pNode(p2pNetwork(process.env, app.isPackaged))
 const hostTunnelStates = new Map<string, string>()
+// The tunnel's own lines (src p2p): how friends got through, NAT types, counts and durations; never an address or key.
+const tunnelLog: TunnelLogger = (e) => deskLog.write(e.level, 'p2p', 'tunnel', e.event, e.code ?? null, e.fields)
 const hostTunnels = new HostTunnels(p2pNode, (id, p2p) => {
   // The log has the tunnel's state changes only: never the server's folder name, its key or any address.
   if (hostTunnelStates.get(id) !== p2p.state) {
     hostTunnelStates.set(id, p2p.state)
-    if (p2p.state === 'failed') deskLog.write('ERROR', 'desk', 'tunnel', 'failed', 'TUN-150', [['what', 'host']])
-    else deskLog.info('tunnel', 'changed', [['what', 'host'], ['state', p2p.state]])
+    if (p2p.state === 'failed') deskLog.write('ERROR', 'desk', 'tunnel', 'failed', 'TUN-150', [['what', 'host'], ['nat', natType(p2p.nat)]])
+    else deskLog.info('tunnel', 'changed', [['what', 'host'], ['state', p2p.state], ['nat', natType(p2p.nat)]])
   }
   window?.webContents.send('iskra:host-p2p', { id, p2p })
-})
-const clientTunnels = new ClientTunnels(p2pNode)
+}, tunnelLog)
+const clientTunnels = new ClientTunnels(p2pNode, tunnelLog)
 const host = new Host(hostTunnels)
 // While the page's voice goes through a tunnel, WebRTC uses one any-address socket (see p2p/webrtcPolicy.ts).
 const tunnelledVoice = new TunnelledVoice()
@@ -744,6 +748,9 @@ ipcMain.handle('iskra:passkey', async (event, op: unknown, raw: unknown) => {
   }
 })
 
+// Bots on this PC (My settings): gallery bots and bots from a folder, run as child processes (botsIpc.ts).
+const pcBots = registerBots(() => window, fromApp)
+
 // Hosting servers from the app.
 ipcMain.handle('iskra:host-available', (event) => fromApp(event) && host.available())
 const withKeep = (server: HostedServer): HostedServer => ({ ...server, keepRunning: settings.openAtLogin && settings.keepRunning.includes(server.id) })
@@ -1076,6 +1083,11 @@ app.whenReady().then(() => {
   // A page that never paints still shows (with whatever it has) rather than leaving only the splash.
   setTimeout(() => launchChanged({ page: 'ready', serversGaveUp: true }), LAUNCH_GIVE_UP_MS)
   updates.start(settings.updateChecks)
+  // Bots set to start with the app (opt-in, per bot).
+  // Bots left running by a crash go first, so none runs twice.
+  const leftovers = pcBots.killLeftovers()
+  if (leftovers > 0) deskLog.info('life', 'bot-leftovers', [['n', leftovers]])
+  for (const id of pcBots.autostartIds()) void pcBots.start(id)
   powerMonitor.on('suspend', () => deskLog.info('life', 'sleep'))
   powerMonitor.on('resume', () => deskLog.info('life', 'resumed'))
   powerMonitor.on('lock-screen', () => deskLog.info('life', 'locked'))
@@ -1114,6 +1126,8 @@ app.on('before-quit', () => {
 // Give hosted servers a moment to shut down cleanly (they also stop by themselves once the app is gone).
 let readyToQuit = false
 app.on('will-quit', (event) => {
+  // Bots never outlive the app: ended now, synchronously, with whatever they started.
+  pcBots.killAll()
   if (readyToQuit || !serversStopped) return
   event.preventDefault()
   void serversStopped.finally(() => {

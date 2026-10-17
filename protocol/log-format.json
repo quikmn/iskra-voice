@@ -45,6 +45,26 @@
       "at": "2026-10-17T13:00:00.000Z", "level": "ERROR", "src": "desk", "area": "life", "event": "failed", "code": "DSK-900",
       "fields": [["msg", "connect to 203.0.113.5:443 via https://example.com/path?x=1 failed for alice@example.org in C:\\Users\\alice\\x"]],
       "line": "2026-10-17T13:00:00.000Z ERROR desk  life   failed      DSK-900 msg=\"connect to <ip> via https://example.com/… failed for <email> in <path>\""
+    },
+    {
+      "at": "2026-10-17T13:41:39.650Z", "level": "INFO", "src": "app", "area": "voice", "event": "route", "code": "VOI-130",
+      "fields": [["srv", "7c2e"], ["chan", 12], ["ice", "relay"], ["peer", "host"], ["proto", "udp"], ["via", "turn"], ["turn", "tcp"], ["why", "connect"]],
+      "line": "2026-10-17T13:41:39.650Z INFO  app   voice  route       VOI-130 srv=7c2e chan=12 ice=relay peer=host proto=udp via=turn turn=tcp why=connect"
+    },
+    {
+      "at": "2026-10-17T13:42:09.650Z", "level": "INFO", "src": "app", "area": "voice", "event": "sample", "code": null,
+      "fields": [["srv", "7c2e"], ["chan", 12], ["codec", "opus"], ["loss", 0.4], ["lossout", 1.25], ["rtt", "48ms"], ["jitter", "6ms"], ["kbps", 31.8], ["conceal", 0.3], ["ice", "198.51.100.23"]],
+      "line": "2026-10-17T13:42:09.650Z INFO  app   voice  sample      -       srv=7c2e chan=12 codec=opus loss=0.4 lossout=1.25 rtt=48ms jitter=6ms kbps=31.8 conceal=0.3"
+    },
+    {
+      "at": "2026-10-17T13:40:01.000Z", "level": "INFO", "src": "p2p", "area": "tunnel", "event": "connected", "code": null,
+      "fields": [["srv", "7c2e"], ["path", "punched"], ["nat", "consistent"], ["took", "1.4s"], ["kind", "cold"], ["n", 1]],
+      "line": "2026-10-17T13:40:01.000Z INFO  p2p   tunnel connected   -       srv=7c2e path=punched nat=consistent took=1.4s kind=cold n=1"
+    },
+    {
+      "at": "2026-10-17T13:40:02.000Z", "level": "WARN", "src": "p2p", "area": "tunnel", "event": "failed", "code": "TUN-160",
+      "fields": [["srv", "7c2e"], ["why", "holepunch-aborted"], ["nat", "randomized"], ["took", "10.2s"], ["path", "203.0.113.5:49737"]],
+      "line": "2026-10-17T13:40:02.000Z WARN  p2p   tunnel failed      TUN-160 srv=7c2e why=holepunch-aborted nat=randomized took=10.2s"
     }
   ]
 }

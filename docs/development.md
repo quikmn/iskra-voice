@@ -9,7 +9,7 @@
 | `client/` | TypeScript + React + Vite web app (also what the desktop and phone apps run); installable as a PWA. On-device audio, video and captions in `src/state/audio`, `video`, `captions`; bundled models in `vendor/` ([voice-processing.md](voice-processing.md)) |
 | `desktop/` | Electron shell for Windows, macOS and Linux: push-to-talk and hotkeys, screen picker, tray, auto-update, one-click hosting (setup wizard, Keep my server running) and restore, keychain, passkeys, `iskra://` links, game activity |
 | `mobile/` | The phone apps: one Capacitor shell (iOS and Android) around the built client; see [mobile/README.md](../mobile/README.md) |
-| `bots/` | Node SDK for bots (reuses the client's core) with the any-language bridge, the Python SDK (`bots/python`), and the example bots; see [bots.md](bots.md) |
+| `bots/` | Node SDK for bots (reuses the client's core) with the any-language bridge, the Python SDK (`bots/python`), the example bots and the [bot gallery](bots.md#gallery) (`bots/gallery`); see [bots.md](bots.md) |
 | `scripts/` | Pinned tools (LiveKit, Pebble) into `.tools/` with checksum checks; `get-models.mjs` (the captions model, never committed); `build-deepfilter.sh`; the release scripts; `dev-firewall.ps1` (see below) |
 | `site/` | The iskra.foo website |
 
@@ -174,7 +174,7 @@ The detailed per-folder map (moved from CLAUDE.md).
   - `src/platform/`: the desktop bridge, the phone apps (`native.ts`), passkeys, updates.
   - `vendor/`: DeepFilterNet3 (WebAssembly, rebuilt bit for bit by `scripts/build-deepfilter.sh`), Silero VAD and the MediaPipe selfie segmenter, bundled. `scripts/`: benchmarks (`bench-audio.mjs`, `bench-captions.mjs`), icons, test vectors.
   - `public/`: PWA manifest, `push-sw.js` (push only, no caching), `service-worker.js` (only removes an old caching worker) and `page-preview.html` (profile page editor sandbox).
-- `bots/`: Node bot SDK (`sdk/src`, reuses `client/src/core`; `bridge.ts` + `cli.ts`: `iskra-bots bridge`, newline-delimited JSON over a program's stdin/stdout; tests in `sdk/test`), the examples (`examples/`, `examples/bridge/` for roll.py and Roll.cs) and the Python SDK (`python/`: `src/iskra`, `examples/dice.py`, pytest against `protocol/vectors.json` and DMs made by the app's `dm.ts`; `client/interop/pybot.test.ts` runs it against the server); `npm run dice`, `npm run bridge`, `npm run typecheck`, `npm test`. See `docs/bots.md`.
+- `bots/`: Node bot SDK (`sdk/src`, reuses `client/src/core`; `bridge.ts` + `cli.ts`: `iskra-bots bridge`, newline-delimited JSON over a program's stdin/stdout; tests in `sdk/test`), the examples (`examples/`, `examples/bridge/` for roll.py and Roll.cs), the gallery (`gallery/<bot>/`: `bot.ts`, its rules and `*.test.ts`, a README and `package.json` each, importing the SDK as `iskra-bots`; `build.mjs` builds them to `dist/gallery` and their tests into `npm test`; the desktop app bundles the ones in `desktop/assets/gallery.json` with `desktop/scripts/build-gallery.mjs` and runs them via `desktop/src/bots.ts`) and the Python SDK (`python/`: `src/iskra`, `examples/dice.py`, pytest against `protocol/vectors.json` and DMs made by the app's `dm.ts`; `client/interop/pybot.test.ts` runs it against the server); `npm run dice`, `npm run bridge`, `npm run typecheck`, `npm test`. See `docs/bots.md`.
 - `desktop/`: Electron 44 shell (`src/main.ts`, `preload.ts`, `ptt.ts` + `hotkeys.ts`, `host.ts` (hosted servers, templates, Keep my server running), `updates.ts`, `passkeys.ts` (WebAuthn in a small app.iskra.foo window), `i18n.ts`; per-OS decisions in `platform.ts`, unit-tested with `npm test`). Windows, Linux and macOS. "Create a server" runs the bundled iskra-server + LiveKit on world folders in Documents/Iskra/Servers (Application Support/Iskra/Servers on macOS; `ISKRA_HOST_ROOT` overrides, tests use it); servers stop cleanly with the app (closing their stdin, `ISKRA_STOP_ON_STDIN_CLOSE`; force-killed after 5 s; parent-PID watch as backup; LiveKit is bound to a Windows job object). Serves the built client on `app://iskra/`, sandboxed renderer, IPC only from the app page, the shell's own messages (the tray's update check result, About, the macOS screen permission) sent to the page as structured `iskra:notice` events that it words and shows as its own toasts and dialogs (`notices.ts`, `client/src/state/desktopNotices.ts`; the file pickers are the only native dialogs), global push-to-talk via uiohook-napi (macOS: Accessibility permission), screen/window picker (Windows loopback audio without the app's own), tray, OS keychain for the keys (`safeStorage`), `iskra://join/` invite links, desktop settings (`settings.ts`), profile pages in a walled `<webview>` session where nothing reaches the network (`pages.ts`, rules in `pageRules.ts`), opt-in game activity (`activity.ts`, `games.ts`), backup restore (`restore.ts`), electron-updater from GitHub releases. `npm run dist` publishes a self-contained server into `build/server-win-x64`, then builds `release/Iskra-Setup-x.y.z.exe` + portable exe + `latest.yml`, signed with the Certum certificate in the CurrentUser store via `win.signtoolOptions` (and `desktop/scripts/sign.ps1` for the standalone server); `npm run dist:unsigned` never touches the token. Linux (AppImage/deb/rpm) and macOS (dmg/zip, Developer ID signed and notarized; ad-hoc signed without the Apple secrets) are built by `.github/workflows/release.yml` on tag push. `desktop/README.md` lists the release assets. Electron's binary download may need `node node_modules/electron/install.js` after `npm install`.
 - `mobile/`: the phone apps, one Capacitor 8 shell around the built client (bundled; `capacitor://localhost` on iOS, `http://localhost` on Android). `mobile/ios/` is the Xcode project (bundle id `foo.iskra.app`), built, cloud-signed and uploaded to TestFlight by `.github/workflows/mobile-ios.yml` (no Mac needed). `mobile/android/` (package `foo.iskra.app`, same key as the old TWA) is built and signed on the Windows PC by `mobile/scripts/build-android.ps1`. Native code: the `IskraNative` plugin (voice in the background: the audio session and CallKit for the call you're in on iOS, a voice foreground service on Android). No native push: notifications arrive while the app is open. The client's side is `client/src/platform/native.ts`, `state/nativeShell.ts`, `state/nativeVoice.ts`. See `mobile/README.md`.
 - `android/`: only a README pointing to `mobile/` (the old Trusted Web Activity is in git history).
@@ -201,8 +201,8 @@ days; the server writes and trims these itself, see [hosting.md, Logs](hosting.m
   follows `Logging:LogLevel` (appsettings.json).
 - **SRC**: `srv` the server, `lk` LiveKit (its level and fixed wording only), `p2p` the tunnel sidecar's output, `hook`
   webhooks, `bug` the bug inbox, `bot:<id>` a built-in bot (`dice`, `polls`, `reminders`, `starboard`, `birthdays`,
-  `welcome`); in the apps `app` (the web, phone and desktop page), `desk` (the desktop app's main process) and `upd`
-  (its updater).
+  `welcome`); in the apps `app` (the web, phone and desktop page), `desk` (the desktop app's main process), `upd`
+  (its updater) and `p2p` (its tunnel).
 - **AREA**: `life conn sess voice call media e2ee tunnel nat tls update push backup sweep rate store ui http sched misc`.
 - **event**: a kebab-case word, past tense for outcomes (`opened closed joined left start stop failed done sent
   skipped changed summary`).
@@ -234,11 +234,20 @@ like the server's. Servers are named `srv=` (the same 4 hex the server prints, f
 libsodium is ready) and `conn=` (`welcome.logId`): `serverLogFields(key)` in [state/logIds.ts](../client/src/state/logIds.ts).
 [state/bugReport/recorders.ts](../client/src/state/bugReport/recorders.ts) logs connections (path direct or tunnel, how long a connect
 took, close code, retry schedule, refusals, a server removed), voice (joined, reconnecting, left with a reason and code),
-failed requests, uncaught errors, device changes in a call and the app's lifecycle (start, visibility, online, sleep);
-other modules log where things happen (tunnel fallback in `p2p.ts`, noise suppression fallbacks, captions, background
-effects). The lines go to an in-memory buffer (`diagnostics.ts`: 30 minutes, 500 lines, never debug) and, in the desktop
+failed requests, uncaught errors, device changes in a call, the encrypted-voice key version (a number) and the app's
+lifecycle (start, visibility, online, sleep); a handshake that doesn't finish in 30 s is dropped and logged (`CON-120`).
+Other modules log where things happen: `p2p.ts` the direct probe before a tunnel (`tunnel direct took=` or `TUN-120
+why=timeout|unreachable|http-<status>|not-iskra`), noise suppression fallbacks (`MED-110`/`MED-140` with `kind=cpu
+count=<load %>` or `kind=late`), captions, background effects. **Voice** ([state/voiceStats.ts](../client/src/state/voiceStats.ts),
+mapping in `voiceStatsLogic.ts`) reads both LiveKit peer connections' `getStats()` every 10 s while connected: the
+selected candidate pair's *types* (`VOI-130 route ice=host|srflx|prflx|relay peer= proto=udp|tcp via=direct|turn
+turn=`) on connect and on change (a WARN `why=no-route` after 20 s without one), a `voice sample` every 30 s (`codec loss
+lossout rtt jitter kbps conceal`: numbers only), and `VOI-160` (incoming loss over 5% for 20 s) / `VOI-170` (round trip
+over 300 ms for 20 s), each at most once in 5 minutes. Nothing else is read from the stats (no addresses, ports,
+foundations or ufrags); `voiceStats.test.ts` feeds mocked stats full of them. The lines go to an in-memory buffer (`diagnostics.ts`: 30 minutes, 500 lines, never debug) and, in the desktop
 app, to its log file. A bug report's logs are a header (version, platform, uptime, settings, voice), then *Servers*,
-*Voice*, *Problems* (codes with counts) and the *Timeline* (these lines and the desktop app's, by time, `-- +12.3s --`
+*Connection* (per server: path, the direct probe's answer, the tunnel's route and NAT type, cold and latest connect
+time, voice route, last quality sample; and the host tunnel's NAT type and friend count), *Voice*, *Problems* (codes with counts) and the *Timeline* (these lines and the desktop app's, by time, `-- +12.3s --`
 where more than 5 s passed), at most 64 KB (the oldest lines go first), then a final net for anything address- or
 key-shaped. `log.test.ts` checks the golden lines in [protocol/log-format.json](../protocol/log-format.json) and that
 every code in `client/src` is in log-codes.json and every `app` code there is used; `diagnostics.test.ts` renders a report
@@ -251,7 +260,13 @@ in its data folder (`%APPDATA%\iskra-desktop\logs`, `~/Library/Application Suppo
 `errorFields(e, true)`, for the updater's own wording). It logs its start and stop, windows and tray, sleep and wake,
 `render-process-gone` / `child-process-gone` (`DSK-110`), hung windows, hosted servers by port (start, exit code,
 `DSK-120`/`DSK-130`), the host tunnel's state, settings that couldn't be saved and the updater (`upd`, which replaced
-`updates.log`). The page's entries arrive over `iskra:log` (only from the app's own pages, at most 50 a second) and are
+`updates.log`). The tunnel's own lines are `p2p` ([desktop/src/p2p/tunnelLog.ts](../desktop/src/p2p/tunnelLog.ts)):
+a friend tunnel's first (`kind=cold`), re-routed or slow (> 3 s) connections with `path=open|punched|punched-random|relay|lan`
+(from HyperDHT's punch counters), its NAT type and `took=`; failures with HyperDHT's error code (`TUN-160`, once a
+minute per reason); the voice link dropping (`TUN-170`); and on the host side the announce, friend counts (at most
+every 30 s) and TURN flows and packets (every 5 minutes while used). `iskra-p2p` writes the same events as
+`{"log":…}` JSON lines on stdout; the server checks them again (known events, codes and keys, words or numbers) and
+writes them as `p2p` lines (`P2pSidecarTests`). The page's entries arrive over `iskra:log` (only from the app's own pages, at most 50 a second) and are
 checked again; `iskra:log-tail` gives a bug report the last 30 minutes. Retention is the server's stairs (plain 60 days,
 gzipped until 180, then deleted, at most 50 MB; at start and daily; compressed to a temp file, flushed, renamed);
 `log.test.ts` covers the golden lines, the codes, retention with a fake clock and a privacy scan.

@@ -4,7 +4,7 @@ import { roleRank, type Permission, type Role } from '../../core/protocol'
 import { t } from '../../i18n'
 
 export type MySectionId =
-  | 'profile' | 'appearance' | 'language' | 'devices' | 'recovery' | 'security' | 'notifications' | 'streamer' | 'voice' | 'video' | 'blocked' | 'desktop' | 'account' | 'assistant' | 'privacy' | 'about'
+  | 'profile' | 'appearance' | 'language' | 'devices' | 'recovery' | 'security' | 'notifications' | 'streamer' | 'voice' | 'video' | 'blocked' | 'desktop' | 'pcBots' | 'account' | 'assistant' | 'privacy' | 'about'
 
 export type ServerSectionId =
   | 'overview' | 'channels' | 'serverVoice' | 'emoji' | 'gifs' | 'sounds' | 'pages' | 'rules' | 'onboarding'
@@ -25,7 +25,7 @@ export interface ServerSectionInfo extends SectionInfo<ServerSectionId> {
   group: ServerGroup
 }
 
-const MINE: MySectionId[] = ['profile', 'appearance', 'language', 'devices', 'recovery', 'security', 'notifications', 'streamer', 'voice', 'video', 'blocked', 'desktop', 'account', 'assistant', 'privacy', 'about']
+const MINE: MySectionId[] = ['profile', 'appearance', 'language', 'devices', 'recovery', 'security', 'notifications', 'streamer', 'voice', 'video', 'blocked', 'desktop', 'pcBots', 'account', 'assistant', 'privacy', 'about']
 
 /** Any of these opens Members and Reports (the ones that act on people). */
 const MODERATION: Permission[] = ['manageMessages', 'timeoutMembers', 'kickMembers', 'banMembers']
@@ -65,7 +65,7 @@ export const isServerSection = (id: SectionId): id is ServerSectionId => SERVER.
 
 /** My settings: about you on every server (Desktop app only in the app). Never anything about one server. */
 export function mySections(desktopApp = false): SectionInfo<MySectionId>[] {
-  return MINE.filter((id) => desktopApp || id !== 'desktop').map((id) => ({ id, label: t(`settings.sections.${id}`) }))
+  return MINE.filter((id) => desktopApp || (id !== 'desktop' && id !== 'pcBots')).map((id) => ({ id, label: t(`settings.sections.${id}`) }))
 }
 
 /**

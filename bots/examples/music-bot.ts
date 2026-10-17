@@ -1,7 +1,7 @@
 // The Music bot's behaviour, apart from starting it (music.ts), so tests can run the same bot.
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import type { Bot, FileInfo, VoiceConnection } from '../sdk/src/index'
-import { find, library } from './jukebox-rules'
+import { find, library } from '../gallery/jukebox/rules.ts'
 import {
   canControl, controlText, DEFAULT_SETTINGS, isAudio, MusicQueue, nowPlaying, parseVolume, readSettings, serverFileLink, stopped, titleOf,
   type MusicSettings, type QueuedTrack,

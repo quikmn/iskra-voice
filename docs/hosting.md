@@ -260,6 +260,8 @@ Prefer to forward ports yourself? Set `"PortMapping": false` and your `Domain` i
 
 **What to expect.** From a home connection (a usual router, or a provider's shared address that follows the rules) friends can connect straight to you, including friends on mobile data. When *both* ends give every destination a new port (some mobile networks and strict corporate NATs), the hole punch fails and the friend can't connect yet; the switch's panel says which kind of connection you have. A relay run by a group member is planned for that case.
 
+**When a friend can't connect, or voice through it is choppy:** have them use **Report a bug** in the desktop app (the menu under your name, or Ctrl+Shift+B) right after it happens. Its logs have a *Connection* section per server: whether your address answered and why not, how the tunnel got through (`punched`, `open`, `lan`, or why it failed, like `holepunch-aborted`), both NAT types (`consistent` is fine; `randomized` on both ends can't punch yet), how long the first and the latest connect took, voice's route (`via=turn` through the tunnel) and the last quality sample (packet loss, round trip, jitter). Your server's own log (`logs/`, the `p2p` lines) shows the other side: the announce and its NAT type, how many friends are connected and how much voice goes through the tunnel. No addresses are in any of it, only types, numbers and durations.
+
 **What it shows others.** The nodes near your key on the network (anyone can run one) see your internet address and the addresses of friends who look you up, for as long as the feature is on and the key stays the same. They don't see what you host, who your members are, or anything you say. **New key** changes the key: old invite links then stop working this way, and members get the new one from the server by themselves. "Who Iskra talks to" in My settings lists this too.
 
 **Invite links** get a fourth part, the connection key. Old three-part links keep working. Friends' apps try your address first and use the tunnel only when it can't be reached; browsers and phones can't do this yet and need a reachable address.
@@ -730,7 +732,9 @@ lines it prints on its console (or to `journalctl` under systemd). Each line is 
 ```
 
 time (UTC), level, who wrote it (`srv` the server, `lk` voice, `p2p` the tunnel, `hook` webhooks), area, event, a code
-for problems, then details. Codes and what to do about each: [log-codes.md](log-codes.md). The line format in full:
+for problems, then details. Voice rooms log people joining and leaving with the count left (`count=`) and why a room
+closed; the tunnel logs its announce (with the NAT type: `open`, `consistent` or `randomized`), friends connected (a
+count), voice carried through it (flows and packets, every 5 minutes while in use) and restarts (`TUN-130`). Codes and what to do about each: [log-codes.md](log-codes.md). The line format in full:
 [development.md, Logs](development.md#logs).
 
 **What's never in it:** names (people's, channels', webhooks', files'), message text, keys, tokens, invite or p2p
@@ -746,8 +750,10 @@ runs at start and once a day. The startup lines list the version, ports, voice, 
 `%APPDATA%\iskra-desktop\logs` on Windows, `~/Library/Application Support/iskra-desktop/logs` on macOS and
 `~/.config/iskra-desktop/logs` on Linux (one `YYYY-MM-DD.log` per UTC day). It has the app's start and stop, its windows
 and tray, sleep and wake, a page or helper process that stopped (`DSK-110`), the servers it hosts starting and stopping
-(by port, with their exit code: `DSK-120`), update checks (`upd`), and the app page's own lines (`app`: connections to
-each server with its `srv=` and `conn=` ids, voice joins and why they ended, errors). Same rules: no names, message text,
+(by port, with their exit code: `DSK-120`), update checks (`upd`), the tunnel (`p2p`: how each connection to a server
+got through, its NAT type, how long it took, failures with HyperDHT's reason), and the app page's own lines (`app`:
+connections to each server with its `srv=` and `conn=` ids, the direct address tried first, voice joins and why they
+ended, voice's route and a quality sample every 30 s, errors). Same rules: no names, message text,
 keys, tokens, addresses or paths. It's kept like the server's (plain 60 days, gzipped until 180, then deleted) and under
 50 MB in all. A server hosted in the app writes its own log in `logs/` in its server folder. **Report a bug** in the
 desktop app adds the last 30 minutes of this log to the report, so a host can match a member's report with the server's

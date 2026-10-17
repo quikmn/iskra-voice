@@ -1,0 +1,4 @@
+# The bot's keys and server address: keep them private, never commit them.
+*.bot.json
+__pycache__/
+.venv/

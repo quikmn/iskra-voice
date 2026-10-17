@@ -37,3 +37,5 @@ e798453049ba69529ac0f358a4fb597a6316189b:scripts/simplysign.test.mjs:generic-api
 35752c8637501d96e385abcfa0e3b2c0967f4eae:server/tests/Iskra.Server.Tests/WebhookFormatTests.cs:generic-api-key:335
 # desktop log privacy test: a made-up hostile value, not a secret
 7131f7db2e148909570a7e3458e3f28b09cffd2c:desktop/src/log.test.ts:generic-api-key:54
+# voice stats test: a made-up server key (bytes 1..32), not a secret
+da17d527626822c1045d045c13c9ce96b638a725:client/src/state/voiceStats.test.ts:generic-api-key:112

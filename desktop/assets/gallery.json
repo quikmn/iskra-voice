@@ -1,0 +1,18 @@
+{
+  "$comment": "Bots from bots/gallery that ship with the desktop app (built by scripts/build-gallery.mjs into dist/gallery/<id>.cjs). The page words them (client i18n pcBots.gallery.<id>). readAll and voice: what the bot invite the app makes for it allows. settings: environment variables people may set in the app (kind: text, number, secret).",
+  "bots": [
+    { "id": "starter", "name": "Starter", "readAll": false, "voice": false, "settings": [] },
+    { "id": "trivia", "name": "Trivia", "readAll": false, "voice": false, "settings": [
+      { "env": "TRIVIA_SECONDS", "kind": "number", "default": "20" }
+    ] },
+    { "id": "feeds-advanced", "name": "Feeds Plus", "readAll": false, "voice": false, "settings": [
+      { "env": "FEEDS_MINUTES", "kind": "number", "default": "10" },
+      { "env": "TWITCH_CLIENT_ID", "kind": "text", "default": "" },
+      { "env": "TWITCH_CLIENT_SECRET", "kind": "secret", "default": "" }
+    ] },
+    { "id": "server-stats", "name": "Stats", "readAll": true, "voice": false, "settings": [
+      { "env": "STATS_CHANNEL", "kind": "text", "default": "general" },
+      { "env": "STATS_HOUR", "kind": "number", "default": "9" }
+    ] }
+  ]
+}

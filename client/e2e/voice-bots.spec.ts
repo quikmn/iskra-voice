@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
 import { Bot, encodeWav } from '../../bots/sdk/src/index'
-import { jukebox } from '../../bots/examples/jukebox-bot'
+import { jukebox } from '../../bots/gallery/jukebox/jukebox'
 import { hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')

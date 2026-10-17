@@ -82,6 +82,34 @@ export interface TemplateChannelInfo {
 /** A template file someone picked: what it sets up (its id names it for create()), or why it can't be used. */
 export type PickedTemplate = { fileName: string; template: ServerTemplateInfo } | { error: string }
 
+/** A bot that ships with the desktop app (desktop/assets/gallery.json). */
+export interface GalleryBotInfo {
+  id: string
+  name: string
+  /** The bot invite the app makes for it can read all messages / join voice. */
+  readAll: boolean
+  voice: boolean
+  settings: { env: string; kind: 'text' | 'number' | 'secret'; default: string }[]
+}
+
+/** A bot the desktop app runs (desktop/src/bots.ts BotStatus). */
+export interface PcBot {
+  id: string
+  kind: 'gallery' | 'folder'
+  gallery?: string
+  folder?: string
+  name: string
+  autostart: boolean
+  settings: Record<string, string>
+  state: 'stopped' | 'starting' | 'running' | 'failed'
+  online: boolean
+  needsInvite: boolean
+  /** Why the last run ended by itself: an exit code, or no-entry / no-python / spawn / not-trusted. */
+  problem: string | null
+  /** Secret settings that have a value (the values never come to the page). */
+  secretsSet?: string[]
+}
+
 export interface PickedBackup {
   path: string
   fileName: string
@@ -226,6 +254,22 @@ export interface DesktopBridge {
     p2pSync?(id: string): Promise<HostedServer | null>
     /** The tunnel's status for a hosted server changed (it started, found its NAT type, failed). */
     onP2p?(callback: (update: { id: string; p2p: P2pHostStatus }) => void): () => void
+  }
+  /** Bots on this PC (desktop/src/bots.ts; missing in older desktop builds). */
+  bots?: {
+    gallery(): Promise<GalleryBotInfo[]>
+    list(): Promise<PcBot[]>
+    /** A gallery bot by id, or null: a folder the person picks in the app's own dialog (null if they cancel). */
+    add(galleryId: string | null, name?: string): Promise<PcBot | null>
+    update(id: string, patch: { name?: string; autostart?: boolean; settings?: Record<string, string | null> }): Promise<PcBot | null>
+    /** `invite`: a bot invite link, used until the bot has joined (kept in memory only). */
+    start(id: string, invite?: string | null): Promise<PcBot | null>
+    stop(id: string): Promise<PcBot | null>
+    remove(id: string): Promise<boolean>
+    /** The last lines the bot printed. */
+    log(id: string): Promise<string[]>
+    openFolder(id: string): Promise<void>
+    onChange(callback: () => void): () => void
   }
   /** A server behind a shared connection (missing in older desktop builds): open returns the local address, or `{ error }`. */
   p2p?: {

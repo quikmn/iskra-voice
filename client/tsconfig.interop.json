@@ -2,7 +2,9 @@
   "extends": "./tsconfig.app.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.interop.tsbuildinfo",
-    "types": ["node"]
+    "types": ["node"],
+    // Gallery bots (bots/gallery) import the bot SDK by its npm name.
+    "paths": { "iskra-bots": ["../bots/sdk/src/index.ts"] }
   },
   "include": ["interop", "e2e", "playwright.config.ts"],
   // Imports the desktop app's tunnel (desktop/src/p2p), whose packages only desktop/ has; vitest still runs it.

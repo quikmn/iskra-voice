@@ -13,6 +13,7 @@ export const settings = {
     video: 'Camera',
     blocked: 'Blocked people',
     desktop: 'Desktop app',
+    pcBots: 'Bots on this PC',
     account: 'Account',
     about: 'About & legal',
     reports: 'Reports',

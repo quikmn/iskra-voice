@@ -1,0 +1,33 @@
+/* ── Bots on this PC (My settings, desktop app) ─────────────────────────── */
+
+.pc-bots { gap: 8px; }
+.pc-bot-list, .pc-bot-gallery { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pc-bot, .pc-bot-gallery-item { display: grid; gap: 6px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); min-width: 0; }
+.pc-bot p, .pc-bot-gallery-item p { margin: 0; }
+.pc-bot-gallery-item { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.pc-bot-gallery-item > div { display: grid; gap: 2px; min-width: 0; }
+.pc-bot-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pc-bot-title { display: grid; min-width: 0; flex: 1; }
+.pc-bot-title small { overflow-wrap: anywhere; }
+.pc-bot-state { flex: none; font-size: 13px; color: var(--muted); }
+.pc-bot-light { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.pc-bot-light.online { background: var(--green); }
+.pc-bot-light.starting, .pc-bot-light.offline { background: var(--amber); }
+.pc-bot-light.failed { background: var(--red); }
+.pc-bot-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pc-bot-confirm { flex-basis: 100%; }
+.pc-bot-connect, .pc-bot-settings { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border); min-width: 0; }
+.pc-bot-settings form { display: grid; gap: 8px; }
+.pc-bot-connect select, .pc-bot-connect input { min-width: 0; max-width: 100%; }
+.pc-bot-connect form input { flex: 1; }
+.pc-bot-log {
+  margin: 0; max-height: 240px; overflow: auto; padding: 8px; border-radius: 8px; background: var(--surface-2);
+  font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.pc-bot-warning { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--warning-bg); border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent); }
+
+@media (max-width: 600px) {
+  .pc-bot-gallery-item { grid-template-columns: 1fr; }
+  .pc-bot-gallery-item .button { justify-self: start; }
+  .pc-bot-head { flex-wrap: wrap; }
+}

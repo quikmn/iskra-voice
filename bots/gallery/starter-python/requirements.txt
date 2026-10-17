@@ -1,0 +1,3 @@
+# The Python SDK, from the Iskra repository (bots/python). Pinned to a release tag; change it when you update.
+iskra-bots @ git+https://github.com/quikmn/iskra-voice.git@v2.0.0-alpha.32#subdirectory=bots/python
+pytest==8.4.2

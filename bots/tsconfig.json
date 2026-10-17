@@ -12,8 +12,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
+    // Gallery bots import their own files as "./x.ts", so a fork runs as-is with Node's type stripping (node bot.ts).
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
     // The SDK reuses the web client's core (crypto, identity, connection); its libsodium import resolves here.
-    "paths": { "libsodium-wrappers-sumo": ["./node_modules/@types/libsodium-wrappers-sumo"] }
+    // Gallery bots import the SDK by its npm name, so a copied folder works with "npm install iskra-bots"; here it's the source.
+    "paths": { "libsodium-wrappers-sumo": ["./node_modules/@types/libsodium-wrappers-sumo"], "iskra-bots": ["./sdk/src/index.ts"] }
   },
-  "include": ["sdk/src", "sdk/test", "examples"]
+  "include": ["sdk/src", "sdk/test", "examples", "gallery"]
 }

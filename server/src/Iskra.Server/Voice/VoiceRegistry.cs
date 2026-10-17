@@ -247,7 +247,7 @@ public sealed class VoiceRegistry
         var room = _rooms.GetOrAdd(channelId, _ => new());
         if (room.IsEmpty) log.Info("voice", "opened", ("chan", channelId));
         room[accountKey] = new VoiceMember(accountKey, false, false, now);
-        log.Info("voice", "joined", ("chan", channelId), ("acct", LogIds.Account(world, accountKey)));
+        log.Info("voice", "joined", ("chan", channelId), ("acct", LogIds.Account(world, accountKey)), ("count", room.Count));
         // Into the AFK channel: LiveKit gets the forced state again (the setting may have changed since the token).
         var afk = world.Store.Afk();
         if (afk.ChannelId == channelId) ApplyAfk(afk, channelId, accountKey, force: true);
@@ -258,8 +258,8 @@ public sealed class VoiceRegistry
     public void Left(long channelId, string accountKey)
     {
         if (!_rooms.TryGetValue(channelId, out var room) || !room.TryRemove(accountKey, out var was)) return;
-        log.Info("voice", "left", ("chan", channelId), ("acct", LogIds.Account(world, accountKey)), ("dur", TimeSpan.FromMilliseconds(Math.Max(0, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - was.JoinedAt))));
-        if (room.IsEmpty) log.Info("voice", "closed", ("chan", channelId));
+        log.Info("voice", "left", ("chan", channelId), ("acct", LogIds.Account(world, accountKey)), ("dur", TimeSpan.FromMilliseconds(Math.Max(0, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - was.JoinedAt))), ("count", room.Count));
+        if (room.IsEmpty) log.Info("voice", "closed", ("chan", channelId), ("why", "empty"));
         _afkForced.TryRemove(accountKey, out _);
         Publish(channelId);
     }
@@ -295,6 +295,7 @@ public sealed class VoiceRegistry
                     && Features.VoiceBotFeature.MayBeIn(world.Store, member, channel)
                     && Features.E2eeVoiceFeature.MayBeIn(world.Store, member, channel)) continue;
                 room.TryRemove(accountKey, out _);
+                log.Note("VOI-150", "voice", "removed", ("chan", channelId), ("acct", LogIds.Account(world, accountKey)), ("why", "access"), ("count", room.Count));
                 _ = backend.RemoveParticipantAsync(RoomName(channelId), accountKey);
                 Publish(channelId);
             }
@@ -314,6 +315,7 @@ public sealed class VoiceRegistry
         foreach (var (channelId, room) in _rooms)
         {
             if (!room.TryRemove(accountKey, out _)) continue;
+            log.Note("VOI-150", "voice", "removed", ("chan", channelId), ("acct", LogIds.Account(world, accountKey)), ("why", "timeout"), ("count", room.Count));
             _ = backend.RemoveParticipantAsync(RoomName(channelId), accountKey);
             Publish(channelId);
         }

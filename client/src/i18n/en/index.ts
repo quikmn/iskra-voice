@@ -64,6 +64,7 @@ import { channelExport } from './channelExport'
 import { feeds } from './feeds'
 import { bots3 } from './bots3'
 import { assistant } from './assistant'
+import { pcBots } from './pcBots'
 
 export const en = {
   common,
@@ -131,4 +132,5 @@ export const en = {
   feeds,
   bots3,
   assistant,
+  pcBots,
 } as const

@@ -24,6 +24,7 @@ import { WhisperSettingsSection } from '../whisper/WhisperSettings'
 import { ClipSettingsSection } from '../clips/ClipSettings'
 import { InputSettingsSection, OutputSettingsSection, ProcessingSettingsSection } from '../dialogs/AudioSettings'
 import { DesktopSettingsSection } from '../dialogs/DesktopSettings'
+import { PcBotsSection } from './PcBotsSection'
 import { RecoveryKeySection } from '../dialogs/RecoveryKey'
 import { NotificationSettingsSection } from '../dialogs/NotificationSettings'
 import { ProfileSection, ServerPagesOption } from '../profile/ProfileSettings'
@@ -244,6 +245,7 @@ function MySection({ id }: { id: MySectionId }) {
     case 'video': return <CameraSettingsSection />
     case 'blocked': return <BlockedSection />
     case 'desktop': return <DesktopSettingsSection />
+    case 'pcBots': return <PcBotsSection />
     case 'account': return <AccountSection />
     case 'assistant': return <AssistantSettingsSection />
     case 'privacy': return <><PrivacySection /><GifViewerSettings /><BotDmSettings /></>

@@ -64,7 +64,7 @@
       <div class="side-group">Build</div>
       <ul>
         <li class="here"><a href="/docs/bots" aria-current="page">Bots and webhooks</a>
-<ul class="side-toc"><li class="l2"><a href="#webhooks">Webhooks</a></li><li class="l3"><a href="#make-one">Make one</a></li><li class="l3"><a href="#post-a-message">Post a message</a></li><li class="l3"><a href="#github-gitea-gitlab-and-slack">GitHub, Gitea, GitLab and Slack</a></li><li class="l3"><a href="#limits-and-safety">Limits and safety</a></li><li class="l2"><a href="#outgoing-webhooks">Outgoing webhooks</a></li><li class="l3"><a href="#check-the-signature">Check the signature</a></li><li class="l3"><a href="#delivery-and-safety">Delivery and safety</a></li><li class="l2"><a href="#built-in-bots">Built-in bots</a></li><li class="l2"><a href="#bots">Bots</a></li><li class="l3"><a href="#your-first-bot-in-5-minutes">Your first bot in 5 minutes</a></li><li class="l3"><a href="#the-example-bots">The example bots</a></li><li class="l3"><a href="#the-sdk">The SDK</a></li><li class="l3"><a href="#commands">Commands</a></li><li class="l3"><a href="#direct-messages">Direct messages</a></li><li class="l3"><a href="#buttons-menus-and-forms">Buttons, menus and forms</a></li><li class="l3"><a href="#cards">Cards</a></li><li class="l3"><a href="#voice-bots">Voice bots</a></li><li class="l3"><a href="#what-bots-cant-do-yet">What bots can't do (yet)</a></li><li class="l3"><a href="#when-it-wont-start">When it won't start</a></li><li class="l3"><a href="#the-sdk-on-npm">The SDK on npm</a></li><li class="l3"><a href="#python">Python</a></li><li class="l3"><a href="#other-languages">Other languages</a></li></ul>
+<ul class="side-toc"><li class="l2"><a href="#webhooks">Webhooks</a></li><li class="l3"><a href="#make-one">Make one</a></li><li class="l3"><a href="#post-a-message">Post a message</a></li><li class="l3"><a href="#github-gitea-gitlab-and-slack">GitHub, Gitea, GitLab and Slack</a></li><li class="l3"><a href="#limits-and-safety">Limits and safety</a></li><li class="l2"><a href="#outgoing-webhooks">Outgoing webhooks</a></li><li class="l3"><a href="#check-the-signature">Check the signature</a></li><li class="l3"><a href="#delivery-and-safety">Delivery and safety</a></li><li class="l2"><a href="#built-in-bots">Built-in bots</a></li><li class="l2"><a href="#bots">Bots</a></li><li class="l3"><a href="#your-first-bot-in-5-minutes">Your first bot in 5 minutes</a></li><li class="l3"><a href="#the-example-bots">The example bots</a></li><li class="l3"><a href="#gallery">Gallery</a></li><li class="l3"><a href="#the-sdk">The SDK</a></li><li class="l3"><a href="#commands">Commands</a></li><li class="l3"><a href="#direct-messages">Direct messages</a></li><li class="l3"><a href="#buttons-menus-and-forms">Buttons, menus and forms</a></li><li class="l3"><a href="#cards">Cards</a></li><li class="l3"><a href="#voice-bots">Voice bots</a></li><li class="l3"><a href="#what-bots-cant-do-yet">What bots can't do (yet)</a></li><li class="l3"><a href="#when-it-wont-start">When it won't start</a></li><li class="l3"><a href="#the-sdk-on-npm">The SDK on npm</a></li><li class="l3"><a href="#python">Python</a></li><li class="l3"><a href="#other-languages">Other languages</a></li></ul>
         </li>
       </ul>
     </div>
@@ -521,7 +521,7 @@ answer). Mention <code>@Greeter</code> with the word pizza and it reacts.</p>
 <td>A <a href="#voice-bots">voice bot</a> for the songs people upload: attach audio to a message that mentions @Music (or send it in a DM) and it joins your voice channel and plays it; <code>/play &lt;link to a file on this server&gt;</code>, a queue (<code>/queue</code>, <code>/remove</code>, <code>/clear</code>), <code>/pause</code>, <code>/resume</code>, <code>/skip</code>, <code>/stop</code>, <code>/volume</code>; a &quot;Now playing&quot; card with buttons; admins choose who controls it (<code>/music-control</code>)</td>
 </tr>
 <tr>
-<td><strong>Jukebox</strong> (<a href="https://github.com/quikmn/iskra-voice/blob/main/bots/examples/jukebox.ts" target="_blank" rel="noopener"><code>examples/jukebox.ts</code></a>)</td>
+<td><strong>Jukebox</strong> (<a href="https://github.com/quikmn/iskra-voice/tree/main/bots/gallery/jukebox" target="_blank" rel="noopener"><code>gallery/jukebox</code></a>)</td>
 <td><code>npm run jukebox</code></td>
 <td>A <a href="#voice-bots">voice bot</a>: <code>/play [song]</code> joins your voice channel and plays the files in a folder (and radio streams you list), <code>/skip</code>, <code>/stop</code>, <code>/songs</code>; a &quot;Now playing&quot; card with <strong>Pause</strong>, <strong>Skip</strong> and <strong>Stop</strong> buttons that it keeps up to date</td>
 </tr>
@@ -543,6 +543,54 @@ answer). Mention <code>@Greeter</code> with the word pizza and it reacts.</p>
 </tbody>
 </table></div>
 <p>Start either one the first time with <code>ISKRA_INVITE='&lt;bot invite link&gt;' npm run planner</code> (PowerShell: <code>$env:ISKRA_INVITE='&lt;link&gt;'; npm run planner</code>). Each needs its own bot invite.</p>
+<h3 id="gallery">Gallery<a class="anchor" href="#gallery" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The <a href="https://github.com/quikmn/iskra-voice/tree/main/bots/gallery" target="_blank" rel="noopener">bot gallery</a> has ready-made bots to run as they are or copy and change. Each is a small folder
+with a README (what it does, its commands, settings and what it keeps), tests and its own <code>package.json</code>, so a copy
+works on its own with the SDK from npm (<code>npm install</code>, then <code>npm start</code>; Node runs the TypeScript directly).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Bot</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Trivia</strong> (<a href="https://github.com/quikmn/iskra-voice/tree/main/bots/gallery/trivia" target="_blank" rel="noopener"><code>gallery/trivia</code></a>)</td>
+<td><code>/trivia start</code>: questions with answer buttons (or answered by replying), points for the week and a results card every Monday. No levels, XP or all-time ranks. Your own question file works too.</td>
+</tr>
+<tr>
+<td><strong>Feeds Plus</strong> (<a href="https://github.com/quikmn/iskra-voice/tree/main/bots/gallery/feeds-advanced" target="_blank" rel="noopener"><code>gallery/feeds-advanced</code></a>)</td>
+<td>Adds to the built-in <a href="#built-in-bots">Feeds</a> bot: RSS, Atom and YouTube feeds with include and exclude keywords, and Twitch &quot;went live&quot; alerts in a channel or as a DM to each person who <code>/twitch follow</code>s a streamer, with your own Twitch app. It only fetches addresses on the internet, never your own network.</td>
+</tr>
+<tr>
+<td><strong>Server stats</strong> (<a href="https://github.com/quikmn/iskra-voice/tree/main/bots/gallery/server-stats" target="_blank" rel="noopener"><code>gallery/server-stats</code></a>)</td>
+<td>A weekly card: members, new people, messages per channel. Counts only: never who wrote what. Needs <strong>Can read all messages</strong> for the full count.</td>
+</tr>
+<tr>
+<td><strong>Jukebox</strong> (<a href="https://github.com/quikmn/iskra-voice/tree/main/bots/gallery/jukebox" target="_blank" rel="noopener"><code>gallery/jukebox</code></a>)</td>
+<td>Your music folder and radio stations in a voice channel (see <a href="#voice-bots">Voice bots</a>).</td>
+</tr>
+<tr>
+<td><strong>Starter</strong> (<a href="https://github.com/quikmn/iskra-voice/tree/main/bots/gallery/starter" target="_blank" rel="noopener"><code>gallery/starter</code></a>)</td>
+<td>A template for your own bot: commands, a card with a button, tests and a GitHub Actions workflow. Also <a href="https://github.com/quikmn/iskra-voice/tree/main/bots/gallery/starter-python" target="_blank" rel="noopener">in Python</a>.</td>
+</tr>
+</tbody>
+</table></div>
+<p>From this repository, in <code>bots/</code>: <code>ISKRA_INVITE='&lt;bot invite link&gt;' npm run trivia</code> the first time, then <code>npm run trivia</code>
+(likewise <code>feeds-advanced</code>, <code>server-stats</code>, <code>jukebox</code> and <code>starter</code>). Their tests run with <code>npm test</code>.</p>
+<h4 id="bots-on-this-pc-desktop-app">Bots on this PC (desktop app)<a class="anchor" href="#bots-on-this-pc-desktop-app" aria-hidden="true" tabindex="-1">#</a></h4>
+<p>No Node.js needed: the desktop app runs gallery bots itself. In <strong>My settings → Bots on this PC</strong>, add one from the
+list (Starter, Trivia, Feeds Plus and Server stats come with the app and update with it), press <strong>Start</strong>, and either
+let the app make a bot invite on a server where you're an admin (with the rights that bot needs) or paste one. The app
+starts it with its own built-in Node.js, shows whether it's online, its last log lines and its settings (like the
+Twitch keys), and can start it with Iskra. Bots run while the app is open (also in the tray), connect out to their
+server like the app does, and nothing listens on a port.</p>
+<p><strong>Run a bot from a folder</strong> runs your own bot or a copy from the gallery: a folder with a <code>package.json</code> &quot;main&quot;, a
+<code>bot.js</code>/<code>bot.ts</code>, or a <code>bot.py</code> (with the Python installed on your computer). Only run bots you trust: a bot runs
+with your rights on your computer and can read and change your files. A bot's keys and data stay in the app's folder
+for it (gallery bots) or in its own folder; the bot invite link is only used to join and never saved. Removing a
+gallery bot deletes its keys there; it stays a member of the server until an admin removes it.</p>
 <h3 id="the-sdk">The SDK<a class="anchor" href="#the-sdk" aria-hidden="true" tabindex="-1">#</a></h3>
 <div class="table-wrap"><table>
 <thead>

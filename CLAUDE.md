@@ -24,7 +24,7 @@ Details for every folder: [docs/development.md#code-layout](docs/development.md#
 - `client/`: TypeScript, React, Vite, zustand. `src/core/` (protocol, crypto, connection; shared with the bot SDK, so no DOM or React), `src/state/` (`store.ts` plus one file per feature using `onServerEvent`, `onWelcomeHook`, `connectionFor`; components never touch the socket), `src/ui/` (React renders all user text), `src/i18n/` (`en/` is the source, `sv/` same keys), `src/platform/`, `src/theme/`, `vendor/`, `public/`.
 - `desktop/`: Electron shell (Windows, Linux, macOS); "Create a server" runs the bundled server + LiveKit; `npm run dist` builds and signs.
 - `mobile/`: Capacitor 8 phone apps (iOS, Android) around the built client; no native push. `android/`: only a README.
-- `bots/`: Node bot SDK (`sdk/`, with the `iskra-bots bridge` CLI: any language over stdin/stdout JSON lines), the Python SDK (`python/`, PyNaCl + websockets, pytest), and the Dice example (`docs/bots.md`).
+- `bots/`: Node bot SDK (`sdk/`, with the `iskra-bots bridge` CLI: any language over stdin/stdout JSON lines), the Python SDK (`python/`, PyNaCl + websockets, pytest), the examples, and the bot gallery (`gallery/`: forkable bots the desktop app can run, see `docs/bots.md#gallery`).
 - `scripts/`: pinned tools into `.tools`, `release.ps1` (the one release command) and its steps (never run by hand), `dev-firewall.ps1`.
 - `dev.ps1`: server on `.dev/<world>` plus Vite (new dev worlds are `LocalOnly`); the server prints a one-time owner invite link (also `owner-invite.txt`).
 

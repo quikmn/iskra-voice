@@ -1,7 +1,7 @@
 // What Jukebox plays and how its "Now playing" card looks; kept apart from the bot so it can be tested without a server.
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, parse } from 'node:path'
-import type { Card, ComponentRow } from '../sdk/src/index'
+import type { Card, ComponentRow } from 'iskra-bots'
 
 export interface Song {
   title: string
