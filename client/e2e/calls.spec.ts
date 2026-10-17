@@ -40,7 +40,7 @@ test('friends make end-to-end encrypted calls from a DM', async ({ browser }) =>
   // Both are connected, with LiveKit's end-to-end encryption on.
   for (const page of [host, friend]) {
     await expect(panel(page).locator('.call-status')).toHaveText(/^\d+:\d\d$/, { timeout: 20_000 })
-    await expect(panel(page).locator('.e2e-badge')).toHaveText('End-to-end encrypted')
+    await expect(panel(page).locator('.e2e-badge')).toHaveText('Encrypted call')
     await expect(panel(page).locator('.e2e-badge')).not.toHaveClass(/pending/) // keys in, not just the label
   }
   // Audio arrives and plays (decrypted, or it would be silence the browser never starts).

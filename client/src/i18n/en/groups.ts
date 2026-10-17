@@ -99,7 +99,7 @@ export const groups = {
     starting: 'Starting…',
     waitingKey: 'Waiting for the call key…',
     groupCall: 'Group call',
-    onlyPeople: 'Only the people in this group can hear and see this call',
+    onlyPeople: 'End-to-end encrypted: only the people in this group can hear and see this call',
     inCall: '{{count}} in call',
     aGroup: 'a group',
     started: '{{name}} started a group call',
