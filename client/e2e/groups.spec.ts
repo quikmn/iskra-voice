@@ -137,7 +137,7 @@ test('group calls: ring everyone, join, and rekey when someone leaves the group'
   }
   for (const page of [host, bob, carol]) {
     await expect(panel(page).locator('.call-status')).toHaveText(/^\d+:\d\d$/, { timeout: 25_000 })
-    await expect(panel(page).locator('.e2e-badge')).toHaveText('End-to-end encrypted')
+    await expect(panel(page).locator('.e2e-badge')).toHaveText('Encrypted call')
     await expect(panel(page).locator('.e2e-badge')).not.toHaveClass(/pending/, { timeout: 15_000 }) // keys in, not just the label
     await expect(panel(page).locator('.person-tile, .video-tile')).toHaveCount(3, { timeout: 15_000 })
   }

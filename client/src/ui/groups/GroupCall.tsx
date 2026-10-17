@@ -187,7 +187,7 @@ export function IncomingGroupCall() {
         <div className="incoming-avatar"><Avatar name={caller} accountKey={ringing.from} size={96} /></div>
         <h2>{title}</h2>
         <p className="muted">{ringing.video ? t('groups.call.startedVideo', { name: caller }) : t('groups.call.startedVoice', { name: caller })}</p>
-        <span className="e2e-badge"><Lock size={13} /> {t('calls.e2e')}</span>
+        <span className="e2e-badge" title={t('calls.e2eFull')}><Lock size={13} /> {t('calls.e2e')}</span>
         <div className="incoming-actions">
           <label className="incoming-action">
             <button className="call-button hang-up" onClick={declineGroupCall} aria-label={t('calls.decline')}><PhoneOff /></button>

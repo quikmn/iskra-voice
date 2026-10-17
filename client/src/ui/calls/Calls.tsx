@@ -141,7 +141,7 @@ export function IncomingCall() {
         </div>
         <h2>{name}</h2>
         <p className="muted">{call.video ? t('calls.incomingVideo') : t('calls.incomingVoice')}</p>
-        <span className="e2e-badge"><Lock size={13} /> {t('calls.e2e')}</span>
+        <span className="e2e-badge" title={t('calls.e2eFull')}><Lock size={13} /> {t('calls.e2e')}</span>
         <div className="incoming-actions">
           <label className="incoming-action">
             <button className="call-button hang-up" onClick={declineCall} aria-label={t('calls.decline')}>
