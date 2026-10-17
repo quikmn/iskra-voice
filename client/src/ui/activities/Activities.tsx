@@ -26,6 +26,9 @@ const canRun = (activity: string) => isBuiltin(activity) || pageWall()
 
 const nameIn = (server: ServerState, accountKey: string) => server.members[accountKey]?.name ?? i18t('common.someone')
 
+/** Whether the server sees us in the call yet (it hears it from LiveKit; until then it refuses activities). */
+const inCall = (server: ServerState, channelId: number) => (server.voice[channelId] ?? []).some((p) => p.accountKey === server.me?.accountKey)
+
 /** "Activities" in the call controls. */
 export function ActivityButton({ server, channel }: { server: ServerState; channel: Channel }) {
   const { t } = useTranslation()
@@ -64,6 +67,7 @@ export function ActivityButton({ server, channel }: { server: ServerState; chann
   return (
     <>
       <button className={`call-button ${joined ? 'on' : ''} ${session && !joined ? 'act-waiting' : ''}`} onClick={() => void click()} aria-pressed={!!joined}
+        disabled={!joined && !inCall(server, channel.id)}
         aria-label={label} title={error ?? label} data-testid="activity-button">
         <ActivityIcon />
       </button>
@@ -88,6 +92,7 @@ export function ActivityLauncher({ server, channel, onClose }: { server: ServerS
   }, [server.key, catalog])
 
   const refusal = startRefusal(server, channel, catalog)
+  const waiting = !inCall(server, channel.id)
   const note = refusal === 'off' ? t('activities.offHere') : refusal === 'role' ? t('activities.roleTooLow') : refusal === 'listen' ? t('activities.listenOnly') : null
 
   async function start(id: string) {
@@ -119,7 +124,7 @@ export function ActivityLauncher({ server, channel, onClose }: { server: ServerS
             {builtins.map(({ id }) => (
               <ActivityChoice key={id} name={t(`activities.builtins.${id}.name`)} description={t(`activities.builtins.${id}.description`)}
                 icon={<BuiltinIcon id={id} />} players={id === 'four' ? players(2, 2) : players(2, 25)}
-                disabled={!!refusal || !!busy} busy={busy === id} onStart={() => void start(id)} />
+                disabled={!!refusal || !!busy || waiting} busy={busy === id} onStart={() => void start(id)} />
             ))}
           </ul>
         </>
@@ -131,7 +136,7 @@ export function ActivityLauncher({ server, channel, onClose }: { server: ServerS
           <ul className="activity-list">
             {added.map((a) => (
               <ActivityChoice key={a.id} name={a.name} description={a.description} icon={<ServerActivityIcon server={server} activity={a} />}
-                players={players(a.minPlayers, a.maxPlayers)} disabled={!!refusal || !!busy || !pageWall()} busy={busy === a.id}
+                players={players(a.minPlayers, a.maxPlayers)} disabled={!!refusal || !!busy || waiting || !pageWall()} busy={busy === a.id}
                 blocked={!pageWall()} onStart={() => void start(a.id)} />
             ))}
           </ul>
@@ -175,7 +180,7 @@ export function ActivityPanel({ server, channel }: { server: ServerState; channe
   const [error, setError] = useState<string | null>(null)
   if (!session) return null
   const name = activityName(session.activity, session.name)
-  const inCall = (server.voice[channel.id] ?? []).map((p) => p.accountKey)
+  const callers = (server.voice[channel.id] ?? []).map((p) => p.accountKey)
 
   if (!joined || joined.session.id !== session.id) {
     const runnable = canRun(session.activity)
@@ -196,7 +201,7 @@ export function ActivityPanel({ server, channel }: { server: ServerState; channe
           {!runnable && <span className="muted small-text">{t('activities.desktopOnlyHint')}</span>}
           {error && <span className="error-text" role="alert">{error}</span>}
         </span>
-        <button className="button primary" disabled={!runnable} onClick={() => void join()}>{t('activities.join')}</button>
+        <button className="button primary" disabled={!runnable || !inCall(server, channel.id)} onClick={() => void join()}>{t('activities.join')}</button>
       </div>
     )
   }
@@ -208,7 +213,7 @@ export function ActivityPanel({ server, channel }: { server: ServerState; channe
         <strong>{name}</strong>
         <Players server={server} session={session} />
         <span className="activity-spacer" />
-        {mayEnd(server, session, inCall) && (
+        {mayEnd(server, session, callers) && (
           <button className="button small" onClick={() => void endActivity(server.key, channel.id, session.id).catch((e) => setError(errorMessage(e)))}>{t('activities.end')}</button>
         )}
         <button className="button small" onClick={() => void leaveActivity(server.key, channel.id, session.id)}>{t('activities.leave')}</button>
@@ -227,5 +232,39 @@ function Players({ server, session }: { server: ServerState; session: ActivitySe
     <span className="activity-players" title={t('activities.playing', { names: names.join(', ') })} aria-label={t('activities.playing', { names: names.join(', ') })}>
       {session.players.slice(0, 6).map((p) => <Avatar key={p.accountKey} name={nameIn(server, p.accountKey)} accountKey={p.accountKey} size={20} />)}
     </span>
+  )
+}
+
+/** In the call's text chat: what's on (with Join), or a way to start one. */
+export function ActivityChatStrip({ server, channelId }: { server: ServerState; channelId: number }) {
+  const { t } = useTranslation()
+  const channel = server.channels.find((c) => c.id === channelId)
+  const session = useActivities(sessionFor(server.key, channelId))
+  const joined = useActivities(joinedFor(server.key, channelId))
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  if (!channel || channel.kind !== 'voice' || channel.e2ee || server.me?.bot || (session && joined)) return null
+  async function join() {
+    setError(null)
+    try {
+      await joinActivity(server.key, channelId, session!.id)
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+  return (
+    <div className="activity-strip" data-testid="activity-chat-strip">
+      <ActivityIcon size={16} />
+      {session ? (
+        <>
+          <span className="activity-strip-text">{t('activities.startedBy', { person: nameIn(server, session.startedBy), name: activityName(session.activity, session.name) })}</span>
+          <button className="button small primary" disabled={!canRun(session.activity) || !inCall(server, channelId)} onClick={() => void join()}>{t('activities.join')}</button>
+        </>
+      ) : (
+        <button className="button small" onClick={() => setOpen(true)}>{t('activities.start')}</button>
+      )}
+      {error && <span className="error-text" role="alert">{error}</span>}
+      {open && <ActivityLauncher server={server} channel={channel} onClose={() => setOpen(false)} />}
+    </div>
   )
 }

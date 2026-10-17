@@ -198,6 +198,22 @@ Ads stay off, and anything that isn't a GIF from KLIPY's own hosts is left out.
 
 A watch party only shares a clock: each app plays the video itself, from its source. **Whoever hosts the video sees your IP address**: YouTube for a YouTube video, the website for a link, your server for an upload. Before anything loads from YouTube or a website, the app says where it plays from and waits for you to press Watch (unless you ticked "Always load from <site>" on that device). YouTube plays in its privacy-enhanced (youtube-nocookie.com) player inside a sandboxed frame; no YouTube code runs inside the app itself, where it could reach your keys. The desktop app sends YouTube the web app's address as the referring page (YouTube requires one) and nothing else.
 
+### Activities
+
+Activities (games and mini-apps in a voice call) run in a sealed frame on a throwaway origin, like profile pages: no
+network, no cookies or storage, no access to the app, your account or your keys. They talk only to Iskra, through a
+small message bridge the app checks (size, type, rate) before anything reaches the server. They see players as an id
+that only means something inside that activity, and a display name; never account keys.
+
+- **Built-in activities** (Draw & guess, Quiz, Four in a row) are Iskra's own code, bundled with the app, so they run
+  everywhere.
+- **Activities an admin adds** are a zip the server checks file by file (no paths out of the bundle, a fixed list of file
+  types, sizes counted while unpacking) and serves with the profile-page policy. They run only in the **desktop app**,
+  in the same walled session as profile pages, where nothing can reach the network. Browsers and the phone apps list
+  them but don't run them (a page script can always reach the internet through WebRTC in a child frame there).
+- What an activity sends goes through your server to the people playing and is never stored; only the latest snapshot,
+  for people who join late, is kept in the server's memory while the activity runs. Because the server can read it,
+  activities are off in end-to-end encrypted voice channels.
 ### Whiteboards
 
 A board is a list of changes ("set these fields of this object") that the server puts in order and passes on, so everyone ends up with the same board. On a normal board the server checks every field (known fields only, numbers in range, colours as `#rrggbb`, text length, no control characters) and only accepts pictures that are images uploaded to that server; everything, text included, is drawn on a canvas, never turned into HTML. Drawing follows the channel's permissions, timeouts and server rules, and only moderators (or whoever opened a call's board) can clear one.
@@ -268,7 +284,7 @@ We'd rather tell you than have you find out:
 
 ## The desktop app
 
-The desktop app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker, call alerts, updates, opening the system's privacy settings, hosting and restoring backups, its own settings, the taskbar badge, the keychain that protects your keys, passkey prompts for the app lock (in a separate window that can only show Iskra's own prompt page), profile page views (in their own walled session, see [Profile pages](#profile-pages)), and the game you're playing (when you turned that on).
+The desktop app is the same web app in a locked-down shell: sandboxed, no Node.js in the page, links open in your browser, and the page can only ask the app for push-to-talk, the screen picker, call alerts, updates, opening the system's privacy settings, hosting and restoring backups, its own settings, the taskbar badge, the keychain that protects your keys, passkey prompts for the app lock (in a separate window that can only show Iskra's own prompt page), profile page views and server-added activities (in their own walled session, see [Profile pages](#profile-pages)), and the game you're playing (when you turned that on).
 
 - `iskra://` links only ever open an invite: anything else in them is ignored.
 

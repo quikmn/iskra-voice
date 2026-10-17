@@ -16,6 +16,7 @@ import { ArrowLeft } from '../chat/extraIcons'
 import { ChatIcon } from './clipIcons'
 import '../chat/chat-extras.css'
 import './clips.css'
+import { ActivityChatStrip } from '../activities/Activities'
 
 /** Wraps the call screen of a voice or stage channel, with the chat panel beside it when open. */
 export function VoiceRoom({ server, children }: { server: ServerState; children: ReactNode }) {
@@ -69,6 +70,7 @@ function VoiceChatPanel({ server, channelId }: { server: ServerState; channelId:
         <span className="spacer" />
         <button className="icon-button panel-close" onClick={close} aria-label={t('clips.chat.close')} title={t('common.close')}><Close /></button>
       </header>
+      <ActivityChatStrip server={server} channelId={channelId} />
       {/* The thread flavour of the list and composer: their events don't clash with a channel chat elsewhere. */}
       <MessageList key={channelId} server={server} channelId={channelId} thread header={<ChatStart name={channel?.name ?? ''} />} />
       <TypingLine server={server} channelId={channelId} />

@@ -1,9 +1,9 @@
 // Activities: two people in a call start Four in a row and play a few moves, a third joins late and sees the board as
 // it is, and the owner adds an activity of their own (which browsers list but don't run: it runs in the desktop app).
 import { join } from 'node:path'
-import { crc32 } from 'node:zlib'
 import { expect, test, type Page } from '@playwright/test'
 import { createInviteLink, hasLiveKit, joinVia, openServerSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { zip } from './zipFiles'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -19,45 +19,6 @@ const frame = (page: Page) => page.frameLocator('[data-testid="activity-frame"]'
 async function joinRoom(page: Page) {
   await room(page).getByRole('button').first().click()
   await expect(page.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 20_000 })
-}
-
-/** A zip with stored (uncompressed) files: enough for a test activity. */
-function zip(files: Record<string, string>): Buffer {
-  const parts: Buffer[] = []
-  const central: Buffer[] = []
-  let offset = 0
-  for (const [path, text] of Object.entries(files)) {
-    const name = Buffer.from(path)
-    const data = Buffer.from(text)
-    const crc = crc32(data)
-    const local = Buffer.alloc(30)
-    local.writeUInt32LE(0x04034b50, 0)
-    local.writeUInt16LE(20, 4)
-    local.writeUInt32LE(crc, 14)
-    local.writeUInt32LE(data.length, 18)
-    local.writeUInt32LE(data.length, 22)
-    local.writeUInt16LE(name.length, 26)
-    const entry = Buffer.alloc(46)
-    entry.writeUInt32LE(0x02014b50, 0)
-    entry.writeUInt16LE(20, 4)
-    entry.writeUInt16LE(20, 6)
-    entry.writeUInt32LE(crc, 16)
-    entry.writeUInt32LE(data.length, 20)
-    entry.writeUInt32LE(data.length, 24)
-    entry.writeUInt16LE(name.length, 28)
-    entry.writeUInt32LE(offset, 42)
-    parts.push(local, name, data)
-    central.push(entry, name)
-    offset += 30 + name.length + data.length
-  }
-  const directory = Buffer.concat(central)
-  const end = Buffer.alloc(22)
-  end.writeUInt32LE(0x06054b50, 0)
-  end.writeUInt16LE(Object.keys(files).length, 8)
-  end.writeUInt16LE(Object.keys(files).length, 10)
-  end.writeUInt32LE(directory.length, 12)
-  end.writeUInt32LE(offset, 16)
-  return Buffer.concat([...parts, directory, end])
 }
 
 test('two play Four in a row, a late joiner sees the board, and added activities run only in the desktop app', async ({ browser }) => {
