@@ -38,6 +38,7 @@ import { readBuildCommit, windowTitle } from './title'
 import { pickerChoices, placeTestWindow, realScreenThumbnails, testWindowArea, thumbnailSize } from './testMode'
 import { PopoutWindows } from './popoutWindows'
 import { deskLog, duration, errorFields, type LogFields } from './log'
+import { registerBots } from './botsIpc'
 import { parsePopoutPatch } from './popouts'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
@@ -741,6 +742,9 @@ ipcMain.handle('iskra:passkey', async (event, op: unknown, raw: unknown) => {
   }
 })
 
+// Bots on this PC (My settings): gallery bots and bots from a folder, run as child processes (botsIpc.ts).
+const pcBots = registerBots(() => window, fromApp)
+
 // Hosting servers from the app.
 ipcMain.handle('iskra:host-available', (event) => fromApp(event) && host.available())
 const withKeep = (server: HostedServer): HostedServer => ({ ...server, keepRunning: settings.openAtLogin && settings.keepRunning.includes(server.id) })
@@ -998,6 +1002,8 @@ app.whenReady().then(() => {
   // A page that never paints still shows (with whatever it has) rather than leaving only the splash.
   setTimeout(() => launchChanged({ page: 'ready', serversGaveUp: true }), LAUNCH_GIVE_UP_MS)
   updates.start(settings.updateChecks)
+  // Bots set to start with the app (opt-in, per bot).
+  for (const id of pcBots.autostartIds()) pcBots.start(id)
   powerMonitor.on('suspend', () => deskLog.info('life', 'sleep'))
   powerMonitor.on('resume', () => deskLog.info('life', 'resumed'))
   powerMonitor.on('lock-screen', () => deskLog.info('life', 'locked'))
@@ -1027,6 +1033,7 @@ app.on('before-quit', () => {
   })
   ptt.stop()
   void clientTunnels.closeAll()
+  void pcBots.stopAll() // asks each bot to stop now; they don't outlive the app
   // Restarting (a relaunch, an update): hosted servers tell members "restarting", since they're back in a moment.
   if (host.running()) serversStopped ??= settleWithin(host.stopAll(serverStop).finally(() => p2pNode.destroy()), QUIT_WAIT_MS)
   else void p2pNode.destroy()

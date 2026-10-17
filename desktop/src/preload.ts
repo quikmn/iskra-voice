@@ -1,5 +1,5 @@
 // The only bridge between the web app and the desktop shell. Small on purpose:
-// push-to-talk and hotkeys, the screen picker, hosting (and restoring backups), renting a server on DigitalOcean, update notices,
+// push-to-talk and hotkeys, the screen picker, hosting (and restoring backups), bots on this PC, renting a server on DigitalOcean, update notices,
 // saving backups and big files, a picture of this window for bug reports, the OS keychain, pop-out windows, and the
 // shell's own notices (worded by the page), nothing else.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
@@ -150,6 +150,23 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
       const listener = (_e: IpcRendererEvent, update: unknown) => callback(update)
       ipcRenderer.on('iskra:host-p2p', listener)
       return () => ipcRenderer.off('iskra:host-p2p', listener)
+    },
+  },
+  // Bots on this PC: gallery bots (by id) and folders the person picks in the main process's own dialog.
+  bots: {
+    gallery: (): Promise<unknown[]> => ipcRenderer.invoke('iskra:bots-gallery'),
+    list: (): Promise<unknown[]> => ipcRenderer.invoke('iskra:bots-list'),
+    add: (galleryId: string | null, name?: string): Promise<unknown> => ipcRenderer.invoke('iskra:bots-add', galleryId, name ?? null),
+    update: (id: string, patch: unknown): Promise<unknown> => ipcRenderer.invoke('iskra:bots-update', id, patch),
+    start: (id: string, invite?: string | null): Promise<unknown> => ipcRenderer.invoke('iskra:bots-start', id, invite ?? null),
+    stop: (id: string): Promise<unknown> => ipcRenderer.invoke('iskra:bots-stop', id),
+    remove: (id: string): Promise<boolean> => ipcRenderer.invoke('iskra:bots-remove', id),
+    log: (id: string): Promise<string[]> => ipcRenderer.invoke('iskra:bots-log', id),
+    openFolder: (id: string): Promise<void> => ipcRenderer.invoke('iskra:bots-open-folder', id),
+    onChange: (callback: () => void): (() => void) => {
+      const listener = () => callback()
+      ipcRenderer.on('iskra:bots', listener)
+      return () => ipcRenderer.off('iskra:bots', listener)
     },
   },
   // A server behind a shared connection: a local address that leads to it through the peer-to-peer tunnel.
