@@ -46,8 +46,9 @@ function bind(room: Room): () => void {
 useVoice.subscribe((state, prev) => {
   if (state.session === prev.session) return
   const session = state.session
-  // Only voice channels: DM and group calls have their own badges.
-  const room = session && !session.call && !session.group ? activeRoom() : null
+  // Only encrypted voice channels: DM and group calls have their own badges, and in a plain channel nobody's media is
+  // meant to be encrypted (marking them would be a false alarm).
+  const room = session?.encrypted && !session.call && !session.group ? activeRoom() : null
   if (!session || session.call || session.group) setVoiceVersion(null)
   if (room === bound) return
   unbind?.()
