@@ -22,7 +22,7 @@ export function ReadAloudMenuItem({ server, message, wrap, icon }: { server: Ser
   if (!speechSupported() || !message.text?.trim()) return null
   return (
     <button role="menuitem" onClick={wrap(null, () => readMessageAloud(server, message))}>
-      {icon && <Volume size={18} />} {reading ? t('speech.read.stop') : t('speech.read.menu')}
+      {icon && <Volume size={18} />}{reading ? t('speech.read.stop') : t('speech.read.menu')}
     </button>
   )
 }
