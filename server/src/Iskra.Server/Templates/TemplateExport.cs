@@ -43,7 +43,7 @@ public static class TemplateExport
                 ["deny"] = Names(RoleFeature.ChannelPermNames(x.Deny)),
             }).ToArray();
             if (overrides.Length > 0) o["overrides"] = new JsonArray(overrides);
-            if (c.Kind == "forum" && store.ForumTags(c.Id) is { Count: > 0 } tags)
+            if (ForumFeature.HasPosts(c.Kind) && store.ForumTags(c.Id) is { Count: > 0 } tags)
                 o["tags"] = new JsonArray(tags.Select(t => (JsonNode)new JsonObject { ["name"] = t.Name, ["emoji"] = t.Emoji }).ToArray());
             if (topics.GetValueOrDefault(c.Id) is { Length: > 0 } topic) o["topic"] = topic;
             if (timers.GetValueOrDefault(c.Id) is > 0 and var seconds && c.Kind is "text" or "voice") o["disappear"] = seconds;

@@ -8,7 +8,7 @@
       "channels": [
         { "name": "general" },
         { "name": "photos" },
-        { "name": "memes" },
+        { "name": "memes", "kind": "media" },
         {
           "name": "plans", "kind": "forum",
           "tags": [{ "name": "Trip", "emoji": "🧳" }, { "name": "Food", "emoji": "🍕" }, { "name": "Games", "emoji": "🎮" }, { "name": "Movie", "emoji": "🎬" }]

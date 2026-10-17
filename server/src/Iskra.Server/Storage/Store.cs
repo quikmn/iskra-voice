@@ -371,6 +371,8 @@ public sealed partial class Store : IDisposable
         ("tts-1", TtsMigration),
         // Starboard, Birthdays and Welcome: their settings, cards, opted-in birthdays and welcomes waiting for the rules.
         ("builtinbots2-1", BuiltinBots2Migration),
+        // Media channels: posts made without a title (their title is a stand-in from the caption or file name).
+        ("media-1", "ALTER TABLE forum_posts ADD COLUMN untitled INTEGER NOT NULL DEFAULT 0;"),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

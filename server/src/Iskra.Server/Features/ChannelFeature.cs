@@ -8,7 +8,7 @@ public static class ChannelFeature
 {
     public const int MaxNameLength = 32;
     public const int MaxTopicLength = 300;
-    private static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs", "whiteboard"];
+    private static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs", "whiteboard", "media"];
 
     public static void Register(Router router)
     {
@@ -80,7 +80,7 @@ public static class ChannelFeature
     {
         RequireAdmin(me);
         var kind = body.OptionalString("kind", 16) ?? "text";
-        if (!Kinds.Contains(kind)) throw RequestException.BadRequest("'kind' must be text, voice, forum, stage, docs or whiteboard.");
+        if (!Kinds.Contains(kind)) throw RequestException.BadRequest("'kind' must be text, voice, forum, stage, docs, whiteboard or media.");
         var readRole = Role(body, "readRole", Roles.Member);
         // Docs: everyone reads, trusted and above edit (unless chosen otherwise).
         var writeRole = Role(body, "writeRole", kind == "docs" && Roles.Rank(readRole) < Roles.Rank(Roles.Trusted) ? Roles.Trusted : readRole);
