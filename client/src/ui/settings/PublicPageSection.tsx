@@ -19,12 +19,16 @@ export function PublicPageSection({ server }: { server: ServerState }) {
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const owner = server.me?.role === 'owner'
+  const online = server.status.state === 'online'
 
+  // Asks again whenever the connection comes (back) online, e.g. after the server moved to a new address.
   useEffect(() => {
-    if (!owner) return
-    loadLanding(server.key).catch((e: unknown) => setError(errorMessage(e)))
+    if (!owner || !online) return
+    setError(null)
+    // A server that just moved answers `moved`: the app follows it, and this asks again once it's back online there.
+    loadLanding(server.key).catch((e: unknown) => { if ((e as { code?: string } | null)?.code !== 'moved') setError(errorMessage(e)) })
     connectionFor(server.key)?.request('invite.list', {}).then((r) => setInvites(r.invites), () => undefined)
-  }, [server.key, owner])
+  }, [server.key, server.directUrl, owner, online])
 
   if (!owner) return null
 
@@ -122,8 +126,7 @@ export function PublicPageSection({ server }: { server: ServerState }) {
             </div>
           )}
           <p className="landing-open">
-            <a href={url} target="_blank" rel="noreferrer noopener" data-testid="landing-open">{t('landing.open')}</a>
-            <span className="muted"> {url}</span>
+            <a href={url} target="_blank" rel="noreferrer noopener" data-testid="landing-open" title={url}>{t('landing.open')}</a>
           </p>
           {error && <p className="error-text" role="alert">{error}</p>}
         </>
