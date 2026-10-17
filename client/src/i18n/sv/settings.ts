@@ -39,6 +39,7 @@ export const settings: Messages['settings'] = {
     updates: 'Serveruppdateringar',
     translate: 'Översättning',
     privacy: 'Integritet och data',
+    assistant: 'Assistent',
     securityLog: 'Inloggningar och säkerhet',
     members: 'Medlemmar',
     channels: 'Kanaler',

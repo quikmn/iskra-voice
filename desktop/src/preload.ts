@@ -175,6 +175,17 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
       return () => ipcRenderer.off('iskra:do-progress', listener)
     },
   },
+  // The personal assistant: requests to the user's AI provider (checked in the main process), and the local MCP bridge.
+  assistant: {
+    fetch: (request: unknown): Promise<unknown> => ipcRenderer.invoke('iskra:assistant-fetch', request),
+    setMcp: (on: boolean): Promise<unknown> => ipcRenderer.invoke('iskra:mcp-set', on === true),
+    onMcp: (callback: (request: unknown) => void): (() => void) => {
+      const listener = (_e: IpcRendererEvent, request: unknown) => callback(request)
+      ipcRenderer.on('iskra:mcp', listener)
+      return () => ipcRenderer.off('iskra:mcp', listener)
+    },
+    mcpReply: (id: string, answer: unknown): Promise<void> => ipcRenderer.invoke('iskra:mcp-reply', id, answer),
+  },
   download: (url: string): Promise<boolean> => ipcRenderer.invoke('iskra:download', url),
   // Big decrypted DM files: a Save dialog, then the bytes a piece at a time; finish only once they're checked.
   saveFile: {

@@ -64,6 +64,7 @@ import { mediaChannels } from './mediaChannels'
 import { channelExport } from './channelExport'
 import { feeds } from './feeds'
 import { bots3 } from './bots3'
+import { assistant } from './assistant'
 
 export const sv: Messages = {
   common,
@@ -130,4 +131,5 @@ export const sv: Messages = {
   channelExport,
   feeds,
   bots3,
+  assistant,
 }

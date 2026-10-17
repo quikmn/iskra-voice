@@ -144,7 +144,7 @@ export const assistant = {
     mcpIntro: 'Lets an AI app on this computer use the same tools through Iskra, over a private local channel (no network port). Changes still need your OK here in the Iskra window.',
     mcp: 'Allow local MCP clients',
     mcpCommand: 'Add it to Claude Code with:',
-    mcpDesktop: 'In Claude Desktop, add a server with this command and the argument --mcp:',
+    mcpDesktop: 'In Claude Desktop, add this to its config file (Settings → Developer → Edit config):',
     copy: 'Copy',
     copied: 'Copied',
   },

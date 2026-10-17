@@ -38,6 +38,9 @@ import { readBuildCommit, windowTitle } from './title'
 import { pickerChoices, placeTestWindow, realScreenThumbnails, testWindowArea, thumbnailSize } from './testMode'
 import { PopoutWindows } from './popoutWindows'
 import { deskLog, duration, errorFields, type LogFields } from './log'
+import { sendAssistantRequest } from './assistantNet'
+import { pageAnswer } from './mcp'
+import { McpHost, mcpSocketPath, mcpTokenPath } from './mcpPipe'
 import { parsePopoutPatch } from './popouts'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
@@ -959,6 +962,69 @@ ipcMain.handle('iskra:do-forget', (event) => {
   rental.forget()
 })
 
+// ── Personal assistant ───────────────────────────────────────────────────
+// Requests to the AI provider the user chose (assistantNet.ts: https or this computer, provider endpoints only).
+ipcMain.handle('iskra:assistant-fetch', (event, raw: unknown) => (fromApp(event) && event.sender === window?.webContents ? sendAssistantRequest(raw) : { ok: false, error: 'blocked' }))
+
+// The local MCP bridge (mcp.ts, mcpPipe.ts): only while the page has it turned on. Tool calls go to the main window's
+// page, which runs the assistant's tools and shows their approval cards.
+const mcpWaiting = new Map<string, (answer: unknown) => void>()
+let mcpIds = 0
+function askPage(method: 'list' | 'call', name?: string, args?: unknown): Promise<unknown> {
+  const page = window?.webContents
+  if (!page || page.isLoading()) return Promise.resolve({ error: 'off' })
+  const id = `m${++mcpIds}`
+  return new Promise((resolve) => {
+    // A call may wait for the user's approval; a list never should.
+    const timer = setTimeout(() => {
+      mcpWaiting.delete(id)
+      resolve({ error: 'timeout' })
+    }, method === 'call' ? 15 * 60_000 : 15_000)
+    mcpWaiting.set(id, (answer) => {
+      clearTimeout(timer)
+      resolve(answer)
+    })
+    page.send('iskra:mcp', { id, method, name, args })
+  })
+}
+const mcpHost = new McpHost({
+  socketPath: mcpSocketPath(app.getPath('userData')),
+  tokenFile: mcpTokenPath(app.getPath('userData')),
+  version: app.getVersion(),
+  link: () => (window ? {
+    list: async () => {
+      const answer = pageAnswer(await askPage('list'))
+      return 'tools' in answer ? answer : { error: 'error' in answer ? answer.error : 'failed' }
+    },
+    call: async (name, args) => {
+      const answer = pageAnswer(await askPage('call', name, args))
+      return 'content' in answer ? answer : { error: 'error' in answer ? answer.error : 'failed' }
+    },
+  } : null),
+  log: (event, detail) => {
+    if (event === 'refused') deskLog.warn('AI-120', 'ai', 'refused', [['why', detail]])
+    else if (event === 'connected') deskLog.info('ai', 'connected', [['via', 'mcp']])
+    else deskLog.info('ai', 'tool', [['op', detail.split(' ')[0]], ['state', detail.split(' ')[1]], ['via', 'mcp']])
+  },
+})
+/** What an MCP client runs before --mcp: the app, plus its folder in development builds. */
+const mcpCommand = () => (app.isPackaged ? [process.execPath] : [process.execPath, app.getAppPath()])
+ipcMain.handle('iskra:mcp-set', async (event, on: unknown) => {
+  if (!fromApp(event) || event.sender !== window?.webContents) return { on: false, command: null }
+  try {
+    if (on === true) await mcpHost.start()
+    else await mcpHost.stop()
+  } catch (error) {
+    deskLog.warn('AI-120', 'ai', 'refused', [['why', 'socket'], ...errorFields(error)])
+  }
+  return { on: mcpHost.running, command: mcpHost.running ? mcpCommand() : null }
+})
+ipcMain.handle('iskra:mcp-reply', (event, id: unknown, answer: unknown) => {
+  if (!fromApp(event) || event.sender !== window?.webContents || typeof id !== 'string') return
+  mcpWaiting.get(id)?.(answer)
+  mcpWaiting.delete(id)
+})
+
 // Windows shows notifications (incoming calls, messages) under this id.
 if (process.platform === 'win32') app.setAppUserModelId('foo.iskra.desktop')
 
@@ -1026,6 +1092,7 @@ app.on('before-quit', () => {
     deskLog.error('DSK-900', 'life', 'failed', error)
   })
   ptt.stop()
+  void mcpHost.stop()
   void clientTunnels.closeAll()
   // Restarting (a relaunch, an update): hosted servers tell members "restarting", since they're back in a moment.
   if (host.running()) serversStopped ??= settleWithin(host.stopAll(serverStop).finally(() => p2pNode.destroy()), QUIT_WAIT_MS)

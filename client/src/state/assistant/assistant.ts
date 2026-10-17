@@ -10,6 +10,7 @@ import { appUrl } from '../../ui/format'
 import { chooseTheme, type ThemeFile } from '../../theme/theme'
 import { currentLanguage } from '../../i18n'
 import { desktop } from '../../platform/desktop'
+import { duration, log } from '../../core/log'
 import { fetchTransport, isConfigured, listModels, ProviderError, type Transport } from './providers'
 import { runLoop } from './loop'
 import { systemPrompt } from './prompt'
@@ -40,6 +41,8 @@ interface AssistantState {
   approvals: ApprovalRequest[]
   secrets: ShownSecret[]
   activity: ActivityEntry[]
+  /** Desktop app: what an MCP client runs, once the bridge is on. */
+  mcpCommand: string[] | null
 }
 
 export const useAssistant = create<AssistantState>(() => ({
@@ -54,6 +57,7 @@ export const useAssistant = create<AssistantState>(() => ({
   approvals: [],
   secrets: [],
   activity: [],
+  mcpCommand: null,
 }))
 
 const resolvers = new Map<string, (decision: Decision) => void>()
@@ -101,6 +105,8 @@ const host: ToolHost = {
   },
   inviteLink: (server, code) => buildInviteLink(appUrl(server.appUrl), { serverUrl: server.directUrl, serverKey: server.key, code }),
   log: (entry) => {
+    // Only the tool's name and how it went: never arguments, names or text.
+    log('INFO', 'ai', 'tool', null, [['op', entry.tool], ['state', entry.status], ['via', entry.source]])
     useAssistant.setState((s) => ({ activity: [entry, ...s.activity].slice(0, MAX_ACTIVITY) }))
     if (saveActivity) clearTimeout(saveActivity)
     saveActivity = setTimeout(() => void storage.saveAssistant('activity', useAssistant.getState().activity).catch(() => undefined), 500)
@@ -208,6 +214,8 @@ export async function sendToAssistant(text: string): Promise<void> {
   const turns: Turn[] = [...state.turns, { role: 'user', text: message.slice(0, 20_000) }]
   abort = new AbortController()
   useAssistant.setState({ turns, busy: true, error: null, ended: null })
+  const started = Date.now()
+  let steps = 0
   try {
     const end = await runLoop({
       config: state.config,
@@ -217,12 +225,19 @@ export async function sendToAssistant(text: string): Promise<void> {
       transport,
       browser: !viaDesktop(),
       signal: abort.signal,
-      onTurn: (turn) => useAssistant.setState((s) => ({ turns: [...s.turns, turn] })),
+      onTurn: (turn) => {
+        if (turn.role === 'assistant') steps++
+        useAssistant.setState((s) => ({ turns: [...s.turns, turn] }))
+      },
     })
+    log('INFO', 'ai', 'answered', null, [['kind', state.config.kind], ['n', steps], ['state', end], ['took', duration(Date.now() - started)]])
     if (end === 'steps' || end === 'refusal' || end === 'length') useAssistant.setState({ ended: end })
   } catch (e) {
     const error = e instanceof ProviderError ? e : new ProviderError('network', undefined, e instanceof Error ? e.message : undefined)
-    if (error.code !== 'cancelled') useAssistant.setState({ error: { code: error.code, detail: error.detail } })
+    if (error.code !== 'cancelled') {
+      log('WARN', 'ai', 'failed', 'AI-110', [['kind', state.config.kind], ['why', error.code.replace('_', '-')], ['status', error.status]])
+      useAssistant.setState({ error: { code: error.code, detail: error.detail } })
+    }
     // The last user message didn't get an answer: keep the history valid for the next send.
     useAssistant.setState((s) => ({ turns: validHistory(s.turns) }))
   } finally {
@@ -252,7 +267,8 @@ export function newConversation(): void {
 
 async function syncMcp(): Promise<void> {
   const { config } = useAssistant.getState()
-  await desktop?.assistant?.setMcp(config.enabled && config.mcp).catch(() => undefined)
+  const reply = await desktop?.assistant?.setMcp(config.enabled && config.mcp).catch(() => null)
+  useAssistant.setState({ mcpCommand: reply?.on ? reply.command : null })
 }
 
 export async function mcpRequest(method: string, name: unknown, args: unknown): Promise<unknown> {

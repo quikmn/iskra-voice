@@ -14,7 +14,7 @@ export type LogSource = (typeof LOG_SOURCES)[number]
 
 export const LOG_AREAS = [
   'life', 'conn', 'sess', 'voice', 'call', 'media', 'e2ee', 'tunnel', 'nat', 'tls', 'update', 'push', 'backup',
-  'sweep', 'rate', 'store', 'ui', 'http', 'sched', 'misc',
+  'sweep', 'rate', 'store', 'ui', 'http', 'sched', 'ai', 'misc',
 ] as const
 
 /** Field keys that may appear; anything else is dropped. The first row is shared with the server. */

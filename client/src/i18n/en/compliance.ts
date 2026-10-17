@@ -78,6 +78,11 @@ export const compliance = {
       when: 'Only while you rent a server on DigitalOcean from the desktop app: the button opens DigitalOcean with the Iskra referral link (Iskra gets a little credit), you sign in there in your browser (or paste a token), and the app creates the server and its firewall, and deletes them if setup fails. The new server downloads Iskra from GitHub, and the app checks it at its sslip.io address.',
       off: 'DigitalOcean sees your IP address and what the app creates in your account. The app keeps its key in memory only and forgets it after setup. Nothing happens unless you start it.',
     },
+    assistant: {
+      who: 'The AI provider you choose for the assistant (off by default)',
+      when: 'Only when you press Send in the assistant: your question, the conversation so far, and what its tools read for that question (names, channel lists, recent messages of a channel you can read). Never encrypted chats, keys or invite links.',
+      off: 'The AI provider you choose sees what you send, only when you send, under its own privacy terms. Iskra and your servers never see it. Turn it off in My settings → Assistant.',
+    },
     bugReports: {
       who: "Iskra's bug inbox (chat.iskra.foo), only when you send a bug report",
       when: 'When you press Send in "Report a bug": what you wrote, your screenshots, your email if you gave one, and (unless you untick it) logs with the app version, settings, connection and voice status and errors. You see all of it first under "See what\'s included".',

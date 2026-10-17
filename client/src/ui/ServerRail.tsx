@@ -18,6 +18,7 @@ import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './organize/OrgMen
 import { ServerMenu } from './organize/ServerMenu'
 import { FolderDialog } from './organize/FolderDialog'
 import { InboxButton } from './productivity/InboxButton'
+import { AssistantButton } from './assistant/AssistantPanel'
 import { UpdateRailButton } from './UpdateToast'
 import { isMenuKey, treeKeys, useRoving } from './roving'
 import './organize/organize.css'
@@ -184,6 +185,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
         {dmUnread > 0 && active !== null && <span className="badge">{dmUnread > 99 ? '99+' : dmUnread}</span>}
       </button>
       <InboxButton onNavigate={onNavigate} />
+      <AssistantButton onNavigate={onNavigate} />
       <div className="rail-divider" />
       {items.map((item) => item.kind === 'server' ? icon(item.key, false) : (
         <Folder key={item.id} folder={item} servers={servers} active={active} className={dropClass(item.id)}

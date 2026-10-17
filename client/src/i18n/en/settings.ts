@@ -38,6 +38,7 @@ export const settings = {
     updates: 'Server updates',
     translate: 'Translation',
     privacy: 'Privacy & data',
+    assistant: 'Assistant',
     securityLog: 'Sign-ins & security',
     members: 'Members',
     channels: 'Channels',

@@ -67,7 +67,7 @@ test('link embeds wait for a click, "Always load" is per site and per device, an
   const dialog = page.getByRole('dialog', { name: 'Settings' })
   const who = dialog.getByTestId('who-iskra-talks-to')
   await expect(who.getByRole('heading', { name: 'Who Iskra talks to' })).toBeVisible()
-  for (const party of ['Your servers', 'YouTube, Twitch, X and Reddit', 'KLIPY', 'GitHub', 'Mozilla translation', 'STUN', 'DigitalOcean', 'HyperDHT', 'bug inbox', 'link previews']) await expect(who).toContainText(party)
+  for (const party of ['Your servers', 'YouTube, Twitch, X and Reddit', 'KLIPY', 'GitHub', 'Mozilla translation', 'STUN', 'DigitalOcean', 'HyperDHT', 'bug inbox', 'link previews', 'AI provider you choose']) await expect(who).toContainText(party)
   const sites = dialog.getByTestId('always-load-sites')
   await expect(sites).toContainText('YouTube')
   await who.scrollIntoViewIfNeeded()

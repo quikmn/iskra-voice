@@ -80,6 +80,11 @@ export const compliance: Messages['compliance'] = {
       when: 'Bara medan du hyr en server hos DigitalOcean från skrivbordsappen: knappen öppnar DigitalOcean med Iskras värvningslänk (Iskra får en liten tillgodohavande), du loggar in där i webbläsaren (eller klistrar in en token), och appen skapar servern och dess brandvägg, och tar bort dem om uppsättningen misslyckas. Den nya servern hämtar Iskra från GitHub, och appen kollar den på dess sslip.io-adress.',
       off: 'DigitalOcean ser din IP-adress och vad appen skapar i ditt konto. Appen håller sin nyckel bara i minnet och glömmer den efter uppsättningen. Inget händer om du inte startar det själv.',
     },
+    assistant: {
+      who: 'AI-tjänsten du väljer för assistenten (av från början)',
+      when: 'Bara när du trycker på Skicka i assistenten: din fråga, konversationen hittills och det dess verktyg läser för frågan (namn, kanallistor, senaste meddelanden i en kanal du kan läsa). Aldrig krypterade chattar, nycklar eller inbjudningslänkar.',
+      off: 'AI-tjänsten du väljer ser det du skickar, bara när du skickar, enligt sina egna villkor. Iskra och dina servrar ser det aldrig. Stäng av den i Mina inställningar → Assistent.',
+    },
     bugReports: {
       who: 'Iskras felrapporter (chat.iskra.foo), bara när du skickar en felrapport',
       when: 'När du trycker på Skicka i "Rapportera en bugg": det du skrev, dina skärmbilder, din e-post om du angav den, och (om du inte bockar ur det) loggar med appversion, inställningar, anslutning och röststatus och fel. Du ser allt först under "Se vad som skickas".',

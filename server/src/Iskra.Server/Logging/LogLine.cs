@@ -30,7 +30,7 @@ public static partial class LogLine
     public static readonly HashSet<string> Areas =
     [
         "life", "conn", "sess", "voice", "call", "media", "e2ee", "tunnel", "nat", "tls", "update", "push", "backup",
-        "sweep", "rate", "store", "ui", "http", "sched", "misc",
+        "sweep", "rate", "store", "ui", "http", "sched", "ai", "misc",
     ];
 
     /// <summary>Field keys that may appear; anything else is dropped.</summary>

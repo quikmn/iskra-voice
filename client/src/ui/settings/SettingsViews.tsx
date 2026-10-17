@@ -56,6 +56,7 @@ import { AutoModSection } from '../automod/AutoModSection'
 import { AboutSection, AccountSection } from '../safety/AccountSection'
 import { ReportsSection } from '../safety/ReportsSection'
 import { PrivacySection } from './PrivacySection'
+import { AssistantSettingsSection } from '../assistant/AssistantSettings'
 import { StreamerSection } from '../streamer/StreamerBits'
 import { CameraSettingsSection } from '../media/CameraSettings'
 import { CaptionSettingsSection } from '../media/CaptionSettings'
@@ -244,6 +245,7 @@ function MySection({ id }: { id: MySectionId }) {
     case 'blocked': return <BlockedSection />
     case 'desktop': return <DesktopSettingsSection />
     case 'account': return <AccountSection />
+    case 'assistant': return <AssistantSettingsSection />
     case 'privacy': return <><PrivacySection /><GifViewerSettings /><BotDmSettings /></>
     case 'about': return <AboutSection />
   }

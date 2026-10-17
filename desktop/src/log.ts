@@ -13,7 +13,7 @@ export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
 const LEVELS: readonly LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR']
 export type LogSource = 'desk' | 'upd' | 'app'
 const SOURCES: readonly LogSource[] = ['desk', 'upd', 'app']
-export const AREAS = ['life', 'conn', 'sess', 'voice', 'call', 'media', 'e2ee', 'tunnel', 'nat', 'tls', 'update', 'push', 'backup', 'sweep', 'rate', 'store', 'ui', 'http', 'sched', 'misc']
+export const AREAS = ['life', 'conn', 'sess', 'voice', 'call', 'media', 'e2ee', 'tunnel', 'nat', 'tls', 'update', 'push', 'backup', 'sweep', 'rate', 'store', 'ui', 'http', 'sched', 'ai', 'misc']
 
 export const FIELDS = new Set([
   'srv', 'conn', 'acct', 'chan', 'room', 'call', 'path', 'via', 'nat', 'ice', 'proto', 'codec', 'loss', 'rtt',
