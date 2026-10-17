@@ -781,6 +781,11 @@ ipcMain.handle('iskra:host-restore', (event, file: unknown, passphrase: unknown)
   if (!fromApp(event) || typeof file !== 'string' || !pickedBackups.has(file) || typeof passphrase !== 'string' || passphrase.length > 1024) return null
   return host.restore(file, passphrase, pickedBackups.get(file) ?? null)
 })
+// Restoring from a backup buddy: the bundled server downloads the copy with the recovery code and restores it.
+ipcMain.handle('iskra:host-restore-buddy', (event, address: unknown, recoveryCode: unknown) => {
+  if (!fromApp(event) || typeof address !== 'string' || address.length > 512 || typeof recoveryCode !== 'string' || recoveryCode.length > 100) return null
+  return host.restoreBuddy(address, recoveryCode)
+})
 // Saving a backup someone just made: only /backup/<token> links, with the usual "Save as" dialog.
 ipcMain.handle('iskra:download', (event, url: unknown) => {
   if (!fromApp(event) || !isBackupDownload(url)) return false

@@ -81,7 +81,7 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
         if (buddies.Any(b => b.HolderKey == holderKey))
             throw RequestException.BadRequest("That server keeps backups for this one already.", "buddy_already");
         if (buddies.Count >= MaxBuddies)
-            throw RequestException.BadRequest($"This server has {MaxBuddies} backup buddies already.", "buddy_too_many", new { max = MaxBuddies });
+            throw RequestException.BadRequest($"This server has {MaxBuddies} backup buddies already.", "buddy_max", new { max = MaxBuddies });
         var url = await BuddyHttp.CheckUrlAsync(code.Url, http.LocalOnly, cancel);
 
         var made = world.Store.BuddyRecoveryCode() is null;

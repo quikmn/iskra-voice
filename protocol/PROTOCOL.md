@@ -3863,7 +3863,7 @@ Buddy {
   user name, plain http to a public address, or a LocalOnly server given a non-loopback address), `buddy_unreachable`
   (`args: { reason }`), `buddy_code_used` (the holder said `404`), `buddy_already` (`409`, or already a buddy here),
   `buddy_wrong_server` (the answer isn't signed by the key in the code), `buddy_self` (your own server),
-  `buddy_too_many` (8 buddies), `buddy_refused` (`args: { status }`, any other answer).
+  `buddy_max` (8 buddies), `buddy_refused` (`args: { status }`, any other answer).
 - Problems in `Buddy.error`: `buddy_unreachable`, `buddy_unknown` (`401`/`403`: the holder doesn't know us any more),
   `buddy_too_big` (`args: { size, quota }`), `buddy_full` (the holder's disk), `buddy_limited` (`429`), `buddy_removed`,
   `buddy_failed` (`args: { reason }`), `buddy_backups_off` (daily backups are off: nothing to send).

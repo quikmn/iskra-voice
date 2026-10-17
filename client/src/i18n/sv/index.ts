@@ -48,6 +48,7 @@ import { whisper } from './whisper'
 import { teams } from './teams'
 import { lfg } from './lfg'
 import { rooms } from './rooms'
+import { buddies } from './buddies'
 import { streamer } from './streamer'
 import { disappear } from './disappear'
 import { translate } from './translate'
@@ -102,6 +103,7 @@ export const sv: Messages = {
   teams,
   lfg,
   rooms,
+  buddies,
   streamer,
   disappear,
   translate,

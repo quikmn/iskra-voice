@@ -8,6 +8,7 @@ import { connectionFor, type ServerState } from '../../state/store'
 import type { BackupStatus } from '../../core/protocol'
 import { Spinner } from '../bits'
 import { MoveServerDialog } from './MoveServerDialog'
+import { BuddySection } from './BuddySection'
 import '../dialogs/InternetSettings.css'
 import './backup.css'
 
@@ -257,6 +258,7 @@ export function BackupSection({ server }: { server: ServerState }) {
         <h2>{t('settings.backup.dailyTitle')}</h2>
         <AutoBackups server={server} />
       </section>
+      <BuddySection server={server} />
       <section className="settings-section backup">
         <h2>{t('settings.backup.moveTitle')}</h2>
         <p className="muted">{t('settings.backup.moveHint')}</p>

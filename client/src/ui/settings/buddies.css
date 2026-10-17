@@ -1,0 +1,44 @@
+/* ── Backup buddies ─────────────────────────────────────────────────────── */
+.buddies { display: grid; gap: 12px; margin-top: 12px; }
+.buddy-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.buddy-row { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; padding: 12px 14px; }
+.buddy-row + .buddy-row { border-top: 1px solid var(--border); }
+.buddy-main { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.buddy-name { overflow-wrap: anywhere; }
+.buddy-url, .buddy-detail { font-size: 13px; overflow-wrap: anywhere; }
+.buddy-state { font-size: 14px; overflow-wrap: anywhere; }
+.buddy-state.ok, .buddy-state.active { color: var(--green-strong, var(--text)); }
+.buddy-state.problem, .buddy-state.removed { color: var(--red, var(--text)); }
+.buddy-state.waiting, .buddy-state.removing { color: var(--muted); }
+.buddy-row progress { width: 100%; max-width: 320px; height: 8px; margin-top: 4px; }
+.buddy-usage { display: grid; gap: 4px; font-size: 13px; margin-top: 4px; }
+.buddy-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; flex: none; max-width: 50%; }
+.buddy-actions .muted { font-size: 13px; }
+.buddy-add, .buddy-spot-form { display: grid; max-width: 520px; }
+.buddy-add input { font-family: var(--mono); font-size: 14px; }
+.buddy-hint { margin: -8px 0 12px; font-size: 13px; overflow-wrap: anywhere; }
+.buddy-note { margin: 0; padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); font-size: 14px; }
+.buddy-spot-options { display: flex; flex-wrap: wrap; gap: 0 16px; }
+.buddy-spot-options .field { flex: 1 1 140px; }
+.buddy-spot-form > .button { justify-self: start; min-width: 140px; }
+.buddy-recovery {
+  display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--accent); border-radius: var(--radius); background: var(--surface-2);
+}
+.buddy-recovery p { margin: 0; }
+.buddy-code-text {
+  display: block; padding: 10px 12px; border-radius: calc(var(--radius) * 0.6); background: var(--bg); font-family: var(--mono);
+  font-size: 18px; letter-spacing: 0.04em; overflow-wrap: anywhere; user-select: all;
+}
+.buddy-code-text.pairing { font-size: 13px; letter-spacing: 0; word-break: break-all; }
+
+@media (max-width: 760px) {
+  .buddy-row { flex-direction: column; }
+  .buddy-actions { max-width: none; justify-content: flex-start; }
+  .buddy-add, .buddy-spot-form { max-width: none; }
+  .buddy-spot-form > .button { justify-self: stretch; }
+  .buddy-code-text { font-size: 16px; }
+}
+
+/* Restore a server: from a file or from a buddy's server */
+.restore-source { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.restore-code { font-family: var(--mono); letter-spacing: 0.04em; }
