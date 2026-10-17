@@ -6,6 +6,7 @@ import type { Invite } from '../../core/protocol'
 import { connectionFor, type ServerState } from '../../state/store'
 import { inviteServerUrl, loadHostStatus, tailscaleServerUrl, useHostedHere, useHosting } from '../../state/hosting'
 import { LIFETIMES, NEVER, inviteRequest, lifetimeChoices } from '../../state/inviteRules'
+import { MAX_INVITE_LABEL } from '../../state/inviteTrackRules'
 import { updateJoinSettings, useInvitesPaused } from '../../state/joins'
 import { Modal, Spinner } from '../bits'
 import { appUrl } from '../format'
@@ -31,8 +32,11 @@ export function InviteDialog({ server, onClose, via: initialVia = 'network' }: {
   const [lifetime, setLifetime] = useState(LIFETIMES[2].ms)
   const [singleUse, setSingleUse] = useState(false)
   const [approve, setApprove] = useState(false)
+  // The label counts once typed (on Enter or leaving the field), so typing doesn't make an invite per letter.
+  const [labelDraft, setLabelDraft] = useState('')
+  const [label, setLabel] = useState('')
   // One invite per combination of options, created on demand.
-  const optionsKey = `${lifetime}:${singleUse}:${approve}`
+  const optionsKey = `${lifetime}:${singleUse}:${approve}:${label}`
   const [invites, setInvites] = useState<Record<string, Invite>>({})
   const [error, setError] = useState<string | null>(null)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
@@ -46,13 +50,13 @@ export function InviteDialog({ server, onClose, via: initialVia = 'network' }: {
     if (invites[optionsKey]) return
     let cancelled = false
     connectionFor(server.key)
-      ?.request('invite.create', inviteRequest(lifetime, singleUse, approve))
+      ?.request('invite.create', inviteRequest(lifetime, singleUse, approve, label))
       .then((r) => !cancelled && setInvites((all) => ({ ...all, [optionsKey]: r.invite })))
       .catch((e: Error) => !cancelled && setError(errorMessage(e)))
     return () => {
       cancelled = true
     }
-  }, [server.key, lifetime, singleUse, approve, optionsKey, invites])
+  }, [server.key, lifetime, singleUse, approve, label, optionsKey, invites])
 
   async function resume() {
     setResuming(true)
@@ -129,6 +133,19 @@ export function InviteDialog({ server, onClose, via: initialVia = 'network' }: {
           {t('settings.invite.approve')}
         </label>
       </div>
+      <label className="field invite-label-field">
+        <span>{t('invitetrack.label')}</span>
+        <input
+          value={labelDraft}
+          maxLength={MAX_INVITE_LABEL}
+          placeholder={t('invitetrack.labelPlaceholder')}
+          data-testid="invite-label-input"
+          onChange={(e) => setLabelDraft(e.target.value)}
+          onBlur={() => setLabel(labelDraft.trim())}
+          onKeyDown={(e) => e.key === 'Enter' && setLabel(labelDraft.trim())}
+        />
+        <small className="muted">{t('invitetrack.labelHint')}</small>
+      </label>
       {approve && <p className="muted invite-never-note">{t('settings.invite.approveHint')}</p>}
       {invite && invite.expiresAt === null && <p className="muted invite-never-note">{t('settings.invite.neverNote')}</p>}
       <InviteList server={server} current={invite?.code ?? null} refresh={invite?.code} onRevoked={dropRevoked} />

@@ -3,6 +3,7 @@ import type { AuditEntry, BlockEntry, Member } from '../core/protocol'
 import { t } from '../i18n'
 import { formatDate } from '../i18n/format'
 import { levelName } from './permissions'
+import { inviteName } from './inviteTrackRules'
 
 /** Per person the newest change wins; on a tie a block beats an unblock (same rule as the server). */
 export function mergeBlocks(...lists: BlockEntry[][]): BlockEntry[] {
@@ -102,14 +103,14 @@ export function countdown(ms: number): string {
 export const AUDIT_ACTIONS = [
   'member.kick', 'member.ban', 'member.unban', 'member.timeout', 'member.timeout.remove', 'member.role', 'member.roles',
   'role.create', 'role.update', 'role.delete', 'role.reorder', 'role.group.create', 'role.group.update', 'role.group.delete',
-  'role.base', 'role.base.powers', 'channel.overrides', 'voice.mute', 'voice.move', 'voice.disconnect',
+  'role.base', 'role.base.powers', 'channel.overrides', 'voice.mute', 'voice.move', 'voice.disconnect', 'voice.status.clear',
   'channel.create', 'channel.update', 'channel.delete', 'message.delete', 'thread.delete', 'message.pin', 'message.unpin',
   'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
   'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
   'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'buginbox.update', 'afk.update', 'notify.default', 'server.template.export',
   'server.images', 'automod.block', 'automod.update',
   'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
-  'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers', 'landing.update',
+  'member.join', 'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers', 'landing.update',
   'message.delete.bulk', 'member.warn', 'member.note.add', 'member.note.delete', 'member.avatar',
   'act.add', 'act.update', 'act.remove', 'act.configure',
 ] as const
@@ -121,7 +122,7 @@ type Underscored<S extends string> = S extends `${infer A}.${infer B}` ? `${A}_$
 export const auditActionLabel = (action: AuditFilter): string =>
   t(`moderation.audit.filters.${action.replace(/\./g, '_') as Underscored<AuditFilter>}`)
 
-const AUTOMOD_WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch', 'page'] as const
+const AUTOMOD_WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch', 'page', 'voicestatus'] as const
 
 const START_ROLES = ['guest', 'member', 'trusted', 'admin'] as const
 const BUILTINS = ['draw', 'trivia', 'four'] as const
@@ -171,6 +172,11 @@ export function auditText(e: AuditEntry): string {
     case 'member.note.add': return t('moderation.audit.noteAdd', { actor, target: e.targetName || str(d.name) || t('moderation.audit.someoneLower') })
     case 'member.note.delete': return t('moderation.audit.noteDelete', { actor, target: e.targetName || str(d.name) || t('moderation.audit.someoneLower') })
     case 'join.approve': return t('moderation.audit.joinApprove', { actor, target })
+    case 'member.join': {
+      const invite = d.invite as { id?: unknown; label?: unknown } | undefined
+      const name = inviteName({ id: str(invite?.id), label: str(invite?.label) || null })
+      return t('invitetrack.audit.join', { target, invite: name })
+    }
     case 'join.decline': return t('moderation.audit.joinDecline', { actor, name: str(d.name) || t('moderation.audit.someoneLower') })
     case 'invites.pause': return t('moderation.audit.invitesPause', { actor })
     case 'invites.resume': return t('moderation.audit.invitesResume', { actor })
@@ -183,6 +189,7 @@ export function auditText(e: AuditEntry): string {
     case 'voice.unmute': return t('moderation.audit.voiceUnmute', { actor, target, channel: channel(d.channelName) })
     case 'voice.move': return t('moderation.audit.voiceMove', { actor, target, channel: channel(d.to) })
     case 'voice.disconnect': return t('moderation.audit.voiceDisconnect', { actor, target, channel: channel(d.channelName) })
+    case 'voice.status.clear': return t('moderation.audit.voiceStatusClear', { actor, target, channel: channel(d.channelName) })
     case 'bot.voice': return t(d.voice ? 'moderation.audit.botVoiceOn' : 'moderation.audit.botVoiceOff', { actor, target })
     case 'channel.create': return t('moderation.audit.channelCreate', { actor, channel: channel(d.name) })
     case 'channel.delete': return t('moderation.audit.channelDelete', { actor, channel: channel(d.name) })

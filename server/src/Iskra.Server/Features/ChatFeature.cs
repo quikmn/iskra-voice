@@ -148,6 +148,7 @@ public static class ChatFeature
         if (components is not null) s.World.Store.SetMessageComponents(message.Id, components.Count == 0 ? null : components.ToJsonString());
         var edited = View(s, message with { Text = text, EditedAt = s.Now });
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.edited", new { message = edited }));
+        s.Hub.Outhooks?.MessageUpdated(channel, message with { Text = text, EditedAt = s.Now });
         ForumFeature.Edited(s, channel, message);
         StarboardBot.Edited(s, channel, message with { Text = text, EditedAt = s.Now });
         return new { message = edited };
@@ -167,6 +168,7 @@ public static class ChatFeature
         StarboardBot.Deleting(s, message);
         s.World.Store.DeleteMessage(message.Id);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id = message.Id, channelId = channel.Id }));
+        s.Hub.Outhooks?.MessageDeleted(channel, message.Id);
         ThreadFeature.Touched(s, channel);
         ForumFeature.RootDeleted(s, channel, message.Id);
         return null;

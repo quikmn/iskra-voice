@@ -71,7 +71,8 @@ export function Modal({ title, heading, onBack, onClose, children, footer, wide,
 }) {
   const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
-  useEscapeLayer(onClose)
+  // The phone's back button follows the back arrow when there is one.
+  useEscapeLayer(onClose, true, { back: onBack ?? onClose })
   useFocusTrap(ref)
   // In a portal, so a dialog opened from inside another (Link a device in Settings) isn't styled or clipped by it.
   return createPortal(

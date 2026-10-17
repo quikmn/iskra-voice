@@ -44,6 +44,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Resolved reports | 90 days after resolution | Report sweep (`ReportFeature`) | No |
 | Moderator notes about a person (text, who wrote it, when). Moderators only: never shown to the person and not in their data export (like reports about them); a note is in its author's export | Until a moderator deletes the note, or the person's account is deleted | Moderators; account deletion | No |
 | People who left (account key, last name here, how they went, who removed them, when) | Kept 90 days (the audit log's horizon, `Retention.AuditDays`), name removed earlier if the account is deleted; someone who comes back is just a member again | `ModerationSweeper` (hourly); account deletion; rejoining | `Retention.AuditDays` (0 = keep) |
+| Which invite a member joined with (moderators only: the invite's public id, never its code; its label, maker and role; who approved them; when). In the member's data export (`joinedVia`) and the join's audit entry | While they're a member: deleted when they leave, are kicked or banned, or delete their account (the audit entry follows the audit log's 90 days) | Database trigger on leaving; account deletion | No |
 | Join requests (approval invites: the joiner's name and account key, which invite, when; a refusal's time) | Until a moderator decides: approved ones become memberships; refusals are kept a day (so the person is told no, not "need an invite") and unanswered requests 7 days | `ModerationSweeper` (hourly) | No |
 | Bug reports (bug inbox, when the owner turns it on: what the reporter wrote, screenshots without their metadata, logs from the app, an optional contact email; anonymous, never the sender's IP address) | 365 days at most (sooner with a shorter `Retention.MessagesDays`); their files a day later | `RetentionSweeper`; admins can delete one earlier | No (the year); the owner turns the inbox off |
 | Outgoing webhooks (name, address, events, who made it) and their delivery log (time, event, attempt, HTTP status, outcome; never the payload) | Webhooks until an admin deletes them; the last 50 log entries per webhook, deleted with it | Admins; each new log entry | No |
@@ -54,6 +55,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Watch party queue (what plays next, who added each item and when; the audio-only switch) | In memory while the party runs; queued uploads count as in use until the party ends, then the 24-hour sweep | Process memory; `UploadSweeper` | No |
 | Activities added to a server (the zip's files, name, who added it and when) and activity settings | Until an admin removes the activity (they're in `iskra.db`, so backups have them); deleting an account clears who added it | `act.remove`, account deletion | No |
 | Running activities (who's playing, the messages since the last snapshot, the snapshot) | In memory while the activity runs: gone when it ends (the call empties, its last player leaves, or someone ends it) | Process memory | No |
+| Voice channel status (its text, who set it and when) | In memory while the call lasts: cleared when the call empties, someone clears it, or the server restarts | Process memory | No |
 | Daily backups (`backups/auto-*.zip`) | Last 7 (disappearing messages and their files are never in them) | `BackupService` | `Backups.Keep` (1–30) |
 | Encrypted copies of daily backups on another disk (`Backups.CopyTo`, off by default; `.iskrabackup` with the owner's copy passphrase) | Same as daily backups: the newest `Keep` there | `BackupService` | `Backups.CopyTo`, `Backups.Keep` |
 | Encrypted copies of daily backups at backup buddies (friends' servers the owner paired with; encrypted with the recovery code, which only the source server and its owner have) | The newest copies that fit the space the friend gave (`keep` 1–30, default 3), plus always one older protected copy (the newest at least 48 hours old, or else the oldest); after either side stops, the friend's grace period (0–90 days, default 7; at least 1 day when the source stops), then deleted | The holder's `BuddyHolder` sweep (hourly) | Holder: Settings → Backup & move → Keep backups for a friend; source: Backup buddies |
@@ -94,6 +96,8 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 - Streamer mode is a synced setting; the desktop app's "Turn on by itself" looks at the programs running on that
   computer for the ones the person listed and keeps nothing but the switch. "Search everywhere" keeps no index: direct
   messages and groups are searched in what the device already holds.
+- Notification sound choices are a synced setting (sealed like the others); an uploaded notification sound is decoded
+  and kept only on that device (as short mono audio, not the original file) until removed, and never sent anywhere.
 - Apps keep keys, decrypted DMs, settings and the server list on the device until the user signs out, deletes the
   account or removes the app. Disappearing messages are deleted from the device (screen, storage, notifications) when
   their time is up, also if the app was closed then (on its next start). "Download data on this device" (Settings → Privacy & data) exports it.
@@ -139,3 +143,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-17 | Quiet hours digest: when the current quiet stretch began, cleared when it ends |
 | 2026-10-17 | Activities: bundles admins add (in `iskra.db`), running activities only in memory |
 | 2026-10-17 | Built-in bots Starboard, Birthdays and Welcome: birthdays, starboard cards, waiting welcomes |
+| 2026-10-17 | Voice channel status in memory only; notification sounds (synced choices, your own sound stays on the device) |

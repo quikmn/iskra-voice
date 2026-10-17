@@ -31,7 +31,9 @@ public enum ChannelPerm : long
     Send = 1 << 1,
     Connect = 1 << 2,
     Speak = 1 << 3,
-    All = View | Send | Connect | Speak,
+    /// <summary>Setting a voice channel's status (VoiceStatusFeature). Comes with the write level, like speaking.</summary>
+    SetVoiceStatus = 1 << 4,
+    All = View | Send | Connect | Speak | SetVoiceStatus,
 }
 
 /// <summary>A custom role. Position 1 is the lowest; higher numbers are higher in the hierarchy.</summary>

@@ -25,6 +25,7 @@ export const automod = {
       thread: 'a thread name',
       event: 'an event',
       watch: 'a watch party message',
+      voicestatus: 'a voice channel status',
       join: 'a join',
     },
     joins: 'Paused invites: {{count}} people joined within {{minutes}} minutes. An admin resumes them under AutoMod or in the invite dialog once it’s calm.',

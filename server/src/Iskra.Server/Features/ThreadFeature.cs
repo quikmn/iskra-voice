@@ -82,6 +82,7 @@ public static class ThreadFeature
 
         var thread = s.World.Store.CreateThread(channel, root.Id, name, me.AccountKey, s.Now);
         Broadcast(s, thread);
+        s.Hub.Outhooks?.ThreadCreated(channel, thread);
         return new { thread = View(thread) };
     }
 

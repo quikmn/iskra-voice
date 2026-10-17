@@ -283,7 +283,7 @@ public class SafetyTests
 
         Assert.Equal("forbidden", (await member.RequestAsync("audit.list")).ErrorCode());
         var body = (await admin.RequestAsync("audit.list")).Body();
-        var entries = body.GetProperty("entries").EnumerateArray().ToList();
+        var entries = body.GetProperty("entries").EnumerateArray().Where(NotJoin).ToList(); // joins are logged too (InviteTrackTests)
         Assert.Equal(["server.pages", "member.kick", "message.delete", "channel.update", "channel.create", "member.role", "member.timeout"],
             entries.Select(e => e.GetProperty("action").GetString()!).ToArray());
         Assert.False(body.GetProperty("hasMore").GetBoolean());
@@ -308,9 +308,9 @@ public class SafetyTests
         var kicks = (await admin.RequestAsync("audit.list", new { action = "member.kick" })).Body().GetProperty("entries");
         Assert.Equal(1, kicks.GetArrayLength());
         var aboutGuest = (await admin.RequestAsync("audit.list", new { person = guest.Key })).Body().GetProperty("entries");
-        Assert.Equal(["member.kick", "message.delete", "member.role"], aboutGuest.EnumerateArray().Select(e => e.GetProperty("action").GetString()!).ToArray());
+        Assert.Equal(["member.kick", "message.delete", "member.role"], aboutGuest.EnumerateArray().Where(NotJoin).Select(e => e.GetProperty("action").GetString()!).ToArray());
         var byOwner = (await admin.RequestAsync("audit.list", new { person = owner.Key })).Body().GetProperty("entries");
-        Assert.Equal("server.pages", byOwner.EnumerateArray().Single().GetProperty("action").GetString());
+        Assert.Equal("server.pages", byOwner.EnumerateArray().Where(NotJoin).Single().GetProperty("action").GetString());
         var page = (await admin.RequestAsync("audit.list", new { limit = 2 })).Body();
         Assert.True(page.GetProperty("hasMore").GetBoolean());
         var next = (await admin.RequestAsync("audit.list", new { limit = 2, before = page.GetProperty("entries")[1].GetProperty("id").GetInt64() })).Body();
@@ -328,6 +328,8 @@ public class SafetyTests
 
         server.Services.GetServices<IHostedService>().OfType<ModerationSweeper>().Single().Sweep(pruneAudit: true);
         var entries = (await admin.RequestAsync("audit.list")).Body().GetProperty("entries");
-        Assert.Equal("member.ban", entries.EnumerateArray().Single().GetProperty("action").GetString());
+        Assert.Equal("member.ban", entries.EnumerateArray().Where(NotJoin).Single().GetProperty("action").GetString());
     }
+
+    private static bool NotJoin(JsonElement e) => e.GetProperty("action").GetString() != "member.join";
 }

@@ -29,7 +29,8 @@ async function setRole(page: Page, name: string, role: string, on: boolean) {
   if (name === 'Host') {
     // Your own roles: from the members list in server settings.
     await openServerSettings(page, 'Members')
-    await serverRoom(page, 'Start Over').locator('.room-member', { hasText: name }).click()
+    // By the name itself: other rows can mention Host too ("Joined with invite … from Host").
+    await serverRoom(page, 'Start Over').locator('.room-member').filter({ has: page.locator('.room-member-name', { hasText: new RegExp(`^${name}\\b`) }) }).click()
     dialog = page.getByRole('dialog', { name })
     await expect(dialog).toBeVisible()
   } else dialog = await openMember(page, name)

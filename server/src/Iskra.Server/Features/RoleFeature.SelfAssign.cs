@@ -141,6 +141,7 @@ public static partial class RoleFeature
         {
             store.SetMemberRoles(me.AccountKey, wanted);
             AccessChanged(s, [me.AccountKey]); // opt-in channels appear or go
+            s.Hub.Outhooks?.MemberUpdated(me.AccountKey, "roles");
         }
         return new { member = s.Hub.PublicMember(store.GetMember(me.AccountKey)!) };
     }

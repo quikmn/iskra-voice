@@ -38,6 +38,7 @@ public static partial class RoleFeature
     private static readonly IReadOnlyDictionary<string, ChannelPerm> ChannelNames = new Dictionary<string, ChannelPerm>
     {
         ["view"] = ChannelPerm.View, ["send"] = ChannelPerm.Send, ["connect"] = ChannelPerm.Connect, ["speak"] = ChannelPerm.Speak,
+        ["setVoiceStatus"] = ChannelPerm.SetVoiceStatus,
     };
 
     [GeneratedRegex("^#[0-9a-fA-F]{6}$")]
@@ -161,6 +162,7 @@ public static partial class RoleFeature
         }
         Audit.Record(s, "role.create", details: new { id = role.Id, name = role.Name, permissions = PermList(role.Perms), selfAssign });
         RolesChanged(s);
+        s.Hub.Outhooks?.RoleChanged("role.created", role);
         return new { role = Public(role) };
     }
 
@@ -195,6 +197,7 @@ public static partial class RoleFeature
             selfAssign = updated.SelfAssign == role.SelfAssign ? (bool?)null : updated.SelfAssign,
         });
         RolesChanged(s);
+        s.Hub.Outhooks?.RoleChanged("role.updated", updated);
         if (role.SelfAssign != updated.SelfAssign) AccessChanged(s, s.World.Store.MembersWithRole(role.Id)); // their rank follows
         return new { role = Public(updated) };
     }
@@ -207,6 +210,7 @@ public static partial class RoleFeature
         s.World.Store.DeleteRole(role.Id);
         Audit.Record(s, "role.delete", details: new { id = role.Id, name = role.Name });
         RolesChanged(s);
+        s.Hub.Outhooks?.RoleChanged("role.deleted", role);
         AccessChanged(s, holders);
         return null;
     }
@@ -265,6 +269,7 @@ public static partial class RoleFeature
                 added = added.Select(id => all[id].Name), removed = removed.Select(id => all[id].Name),
             });
             AccessChanged(s, [target.AccountKey]);
+            s.Hub.Outhooks?.MemberUpdated(target.AccountKey, "roles");
         }
         return new { member = s.Hub.PublicMember(s.World.Store.GetMember(target.AccountKey)!) };
     }

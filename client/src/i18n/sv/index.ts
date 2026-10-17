@@ -57,6 +57,9 @@ import { whiteboard } from './whiteboard'
 import { landing } from './landing'
 import { activities } from './activities'
 import { speech } from './speech'
+import { sounds } from './sounds'
+import { voiceStatus } from './voiceStatus'
+import { invitetrack } from './invitetrack'
 import { mediaChannels } from './mediaChannels'
 
 export const sv: Messages = {
@@ -118,4 +121,7 @@ export const sv: Messages = {
   speech,
   mediaChannels,
   moreBots,
+  sounds,
+  voiceStatus,
+  invitetrack,
 }

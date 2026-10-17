@@ -30,6 +30,7 @@ public sealed class AccountLimits(TimeProvider time)
         ["bot.dm.send"] = (30, 1),                 // a bot's DMs, over all of its connections
         ["bot.dm.new"] = (20, 20 / 3600.0),        // conversations a bot starts: 20, then 20 an hour
         ["buddy.add"] = (5, 5 / 600.0),            // pairing with a backup buddy (each one calls another server)
+        ["voice.status"] = (5, 0.1),               // voice channel statuses: 5, then one every 10 s
     };
 
     private const int PruneAbove = 10_000;
