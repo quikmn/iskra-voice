@@ -8,10 +8,13 @@ import './styles.css'
 import { applySavedTheme } from './theme/theme'
 import { installMenuKeys, installRegionFocus } from './ui/a11y'
 import { ErrorBoundary } from './ui/ErrorBoundary'
+import { installBackNav } from './ui/nav/backNav'
+import { BackHint } from './ui/nav/PhoneNav'
 
 applySavedTheme()
 installMenuKeys()
 installRegionFocus()
+installBackNav()
 
 // A Swedish catalog that won't load (offline, first visit) still shows the app, in English.
 void i18nReady.catch(() => undefined).then(() =>
@@ -22,6 +25,7 @@ void i18nReady.catch(() => undefined).then(() =>
       </ErrorBoundary>
       {/* The desktop shell's own notices and its update overlay, whatever the app is showing (first run, lock screen, signed in). */}
       <DesktopNotices />
+      <BackHint />
       <UpdatingOverlay />
     </StrictMode>,
   ),

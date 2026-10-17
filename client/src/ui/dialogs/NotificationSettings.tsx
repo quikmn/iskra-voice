@@ -3,7 +3,9 @@ import { PushSettings } from './PushSettings'
 import { AlertWordsSettings, FollowSettings, QuietHoursSettings } from '../alerts/AlertSettings'
 import type { ServerState } from '../../state/store'
 import { ServerNotifySettings } from '../organize/ServerSettings'
-import { enableDesktopNotifications, notificationsSupported, playTone, updateNotify, useNotify } from '../../state/notify'
+import { enableDesktopNotifications, notificationsSupported, updateNotify, useNotify } from '../../state/notify'
+import { playSound, useSounds } from '../../state/sounds'
+import { SoundSettings } from '../sounds/SoundSettings'
 
 export function NotificationSettingsSection({ server }: { server?: ServerState | null }) {
   const { t } = useTranslation()
@@ -29,11 +31,12 @@ export function NotificationSettingsSection({ server }: { server?: ServerState |
           checked={sounds}
           onChange={(e) => {
             updateNotify({ sounds: e.target.checked })
-            if (e.target.checked) playTone('message', true)
+            if (e.target.checked) playSound(useSounds.getState().prefs.message)
           }}
         />
         {t('settings.notifications.sounds')}
       </label>
+      {sounds && <SoundSettings />}
       {server?.me && <ServerNotifySettings server={server} />}
       <AlertWordsSettings />
       <FollowSettings />

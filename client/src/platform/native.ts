@@ -22,6 +22,10 @@ export interface NativeBridge {
   saveFile(blob: Blob, name: string): Promise<boolean>
   /** Status bar text that reads on the theme's background. */
   setStatusBar(scheme: 'dark' | 'light'): Promise<void>
+  /** Android's back button and edge-swipe gesture (iOS has none). Replaces Capacitor's default handling. */
+  onBackButton(callback: () => void): () => void
+  /** Leaves the app the way Android's back does on a home screen: to the background, voice keeps going. */
+  leave(): void
   voice: NativeVoice
 }
 
@@ -120,6 +124,22 @@ function bridge(platform: NativePlatform): NativeBridge {
         stopped = true
         remove?.()
       }
+    },
+    onBackButton(callback) {
+      let stopped = false
+      let remove: (() => void) | null = null
+      void import('@capacitor/app').then(async ({ App }) => {
+        const handle = await App.addListener('backButton', () => callback())
+        if (stopped) void handle.remove()
+        else remove = () => void handle.remove()
+      }).catch(() => undefined)
+      return () => {
+        stopped = true
+        remove?.()
+      }
+    },
+    leave() {
+      void import('@capacitor/app').then(({ App }) => App.minimizeApp().catch(() => App.exitApp())).catch(() => undefined)
     },
     async saveFile(blob, name) {
       const [{ Filesystem, Directory }, { Share }] = await Promise.all([import('@capacitor/filesystem'), import('@capacitor/share')])

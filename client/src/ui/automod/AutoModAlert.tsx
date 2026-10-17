@@ -8,7 +8,7 @@ import type { ServerState } from '../../state/store'
 import { Spoiler } from '../bits'
 import './automod.css'
 
-const WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch'] as const
+const WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch', 'voicestatus'] as const
 
 export function AutoModAlertCard({ server, alert }: { server: ServerState; alert: Alert }) {
   const { t } = useTranslation()

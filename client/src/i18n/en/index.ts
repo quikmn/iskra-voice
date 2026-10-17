@@ -56,6 +56,8 @@ import { whiteboard } from './whiteboard'
 import { landing } from './landing'
 import { activities } from './activities'
 import { speech } from './speech'
+import { sounds } from './sounds'
+import { voiceStatus } from './voiceStatus'
 import { invitetrack } from './invitetrack'
 
 export const en = {
@@ -116,5 +118,7 @@ export const en = {
   activities,
   speech,
   moreBots,
+  sounds,
+  voiceStatus,
   invitetrack,
 } as const

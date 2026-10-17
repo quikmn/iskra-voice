@@ -38,6 +38,7 @@ public static partial class RoleFeature
     private static readonly IReadOnlyDictionary<string, ChannelPerm> ChannelNames = new Dictionary<string, ChannelPerm>
     {
         ["view"] = ChannelPerm.View, ["send"] = ChannelPerm.Send, ["connect"] = ChannelPerm.Connect, ["speak"] = ChannelPerm.Speak,
+        ["setVoiceStatus"] = ChannelPerm.SetVoiceStatus,
     };
 
     [GeneratedRegex("^#[0-9a-fA-F]{6}$")]

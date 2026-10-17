@@ -99,6 +99,7 @@ public sealed class Router
         LandingFeature.Register(this);
         BuddyBackupFeature.Register(this);
         ActivitiesFeature.Register(this);
+        VoiceStatusFeature.Register(this);
         WebhookSigningFeature.Register(this);
         InviteTrackFeature.Register(this);
     }

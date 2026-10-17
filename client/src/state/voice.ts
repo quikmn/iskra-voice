@@ -18,6 +18,7 @@ import { screenShareOptions, useScreenShareSettings } from './screenShare'
 import { iosApp } from '../platform/native'
 import { tunnelFor } from './p2p'
 import { routeVoiceThroughTunnel } from './p2pVoice'
+import { leftReasonOf, type VoiceLeftReason } from './voiceLeft'
 
 export interface VoiceSession {
   serverKey: string
@@ -85,6 +86,10 @@ interface VoiceState {
   hifi: boolean
   /** Back in voice after a dropped connection: what was on before (never turned back on by itself). */
   resumeOffer: { camera: boolean; screen: boolean } | null
+  /** Why the last voice session ended (null: none yet). */
+  leftReason: VoiceLeftReason | null
+  /** A calm note after a session that ended without you leaving: you joined on another device. */
+  notice: 'other_device' | null
 }
 
 /** A voice or stage channel to get back into after the connection dropped (state/resume.ts acts on it). */
@@ -136,6 +141,8 @@ export const useVoice = create<VoiceState>(() => ({
   processingIncoming: false,
   hifi: false,
   resumeOffer: null,
+  leftReason: null,
+  notice: null,
 }))
 
 let pendingResume: VoiceResume | null = null
@@ -184,7 +191,7 @@ function rememberDrop(reason: DisconnectReason | undefined): void {
  */
 export async function rejoinVoice(where: VoiceResume): Promise<boolean> {
   pendingResume = null
-  await cleanup()
+  await cleanup('dropped')
   const ok = await joinChannel(where.serverKey, where.channelId, where.stageOpen)
   if (ok && (where.camera || where.screen)) useVoice.setState({ resumeOffer: { camera: where.camera, screen: where.screen } })
   return ok
@@ -198,7 +205,7 @@ export async function pauseVoiceFor(serverKey: string): Promise<void> {
   const where = currentVoice()
   if (where?.serverKey !== serverKey) return
   pendingResume = where
-  await cleanup()
+  await cleanup('server')
 }
 
 /** Says your mute and deafen again (the server forgets them when it restarts). */
@@ -670,7 +677,7 @@ async function connect(
       .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
         if (room !== next) return
         rememberDrop(reason)
-        void cleanup()
+        void cleanup(leftReasonOf(reason, lk().DisconnectReason))
       })
 
     if (encryption) await next.setE2EEEnabled(true)
@@ -698,7 +705,7 @@ async function connect(
     reportFlags()
     return true
   } catch (e) {
-    if (useVoice.getState().session === session) await cleanup()
+    if (useVoice.getState().session === session) await cleanup('failed')
     useVoice.setState({ error: (e as Error)?.message ? errorMessage(e) : t('voice.errors.join') })
     return false
   }
@@ -810,8 +817,9 @@ async function permissionsChanged(current: Room): Promise<void> {
   reportFlags()
 }
 
-async function cleanup(): Promise<void> {
+async function cleanup(reason: VoiceLeftReason = 'user'): Promise<void> {
   const old = room
+  const ending = !!useVoice.getState().session
   const worker = e2eeWorker
   room = null
   void desktop?.p2p?.voice?.(false).catch(() => undefined) // back to a socket per adapter (a no-op unless voice was through a tunnel)
@@ -827,15 +835,17 @@ async function cleanup(): Promise<void> {
   useVoice.setState({
     session: null, speaking: {}, tiles: [], stageOpen: false, camera: false, screen: false, localSpeaking: false,
     micEngine: null, aiLoad: null, cleanEngine: null, processingIncoming: false, hifi: false, resumeOffer: null,
+    ...(ending ? { leftReason: reason, notice: reason === 'other_device' ? 'other_device' as const : null } : {}),
   })
   if (old && old.state !== lk().ConnectionState.Disconnected) await old.disconnect()
   worker?.terminate()
 }
 
-export async function leaveVoice(): Promise<void> {
+/** `reason`: why, when it wasn't you (a moderator took you out: `kicked`). */
+export async function leaveVoice(reason: VoiceLeftReason = 'user'): Promise<void> {
   pendingResume = null // left (or went somewhere else) on purpose
   for (const listener of leftListeners) listener()
-  await cleanup()
+  await cleanup(reason)
 }
 
 export function setStageOpen(open: boolean): void {
@@ -1006,4 +1016,8 @@ export function startPushToTalk(): () => void {
 
 export function clearVoiceError(): void {
   useVoice.setState({ error: null })
+}
+
+export function clearVoiceNotice(): void {
+  useVoice.setState({ notice: null })
 }

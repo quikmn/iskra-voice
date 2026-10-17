@@ -4265,6 +4265,34 @@ approves them (`join.approve`), or, when the server asks members to agree to the
 Migration `builtinbots2-1`: `builtin_bot_config`, `starboard_cards` (with a trigger that deletes a card with its
 original), `birthdays` and `welcome_pending` (both deleted with the member).
 
+## Voice channel status
+
+People in a voice channel can give it a short status ("CS2 ranked 🔫"), shown under the channel's name and in the call.
+It belongs to the call, not the channel: it goes away by itself when the last person leaves.
+
+| type | body | result | who |
+|---|---|---|---|
+| `voice.status.set` | `channelId, text` (0–60 characters, counted as user-perceived characters, ≤ 240 UTF-16 units, one line; empty or only spaces clears it) | `{ status: VoiceStatus \| null }` | someone in the call with `setVoiceStatus` in the channel; to clear, also anyone who can read the channel and has `manageChannels`, `muteMembers` or `moveMembers` |
+
+`VoiceStatus = { text, setBy (account key), setAt (ms) }`.
+
+- **Permission:** `setVoiceStatus` is a channel permission (`channel.overrides.set` can allow or deny it per role, like
+  `speak`). By default it comes with the channel's write level, so whoever may speak may set the status. Not in the
+  call: `bad_request`, key `voice_join_first`. Without the permission: `forbidden`, key `voice_status_denied`. Voice
+  channels only (not stages, which have a topic): `bad_request`, key `voice_status_voice_only`.
+- **Text:** trimmed and NFC-normalized; control and invisible formatting characters (other than the emoji joiner) are
+  `bad_request`, key `voice_status_text`, as is more than 60 characters (args `{ max }`). AutoMod checks it like a
+  message (`what: "voicestatus"`): its word, link and mention rules apply (an exempt role or channel skips them).
+- **Clearing:** when the call empties (the last person leaves, everyone is moved or removed, or LiveKit stops), the
+  status is cleared. A moderator clearing a status through their moderator power (they couldn't set one there) adds an
+  audit entry `voice.status.clear` (target: who set it; details: `channelId`, `channelName`; never the text).
+- **Where it shows:** `voice.state` events and `welcome.voice` gain `status: VoiceStatus | null`; each change is a new
+  `voice.state` for the channel's readers. Kept in memory only, like voice state (a server restart empties every call).
+- **Encrypted voice channels:** allowed, but the status is not end-to-end encrypted: the server and everyone who can
+  see the channel can read it. Apps say so where it's set.
+- **Rate limit:** 5 changes, then one every 10 s, per account (all its connections together): `rate_limited`, key
+  `voice_status_slow`.
+
 ## Invite tracking
 
 Moderators (the people who can see [join requests](#join-gating-and-raid-controls)) can see which invite each member
