@@ -58,6 +58,7 @@ import { PrivacySection } from './PrivacySection'
 import { StreamerSection } from '../streamer/StreamerBits'
 import { CameraSettingsSection } from '../media/CameraSettings'
 import { CaptionSettingsSection } from '../media/CaptionSettings'
+import { SpeechSettingsSection } from '../speech/ReadAloud'
 import { SecurityLogSection } from './SecurityLogSection'
 import { MembersSection } from './MembersSection'
 import { ServerTile } from './ServerTile'
@@ -271,7 +272,7 @@ function MySection({ id }: { id: MySectionId }) {
     case 'security': return <AppLockSection />
     case 'notifications': return <NotificationSettingsSection server={null} />
     case 'streamer': return <StreamerSection />
-    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><WhisperSettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><CaptionSettingsSection /><SoundboardSettingsSection /></>
+    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><WhisperSettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><CaptionSettingsSection /><SpeechSettingsSection /><SoundboardSettingsSection /></>
     case 'video': return <CameraSettingsSection />
     case 'blocked': return <BlockedSection />
     case 'desktop': return <DesktopSettingsSection />

@@ -19,6 +19,7 @@ public enum Perm : long
     MuteMembers = 1 << 11,
     ManageAutoMod = 1 << 12,
     PrioritySpeaker = 1 << 13,
+    SendTts = 1 << 14,
 }
 
 /// <summary>What a channel override can allow or deny for a role.</summary>

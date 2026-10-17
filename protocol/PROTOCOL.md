@@ -7,7 +7,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits, [restarts](#restarts-and-reconnecting)) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Server icon and banner](#server-icon-and-banner) · [Organizing a server](#organizing-a-server)
-- **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox) · [Disappearing messages](#disappearing-messages)
+- **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox) · [Disappearing messages](#disappearing-messages) · [Text to speech](#text-to-speech-tts)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers) · [Encrypted voice channels](#encrypted-voice-channels) · [Activities](#activities)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages) · [Quiet hours digest](#quiet-hours-digest)
@@ -1173,7 +1173,7 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 - `hoist`: shown as its own group in the member list. Name colour: the highest role with a colour. Both are client-side choices.
 - `Member` gains `roles: [roleId]` (highest first); members can hold several. `Channel` gains `overrides: [{ roleId, allow: [ChannelPerm], deny: [ChannelPerm] }]`.
 
-**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`, `manageAutoMod` ([AutoMod](#automod) settings), `prioritySpeaker` ([priority speaker](#whisper-and-priority-speakers)). Clients offer a "Moderator" preset with all of them. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
+**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`, `manageAutoMod` ([AutoMod](#automod) settings), `prioritySpeaker` ([priority speaker](#whisper-and-priority-speakers)), `sendTts` ([/tts messages](#text-to-speech-tts)). Clients offer a "Moderator" preset with all of them. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
 
 **Hierarchy**: the owner, then admins, then members with custom roles by their highest role's position, then trusted, member, guest. Kicking, banning, timing out, deleting someone's message, managing someone's roles, muting and moving work only on people strictly below you. Members holding the same highest role are equal.
 
@@ -2210,7 +2210,7 @@ it. It is wrapped for every valid, unrevoked device of every member of the new m
 - `channel` is the encrypted channel's id (a thread's parent), `thread` the thread's id when the message is in one (left out otherwise), `edit` (on `chat.edit` only) the `id` of the message's first envelope.
 - `ad = JSON.stringify(["iskra/channel-msg/v2", from, chain, version, head, sentAt, id, channel, thread ?? 0, edit ?? ""])` (`head` of that version, from the verified chain); `ct = XChaCha20-Poly1305(epochKey, nonce, content, ad)`.
 - `sig = Ed25519.sign(deviceSecret, "iskra/channel-msg/v2" || 0x00 || u64be(len(ad)) || ad || u64be(24) || nonce || ct)`: every member holds the epoch key, so the device signature is what proves who wrote it.
-- Content: `{ "text": "…" (≤ 4000), "files"?: [DmFile] }` ([encrypted attachments](#encrypted-dm-attachments); a voice note is a file with `voice`).
+- Content: `{ "text": "…" (≤ 4000), "files"?: [DmFile], "tts"?: true }` ([encrypted attachments](#encrypted-dm-attachments); a voice note is a file with `voice`; `tts`: sent with [/tts](#text-to-speech-tts)).
 - Receivers check: the header's `from` and `version` equal the message's `author` and `e2ee.version`; `channel` and `thread` equal where the message arrived (its `channelId`: the channel itself, or a thread of it); the version is in their verified chain and `from` was a member then; the certificate and signature; then decrypt. A message from before this device had a key shows as unreadable, never as text. A message moved to another channel or thread (or between a parent and its threads) is shown as moved, never as text.
 - **The server** checks a v2 envelope's `channel` and `thread` against the send (`bad_request`), like `from`, `chain` and `version`; it reads nothing else.
 - **What apps remember.** Each app keeps, per message, the envelope ids it showed (first envelope and edits) and the newest one's `sentAt`. It refuses an envelope whose `id` (or, for v2, whose `edit` or first `id`) belongs to another message (a replay or a moved edit), and an envelope older than the newest it showed for that message (an original after an edit, an edit older than one it showed, by `sentAt`): an edit can't be rolled back on a device that saw it. Copies kept elsewhere (pins, a thread's first message) may lag behind an edit and aren't refused for that.
@@ -4158,3 +4158,25 @@ account keys; a person keeps their id for the whole session (on another device t
 **Your data:** `data.export` gains `activitiesAdded` (the activities you added: id, name, when). What activities send is
 never stored, so there is nothing else to export or delete. Deleting an account keeps the activities it added (they
 belong to the server) and clears who added them (`addedBy` becomes `""`).
+
+## Text to speech (/tts)
+
+`/tts <text>` in the composer sends a normal message flagged `tts`. Apps read flagged messages aloud with the device's own
+speech synthesis, only for people who turned on "Play /tts messages" (off by default), and only in the conversation
+they have open, never while it's muted, in quiet hours or with do not disturb on. Speech never touches the server.
+
+| type | body | result | who |
+|---|---|---|---|
+| `chat.send` | adds `tts?: boolean` (`true` flags it; `false` or absent is a normal message) | | channel writers with `sendTts` |
+
+- **Permission:** `sendTts` (a [role permission](#roles-and-permissions)). Admins and the owner have it; everyone else
+  needs a role that gives it. Without it: `forbidden`, key `tts_forbidden`. A flagged message needs text (not only
+  files, not a voice message): `bad_request`, key `tts_needs_text`. Not a boolean: `bad_request`.
+- **Size:** the flag adds nothing; the text has the usual limit (4000 characters). Apps read at most the first 300
+  characters of a message aloud.
+- `Message` gains `tts: true` (`null` otherwise). The flag stays through edits and goes with the message. Stored in
+  `tts_messages` (migration `tts-1`).
+- **Encrypted channels:** the server never sees the flag. It's `tts: true` inside the encrypted content
+  (`{ "text", "files"?, "tts"? }`, [Messages](#messages)); a `tts` next to an envelope is ignored. Since the server
+  can't check the permission there, receiving apps only read a flagged message aloud when its author has `sendTts`.
+- **DMs and group DMs** have no /tts yet (no roles there to give it with).

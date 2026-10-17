@@ -540,6 +540,9 @@ export const errors: Messages['errors'] = {
     lfg_full: 'Alla platser är tagna.',
     lfg_close_author: 'Bara den som skrev inlägget eller en moderator kan stänga det.',
     lfg_no_edit: 'Inlägg om att söka spelare kan inte redigeras.',
+    // Text till tal
+    tts_forbidden: 'Du kan inte skicka /tts-meddelanden på den här servern.',
+    tts_needs_text: 'Ett /tts-meddelande behöver text.',
     // Backupkompisar
     buddy_code: 'Det där är ingen parkod för en backupkompis. Be din vän om en ny.',
     buddy_self: 'Koden kommer från den här servern. Säkerhetskopiorna ska till en väns server.',

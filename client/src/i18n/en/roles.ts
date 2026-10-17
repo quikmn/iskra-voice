@@ -15,6 +15,7 @@ export const roles = {
     muteMembers: { label: 'Mute members', hint: 'Mute people in voice for everyone' },
     manageAutoMod: { label: 'Manage AutoMod', hint: 'Change the blocked words and spam rules' },
     prioritySpeaker: { label: 'Priority speaker', hint: 'Turn everyone else down for listeners while they talk with priority' },
+    sendTts: { label: 'Send /tts messages', hint: 'Send messages that are read aloud for people who turned that on' },
   },
   base: {
     title: 'Built-in roles',

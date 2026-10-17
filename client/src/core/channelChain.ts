@@ -249,6 +249,8 @@ export interface ChannelContent {
   text: string
   /** End-to-end encrypted attachments (core/dmFiles.ts); `text` may then be empty. */
   files?: DmFile[]
+  /** Sent with /tts (PROTOCOL.md "Text to speech"). */
+  tts?: boolean
 }
 
 /** What decrypting tells about a message besides its content. */
@@ -310,7 +312,7 @@ export function encryptChannelMessage(
   }
   const ad = channelMessageAd(v, header, view.head)
   const nonce = randomBytes(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)
-  const plain = new TextEncoder().encode(JSON.stringify({ text: content.text, ...(hasFiles ? { files: content.files } : {}) }))
+  const plain = new TextEncoder().encode(JSON.stringify({ text: content.text, ...(hasFiles ? { files: content.files } : {}), ...(content.tts ? { tts: true } : {}) }))
   const ct = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plain, ad, null, nonce, epochKey)
   const sig = sign(channelMessageSigned(v, ad, nonce, ct), identity.device.secretKey)
   return { v, kind: 'channel', header, sender: identity.cert, nonce: b64u(nonce), ct: b64u(ct), sig: b64u(sig) }
@@ -395,7 +397,7 @@ export function decryptChannelMessage(
   // isn't shown as theirs. Both clocks count (theirs, signed, and the server's); together the two could still backdate.
   const end = accessEnd(view, header.from, header.version, endedAt)
   const late = end !== null && Math.max(header.sentAt, routed.at ?? 0) > end + CLOCK_SKEW_MS
-  return { text: content.text, ...(files.length ? { files } : {}), header, legacy: v === 1, ...(late ? { afterRemoval: end } : {}) }
+  return { text: content.text, ...(files.length ? { files } : {}), ...(content.tts === true ? { tts: true } : {}), header, legacy: v === 1, ...(late ? { afterRemoval: end } : {}) }
 }
 
 /** The message is fine, but this device didn't (yet) get the key of its epoch. */

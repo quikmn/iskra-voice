@@ -20,6 +20,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Disappearing messages (channel messages, DM and group envelopes, encrypted channel envelopes, with their reactions, pins, threads, search entries and files) | Until their expiry: the conversation's timer when sent (5 minutes to 4 weeks), or sooner if the sender's signed envelope says so. Never in any backup | `DisappearSweeper` (every 5 s, rows overwritten on disk); apps delete their copies on their own clocks; backups leave them out | Per conversation: people who manage channels (channels), either person (DMs), any member (groups) |
 | Disappearing message timers (which conversation, seconds, who set it and when) | Until changed; channel and group timers go with the channel or group | Channel or group deletion | — |
 | Keys protecting DM envelopes (prekeys) | Replaced weekly, deleted 30 days later (≈5 weeks); afterwards old envelopes can't be decrypted | Client and server prekey rotation | No |
+| Which messages were sent with /tts (a flag per message, no other data) | Same as the message | `RetentionSweeper` and message deletion | `Retention.MessagesDays` |
 | Earlier versions of edited messages (edit history) | Up to 20 per message; go with the message | `RetentionSweeper` and message deletion | `Retention.MessagesDays` |
 | Docs pages and their revisions | Pages until deleted; the last 50 revisions per page, older revisions also by the retention period | Docs edits; `RetentionSweeper` | `Retention.MessagesDays` |
 | Whiteboards (objects drawn; batches of changes with their author until folded into the board's snapshot, encrypted boards as ciphertext; pictures from uploads) | Until the board is cleared or its channel deleted; batches lose their author when folded (plain boards: by the server once 500 batches or 512 KB pile up; encrypted: when a member's app uploads a snapshot); live cursors are never stored | `wb.clear`, channel deletion, compaction; account deletion with messages removes authorship | No |
@@ -104,6 +105,9 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
   or stored; captions are dropped from memory seconds after they're shown. The speech model is downloaded once from
   the member's own Iskra server (which fetched it once from Hugging Face) and kept with the settings on the device
   (Cache Storage or IndexedDB) until the app or site data is removed ([voice-processing.md](../../voice-processing.md)).
+- Voice message transcripts are made on the device and never sent: channel ones are kept in the app's IndexedDB (at
+  most 2000, oldest dropped first) until sign-out or the app's data is removed; transcripts of end-to-end encrypted
+  voice messages only in memory. Read aloud uses the device's speech engine; nothing is stored or sent.
 - iskra.foo and app.iskra.foo store nothing about visitors; Cloudflare's short-lived request logs follow
   Cloudflare's retention.
 - Emails to spark@iskra.foo (support, safety, security, data requests): kept as long as needed to handle them, and

@@ -367,6 +367,8 @@ public sealed partial class Store : IDisposable
         ("buddybackup-1", BuddyBackupMigration),
         // Activities: bundles admins added, built-ins turned off, channels without activities, who may start one.
         ("activities-1", ActivitiesMigration),
+        // Messages sent with /tts (read aloud for people who turned that on).
+        ("tts-1", TtsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

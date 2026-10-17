@@ -52,3 +52,27 @@
   .voice-slide-hint { margin-right: 44px; }
   .voice-player { width: 100%; }
 }
+
+/* ── Voice message transcripts ─────────────────────────────────────── */
+.voice-transcript-toggle {
+  flex: none; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border-radius: 50%; border: 1px solid transparent;
+  background: transparent; color: var(--muted);
+}
+.voice-transcript-toggle:hover, .voice-transcript-toggle.on { color: var(--text); background: var(--surface-3); }
+.voice-transcript-toggle.on { color: var(--accent); }
+.voice-transcript {
+  width: min(360px, 100%); margin: 4px 0 0; padding: 6px 10px; border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0;
+  background: var(--surface-2); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.95em;
+}
+.voice-transcript.muted, .voice-transcript.notice { color: var(--muted); border-left-color: var(--border); background: transparent; }
+.voice-transcript p { margin: 0; }
+.voice-transcript .link { font-size: inherit; }
+.voice-transcript progress { width: min(160px, 100%); height: 4px; vertical-align: middle; }
+.voice-transcript-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+@media (max-width: 760px) {
+  .voice-transcript { width: 100%; }
+  /* Room for the transcript button on narrow phones. */
+  .voice-player { gap: 6px; padding-right: 6px; }
+  .voice-wave { gap: 1px; overflow: hidden; }
+  .voice-wave span { min-width: 1px; }
+}

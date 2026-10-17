@@ -139,7 +139,7 @@ export interface WireDm {
 /** Client → server requests: [body, result]. */
 export interface Requests {
   ping: [Record<string, never>, Record<string, never>]
-  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif; nonce?: string; cards?: Card[]; components?: ComponentRow[] }, { message: Message; nonce?: string | null }]
+  'chat.send': [{ channelId: number; text: string; attachments?: string[]; replyTo?: number; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif; nonce?: string; cards?: Card[]; components?: ComponentRow[]; tts?: boolean }, { message: Message; nonce?: string | null }]
   'chat.react': [{ id: number; emoji: string; on: boolean }, Record<string, never>]
   'upload.begin': [{ name: string; size: number }, { url: string; maxBytes: number; /** Upload in parts: the most one part may carry (missing on older servers). */ partBytes?: number }]
   'link.preview': [{ url: string }, { preview: LinkPreview | null }]
@@ -1115,7 +1115,7 @@ export interface Requests {
 export type Permission =
   | 'manageMessages' | 'timeoutMembers' | 'kickMembers' | 'banMembers' | 'manageChannels' | 'manageRoles'
   | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers' | 'manageAutoMod'
-  | 'prioritySpeaker'
+  | 'prioritySpeaker' | 'sendTts'
 
 export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak'
 
@@ -2781,4 +2781,11 @@ export interface Requests {
   'act.send': [{ channelId: number; sessionId: string; data: unknown }, { seq: number }]
   'act.snapshot': [{ channelId: number; sessionId: string; seq: number; state: unknown }, Record<string, never>]
   'act.end': [{ channelId: number; sessionId: string }, Record<string, never>]
+}
+
+// ── speech (/tts) ──
+
+export interface Message {
+  /** Sent with /tts: read aloud for people who turned on "Play /tts messages" (PROTOCOL.md "Text to speech"). */
+  tts?: boolean | null
 }

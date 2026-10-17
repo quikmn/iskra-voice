@@ -8,13 +8,12 @@ import type { RemoteParticipant, RemoteTrack, RemoteTrackPublication, Room } fro
 import { lk } from './livekit'
 import { create } from 'zustand'
 import tapWorkletUrl from './captions/tap.worklet.ts?worker&url'
-import { loadSilero } from './audio/assets'
 import { keepRunning } from './micPipeline'
 import { engineCaps } from './audio/engines'
 import { CAPTION_TTL_MS, rollCaption } from './captions/segments'
 import type { CaptionLanguage } from './captions/whisper'
-import { captionModelCached, captionSource, loadCaptionModel, ModelError, WHISPER_CONFIG, type CaptionSource } from './models'
-import { connectionFor, useApp } from './store'
+import { captionModelCached, ModelError } from './models'
+import { findWhisperSource, startWhisperWorker } from './captions/whisperHost'
 import { activeRoom, cleanedAudio, onIncomingAudio, useVoice } from './voice'
 
 export type CaptionChoice = CaptionLanguage | 'auto'
@@ -168,19 +167,11 @@ async function start(current: Room): Promise<void> {
   const began = performance.now()
   room = current
   // The model comes from the server this call runs on (DM and group calls too), with a members-only link.
-  const serverKey = useVoice.getState().session?.serverKey ?? ''
-  let source: CaptionSource = { base: useApp.getState().servers[serverKey]?.url ?? '', query: '' }
-  // Asked even when the model is on this device: a kept part that went bad is downloaded again.
-  const [cached, found] = await Promise.all([captionModelCached(), captionSource(source.base, async () => {
-    const connection = connectionFor(serverKey)
-    if (!connection) throw new Error('not connected')
-    return connection.request('captions.model.link', {})
-  })])
+  const { source, cached, offered } = await findWhisperSource(useVoice.getState().session?.serverKey ?? '')
   if (mine !== generation) return
-  if (typeof found === 'object') source = found
   useCaptions.setState({ cached })
   if (!cached) {
-    if (found === 'no') {
+    if (offered === 'no') {
       useCaptions.setState({ status: 'notOffered', progress: 0, lines: {} })
       return
     }
@@ -192,26 +183,14 @@ async function start(current: Room): Promise<void> {
   useCaptions.setState({ status: 'loading', progress: 0, lines: {} })
   download = new AbortController()
   try {
-    const [files, silero] = await Promise.all([loadCaptionModel(source, (progress) => useCaptions.setState({ progress }), download.signal), loadSilero()])
+    const next = await startWhisperWorker(source, useCaptions.getState().settings.language, (progress) => useCaptions.setState({ progress }), download.signal)
     download = null
-    if (mine !== generation) return
+    if (mine !== generation) {
+      next.terminate()
+      return
+    }
     useCaptions.setState({ cached: true })
-    const next = new Worker(new URL('./captions/captions.worker.ts', import.meta.url), { type: 'module' })
-    const ready = new Promise<void>((resolve, reject) => {
-      next.onmessage = (e: MessageEvent<{ type: string; message?: string }>) => {
-        if (e.data.type === 'ready') resolve()
-        else if (e.data.type === 'error') reject(new Error(e.data.message))
-      }
-      next.onerror = (e) => reject(new Error(e.message || 'captions worker failed'))
-    })
-    const vocab = JSON.parse(new TextDecoder().decode(files.vocab)) as Record<string, number>
-    next.postMessage({
-      type: 'init', ortWasm: files.runtime.buffer, encoder: files.encoder, decoder: files.decoder, vocab, config: WHISPER_CONFIG,
-      silero: silero.slice(0), language: useCaptions.getState().settings.language,
-    }, [files.runtime.buffer, files.encoder.buffer, files.decoder.buffer])
     worker = next
-    await ready
-    if (mine !== generation) return
     next.onmessage = onWorker
     next.onerror = () => useCaptions.setState({ status: 'error' })
     ctx = new AudioContext({ latencyHint: 'playback' })
