@@ -5,7 +5,7 @@
 // (ISKRA_P2P_BOOTSTRAP), the servers are localhost only (ISKRA_LOCAL_ONLY=1), nothing on the network is touched.
 import dgram from 'node:dgram'
 import { createRequire } from 'node:module'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -313,10 +313,11 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     await friendApp?.close()
     await hostApp?.close()
     await testnet.destroy()
-    const log = join(hostRoot, 'behind-cgnat', 'server.log')
-    if (existsSync(log) && !passed) {
-      const lines = readFileSync(log, 'utf8').split(/\r?\n/).filter((l) => /Restarting voice|Voice ready|TURN|turn\b|p2p|P2p|warn:|fail:|error/i.test(l) && !/livekit-webhook|\/livekit\/rtc/.test(l))
-      console.log(`--- hosted server.log (voice and p2p lines) ---\n${lines.slice(-60).join('\n')}`)
+    const logs = join(hostRoot, 'behind-cgnat', 'logs')
+    if (existsSync(logs) && !passed) {
+      const text = readdirSync(logs).filter((f) => f.endsWith('.log')).sort().map((f) => readFileSync(join(logs, f), 'utf8')).join('')
+      const lines = text.split(/\r?\n/).filter((l) => / (voice|tunnel|nat) | (WARN|ERROR) /.test(l))
+      console.log(`--- hosted server log (voice, tunnel and problem lines) ---\n${lines.slice(-60).join('\n')}`)
     }
     for (const dir of [hostData, friendData, hostRoot]) rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
   }

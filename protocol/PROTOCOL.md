@@ -11,7 +11,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers) · [Encrypted voice channels](#encrypted-voice-channels) · [Activities](#activities)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages) · [Quiet hours digest](#quiet-hours-digest)
-- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group) · [Whiteboards](#whiteboards)
+- **Community:** [Forum channels](#forum-channels) · [Media channels](#media-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group) · [Whiteboards](#whiteboards)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Public page](#public-page) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
 
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports) · [Backup buddies](#backup-buddies)
@@ -4373,6 +4373,61 @@ IP setting).
 
 - `voice.*`, `thread.created`, `message.updated` and `message.deleted` need at least one channel, like `message.created`
   (`bad_request`, key `outhook_channels`). Encrypted channels, DMs and group chats are never sent, as before.
+
+## Media channels
+
+A media channel (`channel.create` with `kind: "media"`) is a gallery: a [forum](#forum-channels) where every post is
+pictures or videos, with an optional title, a caption (the first message's text) and tags, and comments as the post's
+thread. Everything a forum does works the same way: `forum.posts`, `forum.post.create`, `forum.post.get`,
+`forum.post.update`, `forum.post.set`, `forum.tags.set`, their events, who can post and comment (`readRole`,
+`writeRole`), moderators, pinning, closing, locking, deleting, unread counts and [search](#search). `chat.send`,
+`poll.create` and `thread.create` don't work in a media channel directly (`bad_request`). Media channels can't be
+end-to-end encrypted (`e2ee_kinds`).
+
+`forum.post.create` in a media channel:
+
+| field | rule |
+|---|---|
+| `attachments` | 1–10 of your own uploads, each a picture or a video by the type the server found in its first bytes (`image/*`: PNG, JPEG, GIF, WebP; `video/*`: MP4, WebM). None: `bad_request`, key `media_post_needs_media`; anything else among them: `bad_request`, key `media_post_only_media`. Upload limits, quotas and metadata stripping are those of [ordinary uploads](#files-replies-and-reactions) |
+| `title` | optional: 0–100 characters (one line). Blank or missing makes the post **untitled** |
+| `text` | the caption, as `chat.send` text; may be empty |
+| `tags` | as in forums |
+
+Posts (in forums and media channels alike) gain:
+
+```jsonc
+Post { …, "media": [File],          // the first message's pictures and videos, in order (≤ 10)
+          "untitled": false,          // true: made without a title; `title` is then a stand-in
+          "reactionCount": 0 }        // reactions on the first message (one per person per emoji)
+```
+
+- **Untitled posts:** the post's thread still needs a name (thread lists, notifications, search results), so `title` is
+  a stand-in: the caption's first line without mentions or custom emoji (cut to 100 characters with `…`), else the first
+  file's name without `SPOILER_` and its extension, else `Media`. Apps show the caption instead of the stand-in.
+  `forum.post.update` with a `title` makes the post titled.
+- **Sort:** `forum.posts` also takes `sort: "top"`: most reactions on the first message first, newest first among equals
+  (pinned posts still come first). It works in forums too.
+- **Search:** `forum.posts` `query` also matches posts where every word is in the title or one of the post's tag names
+  (ignoring case and accents), in forums too; captions and comments are found by full-text search as before.
+- **Sensitive pictures:** [spoilers](#stickers) as anywhere: files whose name starts with `SPOILER_` are shown blurred
+  until clicked.
+- **Templates:** `kind: "media"` (with `tags`, like a forum) in [starter templates](#starter-templates) and exports.
+- Migration `media-1`: `forum_posts.untitled`.
+
+## Log ids
+
+Each connection gets a short id that the server uses in its own log, so a member's bug report and the host's log can
+be matched up without either one naming anyone.
+
+- `welcome.logId`: string, 1–8 characters `[0-9a-z]` (a per-process counter in base 36; it starts again when the server
+  restarts). Absent on older servers. Clients keep it per server for their own diagnostics and never send it back.
+- The server logs it as `conn=<logId>` on the session's lines (`sess opened`, `sess closed`, request failures). Accounts
+  appear there only as `acct=` (6 hex of a keyed BLAKE2b of the account key, keyed per server), never by name or key.
+- The server's id in logs, `srv=`, is the first 4 hex of BLAKE2b-256(`"iskra-log-v1"` ‖ 0x00 ‖ server public key),
+  the same context framing as signed payloads. Clients can compute it from `hello.serverKey`. It reveals nothing an
+  invite link doesn't.
+- No new requests or events. Log line format and codes: [docs/development.md, Logs](../docs/development.md#logs) and
+  [docs/log-codes.md](../docs/log-codes.md) (from `protocol/log-codes.json`).
 
 ## Channel export
 

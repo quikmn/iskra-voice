@@ -214,7 +214,7 @@ public sealed partial class BugInbox(World world, Hub hub, Uploads uploads, Time
         var message = world.Store.AddBugReportMessage(channel.Id, AuthorKey, WebhookId, BotName, MessageText(report), Card(report, reportId), [.. files], now);
         hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = MessageViews.Public(world.Store, message) }));
         // Never the report itself, the sender's address or the contact address.
-        log.LogInformation("Bug report {Id} posted in #{Channel}", reportId, channel.Name);
+        log.Write(LogLevel.Information, "bug", null, "http", "received", null, ("chan", channel.Id), ("files", files.Count));
         return Results.Json(new { id = reportId }, statusCode: StatusCodes.Status201Created);
     }
 

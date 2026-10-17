@@ -162,7 +162,7 @@ public sealed class ChannelExports
             if (job.Cancel.IsCancellationRequested) job.State = "cancelled";
             else
             {
-                if (ex is not RequestException) Log?.LogError(ex, "A channel export failed");
+                if (ex is not RequestException) Log?.Error(ex, "BAK-160", "backup", "export-failed", ("id", job.Id));
                 job.Error = ex as RequestException ?? new RequestException("internal", "The export couldn't be made.", "export_failed");
                 job.ExpiresAt = (Time.GetUtcNow() + Lifetime).ToUnixTimeMilliseconds();
                 job.State = "failed";

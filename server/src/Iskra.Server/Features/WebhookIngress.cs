@@ -109,6 +109,7 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
             var ip = context.Connection.RemoteIpAddress ?? IPAddress.None;
             var bucket = _failures.GetOrAdd(ip, _ => new TokenBucket(FailBurst, FailPerSecond, time));
             if (_failures.Count > 10_000) _failures.Clear();
+            LogCounts.Hooks(world).Hit("in-bad-signature"); // the log only counts them; who sent it is in the security log (LoggedIp rules)
             if (!bucket.TryTake(out var failWait)) return RateLimited(context, failWait);
             SecurityLog.Record(world.Store, time.GetUtcNow().ToUnixTimeMilliseconds(), "webhook.bad_signature",
                 ip: world.Settings.Retention.SecurityLogIps ? ip.ToString() : null,
@@ -157,7 +158,8 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
         var message = world.Store.AddWebhookMessage(hook, WebhookFeature.AuthorPrefix + hook.Id, text, name, embeds, now);
         var view = MessageViews.Public(world.Store, message);
         hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = view }));
-        log.LogInformation("Webhook {Name} posted in #{Channel}", hook.Name, channel.Name);
+        LogCounts.Hooks(world).Hit("in");
+        log.Write(LogLevel.Debug, "hook", null, "http", "received", null, ("id", hook.Id), ("chan", channel.Id));
 
         if (format == Format.Slack) return Results.Text("ok"); // what Slack answers, and what its tools check for
         if (!string.Equals(context.Request.Query["wait"], "true", StringComparison.OrdinalIgnoreCase)) return Results.NoContent();

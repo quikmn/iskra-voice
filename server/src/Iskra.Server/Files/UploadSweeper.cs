@@ -44,7 +44,7 @@ public sealed partial class Uploads
             try { if (File.GetLastWriteTimeUtc(temp) < (now - UnusedGrace).UtcDateTime) File.Delete(temp); }
             catch (IOException) { /* in use: next time */ }
         }
-        if (removed.Count > 0) log.LogInformation("Deleted {Count} unused uploads", removed.Count);
+        if (removed.Count > 0) log.Info("sweep", "done", ("what", "uploads"), ("files", removed.Count));
         return removed.Count;
     }
 }
@@ -58,7 +58,7 @@ public sealed class UploadSweeper(Uploads uploads, TimeProvider time, ILogger<Up
         do
         {
             try { uploads.Sweep(time.GetUtcNow()); }
-            catch (Exception ex) when (ex is not OperationCanceledException) { log.LogWarning(ex, "Upload sweep failed"); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { log.Warn(ex, "SWP-110", "sweep", "failed", ("what", "uploads")); }
         }
         while (await timer.WaitForNextTickAsync(stopping).ConfigureAwait(false));
     }

@@ -289,7 +289,7 @@ public sealed class ModerationSweeper(World world, Hub hub, TimeProvider time, I
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            log.LogWarning(ex, "Moderation sweep failed");
+            log.Warn(ex, "SCH-110", "sched", "failed", ("what", "moderation"));
         }
     }
 }

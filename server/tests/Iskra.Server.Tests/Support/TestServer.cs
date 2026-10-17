@@ -32,6 +32,9 @@ public sealed class IskraServer : WebApplicationFactory<Program>
 
     public World World => Services.GetRequiredService<World>();
 
+    /// <summary>Every log line this server wrote (console and file get the same lines).</summary>
+    public System.Collections.Concurrent.ConcurrentQueue<string> LogLines { get; } = new();
+
     /// <summary>Stands in for the router (internet hosting); null keeps the real one, which only runs when hosting is on.</summary>
     public Iskra.Server.Hosting.IPortMapper? PortMapper { get; init; }
 
@@ -79,9 +82,9 @@ public sealed class IskraServer : WebApplicationFactory<Program>
             if (PortMapper is not null) services.AddSingleton(PortMapper);
         });
         foreach (var (key, value) in Settings) builder.UseSetting(key, value);
-        // Not the Windows Event Log: a test host writes there late in shutdown, after its EventLog handle is gone,
-        // which turned any logged shutdown problem into a failed test.
-        builder.ConfigureLogging(logging => logging.ClearProviders().AddConsole());
+        // Logging is the server's own (Program.cs: one line per entry, console and logs/), never the Windows Event Log:
+        // a test host writes there late in shutdown, after its EventLog handle is gone. Tests can tap every line.
+        builder.ConfigureLogging(logging => Iskra.Server.Logging.IskraLoggingBuilder.AddIskraLog(logging, Path.Combine(WorldPath, "logs"), tap: LogLines.Enqueue));
     }
 
     public async Task<TestClient> ConnectAsync()

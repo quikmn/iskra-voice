@@ -10,6 +10,7 @@ import { ThreadPanel } from './ThreadPanel'
 import { ForumView } from '../forums/ForumView'
 import { DocsView } from '../docs/DocsView'
 import { WhiteboardView } from '../whiteboard/WhiteboardView'
+import { MediaView } from '../mediaChannels/MediaView'
 import './chat-extras.css'
 
 export function ChatArea({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -21,6 +22,8 @@ export function ChatArea({ server, onToggle }: { server: ServerState; onToggle: 
   const forum = server.channels.find((c) => c.id === channelId && c.kind === 'forum')
   const docs = server.channels.find((c) => c.id === channelId && c.kind === 'docs')
   const board = server.channels.find((c) => c.id === channelId && c.kind === 'whiteboard')
+  // A media channel shows its open post in its own viewer, with the comments beside the picture.
+  const media = server.channels.find((c) => c.id === channelId && c.kind === 'media')
 
   // A thread belongs to its channel: going to another channel closes it.
   useEffect(() => {
@@ -28,12 +31,13 @@ export function ChatArea({ server, onToggle }: { server: ServerState; onToggle: 
   }, [open, thread, channelId])
 
   return (
-    <div className={`chat-area ${threadOpen || searching ? 'has-panel' : ''}`}>
-      {forum ? <ForumView key={forum.id} server={server} channel={forum} onToggle={onToggle} />
+    <div className={`chat-area ${(threadOpen && !media) || searching ? 'has-panel' : ''}`}>
+      {media ? <MediaView key={media.id} server={server} channel={media} onToggle={onToggle} />
+        : forum ? <ForumView key={forum.id} server={server} channel={forum} onToggle={onToggle} />
         : docs ? <DocsView key={docs.id} server={server} channel={docs} onToggle={onToggle} />
         : board ? <WhiteboardView key={board.id} server={server} channel={board} onToggle={onToggle} />
         : <ChatView server={server} onToggle={onToggle} />}
-      {threadOpen ? <ThreadPanel key={open.id} server={server} threadId={open.id} /> : searching ? <SearchPanel server={server} /> : null}
+      {threadOpen && !media ? <ThreadPanel key={open.id} server={server} threadId={open.id} /> : searching ? <SearchPanel server={server} /> : null}
     </div>
   )
 }

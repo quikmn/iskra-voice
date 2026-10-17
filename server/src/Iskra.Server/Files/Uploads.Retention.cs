@@ -26,7 +26,7 @@ public sealed partial class Uploads
             {
                 if (world.Store.ContentInUse(sha)) continue;
                 try { File.Delete(PathFor(sha)); }
-                catch (IOException ex) { log.LogWarning("Couldn't delete upload {Sha}: {Message}", sha, ex.Message); }
+                catch (IOException ex) { log.Warn(ex, "SWP-120", "sweep", "skipped", ("what", "upload")); }
             }
         }
     }

@@ -26,7 +26,7 @@ public sealed class ProductivityScheduler(World world, Hub hub, PushService push
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            log.LogWarning(ex, "Couldn't reset scheduled messages");
+            log.Warn(ex, "SCH-110", "sched", "failed", ("what", "scheduled-reset"));
         }
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1), time);
         try
@@ -71,7 +71,7 @@ public sealed class ProductivityScheduler(World world, Hub hub, PushService push
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException and not ObjectDisposedException)
                 {
-                    log.LogWarning(ex, "Scheduled message {Id} failed", due.Id);
+                    log.Warn(ex, "SCH-110", "sched", "failed", ("what", "scheduled"), ("id", due.Id));
                     store.FailScheduled(due.Id, "Something went wrong on the server.");
                 }
             }
@@ -84,7 +84,7 @@ public sealed class ProductivityScheduler(World world, Hub hub, PushService push
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not ObjectDisposedException)
         {
-            log.LogWarning(ex, "Reminders and scheduled messages failed");
+            log.Warn(ex, "SCH-110", "sched", "failed", ("what", "reminders"));
         }
     }
 }

@@ -272,7 +272,7 @@ public sealed class CallRegistry
                 Ended(call, call.State == "active" ? "ended" : "cancelled");
                 break;
             default:
-                _log.LogDebug("Ignoring LiveKit event {Type} for a call", type);
+                _log.Debug("call", "skipped", ("kind", type));
                 break;
         }
     }

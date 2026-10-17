@@ -167,7 +167,7 @@ public class PinnedModel(World world, IModelUpstream upstream, ModelManifest man
         }
         if (fetched > 0)
         {
-            log.LogInformation("Downloaded a model ({Model}, {Bytes} bytes)", Manifest.Dir, fetched);
+            log.Info("http", "done", ("what", "model"), ("id", Manifest.Dir), ("bytes", fetched));
             SecurityLog.Record(world.Store, time.GetUtcNow().ToUnixTimeMilliseconds(), $"{logPrefix}.download",
                 details: new { model = Manifest.Dir, bytes = fetched });
         }
@@ -175,7 +175,7 @@ public class PinnedModel(World world, IModelUpstream upstream, ModelManifest man
 
     private void Failed(string file, string reason)
     {
-        log.LogWarning("A model from upstream failed its check ({Model}, {File})", Manifest.Dir, file);
+        log.Warn("MOD-110", "http", "failed", ("what", "model"), ("id", Manifest.Dir), ("why", reason));
         SecurityLog.Record(world.Store, time.GetUtcNow().ToUnixTimeMilliseconds(), $"{logPrefix}.rejected",
             details: new { model = Manifest.Dir, file, reason });
     }

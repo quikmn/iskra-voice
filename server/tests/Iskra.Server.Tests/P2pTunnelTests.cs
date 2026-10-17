@@ -269,7 +269,7 @@ public class P2pTunnelTests : IDisposable
         }));
         var process = StartServer(world);
         await WaitForServerAsync(process, port);
-        Assert.True(await WaitForLineAsync("Voice ready", 1, 30_000), $"LiveKit didn't come up:\n{string.Join("\n", _log)}");
+        Assert.True(await WaitForLineAsync("what=livekit port=", 1, 30_000), $"LiveKit didn't come up:\n{string.Join("\n", _log)}");
         var turnPort = rtcUdp + 1;
         Assert.False(await StunAnswersAsync(turnPort)); // off: no TURN
 
@@ -279,14 +279,14 @@ public class P2pTunnelTests : IDisposable
         var on = await owner.RequestAsync("p2p.set", new { enabled = true });
         Assert.Equal("result", on.GetProperty("type").GetString());
         // LiveKit restarts with TURN on RtcUdpPort + 1.
-        Assert.True(await WaitForLineAsync("Restarting voice", 1, 10_000));
-        Assert.True(await WaitForLineAsync("Voice ready", 2, 30_000), $"LiveKit didn't come back:\n{string.Join("\n", _log.TakeLast(60))}");
+        Assert.True(await WaitForLineAsync(" voice  restarting ", 1, 10_000));
+        Assert.True(await WaitForLineAsync("what=livekit port=", 2, 30_000), $"LiveKit didn't come back:\n{string.Join("\n", _log.TakeLast(60))}");
         Assert.True(await StunAnswersAsync(turnPort), $"No TURN after turning p2p on:\n{string.Join("\n", _log.TakeLast(60))}");
 
         // Off again: LiveKit restarts without it.
         var off = await owner.RequestAsync("p2p.set", new { enabled = false });
         Assert.Equal("result", off.GetProperty("type").GetString());
-        Assert.True(await WaitForLineAsync("Voice ready", 3, 30_000));
+        Assert.True(await WaitForLineAsync("what=livekit port=", 3, 30_000));
         Assert.False(await StunAnswersAsync(turnPort));
     }
 

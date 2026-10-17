@@ -21,6 +21,9 @@ public static class ForumFeature
     public const int MaxList = 50;
     public const int ExcerptLength = 300;
 
+    /// <summary>Forums and media channels both hold posts (a media channel is a forum where every post has pictures or videos).</summary>
+    public static bool HasPosts(string kind) => kind is "forum" or "media";
+
     public static void Register(Router router)
     {
         router.Add("forum.posts", List);
@@ -40,6 +43,7 @@ public static class ForumFeature
         var root = p.Root;
         var files = root?.Attachments.Select(store.GetFile).OfType<StoredFile>().ToList() ?? [];
         var image = files.FirstOrDefault(f => f.Type.StartsWith("image/", StringComparison.Ordinal) && f.Width is not null);
+        var media = files.Where(MediaFeature.IsMedia).Select(Uploads.Public).ToList();
         return new
         {
             id = p.Id,
@@ -59,6 +63,9 @@ public static class ForumFeature
             excerpt = root is null ? null : root.Text.Length <= ExcerptLength ? root.Text : root.Text[..ExcerptLength] + "…",
             image = image is null ? null : Uploads.Public(image),
             attachmentCount = files.Count,
+            media,
+            untitled = p.Untitled,
+            reactionCount = p.Reactions,
         };
     }
 
@@ -77,14 +84,14 @@ public static class ForumFeature
     /// <summary>After an edit: a post's first message changed its excerpt.</summary>
     public static void Edited(Session s, Channel channel, Message message)
     {
-        if (channel.Kind != "forum" || s.World.Store.PostForRoot(message.Id) is not { } id) return;
+        if (!HasPosts(channel.Kind) || s.World.Store.PostForRoot(message.Id) is not { } id) return;
         if (s.World.Store.GetForumPost(id) is { } post) Broadcast(s, channel, post);
     }
 
     /// <summary>Deleting a post's first message deletes the post.</summary>
     public static void RootDeleted(Session s, Channel channel, long messageId)
     {
-        if (channel.Kind != "forum" || s.World.Store.PostForRoot(messageId) is not { } id) return;
+        if (!HasPosts(channel.Kind) || s.World.Store.PostForRoot(messageId) is not { } id) return;
         s.World.Store.DeleteChannel(id);
         s.Hub.BroadcastToReaders(channel, Frames.Event("thread.deleted", new { id, channelId = channel.Id, rootId = messageId }));
     }
@@ -92,7 +99,7 @@ public static class ForumFeature
     /// <summary>Deleting a post (thread.delete) also deletes its first message.</summary>
     public static void ThreadDeleted(Session s, ThreadInfo thread, Channel? parent)
     {
-        if (parent is not { Kind: "forum" } || s.World.Store.GetMessage(thread.RootId) is null) return;
+        if (parent is null || !HasPosts(parent.Kind) || s.World.Store.GetMessage(thread.RootId) is null) return;
         s.World.Store.DeleteMessage(thread.RootId);
         s.Hub.BroadcastToReaders(parent, Frames.Event("chat.deleted", new { id = thread.RootId, channelId = parent.Id }));
     }
@@ -105,7 +112,7 @@ public static class ForumFeature
     private static Channel ReadableForum(Session s, Member me, long id)
     {
         var channel = ChatFeature.ReadableChannel(s, me, id);
-        return channel.Kind == "forum" ? channel : throw RequestException.BadRequest("That isn't a forum channel.");
+        return HasPosts(channel.Kind) ? channel : throw RequestException.BadRequest("That isn't a forum channel.");
     }
 
     /// <summary>A post the member can read; anything else is not found.</summary>
@@ -158,7 +165,7 @@ public static class ForumFeature
     {
         var forum = ReadableForum(s, me, body.Long("channelId"));
         var sort = body.OptionalString("sort", 16) ?? "activity";
-        if (sort is not ("activity" or "newest")) throw RequestException.BadRequest("'sort' must be activity or newest.");
+        if (sort is not ("activity" or "newest" or "top")) throw RequestException.BadRequest("'sort' must be activity, newest or top.");
         var tag = body.OptionalLong("tag", min: 1);
         var terms = SearchFeature.Terms(body.OptionalString("query", SearchFeature.MaxQueryLength * 2));
         var cursor = Cursor.Parse(body.OptionalString("cursor", 64));
@@ -171,6 +178,7 @@ public static class ForumFeature
         {
             var all = posts.ToList();
             var matched = Matching(store, forum, all, terms);
+            matched.UnionWith(MediaFeature.TagMatches(store, forum, all, terms));
             posts = all.Where(p => matched.Contains(p.Id));
         }
         var ordered = posts
@@ -212,20 +220,27 @@ public static class ForumFeature
         var forum = ReadableForum(s, me, body.Long("channelId"));
         if (!Permissions.CanWrite(me, forum)) throw RequestException.Forbidden("You can't post in this forum.", "forum_cant_post");
         var store = s.World.Store;
-        var title = Title(body.String("title", ThreadFeature.MaxNameLength * 2));
+        var media = forum.Kind == "media";
+        var rawTitle = media ? body.OptionalString("title", ThreadFeature.MaxNameLength * 2) ?? "" : body.String("title", ThreadFeature.MaxNameLength * 2);
+        var untitled = media && rawTitle.Trim().Length == 0;
+        var title = untitled ? "" : Title(rawTitle);
 
         var attachments = body.OptionalStringArray("attachments", ChatFeature.MaxAttachments, 64);
+        var files = new List<StoredFile>();
         foreach (var id in attachments)
         {
             var file = store.GetFile(id);
             if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown attachment.");
+            files.Add(file);
         }
+        if (media) MediaFeature.CheckFiles(files);
         var rawText = body.OptionalString("text", ChatFeature.MaxMessageLength * 2) ?? "";
         var text = rawText.Trim().Length == 0 && attachments.Length > 0
             ? ""
             : Text.Normalize(rawText, ChatFeature.MaxMessageLength, allowNewlines: true)
               ?? throw RequestException.BadRequest($"The first message must be 1–{ChatFeature.MaxMessageLength} characters.", "first_message_length", new { max = ChatFeature.MaxMessageLength });
         var tags = HasField(body, "tags") ? PostTags(store, forum, body) : [];
+        if (untitled) title = MediaFeature.StandInTitle(text, files);
 
         if (store.ThreadCount(forum.Id) >= ThreadFeature.MaxThreadsPerChannel)
             throw RequestException.BadRequest("This forum has too many posts. Delete some old ones first.", "forum_full");
@@ -233,7 +248,7 @@ public static class ForumFeature
         ModerationFeature.CheckSlowmode(s, me, forum);
         if (!s.Hub.Limits.TryTake(me.AccountKey, "thread.create")) throw new RequestException("rate_limited", "Too many new posts. Try again in a minute.", "too_many_posts");
 
-        var thread = store.CreateForumPost(forum, me.AccountKey, title, text, attachments, tags, s.Now);
+        var thread = store.CreateForumPost(forum, me.AccountKey, title, text, attachments, tags, s.Now, untitled);
         var root = store.GetMessage(thread.RootId)!;
         var post = store.GetForumPost(thread.Id)!;
         var message = MessageViews.Public(store, root);
@@ -265,6 +280,7 @@ public static class ForumFeature
         if (title is not null) AutoModFeature.Check(s, me, forum, title, "post");
 
         if (title is not null) store.RenameThread(post.Id, title);
+        if (title is not null && post.Untitled) store.SetPostUntitled(post.Id, false);
         if (tags is not null) store.SetPostTags(post.Id, tags);
         var updated = store.GetForumPost(post.Id)!;
         if (title is not null) s.Hub.BroadcastToReaders(forum, Frames.Event("thread.updated", new { thread = ThreadFeature.View(updated.Thread) }));
@@ -332,7 +348,7 @@ public static class ForumFeature
     {
         public static Cursor Of(ForumPost p, string sort) => p.PinnedAt is { } at
             ? new(1, at, p.Id)
-            : new(0, sort == "newest" ? p.Thread.CreatedAt : p.LastActivity, p.Id);
+            : new(0, sort switch { "newest" => p.Thread.CreatedAt, "top" => p.Reactions, _ => p.LastActivity }, p.Id);
 
         public int CompareTo(Cursor other) =>
             Pinned != other.Pinned ? Pinned.CompareTo(other.Pinned) : Key != other.Key ? Key.CompareTo(other.Key) : Id.CompareTo(other.Id);

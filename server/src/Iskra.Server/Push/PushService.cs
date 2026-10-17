@@ -335,7 +335,7 @@ public sealed partial class PushService
             }
             catch (Exception e) when (e is not OutOfMemoryException)
             {
-                _log.LogDebug(e, "Push to {Host} failed", new Uri(sub.Endpoint).Host);
+                _log.Warn(e, "PSH-110", "push", "failed", e is HttpRequestException { StatusCode: { } status } ? ("status", (int)status) : ("status", null));
             }
             finally
             {

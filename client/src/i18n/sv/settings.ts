@@ -72,7 +72,7 @@ export const settings: Messages['settings'] = {
     edit: 'Redigera {{name}}',
     renameCategory: 'Byt namn på {{name}}',
     emptyCategory: 'Inga kanaler här än.',
-    kinds: { text: 'Text', voice: 'Röst', forum: 'Forum', stage: 'Scen', docs: 'Dokument', whiteboard: 'Whiteboard' },
+    kinds: { text: 'Text', voice: 'Röst', forum: 'Forum', stage: 'Scen', docs: 'Dokument', whiteboard: 'Whiteboard', media: 'Media' },
   },
   overview: {
     name: 'Namn',

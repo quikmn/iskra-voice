@@ -102,7 +102,7 @@ public static class ProxyProtocol
         var last = Interlocked.Read(ref _lastWarning);
         if (last != 0 && now - last < 60_000) return;
         if (Interlocked.CompareExchange(ref _lastWarning, now, last) != last) return;
-        log.LogWarning("Dropped a connection on a PROXY protocol listener: {Why}. Check the proxy's proxy_protocol setting and Https.ProxyTrustedFrom.", why);
+        log.Warn("TLS-150", "http", "dropped", ("what", "proxy-protocol"), ("why", why));
     }
 
     /// <summary>A PROXY protocol v1 or v2 header for a TCP connection over IPv4 or IPv6. Anything else is refused.</summary>

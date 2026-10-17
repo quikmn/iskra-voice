@@ -154,7 +154,7 @@ public sealed class QuietDigestScheduler(World world, PushService push, TimeProv
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not ObjectDisposedException)
         {
-            log.LogWarning(ex, "Quiet hours digest failed");
+            log.Warn(ex, "SCH-110", "sched", "failed", ("what", "digest"));
         }
     }
 }

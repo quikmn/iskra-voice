@@ -395,7 +395,7 @@ public sealed class EventScheduler(World world, Hub hub, PushService push, TimeP
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not ObjectDisposedException)
         {
-            log.LogWarning(ex, "Event scheduling failed");
+            log.Warn(ex, "SCH-110", "sched", "failed", ("what", "events"));
         }
     }
 

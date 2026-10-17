@@ -1003,3 +1003,7 @@ input[type='checkbox'], input[type='radio'] { width: auto; padding: 0; flex: non
 }
 /* A long channel name ends in "…" instead of being cut at a hyphen. */
 .chat-title-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Media channels: seven channel kinds wrap onto two rows in "Create channel" ── */
+.segmented.wrap { flex-wrap: wrap; }
+.segmented.wrap button { flex: 1 1 auto; }

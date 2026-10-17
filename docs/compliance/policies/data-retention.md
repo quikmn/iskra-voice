@@ -69,6 +69,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Profiles (and the stamp of the newest profile edit, `profile_stamps`), memberships, roles, devices, push subscriptions | While the person is a member | Leaving, kick/ban, account deletion, device revocation | — |
 | Alert words, follows (people and roles followed, per channel) and quiet hours (`alert_settings`): words and follows only if the member turned on "Also when Iskra is closed", the schedule (days, times, time zone) only where their push is on | Until they change or turn them off, or stop being a member | The member's app (`alerts.set`), leaving, kick/ban, account deletion | — |
 | When the member's current quiet stretch began (`alert_settings.quiet_since`), for the summary push when quiet hours end; whether they want that summary (`digest` in the schedule) | Until the stretch ends (cleared then), or with the rest of the alert settings | The scheduler when quiet hours end, the member's app (`alerts.set`), leaving, kick/ban, account deletion | — |
+| The server's own log (`logs/YYYY-MM-DD.log`: what the server did, its problems; no personal data by design: no names, message text, keys, tokens or IP addresses; people only as a short per-server code, `acct=`) | Plain 60 days, gzipped until 180 days, then deleted; all of `logs/` under 200 MB (oldest first). Its error output in `server.log` (desktop app, autostart): emptied at start once over 5 MB. Console output under systemd: journald's own retention | `LogMaintenance` (at start and daily) | `server.json` → `Logs.PlainDays`, `Logs.KeepDays` (1–365), `Logs.MaxMb` (10–2000) |
 | Captions model (`models/`; no personal data) | Until the owner deletes it | The owner | `Captions.ModelDownload` (off: not fetched or served) |
 | Translation models (`models/translate/`; no personal data) | Until the owner deletes them | The owner | Server settings → Translation (off: not fetched or served) |
 | Owner claim of a rented server (`owner-claim`), or a server image's claim code (`owner-claim`, `owner-claim-code.txt`) | Until the owner joins; a claim code also stops working after 24 hours and is replaced on the next start | `OwnerSetup` | — |
@@ -89,6 +90,7 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | `Retention.AuditDays` | 90 | Moderation context |
 | `Retention.SecurityLogDays` | 365 | Investigating incidents |
 | `Backups.Keep` | 7 | Undo mistakes |
+| `Logs.KeepDays` / `Logs.MaxMb` | 180 / 200 | Troubleshooting (no personal data in the log) |
 
 ## Apps and websites
 
@@ -145,3 +147,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-17 | Activities: bundles admins add (in `iskra.db`), running activities only in memory |
 | 2026-10-17 | Built-in bots Starboard, Birthdays and Welcome: birthdays, starboard cards, waiting welcomes |
 | 2026-10-17 | Voice channel status in memory only; notification sounds (synced choices, your own sound stays on the device) |
+| 2026-10-17 | The server's own log files (`logs/`): no personal data, 180 days at most |

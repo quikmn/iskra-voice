@@ -14,7 +14,7 @@ export interface Member extends PublicProfile {
 export interface Channel {
   id: number
   name: string
-  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'
+  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media'
   position: number
   readRole: Role
   writeRole: Role
@@ -147,7 +147,7 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate & ProfileStamp, { member: Member; stale?: boolean }]
@@ -562,9 +562,15 @@ export interface ForumPost {
   excerpt: string | null
   image: FileInfo | null
   attachmentCount: number
+  /** The first message's pictures and videos, in order (media channels show these). */
+  media?: FileInfo[]
+  /** Made without a title (media channels): `title` is a stand-in; show the caption instead. */
+  untitled?: boolean
+  /** Reactions on the first message. */
+  reactionCount?: number
 }
 
-export type ForumSort = 'activity' | 'newest'
+export type ForumSort = 'activity' | 'newest' | 'top'
 
 export type EventLocation = { kind: 'voice'; channelId: number | null } | { kind: 'place'; text: string }
 
@@ -623,7 +629,7 @@ export interface Requests {
     { posts: ForumPost[]; tags: ForumTag[]; hasMore: boolean; cursor: string | null },
   ]
   'forum.post.create': [
-    { channelId: number; title: string; text: string; attachments?: string[]; tags?: number[] },
+    { channelId: number; title?: string; text: string; attachments?: string[]; tags?: number[] },
     { post: ForumPost; message: Message },
   ]
   'forum.post.get': [{ id: number }, { post: ForumPost; root: Message | null }]
@@ -2874,6 +2880,12 @@ export interface Requests {
   'invite.joins': [{ accountKey?: string; inviteId?: string; limit?: number }, { joins: JoinedVia[] }]
   /** `secret: ''` removes it. */
   'webhook.signing.set': [{ id: string; secret: string }, { webhook: Webhook }]
+}
+
+// ── logging: the connection's id in the server's log ──
+export interface Welcome {
+  /** This connection's id in the server's log (`conn=`), 1-8 chars [0-9a-z]; absent on older servers (PROTOCOL.md "Log ids"). */
+  logId?: string
 }
 
 // ── channel export ──
