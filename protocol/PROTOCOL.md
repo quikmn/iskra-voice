@@ -1135,8 +1135,9 @@ Departed  { "accountKey": "<b64u>", "name": "Troll", "reason": "left" | "kicked"
   `automod.block`, `report.resolve`, `join.approve`. It needs no `viewAuditLog`.
 - A warning sends `member.warned { reason, by, byName, at }` to the person's sessions; apps show it. Notes are never
   sent to the person they're about, nor in their data export (notes you wrote are in yours, under
-  `moderatorNotesWritten`); they're deleted with the person's account. Departures: `departure` in the export; the name
-  is blanked by an account deletion.
+  `moderatorNotesWritten`, with the author's name blanked once they delete their account); they're deleted with the
+  person's account. Departures: `departure` in the export; kept 90 days (`Retention.AuditDays`, the audit log's
+  horizon; `ModerationSweeper`), the name removed earlier if the account is deleted.
 - End-to-end encrypted channels: deleting there removes the stored envelopes only (apps say so before a bulk delete);
   copies already on other devices stay, as with any encrypted message.
 - Audit: `message.delete.bulk` `{ channelId, channelName, count, authors }` (one entry for the lot), `member.warn`

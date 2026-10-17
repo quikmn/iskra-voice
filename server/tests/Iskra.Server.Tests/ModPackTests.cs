@@ -1,5 +1,8 @@
 using System.Text.Json;
+using Iskra.Server.Features;
 using Iskra.Server.Tests.Support;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Iskra.Server.Tests;
 
@@ -154,5 +157,21 @@ public class ModPackTests
         await mod.RequestAsync("member.notes.add", new { accountKey = member.Key, text = "Kicked for repeat spoilers" });
         Assert.Single((await mod.RequestAsync("member.notes.list", new { accountKey = member.Key })).Body().GetProperty("notes").EnumerateArray());
         Assert.Contains("member.kick", (await mod.RequestAsync("member.history", new { accountKey = member.Key })).Body().GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("action").GetString()));
+    }
+
+    [Fact]
+    public async Task People_who_left_are_forgotten_with_the_audit_log_after_90_days()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var store = server.World.Store;
+        store.RecordDeparture("old-key", "Old", "left", null, now - (long)TimeSpan.FromDays(91).TotalMilliseconds);
+        store.RecordDeparture("recent-key", "Recent", "kicked", owner.Key, now - (long)TimeSpan.FromDays(89).TotalMilliseconds);
+
+        server.Services.GetServices<IHostedService>().OfType<ModerationSweeper>().Single().Sweep(pruneAudit: true);
+
+        var people = (await owner.RequestAsync("member.departed")).Body().GetProperty("people").EnumerateArray().Select(p => p.GetProperty("name").GetString()).ToList();
+        Assert.Equal(["Recent"], people);
     }
 }

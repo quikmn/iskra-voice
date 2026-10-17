@@ -253,7 +253,7 @@ public sealed class SlowmodeTracker
     }
 }
 
-/// <summary>Ends timeouts when they run out (so everyone sees it) and drops audit entries older than Retention.AuditDays.</summary>
+/// <summary>Ends timeouts when they run out (so everyone sees it) and drops audit entries and departures older than Retention.AuditDays.</summary>
 public sealed class ModerationSweeper(World world, Hub hub, TimeProvider time, ILogger<ModerationSweeper> log) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stopping)
@@ -277,7 +277,12 @@ public sealed class ModerationSweeper(World world, Hub hub, TimeProvider time, I
                 if (world.Store.GetMember(key) is { } member) hub.Broadcast(Frames.Event("member.updated", new { member = hub.PublicMember(member) }));
             if (pruneAudit)
             {
-                if (world.Settings.Retention.AuditDays is > 0 and var days) world.Store.PruneAudit(now - (long)TimeSpan.FromDays(days).TotalMilliseconds);
+                if (world.Settings.Retention.AuditDays is > 0 and var days)
+                {
+                    var cutoff = now - (long)TimeSpan.FromDays(days).TotalMilliseconds;
+                    world.Store.PruneAudit(cutoff);
+                    world.Store.PruneDepartures(cutoff); // "People who left" (ModPackFeature) share the audit log's horizon
+                }
                 world.Store.PruneNonces(now - (long)TimeSpan.FromDays(1).TotalMilliseconds);
                 world.Store.PruneJoinRequests(now);
             }
