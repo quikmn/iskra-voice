@@ -3,7 +3,7 @@
 Follow these steps exactly. Run only the commands written here. If a check fails, use the decision table; if the
 table doesn't cover it, **stop and report**. Don't improvise fixes. Background and explanations: [ci-cd.md](ci-cd.md).
 
-- Repo: `D:\Development_Projects\Iskra` (GitHub `quikmn/iskra-voice`). Run every command from there.
+- Repo: `C:\devprojects\Iskra` (GitHub `quikmn/iskra-voice`). Run every command from there.
 - `V` = the version without `v`, e.g. `2.0.0-alpha.10`. `vV` = the tag, e.g. `v2.0.0-alpha.10`.
 - Commands are PowerShell 7 unless marked **bash**. Long waits: run in the background and check back.
 
@@ -234,7 +234,7 @@ Play's SHA-256 from Setup → App signing to `assetlinks.json` and redeploy the 
 ## O. Owner: one-time setup
 
 For the orchestrator, walking the owner through it. Each step that needs the owner's input runs in a PowerShell window
-opened for them in `D:\Development_Projects\Iskra` (CLAUDE.local.md): they never copy commands. Background:
+opened for them in `C:\devprojects\Iskra` (CLAUDE.local.md): they never copy commands. Background:
 [ci-cd.md 2a and section 4](ci-cd.md#2a-the-release-button). Do them in this order; 1-3 make the Release button work,
 4-5 remove the Play key file and the release keystore from the routine path.
 
@@ -243,7 +243,7 @@ opened for them in `D:\Development_Projects\Iskra` (CLAUDE.local.md): they never
    contributors** → Save. (Today it is "first-time contributors".) Also check Settings → Environments → `release` still
    has deployment branch `main` and no required reviewers.
 2. **The runner** (after this branch is merged and pushed): open a normal, not elevated window running
-   `scripts\runner-setup.ps1` (`Start-Process pwsh -WorkingDirectory D:\Development_Projects\Iskra -ArgumentList '-NoExit','-File','scripts\runner-setup.ps1'`).
+   `scripts\runner-setup.ps1` (`Start-Process pwsh -WorkingDirectory C:\devprojects\Iskra -ArgumentList '-NoExit','-File','scripts\runner-setup.ps1'`).
    The owner only watches; it needs gh logged in as the owner. ✔ "Runner 'iskra-home-…' is online on GitHub with the
    label iskra-windows-signing." Then the owner sets Windows → Settings → System → Power → "When plugged in, put my
    device to sleep after" → Never. Check: `gh api repos/quikmn/iskra-voice/actions/runners` lists it online.
