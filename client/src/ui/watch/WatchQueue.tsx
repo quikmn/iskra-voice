@@ -7,7 +7,7 @@ import type { WatchItem, WatchParty, WatchSourceInput } from '../../core/protoco
 import { errorMessage } from '../../i18n/errors'
 import { uploadFile, type ServerState } from '../../state/store'
 import { addToQueue, moveInQueue, playNow, removeFromQueue } from '../../state/watch'
-import { isAudioish, itemTitle, moveTarget, youTubeThumb } from '../../state/watchQueueLogic'
+import { clearIfSent, isAudioish, itemTitle, moveTarget, youTubeThumb } from '../../state/watchQueueLogic'
 import { parseWatchInput } from '../../state/watchSync'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { Close, Trash } from '../icons'
@@ -125,10 +125,12 @@ function AddToQueue({ server, party, onError }: { server: ServerState; party: Wa
     if (!source || busy) return
     setBusy(true)
     onError(null)
+    const sent = { link, title }
     try {
       await addToQueue(server.key, party, source, title.trim() || undefined)
-      setLink('')
-      setTitle('')
+      // Whatever was typed while the add was on its way stays.
+      setLink(clearIfSent(sent.link))
+      setTitle(clearIfSent(sent.title))
     } catch (e) {
       onError(errorMessage(e))
     } finally {

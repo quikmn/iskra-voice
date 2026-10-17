@@ -228,6 +228,13 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
     setNow({ time: 0, duration: 0 })
   }, [key, party.source.kind])
 
+  // Behind the gate (or a bad link) no player is mounted: drop the last item's, or the clock would keep playing it out
+  // of sight and, at its end, move the party on for everyone.
+  const playerShown = !gated && !badLink
+  useEffect(() => {
+    if (!playerShown) adapter.current = null
+  }, [playerShown, key])
+
   useEffect(() => {
     const timer = setInterval(sync, 1000)
     return () => clearInterval(timer)

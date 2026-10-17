@@ -110,6 +110,11 @@ test('a queue plays on by itself, the host can make it audio only, and phones ge
   await expect(gate(host)).toHaveCount(0)
   await expect(host.getByTestId('watch-now-playing').locator('strong')).toHaveText('Song C')
   await expect(gate(friend)).toBeVisible() // the friend hasn't agreed
+  // Behind the gate nothing plays: not even Track 2's old player, which (unmounted but still driven by the party's
+  // clock) once played on out of sight and, on reaching its end, moved the party on for everyone. The clock checks
+  // the player every second, so give it a few ticks.
+  await friend.waitForTimeout(2_500)
+  await expect(friend.locator('.watch-time')).toHaveText('0:00 / 0:00')
 
   // A different site asks again; the same site doesn't.
   await queue(host).getByLabel('Link').fill('https://cdn.example.net/song-d.mp3')
