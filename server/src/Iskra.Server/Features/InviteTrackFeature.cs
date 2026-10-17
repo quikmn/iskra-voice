@@ -52,12 +52,12 @@ public static class InviteTrackFeature
         return view;
     }
 
-    /// <summary>What an audit entry keeps about the invite: id, label and its maker (by key and, now, by name).</summary>
+    /// <summary>What an audit entry keeps about the invite: its public id, label and maker (never the code).</summary>
     private static object AuditView(JoinedVia v) => new { id = v.InviteId, label = v.Label, createdBy = v.CreatedBy };
 
     private static object Joins(Session s, Member me, Body body)
     {
-        if (!ReportFeature.IsModerator(me)) throw RequestException.Forbidden("Only moderators can see how people joined.", "mods_only");
+        if (!ReportFeature.IsModerator(me)) throw RequestException.Forbidden("Only moderators can do that.", "mods_only");
         var store = s.World.Store;
         var limit = (int)(body.OptionalLong("limit", min: 1, max: MaxJoins) ?? 500);
         var joins = store.JoinsVia(body.OptionalString("accountKey", 64), body.OptionalString("inviteId", 32), limit);
