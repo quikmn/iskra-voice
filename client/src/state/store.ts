@@ -294,7 +294,10 @@ export async function boot(): Promise<void> {
     return
   }
   useApp.setState({ phase: 'ready', identity, profile })
-  for (const server of saved) connectServer(server.url, server.serverKey, server.name, server.invite, !!server.invite, server.p2p)
+  for (const server of saved) {
+    if (server.invite) restoredJoins.add(server.serverKey)
+    connectServer(server.url, server.serverKey, server.name, server.invite, !!server.invite, server.p2p)
+  }
   const first = saved.find((s) => !railHooks.isHidden(s.serverKey)) ?? null
   if (first) useApp.setState({ activeServer: first.serverKey })
 }
@@ -360,6 +363,7 @@ export function acceptInvite(invite: InviteLink): void {
 }
 
 export function leaveServer(key: string): void {
+  restoredJoins.delete(key)
   connections.get(key)?.stop()
   connections.delete(key)
   forgetStamps(key)
@@ -451,8 +455,16 @@ export async function rejoinServer(key: string): Promise<void> {
 export const failedJoin = (server: ServerState | undefined): boolean =>
   !!server?.joining && (server.status.state === 'offline' || server.status.state === 'rejected')
 
+/**
+ * Joins saved from an earlier session (the app closed before the welcome): never dropped by themselves. They keep
+ * retrying (the home server may just be out of reach from here), and their screen offers to remove them.
+ */
+const restoredJoins = new Set<string>()
+
 function dropFailedJoins(state: AppState): void {
-  for (const [key, server] of Object.entries(state.servers)) if (failedJoin(server) && state.activeServer !== key) leaveServer(key)
+  for (const [key, server] of Object.entries(state.servers)) {
+    if (failedJoin(server) && state.activeServer !== key && !restoredJoins.has(key)) leaveServer(key)
+  }
 }
 useApp.subscribe(dropFailedJoins)
 

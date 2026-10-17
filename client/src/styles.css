@@ -323,6 +323,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
   background: var(--sidebar); flex: none;
 }
 .voice-bar.error { color: var(--red); font-size: 13px; justify-content: space-between; }
+.voice-bar.notice { color: var(--muted); font-size: 13px; justify-content: space-between; }
 .voice-status { display: grid; min-width: 0; flex: 1; font-size: 12px; line-height: 1.3; }
 .voice-status strong { font-size: 13px; color: var(--amber); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .voice-status strong.connected { color: var(--green); }

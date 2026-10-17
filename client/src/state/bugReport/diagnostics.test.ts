@@ -111,3 +111,17 @@ describe('logs and payload', () => {
     for (const value of values) expect(sent).not.toContain(value)
   })
 })
+
+describe('why voice ended', () => {
+  it('keeps a known reason on "left" only, and shows it in the log', () => {
+    expect(sanitizeEntry({ at, kind: 'voice', state: 'left', reason: 'other_device' })).toMatchObject({ reason: 'other_device' })
+    expect(sanitizeEntry({ at, kind: 'voice', state: 'left', reason: 'Some text' })).not.toHaveProperty('reason')
+    expect(sanitizeEntry({ at, kind: 'voice', state: 'connected', reason: 'kicked' })).not.toHaveProperty('reason')
+    const buffer = new DiagnosticsBuffer()
+    buffer.record({ at, kind: 'voice', state: 'left', reason: 'other_device' })
+    buffer.record({ at, kind: 'voice', state: 'left', reason: 'kicked' })
+    const logs = renderLogs({ now: at, env, entries: buffer.entries(at), settings: {}, voice: { state: 'none' } })
+    expect(logs).toContain('voice left (other device)')
+    expect(logs).toContain('voice left (kicked)')
+  })
+})
