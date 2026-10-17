@@ -101,14 +101,16 @@ export function setUrlResolver(resolver: (key: string) => Promise<string | null>
 
 type ServerEventListener = (serverKey: string, type: keyof Events, body: unknown) => void
 const eventListeners = new Set<ServerEventListener>()
-const welcomeListeners = new Set<(serverKey: string, welcome: Welcome) => void>()
+/** `firstJoin`: this welcome completed a join from an invite (not a reconnect to a server you were already on). */
+type WelcomeListener = (serverKey: string, welcome: Welcome, firstJoin: boolean) => void
+const welcomeListeners = new Set<WelcomeListener>()
 
 /** Other state modules (DMs, …) subscribe to server events here instead of importing each other. */
 export function onServerEvent(listener: ServerEventListener): void {
   eventListeners.add(listener)
 }
 
-export function onWelcomeHook(listener: (serverKey: string, welcome: Welcome) => void): void {
+export function onWelcomeHook(listener: WelcomeListener): void {
   welcomeListeners.add(listener)
 }
 
@@ -466,7 +468,8 @@ function onWelcome(key: string, welcome: Welcome): void {
   for (const [tempId, unsent] of unsentSends) if (unsent.key === key) void deliver(key, unsent.channelId, tempId, unsent.body)
   const channel = activeChannelId(useApp.getState())
   if (channel !== null && useApp.getState().activeServer === key) void loadHistory(key, channel)
-  for (const listener of welcomeListeners) listener(key, welcome)
+  const firstJoin = !!before?.joining
+  for (const listener of welcomeListeners) listener(key, welcome, firstJoin)
 }
 
 async function catchUp(key: string, channelId: number, after: number): Promise<void> {

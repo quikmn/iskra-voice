@@ -52,9 +52,23 @@ test('self-assignable roles: admins ask, new members pick after the rules, every
   await form.getByRole('button', { name: 'Save' }).click()
   await expect(onboarding.locator('.onboarding-row', { hasText: 'Pings' })).toContainText('Several answers · Event pings')
   await host.screenshot({ path: join(SHOTS, 'onboarding-settings.png') })
+  await host.keyboard.press('Escape')
 
-  // ── Rules that must be agreed to, so the welcome screen comes up for newcomers.
-  await settings.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Server rules', exact: true }).click()
+  // ── No rules screen yet: the picker opens by itself right after joining, once. A reconnect doesn't bring it back.
+  const pat = await (await browser.newContext()).newPage()
+  await joinVia(pat, invite, 'Pat')
+  const patPicker = pat.getByRole('dialog', { name: 'Pick your roles on Onboarding Test' })
+  await expect(patPicker).toBeVisible()
+  await patPicker.getByRole('checkbox', { name: 'Event pings' }).click()
+  await expect(patPicker.getByRole('checkbox', { name: 'Event pings' })).toHaveAttribute('aria-checked', 'true')
+  await pat.getByTestId('role-picker-done').click()
+  await expect(patPicker).toHaveCount(0)
+  await pat.reload()
+  await expect(pat.getByRole('heading', { name: 'general', exact: true })).toBeVisible({ timeout: 15_000 })
+  await expect(pat.getByRole('dialog', { name: 'Pick your roles on Onboarding Test' })).toHaveCount(0)
+
+  // ── Rules that must be agreed to, so the welcome screen comes up for newcomers (and the picker waits for it).
+  await openServerSettings(host, 'Server rules')
   const rules = host.getByTestId('rules-section')
   await rules.getByLabel('Rules').fill('1. Be kind.')
   await rules.getByRole('checkbox', { name: /Members must agree/ }).check()

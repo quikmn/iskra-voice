@@ -6,6 +6,7 @@ import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { senderRules } from './senderRules'
 import { setBaseRoles } from './baseRoles'
 import { canPingGroups, mentionsMyRole } from './permissions'
+import { askableGroups, shouldOpenPickerAfterJoin } from './rolePickerLogic'
 import { mentions } from '../ui/markdown'
 import { t } from '../i18n'
 import { useSyncExternalStore } from 'react'
@@ -32,13 +33,11 @@ interface GroupsState {
 export const useRoleGroups = create<GroupsState>(() => ({ groups: {}, picker: null }))
 
 const NO_GROUPS: RoleGroup[] = []
-/** A server's pick groups that still offer a role (an empty group has nothing to ask). */
+/** A server's pick groups (askableGroups filters out the ones with nothing left to pick). */
 export const useServerRoleGroups = (serverKey: string | undefined) =>
   useRoleGroups((s) => (serverKey ? s.groups[serverKey] ?? NO_GROUPS : NO_GROUPS))
 export const roleGroupsFor = (serverKey: string) => useRoleGroups.getState().groups[serverKey] ?? NO_GROUPS
-/** Groups with at least one role left to pick. */
-export const askableGroups = (groups: RoleGroup[], roles: ServerRole[]) =>
-  groups.filter((g) => g.roles.some((id) => roles.some((r) => r.id === id && r.selfAssign)))
+export { askableGroups }
 
 export const openRolePicker = (serverKey: string) => useRoleGroups.setState({ picker: serverKey })
 export const closeRolePicker = () => useRoleGroups.setState({ picker: null })
@@ -111,11 +110,13 @@ export async function moveToChannel(serverKey: string, accountKey: string, chann
   await connection(serverKey).request('voice.move', { accountKey, channelId })
 }
 
-onWelcomeHook((serverKey) => {
+onWelcomeHook((serverKey, welcome, firstJoin) => {
   connectionFor(serverKey)?.request('role.list', {})
     .then(({ roles, baseRoles, groups }) => {
       put(serverKey, roles, groups)
       setBaseRoles(serverKey, baseRoles)
+      // Just joined, and the server asks something: the picker opens once (with required rules, the rules screen shows it after agreeing).
+      if (shouldOpenPickerAfterJoin(firstJoin, groups ?? [], roles, !!welcome.rules?.mustAgree)) openRolePicker(serverKey)
     })
     .catch(() => undefined) // an older server: no custom roles
 })
