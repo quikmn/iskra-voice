@@ -2,7 +2,7 @@
 // the PowerShell release scripts. Needs PowerShell 7 (pwsh); skipped where it isn't installed.
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -239,4 +239,25 @@ test('release.ps1 asks nothing interactively', () => {
   for (const bad of ['Read-Host', 'approve it', 'PromptForChoice', 'Get-Credential']) assert.ok(!text.includes(bad), bad)
   assert.ok(text.includes("GH_PROMPT_DISABLED = '1'") && text.includes("GIT_TERMINAL_PROMPT = '0'"))
   assert.ok(text.includes('ALL CHECKS GREEN - SENDING'))
+})
+
+// A lockfile changed by a merge after the last install means the release would build against old packages.
+test('Test-NodeModulesStale: missing install or a lockfile newer than the install', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'iskra-nm-'))
+  try {
+    const stale = () => ps(`ConvertTo-Json -Compress -InputObject (Test-NodeModulesStale -Folder '${dir.replaceAll("'", "''")}')`)
+    writeFileSync(join(dir, 'package-lock.json'), '{}')
+    assert.equal(stale(), true) // never installed
+    mkdirSync(join(dir, 'node_modules'))
+    writeFileSync(join(dir, 'node_modules', '.package-lock.json'), '{}')
+    const old = new Date(Date.now() - 60_000)
+    utimesSync(join(dir, 'package-lock.json'), old, old)
+    assert.equal(stale(), false) // installed after the lockfile's last change
+    const now = new Date()
+    utimesSync(join(dir, 'package-lock.json'), now, now)
+    utimesSync(join(dir, 'node_modules', '.package-lock.json'), old, old)
+    assert.equal(stale(), true) // the lockfile changed since
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
