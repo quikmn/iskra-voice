@@ -14,6 +14,8 @@ import {
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgMenu'
 import { GameNightItems } from '../teams/TeamsBits'
 import { RoomMenuItem } from '../rooms/RoomBits'
+import { ClearVoiceStatusItem } from '../voiceStatus/VoiceStatus'
+import { SoundMenuRow, SoundMenuView } from '../sounds/SoundSettings'
 
 export type Run = (action: () => Promise<unknown> | void) => () => void
 
@@ -36,13 +38,14 @@ export function useRunner(onClose: () => void): [Run, string | null] {
 export function NotifyViews({ server, channelId, view, setView, run }: {
   server: ServerState
   channelId: number | null
-  view: 'levels' | 'mute'
+  view: 'levels' | 'mute' | 'sound'
   setView: (v: 'menu') => void
   run: Run
 }) {
   const { t } = useTranslation()
   const own = useOrganize((s) => s.notify[server.key]?.[notifyKey(channelId)])
   const serverLevel = useNotifyFor(server.key, null).chosen
+  if (view === 'sound') return <SoundMenuView server={server} channelId={channelId} back={() => setView('menu')} run={run} />
   if (view === 'levels') {
     const current = own?.level ?? 'default'
     const pick = (level: NotifyLevel | 'default') => run(() => setNotifyLevel(server.key, channelId, level))
@@ -75,7 +78,7 @@ export function NotifyViews({ server, channelId, view, setView, run }: {
 }
 
 /** Notification rows shared by the channel menu and the server's notification settings. */
-export function NotifyRows({ server, channelId, setView, run }: { server: ServerState; channelId: number | null; setView: (v: 'levels' | 'mute') => void; run: Run }) {
+export function NotifyRows({ server, channelId, setView, run }: { server: ServerState; channelId: number | null; setView: (v: 'levels' | 'mute' | 'sound') => void; run: Run }) {
   const { t } = useTranslation()
   const notify = useNotifyFor(server.key, channelId)
   const own = useOrganize((s) => s.notify[server.key]?.[notifyKey(channelId)])
@@ -90,6 +93,7 @@ export function NotifyRows({ server, channelId, setView, run }: { server: Server
       ) : (
         <MenuItem onClick={() => setView('mute')} hint={notify.muted ? t('organize.menu.serverIsMuted') : undefined}>{isServer ? t('organize.menu.mute.server') : t('organize.menu.mute.channel')}</MenuItem>
       )}
+      <SoundMenuRow server={server} channelId={channelId} open={() => setView('sound')} />
     </>
   )
 }
@@ -103,7 +107,7 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  const [view, setView] = useState<'menu' | 'levels' | 'mute' | 'move'>('menu')
+  const [view, setView] = useState<'menu' | 'levels' | 'mute' | 'sound' | 'move'>('menu')
   const [run, error] = useRunner(onClose)
   const categories = useCategories(server.key)
   const layout = layoutChannels(server.channels, categories)
@@ -115,7 +119,7 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
 
   return (
     <OrgMenu anchor={anchor} label={t('organize.list.options', { name: label })} onClose={onClose}>
-      {view === 'levels' || view === 'mute' ? (
+      {view === 'levels' || view === 'mute' || view === 'sound' ? (
         <NotifyViews server={server} channelId={channel.id} view={view} setView={setView} run={run} />
       ) : view === 'move' ? (
         <>
@@ -141,6 +145,7 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
             {channel.kind !== 'forum' && channel.kind !== 'whiteboard' && <NotifyRows server={server} channelId={channel.id} setView={setView} run={run} />}
             <GameNightItems server={server} channel={channel} onClose={onClose} />
             <RoomMenuItem server={server} channel={channel} onClose={onClose} />
+            <ClearVoiceStatusItem server={server} channel={channel} run={run} />
             {isAdmin && (
               <>
                 <div className="org-sep" role="separator" />

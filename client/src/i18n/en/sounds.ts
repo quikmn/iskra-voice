@@ -1,0 +1,43 @@
+// Notification sounds (English): the built-in set, your choices, per-server and per-channel sounds, your own sound. Keep in step with ../sv/sounds.ts.
+export const sounds = {
+  heading: 'Sounds',
+  names: {
+    classic: 'Classic',
+    chime: 'Chime',
+    pop: 'Pop',
+    bell: 'Bell',
+    droplet: 'Droplet',
+    marimba: 'Marimba',
+    custom: 'Your own sound',
+    none: 'No sound',
+  },
+  kinds: {
+    message: 'Messages',
+    mention: 'Mentions and replies',
+    dm: 'Direct messages',
+  },
+  preview: 'Play',
+  previewOf: 'Play {{sound}}',
+  inherit: 'Same as yours ({{sound}})',
+  customMissing: 'Your own sound (plays Classic on this device)',
+  syncHint: 'Your choices follow you to your other devices. A server or channel can have a sound of its own: pick it in its menu.',
+  menuRow: 'Sound',
+  menuTitle: 'Sound for {{place}}',
+  yourDefault: 'Your sound',
+  serverDefault: 'Server sound',
+  custom: {
+    heading: 'Your own sound',
+    upload: 'Upload a sound',
+    replace: 'Replace',
+    remove: 'Remove',
+    current: '{{name}} ({{seconds}} s)',
+    hint: 'A short sound file: up to 4 seconds and 1 MB. It stays on this device and is never uploaded; your other devices play Classic instead.',
+    problems: {
+      notAudio: "That isn't a sound file.",
+      tooBig: 'That file is too big. Pick one up to 1 MB.',
+      tooLong: 'That sound is too long. Pick one up to 4 seconds.',
+      empty: 'That sound is silent.',
+      unreadable: "That sound couldn't be played here. Try an MP3, OGG or WAV file.",
+    },
+  },
+}

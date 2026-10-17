@@ -55,6 +55,8 @@ import { translate } from './translate'
 import { whiteboard } from './whiteboard'
 import { landing } from './landing'
 import { activities } from './activities'
+import { sounds } from './sounds'
+import { voiceStatus } from './voiceStatus'
 
 export const sv: Messages = {
   common,
@@ -112,4 +114,6 @@ export const sv: Messages = {
   whiteboard,
   landing,
   activities,
+  sounds,
+  voiceStatus,
 }

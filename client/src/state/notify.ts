@@ -20,6 +20,9 @@ import { useAudio } from './audio'
 import { desktop } from '../platform/desktop'
 import { overlayIcon } from '../platform/badge'
 import { streamerOn } from './streamer'
+import { playPartials, tone } from './sounds/synth'
+import { playNotifySound } from './sounds'
+import type { SoundKind } from './sounds/soundLogic'
 
 interface NotifySettings {
   desktop: boolean
@@ -58,10 +61,7 @@ export async function enableDesktopNotifications(): Promise<boolean> {
   return permission === 'granted'
 }
 
-// ── Sounds: tiny synthesized tones, no audio files to load ──────────────────
-
-let audio: AudioContext | null = null
-let audioSink = ''
+// ── Sounds: tiny synthesized tones, no audio files to load (message sounds: state/sounds) ─────────────────
 
 export type Tone = 'message' | 'join' | 'leave' | 'mute' | 'unmute' | 'deafen' | 'undeafen' | 'whisper'
 
@@ -81,32 +81,7 @@ export function playTone(kind: Tone, test = false): void {
   if (kind === 'message' ? !useNotify.getState().sounds : !useAudio.getState().voiceSounds) return
   if (!test && streamerOn()) return // streamer mode: nothing plays into the stream
   if (isDoNotDisturb() && !test) return
-  try {
-    audio ??= new AudioContext()
-    // Play on the chosen output device where the browser allows it.
-    const sink = useAudio.getState().outputDevice
-    const ctx = audio as AudioContext & { setSinkId?: (id: string) => Promise<void> }
-    if (sink !== audioSink && ctx.setSinkId) {
-      audioSink = sink
-      void ctx.setSinkId(sink).catch(() => undefined)
-    }
-    const notes = TONES[kind]
-    notes.forEach((frequency, i) => {
-      const osc = audio!.createOscillator()
-      const gain = audio!.createGain()
-      const start = audio!.currentTime + i * 0.09
-      osc.frequency.value = frequency
-      osc.type = 'sine'
-      gain.gain.setValueAtTime(0.0001, start)
-      gain.gain.exponentialRampToValueAtTime(0.12, start + 0.01)
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16)
-      osc.connect(gain).connect(audio!.destination)
-      osc.start(start)
-      osc.stop(start + 0.18)
-    })
-  } catch {
-    /* audio not allowed yet (no user gesture) */
-  }
+  playPartials(tone(TONES[kind]))
 }
 
 /** Quiet hours (state/alerts.ts fills it in): null when they're off right now. */
@@ -122,15 +97,20 @@ export function showNotification(serverKey: string, title: string, body: string,
 
 /**
  * `ping`: a mention, reply, alert word or DM, which quiet hours may let through (silently). `expiresAt`: a disappearing
- * message; its notification is taken away when the message goes.
+ * message; its notification is taken away when the message goes. `sound`: which sound plays (state/sounds picks it
+ * for the place: channel, then server, then yours); a mention or a message on the server by default.
  */
-export function show(serverKey: string, title: string, body: string, onClick: () => void, ping = false, expiresAt?: number): void {
+export function show(serverKey: string, title: string, body: string, onClick: () => void, ping = false, expiresAt?: number,
+  sound?: { kind: SoundKind; channelId?: number | null }): void {
   if (pushActive.has(serverKey) && !document.hasFocus()) return
   if (isDoNotDisturb()) return // do not disturb: no sounds or notifications (unread badges still count)
   if (streamerOn()) return // streamer mode: no previews or sounds on the stream (unread badges still count)
   const quiet = quietRules.now()
   if (quiet && !(quiet.mentions && ping)) return // quiet hours: nothing, or pings without a sound
-  if (!quiet) playTone('message')
+  if (!quiet && useNotify.getState().sounds) {
+    const kind = sound?.kind ?? (ping ? 'mention' : 'message')
+    playNotifySound(kind, kind === 'dm' ? {} : { serverKey, channelId: sound?.channelId })
+  }
   if (!document.hasFocus()) void desktop?.attention?.().catch(() => undefined)
   if (!useNotify.getState().desktop || !notificationsSupported() || Notification.permission !== 'granted') return
   const notification = new Notification(title, { body: body.slice(0, 200), silent: true })
@@ -164,7 +144,7 @@ export function notifyChannelMessage(serverKey: string, message: Message): void 
   const author = message.webhook?.name ?? server.members[message.author]?.name ?? t('common.someone')
   show(serverKey, t('app.notify.authorIn', { author, where: conversationLabel(server, message.channelId) }), stripMarkdown(plainText(message.text, { nameOf: (k) => server.members[k]?.name ?? null })), () => {
     void jumpToMessage(serverKey, message.channelId, message.id)
-  }, pinged, message.expiresAt ?? undefined)
+  }, pinged, message.expiresAt ?? undefined, { kind: pinged ? 'mention' : 'message', channelId: message.channelId })
 }
 
 onServerEvent((serverKey, type, body) => {
@@ -201,7 +181,7 @@ const dmServer = new Map<string, string>()
 void import('./dms').then(({ onDmOpened, nameOf, openConversation }) => onDmOpened((peer, dms, live) => {
   const dm = dms.at(-1)
   if (!live || !dm || dm.from === me() || dm.friend || isOnScreen(dmConv(peer))) return
-  show(dmServer.get(dm.from) ?? '', nameOf(dm.from), dm.error ? t('app.notify.newMessage') : (dm.text || t('app.notify.newMessage')), () => openConversation(peer), true, dm.expiresAt)
+  show(dmServer.get(dm.from) ?? '', nameOf(dm.from), dm.error ? t('app.notify.newMessage') : (dm.text || t('app.notify.newMessage')), () => openConversation(peer), true, dm.expiresAt, { kind: 'dm' })
 }))
 
 let lastBadge = -1

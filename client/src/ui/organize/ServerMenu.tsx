@@ -32,7 +32,7 @@ import { serverMenuLayout } from './serverMenuLayout'
 
 export type ServerAction = { kind: 'invite' } | { kind: 'channel' } | { kind: 'nickname' } | { kind: 'hide' } | { kind: 'leave' } | { kind: 'folder'; folderId: string }
 
-type View = 'menu' | 'more' | 'levels' | 'mute' | 'move'
+type View = 'menu' | 'more' | 'levels' | 'mute' | 'sound' | 'move'
 
 export function ServerMenu({ server, anchor, onClose }: { server: ServerState; anchor: MenuAnchor | null; onClose: () => void }) {
   const { t } = useTranslation()
@@ -62,7 +62,7 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
 
   return (
     <OrgMenu anchor={anchor} label={t('app.rail.options', { name: server.name })} onClose={onClose}>
-      {view === 'levels' || view === 'mute' ? (
+      {view === 'levels' || view === 'mute' || view === 'sound' ? (
         <NotifyViews server={server} channelId={null} view={view} setView={back} run={run} />
       ) : view === 'more' ? (
         <>
