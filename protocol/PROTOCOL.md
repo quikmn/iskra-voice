@@ -4210,8 +4210,12 @@ rather than refused.
 **Signing secrets.** An admin who manages the webhook can give it a signing secret, the one entered at GitHub, Gitea or
 GitLab. Once set, posts to `/github` and `/gitea` must carry `X-Hub-Signature-256: sha256=<hex HMAC-SHA256(secret, body)>`
 (Gitea: or `X-Gitea-Signature: <hex>`), and posts to `/gitlab` `X-Gitlab-Token: <secret>`; anything else is
-`401 { message, code: 50014 }` and nothing is posted. Compared in constant time. The plain URL and `/slack` have no
-signatures (their senders don't sign); the secret URL stays their only key.
+`401 { message, code: 50014 }` and nothing is posted. Compared in constant time. A webhook with a signing secret is a
+GitHub, Gitea or GitLab webhook: posts to its plain URL and to `/slack` (formats that can't be signed) are `401` too. Without
+a secret every format works and the secret URL is the only key. The signature is checked before the webhook's rate limit is
+used; refused posts count against the sender's address (20 at once, then 1/s, like wrong secrets) and are recorded in the
+security log as `webhook.bad_signature` `{ webhook, format }` (never a secret or signature; the IP only under the owner's
+IP setting).
 
 | type | body | result | who |
 |---|---|---|---|

@@ -328,10 +328,65 @@ public class WebhookFormatTests
         Assert.False((await admin.RequestAsync("webhook.signing.set", new { id, secret = "" })).Body().GetProperty("webhook").GetProperty("signed").GetBoolean());
         Assert.Null(server.World.Store.WebhookSigningSecret(id));
 
-        // The plain Discord format ignores the signing secret (it has none); deleting the webhook drops the secret.
-        await admin.RequestAsync("webhook.signing.set", new { id, secret = "0123456789abcdef" });
+        // A signed webhook is a GitHub/Gitea/GitLab webhook: the plain and Slack formats (which can't be signed) are
+        // refused, so a leaked URL can't post look-alike cards. Deleting the webhook drops the secret.
         using (var r = await Send(server, path, """{"content":"plain"}""")) Assert.Equal(HttpStatusCode.NoContent, r.StatusCode);
+        await alice.EventAsync("chat.message");
+        await admin.RequestAsync("webhook.signing.set", new { id, secret = "0123456789abcdef" });
+        using (var r = await Send(server, path, """{"content":"plain"}""")) Assert.Equal(HttpStatusCode.Unauthorized, r.StatusCode);
+        using (var r = await Send(server, path + "/slack", """{"text":"plain"}""")) Assert.Equal(HttpStatusCode.Unauthorized, r.StatusCode);
+        await alice.NoEventAsync("chat.message");
         await admin.RequestAsync("webhook.delete", new { id });
         Assert.Null(server.World.Store.WebhookSigningSecret(id));
+    }
+
+    [Fact]
+    public async Task Bad_signatures_are_logged_and_counted_per_address_not_against_the_webhook()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var path = await Hook(owner, server.General, Secret) + "/github";
+        const string ping = """{"zen":"Keep it logically awesome.","repository":{"full_name":"octocat/Hello-World"}}""";
+
+        // More bad signatures than the webhook's burst of five: refused (401), never rate limited against the webhook.
+        for (var i = 0; i < 8; i++)
+            using (var r = await Send(server, path, ping, ("X-GitHub-Event", "ping"), ("X-Hub-Signature-256", Hmac("not the secret at all", ping))))
+                Assert.Equal(HttpStatusCode.Unauthorized, r.StatusCode);
+        using (var r = await Send(server, path, ping, ("X-GitHub-Event", "ping"), ("X-Hub-Signature-256", Hmac(Secret, ping))))
+            Assert.Equal(HttpStatusCode.NoContent, r.StatusCode);
+        Assert.Equal("[octocat/Hello-World] Webhook connected", (await Card(owner)).GetProperty("title").GetString());
+
+        // In the security log, without the secret or a signature; no IP unless the owner turned that on.
+        var logged = server.World.Store.SecurityEvents("webhook.bad_signature", null, null, 50);
+        Assert.NotEmpty(logged);
+        Assert.All(logged, e => Assert.Null(e.Ip));
+        Assert.DoesNotContain(Secret, string.Join("\n", logged.Select(e => e.Details)));
+        Assert.Contains("github", logged[0].Details);
+
+        // Past 20 at once from one address, bad signatures are rate limited (per address).
+        var codes = new List<HttpStatusCode>();
+        for (var i = 0; i < 20; i++)
+            using (var r = await Send(server, path, ping, ("X-GitHub-Event", "ping"), ("X-Hub-Signature-256", Hmac("not the secret at all", ping))))
+                codes.Add(r.StatusCode);
+        Assert.Contains(HttpStatusCode.TooManyRequests, codes);
+    }
+
+    [Fact]
+    public async Task Huge_slack_attachments_are_cut_before_conversion()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var path = await Hook(admin, server.General) + "/slack";
+        var stars = string.Concat(Enumerable.Repeat("*a ", 60_000));
+        var body = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            attachments = new[] { new { pretext = stars, text = stars, fallback = stars, fields = new[] { new { title = "x", value = stars } } } },
+        });
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        using (var r = await Send(server, path, body)) Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"Took {watch.Elapsed}");
+        var card = await Card(admin);
+        Assert.True(card.GetProperty("description").GetString()!.Length <= 4096);
+        Assert.True(card.GetProperty("fields")[0].GetProperty("value").GetString()!.Length <= 1024);
     }
 }

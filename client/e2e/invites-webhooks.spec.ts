@@ -60,12 +60,14 @@ test('moderators see which invite people joined with, and a GitHub push becomes 
   await expect(urlBox).toHaveValue(/\/hooks\/[\w-]+\/[\w-]+$/)
   await host.getByTestId('webhook-format').selectOption('github')
   await expect(urlBox).toHaveValue(/\/hooks\/[\w-]+\/[\w-]+\/github$/)
+  await expect(host.getByTestId('webhook-sign-tip')).toBeVisible()
   const hookUrl = await urlBox.inputValue()
   await host.screenshot({ path: join(SHOTS, 'webhook-github-url.png') })
   await host.getByRole('button', { name: 'Done' }).click()
 
   await host.getByTestId('webhook-signing-open').click()
   const signing = host.getByTestId('webhook-signing')
+  await expect(signing.getByTestId('webhook-signing-only')).toBeVisible()
   await signing.getByRole('button', { name: 'Generate' }).click()
   const secret = await signing.getByTestId('webhook-signing-input').inputValue()
   expect(secret).toMatch(/^[\w-]{43}$/)
@@ -86,6 +88,9 @@ test('moderators see which invite people joined with, and a GitHub push becomes 
   const signature = 'sha256=' + createHmac('sha256', secret).update(body).digest('hex')
   const refused = await fetch(hookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-GitHub-Event': 'push' }, body })
   expect(refused.status).toBe(401)
+  // A signed webhook refuses the plain (Discord-style) URL too.
+  const plain = await fetch(hookUrl.replace(/\/github$/, ''), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: 'fake card' }) })
+  expect(plain.status).toBe(401)
   const posted = await fetch(hookUrl, {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-GitHub-Event': 'push', 'X-Hub-Signature-256': signature }, body,
   })

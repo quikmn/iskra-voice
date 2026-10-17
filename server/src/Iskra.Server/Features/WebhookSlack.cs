@@ -26,7 +26,7 @@ public static partial class WebhookSlack
             if (Attachment(attachment) is { } card) Add(embeds, card, ref total);
 
         // With blocks, Slack uses `text` only for notifications; without, it is the message.
-        var text = fromBlocks is null ? Sanitize(Mrkdwn(StrLimited(root, "text", 40_000)), ChatFeature.MaxMessageLength) : null;
+        var text = fromBlocks is null ? Sanitize(Mrkdwn(StrLimited(root, "text", ChatFeature.MaxMessageLength * 2)), ChatFeature.MaxMessageLength) : null;
         if (string.IsNullOrEmpty(text) && embeds.Count == 0) throw new PayloadException("No text or blocks to post.");
 
         string? username = null;
@@ -87,7 +87,7 @@ public static partial class WebhookSlack
 
     /// <summary>A text object: mrkdwn is converted, plain_text kept as it is.</summary>
     private static string? TextOf(JsonElement text) =>
-        Str(text, "text") is not { } value ? null : Str(text, "type") == "mrkdwn" ? Mrkdwn(value) : value;
+        StrLimited(text, "text", 4096) is not { } value ? null : Str(text, "type") == "mrkdwn" ? Mrkdwn(value) : value;
 
     private static string? TextObject(JsonElement block, string name) =>
         block.TryGetProperty(name, out var t) && t.ValueKind == JsonValueKind.Object ? TextOf(t) : null;
@@ -146,8 +146,8 @@ public static partial class WebhookSlack
         var card = new JsonObject();
         if (Sanitize(Plain(Str(a, "title")), 256) is { Length: > 0 } title) card["title"] = title.Replace('\n', ' ');
         if (Str(a, "title_link") is { } link && IsWebUrl(link)) card["url"] = link;
-        var text = string.Join("\n\n", new[] { Str(a, "pretext"), Str(a, "text") }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => Mrkdwn(s!)));
-        if (text.Length == 0 && card.Count == 0) text = Mrkdwn(Str(a, "fallback") ?? "");
+        var text = string.Join("\n\n", new[] { StrLimited(a, "pretext", 4096), StrLimited(a, "text", 4096) }.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => Mrkdwn(s!)));
+        if (text.Length == 0 && card.Count == 0) text = Mrkdwn(StrLimited(a, "fallback", 4096));
         if (Sanitize(text, 4096) is { Length: > 0 } description) card["description"] = description;
         if (Color(Str(a, "color")) is { } color) card["color"] = color;
         if (Sanitize(Str(a, "author_name"), 256) is { Length: > 0 } author)
@@ -165,7 +165,7 @@ public static partial class WebhookSlack
         foreach (var f in Array(a, "fields").Take(WebhookPayload.MaxFields))
         {
             var name = Sanitize(Plain(Str(f, "title")), 256)?.Replace('\n', ' ') ?? "";
-            var value = Sanitize(Mrkdwn(Str(f, "value") ?? ""), 1024) ?? "";
+            var value = Sanitize(Mrkdwn(StrLimited(f, "value", 1024)), 1024) ?? "";
             if (name.Length == 0 && value.Length == 0) continue;
             fields.Add(new JsonObject { ["name"] = name, ["value"] = value, ["inline"] = f.TryGetProperty("short", out var s) && s.ValueKind == JsonValueKind.True });
         }
@@ -186,13 +186,13 @@ public static partial class WebhookSlack
 
     // ── mrkdwn ───────────────────────────────────────────────────────────────
 
-    [GeneratedRegex(@"<([^<>|\n]{1,2048})(?:\|([^<>\n]{0,512}))?>")]
+    [GeneratedRegex(@"<([^<>|\n]{1,2048})(?:\|([^<>\n]{0,512}))?>", RegexOptions.None, 1000)]
     private static partial Regex Special();
 
-    [GeneratedRegex(@"(?<![\w*])\*(?=\S)([^*\n]{1,500}?)(?<=\S)\*(?![\w*])")]
+    [GeneratedRegex(@"(?<![\w*])\*(?=\S)([^*\n]{1,500}?)(?<=\S)\*(?![\w*])", RegexOptions.None, 1000)]
     private static partial Regex Bold();
 
-    [GeneratedRegex(@"(?<![\w~])~(?=\S)([^~\n]{1,500}?)(?<=\S)~(?![\w~])")]
+    [GeneratedRegex(@"(?<![\w~])~(?=\S)([^~\n]{1,500}?)(?<=\S)~(?![\w~])", RegexOptions.None, 1000)]
     private static partial Regex Strike();
 
     /// <summary>

@@ -98,14 +98,25 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
     {
         var (hook, failure) = Authorize(context, id, secret);
         if (hook is null) return failure!;
-        if (!_hooks.GetOrAdd(hook.Id, _ => new TokenBucket(Burst, PerSecond, time)).TryTake(out var wait))
-            return RateLimited(context, wait);
 
         var vendor = format != Format.Discord;
         var limit = vendor ? MaxGitHubBodyBytes : MaxBodyBytes;
         var body = await ReadBodyAsync(context, limit);
         if (body is null) return Error(StatusCodes.Status413PayloadTooLarge, "Request entity too large", 40005);
-        if (!SignatureOk(context, hook, format, body)) return Error(StatusCodes.Status401Unauthorized, "Invalid webhook signature.", 50014);
+        // Signatures first, so unsigned junk can't use up the webhook's rate; bad ones count against the sender's address.
+        if (!SignatureOk(context, hook, format, body))
+        {
+            var ip = context.Connection.RemoteIpAddress ?? IPAddress.None;
+            var bucket = _failures.GetOrAdd(ip, _ => new TokenBucket(FailBurst, FailPerSecond, time));
+            if (_failures.Count > 10_000) _failures.Clear();
+            if (!bucket.TryTake(out var failWait)) return RateLimited(context, failWait);
+            SecurityLog.Record(world.Store, time.GetUtcNow().ToUnixTimeMilliseconds(), "webhook.bad_signature",
+                ip: world.Settings.Retention.SecurityLogIps ? ip.ToString() : null,
+                details: new { webhook = hook.Id, format = format.ToString().ToLowerInvariant() }, source: ip.ToString());
+            return Error(StatusCodes.Status401Unauthorized, "Invalid webhook signature.", 50014);
+        }
+        if (!_hooks.GetOrAdd(hook.Id, _ => new TokenBucket(Burst, PerSecond, time)).TryTake(out var wait))
+            return RateLimited(context, wait);
 
         WebhookPostRequest? post;
         try
@@ -123,6 +134,10 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
         catch (PayloadException ex)
         {
             return Error(StatusCodes.Status400BadRequest, ex.Message, 50006);
+        }
+        catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
+        {
+            return Error(StatusCodes.Status400BadRequest, "The text is too complex to post.", 50006);
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or ArgumentException or InvalidDataException or IOException)
         {
@@ -165,13 +180,13 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
 
     /// <summary>
     /// With a signing secret set, GitHub and Gitea posts must carry its HMAC of the body (X-Hub-Signature-256 or
-    /// X-Gitea-Signature) and GitLab posts the secret itself (X-Gitlab-Token). Discord and Slack formats have no
-    /// signatures; the secret URL is their only key.
+    /// X-Gitea-Signature) and GitLab posts the secret itself (X-Gitlab-Token). A signed webhook is a GitHub, Gitea or
+    /// GitLab webhook: the plain and Slack formats, which can't be signed, are refused, so a leaked URL can't post.
     /// </summary>
     private bool SignatureOk(HttpContext context, Webhook hook, Format format, byte[] body)
     {
-        if (format is Format.Discord or Format.Slack) return true;
         if (world.Store.WebhookSigningSecret(hook.Id) is not { } secret) return true;
+        if (format is Format.Discord or Format.Slack) return false;
         var headers = context.Request.Headers;
         return format switch
         {

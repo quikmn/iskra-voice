@@ -17,6 +17,9 @@ export function FormatPicker({ value, onChange }: { value: WebhookFormat; onChan
         {WEBHOOK_FORMATS.map((f) => <option key={f} value={f}>{t(`invitetrack.formats.${f}`)}</option>)}
       </select>
       <small className="muted">{t('invitetrack.formats.hint')}</small>
+      {(value === 'github' || value === 'gitea' || value === 'gitlab') && (
+        <small className="muted" data-testid="webhook-sign-tip">{t('invitetrack.signing.suggest', { service: t(`invitetrack.formats.${value}`) })}</small>
+      )}
     </label>
   )
 }
@@ -45,6 +48,7 @@ export function SigningSecret({ serverKey, hook, onDone }: { serverKey: string; 
     <div className="secret-box webhook-signing" data-testid="webhook-signing">
       <strong>{t('invitetrack.signing.title', { name: hook.name })}</strong>
       <p className="muted">{t('invitetrack.signing.intro')}</p>
+      <p className="muted" data-testid="webhook-signing-only">{t('invitetrack.signing.onlySigned')}</p>
       <div className="copy-row">
         <input
           value={secret}

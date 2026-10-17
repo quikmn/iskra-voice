@@ -31,6 +31,8 @@ export const invitetrack: Messages['invitetrack'] = {
     button: 'Signeringshemlighet',
     title: 'Signeringshemlighet för {{name}}',
     intro: 'Klistra in samma hemlighet i GitHubs eller Giteas fält ”Secret”, eller GitLabs ”Secret token”. Då måste inlägg till /github, /gitea och /gitlab vara signerade med den, så webbadressen räcker inte ensam.',
+    onlySigned: 'Med en hemlighet tar den här webhooken bara emot signerade inlägg från GitHub, Gitea eller GitLab: de vanliga och Slack-adresserna slutar fungera.',
+    suggest: 'Tips: klicka på Signeringshemlighet efteråt så att bara {{service}} kan posta här.',
     secret: 'Hemlighet',
     generate: 'Skapa',
     save: 'Spara',

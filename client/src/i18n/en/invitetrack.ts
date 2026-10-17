@@ -31,6 +31,8 @@ export const invitetrack = {
     button: 'Signing secret',
     title: 'Signing secret for {{name}}',
     intro: 'Paste the same secret into GitHub’s or Gitea’s “Secret” field, or GitLab’s “Secret token”. Then posts to /github, /gitea and /gitlab must be signed with it, so the URL alone isn’t enough.',
+    onlySigned: 'With a secret, this webhook only takes signed GitHub, Gitea or GitLab posts: the plain and Slack URLs stop working.',
+    suggest: 'Tip: after creating it, click Signing secret so only {{service}} can post here.',
     secret: 'Secret',
     generate: 'Generate',
     save: 'Save',

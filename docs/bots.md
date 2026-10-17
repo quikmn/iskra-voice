@@ -63,8 +63,9 @@ nothing retries.
 
 **Signing secret.** Click **Signing secret** on the webhook, then **Generate** (or paste your own, 16–256 characters)
 and **Save**, and paste the same secret into GitHub's or Gitea's *Secret* field or GitLab's *Secret token*. Iskra then
-refuses `/github`, `/gitea` and `/gitlab` posts that aren't signed with it (`401`), so a leaked URL alone isn't enough
-there. The secret is shown only while you set it. The plain URL and `/slack` have no signatures (their senders don't sign).
+refuses `/github`, `/gitea` and `/gitlab` posts that aren't signed with it (`401`). A webhook with a signing secret is a
+GitHub, Gitea or GitLab webhook: its plain URL and `/slack`, which can't be signed, are refused too, so a leaked URL alone
+can't post anything. The secret is shown only while you set it. Webhooks without one keep working as before.
 
 What's left out on purpose: images, thumbnails and avatar URLs from the payload. Showing them would make every viewer's app fetch a third-party address (revealing their IP). Give the webhook a picture in its settings instead.
 
