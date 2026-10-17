@@ -14,6 +14,7 @@ import {
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgMenu'
 import { GameNightItems } from '../teams/TeamsBits'
 import { RoomMenuItem } from '../rooms/RoomBits'
+import { ReadAloudChannelItem } from '../speech/ReadAloud'
 
 export type Run = (action: () => Promise<unknown> | void) => () => void
 
@@ -141,6 +142,7 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
             {channel.kind !== 'forum' && channel.kind !== 'whiteboard' && <NotifyRows server={server} channelId={channel.id} setView={setView} run={run} />}
             <GameNightItems server={server} channel={channel} onClose={onClose} />
             <RoomMenuItem server={server} channel={channel} onClose={onClose} />
+            <ReadAloudChannelItem server={server} channel={channel} />
             {isAdmin && (
               <>
                 <div className="org-sep" role="separator" />

@@ -30,7 +30,7 @@ export function TranslateMenuItem({ item, wrap, icon }: { item: TranslateItem | 
   const showing = entry?.shown && entry.status === 'done'
   return (
     <button role="menuitem" onClick={wrap(null, () => (showing ? hideTranslation(key) : translateMessage(item)))}>
-      {icon && <TranslateIcon />} {showing ? t('translate.showOriginal') : t('translate.menu')}
+      {icon && <TranslateIcon />}{showing ? t('translate.showOriginal') : t('translate.menu')}
     </button>
   )
 }

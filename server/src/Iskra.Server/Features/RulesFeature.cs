@@ -113,6 +113,7 @@ public static class RulesFeature
         if (rules is not { Required: true }) throw RequestException.BadRequest("This server doesn't ask you to agree to rules.", "rules_none");
         if (version != rules.Version) throw new RequestException("conflict", "The rules just changed. Have a look at them again.", "rules_changed");
         store.AcceptRules(me.AccountKey, rules.Version, s.Now);
+        s.Hub.BuiltinBots?.RulesAccepted(me);
         var view = View(store, me);
         s.Hub.SendToAccount(me.AccountKey, Frames.Event("rules", new { rules = view }));
         return new { rules = view };

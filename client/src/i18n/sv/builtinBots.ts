@@ -8,16 +8,23 @@ export const builtinBots: Messages['builtinBots'] = {
     dice: 'Dice',
     polls: 'Polls',
     reminders: 'Reminders',
+    starboard: 'Starboard',
+    birthdays: 'Birthdays',
+    welcome: 'Welcome',
   },
   about: {
     dice: 'Slår tärningar till spel: /roll 2d6+3',
     polls: 'Startar en omröstning: /poll Pizza eller tacos? | Pizza | Tacos',
     reminders: 'Påminner dig senare: /remind mig om 10m ta ut pizzan',
+    starboard: 'Visar de mest stjärnmärkta meddelandena i en kanal',
+    birthdays: 'Gratulerar medlemmar på födelsedagen: /birthday sätt 14 mars',
+    welcome: 'Hälsar nya medlemmar välkomna',
   },
   commands: {
     roll: { description: 'Slå tärningar, till exempel 2d6+3', usage: '2d6+3' },
     poll: { description: 'Starta en omröstning', usage: 'Fråga | Svar | Svar' },
     remind: { description: 'Få en påminnelse senare', usage: 'mig om 10m vad' },
+    birthday: { description: 'Dela din födelsedag, eller se vems som är på väg', usage: 'sätt 14 mars | ta bort | lista' },
   },
   settings: {
     title: 'Inbyggda bottar',

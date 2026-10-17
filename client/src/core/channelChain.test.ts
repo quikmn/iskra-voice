@@ -100,6 +100,16 @@ describe('epoch keys and messages', () => {
     expect(() => decryptChannelMessage(flipped, route(flipped), view, (v) => ring.get(v))).toThrow(/tampered/)
   })
 
+  it('carries the /tts flag inside the encryption only', () => {
+    const { alice, bob, view, keys1 } = setup()
+    const ring = keyring(alice, view, keys1)
+    const flagged = encryptChannelMessage(bob, view, keyring(bob, view, keys1).get(1)!, { text: 'gg', tts: true }, HERE)
+    expect(decryptChannelMessage(flagged, route(flagged), view, (v) => ring.get(v)).tts).toBe(true)
+    expect(JSON.stringify(flagged)).not.toContain('tts')
+    const plain = encryptChannelMessage(bob, view, keyring(bob, view, keys1).get(1)!, { text: 'gg' }, HERE)
+    expect(decryptChannelMessage(plain, route(plain), view, (v) => ring.get(v)).tts).toBeUndefined()
+  })
+
   it('stops a member writing as someone else, even with the shared key', () => {
     const { bob, carol, view, keys1 } = setup()
     const ring = keyring(carol, view, keys1)

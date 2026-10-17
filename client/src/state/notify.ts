@@ -149,6 +149,9 @@ const me = () => {
 
 const lastVoice = new Map<string, Set<string>>()
 
+/** Told about every new channel message from someone you haven't blocked (state/speech.ts reads some aloud). */
+export const heardHooks: ((serverKey: string, message: Message) => void)[] = []
+
 /** A desktop notification for a new channel message, if your settings want one. */
 export function notifyChannelMessage(serverKey: string, message: Message): void {
   const server = useApp.getState().servers[serverKey]
@@ -156,6 +159,13 @@ export function notifyChannelMessage(serverKey: string, message: Message): void 
   const myKey = me()
   // Blocked people never notify; then your notification level for the channel decides (all, mentions, nothing).
   if (message.author === myKey || senderRules.ignored(message.author) || isBlocked(useBlocks.getState().entries, message.author)) return
+  for (const hook of heardHooks) {
+    try {
+      hook(serverKey, message)
+    } catch (e) {
+      console.warn('[iskra] message hook failed', e)
+    }
+  }
   const alerted = !message.forwarded && senderRules.alertsMe(server, message)
   if (alerted) senderRules.alerted(serverKey, message) // the inbox lists it, whatever the notification level
   const pinged = !message.forwarded && (alerted || senderRules.mentionsMe(server, message))

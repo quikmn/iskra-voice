@@ -701,7 +701,8 @@ function decryptOne(serverKey: string, message: Shownable, lenient = false): Sho
     const reply = message.replyTo && 'author' in message.replyTo && !message.replyTo.text ? rec.messages.get(message.replyTo.id) : undefined
     const flags = { ...(content.legacy ? { legacy: true } : {}), ...(content.afterRemoval !== undefined ? { afterRemoval: content.afterRemoval } : {}) }
     const out: Shownable = {
-      ...message, ...(expiresAt !== undefined ? { expiresAt } : {}), text: content.text, e2eeShown: { state: 'ok', ...(content.files ? { files: content.files } : {}), ...flags, checked: rec.view.version },
+      // The /tts flag only counts from inside the encryption (never the server's say).
+      ...message, ...(expiresAt !== undefined ? { expiresAt } : {}), text: content.text, tts: content.tts === true, e2eeShown: { state: 'ok', ...(content.files ? { files: content.files } : {}), ...flags, checked: rec.view.version },
       ...(reply && message.replyTo && 'author' in message.replyTo ? { replyTo: { ...message.replyTo, text: reply.text.slice(0, 140) } } : {}),
     }
     const tag = `${serverKey}:${message.id}`
@@ -889,15 +890,15 @@ async function readyRec(serverKey: string, channelId: number): Promise<Rec> {
   return rec
 }
 
-function contentOf(body: { text: string; attachments?: string[]; voice?: { duration: number; waveform: string } }, files?: DmFile[]): ChannelContent {
+function contentOf(body: { text: string; attachments?: string[]; voice?: { duration: number; waveform: string }; tts?: boolean }, files?: DmFile[]): ChannelContent {
   const sealed = files ?? (body.attachments ?? []).map((id) => uploads.get(id)).filter((f): f is DmFile => !!f)
   if ((body.attachments?.length ?? 0) !== sealed.length && !files) throw new DmError('An attachment is missing. Attach it again.')
   const withVoice = body.voice && sealed[0] ? [{ ...sealed[0], voice: body.voice }, ...sealed.slice(1)] : sealed
-  return { text: body.text, ...(withVoice.length ? { files: withVoice } : {}) }
+  return { text: body.text, ...(withVoice.length ? { files: withVoice } : {}), ...(body.tts && body.text ? { tts: true } : {}) }
 }
 
 /** chat.send for an encrypted channel (store.ts calls this first; null: not encrypted). Retries once if the channel changed. */
-async function sendSealed(serverKey: string, channelId: number, body: { text: string; attachments?: string[]; replyTo?: number; nonce?: string; voice?: { duration: number; waveform: string }; sticker?: string; gif?: unknown }): Promise<{ message: Message }> {
+async function sendSealed(serverKey: string, channelId: number, body: { text: string; attachments?: string[]; replyTo?: number; nonce?: string; voice?: { duration: number; waveform: string }; sticker?: string; gif?: unknown; tts?: boolean }): Promise<{ message: Message }> {
   const channel = encryptedChannel(serverKey, channelId)!
   if (body.sticker || body.gif) throw new DmError("Stickers and GIFs can't be sent in encrypted channels yet.")
   const identity = useApp.getState().identity!

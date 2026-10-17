@@ -47,7 +47,7 @@ public class BaseRoleTests
         Assert.DoesNotContain("pin", Names(list[3], "abilities"));
         Assert.Contains("runServer", Names(list[0], "abilities"));
         Assert.DoesNotContain("runServer", Names(list[1], "abilities"));
-        Assert.Equal(14, Names(list[1], "permissions").Length); // admins: every permission
+        Assert.Equal(15, Names(list[1], "permissions").Length); // admins: every permission
         Assert.Empty(Names(list[2], "permissions"));
         Assert.All(list.EnumerateArray(), r => Assert.Equal(JsonValueKind.Null, r.GetProperty("color").ValueKind));
     }
@@ -112,7 +112,7 @@ public class BaseRoleTests
         }
         Assert.Empty(Names(list[0].GetProperty("adjustable"), "abilities")); // owner: nothing
         Assert.DoesNotContain("runServer", Names(list[1].GetProperty("adjustable"), "abilities"));
-        Assert.Equal(14, Names(list[1].GetProperty("adjustable"), "permissions").Length);
+        Assert.Equal(15, Names(list[1].GetProperty("adjustable"), "permissions").Length);
         Assert.Equal(["invite", "events", "whisper", "externalEmoji", "pin", "mentionEveryone", "uploadSounds"], Names(list[3].GetProperty("adjustable"), "abilities"));
         Assert.Equal(["mentionEveryone"], Names(list[4].GetProperty("adjustable"), "permissions"));
     }
@@ -150,7 +150,7 @@ public class BaseRoleTests
         // Reset puts the defaults back, and the change is gone from the store.
         var reset = (await owner.RequestAsync("role.base.update", new { role = "admin", reset = true })).Body().GetProperty("baseRole");
         Assert.False(reset.GetProperty("changed").GetBoolean());
-        Assert.Equal(14, Names(reset, "permissions").Length);
+        Assert.Equal(15, Names(reset, "permissions").Length);
         Assert.False(server.World.Store.BaseRoleChanges().ContainsKey("admin"));
         Assert.Equal("result", (await admin.RequestAsync("member.kick", new { accountKey = member.Key })).Type());
 

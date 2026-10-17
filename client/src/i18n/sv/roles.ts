@@ -16,6 +16,7 @@ export const roles: Messages['roles'] = {
     muteMembers: { label: 'Servertysta medlemmar', hint: 'Tysta folk i röstkanaler för alla' },
     manageAutoMod: { label: 'Hantera AutoMod', hint: 'Ändra blockerade ord och spamregler' },
     prioritySpeaker: { label: 'Prioriterad talare', hint: 'Sänker alla andra för lyssnarna medan de pratar med prioritet' },
+    sendTts: { label: 'Skicka /tts-meddelanden', hint: 'Skicka meddelanden som läses upp för dem som har slagit på det' },
   },
   base: {
     title: 'Inbyggda roller',

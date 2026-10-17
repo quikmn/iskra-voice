@@ -4,6 +4,7 @@
 import { signRevocation } from '../core/devices'
 import * as storage from '../core/storage'
 import { disablePush } from './push'
+import { forgetTranscripts } from './transcripts/transcriptCache'
 import { connectionFor, leaveServer, useApp } from './store'
 
 /** Settings kept after signing out: they belong to the device, not the account. */
@@ -30,6 +31,7 @@ export async function signOutThisDevice({ leaveServers = false, after }: { leave
   }
   for (const key of [...order]) leaveServer(key)
   await storage.wipeAll().catch(() => undefined)
+  await forgetTranscripts()
   try {
     for (const key of Object.keys(localStorage)) if (key.startsWith('iskra.') && !KEEP.has(key)) localStorage.removeItem(key)
     sessionStorage.clear()

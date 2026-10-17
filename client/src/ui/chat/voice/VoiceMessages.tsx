@@ -10,6 +10,9 @@ import { Mic, Send, Trash } from '../../icons'
 import { useEscapeLayer } from '../../layers'
 import { Spinner } from '../../bits'
 import { VoiceRecorder, type Recording } from './recorder'
+import { transcriptKey } from '../../../state/transcripts/transcriptCache'
+import type { TranscriptItem } from '../../../state/transcripts'
+import { useTranscriptParts } from './VoiceTranscript'
 import { CANCEL_SLIDE_PX, MAX_VOICE_MS, decodeWaveform, formatDuration, nextRate, releaseAction } from './voiceMessage'
 import './voice-messages.css'
 
@@ -211,11 +214,20 @@ const BARS = 40
 export function VoiceMessage({ server, message }: { server: ServerState; message: PendingMessage }) {
   const file = message.attachments[0]
   if (!message.voice || !file) return null
-  return <VoicePlayer src={message.tempId ? null : fileUrl(server.key, file)} voice={message.voice} />
+  const src = message.tempId ? null : fileUrl(server.key, file)
+  const transcript: TranscriptItem | null = src ? {
+    key: transcriptKey.file(server.key, file.id), serverKey: server.key, durationMs: message.voice.duration,
+    audio: async () => {
+      const response = await fetch(src)
+      if (!response.ok) throw new Error(`voice message: ${response.status}`)
+      return response.arrayBuffer()
+    },
+  } : null
+  return <VoicePlayer src={src} voice={message.voice} transcript={transcript} />
 }
 
-/** Play/pause, a waveform you can scrub (pointer or arrow keys), the time and the speed. */
-export function VoicePlayer({ src, voice }: { src: string | null; voice: VoiceInfo }) {
+/** Play/pause, a waveform you can scrub (pointer or arrow keys), the time and the speed; the transcript toggle and text. */
+export function VoicePlayer({ src, voice, transcript = null }: { src: string | null; voice: VoiceInfo; transcript?: TranscriptItem | null }) {
   const audio = useRef<HTMLAudioElement>(null)
   const wave = useRef<HTMLDivElement>(null)
   const [playing, setPlaying] = useState(false)
@@ -226,6 +238,7 @@ export function VoicePlayer({ src, voice }: { src: string | null; voice: VoiceIn
   const bars = decodeWaveform(voice.waveform, BARS)
   const duration = voice.duration
   const progress = Math.min(1, position / duration)
+  const transcriptParts = useTranscriptParts(transcript)
 
   useEffect(() => {
     // One voice message plays at a time.
@@ -283,6 +296,7 @@ export function VoicePlayer({ src, voice }: { src: string | null; voice: VoiceIn
   }
 
   return (
+    <>
     <div className={`voice-player ${playing ? 'playing' : ''}`}>
       {src && (
         <audio
@@ -335,7 +349,10 @@ export function VoicePlayer({ src, voice }: { src: string | null; voice: VoiceIn
       <button className="voice-rate" onClick={changeRate} aria-label={t('chat.voice.speedLabel', { rate: formatNumber(rate) })} title={t('chat.voice.speed')}>
         {formatNumber(rate)}×
       </button>
+      {transcriptParts.button}
     </div>
+    {transcriptParts.block}
+    </>
   )
 }
 

@@ -36,6 +36,7 @@ import { media } from './media'
 import { hosting } from './hosting'
 import { outhooks } from './outhooks'
 import { builtinBots } from './builtinBots'
+import { moreBots } from './moreBots'
 import { rental } from './rental'
 import { bugReport } from './bugReport'
 import { afk } from './afk'
@@ -55,6 +56,7 @@ import { translate } from './translate'
 import { whiteboard } from './whiteboard'
 import { landing } from './landing'
 import { activities } from './activities'
+import { speech } from './speech'
 
 export const sv: Messages = {
   common,
@@ -112,4 +114,6 @@ export const sv: Messages = {
   whiteboard,
   landing,
   activities,
+  speech,
+  moreBots,
 }
