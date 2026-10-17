@@ -3896,6 +3896,9 @@ Content-Security-Policy: sandbox allow-scripts; default-src 'none'; script-src '
 with the same `Permissions-Policy`, `nosniff`, `no-referrer`, `Cross-Origin-Opener-Policy` and `no-store`, and no
 cookies. HTML files get the profile pages' WebRTC prelude and then the SDK (`protocol/activity-sdk.js`) inserted right
 after the doctype, before any of the bundle's own code. Bundles use classic scripts (`<script src>`), not modules.
+Every other file (scripts, styles, pictures, sounds, and SVGs opened on their own) gets the same policy without
+scripts: `sandbox; default-src 'none'; script-src 'none'; …`. Requests are limited per client address (300, then 30 a
+second; over that: `429`).
 
 **Where server-added activities run.** As with profile pages, a browser can't be made watertight (a `srcdoc` child
 frame gets a fresh `RTCPeerConnection`), so: the **desktop app** runs them in its walled page view (the `iskra-pages`
@@ -3921,16 +3924,18 @@ account keys; a person keeps their id for the whole session (on another device t
 | type | body | result | who |
 |---|---|---|---|
 | `act.start` | `channelId, activity` | `{ session }` | someone in the call (LiveKit's webhooks) who may speak there, at the server's `startRole` or above, while activities are on there and that activity is enabled. This connection joins it at once. One running already: `bad_request`, key `act_running` |
-| `act.join` | `channelId, sessionId` | `{ session, me, seq, state, stateSeq, messages, missed }` | someone in the call who can read the channel; at most 25 people (`bad_request`, key `act_full`, args `{ max }`) |
+| `act.join` | `channelId, sessionId` | `{ session, me, seq, state, stateSeq, messages, missed }` | someone in the call who can read the channel; at most 25 people, or the manifest's `maxPlayers` if fewer (`bad_request`, key `act_full`, args `{ max }`) |
 | `act.leave` | `channelId, sessionId` | | anyone (this connection stops getting the activity's messages) |
-| `act.send` | `channelId, sessionId, data` (any JSON, ≤ 8 KB serialized) | `{ seq }` | players (this connection joined) |
-| `act.snapshot` | `channelId, sessionId, seq, state` (any JSON, ≤ 48 KB serialized) | | players |
+| `act.send` | `channelId, sessionId, data` (any JSON, ≤ 8 KB serialized) | `{ seq }` | players (this connection joined) who may speak in the channel; listeners only watch (`forbidden`, key `act_listen_only`) |
+| `act.snapshot` | `channelId, sessionId, seq, state` (any JSON, ≤ 48 KB serialized) | | players who may speak there (as for `act.send`) |
 | `act.end` | `channelId, sessionId` | | whoever started it, an admin, or any player once the starter has left the call |
 
 - **Relay:** every `act.send` gets the session's next `seq` and goes as `act.msg` to every connection that joined, the
   sender's own included, in `seq` order, so every player applies the same messages in the same order. Messages aren't
   stored: only the ones since the last snapshot are kept, in memory (at most 300 and 256 KB; past that the oldest go,
-  and `missed` is true for the next late joiners).
+  and `missed` is true for the next late joiners). A session also has one relay budget, whoever sends: 256 KB a second
+  (1 MB burst), counting each message once per connection it goes to; over it, `rate_limited` with key `act_busy`.
+  Activity messages are not checked by AutoMod or word filters (they are an app's data, not chat).
 - **Late joiners:** `act.join` answers the latest snapshot (`state`, `null` if none, made after message `stateSeq`), the
   messages after it (`messages: [{ seq, from, data }]`, oldest first) and `seq`, the newest message so far.
   `act.snapshot` names the `seq` of the last message the state includes: older than the current snapshot is ignored,
@@ -3946,8 +3951,10 @@ account keys; a person keeps their id for the whole session (on another device t
   Starting needs speaking rights (else `forbidden`, key `act_listen_only`); ending someone else's: `forbidden`, key
   `act_end_starter`; catalog changes by non-admins: `forbidden`, key `act_admins`. Too big: `bad_request`, key
   `act_data_size` or `act_state_size` (args `{ kb }`).
-- **Rate limits:** `act.send` 20/s (burst 40), `act.snapshot` 1/s (burst 5), `act.start` 1 every 2 s (burst 5),
-  `act.join` and `act.leave` 2/s (burst 10), `act.add` 1 every 10 s (burst 3), `act.list` 2/s (burst 10).
+- **Rate limits:** `act.send` 20/s (burst 40) and `act.snapshot` 1/s (burst 5), each on a bucket of its own that
+  doesn't take from the general one (a busy activity never slows the rest of the connection); `act.start` and
+  `act.end` 1 every 2 s (burst 5), `act.join` and `act.leave` 2/s (burst 10), `act.add` 1 every 10 s (burst 3),
+  `act.list` 2/s (burst 10). Apps send for an activity at most 10 a second (burst 20).
 
 | event | body | sent to |
 |---|---|---|

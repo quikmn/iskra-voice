@@ -215,6 +215,9 @@ that only means something inside that activity, and a display name; never accoun
   types, sizes counted while unpacking) and serves with the profile-page policy. They run only in the **desktop app**,
   in the same walled session as profile pages, where nothing can reach the network. Browsers and the phone apps list
   them but don't run them (a page script can always reach the internet through WebRTC in a child frame there).
+- Listeners can watch an activity but send nothing to it. Activity messages have their own limits (per person, and a
+  bandwidth budget per activity), so a busy activity can't slow your connection or flood the others; they aren't
+  checked by AutoMod.
 - What an activity sends goes through your server to the people playing and is never stored; only the latest snapshot,
   for people who join late, is kept in the server's memory while the activity runs. Because the server can read it,
   activities are off in end-to-end encrypted voice channels.

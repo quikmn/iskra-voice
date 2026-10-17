@@ -250,6 +250,7 @@ export const errors: Messages['errors'] = {
     act_seq: 'Det meddelandet har inte skickats än.',
     act_data_size: 'Meddelanden från aktiviteter får vara högst {{kb}} kB.',
     act_state_size: 'Ögonblicksbilder av aktiviteter får vara högst {{kb}} kB.',
+    act_busy: 'Den här aktiviteten skickar för mycket på en gång.',
     act_end_starter: 'Bara den som startade aktiviteten kan avsluta den.',
     act_zip: 'Aktiviteter måste vara en zip-fil på högst {{maxMb}} MB, med högst {{maxFiles}} filer.',
     act_path: 'Zip-filen har ett filnamn som inte är tillåtet: {{path}}',

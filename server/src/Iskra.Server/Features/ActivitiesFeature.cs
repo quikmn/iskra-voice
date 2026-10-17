@@ -237,7 +237,11 @@ public static partial class ActivitiesFeature
     private static object Join(Session s, Member me, Body body)
     {
         var channel = RoomChannel(s, me, body);
-        return s.Hub.ActivityRooms.Join(s.Hub, s.World.Store, s, me.AccountKey, channel.Id, body.String("sessionId", 32), MaxPlayers);
+        var sessionId = body.String("sessionId", 32);
+        // A server-added activity's manifest can allow fewer players than the server's cap.
+        var activity = s.Hub.ActivityRooms.ActivityOf(channel.Id, sessionId);
+        var max = activity is not null && s.World.Store.GetActivity(activity) is { } added ? Math.Min(added.MaxPlayers, MaxPlayers) : MaxPlayers;
+        return s.Hub.ActivityRooms.Join(s.Hub, s.World.Store, s, me.AccountKey, channel.Id, sessionId, max);
     }
 
     private static object? Leave(Session s, Member me, Body body)
@@ -255,9 +259,17 @@ public static partial class ActivitiesFeature
         return (element.Clone(), bytes.Length);
     }
 
-    private static object Send(Session s, Member me, Body body)
+    /// <summary>Sending into an activity needs speaking rights there; listeners only watch.</summary>
+    private static Channel SpeakingChannel(Session s, Member me, Body body)
     {
         var channel = RoomChannel(s, me, body);
+        if (!Permissions.CanWrite(me, channel)) throw RequestException.Forbidden("You can only listen in this channel.", "act_listen_only");
+        return channel;
+    }
+
+    private static object Send(Session s, Member me, Body body)
+    {
+        var channel = SpeakingChannel(s, me, body);
         var sessionId = body.String("sessionId", 32);
         var (data, bytes) = Payload(body, "data", MaxDataBytes,
             () => RequestException.BadRequest($"Activity messages can be up to {MaxDataBytes / 1024} KB.", "act_data_size", new { kb = MaxDataBytes / 1024 }));
@@ -266,7 +278,7 @@ public static partial class ActivitiesFeature
 
     private static object? SetSnapshot(Session s, Member me, Body body)
     {
-        var channel = RoomChannel(s, me, body);
+        var channel = SpeakingChannel(s, me, body);
         var sessionId = body.String("sessionId", 32);
         var seq = body.OptionalLong("seq", 0) ?? throw RequestException.BadRequest("'seq' is required.");
         var (state, _) = Payload(body, "state", MaxStateBytes,
@@ -332,17 +344,20 @@ public static partial class ActivitiesFeature
     }
 
     /// <summary>Like a profile page with scripts: no network, an opaque origin, only this activity's own files.</summary>
-    public static string Policy(World world, string? selfOrigin, string id)
+    public static string Policy(World world, string? selfOrigin, string id, bool scripts = true)
     {
         var own = selfOrigin is null ? "" : $" {selfOrigin}/activities/{id}/";
-        return "sandbox allow-scripts; default-src 'none'; " +
-            $"script-src 'unsafe-inline'{own}; style-src 'unsafe-inline'{own}; img-src data: blob:{own}; font-src data:{own}; media-src data: blob:{own}; " +
+        // Only HTML pages (which get the WebRTC prelude) run scripts; anything else opened as a document (an SVG) can't.
+        return (scripts ? $"sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'{own}; " : "sandbox; default-src 'none'; script-src 'none'; ") +
+            $"style-src 'unsafe-inline'{own}; img-src data: blob:{own}; font-src data:{own}; media-src data: blob:{own}; " +
             "connect-src 'none'; form-action 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; " +
             $"manifest-src 'none'; base-uri 'none'; frame-ancestors {ProfilePages.FrameAncestors(world)}";
     }
 
-    public static IResult Serve(HttpContext context, World world, string id, string path)
+    public static IResult Serve(HttpContext context, World world, Hub hub, string id, string path)
     {
+        if (!hub.Limits.TryTake(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", "activity.file"))
+            return Results.StatusCode(StatusCodes.Status429TooManyRequests);
         if (!IdPattern().IsMatch(id) || !ActivityBundle.ValidPath(path)) return Results.NotFound();
         var store = world.Store;
         if (store.GetActivity(id) is not { Enabled: true }) return Results.NotFound();
@@ -352,15 +367,15 @@ public static partial class ActivitiesFeature
         var host = context.Request.Host.Value;
         var self = host is not null && HostPattern().IsMatch(host) ? $"{(context.Request.IsHttps ? "https" : "http")}://{host}" : null;
         var headers = context.Response.Headers;
-        headers.ContentSecurityPolicy = Policy(world, self, id);
+        var html = file.Type.StartsWith("text/html", StringComparison.Ordinal);
+        headers.ContentSecurityPolicy = Policy(world, self, id, scripts: html);
         headers["Permissions-Policy"] = ProfilePages.PermissionsPolicy;
         headers.XContentTypeOptions = "nosniff";
         headers["Referrer-Policy"] = "no-referrer";
         headers["X-DNS-Prefetch-Control"] = "off";
         headers["Cross-Origin-Opener-Policy"] = "same-origin";
         headers.CacheControl = "no-store";
-        if (file.Type.StartsWith("text/html", StringComparison.Ordinal))
-            return Results.Content(WithPrelude(System.Text.Encoding.UTF8.GetString(file.Data).TrimStart('﻿')), file.Type);
+        if (html) return Results.Content(WithPrelude(System.Text.Encoding.UTF8.GetString(file.Data).TrimStart('\uFEFF')), file.Type);
         return Results.File(file.Data, file.Type, enableRangeProcessing: true);
     }
 }

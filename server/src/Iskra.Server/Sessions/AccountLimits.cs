@@ -20,7 +20,8 @@ public sealed class AccountLimits(TimeProvider time)
         ["link.http"] = (60, 2),                   // device-link HTTP requests, per client address
         ["link.part"] = (300, 20),                 // device-link history parts (they need the link keys), per client address
         ["gif.media"] = (200, 20),                 // GIF media proxy, per client address
-        ["landing.page"] = (30, 1),                // the public page (GET / from a browser), per client address
+        ["landing.page"] = (30, 1),
+        ["activity.file"] = (300, 30),             // server-added activities' files, per client address                // the public page (GET / from a browser), per client address
         ["captions.model"] = (30, 0.2),            // the captions model's parts (6 a download), per client address
         ["translate.model"] = (40, 0.5),           // translation models' parts (3-4 a language and direction), per client address
         ["report.create"] = (5, 1 / 120.0),        // 5 at once, then one every 2 minutes

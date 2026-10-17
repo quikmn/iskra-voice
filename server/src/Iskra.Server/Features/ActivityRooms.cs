@@ -34,6 +34,9 @@ internal sealed class ActivityRun(string id, long channelId, string activity, st
     /// <summary>The newest message that went from the buffer before a snapshot covered it.</summary>
     public long DroppedUpTo { get; set; }
     public bool Missed => DroppedUpTo > StateSeq;
+    /// <summary>The relay budget (bytes), refilled at <see cref="ActivityRooms.RelayBytesPerSecond"/>.</summary>
+    public double Budget { get; set; } = double.MaxValue;
+    public long BudgetAt { get; set; } = Environment.TickCount64;
 
     public string PlayerId(string accountKey) => Ed25519.ToB64u(HMACSHA256.HashData(Secret, Encoding.UTF8.GetBytes(accountKey))[..9]);
 }
@@ -46,6 +49,9 @@ public sealed class ActivityRooms
 {
     public const int MaxBuffered = 300;
     public const int MaxBufferedBytes = 256 * 1024;
+    /// <summary>What one activity may relay, all its players together: bytes a second, and a burst.</summary>
+    public double RelayBytesPerSecond { get; set; } = 256 * 1024;
+    public double RelayBurstBytes { get; set; } = 1024 * 1024;
 
     private readonly Dictionary<long, ActivityRun> _runs = [];
     private readonly Lock _gate = new();
@@ -165,6 +171,14 @@ public sealed class ActivityRooms
         lock (_gate)
         {
             var run = Joined(Current(channelId, sessionId), session);
+            // Every message goes to every player: the session as a whole has a budget, whoever sends.
+            var now = Environment.TickCount64;
+            run.Budget = Math.Min(RelayBurstBytes, run.Budget + (now - run.BudgetAt) / 1000.0 * RelayBytesPerSecond);
+            run.BudgetAt = now;
+            var cost = (double)bytes * Math.Max(1, run.Connections.Count);
+            if (run.Budget < Math.Min(cost, RelayBurstBytes))
+                throw new RequestException("rate_limited", "This activity is sending too much at once.", "act_busy");
+            run.Budget -= Math.Min(cost, RelayBurstBytes);
             var message = new ActivityMessage(++run.Seq, run.PlayerId(run.Connections[session]), data, bytes);
             run.Buffer.AddLast(message);
             run.BufferBytes += bytes;
@@ -201,6 +215,12 @@ public sealed class ActivityRooms
     {
         lock (_gate)
             return _runs.TryGetValue(channelId, out var run) && run.Id == sessionId ? (run.StartedBy, run.Players.ToList()) : null;
+    }
+
+    /// <summary>The activity a session runs (if it's the one named).</summary>
+    internal string? ActivityOf(long channelId, string sessionId)
+    {
+        lock (_gate) return _runs.TryGetValue(channelId, out var run) && run.Id == sessionId ? run.Activity : null;
     }
 
     internal bool IsPlayer(Session session, long channelId, string sessionId)

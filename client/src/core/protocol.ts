@@ -2622,6 +2622,7 @@ export interface Requests {
   'landing.get': [Record<string, never>, { settings: LandingSettings }]
   /** Owner only. `invite: ''` or `null` removes the invite. */
   'landing.update': [Partial<Omit<LandingSettings, 'invite' | 'inviteGone'>> & { invite?: string | null }, { settings: LandingSettings }]
+}
 
 // ── activities ──
 // See "Activities" in PROTOCOL.md; the frame side is docs/activities.md.

@@ -340,7 +340,7 @@ app.MapGet("/gifs/media", (HttpContext context, Iskra.Server.Gifs.GifService gif
     GifFeature.ServeMedia(context, gifs, upstream, hub));
 app.MapGet("/dmfiles/{id}", (HttpContext context, string id, Uploads uploads, World w) => DmFileFeature.Serve(context, w, uploads, id));
 app.MapGet("/pages/{id}", (HttpContext context, string id, World w) => ProfilePages.Serve(context, w, id));
-app.MapGet("/activities/{id}/{**path}", (HttpContext context, string id, string path, World w) => ActivitiesFeature.Serve(context, w, id, path));
+app.MapGet("/activities/{id}/{**path}", (HttpContext context, string id, string path, World w, Hub hub) => ActivitiesFeature.Serve(context, w, hub, id, path));
 
 // Incoming webhooks: POST /hooks/{id}/{secret}.
 WebhookIngress.Map(app);

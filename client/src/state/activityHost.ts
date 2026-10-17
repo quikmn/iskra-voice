@@ -58,9 +58,21 @@ export function parseFrameRequest(raw: unknown): FrameRequest | null {
   }
 }
 
+/** What a frame may send: well under the server's act.send limit (20/s, burst 40). */
+export const SEND_PER_SECOND = 10
+export const SEND_BURST = 20
+/** Console lines a walled view may write (only the SDK's count, checked by prefix and length first). */
+export const WALL_LINES_PER_SECOND = 30
+export const WALL_LINE_BURST = 60
+/** The longest line the SDK can write: a 48 KB snapshot in its envelope. */
+export const MAX_WALL_LINE = MAX_STATE_BYTES + 512
+
+/** A line that could be the SDK's: its prefix, not too long. Cheap: no parsing. */
+export const isWallLine = (line: string): boolean => line.length <= MAX_WALL_LINE && line.startsWith(WALL_LINE)
+
 /** A console line from the desktop app's walled view, or null if it isn't one of the SDK's. */
 export function parseWallLine(line: unknown): FrameRequest | null {
-  if (typeof line !== 'string' || !line.startsWith(WALL_LINE) || line.length > MAX_STATE_BYTES * 2 + 200) return null
+  if (typeof line !== 'string' || !isWallLine(line)) return null
   try {
     return parseFrameRequest(JSON.parse(line.slice(WALL_LINE.length)))
   } catch {

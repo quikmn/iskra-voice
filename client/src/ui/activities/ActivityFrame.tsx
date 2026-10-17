@@ -10,7 +10,7 @@ import type { ServerState } from '../../state/store'
 import { endActivity, leaveActivity, mayEnd, onActivityMessage, sendToActivity, snapshotActivity } from '../../state/activities'
 import {
   endedMessage, frameTheme, initMessage, isBuiltin, messageMessage, nextMessages, parseFrameRequest, parseWallLine, playersMessage,
-  TokenBucket, wallScript, type FramePlayer, type FrameRequest,
+  isWallLine, SEND_BURST, SEND_PER_SECOND, TokenBucket, WALL_LINE_BURST, WALL_LINES_PER_SECOND, wallScript, type FramePlayer, type FrameRequest,
 } from '../../state/activityHost'
 import { i18next, t as i18t } from '../../i18n'
 
@@ -47,7 +47,10 @@ export function ActivityFrame({ server, channel, session, joined, name }: {
     let ready = false
     let delivered = joined.stateSeq
     let waiting: ActivityMessage[] = [...joined.messages]
-    const sends = new TokenBucket(40, 20)
+    // Well under the server's own limits, so a busy activity never gets the connection refused.
+    const sends = new TokenBucket(SEND_BURST, SEND_PER_SECOND)
+    const ends = new TokenBucket(2, 0.2)
+    const lines = new TokenBucket(WALL_LINE_BURST, WALL_LINES_PER_SECOND)
     let snapshot: { seq: number; state: unknown } | null = null
     let snapshotTimer: ReturnType<typeof setTimeout> | null = null
     let lastSnapshot = 0
@@ -101,6 +104,7 @@ export function ActivityFrame({ server, channel, session, joined, name }: {
           if (!snapshotTimer) snapshotTimer = setTimeout(sendSnapshot, Math.max(0, SNAPSHOT_MS - (Date.now() - lastSnapshot)))
           return
         case 'end': {
+          if (!ends.take()) return
           const inCall = (now.voice[channelId] ?? []).map((p) => p.accountKey)
           if (mayEnd(now, current, inCall)) void endActivity(serverKey, channelId, current.id).catch(() => undefined)
           else void leaveActivity(serverKey, channelId, current.id)
@@ -124,7 +128,10 @@ export function ActivityFrame({ server, channel, session, joined, name }: {
     // The desktop app's walled view: its console lines.
     const view = viewRef.current
     const onConsole = (event: Event) => {
-      const request = parseWallLine((event as Event & { message?: unknown }).message)
+      const line = (event as Event & { message?: unknown }).message
+      // Checked before any parsing: a flood of console lines costs nothing but this.
+      if (typeof line !== 'string' || !isWallLine(line) || !lines.take()) return
+      const request = parseWallLine(line)
       if (request) handle(request)
     }
     view?.addEventListener('console-message', onConsole)

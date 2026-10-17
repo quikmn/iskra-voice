@@ -110,6 +110,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["act.snapshot"] = (5, 1),
         ["act.start"] = (5, 0.5),
         ["act.join"] = (10, 2),
+        ["act.end"] = (5, 0.5),
         ["act.leave"] = (10, 2),
         ["act.add"] = (3, 0.1),
         ["act.list"] = (10, 2),
@@ -123,8 +124,12 @@ public sealed class RateLimiter(TimeProvider time)
     public bool TryTake(string type)
     {
         var now = time.GetTimestamp();
+        // What an activity sends has buckets of its own, so a busy activity can't use up the rest of the connection.
+        if (OwnBucketOnly.Contains(type)) return Take(type, now);
         return Take("*", now) && (!Limits.ContainsKey(type) || Take(type, now));
     }
+
+    private static readonly HashSet<string> OwnBucketOnly = ["act.send", "act.snapshot"];
 
     /// <summary>Takes from one named bucket only (for limits checked inside a handler, e.g. only on real changes).</summary>
     public bool TryTakeOnly(string key) => Take(key, time.GetTimestamp());

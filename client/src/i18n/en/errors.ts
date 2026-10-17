@@ -252,6 +252,7 @@ export const errors = {
     act_seq: "That message hasn't been sent yet.",
     act_data_size: 'Activity messages can be up to {{kb}} KB.',
     act_state_size: 'Activity snapshots can be up to {{kb}} KB.',
+    act_busy: 'This activity is sending too much at once.',
     act_end_starter: 'Only whoever started the activity can end it.',
     act_zip: 'Activities must be a zip file of up to {{maxMb}} MB, with up to {{maxFiles}} files.',
     act_path: "The zip has a file name that isn't allowed: {{path}}",

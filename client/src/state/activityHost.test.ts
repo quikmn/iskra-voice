@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import sdkSource from '../../../protocol/activity-sdk.js?raw'
 import {
-  asJson, frameTheme, initMessage, MAX_DATA_BYTES, MAX_STATE_BYTES, nextMessages, parseFrameRequest, parseWallLine, TokenBucket, WALL_LINE, wallScript,
+  asJson, frameTheme, isWallLine, MAX_WALL_LINE, SEND_BURST, SEND_PER_SECOND, initMessage, MAX_DATA_BYTES, MAX_STATE_BYTES, nextMessages, parseFrameRequest, parseWallLine, TokenBucket, WALL_LINE, wallScript,
 } from './activityHost'
 import { mayEnd, startRefusal } from './activities'
 import type { ActivityCatalog, ActivitySession, Channel, Member } from '../core/protocol'
@@ -42,6 +42,19 @@ describe('what a frame may ask', () => {
     expect(parseWallLine(`${WALL_LINE}{not json`)).toBeNull()
     expect(parseWallLine(42)).toBeNull()
     expect(parseWallLine(WALL_LINE + 'x'.repeat(MAX_STATE_BYTES * 3))).toBeNull()
+  })
+
+  it('drops oversize or foreign console lines before parsing, and sends well under the server limits', () => {
+    expect(isWallLine(`${WALL_LINE}{}`)).toBe(true)
+    expect(isWallLine('hello')).toBe(false)
+    expect(isWallLine(WALL_LINE + 'x'.repeat(MAX_WALL_LINE))).toBe(false)
+    const parse = vi.spyOn(JSON, 'parse')
+    expect(parseWallLine(WALL_LINE + 'x'.repeat(MAX_WALL_LINE))).toBeNull()
+    expect(parse).not.toHaveBeenCalled()
+    parse.mockRestore()
+    // The server allows act.send 20/s (burst 40) on a bucket of its own.
+    expect(SEND_PER_SECOND).toBeLessThanOrEqual(10)
+    expect(SEND_BURST).toBeLessThanOrEqual(20)
   })
 
   it('writes messages into the walled view as a safe literal', () => {

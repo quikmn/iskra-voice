@@ -17,6 +17,10 @@ The wire protocol (what the server checks and relays) is in [PROTOCOL.md → Act
 - **It talks only to Iskra**, through the SDK below. Iskra sends what it says to everyone playing, through your server,
   in the same order for everyone (yourself included). Nothing it sends is stored, apart from one snapshot for people
   who join late, kept in the server's memory until the activity ends.
+- **Listeners watch.** People who may only listen in a voice channel can join an activity there and see everything, but
+  what they send is refused.
+- **No filters.** Activity messages aren't chat: AutoMod and word filters don't check them. Show other players' text
+  with care (and never as HTML).
 - **It never sees accounts.** Players are an id that is only valid inside this activity session, and a display name.
 - **Where it runs:** activities added to a server run in the **Iskra desktop app**, which runs them in a wall where
   nothing can reach the network. Browsers can't be made that tight (a page script can always reach the internet
@@ -60,6 +64,7 @@ Rules for the files:
 - **One page:** `index.html` is the activity. It can't navigate to another page.
 - **Classic scripts:** use `<script src="game.js">` or inline `<script>`, not `type="module"` (module scripts need
   CORS, which a sealed frame's origin doesn't get). Bundle with any tool into one IIFE file.
+- Only `.html` pages run scripts. Any other file (an SVG opened on its own, say) is served with scripts off.
 - Iskra's server puts two scripts in front of your page: one that removes WebRTC, and the SDK, which defines
   `window.iskra`. You don't need to include anything.
 
@@ -112,9 +117,9 @@ a message. Never trust data as HTML: put text in with `textContent`.
 
 | | |
 |---|---|
-| A message | 8 KB of JSON; 20 a second (40 in a burst) per player |
+| A message | 8 KB of JSON; 10 a second (20 in a burst) per player; the whole session relays up to 256 KB a second, counted once per player it reaches |
 | A snapshot | 48 KB of JSON; at most one every 1.5 s |
-| Players | 25 at once |
+| Players | 25 at once, or your manifest's `maxPlayers` if fewer |
 | Messages kept for late joiners | those since the last snapshot, up to 300 and 256 KB |
 
 ### The messages underneath

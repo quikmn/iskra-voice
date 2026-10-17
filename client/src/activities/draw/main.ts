@@ -139,7 +139,8 @@ function mount(ctx: Ctx<DrawState>) {
     current.push(x, y)
     redraw()
     if (current.length >= MAX_STROKE_POINTS * 2) flush()
-    else if (!flushTimer) flushTimer = setTimeout(flush, 90)
+    // Batched: about 6 pieces a second, well under what an activity may send.
+    else if (!flushTimer) flushTimer = setTimeout(flush, 160)
   })
   const stop = () => {
     if (!drawing) return

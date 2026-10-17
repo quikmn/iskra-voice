@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Iskra.Server.Features;
 using Iskra.Server.Files;
+using Iskra.Server.Sessions;
 using Iskra.Server.Storage;
 using Iskra.Server.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,7 +44,7 @@ public class ActivitiesTests
         var path = server.Services.GetRequiredService<Uploads>().PathFor(sha);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, data);
-        var id = "upload" + sha[..16];
+        var id = "upload" + sha[..16] + user.Key[..8];
         if (server.World.Store.GetFile(id) is null)
             server.World.Store.AddFile(new StoredFile(id, sha, "activity.zip", data.Length, "application/zip", null, null, user.Key, 0));
         return id;
@@ -432,5 +433,98 @@ public class ActivitiesTests
         await SessionWhere(alice, b => b.GetProperty("session").ValueKind == JsonValueKind.Object && b.GetProperty("session").GetProperty("players").GetArrayLength() == 1);
         Assert.Equal("result", (await alice.RequestAsync("act.leave", new { channelId = games, sessionId })).Type());
         await SessionWhere(carol, b => b.GetProperty("session").ValueKind == JsonValueKind.Null);
+    }
+
+    // ── Security review ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task A_busy_activity_never_uses_up_the_rest_of_the_connection()
+    {
+        using var server = new IskraServer();
+        var games = Voice(server);
+        using var alice = await server.JoinAsync("Alice");
+        await WatchTestsAccess.Join(server, games, alice);
+        var sessionId = (await StartAsync(alice, games)).GetProperty("id").GetString()!;
+        // Far past the general bucket's burst (150): only act.send's own bucket says no.
+        for (var i = 0; i < 170; i++) await alice.RequestAsync("act.send", new { channelId = games, sessionId, data = i });
+        for (var i = 0; i < 20; i++) Assert.Null((await alice.RequestAsync("ping")).ErrorCode());
+        // Ending has its own bucket too.
+        var ends = new List<string?>();
+        for (var i = 0; i < 8; i++) ends.Add((await alice.RequestAsync("act.end", new { channelId = games, sessionId = "nope" })).ErrorCode());
+        Assert.Contains("rate_limited", ends);
+    }
+
+    [Fact]
+    public async Task Listeners_watch_but_send_nothing()
+    {
+        using var server = new IskraServer();
+        var games = Voice(server, "stage-ish", write: "trusted");
+        using var host = await server.JoinAsync("Host", "trusted");
+        using var bob = await server.JoinAsync("Bob");
+        await WatchTestsAccess.Join(server, games, host);
+        await WatchTestsAccess.Join(server, games, bob);
+        var sessionId = (await StartAsync(host, games)).GetProperty("id").GetString()!;
+        Assert.Equal("result", (await bob.RequestAsync("act.join", new { channelId = games, sessionId })).Type());
+        Assert.Equal("act_listen_only", Key(await bob.RequestAsync("act.send", new { channelId = games, sessionId, data = 1 })));
+        Assert.Equal("act_listen_only", Key(await bob.RequestAsync("act.snapshot", new { channelId = games, sessionId, seq = 0, state = 1 })));
+        Assert.Equal("result", (await host.RequestAsync("act.send", new { channelId = games, sessionId, data = 1 })).Type());
+        Assert.Equal(1, (await bob.EventAsync("act.msg")).Body().GetProperty("data").GetInt32());
+    }
+
+    [Fact]
+    public async Task A_session_has_one_relay_budget_whoever_sends()
+    {
+        using var server = new IskraServer();
+        server.Services.GetRequiredService<Hub>().ActivityRooms.RelayBurstBytes = 20_000;
+        server.Services.GetRequiredService<Hub>().ActivityRooms.RelayBytesPerSecond = 1;
+        var games = Voice(server);
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        await WatchTestsAccess.Join(server, games, alice);
+        await WatchTestsAccess.Join(server, games, bob);
+        var sessionId = (await StartAsync(alice, games)).GetProperty("id").GetString()!;
+        await bob.RequestAsync("act.join", new { channelId = games, sessionId });
+        var big = new string('x', 4000); // 4 KB to 2 connections: 8 KB each
+        Assert.Null((await alice.RequestAsync("act.send", new { channelId = games, sessionId, data = big })).ErrorCode());
+        Assert.Null((await bob.RequestAsync("act.send", new { channelId = games, sessionId, data = big })).ErrorCode());
+        Assert.Equal("act_busy", Key(await alice.RequestAsync("act.send", new { channelId = games, sessionId, data = big })));
+        Assert.Equal("act_busy", Key(await bob.RequestAsync("act.send", new { channelId = games, sessionId, data = big })));
+    }
+
+    [Fact]
+    public async Task The_manifest_caps_players_and_files_other_than_pages_run_no_scripts()
+    {
+        using var server = new IskraServer();
+        var games = Voice(server);
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var bob = await server.JoinAsync("Bob");
+        var solo = Zip(F("manifest.json", """{ "name": "Solo", "maxPlayers": 1 }"""), F("index.html", Index), F("art.svg", "<svg xmlns='http://www.w3.org/2000/svg'><script>1</script></svg>"));
+        var id = (await AddAsync(server, admin, solo)).GetProperty("id").GetString()!;
+        await WatchTestsAccess.Join(server, games, admin);
+        await WatchTestsAccess.Join(server, games, bob);
+        var sessionId = (await StartAsync(admin, games, id)).GetProperty("id").GetString()!;
+        var full = await bob.RequestAsync("act.join", new { channelId = games, sessionId });
+        Assert.Equal("act_full", Key(full));
+        Assert.Equal(1, full.Body().GetProperty("args").GetProperty("max").GetInt32());
+
+        var http = server.CreateClient();
+        var svg = await http.GetAsync($"/activities/{id}/art.svg");
+        var csp = svg.Headers.GetValues("Content-Security-Policy").Single();
+        Assert.StartsWith("sandbox; default-src 'none'; script-src 'none';", csp);
+        Assert.DoesNotContain("allow-scripts", csp);
+        Assert.Contains("allow-scripts", (await http.GetAsync($"/activities/{id}/index.html")).Headers.GetValues("Content-Security-Policy").Single());
+    }
+
+    [Fact]
+    public async Task Bundle_files_are_limited_per_address()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var id = (await AddAsync(server, admin, Good())).GetProperty("id").GetString()!;
+        var http = server.CreateClient();
+        var codes = new List<HttpStatusCode>();
+        for (var i = 0; i < 320; i++) codes.Add((await http.GetAsync($"/activities/{id}/game.js")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, codes[0]);
+        Assert.Contains(HttpStatusCode.TooManyRequests, codes);
     }
 }
