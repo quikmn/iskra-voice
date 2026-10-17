@@ -24,7 +24,7 @@ jobs:
       security-events: write # upload the SARIF to code scanning
       id-token: write # publish_results: signs the results for the public API
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
@@ -32,7 +32,7 @@ jobs:
           results_file: results.sarif
           results_format: sarif
           publish_results: ${{ github.event_name != 'pull_request' }}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: scorecard-results
           path: results.sarif
