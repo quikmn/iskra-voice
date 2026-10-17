@@ -79,6 +79,9 @@ export function App() {
     }
     window.addEventListener('hashchange', readInviteFromHash)
     window.addEventListener('online', retryAll)
+    // Back to the front (a laptop waking up, the window shown again): a server that's waiting to reconnect tries now.
+    const retryWhenVisible = () => { if (document.visibilityState === 'visible') retryAll() }
+    document.addEventListener('visibilitychange', retryWhenVisible)
     const stopPtt = startPushToTalk()
     const stopHotkeys = startHotkeys()
     const stopTitle = startTitleBadge()
@@ -104,6 +107,7 @@ export function App() {
       stopVoiceIdle()
       window.removeEventListener('hashchange', readInviteFromHash)
       window.removeEventListener('online', retryAll)
+      document.removeEventListener('visibilitychange', retryWhenVisible)
     }
   }, [])
 

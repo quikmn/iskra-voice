@@ -46,6 +46,7 @@ export function startDiagnostics(): () => void {
       kind: 'voice', state,
       ...(v.session ? { call: v.session.call ? 'dm' : v.session.group ? 'group' : 'channel' } : {}),
       ...(v.micEngine ? { engine: v.micEngine } : {}),
+      ...(state === 'left' && v.leftReason ? { reason: v.leftReason } : {}),
     })
   })
 

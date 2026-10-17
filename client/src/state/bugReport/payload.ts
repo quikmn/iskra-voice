@@ -143,7 +143,7 @@ function line(e: DiagEntry): string {
     case 'connection':
       return `connection s${e.server} ${e.state}${e.code ? ` ${e.code}` : ''}${e.retryMs !== undefined ? ` retry ${e.retryMs}ms` : ''}`
     case 'request': return `request ${e.type} failed ${e.code}`
-    case 'voice': return `voice ${e.state}${e.call ? ` ${e.call}` : ''}${e.engine ? ` engine ${e.engine}` : ''}`
+    case 'voice': return `voice ${e.state}${e.call ? ` ${e.call}` : ''}${e.engine ? ` engine ${e.engine}` : ''}${e.reason ? ` (${e.reason.replace('_', ' ')})` : ''}`
     case 'error': return `error ${e.source} ${e.name}${e.frame ? ` at ${e.frame}` : ''}`
     case 'update': return `update ${e.state}${e.version ? ` ${e.version}` : ''}`
     case 'app': return `app ${e.event}`
