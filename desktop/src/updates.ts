@@ -7,7 +7,8 @@ import path from 'node:path'
 import { app, net } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { compareVersions, macSigning, newerRelease, updateMode, type GitHubRelease, type MacSigning, type UpdateMode, type UpdateState } from './platform'
-import { autoFeed, errorLine, healState, UpdateLog } from './updateCheck'
+import { autoFeed, healState } from './updateCheck'
+import { deskLog, errorFields, type LogFields } from './log'
 
 const REPO = 'quikmn/iskra-voice'
 const FIRST_CHECK_MS = 15_000
@@ -31,6 +32,9 @@ function readMacSigning(bundlePath: string): Promise<MacSigning> {
   })
 }
 
+/** The updater's lines in the app's log (source `upd`; links, tokens and paths never get in, see log.ts). */
+const log = (level: 'INFO' | 'WARN', code: string | null, event: string, fields: LogFields = []) => deskLog.write(level, 'upd', 'update', event, code, fields)
+
 export class Updates {
   private status: UpdateStatus = { state: 'none' }
   /** On macOS 'manual' until the app's signature has been read (see resolveMode). */
@@ -45,8 +49,6 @@ export class Updates {
   private lastCheck = 0
   /** When the status last changed (a download that never finishes is given up on, see healState). */
   private statusSince = Date.now()
-  /** userData/logs/updates.log: the latest checks, for diagnosing updates (no links with tokens, no personal data). */
-  private log: UpdateLog | null = null
 
   constructor(onChange: (status: UpdateStatus) => void) {
     this.onChange = onChange
@@ -64,7 +66,7 @@ export class Updates {
   /** A check right now (the tray's "Check for updates"). New versions show up in the status as usual. */
   async check(): Promise<CheckResult> {
     if (this.mode === 'off') return 'off'
-    this.log?.write('check from the tray')
+    log('INFO', null, 'check', [['what', 'tray']])
     this.heal()
     if (this.status.state !== 'none') return 'found'
     await this.resolveMode()
@@ -77,8 +79,7 @@ export class Updates {
     if (this.mode === 'off' || this.started) return
     this.started = true
     this.automatic = automatic
-    this.log = new UpdateLog(path.join(app.getPath('userData'), 'logs', 'updates.log'))
-    this.log.write(`started ${app.getVersion()} (${process.platform}, ${this.mode}, automatic checks ${automatic ? 'on' : 'off'})`)
+    log('INFO', null, 'start', [['ver', app.getVersion()], ['mode', this.mode], ['state', automatic ? 'on' : 'off']])
     // The automatic checks start once we know how this copy updates (a moment on macOS, at once elsewhere).
     void this.resolveMode().then(() => this.setAutomatic(this.automatic))
   }
@@ -91,7 +92,7 @@ export class Updates {
         const bundlePath = path.resolve(app.getPath('exe'), '..', '..', '..')
         const signing = await readMacSigning(bundlePath)
         this.mode = updateMode(process.platform, app.isPackaged, process.env, { signing, bundlePath })
-        console.log(`Updates: ${this.mode} (${signing} signed, ${bundlePath})`)
+        log('INFO', null, 'changed', [['mode', this.mode], ['what', signing]])
       }
       if (this.mode === 'auto') this.setUpAutoUpdater()
       return this.mode
@@ -105,7 +106,7 @@ export class Updates {
     if (this.timer) clearInterval(this.timer)
     this.timer = null
     if (this.mode === 'off' || !this.started || !this.resolving) return
-    this.log?.write(`automatic checks ${on ? 'on' : 'off'} (${this.mode})`)
+    log('INFO', null, 'changed', [['what', 'automatic'], ['state', on ? 'on' : 'off'], ['mode', this.mode]])
     if (!on) return
     const check = () => void (this.automatic && this.checkNow())
     setTimeout(check, FIRST_CHECK_MS).unref()
@@ -124,7 +125,7 @@ export class Updates {
     this.lastCheck = Date.now()
     this.heal()
     const ok = await (this.mode === 'auto' ? this.checkAuto() : this.checkManually())
-    this.log?.write(`check ${ok ? 'done' : 'failed'}: ${this.describe()}`)
+    if (ok) log('INFO', null, 'checked', this.describe())
     return ok
   }
 
@@ -132,17 +133,18 @@ export class Updates {
   private heal(): void {
     const healed = healState(this.status, this.statusSince, Date.now(), app.getVersion())
     if (healed === this.status) return
-    this.log?.write(`reset stuck state ${this.describe()}`)
+    log('INFO', null, 'reset', this.describe())
     this.set(healed)
   }
 
-  private describe(): string {
-    return 'version' in this.status ? `${this.status.state} ${this.status.version}` : this.status.state
+  private describe(): LogFields {
+    return [['state', this.status.state], ['to', 'version' in this.status ? this.status.version : undefined]]
   }
 
   /** Restarts into a downloaded update. Returns false if there's nothing to install. */
   restart(beforeQuit: () => void): boolean {
     if (this.status.state !== 'ready') return false
+    log('INFO', null, 'install', [['to', this.status.version]])
     beforeQuit()
     // Not silent: on Windows the one-click installer shows its own small "Installing" window, then starts the new
     // version (runAfterFinish). The AppImage is swapped and started again either way; on macOS Squirrel.Mac swaps in
@@ -165,16 +167,16 @@ export class Updates {
     autoUpdater.autoInstallOnAppQuit = true
     autoUpdater.logger = { info: () => undefined, warn: console.warn, error: console.error, debug: () => undefined }
     autoUpdater.on('update-available', (info) => {
-      this.log?.write(`downloading ${info.version}`)
+      log('INFO', null, 'downloading', [['to', info.version]])
       this.set({ state: 'downloading', version: info.version })
     })
     autoUpdater.on('update-downloaded', (info) => {
-      this.log?.write(`downloaded ${info.version}, ready to install`)
+      log('INFO', null, 'ready', [['to', info.version]])
       this.set({ state: 'ready', version: info.version })
     })
     autoUpdater.on('error', (error) => {
-      console.error('Update failed:', error)
-      this.log?.write(`error: ${errorLine(error)}`)
+      // While downloading: the download or its signature check failed (UPD-120); else the check itself (UPD-110).
+      log('WARN', this.status.state === 'downloading' ? 'UPD-120' : 'UPD-110', 'failed', errorFields(error, true))
       // A download or signature check failed (on macOS also: Squirrel.Mac rejected the update's signature or can't
       // write where the app is): fall back to pointing at the release page.
       if (this.status.state === 'downloading') this.set({ state: 'available', version: this.status.version, url: releaseUrl(this.status.version) })
@@ -190,7 +192,7 @@ export class Updates {
       if (!releases) return false
       const feed = autoFeed(releases, app.getVersion(), REPO)
       if (!feed) return true
-      this.log?.write(`newer release ${feed.version} found, checking its files`)
+      log('INFO', null, 'found', [['to', feed.version]])
       autoUpdater.setFeedURL({ provider: 'generic', url: feed.url })
       const result = await autoUpdater.checkForUpdates()
       // 'update-available' sets the status too; this covers a check that resolves first.
@@ -198,8 +200,7 @@ export class Updates {
       if (version && compareVersions(version, app.getVersion()) > 0 && this.status.state === 'none') this.set({ state: 'downloading', version })
       return true
     } catch (error) {
-      console.error('Update check failed:', error)
-      this.log?.write(`check error: ${errorLine(error)}`)
+      log('WARN', 'UPD-110', 'failed', errorFields(error, true))
       return false
     }
   }
@@ -210,7 +211,7 @@ export class Updates {
       headers: { accept: 'application/vnd.github+json', 'user-agent': `Iskra/${app.getVersion()}` },
     })
     if (!response.ok) {
-      this.log?.write(`releases list: HTTP ${response.status}`)
+      log('WARN', 'UPD-110', 'failed', [['op', 'releases'], ['status', response.status]])
       return null
     }
     const releases = (await response.json()) as unknown
@@ -225,8 +226,7 @@ export class Updates {
       if (newer && (this.status.state !== 'available' || this.status.version !== newer.version)) this.set({ state: 'available', ...newer })
       return true
     } catch (error) {
-      console.error('Update check failed:', error)
-      this.log?.write(`check error: ${errorLine(error)}`)
+      log('WARN', 'UPD-110', 'failed', errorFields(error, true))
       return false
     }
   }

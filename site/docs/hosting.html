@@ -880,6 +880,16 @@ someone helping you.</p>
 <p><strong>How long it's kept:</strong> files stay plain for 60 days, are gzipped (<code>.log.gz</code>) until 180 days, then deleted; and all of
 <code>logs/</code> together stays under 200 MB, the oldest files going first. Set <code>Logs</code> in <code>server.json</code> to change that. Trimming
 runs at start and once a day. The startup lines list the version, ports, voice, p2p and these settings.</p>
+<p><strong>The desktop app's own log.</strong> The desktop app keeps a log of its own in the same format, in its data folder:
+<code>%APPDATA%\iskra-desktop\logs</code> on Windows, <code>~/Library/Application Support/iskra-desktop/logs</code> on macOS and
+<code>~/.config/iskra-desktop/logs</code> on Linux (one <code>YYYY-MM-DD.log</code> per UTC day). It has the app's start and stop, its windows
+and tray, sleep and wake, a page or helper process that stopped (<code>DSK-110</code>), the servers it hosts starting and stopping
+(by port, with their exit code: <code>DSK-120</code>), update checks (<code>upd</code>), and the app page's own lines (<code>app</code>: connections to
+each server with its <code>srv=</code> and <code>conn=</code> ids, voice joins and why they ended, errors). Same rules: no names, message text,
+keys, tokens, addresses or paths. It's kept like the server's (plain 60 days, gzipped until 180, then deleted) and under
+50 MB in all. A server hosted in the app writes its own log in <code>logs/</code> in its server folder. <strong>Report a bug</strong> in the
+desktop app adds the last 30 minutes of this log to the report, so a host can match a member's report with the server's
+log by <code>srv=</code> and <code>conn=</code>.</p>
 <h2 id="public-page">Public page<a class="anchor" href="#public-page" aria-hidden="true" tabindex="-1">#</a></h2>
 <p>Opening the server's address in a browser shows its public page (Server settings → Overview → Public page). Off by default it shows nothing about your server, only that it's an Iskra server and where to get the app; turned on, you pick what it shows: name, picture, banner, a short description, the start of the rules, a rounded member count and a Join button for an invite you choose. The apps still read the same JSON at <code>/</code>, which includes the server's name and icon for invite previews.</p>
 <h2 id="server-icon-and-banner">Server icon and banner<a class="anchor" href="#server-icon-and-banner" aria-hidden="true" tabindex="-1">#</a></h2>

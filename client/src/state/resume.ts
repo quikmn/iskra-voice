@@ -107,7 +107,7 @@ onWelcomeHook((serverKey, welcome) => {
       return
     case 'gone':
       clearVoiceResume()
-      if (useVoice.getState().session?.serverKey === serverKey) void leaveVoice()
+      if (useVoice.getState().session?.serverKey === serverKey) void leaveVoice('server')
       useVoice.setState({ error: t('voice.errors.resumeGone') })
       return
     case 'wait':

@@ -2,6 +2,7 @@
 // makes instead (also when the camera is switched or turned off and on). The work happens in background.worker.ts.
 // Used for the call and, on its own, for the preview in Settings → Camera.
 import type { Track, TrackProcessor, VideoProcessorOptions } from 'livekit-client'
+import { log } from '../../core/log'
 import { BLUR_FILES } from '../models'
 import { EffectWatch, type Backdrop, type BackgroundMode, type EffectWindow } from './effects'
 
@@ -140,6 +141,7 @@ export class BackgroundProcessor implements TrackProcessor<Track.Kind.Video, Vid
 
   private fail(message: string): void {
     console.warn('[iskra] background effect could not start', message)
+    log('WARN', 'media', 'failed', 'MED-160', [['why', 'start-failed']])
     this.running = false
     this.worker?.terminate()
     this.worker = null
@@ -159,11 +161,13 @@ export class BackgroundProcessor implements TrackProcessor<Track.Kind.Video, Vid
       this.events.onStats?.(w)
       if (this.watch.report(w)) {
         console.warn(`[iskra] background effect can't keep up here (${w.outputFps.toFixed(1)} fps, ${w.frameMs.toFixed(1)} ms per frame); turning it off`)
+        log('WARN', 'media', 'failed', 'MED-160', [['why', 'slow']])
         this.events.onSlow?.(w)
       }
     } else if (m.type === 'error') {
       this.inFlight = false
       console.warn('[iskra] background effect', m.message)
+      log('WARN', 'media', 'failed', 'MED-160', [['why', 'worker']])
     }
   }
 

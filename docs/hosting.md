@@ -742,6 +742,17 @@ someone helping you.
 `logs/` together stays under 200 MB, the oldest files going first. Set `Logs` in `server.json` to change that. Trimming
 runs at start and once a day. The startup lines list the version, ports, voice, p2p and these settings.
 
+**The desktop app's own log.** The desktop app keeps a log of its own in the same format, in its data folder:
+`%APPDATA%\iskra-desktop\logs` on Windows, `~/Library/Application Support/iskra-desktop/logs` on macOS and
+`~/.config/iskra-desktop/logs` on Linux (one `YYYY-MM-DD.log` per UTC day). It has the app's start and stop, its windows
+and tray, sleep and wake, a page or helper process that stopped (`DSK-110`), the servers it hosts starting and stopping
+(by port, with their exit code: `DSK-120`), update checks (`upd`), and the app page's own lines (`app`: connections to
+each server with its `srv=` and `conn=` ids, voice joins and why they ended, errors). Same rules: no names, message text,
+keys, tokens, addresses or paths. It's kept like the server's (plain 60 days, gzipped until 180, then deleted) and under
+50 MB in all. A server hosted in the app writes its own log in `logs/` in its server folder. **Report a bug** in the
+desktop app adds the last 30 minutes of this log to the report, so a host can match a member's report with the server's
+log by `srv=` and `conn=`.
+
 ## Public page
 
 Opening the server's address in a browser shows its public page (Server settings → Overview → Public page). Off by default it shows nothing about your server, only that it's an Iskra server and where to get the app; turned on, you pick what it shows: name, picture, banner, a short description, the start of the rules, a rounded member count and a Join button for an invite you choose. The apps still read the same JSON at `/`, which includes the server's name and icon for invite previews.

@@ -4,6 +4,7 @@
 // Noise removal is DeepFilterNet3 in a worker when you use AI noise removal and the device keeps up (at most a few
 // voices at once), RNNoise otherwise. Everything runs on this device.
 import type { RnnoiseWorkletNode } from '@sapphi-red/web-noise-suppressor'
+import { errorFields, log, logError } from '../core/log'
 import type { RemoteAudioTrack } from 'livekit-client'
 import remoteWorkletUrl from './audio/remote.worklet.ts?worker&url'
 import { contextDelay, DeepFilterWorker } from './audio/deepfilterHost'
@@ -54,6 +55,7 @@ export class Listener {
     this.ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' })
     this.modules = this.ctx.audioWorklet.addModule(remoteWorkletUrl).then(() => true, (e) => {
       console.warn('[iskra] incoming audio processing unavailable', e)
+      log('WARN', 'media', 'failed', 'MED-140', [['what', 'incoming'], ...errorFields(e)])
       return false
     })
   }
@@ -95,7 +97,7 @@ export class Listener {
     this.voices.clear()
     this.worker?.terminate()
     this.worker = null
-    void this.ctx.close().catch(() => undefined)
+    void this.ctx.close().catch((e) => logError('media', 'audio-close', e))
   }
 
   private async rebuild(): Promise<void> {
@@ -190,6 +192,7 @@ export class Listener {
         return !this.closed
       } catch (e) {
         console.warn(`[iskra] incoming AI noise removal could not start (${(e as Error)?.message ?? e}); using RNNoise`)
+        log('WARN', 'media', 'fallback', 'MED-140', [['what', 'incoming'], ['engine', 'rnnoise'], ['why', 'start-failed'], ...errorFields(e)])
         return false
       }
     })()
@@ -199,6 +202,7 @@ export class Listener {
   private tooSlow(why: string): void {
     if (this.aiTooSlow) return
     console.warn(`[iskra] incoming AI noise removal can't keep up here (${why}); using RNNoise for incoming voices`)
+    log('WARN', 'media', 'fallback', 'MED-140', [['what', 'incoming'], ['engine', 'rnnoise'], ['why', 'slow']])
     this.aiTooSlow = true
     void this.rebuild()
   }

@@ -143,7 +143,8 @@ async function reportFlow(page: Page, dialog: Locator, invite: string) {
   const preview = dialog.getByTestId('bug-report-preview')
   await expect(preview).toContainText('"what": "The mute button does nothing after rejoining"')
   await expect(preview).toContainText('"logs":')
-  await expect(preview).toContainText('connection s1 online')
+  await expect(preview).toContainText(/INFO  app   conn   online      -       srv=[0-9a-f]{4} conn=[0-9a-z]{1,8} path=direct took=\d/)
+  await expect(preview).toContainText('== Servers ==')
   await expect(preview).toContainText('<image 1:')
   const shown = (await preview.textContent())!
   for (const secret of ['old mill', '4471', '203.0.113.9', 'alice@example.org', 'Olga', 'Bug HQ', invite, invite.split('#')[1], server.url, 'IMG_0001']) {

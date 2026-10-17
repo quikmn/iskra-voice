@@ -2,7 +2,7 @@
 // Its screenshots are of one of Iskra's own windows, picked from a list (the main window, open pop-outs, never the
 // report itself), now or after a countdown that leaves the main window alone. Only one report window, and it closes
 // with the page.
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -120,6 +120,21 @@ test('the bug report is a window of its own that takes screenshots of the app’
     await expect(form.getByText('3 of 5')).toBeVisible()
     await report.screenshot({ path: join(SHOTS, 'desktop-bug-report.png') })
     await page.keyboard.press('Escape')
+
+    // The logs: the page's own lines and the desktop app's (from its log file), in one timeline, in the server's format.
+    await report.getByRole('button', { name: "See what's included" }).click()
+    const preview = report.getByTestId('bug-report-preview')
+    await expect(preview).toContainText(/INFO  desk  life   start       -       ver=/)
+    await expect(preview).toContainText(/INFO  app   conn   online      -       srv=[0-9a-f]{4} conn=[0-9a-z]{1,8} path=direct/)
+    await expect(preview).toContainText('== Servers ==')
+    await report.locator('.bug-report-toggle').click() // hide it again
+    // The app log file in userData/logs has both too (the page's lines are mirrored there).
+    const logs = join(userData, 'logs')
+    const file = readdirSync(logs).find((name) => /^\d{4}-\d{2}-\d{2}\.log$/.test(name))!
+    const text = readFileSync(join(logs, file), 'utf8')
+    expect(text).toMatch(/ INFO  desk  ui     opened      -       what=window/)
+    expect(text).toMatch(/ INFO  app   conn   online /)
+    expect(text).not.toContain('Report Test') // the server's name
 
     // Closing it keeps the draft; opening it from the menu brings it back.
     await report.getByRole('button', { name: 'Close' }).click()

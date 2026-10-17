@@ -374,7 +374,8 @@ few years.</li>
 <ul>
 <li>Something's off? <strong>Server settings → Internet access</strong> explains what it found. The server's log is in
 <code>logs/</code> in the server folder (one file per day), and also in <code>journalctl -u iskra</code> (system service) or
-<code>journalctl --user -u iskra-…</code> (user service).</li>
+<code>journalctl --user -u iskra-…</code> (user service). The desktop app keeps its own log too, in <code>logs/</code> in its data folder
+(Windows: <code>%APPDATA%\iskra-desktop\logs</code>; see <a href="/docs/hosting#logs">Hosting reference, Logs</a>).</li>
 <li>The full reference, every setting and every file: <a href="/docs/hosting">Hosting reference</a>.</li>
 </ul>
 </div>

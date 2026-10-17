@@ -2,7 +2,7 @@
 // to normal when `resetKey` changes, e.g. another channel); "app" wraps everything and offers a reload.
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { t } from '../i18n'
-import { errorFrame, recordDiagnostic } from '../state/bugReport/diagnostics'
+import { errorFields, log } from '../core/log'
 import { openBugReport } from '../state/bugReport/bugReport'
 
 interface Props {
@@ -24,7 +24,7 @@ export class ErrorBoundary extends Component<Props, { failed: boolean; key?: str
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('UI error', error, info.componentStack)
-    recordDiagnostic({ kind: 'error', source: 'render', name: error.name, frame: errorFrame(error.stack) })
+    log('ERROR', 'ui', 'error', 'ERR-900', [['kind', 'render'], ...errorFields(error)])
   }
 
   render() {

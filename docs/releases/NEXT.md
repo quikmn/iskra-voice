@@ -6,3 +6,4 @@
 ### Fixes
 
 ### Good to know
+- Bug reports now come with a clear timeline in the same format as the server's log, so a host can match a member's report to their own log, and the desktop app keeps its own private log (no names, messages, keys or addresses), compressed after 60 days and deleted after 180.

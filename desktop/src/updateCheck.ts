@@ -1,7 +1,5 @@
 // The parts of the update checks that don't need Electron (so the unit tests can run them): which release to update
-// to, unsticking an updater state that no longer means anything, and the small update log.
-import { appendFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import path from 'node:path'
+// to, and unsticking an updater state that no longer means anything. (The updater logs to the app log, log.ts.)
 import { compareVersions, newerRelease, type GitHubRelease, type UpdateState } from './platform'
 
 /** A download that hasn't finished in this long is treated as failed and the next check starts over. */
@@ -31,52 +29,4 @@ export function healState(status: UpdateState, since: number, now: number, runni
   if (compareVersions(status.version, running) <= 0) return { state: 'none' }
   if (status.state === 'downloading' && now - since >= STALE_DOWNLOAD_MS) return { state: 'none' }
   return status
-}
-
-/** One line for the log: no line breaks, no query strings or fragments (signed download links carry tokens there). */
-export function logLine(text: string, max = 300): string {
-  const clean = text
-    .replace(/\s+/g, ' ')
-    .replace(/\b(https?:\/\/[^\s?#"'<>]*)[?#][^\s"'<>]*/gi, '$1')
-    .replace(/\b(token|access_token|sig|signature|x-amz-[a-z-]+)=[^\s&"'<>]+/gi, '$1=…')
-    .trim()
-  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean
-}
-
-/** The first line of an error (electron-updater's messages go on with stacks and whole feeds). */
-export function errorLine(error: unknown): string {
-  const e = error as { code?: unknown; message?: unknown }
-  const message = typeof e?.message === 'string' ? e.message : String(error)
-  const first = message.split('\n')[0]
-  return typeof e?.code === 'string' ? `${e.code}: ${first}` : first
-}
-
-/** A few KB of the latest update checks (what was checked, what it found, what failed), for diagnosing updates. */
-export class UpdateLog {
-  constructor(
-    private readonly file: string,
-    private readonly maxBytes = 16 * 1024,
-    private readonly now: () => Date = () => new Date(),
-  ) {}
-
-  write(text: string): void {
-    try {
-      mkdirSync(path.dirname(this.file), { recursive: true })
-      appendFileSync(this.file, `${this.now().toISOString()} ${logLine(text)}\n`)
-      if (statSync(this.file).size > this.maxBytes) {
-        // Over the limit: keep the newest lines that fill half of it.
-        const lines = readFileSync(this.file, 'utf8').split('\n').filter(Boolean)
-        const kept: string[] = []
-        let bytes = 0
-        for (let i = lines.length - 1; i >= 0; i--) {
-          bytes += Buffer.byteLength(lines[i]) + 1
-          if (bytes > this.maxBytes / 2) break
-          kept.unshift(lines[i])
-        }
-        writeFileSync(this.file, kept.length > 0 ? `${kept.join('\n')}\n` : '')
-      }
-    } catch {
-      // The log is a convenience: never let it break an update.
-    }
-  }
 }

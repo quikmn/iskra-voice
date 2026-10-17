@@ -38,7 +38,7 @@ export function startNativeVoice(): () => void {
     if (s.session !== prev.session) sync()
   })
   const stopEnd = bridge.voice.onEnd(() => {
-    if (useVoice.getState().session) void leaveVoice()
+    if (useVoice.getState().session) void leaveVoice('system')
   })
   const stopMute = bridge.voice.onMute((muted) => {
     if (useVoice.getState().session && useVoice.getState().muted !== muted) void toggleMute()

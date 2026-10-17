@@ -201,7 +201,8 @@ days; the server writes and trims these itself, see [hosting.md, Logs](hosting.m
   follows `Logging:LogLevel` (appsettings.json).
 - **SRC**: `srv` the server, `lk` LiveKit (its level and fixed wording only), `p2p` the tunnel sidecar's output, `hook`
   webhooks, `bug` the bug inbox, `bot:<id>` a built-in bot (`dice`, `polls`, `reminders`, `starboard`, `birthdays`,
-  `welcome`). The apps will add `app`, `desk` and `upd` with the same format.
+  `welcome`); in the apps `app` (the web, phone and desktop page), `desk` (the desktop app's main process) and `upd`
+  (its updater).
 - **AREA**: `life conn sess voice call media e2ee tunnel nat tls update push backup sweep rate store ui http sched misc`.
 - **event**: a kebab-case word, past tense for outcomes (`opened closed joined left start stop failed done sent
   skipped changed summary`).
@@ -223,6 +224,37 @@ Never log names, message text, keys, tokens, secrets, addresses or paths: ids an
 for people (the owner link, a world that can't open) are plain `Console.WriteLine`, never in the files.
 `LoggingTests` locks the format with golden lines and runs a canary session (names, text, files, voice, webhooks, a bug
 report, p2p) that must leave nothing personal in the log.
+
+**The app** ([client/src/core/log.ts](../client/src/core/log.ts), no DOM: shared with the bot SDK) writes the same lines:
+`log('WARN', 'conn', 'offline', 'CON-110', [['srv', id], ['close', 1006]])`, `logError('media', 'audio-close', e)` for a
+known step that failed (`ERR-910` by default, or the area's own code). Each field's value must have its key's shape
+(ids, numbers, durations, lowercase words, versions; anything else is dropped), so a name or a file name can't pass for
+one. The only text is `msg=`, a browser's own error message (`errorFields` keeps it for `DOMException`s only), scrubbed
+like the server's. Servers are named `srv=` (the same 4 hex the server prints, from its key; `s1`, `s2`… before
+libsodium is ready) and `conn=` (`welcome.logId`): `serverLogFields(key)` in [state/logIds.ts](../client/src/state/logIds.ts).
+[state/bugReport/recorders.ts](../client/src/state/bugReport/recorders.ts) logs connections (path direct or tunnel, how long a connect
+took, close code, retry schedule, refusals, a server removed), voice (joined, reconnecting, left with a reason and code),
+failed requests, uncaught errors, device changes in a call and the app's lifecycle (start, visibility, online, sleep);
+other modules log where things happen (tunnel fallback in `p2p.ts`, noise suppression fallbacks, captions, background
+effects). The lines go to an in-memory buffer (`diagnostics.ts`: 30 minutes, 500 lines, never debug) and, in the desktop
+app, to its log file. A bug report's logs are a header (version, platform, uptime, settings, voice), then *Servers*,
+*Voice*, *Problems* (codes with counts) and the *Timeline* (these lines and the desktop app's, by time, `-- +12.3s --`
+where more than 5 s passed), at most 64 KB (the oldest lines go first), then a final net for anything address- or
+key-shaped. `log.test.ts` checks the golden lines in [protocol/log-format.json](../protocol/log-format.json) and that
+every code in `client/src` is in log-codes.json and every `app` code there is used; `diagnostics.test.ts` renders a report
+and feeds a whole session hostile values that must not come out.
+
+**The desktop app** ([desktop/src/log.ts](../desktop/src/log.ts), the same rules, ported) writes `logs/YYYY-MM-DD.log`
+in its data folder (`%APPDATA%\iskra-desktop\logs`, `~/Library/Application Support/iskra-desktop/logs`,
+`~/.config/iskra-desktop/logs`): `deskLog.info('life', 'host-start', [['port', port]])`, `deskLog.warn(code, …)`,
+`deskLog.error(code, area, event, error)` (an error adds its class, code and frame; its message only with
+`errorFields(e, true)`, for the updater's own wording). It logs its start and stop, windows and tray, sleep and wake,
+`render-process-gone` / `child-process-gone` (`DSK-110`), hung windows, hosted servers by port (start, exit code,
+`DSK-120`/`DSK-130`), the host tunnel's state, settings that couldn't be saved and the updater (`upd`, which replaced
+`updates.log`). The page's entries arrive over `iskra:log` (only from the app's own pages, at most 50 a second) and are
+checked again; `iskra:log-tail` gives a bug report the last 30 minutes. Retention is the server's stairs (plain 60 days,
+gzipped until 180, then deleted, at most 50 MB; at start and daily; compressed to a temp file, flushed, renamed);
+`log.test.ts` covers the golden lines, the codes, retention with a fake clock and a privacy scan.
 
 ## Quiet test output (for agents and scripts)
 

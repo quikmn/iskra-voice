@@ -2,6 +2,7 @@
 // runs on this device (state/video/); the setting is remembered on this device. If the device can't keep up, or the
 // effect can't start here, it turns itself off with a notice and remembers that until you choose it again.
 import type { LocalVideoTrack, VideoCaptureOptions } from 'livekit-client'
+import { errorFields, log } from '../core/log'
 import { lk } from './livekit'
 import { create } from 'zustand'
 import { parseBackgroundSettings, type BackgroundSettings, type EffectWindow } from './video/effects'
@@ -134,7 +135,10 @@ async function applyToCall(): Promise<void> {
     return
   }
   processor = newProcessor(look)
-  await track.setProcessor(processor).catch((e) => console.warn('[iskra] background effect', e))
+  await track.setProcessor(processor).catch((e) => {
+    console.warn('[iskra] background effect', e)
+    log('WARN', 'media', 'failed', 'MED-160', [['op', 'set-processor'], ...errorFields(e)])
+  })
 }
 
 // The camera came back on: the setting may have changed while it was off.
