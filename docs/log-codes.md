@@ -25,7 +25,7 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | DSK-140 | WARN | desk | store | The desktop app couldn't save its settings. | Check that the app's data folder is writable. |
 | DSK-150 | WARN | desk | ui | The app's window stopped responding for a while. | Nothing unless it repeats; then report it with the bug report. |
 | DSK-160 | WARN | desk | life | A bot run by the desktop app (My settings → Bots on this PC) stopped without being asked (exit= is its exit code). | Open the bot's log in Bots on this PC: its last lines say why. |
-| DSK-170 | WARN | desk | life | A bot run by the desktop app couldn't start (why=: no-entry, no-python, spawn). | For your own folder: check it has a package.json main, bot.js or bot.py; Python bots need Python 3.11+ installed. |
+| DSK-170 | WARN | desk | life | A bot run by the desktop app couldn't start (why=: no-entry, no-python, spawn, not-trusted: the person said no in the confirm dialog). | For your own folder: check it has a package.json main, bot.js or bot.py; Python bots need Python 3.11+ installed. |
 | DSK-900 | ERROR | desk | life | An uncaught error in the desktop app's main process. | Report it with the log lines around it. |
 | E2E-110 | WARN | app | e2ee | Decrypting encrypted voice failed. | Rejoin the channel; report it if it repeats. |
 | ERR-900 | ERROR | app | ui | An uncaught error (area unknown). | Report it with the bug report. |
