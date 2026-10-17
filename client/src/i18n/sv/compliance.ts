@@ -57,7 +57,7 @@ export const compliance: Messages['compliance'] = {
     },
     hosting: {
       who: 'När du kör en server',
-      when: 'Låt vänner var som helst gå med (Internetåtkomst): din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let’s Encrypt för HTTPS-certifikatet och sslip.io för den gratis adressen om du inte har en egen domän. Textning: servern hämtar talmodellen en gång från Hugging Face. Serveruppdateringar: GitHub.',
+      when: 'Låt vänner var som helst gå med (Internetåtkomst): din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let’s Encrypt för HTTPS-certifikatet och sslip.io för den gratis adressen om du inte har en egen domän. Textning: servern hämtar talmodellen en gång från Hugging Face. Serveruppdateringar: GitHub. Backupkompisar: krypterade säkerhetskopior till en väns Iskra-server, bara om ägaren kopplar ihop dem (den kan inte läsa dem).',
       off: 'De ser serverns adress, inte dina medlemmars. Internetvärd och serveruppdateringar slår du av och på i Serverinställningar, textningsmodellen i server.json.',
     },
     previews: {
@@ -194,5 +194,14 @@ export const compliance: Messages['compliance'] = {
     keylog_alert: 'En enhet rapporterade ett problem med nyckelloggen',
     keylog_reloaded: 'Läste in nyckelloggen igen (databasen ändrades)',
     keylog_broken: 'Nyckelloggen stämmer inte',
+    buddy_added: 'Lade till en backupkompis',
+    buddy_removed: 'Tog bort en backupkompis',
+    buddy_upload_failed: 'En säkerhetskopia nådde inte en backupkompis',
+    buddy_recovery_shown: 'Visade återställningskoden för säkerhetskopior',
+    buddy_spot_created: 'Skapade en plats för en väns säkerhetskopior',
+    buddy_spot_paired: 'En väns server parades ihop med en plats för säkerhetskopior',
+    buddy_spot_removed: 'Slutade spara en väns säkerhetskopior',
+    buddy_spot_deleted: 'Raderade en väns säkerhetskopior efter respitiden',
+    buddy_auth_failed: 'Nekade en begäran från en annan server (felaktig signatur)',
   },
 }

@@ -215,6 +215,8 @@ export interface DesktopBridge {
     pickBackup?(): Promise<PickedBackup | null>
     /** Restores a picked backup into a new server folder here and starts it. Rejects with a readable message. */
     restore?(path: string, passphrase: string): Promise<RestoredServer>
+    /** Restores from a backup buddy (a friend's server) with the recovery code, here, and starts it (missing in older desktop builds). */
+    restoreBuddy?(address: string, recoveryCode: string): Promise<RestoredServer>
     /** "Let friends connect without port forwarding" changed on a server hosted here: the tunnel follows the world's files. */
     p2pSync?(id: string): Promise<HostedServer | null>
     /** The tunnel's status for a hosted server changed (it started, found its NAT type, failed). */

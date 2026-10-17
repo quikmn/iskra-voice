@@ -138,6 +138,12 @@ builder.Services.AddSingleton<P2pSidecar>(); // the standalone server's tunnel (
 builder.Services.AddHostedService(sp => sp.GetRequiredService<P2pSidecar>());
 builder.Services.AddSingleton<Iskra.Server.Backups.BackupService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Backups.BackupService>());
+// Backup buddies: our daily backups at friends' servers, and the spots we keep for friends (Backups/Buddy*).
+builder.Services.AddSingleton(_ => new Iskra.Server.Backups.BuddyHttp(null, world.Settings.LocalOnly));
+builder.Services.AddSingleton<Iskra.Server.Backups.BuddyBackupService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Backups.BuddyBackupService>());
+builder.Services.AddSingleton<Iskra.Server.Backups.BuddyHolder>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Iskra.Server.Backups.BuddyHolder>());
 builder.Services.AddSingleton<Iskra.Server.Import.ImportService>();
 // Server updates from GitHub releases (Settings → Updates). Updates:FeedFile reads releases from a file instead (tests).
 builder.Services.AddSingleton<Iskra.Server.Updates.IReleaseFeed>(sp => builder.Configuration["Updates:FeedFile"] is { Length: > 0 } feedFile
@@ -353,6 +359,7 @@ Iskra.Server.Translate.TranslateFeature.Map(app);
 LinkRelay.MapEndpoints(app);
 // Backups, moving to another computer, imports.
 BackupFeature.MapEndpoints(app);
+BuddyBackupFeature.MapEndpoints(app);
 MoveFeature.MapEndpoints(app);
 ImportFeature.MapEndpoints(app);
 // "Download my data" links.

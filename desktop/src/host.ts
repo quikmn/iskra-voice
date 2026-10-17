@@ -379,16 +379,29 @@ export class Host {
    * this network's address, and starts it. Rejects with the server's own explanation (wrong passphrase, damaged file).
    */
   async restore(backupPath: string, passphrase: string, hint: string | null): Promise<{ server: HostedServer; serverKey: string; name: string }> {
+    const base = hint ?? path.basename(backupPath).replace(/\.(iskrabackup|zip)$/i, '')
+    return this.restoreWith((folder) => ['restore', backupPath, folder, '--passphrase-stdin', '--json'], passphrase, base)
+  }
+
+  /**
+   * Restores from a backup buddy (iskra-server restore-buddy, the recovery code on stdin): the newest copy that friend's
+   * server keeps goes into a new server folder here, which then starts like any restored server.
+   */
+  async restoreBuddy(address: string, recoveryCode: string): Promise<{ server: HostedServer; serverKey: string; name: string }> {
+    return this.restoreWith((folder) => ['restore-buddy', '--code-stdin', '--json', '--', address, folder], recoveryCode, 'restored')
+  }
+
+  private async restoreWith(args: (folder: string) => string[], secret: string, hint: string): Promise<{ server: HostedServer; serverKey: string; name: string }> {
     const binary = serverBinary()
     if (!binary) throw new Error(text().host.noServer)
     mkdirSync(this.root, { recursive: true })
-    const base = slug(hint ?? path.basename(backupPath).replace(/\.(iskrabackup|zip)$/i, ''))
+    const base = slug(hint)
     let id = base
     for (let n = 2; existsSync(path.join(this.root, id)); n++) id = `${base}-${n}`
     const folder = path.join(this.root, id)
 
     const result = await new Promise<{ name: string; serverKey: string }>((resolve, reject) => {
-      const child = spawn(binary, ['restore', backupPath, folder, '--passphrase-stdin', '--json'], {
+      const child = spawn(binary, args(folder), {
         stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
       })
       let out = ''
@@ -408,7 +421,7 @@ export class Host {
         reject(new Error(message || text().host.restoreFailed))
       })
       child.stdin.on('error', () => undefined)
-      child.stdin.end(`${passphrase}\n`)
+      child.stdin.end(`${secret}\n`)
     })
 
     // This computer's ports and address; everything else stays as it was.

@@ -498,9 +498,23 @@ From the command line (this works while the server runs, too):
 iskra-server backup my-server my-server.iskrabackup      # asks for a passphrase
 ```
 
+### Backup buddies (a friend's server)
+
+A daily backup on the same computer doesn't help if that computer is lost. **Backup buddies** send each daily backup to a friend's Iskra server instead, and you can do the same for them. Nothing goes through Iskra or anyone else: your server talks to your friend's directly.
+
+1. **Your friend** opens **Server settings → Backup & move → Keep backups for a friend**, names the spot, picks how much space it gets (2 GB by default), how many copies to keep (3, at least 3) and how long to keep them after either of you stops (7 days), and clicks **Make a spot**. They send you the pairing code it shows (`iskra-buddy:…`, single use, 24 hours).
+2. **You** paste it in **Server settings → Backup & move → Backup buddies** and click **Add backup buddy**. The first time, your server makes a **recovery code** (`XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`) and shows it: save it in a password manager or on paper, away from this computer. It's the only key to the copies (**Show recovery code** shows it again while the server runs).
+3. After each daily backup (or **Back up now**) your server encrypts the backup with the recovery code (the same format as a downloaded backup) and sends it in 4 MB parts that resume after a cut, at most 1 MB/s by default (`server.json` → `BuddyBackups` → `UploadKbPerSecond`, 0 = no limit). A failed copy is tried again after 1, 5, 15, 60 and 180 minutes, then every 6 hours; **Backup buddies** shows the last copy, its size and any problem.
+
+Your friend's server only ever holds encrypted blobs in `buddy-held/` in its folder (never in its own backups), with their size and time: it can't read them, and never opens or runs them. It keeps the newest copies within the space it gave you, takes at most 3 copies a day from you, and only from your server (every request is signed with your server's key). It always keeps one older copy besides the newest (the newest one that's at least 2 days old, or else the oldest), whatever else arrives, so a server someone took over can't push out every good copy. Either of you can stop at any time: the copies stay for the grace period (at least a day when you stop, so a server someone took over can't wipe its own backups; your friend can delete at once), then they're deleted.
+
+What it needs: your server must be able to reach your friend's at its address (just the server, like `https://friend.example.com`, no path). That's your friend's internet address if they **Let friends anywhere join**, or a local or Tailscale address (plain `http://` only works on local networks; `https://` everywhere else). A server that's only reachable through **Connect without port forwarding** can't hold backups for others.
+
+What it protects against: a lost or broken computer, a dead disk, a fire. What it doesn't: someone who takes over your server can read your messages anyway, and also has the recovery code (your server keeps it to encrypt every day), so they could read the copies at your friend's too, or send junk that pushes out the newer good copies (at most 3 a day). That older protected copy stays, and they can't make your friend delete anything early.
+
 ### Restoring
 
-- **Desktop app:** **Create a server → Restore from a backup**, pick the file and enter the passphrase. The server starts on this computer with everything it had, on free ports and this network's address.
+- **Desktop app:** **Create a server → Restore from a backup**, pick the file and enter the passphrase. The server starts on this computer with everything it had, on free ports and this network's address. To get it back from a [backup buddy](#backup-buddies-a-friends-server), choose **From a buddy's server** and give your friend's server address and your recovery code: the newest copy is downloaded, checked and restored. The restored server keeps its buddies and carries on sending them backups.
 - **Standalone server:**
 
   ```sh
@@ -511,6 +525,15 @@ iskra-server backup my-server my-server.iskrabackup      # asks for a passphrase
   The folder must be new or empty: a restore never overwrites a server. Daily backups (`backups/auto-*.zip`) restore the same way, without a passphrase. Check `Port` and `PublicUrl` in `server.json` if the new machine's address is different. HTTPS certificates aren't in backups; the new machine gets its own.
 
 For scripts, `--passphrase-stdin` reads the passphrase from standard input (or set `ISKRA_BACKUP_PASSPHRASE`).
+
+From a backup buddy, on the command line:
+
+```sh
+iskra-server restore-buddy https://friend.example.com --list          # the copies there (asks for the recovery code)
+iskra-server restore-buddy https://friend.example.com my-server       # restores the newest one (--version <id> for another)
+```
+
+`--code-stdin` reads the recovery code from standard input (or set `ISKRA_BUDDY_RECOVERY_CODE`). A copy downloaded any other way restores with `iskra-server restore`, with the recovery code as the passphrase.
 
 ### Moving a server to another computer
 
@@ -607,6 +630,9 @@ iskra-server import-discord my-server export.zip              # add --read-only 
     "CopyTo": null,                    // also copy each one, encrypted, into this folder on another disk, e.g. "/mnt/usb/iskra"
     "CopyPassphrase": null             // the copies' passphrase (set it in the app; never shown again)
   },
+  "BuddyBackups": {                    // backup buddies (set them up in the app)
+    "UploadKbPerSecond": 1024          // how fast copies go to friends' servers; 0 = no limit
+  },
   "Import": {
     "MaxMb": 4096                      // largest Discord export the owner may upload
   },
@@ -647,7 +673,8 @@ iskra-server import-discord my-server export.zip              # add --read-only 
 | `owner-claim` | The one-time owner key from "Rent a small server" or a claim code, until the owner has joined |
 | `owner-claim-code.txt` | The claim code and when it expires (DigitalOcean Marketplace), until the owner has joined |
 | `p2p.key`, `p2p.port` | The key friends' invites carry for "Connect without port forwarding" (owner-only), and the port of the tunnel's listener on 127.0.0.1 (written at each start) |
-| `backups/` | Daily backups (`auto-YYYY-MM-DD.zip`, not encrypted) and, briefly, a backup being downloaded |
+| `backups/` | Daily backups (`auto-YYYY-MM-DD.zip`, not encrypted), briefly a backup being downloaded, and the encrypted copy for backup buddies (`buddy-*.iskrabackup`) |
+| `buddy-held/` | Encrypted backups this server keeps for friends' servers (backup buddies); never in this server's own backups |
 | `moved.json` | The signed "this server moved" notice, after **Move this server** |
 | `server.log` | Output, when started from the desktop app |
 | `exports/` | "Download my data" files while their 10-minute link lasts (never in backups) |

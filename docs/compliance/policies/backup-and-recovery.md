@@ -26,6 +26,13 @@
 - **Downloaded backups** (Settings → Backup & move, or `iskra-server backup <world> <file>`): everything including
   uploads and the server key, encrypted with a passphrase (Argon2id, XChaCha20-Poly1305 in chunks); the passphrase is
   sealed to the server's key in transit. Code: `Backups/BackupFile.cs`, `Backups/BackupArchive.cs`.
+- **Backup buddies** (off-site, built in): each daily backup can also go to a friend's Iskra server, encrypted at the
+  source with a recovery code only the owner has (`.iskrabackup` format), over signed server-to-server requests. The
+  friend's server keeps the newest copies within its quota and a grace period after either side stops; it can't read
+  them. Restore: the desktop app's Restore from a backup → From a buddy's server, or
+  `iskra-server restore-buddy <address> <world>` with the recovery code. Code: `Backups/Buddy*.cs`
+  ([docs/hosting.md](../../hosting.md) "Backup buddies"). Tested in `BuddyBackupTests.cs` and the `buddy-backups`
+  end-to-end spec (two real servers: pair, upload, restore in the desktop app).
 - **Off-site:** daily backups live on the same disk. For chat.iskra.foo the owner keeps an encrypted downloaded
   backup off the droplet at least weekly, and/or turns on DigitalOcean droplet backups
   ([owner-actions.md](../owner-actions.md)). Until one of these is done, the real RPO for a lost droplet is the age of

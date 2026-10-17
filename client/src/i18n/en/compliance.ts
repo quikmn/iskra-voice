@@ -55,7 +55,7 @@ export const compliance = {
     },
     hosting: {
       who: 'When you run a server',
-      when: "Let friends anywhere join (Internet access): your router (UPnP or NAT-PMP, on your own network), Let's Encrypt for the HTTPS certificate, and sslip.io for the free address if you have no domain. Captions: the server fetches the speech model once from Hugging Face. Server updates: GitHub.",
+      when: "Let friends anywhere join (Internet access): your router (UPnP or NAT-PMP, on your own network), Let's Encrypt for the HTTPS certificate, and sslip.io for the free address if you have no domain. Captions: the server fetches the speech model once from Hugging Face. Server updates: GitHub. Backup buddies: encrypted backups to a friend's Iskra server, only if the owner pairs one (it can't read them).",
       off: "They see the server's address, not your members'. Internet hosting and server updates are switched in Server settings, the captions model in server.json.",
     },
     previews: {
@@ -192,5 +192,14 @@ export const compliance = {
     keylog_alert: 'A device reported a problem with the key log',
     keylog_reloaded: 'Reloaded the key log (the database changed)',
     keylog_broken: 'The key log doesn’t check out',
+    buddy_added: 'Added a backup buddy',
+    buddy_removed: 'Removed a backup buddy',
+    buddy_upload_failed: 'A backup didn’t reach a backup buddy',
+    buddy_recovery_shown: 'Showed the backup recovery code',
+    buddy_spot_created: 'Made a spot for a friend’s backups',
+    buddy_spot_paired: 'A friend’s server paired with a backup spot',
+    buddy_spot_removed: 'Stopped keeping a friend’s backups',
+    buddy_spot_deleted: 'Deleted a friend’s backups after the grace period',
+    buddy_auth_failed: 'Refused a request from another server (bad signature)',
   },
 } as const

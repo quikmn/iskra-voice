@@ -33,6 +33,20 @@ public sealed class FakePushSender : IPushSender
         return SentTo(endpoint).Select(d => JsonDocument.Parse(d.Payload).RootElement.Clone()).ToList();
     }
 
+    /// <summary>Waits for one push to <paramref name="endpoint"/> that <paramref name="match"/> picks, whatever else arrives.</summary>
+    public async Task<JsonElement> WaitForMatchAsync(string endpoint, Func<JsonElement, bool> match, int timeoutMs = 5_000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (true)
+        {
+            var found = SentTo(endpoint).Select(d => JsonDocument.Parse(d.Payload).RootElement.Clone()).Where(match).ToList();
+            if (found.Count == 1) return found[0];
+            if (found.Count > 1) throw new Xunit.Sdk.XunitException($"Expected one matching push, got {found.Count}.");
+            if (DateTime.UtcNow > deadline) throw new Xunit.Sdk.XunitException($"No matching push among {SentTo(endpoint).Count}.");
+            await Task.Delay(20);
+        }
+    }
+
     /// <summary>Asserts that <paramref name="endpoint"/> gets nothing (more) for a little while.</summary>
     public async Task NoneAsync(string endpoint, int already = 0, int waitMs = 400)
     {

@@ -138,6 +138,7 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     stop: (id: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-stop', id),
     pickBackup: (): Promise<unknown> => ipcRenderer.invoke('iskra:host-pick-backup'),
     restore: (path: string, passphrase: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-restore', path, passphrase),
+    restoreBuddy: (address: string, recoveryCode: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-restore-buddy', address, recoveryCode),
     // "Let friends connect without port forwarding" changed on a server hosted here: the tunnel follows.
     p2pSync: (id: string): Promise<unknown> => ipcRenderer.invoke('iskra:host-p2p-sync', id),
     onP2p: (callback: (update: unknown) => void): (() => void) => {

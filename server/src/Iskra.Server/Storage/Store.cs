@@ -363,6 +363,8 @@ public sealed partial class Store : IDisposable
         ("quietdigest-1", QuietDigestMigration),
         // The public page a browser sees at the server's address.
         ("landing-1", LandingMigration),
+        // Backup buddies: friends' servers that keep our encrypted backups, and the spots we keep for friends.
+        ("buddybackup-1", BuddyBackupMigration),
         // Activities: bundles admins added, built-ins turned off, channels without activities, who may start one.
         ("activities-1", ActivitiesMigration),
     ];

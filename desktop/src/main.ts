@@ -14,7 +14,7 @@ import { HostTunnels } from './p2p/hostTunnel'
 import { p2pNetwork } from './p2p/network'
 import { P2pNode } from './p2p/node'
 import { TunnelledVoice } from './p2p/webrtcPolicy'
-import { isBackupDownload, readBackupInfo } from './restore'
+import { isBackupDownload, isBuddyAddress, readBackupInfo } from './restore'
 import { DoRental, errorReply, testOverrides } from './digitalocean'
 import { DO_OAUTH_CLIENT_ID, oauthConfigured, oauthTestOverrides, oauthToken } from './doOAuth'
 import { SaveStreams, suggestedName } from './saveStreams'
@@ -780,6 +780,11 @@ ipcMain.handle('iskra:host-pick-backup', async (event) => {
 ipcMain.handle('iskra:host-restore', (event, file: unknown, passphrase: unknown) => {
   if (!fromApp(event) || typeof file !== 'string' || !pickedBackups.has(file) || typeof passphrase !== 'string' || passphrase.length > 1024) return null
   return host.restore(file, passphrase, pickedBackups.get(file) ?? null)
+})
+// Restoring from a backup buddy: the bundled server downloads the copy with the recovery code and restores it.
+ipcMain.handle('iskra:host-restore-buddy', (event, address: unknown, recoveryCode: unknown) => {
+  if (!fromApp(event) || !isBuddyAddress(address) || typeof recoveryCode !== 'string' || recoveryCode.length > 100) return null
+  return host.restoreBuddy(address, recoveryCode)
 })
 // Saving a backup someone just made: only /backup/<token> links, with the usual "Save as" dialog.
 ipcMain.handle('iskra:download', (event, url: unknown) => {

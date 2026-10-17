@@ -54,6 +54,8 @@ export const SECURITY_EVENTS = [
   'account.dispute.resolve', 'keylog.alert', 'keylog.reloaded', 'keylog.broken', 'owner.claim.created',
   'join.pending', 'join.approved', 'join.declined', 'invites.paused', 'invites.resumed',
   'landing.settings',
+  'buddy.added', 'buddy.removed', 'buddy.upload.failed', 'buddy.recovery.shown', 'buddy.spot.created', 'buddy.spot.paired',
+  'buddy.spot.removed', 'buddy.spot.deleted', 'buddy.auth.failed',
   'activity.added', 'activity.removed', 'activity.rejected',
 ] as const
 

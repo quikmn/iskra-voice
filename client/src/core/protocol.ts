@@ -2624,6 +2624,81 @@ export interface Requests {
   'landing.update': [Partial<Omit<LandingSettings, 'invite' | 'inviteGone'>> & { invite?: string | null }, { settings: LandingSettings }]
 }
 
+// ── backup buddies ──
+// See "Backup buddies" in PROTOCOL.md.
+
+/** A problem with a backup buddy, as the server words it (translate `key` with `args`). */
+export interface BuddyProblem {
+  code: string
+  message: string
+  key: string | null
+  args: Record<string, string | number> | null
+}
+
+/** A friend's server that keeps this server's encrypted daily backups. */
+export interface Buddy {
+  id: string
+  url: string
+  holderKey: string
+  name: string
+  quotaBytes: number
+  keep: number
+  addedAt: number
+  lastOk: { at: number; name: string; size: number } | null
+  error: BuddyProblem | null
+  nextTryAt: number | null
+  uploading: { done: number; total: number } | null
+  /** The holder stopped keeping backups for this server. */
+  removed: boolean
+}
+
+export interface BuddyStatus {
+  autoEnabled: boolean
+  recoveryCodeSet: boolean
+  buddies: Buddy[]
+}
+
+/** A spot this server keeps for a friend's server. */
+export interface BuddySpot {
+  id: string
+  label: string
+  state: 'waiting' | 'active' | 'removing'
+  sourceName: string | null
+  sourceKey: string | null
+  quotaBytes: number
+  keep: number
+  graceDays: number
+  used: number
+  versions: { id: string; size: number; at: number }[]
+  createdAt: number
+  lastUploadAt: number | null
+  codeExpiresAt: number | null
+  deleteAt: number | null
+}
+
+export interface BuddySpots {
+  spots: BuddySpot[]
+  /** What a new pairing code carries as this server's address, or null (then give one). */
+  address: string | null
+}
+
+export interface Events {
+  'buddy.changed': Record<string, never>
+}
+
+export interface Requests {
+  'buddy.status': [Record<string, never>, BuddyStatus]
+  /** Pairs with a friend's spot. `recoveryCode` is set only when this made it (the first buddy). */
+  'buddy.add': [{ code: string }, BuddyStatus & { recoveryCode: string | null }]
+  'buddy.remove': [{ id: string }, BuddyStatus]
+  'buddy.backupNow': [Record<string, never>, BuddyStatus]
+  'buddy.recoveryCode': [Record<string, never>, { recoveryCode: string }]
+  'buddy.spots': [Record<string, never>, BuddySpots]
+  'buddy.spot.create': [{ label: string; quotaMb?: number; keep?: number; graceDays?: number; url?: string }, { spot: BuddySpot; code: string }]
+  'buddy.spot.update': [{ id: string; label?: string; quotaMb?: number; keep?: number; graceDays?: number }, { spot: BuddySpot }]
+  'buddy.spot.remove': [{ id: string; now?: boolean }, BuddySpots]
+}
+
 // ── activities ──
 // See "Activities" in PROTOCOL.md; the frame side is docs/activities.md.
 
