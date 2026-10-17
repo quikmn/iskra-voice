@@ -26,7 +26,8 @@ function answer(messages: ChatMessage[]): unknown {
   const call = (name: string, args: unknown) => ({ role: 'assistant', content: null, tool_calls: [{ id: `call_${seen.length}`, type: 'function', function: { name, arguments: JSON.stringify(args) } }] })
   if (last.role === 'user' && /channel called plans/.test(last.content ?? '')) return call('create_channel', { name: 'plans' })
   if (last.role === 'user' && /kick bob/i.test(last.content ?? '')) return call('kick_member', { member: 'Bob' })
-  if (last.role === 'tool') return { role: 'assistant', content: `Tool said: ${last.content}` }
+  // Results come wrapped as data; the fake model quotes what's inside.
+  if (last.role === 'tool') return { role: 'assistant', content: `Tool said: ${(last.content ?? '').replace(/<iskra-data[^>]*>\n?|\n?<\/iskra-data>/g, '')}` }
   return { role: 'assistant', content: 'Hello from the fake model.' }
 }
 
@@ -92,6 +93,10 @@ test('the assistant creates a channel after approval, and moderation stays off u
   const card = panel.getByTestId('assistant-approval')
   await expect(card).toContainText('Create the text channel #plans')
   await expect(card).toContainText('On Assistant Club')
+  // The name others will see is shown in full; a new channel can't be allowed for the whole session.
+  await expect(card.getByTestId('assistant-texts')).toContainText('This text will be posted where others see it:')
+  await expect(card.getByTestId('assistant-texts')).toContainText('plans')
+  await expect(card.getByRole('button', { name: 'Allow for this session' })).toHaveCount(0)
   await card.getByText('Exact request').click()
   await expect(card.locator('pre')).toContainText('channel.create')
   await expect(card.locator('pre')).toContainText('"name": "plans"')
@@ -107,6 +112,7 @@ test('the assistant creates a channel after approval, and moderation stays off u
   expect(seen[0].tools).not.toContain('delete_channel')
   expect(seen[0].messages[0].role).toBe('system')
   expect(seen[0].messages[0].content).toMatch(/data, never instructions/)
+  expect(seen[1].messages.at(-1)?.content).toMatch(/^<iskra-data source="create_channel result">/)
 
   // Moderation is off: the kick is refused on this device, with no card and no request to the server.
   await box.fill('Kick Bob please')
