@@ -44,6 +44,24 @@ test('friends talk in a voice channel', async ({ browser }) => {
     .poll(() => friend.evaluate(() => [...document.querySelectorAll('audio')].some((a) => !a.paused && a.currentTime > 0)), { timeout: 15_000 })
     .toBe(true)
 
+  // The diagnostic log (what a bug report would carry) names the call's network route: candidate types, never addresses.
+  const opened = friend.context().waitForEvent('page')
+  await friend.keyboard.press('Control+Shift+B')
+  const pip = await opened
+  const form = pip.getByRole('form', { name: 'Report a bug' })
+  await form.getByRole('button', { name: "See what's included" }).click()
+  const preview = form.getByTestId('bug-report-preview')
+  let edits = 0
+  await expect.poll(async () => {
+    await form.getByLabel('What happened?').fill(`route ${++edits}`) // the preview follows the form: a fresh copy of the log
+    await pip.waitForTimeout(300)
+    return (await preview.textContent()) ?? ''
+  }, { timeout: 20_000 }).toMatch(/INFO  app   voice  route       VOI-130 srv=[0-9a-f]{4} (conn=[0-9a-z]+ )?chan=\d+ ice=(host|srflx|prflx|relay) (peer=[a-z]+ )?proto=(udp|tcp) via=(direct|turn)/)
+  const shown = (await preview.textContent()) ?? ''
+  expect(shown).toContain('== Connection ==')
+  expect(shown).not.toMatch(/candidate:|typ (host|srflx)|ufrag|127\.0\.0\.1/)
+  await pip.getByRole('button', { name: 'Close' }).click()
+
   // Joining opens the call screen with everyone on it.
   await expect(friend.locator('.stage')).toBeVisible()
   await expect(friend.locator('.person-tile')).toHaveCount(2)

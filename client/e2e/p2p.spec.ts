@@ -260,6 +260,18 @@ test('a friend joins a home-hosted server through the peer-to-peer tunnel and ta
     const tunnelStats = Object.values(debug.client)[0]?.stats
     expect(tunnelStats?.datagramsOut).toBeGreaterThan(0)
     expect(tunnelStats?.datagramsIn).toBeGreaterThan(0)
+    // Both apps' log files say how it went, in types and numbers: the host announced (NAT type), the friend's tunnel
+    // connected (route, cold), and the friend's voice route went through TURN. Never an address.
+    const logText = (userData: string) => {
+      const dir = join(userData, 'logs')
+      return existsSync(dir) ? readdirSync(dir).filter((n) => n.endsWith('.log')).map((n) => readFileSync(join(dir, n), 'utf8')).join('') : ''
+    }
+    await expect.poll(() => logText(hostData), { timeout: 10_000 }).toMatch(/INFO  p2p   tunnel announced   -       took=\d+(\.\d)?m?s nat=(open|consistent|randomized)/)
+    await expect.poll(() => logText(friendData), { timeout: 20_000 }).toMatch(/INFO  app   voice  route       VOI-130 .*ice=(relay|prflx) .*via=(turn|direct)/)
+    const friendLog = logText(friendData)
+    expect(friendLog).toMatch(/INFO  p2p   tunnel connected   -       srv=[0-9a-f]{4} path=[a-z-]+ (nat=[a-z]+ )?took=\S+ kind=cold n=1/)
+    expect(friendLog).toMatch(/INFO  app   tunnel fallback    TUN-120 srv=[0-9a-f]{4} (conn=\w+ )?why=[a-z0-9-]+ took=/)
+    for (const text of [friendLog, logText(hostData)]) expect(text).not.toMatch(/127\.0\.0\.1|candidate:|typ relay/)
     await friend.screenshot({ path: join(SHOTS, 'p2p-friend-voice.png'), animations: 'disabled' })
     // Leaving voice puts the friend's window back on the default policy.
     await friend.getByRole('button', { name: 'Leave voice' }).click()
