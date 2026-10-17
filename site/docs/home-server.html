@@ -72,7 +72,7 @@
 <main class="doc docs-main" id="top">
   <div class="doc-kicker">Docs</div>
   <h1>An Iskra box at home</h1>
-  <p class="updated">Last updated <time datetime="2026-10-15">15 October 2026</time></p>
+  <p class="updated">Last updated <time datetime="2026-10-17">17 October 2026</time></p>
   <details class="mobile-toc">
     <summary>On this page</summary>
     <ul class="toc-list"><li class="l2"><a href="#1-pick-a-box">1. Pick a box</a></li><li class="l2"><a href="#2-install">2. Install</a></li><li class="l2"><a href="#3-start-with-the-computer">3. Start with the computer</a></li><li class="l2"><a href="#4-let-friends-in-from-the-internet">4. Let friends in from the internet</a></li><li class="l2"><a href="#5-updates">5. Updates</a></li><li class="l2"><a href="#6-backups">6. Backups</a></li><li class="l2"><a href="#7-power-use">7. Power use</a></li><li class="l2"><a href="#help">Help</a></li></ul>
@@ -372,9 +372,9 @@ few years.</li>
 </ul>
 <h2 id="help">Help<a class="anchor" href="#help" aria-hidden="true" tabindex="-1">#</a></h2>
 <ul>
-<li>Something's off? <strong>Server settings → Internet access</strong> explains what it found. The server's output is in
-<code>journalctl -u iskra</code> (system service), <code>journalctl --user -u iskra-…</code> (user service) or <code>server.log</code> in the server
-folder (Windows and macOS autostart).</li>
+<li>Something's off? <strong>Server settings → Internet access</strong> explains what it found. The server's log is in
+<code>logs/</code> in the server folder (one file per day), and also in <code>journalctl -u iskra</code> (system service) or
+<code>journalctl --user -u iskra-…</code> (user service).</li>
 <li>The full reference, every setting and every file: <a href="/docs/hosting">Hosting reference</a>.</li>
 </ul>
 </div>
