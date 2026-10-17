@@ -96,6 +96,7 @@ public sealed class Router
         JoinFeature.Register(this);
         ModPackFeature.Register(this);
         MemberAvatarFeature.Register(this);
+        LandingFeature.Register(this);
         ActivitiesFeature.Register(this);
     }
 

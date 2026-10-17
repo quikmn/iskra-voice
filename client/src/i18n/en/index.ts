@@ -51,6 +51,7 @@ import { streamer } from './streamer'
 import { disappear } from './disappear'
 import { translate } from './translate'
 import { whiteboard } from './whiteboard'
+import { landing } from './landing'
 import { activities } from './activities'
 
 export const en = {
@@ -106,5 +107,6 @@ export const en = {
   disappear,
   translate,
   whiteboard,
+  landing,
   activities,
 } as const

@@ -157,6 +157,7 @@ export const compliance: Messages['compliance'] = {
     join_declined: 'Avvisad av en moderator',
     invites_paused: 'Inbjudningar pausade',
     invites_resumed: 'Inbjudningar återupptagna',
+    landing_settings: 'Ändrade den offentliga sidan',
     activity_added: 'Lade till en aktivitet',
     activity_removed: 'Tog bort en aktivitet',
     activity_rejected: 'Avvisade en osäker aktivitets-zip',

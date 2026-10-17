@@ -10,9 +10,9 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox) · [Disappearing messages](#disappearing-messages)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers) · [Encrypted voice channels](#encrypted-voice-channels) · [Activities](#activities)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
-- **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages)
+- **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages) · [Quiet hours digest](#quiet-hours-digest)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group) · [Whiteboards](#whiteboards)
-- **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
+- **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Public page](#public-page) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Built-in roles](#built-in-roles) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
 - **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server) · [Passkeys and key transparency](#passkeys-and-key-transparency)
 
@@ -786,7 +786,7 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 
 | Endpoint | What it is |
 |---|---|
-| `GET /` | `{ iskra: 1, name, icon }`: identifies an Iskra server. Any origin may read it (`Access-Control-Allow-Origin: *`): invite landings show the name. `icon`: a stamp of the server icon (16 hex characters) or `null` ([Server icon and banner](#server-icon-and-banner)) |
+| `GET /` | `{ iskra: 1, name, icon }`: identifies an Iskra server (a browser asking for `text/html` gets the [public page](#public-page) instead). Any origin may read it (`Access-Control-Allow-Origin: *`): invite landings show the name. `icon`: a stamp of the server icon (16 hex characters) or `null` ([Server icon and banner](#server-icon-and-banner)) |
 | `GET /icon` | The server icon alone, for invite landings before joining; `404` without one ([Server icon and banner](#server-icon-and-banner)) |
 | `GET /health` | Version, uptime and voice status for uptime monitors ([Health](#health)) |
 | `GET /ws` | The WebSocket ([Connection](#connection)) |
@@ -3175,7 +3175,8 @@ Follow { "member": "<accountKey>" | null,       // exactly one of member (43 bas
 Quiet  { "days": 62,                            // 1–127, bit 0 = Sunday … bit 6 = Saturday
          "from": 1320, "to": 420,               // 0–1439, minutes after midnight, wall clock in timeZone
          "timeZone": "Europe/Stockholm",        // IANA name, ≤ 64 characters, known to the server
-         "mentions": true }                     // let mentions, replies, alert words, DMs and calls through, silently
+         "mentions": true,                      // let mentions, replies, alert words, DMs and calls through, silently
+         "digest": true }                       // optional, default true: a summary when they end (see Quiet hours digest)
 ```
 
 | type | body | result | who |
@@ -3747,6 +3748,83 @@ How the other voice features behave in an encrypted voice channel:
 What it doesn't hide: the server (and LiveKit) still see who is in the room, when, who speaks and how much (packet
 sizes and timing), mute and camera state, and soundboard plays. Everyone holding the key can decrypt everyone's media,
 so a member's app could forward or record what it hears, as in any call.
+
+## Quiet hours digest
+
+When quiet hours end, people catch up with one summary instead of a pile of notifications. `Quiet` (see
+[Keyword alerts and quiet hours](#keyword-alerts-and-quiet-hours)) gains `digest` (bool, optional, default `true`;
+`alerts.get` always returns it; older servers ignore it). No new requests or events.
+
+- **The stretch.** A server that stores a member's quiet hours (only where push is on for one of their devices) notes
+  when the current quiet stretch began: at the minute it began by the schedule (at most 7 days back), as soon as it sees
+  it running (checked every 30 seconds, and on `alerts.set`). The stretch ends when the schedule ends (in its own time
+  zone, across clock changes), or at once when `alerts.set` turns quiet hours off (`quiet: null`) or moves them off
+  the present moment.
+- **The push.** When a stretch ends, if `digest` isn't `false` (for quiet hours turned off: the value they had), the
+  server counts its own items from the stretch, as the member can see them now: pings in its [inbox](#inbox)
+  (`mentions`: kinds `mention`, `reply`, `role`, `everyone`; `keywords`: `keyword`; `follows`: `follow`) in channels
+  they can still read, DMs and group messages from others (`messages`; never their content: the server can't read
+  them), [reminders](#reminders) that came due (`reminders`) and [events](#scheduled-events) they're interested in and can see that
+  started or start within an hour after the end (`events`); nothing from or to people either of them blocked. Only if
+  anything counted, each device that isn't looking at Iskra gets one push, without a sound:
+  `{ kind: "digest", tag: "digest", title: "While it was quiet", body: "2 mentions, 1 message", text: { title: "digest",
+  body: "digestBody", args: { mentions, messages, keywords, follows, events, reminders } }, silent: true }` (TTL 12
+  hours, never merged). [Do not disturb](#presence-and-custom-status) still stops it. A click opens the server. Each server sums up only
+  its own items; the apps show one card across all servers (below).
+- **The apps.** Every open device shows a "While it was quiet" card when quiet hours end there (or the next time it
+  opens, within a day), gathered on the device across every connected server: mentions and replies, DMs and groups
+  (counts and who, never content), alert words, follows, events, due reminders, each opening its place; a server that
+  is offline is listed as such. Dismissing it records the stretch as seen in the sealed `alerts` preference
+  (`digestSeen`, the end time), so the card closes on the account's other devices too. "Summary when quiet hours end"
+  (`digest`) turns off both the card and the push.
+- Storage: `alert_settings.quiet_since` (migration `quietdigest-1`), deleted with the rest of the alert settings (leaving,
+  removal, deleting the account); in "Download my data" under `alertSettings`.
+
+## Public page
+
+A browser that opens the server's own address gets an HTML page instead of the JSON above: `GET /` with an `Accept`
+header that names `text/html` (a navigation). Anything else (the apps' `fetch`, curl, monitors) still gets
+`{ iskra: 1, name, icon }`, unchanged. The page is rendered on the server with every user-written string HTML-encoded,
+has no scripts, loads nothing from anywhere but this server, and works without JavaScript.
+
+- **Off (the default):** the page says only that this is an Iskra server, with links to download Iskra
+  (`https://iskra.foo/#download`, the releases page) and to open the web app (`AppUrl`). No name, icon, banner,
+  description, counts or invite.
+- **On:** the server's name, icon (`/icon`) and banner (its `/files/` address), the owner's description, and, each only
+  when ticked, the start of the rules (up to 800 characters, cut at a word) and an approximate count of members and of
+  members online now (people only, invisible members not counted; exact below 10, then rounded down to 5, 10 or 100).
+  When the owner picked an invite: "Join in your browser" (`<AppUrl>/#/join/<token>`) and "Open in the Iskra app"
+  (`iskra://join/<token>`), the [invite link](#invite-links) token built from the server's public address
+  (`InternetUrl`, else `PublicUrl`, else the address the browser used) without a p2p secret. While invites are paused
+  the page says so instead; once the invite is expired, used up or revoked the page asks people to get an invite from
+  someone. An approval invite adds that a moderator lets them in.
+- **Language:** Swedish when `Accept-Language` prefers `sv`, else English (`Content-Language`, `<html lang>`).
+- **Headers:** `Content-Security-Policy: default-src 'none'; style-src 'sha256-…'; img-src 'self'; base-uri 'none';
+  form-action 'none'; frame-ancestors 'none'` (the one inline stylesheet by its hash), `Permissions-Policy` as for
+  profile pages, `Cache-Control: no-store`, `Vary: Accept, Accept-Language`, and `X-Robots-Tag: noindex, nofollow`
+  (plus `<meta name="robots">`) unless the page is on and the owner ticked "Let search engines list this page".
+- **Limits:** 30 page loads at once per client address (IPv6: per /64), then one a second; over that `429` with
+  `Retry-After: 10`. Addresses are used in memory for this only.
+
+| type | body | result | who |
+|---|---|---|---|
+| `landing.get` | | `{ settings }` | owner (others: `forbidden`, key `owner_landing`) |
+| `landing.update` | any of `enabled`, `description`, `showRules`, `showCounts`, `indexable` (bools but `description`), `invite` (an invite code; `""` or `null` removes it) | `{ settings }` | owner; rate limit 10, then 1 a second |
+
+`settings`: `{ enabled, description, showRules, showCounts, indexable, invite: Invite | null, inviteGone }`. `invite`
+is the chosen invite while it still works; `inviteGone` is true when one was chosen but has expired, been used up or been
+revoked. Fields left out keep their value; everything defaults to off and empty.
+
+- `description`: plain text up to 500 characters, newlines allowed, trimmed and NFC-normalized, no control or invisible
+  formatting characters (else `bad_request`, key `landing_description`, args `{ max }`); blank removes it. Shown as
+  text, never as HTML or Markdown.
+- `invite`: must be an invite that still works (else `bad_request`, key `landing_invite`) for the member or guest role
+  (else key `landing_invite_role`). The owner sees every invite (`invite.list`).
+- Event `landing.settings { settings }` to all of the owner's sessions after every update.
+- Audit `landing.update` (`{ enabled }`); security log `landing.settings` (`{ enabled, indexable, showRules,
+  showCounts, invite: bool, descriptionChanged }`, never the text) when something changed.
+- Storage: `landing_page` (one row: `enabled`, `description`, `show_rules`, `show_counts`, `indexable`,
+  `invite_code`), migration `landing-1`. Server data, not personal data: no account keys.
 
 ## Activities
 

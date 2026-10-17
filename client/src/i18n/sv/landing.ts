@@ -1,0 +1,33 @@
+// Serverinställningar → Översikt → Offentlig sida.
+import type { Messages } from '../types'
+
+export const landing: Messages['landing'] = {
+  title: 'Offentlig sida',
+  intro: 'När någon öppnar serverns adress i en webbläsare ser de en sida. Så länge den är avstängd säger sidan bara att det här är en Iskra-server och var man skaffar Iskra: inget namn, ingen bild och inget annat om servern.',
+  enabled: 'Visa en offentlig sida',
+  enabledOn: 'Sidan visar serverns namn, ikon och banderoll, plus det du väljer nedan.',
+  enabledOff: 'Av: sidan säger inte vilken server det här är.',
+  description: 'Beskrivning',
+  descriptionPlaceholder: 'Vad servern handlar om, med en eller två meningar',
+  descriptionHint: '{{length}} / {{max}} tecken. Vanlig text som alla som öppnar sidan ser.',
+  saved: 'Beskrivningen är sparad.',
+  invite: 'Gå med-knapp',
+  noInvite: 'Ingen Gå med-knapp',
+  inviteHint: 'Alla som öppnar sidan kan använda den här inbjudan, så välj en med en gräns du är nöjd med. Bara inbjudningar för medlemmar kan läggas här.',
+  inviteNone: 'Skapa en inbjudan först (Bjud in vänner) och välj den sedan här för att få en Gå med-knapp.',
+  inviteGone: 'Inbjudan på sidan fungerar inte längre, så sidan har ingen Gå med-knapp. Välj en annan.',
+  invitesPaused: 'Inbjudningar är pausade, så sidan säger att servern inte tar emot nya medlemmar just nu.',
+  neverExpires: 'går aldrig ut',
+  expires: 'går ut {{date}}',
+  usesOpen_one: '{{count}} användning',
+  usesOpen_other: '{{count}} användningar',
+  usesOf_one: '{{count}} av {{max}} använd',
+  usesOf_other: '{{count}} av {{max}} använda',
+  approve: 'kräver godkännande',
+  showRules: 'Visa reglerna',
+  showCounts: 'Visa ungefär hur många medlemmar det finns och hur många som är online',
+  showCountsHint: 'Avrundat, så att sidan aldrig visar exakt vem som kommer och går.',
+  indexable: 'Låt sökmotorer lista sidan',
+  indexableHint: 'Av: sidan ber sökmotorer att inte lista den.',
+  open: 'Öppna sidan',
+}

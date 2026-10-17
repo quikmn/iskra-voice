@@ -7,8 +7,11 @@ using Iskra.Server.Storage;
 
 namespace Iskra.Server.Features;
 
-/// <summary>Quiet hours: on these days (bit 0 = Sunday) from <see cref="From"/> to <see cref="To"/> (minutes after midnight) in a time zone.</summary>
-public sealed record QuietHours(int Days, int From, int To, string TimeZone, bool Mentions);
+/// <summary>
+/// Quiet hours: on these days (bit 0 = Sunday) from <see cref="From"/> to <see cref="To"/> (minutes after midnight) in a
+/// time zone. <see cref="Digest"/>: a summary push when they end (Features/QuietDigestFeature.cs).
+/// </summary>
+public sealed record QuietHours(int Days, int From, int To, string TimeZone, bool Mentions, bool Digest = true);
 
 /// <summary>
 /// Keyword alerts, follows and quiet hours, as far as this server needs them. Apps match alert words and follows
@@ -47,7 +50,9 @@ public static class AlertFeature
         var follows = ParseFollows(body.OptionalElement("follows"));
         var quiet = body.OptionalElement("quiet") is { } element ? ParseQuiet(new Body(element)) : null;
         var store = s.World.Store;
+        var (before, since) = (QuietOf(store, me.AccountKey), store.QuietSince(me.AccountKey));
         store.SaveAlerts(me.AccountKey, words, follows, quiet is null ? null : JsonSerializer.Serialize(quiet, Json.Options), s.Now);
+        QuietDigestFeature.AfterSet(store, s.Push, me.AccountKey, before, since, quiet, DateTimeOffset.FromUnixTimeMilliseconds(s.Now));
         var alerts = View(store.GetAlerts(me.AccountKey));
         s.Hub.SendToAccount(me.AccountKey, Frames.Event("alerts.updated", new { alerts }));
         return new { alerts };
@@ -101,8 +106,10 @@ public static class AlertFeature
         var to = (int)(body.OptionalLong("to", 0, 1439) ?? throw RequestException.BadRequest("Quiet hours need days, a start and an end.", "alerts_quiet"));
         var zone = body.String("timeZone", MaxTimeZoneLength);
         if (Zone(zone) is null) throw RequestException.BadRequest("That time zone isn't known here.", "alerts_time_zone");
-        return new QuietHours(days, from, to, zone, body.OptionalBool("mentions") ?? false);
+        return new QuietHours(days, from, to, zone, body.OptionalBool("mentions") ?? false, body.OptionalBool("digest") ?? true);
     }
+
+    public static QuietHours? ParseStoredQuiet(string json) => ParseStored(json);
 
     private static QuietHours? ParseStored(string json)
     {

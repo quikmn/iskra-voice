@@ -130,7 +130,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("presence", $"SELECT account_key, status, emoji, text, expires_at, updated_at FROM presence WHERE account_key {Mine};");
         Section("syncedSettings", $"SELECT account_key, name, data, updated_at FROM account_prefs WHERE account_key {Mine};");
         Section("notificationSettings", $"SELECT account_key, channel_id, level, muted_until FROM notify_settings WHERE account_key {Mine};");
-        Section("alertSettings", $"SELECT account_key, words, follows, quiet, updated_at FROM alert_settings WHERE account_key {Mine};");
+        Section("alertSettings", $"SELECT account_key, words, follows, quiet, quiet_since, updated_at FROM alert_settings WHERE account_key {Mine};");
         Section("rulesAccepted", $"SELECT account_key, version, at FROM rules_accepted WHERE account_key {Mine};");
         // Notes you wrote as a moderator are yours; notes about you are the moderators' (like reports about you).
         Section("moderatorNotesWritten", $"SELECT id, account_key AS about, text, created_at FROM mod_notes WHERE author_key {Mine} ORDER BY id;");
@@ -235,7 +235,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         - syncedSettings, notificationSettings, rulesAccepted, blockList: your settings as the server keeps them.
         - alertSettings: alert words and follows (people and roles, per channel) you asked this server to watch for while
           Iskra is closed (only if you turned that on), and your quiet hours (days, times and time zone; only where your
-          notifications while Iskra is closed are on).
+          notifications while Iskra is closed are on; quiet_since: when the quiet stretch now running began, for the
+          summary when it ends).
         - devices, removedDevices, pushSubscriptions, keyRotations, accountDeletion: your account's keys and devices
           (public keys only: your private keys never leave your devices).
         - messages, editHistory, reactions, pollVotes, eventInterest, uploads, invitesCreated: what you wrote and shared in server

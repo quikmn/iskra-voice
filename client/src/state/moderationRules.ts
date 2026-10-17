@@ -109,7 +109,7 @@ export const AUDIT_ACTIONS = [
   'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'buginbox.update', 'afk.update', 'notify.default', 'server.template.export',
   'server.images', 'automod.block', 'automod.update',
   'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
-  'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers',
+  'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers', 'landing.update',
   'message.delete.bulk', 'member.warn', 'member.note.add', 'member.note.delete', 'member.avatar',
   'act.add', 'act.update', 'act.remove', 'act.configure',
 ] as const
@@ -237,6 +237,7 @@ export function auditText(e: AuditEntry): string {
     case 'server.internet': return t(d.enabled ? 'moderation.audit.internetOn' : 'moderation.audit.internetOff', { actor })
     case 'limits.update': return t('moderation.audit.limits', { actor })
     case 'buginbox.update': return t(d.enabled ? 'moderation.audit.bugInboxOn' : 'moderation.audit.bugInboxOff', { actor })
+    case 'landing.update': return t(d.enabled ? 'moderation.audit.landingOn' : 'moderation.audit.landingOff', { actor })
     case 'afk.update': return t('moderation.audit.afk', { actor })
     case 'role.base': return t('moderation.audit.baseRoleColour', { actor, role: level(d.role) })
     case 'role.base.powers': return t(d.reset ? 'moderation.audit.baseRoleReset' : 'moderation.audit.baseRolePowers', { actor, role: level(d.role) })

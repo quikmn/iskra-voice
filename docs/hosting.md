@@ -663,6 +663,10 @@ Uploads that nothing uses (no message, DM, avatar, emoji, sticker, sound, webhoo
 
 **Backups and moving:** see [Backups, moving and importing](#backups-moving-and-importing). Copying the stopped server's folder works too; it holds secrets (`server.key`, `vapid.json`, `livekit.key`, `certs/`, `backups/`), so keep copies private. **Updating:** see [Updating](#updating). Automatic updates keep their state in `.update/` next to `iskra-server`, not in the world folder.
 
+## Public page
+
+Opening the server's address in a browser shows its public page (Server settings → Overview → Public page). Off by default it shows nothing about your server, only that it's an Iskra server and where to get the app; turned on, you pick what it shows: name, picture, banner, a short description, the start of the rules, a rounded member count and a Join button for an invite you choose. The apps still read the same JSON at `/`, which includes the server's name and icon for invite previews.
+
 ## Server icon and banner
 
 **Server settings → Overview → Icon and banner** (the owner and admins; a server can give or take that power per built-in role under **Roles**). The **icon** is square (at least 128×128 pixels, up to 1 MB) and shows in everyone's server list, the server's header and menu, and on invite links before people join. The **banner** is wide (2.5 to 4 times as wide as it is high, for example 960×360, up to 3 MB) and shows above the channel list. PNG, JPEG or WebP, still pictures only. The app lets you crop either before it uploads; everyone sees the change at once.

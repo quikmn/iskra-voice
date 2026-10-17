@@ -66,6 +66,7 @@ import { closeSettings, useSettingsView } from './open'
 import { mySections, SERVER_GROUPS, serverSections, type MySectionId, type SectionInfo, type ServerSectionId } from './sections'
 import { SaveAsTemplate } from '../templates/SaveAsTemplate'
 import { ServerImagesSection } from './ServerImagesSection'
+import { PublicPageSection } from './PublicPageSection'
 import './settings.css'
 import './room.css'
 
@@ -369,6 +370,7 @@ function OverviewSection({ server }: { server: ServerState }) {
         <div><dt>{t('settings.overview.serverId')}</dt><dd><code>{fingerprint(server.key)}</code></dd></div>
       </dl>
       <ServerImagesSection server={server} />
+      <PublicPageSection server={server} />
       <SaveAsTemplate server={server} />
     </section>
   )

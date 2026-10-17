@@ -104,6 +104,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["lfg.created"] = (3, 1 / 30.0), // checked by LfgFeature: only posts that go ahead count
         ["lfg.join"] = (10, 1),
         ["lfg.leave"] = (10, 1),
+        ["landing.update"] = (10, 1),
         // Activities (ActivitiesFeature): what activities send, snapshots for late joiners, starting, joining, adding.
         ["act.send"] = (40, 20),
         ["act.snapshot"] = (5, 1),

@@ -155,6 +155,7 @@ export const compliance = {
     join_declined: 'Turned away by a moderator',
     invites_paused: 'Invites paused',
     invites_resumed: 'Invites resumed',
+    landing_settings: 'Changed the public page',
     activity_added: 'Added an activity',
     activity_removed: 'Removed an activity',
     activity_rejected: 'Refused an unsafe activity zip',
