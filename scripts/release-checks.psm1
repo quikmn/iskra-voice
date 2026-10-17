@@ -245,7 +245,8 @@ function Test-NodeModulesStale {
   $installed = Join-Path $Folder 'node_modules/.package-lock.json'
   if (-not (Test-Path $installed)) { return $true }
   if (-not (Test-Path $lock)) { return $false }
-  return (Get-Item $lock).LastWriteTimeUtc -gt (Get-Item $installed).LastWriteTimeUtc
+  # -Force: on Linux and macOS a name starting with a dot is hidden, and Get-Item skips it otherwise.
+  return (Get-Item -Force $lock).LastWriteTimeUtc -gt (Get-Item -Force $installed).LastWriteTimeUtc
 }
 
 Export-ModuleMember -Function Get-SigningSubject, Get-SimplySignLoginLine, Find-SigningCertificate, Test-Signing, Invoke-LoginScript, Invoke-SigningProbe, Start-LoginWatcher, Stop-LoginWatcher, Confirm-Signing, Get-DevRoot, Get-AndroidProblems, Test-JobsDone, Test-NodeModulesStale
