@@ -48,7 +48,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
     const bridge = await page.evaluate(() => Object.keys((window as unknown as { iskraDesktop: object }).iskraDesktop).sort())
     expect(bridge).toEqual([
       'activity', 'attention', 'callAlert', 'cancelHotkeyCapture', 'captureHotkey', 'capturePushToTalkKey', 'captureWindow', 'digitalOcean', 'download', 'host', 'keychain', 'notices', 'onActivity', 'onDeepLink',
-      'onHoldHotkey', 'onHotkey', 'onPickScreen', 'onPushToTalk', 'openSystemSettings', 'p2p', 'passkey', 'pickScreen', 'platform', 'popout', 'pushToTalkStatus', 'saveFile', 'setBadge', 'setHotkeys', 'setLanguage', 'setPushToTalkKey', 'settings',
+      'onHoldHotkey', 'onHotkey', 'onPickScreen', 'onPushToTalk', 'onStreamerProgram', 'openSystemSettings', 'p2p', 'passkey', 'pickScreen', 'platform', 'popout', 'pushToTalkStatus', 'saveFile', 'setBadge', 'setHotkeys', 'setLanguage', 'setPushToTalkKey', 'settings', 'streamerProgram',
       'systemIdleSeconds', 'takeDeepLink', 'updates', 'versions',
     ])
     expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')
@@ -356,7 +356,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     await expect(settings.getByRole('button', { name: 'Restart now' })).toBeVisible()
     await page.screenshot({ path: join(SHOTS, 'desktop-settings-app.png') })
     await expect.poll(() => existsSync(join(userData, 'desktop.json')) && JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8')))
-      .toEqual({ openAtLogin: false, closeToTray: false, hardwareAcceleration: false, activity: false, customGames: [], language: 'en', keepRunning: [], updateChecks: true, lastRunVersion: DESKTOP_VERSION })
+      .toEqual({ openAtLogin: false, closeToTray: false, hardwareAcceleration: false, activity: false, customGames: [], streamerAuto: false, language: 'en', keepRunning: [], updateChecks: true, lastRunVersion: DESKTOP_VERSION })
     await settings.getByLabel(/Hardware acceleration/).check()
     await expect(settings.getByRole('button', { name: 'Restart now' })).toHaveCount(0)
 
@@ -376,7 +376,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     // Only the game's name was stored, never the program list.
     const stored = JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8'))
     expect(stored.activity).toBe(true)
-    expect(Object.keys(stored).sort()).toEqual(['activity', 'closeToTray', 'customGames', 'hardwareAcceleration', 'keepRunning', 'language', 'lastRunVersion', 'openAtLogin', 'updateChecks'])
+    expect(Object.keys(stored).sort()).toEqual(['activity', 'closeToTray', 'customGames', 'hardwareAcceleration', 'keepRunning', 'language', 'lastRunVersion', 'openAtLogin', 'streamerAuto', 'updateChecks'])
     // Turning it off clears it for everyone.
     await page.locator('.me-bar').getByRole('button', { name: 'My settings' }).click()
     await settings.getByRole('button', { name: 'Desktop app', exact: true }).click()
