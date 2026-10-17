@@ -1,6 +1,7 @@
 // Hosting from the desktop app: each server is a world folder (Documents/Iskra/Servers; Application Support on macOS),
 // run with the bundled iskra-server (and LiveKit for voice) while the app is open.
 import { app } from 'electron'
+import { deskLog, duration, errorFields, type LogFields } from './log'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { connect, createServer } from 'node:net'
@@ -324,6 +325,18 @@ export class Host {
     })
     child.stdin?.on('error', () => undefined) // the server may already be gone
     this.processes.set(id, child)
+    // The app's log names a hosted server by its port only (its folder is named after the server).
+    const logPort = this.describe(id).port
+    const startedAt = Date.now()
+    deskLog.info('life', 'host-start', [['port', logPort]])
+    // First of the exit listeners: a server stopped on purpose has already left `processes`.
+    child.once('exit', (code, signal) => {
+      const fields: LogFields = [['port', logPort], ['exit', code], ['why', signal?.toLowerCase()], ['dur', duration(Date.now() - startedAt)]]
+      if (this.processes.get(id) !== child) deskLog.info('life', 'host-stopped', fields)
+      else if (code === 3) deskLog.warn('DSK-130', 'life', 'host-failed', [...fields, ['why', 'damaged']])
+      else deskLog.warn('DSK-120', 'life', 'host-stopped', fields)
+    })
+    child.once('error', (error) => deskLog.warn('DSK-130', 'life', 'host-failed', [['port', logPort], ['why', 'spawn'], ...errorFields(error)]))
     let failure: Error | null = null
     const ended = (error: Error) => {
       if (failure) return

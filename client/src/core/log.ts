@@ -23,7 +23,7 @@ export const LOG_FIELDS: ReadonlySet<string> = new Set([
   'jitter', 'took', 'dur', 'retry', 'n', 'close', 'why', 'reason', 'op', 'name', 'msg', 'ver', 'os', 'engine',
   'kind', 'count', 'status', 'port',
   // the apps
-  'frame', 'state', 'code', 'type', 'what', 'from', 'to', 'mode', 'exit', 'browser', 'lang', 'arch',
+  'frame', 'state', 'code', 'type', 'what', 'from', 'to', 'mode', 'exit', 'browser', 'lang', 'arch', 'gz', 'deleted',
 ])
 
 /** The only text a line may carry (`msg=`): an error message the browser wrote. Made by {@link errorFields}. */
@@ -63,7 +63,7 @@ const DUR = /^\d{1,9}(\.\d)?(ms|s)$/
 const VERSION = /^\d{1,4}\.\d{1,4}\.\d{1,4}(-[0-9A-Za-z.-]{1,30})?$/
 const SCHEMA: Record<string, RegExp> = {
   srv: /^([0-9a-f]{4}|s\d{1,3})$/, conn: /^[0-9a-z]{1,8}$/, acct: /^[0-9a-f]{6}$/,
-  chan: NUM, room: NUM, n: NUM, count: NUM, close: NUM, port: NUM, exit: NUM, status: NUM, loss: NUM,
+  chan: NUM, room: NUM, n: NUM, count: NUM, close: NUM, port: NUM, exit: NUM, status: NUM, loss: NUM, gz: NUM, deleted: NUM,
   rtt: /^\d{1,9}(\.\d{1,2})?(ms)?$/, jitter: /^\d{1,9}(\.\d{1,2})?(ms)?$/,
   took: DUR, dur: DUR, retry: DUR,
   ver: VERSION, from: VERSION, to: VERSION,
