@@ -48,7 +48,7 @@ test('built-in bots: one click on, commands answered by the server, one click of
   const box = host.getByPlaceholder('Message #general')
   await box.fill('/')
   const list = host.getByRole('listbox', { name: 'Bot commands' })
-  await expect(list.getByRole('option')).toHaveCount(5) // the three bots' commands plus the app's /teams and /lfg
+  await expect(list.getByRole('option')).toHaveCount(6) // the three bots' commands plus the app's /teams, /lfg and /roles
   await expect(list.getByRole('option', { name: /\/roll/ })).toContainText('Roll dice, like 2d6+3')
   await expect(list.getByRole('option', { name: /\/poll/ })).toContainText('Start a poll')
   await expect(list.getByRole('option', { name: /\/remind/ })).toContainText('Get a reminder later')
