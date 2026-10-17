@@ -263,6 +263,13 @@ export class Bot {
     return this
   }
 
+  /** Stops answering a command (and tells the server). `/help` stays. */
+  removeCommand(name: string): this {
+    const key = name.toLowerCase()
+    if (key !== 'help' && this.registry.delete(key)) this.scheduleSync()
+    return this
+  }
+
   /** Several commands at once, with their options: `bot.commands([{ name, description, options, handler }, ...])`. */
   commands(list: CommandSpec[]): this {
     for (const c of list) this.command(c.name, c.description, c.handler, { usage: c.usage, options: c.options, role: c.role, permission: c.permission })

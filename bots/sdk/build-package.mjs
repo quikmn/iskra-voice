@@ -21,9 +21,13 @@ for (const [name, version] of Object.entries({ ...pkg.dependencies, ...pkg.optio
 rmSync(dist, { recursive: true, force: true })
 mkdirSync(dist)
 
+// The SDK, and the command line (npx iskra-bots bridge), sharing one chunk with the SDK.
 await build({
-  entryPoints: [join(here, 'src/index.ts')],
-  outfile: join(dist, 'index.js'),
+  entryPoints: { index: join(here, 'src/index.ts'), cli: join(here, 'src/cli.ts') },
+  outdir: dist,
+  splitting: true,
+  chunkNames: 'sdk-[hash]',
+  define: { ISKRA_BOTS_VERSION: JSON.stringify(pkg.version) },
   bundle: true,
   platform: 'node',
   format: 'esm',

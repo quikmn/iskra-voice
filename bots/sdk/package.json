@@ -17,6 +17,9 @@
     "node": ">=22"
   },
   "main": "./dist/index.js",
+  "bin": {
+    "iskra-bots": "dist/cli.js"
+  },
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {

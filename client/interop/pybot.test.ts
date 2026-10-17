@@ -1,6 +1,7 @@
 // The Python bot SDK (bots/python) against the real .NET server, driven by the app's own client code: the Python Dice
 // example joins with a bot invite and answers a command, a button, a text command and an end-to-end encrypted DM. Then
-// the Node SDK takes over the same <name>.bot.json, as a bot that switches languages would.
+// the Node SDK takes over the same <name>.bot.json, as a bot that switches languages would. And the any-language bridge
+// (bots/sdk/src/bridge.ts) with a plain Python program (bots/examples/bridge/roll.py).
 // Needs Python with the SDK installed: bots/python/.venv (see docs/bots.md → Python), or ISKRA_PYTHON. Skipped without.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -9,6 +10,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Bot } from '../../bots/sdk/src/index'
+import { Bridge, spawnProgram } from '../../bots/sdk/src/bridge'
 import { Connection } from '../src/core/connection'
 import { ready } from '../src/core/crypto'
 import { decryptDm, encryptDm } from '../src/core/dm'
@@ -162,4 +164,41 @@ describe.skipIf(!PYTHON)('Python bot SDK ↔ server', () => {
     await node.start()
     expect(node.me?.accountKey).toBe(botKey)
   }, 90_000)
+
+  it('the bridge runs a bot written without any SDK, over its stdin and stdout', async () => {
+    const { invite } = await owner.request('bot.invite', {})
+    const link = buildInviteLink('http://localhost:5173', { serverUrl: url, serverKey: welcome!.server.key, code: invite.code })
+    const bot = new Bot({ name: 'Roll', invite: link, stateFile: join(world, 'roll.bot.json'), log: () => undefined })
+    bots.push(bot)
+    const logs: string[] = []
+    let markStarted!: () => void
+    const started = new Promise<void>((done) => (markStarted = done))
+    // What `iskra-bots bridge --name Roll -- python roll.py` does.
+    const program = spawnProgram(PYTHON!, [resolve(__dirname, '../../bots/examples/bridge/roll.py')], (write) => {
+      const bridge = new Bridge(bot, { write, log: (l) => logs.push(l), started })
+      bridge.hello()
+      return bridge
+    }, { ...process.env, PYTHONIOENCODING: 'utf-8' })
+    try {
+      await bot.start()
+      markStarted()
+      const botKey = bot.me!.accountKey
+      await waitFor(() => events.some((e) => e.type === 'bot.commands' && (e.body as Events['bot.commands']).bot === botKey
+        && (e.body as Events['bot.commands']).commands.some((c) => c.name === 'roll')), 'the program registered /roll')
+
+      const general = welcome!.channels.find((c) => c.name === 'general')!
+      await owner.request('interaction.invoke', { bot: botKey, channelId: general.id, command: 'roll', options: { dice: '3d6' } })
+      const rolled = await message((m) => m.author === botKey)
+      expect(rolled.text).toMatch(/^Host rolled \*\*\d+\*\* \(\d, \d, \d\)$/)
+
+      // A message that mentions it: the program reacts through its ref.
+      const { message: praise } = await owner.request('chat.send', { channelId: general.id, text: `good bot <@${botKey}>` })
+      await waitFor(() => events.some((e) => e.type === 'chat.reactions' && (e.body as Events['chat.reactions']).id === praise.id
+        && (e.body as Events['chat.reactions']).reactions.some((r) => r.emoji === '🤖')), 'the reaction')
+      expect(logs).toEqual([])
+    } finally {
+      program.kill()
+      await program.exited
+    }
+  }, 60_000)
 })

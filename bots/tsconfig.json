@@ -15,5 +15,5 @@
     // The SDK reuses the web client's core (crypto, identity, connection); its libsodium import resolves here.
     "paths": { "libsodium-wrappers-sumo": ["./node_modules/@types/libsodium-wrappers-sumo"] }
   },
-  "include": ["sdk/src", "examples"]
+  "include": ["sdk/src", "sdk/test", "examples"]
 }
