@@ -149,8 +149,7 @@ public static partial class TagsBot
         }
         // Anyone can post a tag, and nobody gets pinged by one (the text is defused, and it goes out without pings).
         var posted = FeedService.Defuse(tag.Text);
-        var message = MoreBuiltinBots.Post(store, s.Hub, s.Push, bot, channel, posted, BuiltinBotFeature.Reply(Kind, "tag", me, new { name = tag.Name, text = posted }), s.Now);
+        MoreBuiltinBots.Post(store, s.Hub, s.Push, bot, channel, posted, BuiltinBotFeature.Reply(Kind, "tag", me, new { name = tag.Name, text = posted }), s.Now);
         ThreadFeature.Touched(s, channel);
-        _ = message;
     }
 }

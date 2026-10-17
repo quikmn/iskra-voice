@@ -115,9 +115,11 @@ function SuggestionCard({ server, reply, messageId }: { server: ServerState; rep
   const [status, setStatus] = useState<SuggestionStatus>('accepted')
   const [reason, setReason] = useState('')
   const [author, setAuthor] = useState<string | null | undefined>(undefined)
-  const [optimistic, setOptimistic] = useState<{ vote: 1 | -1 | 0; up: number; down: number } | null>(null)
+  // A vote shows right away; once the card's counts change (the server's answer), the card's own numbers count again.
+  const [pending, setOptimistic] = useState<{ vote: 1 | -1 | 0; up: number; down: number; base: string } | null>(null)
   useEffect(() => wantCard(server.key, messageId), [server.key, messageId])
-  useEffect(() => setOptimistic(null), [reply.up, reply.down])
+  const base = `${reply.up}/${reply.down}`
+  const optimistic = pending?.base === base ? pending : null
 
   const nameOf = (key: string | null) => (key && server.members[key]?.name) || t('chat.author.formerMember')
   const myVote = optimistic?.vote ?? mine?.votes[messageId] ?? 0
@@ -127,7 +129,7 @@ function SuggestionCard({ server, reply, messageId }: { server: ServerState; rep
 
   async function vote(clicked: 1 | -1) {
     const to = nextVote(myVote, clicked)
-    setOptimistic({ vote: to, ...applyVote({ up: reply.up, down: reply.down }, mine?.votes[messageId] ?? 0, to) })
+    setOptimistic({ vote: to, ...applyVote({ up: reply.up, down: reply.down }, mine?.votes[messageId] ?? 0, to), base })
     setError(null)
     try {
       await voteSuggestion(server.key, messageId, to)
