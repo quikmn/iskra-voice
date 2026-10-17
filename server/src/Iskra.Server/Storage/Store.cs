@@ -359,6 +359,8 @@ public sealed partial class Store : IDisposable
         ("modpack-1", ModPackMigration),
         // A picture per server, shown instead of the profile picture there.
         ("member-avatars-1", MemberAvatarsMigration),
+        // Activities: bundles admins added, built-ins turned off, channels without activities, who may start one.
+        ("activities-1", ActivitiesMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

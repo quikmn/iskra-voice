@@ -209,6 +209,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("invitesCreated", $"SELECT created_by, created_at, expires_at, max_uses, uses, role, revoked FROM invites WHERE created_by {Mine};");
         Section("outgoingWebhooksCreated", $"SELECT id, name, url, events, created_by, created_at FROM outgoing_webhooks WHERE created_by {Mine};");
         Section("serverImagesSet", $"SELECT kind, file_id, set_by, set_at FROM server_images WHERE set_by {Mine};");
+        Section("activitiesAdded", $"SELECT id, name, version, size, files, enabled, added_by, added_at FROM activities WHERE added_by {Mine} ORDER BY added_at;");
         Section("timeouts", $"SELECT account_key, until, reason, at FROM timeouts WHERE account_key {Mine};");
         Section("bans", $"SELECT account_key, reason, banned_at FROM bans WHERE account_key {Mine};");
         Section("reportsMade", $"""
@@ -256,6 +257,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
           waiting to be sent later (encrypted DMs and group messages only by time and recipient), and messages that mentioned you.
           Reminders set with the built-in Reminders bot (/remind) aren't sealed: their "data" starts with "bot." and holds the note.
         - builtinBotAnswers: what the built-in bots (Dice, Polls, Reminders) answered to your commands.
+        - activitiesAdded: activities you added to this server (name, version, size, when). What activities send while
+          people play is never stored.
         - timeouts, bans, reportsMade, reportsAboutYou, auditLog, securityLog: moderation and security records about you.
           Reports about you don't say who made them.
 

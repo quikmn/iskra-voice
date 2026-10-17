@@ -238,6 +238,7 @@ public sealed class Session
             voiceAvailable = _voice.Backend.Available,
             stages = _voice.Stages.Snapshot(member),
             watch = _voice.Watch.Snapshot(member),
+            activities = _hub.ActivityRooms.Snapshot(_world.Store, member),
             rotations = KeyFeature.Recent(_world.Store),
             keyLog = KeyLogFeature.Head(_world, Now),
             rules = RulesFeature.View(_world.Store, member),

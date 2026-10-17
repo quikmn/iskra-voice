@@ -29,7 +29,7 @@ public static class SecurityHeaders
         var headers = context.Response.Headers;
         if (!headers.ContainsKey("X-Content-Type-Options")) headers.XContentTypeOptions = "nosniff";
         if (!headers.ContainsKey("Referrer-Policy")) headers["Referrer-Policy"] = "no-referrer";
-        if (!context.Request.Path.StartsWithSegments("/pages"))
+        if (!context.Request.Path.StartsWithSegments("/pages") && !context.Request.Path.StartsWithSegments("/activities"))
         {
             headers.XFrameOptions = "DENY";
             var csp = headers.ContentSecurityPolicy.ToString();

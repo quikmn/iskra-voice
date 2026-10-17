@@ -25,6 +25,8 @@ public sealed class Hub(World world, TimeProvider time)
     public Features.OutgoingWebhooks? Outhooks { get; set; }
     /// <summary>Which whiteboard each session is viewing (Features/WhiteboardFeature.cs).</summary>
     public Features.BoardRegistry Boards { get; } = new();
+    /// <summary>Running activities in voice channels (Features/ActivitiesFeature.cs).</summary>
+    public Features.ActivityRooms ActivityRooms { get; } = new();
 
     private readonly ConcurrentDictionary<Session, byte> _sessions = new();
 
@@ -45,6 +47,7 @@ public sealed class Hub(World world, TimeProvider time)
     {
         _sessions.TryRemove(session, out _);
         if (Boards.Leave(session) is { } board) Features.WhiteboardFeature.ViewersChanged(this, world.Store, board);
+        ActivityRooms.Disconnected(this, world.Store, session);
         if (session.AccountKey is null || IsOnline(session.AccountKey)) return false;
         Activities.Clear(session.AccountKey); // activity only lasts while you're online
         return true;

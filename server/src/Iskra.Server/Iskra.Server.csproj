@@ -20,6 +20,8 @@
     <EmbeddedResource Include="..\..\..\client\src\state\captions\model.json" LogicalName="captions-model.json" />
     <!-- Message translation's model pins, the same way (TranslateModelTests checks it). -->
     <EmbeddedResource Include="..\..\..\client\src\state\translate\models.json" LogicalName="translate-models.json" />
+    <!-- The activity SDK, put in front of server-added activities' HTML (the built-ins bundle the same file). -->
+    <EmbeddedResource Include="..\..\..\protocol\activity-sdk.js" LogicalName="activity-sdk.js" />
   </ItemGroup>
 
   <!-- Starter templates for new servers (the Template setting; docs/hosting.md). -->

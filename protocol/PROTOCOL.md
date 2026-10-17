@@ -8,7 +8,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Basics:** [Encoding](#encoding) · [Identity](#identity) · [Connection](#connection) (handshake, errors and close codes, limits, [restarts](#restarts-and-reconnecting)) · [Objects](#objects)
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Server icon and banner](#server-icon-and-banner) · [Organizing a server](#organizing-a-server)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox) · [Disappearing messages](#disappearing-messages)
-- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers) · [Encrypted voice channels](#encrypted-voice-channels)
+- **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers) · [Encrypted voice channels](#encrypted-voice-channels) · [Activities](#activities)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group) · [Whiteboards](#whiteboards)
@@ -3742,7 +3742,143 @@ How the other voice features behave in an encrypted voice channel:
 | AFK channel | An encrypted channel can't be the AFK channel (`afk.update`: `bad_request`, key `afk_encrypted`; the server moves people in, key or not). Idle people are never moved into one they have no key for |
 | Stage channels | Can't be encrypted |
 | Voice bots, music bots | Refused (`bot_e2ee_voice`) |
+| [Activities](#activities) | Off: every `act.*` request for the channel is `bad_request`, key `act_e2ee` (the server relays what activities send, unencrypted). Apps show the button dimmed; a tap says why |
 
 What it doesn't hide: the server (and LiveKit) still see who is in the room, when, who speaks and how much (packet
 sizes and timing), mute and camera state, and soundboard plays. Everyone holding the key can decrypt everyone's media,
 so a member's app could forward or record what it hears, as in any call.
+
+## Activities
+
+Shared mini-apps people use together in a voice channel: a drawing-and-guessing game, a quiz, a board game, or one the
+server's admins added. Each runs in an isolated frame in every player's app and talks to the app over a small,
+versioned postMessage SDK ([docs/activities.md](../docs/activities.md)). The server only relays what activities send
+to the people playing, in one order, and keeps a small snapshot for late joiners; nothing is stored beyond the session.
+
+**Built-in activities** (`draw`, `trivia`, `four`) are part of the apps: their code ships with the app and runs from it,
+so they work everywhere. **Server-added activities** are zip bundles an admin uploads; this server stores and serves
+them, and nothing loads from anywhere else.
+
+### The catalog
+
+```jsonc
+Activity { "id": "<b64u 16>", "name": "Snake duel", "description": "…", "icon": "/activities/<id>/icon.png" | null,
+           "minPlayers": 2, "maxPlayers": 8, "version": "1.2" | "", "size": 81234, "files": 6,
+           "enabled": true, "addedBy": "<accountKey>", "addedAt": 1760000000000,
+           "entry": "/activities/<id>/index.html" }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `act.list` | | `{ activities: [Activity], builtins: [{ id, enabled }], startRole, off: [channelId] }` | anyone (non-admins get enabled activities only) |
+| `act.add` | `file` (id of your own upload: a zip, see below) | `{ activity }` | admin+ |
+| `act.update` | `id` (a server-added id or a built-in's), `enabled` | | admin+ |
+| `act.remove` | `id` (server-added) | | admin+ |
+| `act.configure` | `startRole?` (`guest` … `admin`: the lowest level that may start one; default `guest`), `channelId?` with `off` (turn activities off or on in a voice channel) | `{ startRole, off }` | admin+ |
+
+Event `act.catalog {}` goes to everyone after any of these (apps ask `act.list` again when they need it). Turning an
+activity off, removing it, or turning a channel off ends the sessions it affects. Audit: `act.add`, `act.update`,
+`act.remove`, `act.configure` (names and settings, never file contents). Security log: `activity.added`,
+`activity.removed`, `activity.rejected` (`{ reason }`: a bundle refused as unsafe, e.g. a path leaving the bundle).
+
+**Bundles** (`act.add`): the upload must be a zip of at most 5 MB, with at most 200 files and 10 MB unpacked (each file at
+most 5 MB; sizes are counted while unpacking, never taken from the zip's headers). A server holds at most 25
+(`bad_request`, key `act_too_many`, args `{ max }`).
+
+- **Paths:** each part `[A-Za-z0-9_.-]`, 1–64 characters, not starting with `.`; at most 8 parts and 200 characters;
+  no two files whose paths differ only in case. Folders, `__MACOSX/…`, `.DS_Store` and `Thumbs.db` are skipped. When
+  everything sits in one top-level folder, that folder is the bundle. Anything else (`..`, `/` or `\` at the start,
+  drive letters, empty parts) refuses the whole bundle (`bad_request`, key `act_path`, args `{ path }` cut to 100
+  characters) and is written to the security log.
+- **Types**, by extension only (the server sends this type with `nosniff`): `html htm js mjs css json txt svg png jpg
+  jpeg gif webp ico avif woff woff2 ttf otf mp3 ogg oga wav m4a opus` (else key `act_type`, args `{ path }`). Text
+  files (`html`, `htm`, `js`, `mjs`, `css`, `json`, `svg`, `txt`) must be UTF-8 (key `act_utf8`, args `{ path }`).
+- **Must hold** `index.html` (key `act_index`) and `manifest.json` (≤ 16 KB, key `act_manifest`) at the top:
+  `{ "name": 1–40 chars, "description"?: ≤ 200 chars, "icon"?: a png/jpg/webp/gif/svg path in the bundle,
+  "minPlayers"?: 1–25 (default 1), "maxPlayers"?: minPlayers–25 (default 25), "version"?: ≤ 20 chars, "sdk"?: 1 }`.
+  Text rules as for names (one line); unknown fields are ignored.
+- Not a zip, or over a limit: key `act_zip` (args `{ maxMb, maxFiles }`).
+
+Bundles are stored in `iskra.db` (migration `activities-1`: `activities`, `activity_files`, `activity_builtins_off`,
+`activity_off`, `activity_settings`), so backups carry them.
+
+### Serving: `GET /activities/<id>/<path>`
+
+Disabled or unknown activities, and paths not in the bundle, are 404. Every file is served like a profile page with
+scripts ([the safety model](#profile-pages-the-safety-model)): an opaque origin, no network, no WebRTC on the page:
+
+```
+Content-Security-Policy: sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline' <self>/activities/<id>/;
+  style-src 'unsafe-inline' <self>/activities/<id>/; img-src data: blob: <self>/activities/<id>/;
+  font-src data: <self>/activities/<id>/; media-src data: blob: <self>/activities/<id>/; connect-src 'none';
+  form-action 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none';
+  base-uri 'none'; frame-ancestors <as for profile pages>
+```
+
+with the same `Permissions-Policy`, `nosniff`, `no-referrer`, `Cross-Origin-Opener-Policy` and `no-store`, and no
+cookies. HTML files get the profile pages' WebRTC prelude and then the SDK (`protocol/activity-sdk.js`) inserted right
+after the doctype, before any of the bundle's own code. Bundles use classic scripts (`<script src>`), not modules.
+
+**Where server-added activities run.** As with profile pages, a browser can't be made watertight (a `srcdoc` child
+frame gets a fresh `RTCPeerConnection`), so: the **desktop app** runs them in its walled page view (the `iskra-pages`
+session: only `GET` requests for this activity's own files on its own server get through; everything else, WebRTC
+included, goes nowhere; see `desktop/src/pages.ts`). **Browsers and the phone apps** list them but don't run them, and
+say they run in the desktop app. Built-ins run everywhere: they are the app's own code, in a sandboxed frame
+(`sandbox="allow-scripts"`, opaque origin) with its own no-network policy.
+
+### Sessions
+
+One activity runs per voice channel at a time.
+
+```jsonc
+ActivitySession { "id": "<b64u 12>", "channelId": 3, "activity": "four" | "<server-added id>", "name": "Snake duel" | null,
+                  "startedBy": "<accountKey>", "startedAt": 1760000000000,
+                  "players": [{ "id": "<b64u 12>", "accountKey": "<accountKey>" }] }   // in the order they joined
+```
+
+`players[].id` is the player's id **inside the activity**: HMAC-SHA256 of the account key under a random key the
+server makes for each session (the first 9 bytes, base64url). Apps hand activities these ids and display names, never
+account keys; a person keeps their id for the whole session (on another device too, or after leaving and coming back).
+
+| type | body | result | who |
+|---|---|---|---|
+| `act.start` | `channelId, activity` | `{ session }` | someone in the call (LiveKit's webhooks) who may speak there, at the server's `startRole` or above, while activities are on there and that activity is enabled. This connection joins it at once. One running already: `bad_request`, key `act_running` |
+| `act.join` | `channelId, sessionId` | `{ session, me, seq, state, stateSeq, messages, missed }` | someone in the call who can read the channel; at most 25 people (`bad_request`, key `act_full`, args `{ max }`) |
+| `act.leave` | `channelId, sessionId` | | anyone (this connection stops getting the activity's messages) |
+| `act.send` | `channelId, sessionId, data` (any JSON, ≤ 8 KB serialized) | `{ seq }` | players (this connection joined) |
+| `act.snapshot` | `channelId, sessionId, seq, state` (any JSON, ≤ 48 KB serialized) | | players |
+| `act.end` | `channelId, sessionId` | | whoever started it, an admin, or any player once the starter has left the call |
+
+- **Relay:** every `act.send` gets the session's next `seq` and goes as `act.msg` to every connection that joined, the
+  sender's own included, in `seq` order, so every player applies the same messages in the same order. Messages aren't
+  stored: only the ones since the last snapshot are kept, in memory (at most 300 and 256 KB; past that the oldest go,
+  and `missed` is true for the next late joiners).
+- **Late joiners:** `act.join` answers the latest snapshot (`state`, `null` if none, made after message `stateSeq`), the
+  messages after it (`messages: [{ seq, from, data }]`, oldest first) and `seq`, the newest message so far.
+  `act.snapshot` names the `seq` of the last message the state includes: older than the current snapshot is ignored,
+  newer than the newest message is `bad_request` (key `act_seq`).
+- **Ending:** a session ends with `act.end`, when the call empties, when its last player leaves it, when the activity is
+  turned off or removed, when activities are turned off in the channel, or when LiveKit stops. People who leave the
+  call or can no longer read the channel stop being players. Sessions live in memory only, like voice state.
+- **Not here:** bots (`forbidden`, key `act_bots`), stage and text channels (`bad_request`, key `act_voice_only`),
+  [encrypted voice channels](#encrypted-voice-channels) (`act_e2ee`: the server relays, and could read, activity
+  messages), and channels where an admin turned them off (`act_off`). An unknown or disabled activity is `not_found`;
+  below `startRole` is `forbidden` (key `act_start_role`). Someone not in the call: `bad_request`, key
+  `voice_join_first`; a player request from a connection that didn't join: `bad_request`, key `act_join_first`.
+  Starting needs speaking rights (else `forbidden`, key `act_listen_only`); ending someone else's: `forbidden`, key
+  `act_end_starter`; catalog changes by non-admins: `forbidden`, key `act_admins`. Too big: `bad_request`, key
+  `act_data_size` or `act_state_size` (args `{ kb }`).
+- **Rate limits:** `act.send` 20/s (burst 40), `act.snapshot` 1/s (burst 5), `act.start` 1 every 2 s (burst 5),
+  `act.join` and `act.leave` 2/s (burst 10), `act.add` 1 every 10 s (burst 3), `act.list` 2/s (burst 10).
+
+| event | body | sent to |
+|---|---|---|
+| `act.session` | `{ channelId, session: ActivitySession \| null }` | readers of the channel, after it starts, ends or its players change |
+| `act.msg` | `{ channelId, sessionId, seq, from, data }` (`from`: a player id) | the connections that joined it |
+| `act.catalog` | `{}` | everyone |
+
+`welcome.activities` lists the running sessions in channels you can read.
+
+**Your data:** `data.export` gains `activitiesAdded` (the activities you added: id, name, when). What activities send is
+never stored, so there is nothing else to export or delete. Deleting an account keeps the activities it added (they
+belong to the server); `addedBy` then names nobody.

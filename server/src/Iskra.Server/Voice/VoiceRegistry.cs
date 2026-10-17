@@ -40,6 +40,7 @@ public sealed class VoiceRegistry
             if (!available) _afkForced.Clear();
             if (!available) Stages.SyncAll(); // ...and every stage ended
             if (!available) Watch.SyncAll(); // ...and every watch party
+            if (!available) Features.ActivitiesFeature.SyncAll(hub, world.Store, this); // ...and every activity
             hub.Broadcast(Frames.Event("voice.available", new { available }));
         };
     }
@@ -291,6 +292,7 @@ public sealed class VoiceRegistry
         SyncPriority();
         Stages.SyncAll();
         Watch.SyncAll();
+        Features.ActivitiesFeature.SyncAll(hub, world.Store, this);
         Whisper.Sync();
     }
 
@@ -312,6 +314,7 @@ public sealed class VoiceRegistry
         if (channel is not null) hub.BroadcastToReaders(channel, Frames.Event("voice.state", PublicState(channelId)));
         Stages.Sync(channelId);
         Watch.Sync(channelId);
+        Features.ActivitiesFeature.Sync(hub, world.Store, this, channelId);
         Whisper.Sync();
         Features.RoomFeature.Sync(world.Store, hub, this, channelId);
     }
