@@ -10,6 +10,10 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
+    # zxing-wasm moves with barcode-detector (it ships the .wasm the ponyfill's glue loads; client/package.json
+    # overrides keep them on one version). 3.1.5 on its own broke the QR reader in e2e/link.spec.ts.
+    ignore:
+      - dependency-name: zxing-wasm
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
