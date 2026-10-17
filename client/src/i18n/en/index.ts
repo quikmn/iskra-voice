@@ -56,6 +56,7 @@ import { whiteboard } from './whiteboard'
 import { landing } from './landing'
 import { activities } from './activities'
 import { speech } from './speech'
+import { mediaChannels } from './mediaChannels'
 
 export const en = {
   common,
@@ -114,5 +115,6 @@ export const en = {
   landing,
   activities,
   speech,
+  mediaChannels,
   moreBots,
 } as const

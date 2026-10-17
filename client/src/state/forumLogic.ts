@@ -1,9 +1,12 @@
 // Pure helpers for forum post lists: ordering, filtering and unread markers. No React, no store.
-import type { ForumPost, ForumSort } from '../core/protocol'
+import type { Channel, ForumPost, ForumSort } from '../core/protocol'
 
-/** Same order as the server: pinned first (latest pin first), then by activity or creation, newest first. */
+/** Forums and media channels hold posts (a media channel is a forum of pictures and videos). */
+export const hasPosts = (kind: Channel['kind'] | string | undefined): boolean => kind === 'forum' || kind === 'media'
+
+/** Same order as the server: pinned first (latest pin first), then by activity, creation or reactions, newest first. */
 export function sortPosts(posts: ForumPost[], sort: ForumSort): ForumPost[] {
-  const key = (p: ForumPost) => (sort === 'newest' ? p.createdAt : p.lastActivity)
+  const key = (p: ForumPost) => (sort === 'newest' ? p.createdAt : sort === 'top' ? p.reactionCount ?? 0 : p.lastActivity)
   return [...posts].sort((a, b) => Number(b.pinned) - Number(a.pinned) || key(b) - key(a) || b.id - a.id)
 }
 
