@@ -177,7 +177,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # LiveKit (pinned and SHA-256 checked by get-livekit.sh), cached on that script.
       - id: livekit
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .tools/livekit-server
           key: livekit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
@@ -185,7 +185,7 @@ jobs:
         run: bash ../scripts/get-livekit.sh
       # The live-captions model and the English/Swedish translation models aren't in git: scripts/get-models.mjs
       # fetches them (pinned, SHA-256 checked) into client/.models; cached on the pins in both JSON files.
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: client/.models
           key: models-${{ hashFiles('client/src/state/captions/model.json', 'client/src/state/translate/models.json') }}
@@ -243,7 +243,7 @@ jobs:
         working-directory: desktop
       - run: npm ci
       - id: livekit
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .tools/livekit-server
           key: livekit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
