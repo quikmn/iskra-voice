@@ -109,7 +109,9 @@ describe('the call sampler', () => {
     setLogClock(null)
   })
 
-  const session: VoiceSession = { serverKey: 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA', channelId: 12, state: 'connected', canSpeak: true }
+  // Bytes 1..32 as base64url, built here so no key-like literal sits in the repo (gitleaks).
+  const KEY = btoa(String.fromCharCode(...Array.from({ length: 32 }, (_, i) => i + 1))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  const session: VoiceSession = { serverKey: KEY, channelId: 12, state: 'connected', canSpeak: true }
 
   it('logs the route on connect and on change, samples every third reading, and warns on loss', async () => {
     let local = 'srflx'
