@@ -27,6 +27,7 @@ import { BackgroundNotice, CaptionsButton, CaptionsOverlay } from './media/CallM
 import { ResumeOffer } from './ResumeOffer'
 import { VideoPopoutButton } from './popout/PopoutButtons'
 import { ChannelTopic } from './chat/ChannelTopic'
+import { VoiceStatusBar } from './voiceStatus/VoiceStatus'
 import './afk/afk.css'
 import { EncryptedVoiceBadge, PeerEncryptionMark } from './e2ee/E2eeVoice'
 import { ActivityButton, ActivityPanel } from './activities/Activities'
@@ -71,6 +72,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
         </button>
       </header>
       <ChannelTopic channel={channel} />
+      {channel && <VoiceStatusBar server={server} channel={channel} />}
 
       <div className={`stage-body ${focused || party || boardShown || activity ? 'has-focus' : ''}`}>
         {channel && <WatchPartyPanel server={server} channel={channel} />}

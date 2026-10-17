@@ -344,7 +344,7 @@ async function onGroupMessage(serverKey: string, wire: WireGroupMessage): Promis
   if (!mine && !viewing && !silent && !isBlocked(useBlocks.getState().entries, message.from)) {
     const g = useGroups.getState().groups[key]
     show(serverKey, t('groups.notify.title', { name: nameOf(message.from), group: g ? titleOf(g) : t('groups.notify.aGroup') }),
-      message.error ? t('groups.notify.newMessage') : message.text, () => openGroup(key), true, message.expiresAt)
+      message.error ? t('groups.notify.newMessage') : message.text, () => openGroup(key), true, message.expiresAt, { kind: 'dm' })
   }
 }
 

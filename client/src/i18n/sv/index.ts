@@ -57,6 +57,8 @@ import { whiteboard } from './whiteboard'
 import { landing } from './landing'
 import { activities } from './activities'
 import { speech } from './speech'
+import { sounds } from './sounds'
+import { voiceStatus } from './voiceStatus'
 
 export const sv: Messages = {
   common,
@@ -116,4 +118,6 @@ export const sv: Messages = {
   activities,
   speech,
   moreBots,
+  sounds,
+  voiceStatus,
 }

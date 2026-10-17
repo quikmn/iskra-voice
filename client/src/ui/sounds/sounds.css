@@ -1,0 +1,16 @@
+/* ── Notification sounds ───────────────────────────────────────────── */
+.sound-settings { display: grid; gap: 10px; margin: 18px 0; }
+.sound-settings h3 { margin: 0; }
+.sound-row { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.sound-row-label { display: grid; gap: 4px; flex: 1 1 220px; min-width: 0; font-size: 14px; }
+.sound-row-label select { width: 100%; }
+.sound-preview { flex: none; }
+.sound-hint { margin: 0; font-size: 13px; }
+.sound-custom { display: grid; gap: 8px; padding-top: 6px; }
+.sound-custom-title { font-size: 14px; }
+.sound-custom-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sound-custom-name { flex: 1 1 180px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+@media (max-width: 640px) {
+  .sound-preview-label { display: none; }
+  .sound-preview { min-width: 44px; }
+}

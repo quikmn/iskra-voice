@@ -1117,7 +1117,7 @@ export type Permission =
   | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers' | 'manageAutoMod'
   | 'prioritySpeaker' | 'sendTts'
 
-export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak'
+export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak' | 'setVoiceStatus'
 
 /** A custom role. Position 1 is the lowest. */
 export interface ServerRole {
@@ -2823,4 +2823,23 @@ export interface Requests {
 export interface Message {
   /** Sent with /tts: read aloud for people who turned on "Play /tts messages" (PROTOCOL.md "Text to speech"). */
   tts?: boolean | null
+}
+
+// ── voice channel status ──
+
+/** A voice channel's status ("CS2 ranked"), set by someone in the call; gone when the call empties. */
+export interface VoiceStatus {
+  text: string
+  setBy: string
+  setAt: number
+}
+
+export interface VoiceChannelState {
+  /** Missing from older servers. */
+  status?: VoiceStatus | null
+}
+
+export interface Requests {
+  /** Empty `text` clears it. */
+  'voice.status.set': [{ channelId: number; text: string }, { status: VoiceStatus | null }]
 }
