@@ -118,7 +118,7 @@ function BotCard({ bot, info, run }: { bot: PcBot; info: GalleryBotInfo | undefi
         <span className={`pc-bot-light ${light}`} aria-hidden />
         <div className="pc-bot-title">
           <strong>{bot.name}</strong>
-          <small className="muted">{bot.kind === 'gallery' ? info?.name ?? bot.gallery : `${t('pcBots.folder.label')}: ${bot.folder}`}</small>
+          <small className="muted">{bot.kind === 'gallery' ? `${t('pcBots.galleryTitle')}: ${info?.name ?? bot.gallery}` : `${t('pcBots.folder.label')}: ${bot.folder}`}</small>
         </div>
         <span className="pc-bot-state" role="status">{t(`pcBots.state.${light}`)}</span>
       </div>
