@@ -210,7 +210,7 @@ public static partial class GiveawayBot
                 if (s.Now - endedAt > RerollDays * 24L * 60 * 60_000)
                     throw RequestException.BadRequest($"Giveaways can be rerolled for {RerollDays} days after they end.", "giveaway_reroll_expired", new { days = RerollDays });
                 var winners = Draw(Eligible(store, g), count);
-                if (winners.Count == 0) throw RequestException.BadRequest("Nobody else who entered can win.", "giveaway_no_one");
+                if (winners.Count == 0) throw RequestException.BadRequest("Nobody else who entered can win.", "giveaway_nobody");
                 Audit.Record(s, "giveaway.reroll", details: new { messageId = g.MessageId, count = winners.Count });
                 store.RerollGiveaway(g.MessageId, winners, [.. g.Drawn, .. winners]);
                 Refresh(store, s.Hub, g.MessageId);

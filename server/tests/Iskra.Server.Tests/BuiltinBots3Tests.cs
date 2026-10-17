@@ -416,7 +416,7 @@ public class BuiltinBots3Tests
 
         // Reroll: nobody drawn before can win again, so nobody's left.
         Assert.Equal("giveaways_staff", ErrorKey(await alice.RequestAsync("giveaway.reroll", new { messageId = id })));
-        Assert.Equal("giveaway_no_one", ErrorKey(await admin.RequestAsync("giveaway.reroll", new { messageId = id })));
+        Assert.Equal("giveaway_nobody", ErrorKey(await admin.RequestAsync("giveaway.reroll", new { messageId = id })));
         var data = await ComplianceTests.Download(server, (await alice.RequestAsync("data.export")).Body());
         Assert.Single(data.GetProperty("giveawayEntries").EnumerateArray());
         Assert.Single(data.GetProperty("giveawaysWon").EnumerateArray());
@@ -451,7 +451,7 @@ public class BuiltinBots3Tests
         await BotMessage(bob, bot);
         Assert.Equal([alice.Key], server.World.Store.GetGiveaway(id)!.WinnerKeys);
         await Say(admin, server.General, "/giveaway reroll");
-        Assert.Equal("giveaway_no_one", (await Private(admin)).GetProperty("error").GetProperty("key").GetString());
+        Assert.Equal("giveaway_nobody", (await Private(admin)).GetProperty("error").GetProperty("key").GetString());
 
         // Bob gets the role and was in a second one; Alice already won the first, Bob wins the reroll of the second.
         await Say(admin, server.General, $"/giveaway 1h <@&{gamers}> Second key");

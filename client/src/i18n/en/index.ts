@@ -62,6 +62,7 @@ import { invitetrack } from './invitetrack'
 import { mediaChannels } from './mediaChannels'
 import { channelExport } from './channelExport'
 import { feeds } from './feeds'
+import { bots3 } from './bots3'
 
 export const en = {
   common,
@@ -127,4 +128,5 @@ export const en = {
   invitetrack,
   channelExport,
   feeds,
+  bots3,
 } as const

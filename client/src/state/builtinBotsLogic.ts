@@ -1,13 +1,13 @@
 // Built-in bots (Dice, Polls, Reminders): pure helpers for their command hints and how their answers read.
 import type { BotCommand, BuiltinBotId, BuiltinReply } from '../core/protocol'
 
-export const BUILTIN_BOTS: readonly BuiltinBotId[] = ['dice', 'polls', 'reminders', 'starboard', 'birthdays', 'welcome', 'feeds']
+export const BUILTIN_BOTS: readonly BuiltinBotId[] = ['dice', 'polls', 'reminders', 'starboard', 'birthdays', 'welcome', 'feeds', 'tags', 'suggestions', 'giveaways', 'counting']
 
 type T = (key: string, args?: Record<string, unknown>) => string
 
 /** A built-in bot's command with its description and usage in the app's language (the server's are English). */
 export function localizeCommand(command: BotCommand, t: T): BotCommand {
-  if (command.name !== 'roll' && command.name !== 'poll' && command.name !== 'remind' && command.name !== 'birthday') return command
+  if (!['roll', 'poll', 'remind', 'birthday', 'tag', 'suggest', 'giveaway'].includes(command.name)) return command
   return {
     ...command,
     description: t(`builtinBots.commands.${command.name}.description`),

@@ -4676,7 +4676,7 @@ suggestion stays anonymous; the answer is private: `{ "kind": "suggestion.posted
 | `suggestion.decide` | `messageId`, `status: "open" \| "accepted" \| "declined" \| "implemented"`, optional `reason` (one line, ≤ 300: `suggestion_reason`, args `{ max }`) | `{ status, reason }` | staff (`forbidden`, key `suggestions_staff`); audit `suggestion.decide` (`{ messageId, status }`, the reason as the entry's reason) |
 | `suggestion.author` | `messageId` | `{ accountKey \| null }` | staff; for an anonymous card, audit `suggestion.author` |
 | `suggestions.prompt` | | `{ messageId, channelId }` | admins (`builtin_bots_config_admin`): posts the prompt card (`{ "kind": "suggestion.prompt" }`) in the suggestions channel |
-| `builtin.cards.mine` | `messageIds` (≤ 100) | `{ votes: { "<messageId>": 1 \| -1 }, entered: [messageId] }` | anyone: their own votes and giveaway entries on cards they can read (others are skipped) |
+| `builtin.cards.mine` | `messageIds` (≤ 100) | `{ votes: { "<messageId>": 1 | -1 }, entered: [messageId], staff: { suggestions, giveaways } }` | anyone: their own votes and giveaway entries on cards they can read (others are skipped), and whether they are staff of each bot |\| -1 }, entered: [messageId] }` | anyone: their own votes and giveaway entries on cards they can read (others are skipped) |
 
 - One vote per person per card, changeable; the card is updated in place (`chat.edited`, no edit mark) with the counts.
 - The card: `{ "kind": "suggestion", "for": "<author>" (anonymous: the bot's key), "text" (defused), "anonymous",
@@ -4704,7 +4704,7 @@ open (end, cancel) or ended (reroll) giveaway in that channel (`giveaway_none_he
 | `giveaway.enter` | `messageId` (a giveaway card), `entered: bool` | `{ entered, entrants }` | anyone who can read it, while it's open (`giveaway_ended`); not bots (`giveaway_bot`); with the role if one is needed (`giveaway_role`, args `{ role }` = its name) |
 | `giveaway.end` | `messageId` | `{ giveaway: { messageId, status } }` | staff (`giveaways_staff`): draws now; audit `giveaway.end` |
 | `giveaway.cancel` | `messageId` | same | staff; no draw; audit `giveaway.cancel` |
-| `giveaway.reroll` | `messageId`, optional `count` (1–10, default 1) | same | staff, within 7 days of the end (`giveaway_reroll_expired`, args `{ days }`; not ended, or cancelled: `giveaway_not_ended`); nobody left: `giveaway_no_one`; audit `giveaway.reroll` |
+| `giveaway.reroll` | `messageId`, optional `count` (1–10, default 1) | same | staff, within 7 days of the end (`giveaway_reroll_expired`, args `{ days }`; not ended, or cancelled: `giveaway_not_ended`); nobody left: `giveaway_nobody`; audit `giveaway.reroll` |
 
 - The card: `{ "kind": "giveaway", "for": "<host>", "prize", "winners", "roleId": null | 4, "endsAt", "endedAt": null |
   0, "entrants", "status": "open" | "ended" | "cancelled", "winnerKeys": [accountKey] }`, kept current in place

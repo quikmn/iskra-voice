@@ -243,6 +243,12 @@ public static class BuiltinBots3
         {
             votes = votes.ToDictionary(v => v.Key.ToString(System.Globalization.CultureInfo.InvariantCulture), v => v.Value),
             entered = store.MyGiveawayEntries(me.AccountKey, ids).Order().ToList(),
+            // Whether the app should offer staff actions on these cards (the server checks again on every request).
+            staff = new
+            {
+                suggestions = IsStaff(store, me, MoreBuiltinBots.Config<SuggestionsConfig>(store, SuggestionsBot.Id).StaffRoleId),
+                giveaways = IsStaff(store, me, MoreBuiltinBots.Config<GiveawaysConfig>(store, GiveawayBot.Id).StaffRoleId),
+            },
         };
     }
 }
