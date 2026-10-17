@@ -45,6 +45,7 @@ import { ProductivityLayer } from './productivity/InboxButton'
 import { VoiceRoom } from './clips/VoiceRoom'
 import { ClipLayer } from './clips/ClipControls'
 import { PopoutLayer } from './popout/PopoutLayer'
+import { QuietDigestCard } from './quietDigest/QuietDigestCard'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -129,6 +130,7 @@ export function Shell() {
       <ProductivityLayer />
       <ClipLayer />
       <PopoutLayer />
+      <QuietDigestCard />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} onClaim={() => { setJoining(false); setClaiming(true) }} />}
       {claiming && <ClaimServerDialog onClose={() => setClaiming(false)} />}
       {creating && (desktop ? <CreateServerDialog onClose={() => setCreating(false)} /> : <StartServerDialog onClose={() => setCreating(false)} onClaim={() => { setCreating(false); setClaiming(true) }} />)}

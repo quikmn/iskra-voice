@@ -236,16 +236,17 @@ public sealed partial class PushService
 
     /// <summary>
     /// Sends to each of the account's devices that isn't focused. Per device and conversation, the first push goes out at
-    /// once; more within the window are merged into one push at the end of it.
+    /// once; more within the window are merged into one push at the end of it. <paramref name="afterQuiet"/>: the quiet
+    /// hours digest, sent as they end (their schedule doesn't hold it back).
     /// </summary>
-    public void Notify(string accountKey, PushNote note)
+    public void Notify(string accountKey, PushNote note, bool afterQuiet = false)
     {
         List<PushSubscriptionRecord> subscriptions;
         try
         {
             if (Features.PresenceFeature.DoNotDisturb(_world.Store, accountKey)) return; // do not disturb: no pushes at all
             // Quiet hours: nothing, or (if they let them through) mentions, replies, alert words, DMs and calls without a sound.
-            if (Features.AlertFeature.QuietOf(_world.Store, accountKey) is { } quiet && Features.AlertFeature.Active(quiet, _time.GetUtcNow()))
+            if (!afterQuiet && Features.AlertFeature.QuietOf(_world.Store, accountKey) is { } quiet && Features.AlertFeature.Active(quiet, _time.GetUtcNow()))
             {
                 if (!quiet.Mentions || !BreaksQuiet.Contains(note.Kind)) return;
                 note = note with { Silent = true };

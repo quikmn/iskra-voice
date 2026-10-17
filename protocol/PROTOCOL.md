@@ -10,7 +10,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox) · [Disappearing messages](#disappearing-messages)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers) · [Encrypted voice channels](#encrypted-voice-channels)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
-- **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages)
+- **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages) · [Quiet hours digest](#quiet-hours-digest)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group) · [Whiteboards](#whiteboards)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Public page](#public-page) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Built-in roles](#built-in-roles) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
@@ -3175,7 +3175,8 @@ Follow { "member": "<accountKey>" | null,       // exactly one of member (43 bas
 Quiet  { "days": 62,                            // 1–127, bit 0 = Sunday … bit 6 = Saturday
          "from": 1320, "to": 420,               // 0–1439, minutes after midnight, wall clock in timeZone
          "timeZone": "Europe/Stockholm",        // IANA name, ≤ 64 characters, known to the server
-         "mentions": true }                     // let mentions, replies, alert words, DMs and calls through, silently
+         "mentions": true,                      // let mentions, replies, alert words, DMs and calls through, silently
+         "digest": true }                       // optional, default true: a summary when they end (see Quiet hours digest)
 ```
 
 | type | body | result | who |
@@ -3746,6 +3747,37 @@ How the other voice features behave in an encrypted voice channel:
 What it doesn't hide: the server (and LiveKit) still see who is in the room, when, who speaks and how much (packet
 sizes and timing), mute and camera state, and soundboard plays. Everyone holding the key can decrypt everyone's media,
 so a member's app could forward or record what it hears, as in any call.
+
+## Quiet hours digest
+
+When quiet hours end, people catch up with one summary instead of a pile of notifications. `Quiet` (see
+[Keyword alerts and quiet hours](#keyword-alerts-and-quiet-hours)) gains `digest` (bool, optional, default `true`;
+`alerts.get` always returns it; older servers ignore it). No new requests or events.
+
+- **The stretch.** A server that stores a member's quiet hours (only where push is on for one of their devices) notes
+  when the current quiet stretch began: at the minute it began by the schedule (at most 7 days back), as soon as it sees
+  it running (checked every 30 seconds, and on `alerts.set`). The stretch ends when the schedule ends (in its own time
+  zone, across clock changes), or at once when `alerts.set` turns quiet hours off (`quiet: null`) or moves them off
+  the present moment.
+- **The push.** When a stretch ends, if `digest` isn't `false` (for quiet hours turned off: the value they had), the
+  server counts its own items from the stretch, as the member can see them now: pings in its [inbox](#inbox)
+  (`mentions`: kinds `mention`, `reply`, `role`, `everyone`; `keywords`: `keyword`; `follows`: `follow`) in channels
+  they can still read, DMs and group messages from others (`messages`; never their content: the server can't read
+  them), [reminders](#reminders) that came due (`reminders`) and [events](#scheduled-events) they're interested in and can see that
+  started or start within an hour after the end (`events`); nothing from or to people either of them blocked. Only if
+  anything counted, each device that isn't looking at Iskra gets one push, without a sound:
+  `{ kind: "digest", tag: "digest", title: "While it was quiet", body: "2 mentions, 1 message", text: { title: "digest",
+  body: "digestBody", args: { mentions, messages, keywords, follows, events, reminders } }, silent: true }` (TTL 12
+  hours, never merged). [Do not disturb](#presence-and-custom-status) still stops it. A click opens the server. Each server sums up only
+  its own items; the apps show one card across all servers (below).
+- **The apps.** Every open device shows a "While it was quiet" card when quiet hours end there (or the next time it
+  opens, within a day), gathered on the device across every connected server: mentions and replies, DMs and groups
+  (counts and who, never content), alert words, follows, events, due reminders, each opening its place; a server that
+  is offline is listed as such. Dismissing it records the stretch as seen in the sealed `alerts` preference
+  (`digestSeen`, the end time), so the card closes on the account's other devices too. "Summary when quiet hours end"
+  (`digest`) turns off both the card and the push.
+- Storage: `alert_settings.quiet_since` (migration `quietdigest-1`), deleted with the rest of the alert settings (leaving,
+  removal, deleting the account); in "Download my data" under `alertSettings`.
 
 ## Public page
 
