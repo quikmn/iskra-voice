@@ -73,6 +73,29 @@ public class JoinGatingTests
     }
 
     [Fact]
+    public async Task A_pending_joiners_data_export_has_their_join_request_without_the_invite_code()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var code = await ApprovalInvite(owner);
+        using var sam = new TestIdentity();
+        Assert.Equal("join_pending", (await Attempt(server, sam, "Sam", code)).Reply.ErrorCode());
+
+        // Not a member yet, but the server holds something about them: the owner can answer a data request.
+        var made = await owner.RequestAsync("data.export", new { accountKey = sam.AccountKey });
+        Assert.Equal("result", made.Type());
+        var data = await ComplianceTests.Download(server, made.Body());
+        var request = Assert.Single(data.GetProperty("joinRequest").EnumerateArray());
+        Assert.Equal("Sam", request.GetProperty("name").GetString());
+        Assert.Equal(code[^6..], request.GetProperty("invite_tail").GetString());
+        Assert.Equal("member", request.GetProperty("role").GetString());
+        Assert.True(request.GetProperty("requested_at").GetInt64() > 0);
+        Assert.Equal(JsonValueKind.Null, request.GetProperty("declined_at").ValueKind);
+        Assert.Empty(data.GetProperty("membership").EnumerateArray());
+        Assert.DoesNotContain(code, data.GetRawText()); // never the whole invite
+    }
+
+    [Fact]
     public async Task Declined_joiners_are_turned_away_and_the_use_stays_spent()
     {
         using var server = new IskraServer();

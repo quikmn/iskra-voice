@@ -99,9 +99,9 @@ public sealed partial class Store
 
     // ── Export ───────────────────────────────────────────────────────────────
 
-    /// <summary>A member, banned, rotated, deleted or former account this server still has something about.</summary>
+    /// <summary>A member, banned, rotated, deleted or former account this server still has something about, or someone waiting to join.</summary>
     public bool KnowsAccount(string accountKey) =>
-        KeyKnown(accountKey) || GetDeletion(accountKey) is not null
+        KeyKnown(accountKey) || GetDeletion(accountKey) is not null || GetJoinRequest(accountKey) is not null
         || Scalar("SELECT 1 FROM messages WHERE author_key = $k LIMIT 1;", ("$k", accountKey)) is not null;
 
     /// <summary>

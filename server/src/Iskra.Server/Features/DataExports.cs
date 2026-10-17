@@ -119,6 +119,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         }
 
         Section("membership", $"SELECT account_key, name, role, joined_at FROM members WHERE account_key {Mine};");
+        // Asked to join through an approval invite (JoinFeature): the invite only by its tail, never the whole code.
+        Section("joinRequest", $"SELECT account_key, name, substr(invite_code, -6) AS invite_tail, role, requested_at, declined_at FROM join_requests WHERE account_key {Mine};");
         Section("nickname", $"SELECT account_key, nick FROM nicknames WHERE account_key {Mine};");
         Section("customRoles", $"SELECT mr.account_key, r.id, r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.account_key {Mine};");
         Section("profile", $"SELECT account_key, bio, pronouns, accent, avatar_file FROM profiles WHERE account_key {Mine};");
@@ -223,6 +225,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         data.json holds everything this server keeps about your account, by section:
 
         - membership, nickname, customRoles, profile, profilePage, presence: who you are on this server.
+        - joinRequest: if you asked to join through an invite that needs a moderator's approval and they haven't decided
+          (or turned you away in the last day): your name, the last characters of the invite, its role, when you asked.
         - syncedSettings, notificationSettings, rulesAccepted, blockList: your settings as the server keeps them.
         - alertSettings: alert words and follows (people and roles, per channel) you asked this server to watch for while
           Iskra is closed (only if you turned that on), and your quiet hours (days, times and time zone; only where your
