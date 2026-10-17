@@ -93,6 +93,8 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<EventScheduler>())
 builder.Services.AddHostedService<ModerationSweeper>();
 builder.Services.AddHostedService<ProductivityScheduler>();
 builder.Services.AddHostedService<QuietDigestScheduler>();
+builder.Services.AddSingleton<BuiltinBotRuntime>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<BuiltinBotRuntime>());
 builder.Services.AddSingleton<AfkSweeper>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AfkSweeper>());
 builder.Services.AddSingleton<TeamSweeper>();

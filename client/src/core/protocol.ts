@@ -2015,7 +2015,7 @@ export interface Requests {
 
 // ── built-in bots ──
 
-export type BuiltinBotId = 'dice' | 'polls' | 'reminders'
+export type BuiltinBotId = 'dice' | 'polls' | 'reminders' | MoreBuiltinBotId
 
 export interface BuiltinBot {
   id: BuiltinBotId
@@ -2032,6 +2032,7 @@ export type BuiltinReply = { bot: BuiltinBotId; for: string } & (
   | { kind: 'remind'; dueAt: number }
   | { kind: 'remind.usage' }
   | { kind: 'error'; error: { code: string; message: string; key?: string | null; args?: Record<string, unknown> | null } }
+  | MoreBuiltinReply
 )
 
 export interface Member {
@@ -2053,6 +2054,40 @@ export interface Events {
 
 export interface Requests {
   'builtin.bots.set': [{ bot: BuiltinBotId; enabled: boolean }, { bots: BuiltinBot[] }]
+}
+
+// ── more built-in bots (Starboard, Birthdays, Welcome) ──
+
+export type MoreBuiltinBotId = 'starboard' | 'birthdays' | 'welcome'
+
+export type MoreBuiltinReply =
+  | { kind: 'star'; emoji: string; count: number; channelId: number; channelName: string; messageId: number; at: number; excerpt: string;
+      image: { url: string; width: number | null; height: number | null } | null }
+  | { kind: 'birthday'; people: string[] }
+  | { kind: 'birthday.set'; month: number; day: number }
+  | { kind: 'birthday.removed' }
+  | { kind: 'birthday.list'; upcoming: { accountKey: string; month: number; day: number }[] }
+  | { kind: 'birthday.usage' }
+  | { kind: 'welcome'; memberCount: number; text: string | null }
+  | { kind: 'welcome.batch'; count: number; people: string[]; memberCount: number }
+  | { kind: 'welcome.private'; text: string }
+
+export interface StarboardConfig { channelId: number | null; emoji: string; threshold: number }
+export interface BirthdayConfig { channelId: number | null; time: string; timeZone: string | null; serverTimeZone: string }
+export interface WelcomeConfig { channelId: number | null; message: string; privateMessage: string }
+export interface BuiltinConfigs { starboard: StarboardConfig; birthdays: BirthdayConfig; welcome: WelcomeConfig }
+
+export interface Birthday { month: number; day: number }
+
+export interface Requests {
+  'builtin.bots.config.get': [{ bot: MoreBuiltinBotId }, { bot: MoreBuiltinBotId; config: BuiltinConfigs[MoreBuiltinBotId] }]
+  'builtin.bots.config.set': [
+    { bot: MoreBuiltinBotId } & Partial<Omit<StarboardConfig & BirthdayConfig & WelcomeConfig, 'serverTimeZone'>>,
+    { bot: MoreBuiltinBotId; config: BuiltinConfigs[MoreBuiltinBotId] },
+  ]
+  'birthday.get': [Record<string, never>, { birthday: Birthday | null }]
+  'birthday.set': [Birthday, { birthday: Birthday }]
+  'birthday.remove': [Record<string, never>, { birthday: null }]
 }
 
 // ── bot interactions ──

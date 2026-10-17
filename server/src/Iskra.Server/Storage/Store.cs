@@ -367,6 +367,8 @@ public sealed partial class Store : IDisposable
         ("buddybackup-1", BuddyBackupMigration),
         // Activities: bundles admins added, built-ins turned off, channels without activities, who may start one.
         ("activities-1", ActivitiesMigration),
+        // Starboard, Birthdays and Welcome: their settings, cards, opted-in birthdays and welcomes waiting for the rules.
+        ("builtinbots2-1", BuiltinBots2Migration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

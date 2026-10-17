@@ -2682,18 +2682,18 @@ external process is involved.
 
 | type | body | result | who |
 |---|---|---|---|
-| `builtin.bots.set` | `bot: "dice" \| "polls" \| "reminders"`, `enabled: bool` | `{ bots: [BuiltinBot] }` | admins (`forbidden`, key `builtin_bots_admin`) |
+| `builtin.bots.set` | `bot: "dice" \| "polls" \| "reminders"` (or one of [these](#starboard-birthdays-and-welcome)), `enabled: bool` | `{ bots: [BuiltinBot] }` | admins (`forbidden`, key `builtin_bots_admin`) |
 
 ```jsonc
 BuiltinBot { "id": "dice", "accountKey": "<b64u>" | null, "enabled": true }
 ```
 
-- `welcome.builtinBots: [BuiltinBot]` lists all three, in that order. `accountKey` is null until the bot is first turned
+- `welcome.builtinBots: [BuiltinBot]` lists them all, in that order (then Starboard, Birthdays, Welcome). `accountKey` is null until the bot is first turned
   on; from then on it stays the same (turned off and on again, it's the same member, so its old messages keep their
   author). Event `builtin.bots { bots }` goes to everyone on a change, next to the usual `member.joined` and
   `bot.commands` (on) or `member.removed` (off). Turning on a bot that's on (or off one that's off) changes nothing.
 - The bot's key is a fresh Ed25519 public key whose private key is never kept, so nobody can sign in as it.
-- Members carry `builtin: "dice" | "polls" | "reminders" | null`; built-in bots always show as online. Kicking one is
+- Members carry `builtin: "dice" | "polls" | "reminders" | "starboard" | "birthdays" | "welcome" | null`; built-in bots always show as online. Kicking one is
   the same as turning it off. Rate limit: 10, then one a second.
 
 ### Commands
@@ -4158,3 +4158,85 @@ account keys; a person keeps their id for the whole session (on another device t
 **Your data:** `data.export` gains `activitiesAdded` (the activities you added: id, name, when). What activities send is
 never stored, so there is nothing else to export or delete. Deleting an account keeps the activities it added (they
 belong to the server) and clears who added them (`addedBy` becomes `""`).
+
+## Starboard, Birthdays and Welcome
+
+Three more [built-in bots](#built-in-bots) that act on what happens rather than (only) on a command: **Starboard**,
+**Birthdays** (`/birthday`) and **Welcome**. They're turned on and off like the others (`builtin.bots.set`, `bot:
+"starboard" | "birthdays" | "welcome"`), are bot members like the others (role, channel overrides, `builtin` on the
+member) and are listed after them in `welcome.builtinBots`. Each posts in **one text channel an admin picks**, as long
+as the bot can see it (its role and the channel's overrides), it isn't [encrypted](#end-to-end-encrypted-channels) and
+the bot isn't timed out; otherwise it stays quiet. It needn't be able to write there (a read-only `#starboard` works).
+Turned on, Starboard uses a text channel called `starboard` (made if missing: members read, admins write; audit
+`channel.create`); Birthdays and Welcome start in the first text channel members can read. Settings stay when a bot is
+turned off.
+
+| type | body | result | who |
+|---|---|---|---|
+| `builtin.bots.config.get` | `bot: "starboard" \| "birthdays" \| "welcome"` | `{ bot, config }` | admins (`forbidden`, key `builtin_bots_config_admin`); other bots: `bad_request`, key `builtin_bot_no_settings` |
+| `builtin.bots.config.set` | `bot`, and any of that bot's fields below | `{ bot, config }` | admins; audit `builtin.bot.config` (`{ bot, changed: [field] }`, never the text) |
+| `birthday.get` | | `{ birthday: { month, day } \| null }` | anyone (their own) |
+| `birthday.set` | `month` (1–12), `day` (1–31, a real date; 29 February allowed) | `{ birthday }` | anyone but bots (`birthday_bot`), while Birthdays is on (`bad_request`, key `birthdays_off`); not a date: `birthday_date` |
+| `birthday.remove` | | `{ birthday: null }` | anyone (their own; works while the bot is off too) |
+
+```jsonc
+StarboardConfig { "channelId": 12 | null, "emoji": "⭐", "threshold": 3 }              // threshold 1–50; emoji as for chat.react
+BirthdayConfig  { "channelId": 3 | null, "time": "09:00", "timeZone": "Europe/Stockholm" | null, "serverTimeZone": "..." }
+WelcomeConfig   { "channelId": 3 | null, "message": "", "privateMessage": "" }        // each ≤ 1000 characters, newlines allowed
+```
+
+- `channelId` (all three): a text channel the admin can read, not encrypted (`bad_request`, key `builtin_bot_channel`;
+  unknown or unreadable: `not_found`); `null` turns posting off. `time`: `HH:MM` (`builtin_bot_time`). `timeZone`: an
+  IANA zone (as for events), `null` for the server's own (`serverTimeZone`, read-only). `emoji`: invalid is
+  `builtin_bot_emoji`. Templates over 1000 characters: `builtin_bot_template` (args `{ max }`); empty means the default.
+- Rate limits: `builtin.bots.config.set` 20 then 2/s, `birthday.set` 5 then one per 2 s, `/birthday` answers 10 then 1/s.
+
+**Starboard.** After every `chat.react` (on or off), `chat.edit` and `chat.delete` of a plain message:
+- The count is the number of different people who reacted with the chosen emoji, **not counting the author or bots**.
+  Bots' messages (the cards too) never go on the board, nor do messages in the board channel itself.
+- At `threshold` the bot posts a card in the board channel, but only when **everyone who can read the board can read
+  the source**: the source (a thread: its parent) isn't encrypted, the bot can read it, no override hides it from any
+  role, its read level is no higher than the board's, and every role an override lets into the board is let into the
+  source too (or the source is open to guests). Otherwise nothing is posted, ever (a private channel never leaks).
+- A card stays once made, also when the count drops below the threshold; its count and excerpt are kept current (the
+  card message is updated in place: `chat.edited`, no edit mark). An edit of the original updates the excerpt. Deleting
+  the original (by hand, retention, disappearing messages or account deletion) deletes the card (`chat.deleted` to the
+  board's readers when done by hand). A card a moderator deletes stays gone. If the source later becomes more private
+  than the board, the card is no longer updated.
+- The card's `builtin`: `{ "bot": "starboard", "kind": "star", "for": "<author>", "emoji", "count", "channelId",
+  "channelName", "messageId", "at", "excerpt" (≤ 300 characters, one line), "image": { "url": "/files/…", "width",
+  "height" } | null }` (the first image attachment). Its text is plain English: `⭐ 3 · Anna in #general: excerpt`.
+  Cards don't push.
+
+**Birthdays.** Only people who opted in are stored: day and month, never a year.
+- `/birthday set <date>` (`14 March`, `March 14`, `14th of March`, `14 mars`, `14/3`, `14.3`; English and Swedish month
+  names, 3+ letters), `/birthday remove` and `/birthday list` (Swedish `sätt`, `ta bort`, `lista` too). Every answer is
+  private: `{ "kind": "birthday.set", "month", "day" }`, `{ "kind": "birthday.removed" }`, `{ "kind": "birthday.list",
+  "upcoming": [{ "accountKey", "month", "day" }] }` (the next 60 days, at most 20, today first), `{ "kind":
+  "birthday.usage" }`.
+- Once the configured time has passed in the configured zone on someone's birthday, the bot posts one greeting for
+  everyone celebrating that day who hasn't had one this calendar year (checked every 10 seconds; a server that was off at
+  that time catches up later the same day). 29 February is celebrated on the 28th in other years. Changing the date
+  doesn't give a second greeting the same year. `builtin`: `{ "kind": "birthday", "for": "<first person>", "people":
+  [accountKey] }` (at most 20); text `🎂 It's Anna's birthday today!`. Pushes as an ordinary message (no pings).
+- Leaving, being removed or deleting the account deletes the birthday. `data.export` gains `birthday`.
+
+**Welcome.** Greets people when they actually get in: right after joining with an ordinary invite, when a moderator
+approves them (`join.approve`), or, when the server asks members to agree to the rules, once they first agree
+(`rules.accept`; who's waiting is stored until then). Bots and the owner aren't greeted.
+- `message` is a template: `{name}` (becomes a mention of the newcomer, `<@accountKey>`), `{server}` (the server's
+  name), `{memberCount}` (people, not bots); markdown like any message. Empty: the default greeting.
+- One greeting goes out at once; anyone else getting in within the next minute is gathered, and when the minute is up
+  one line greets them all (`welcome.batch`) instead of one post each, so a raid can't flood the channel. Greetings
+  don't push.
+- `privateMessage` (if set) is also sent to the newcomer alone as a [private answer](#answering) in that channel once
+  they're online (within 15 minutes; never stored).
+
+```jsonc
+{ "kind": "welcome", "for": "<newcomer>", "memberCount": 12, "text": "Welcome <@…>!" | null }   // null: the default greeting
+{ "kind": "welcome.batch", "for": "<first>", "count": 7, "people": ["<accountKey>", ...], "memberCount": 19 }  // people: at most 10
+{ "kind": "welcome.private", "for": "<newcomer>", "text": "..." }
+```
+
+Migration `builtinbots2-1`: `builtin_bot_config`, `starboard_cards` (with a trigger that deletes a card with its
+original), `birthdays` and `welcome_pending` (both deleted with the member).
