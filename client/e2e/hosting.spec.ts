@@ -161,7 +161,7 @@ test('carrier-grade NAT gets a clear explanation and a rented server as the quic
   await expect(owner.getByText("You're behind CGNAT")).toBeVisible()
   await expect(owner.getByTestId('host-findings')).toHaveAttribute('data-nat', 'cgnat')
   const help = owner.getByTestId('cgnat-help')
-  await expect(help.getByTestId('ownership-note')).toHaveText("Your server, your choice. Iskra gets nothing from this; it's just a guide.")
+  await expect(help.getByTestId('ownership-note')).toHaveText("Your server, your choice. Iskra charges nothing; it's just a guide.")
   await expect(help).toContainText("Port forwarding on your own router can't help")
   await expect(help).toContainText('only the person who hosts needs an open connection')
   // Quickest first: rent a small server, check, ask the provider, Tailscale, let a friend host.
@@ -206,7 +206,7 @@ test('carrier-grade NAT gets a clear explanation and a rented server as the quic
   // Use Tailscale: why, what it sees, that it's free, the steps, and an invite with the Tailscale address.
   await options.nth(3).getByRole('button', { name: 'Show me how' }).click()
   const guide = owner.getByRole('dialog', { name: 'Use Tailscale (free)' })
-  await expect(guide.getByTestId('ownership-note')).toHaveText("Your server, your choice. Iskra gets nothing from this; it's just a guide.")
+  await expect(guide.getByTestId('ownership-note')).toHaveText("Your server, your choice. Iskra charges nothing; it's just a guide.")
   await expect(guide).toContainText('shares one internet address between many homes')
   await expect(guide).toContainText('as if they were on the same network')
   await expect(guide).toContainText('up to 6 people and as many devices as you like')

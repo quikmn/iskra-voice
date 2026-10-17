@@ -80,7 +80,7 @@
 
 <div class="md">
 <blockquote>
-<p><strong>Your server, your choice.</strong> Iskra gets nothing from any of this; this is just a guide.</p>
+<p><strong>Your server, your choice.</strong> Iskra charges nothing; this is just a guide. The one exception: the app's DigitalOcean sign-up link is Iskra's referral link (Iskra gets a little DigitalOcean credit, you pay nothing extra), and the app says so.</p>
 </blockquote>
 <p>An Iskra server is <strong>a folder</strong>. Everything lives in it: settings, members, messages, files and keys. Back it up from the app with one click and restore it on any machine (see <a href="#backups-moving-and-importing">Backups, moving and importing</a>).</p>
 <p>There are three ways to run one:</p>
@@ -416,7 +416,7 @@ ExecReload=+/bin/systemctl --no-block restart %n
 </table></div>
 <h3 id="use-tailscale-free">Use Tailscale (free)<a class="anchor" href="#use-tailscale-free" aria-hidden="true" tabindex="-1">#</a></h3>
 <blockquote>
-<p><strong>Your server, your choice.</strong> Iskra gets nothing from this; it's just a guide.</p>
+<p><strong>Your server, your choice.</strong> Iskra charges nothing; it's just a guide.</p>
 </blockquote>
 <p><strong>Why you need this.</strong> Your internet provider shares one internet address between many homes (this is called CGNAT). That's normal, but it means nobody outside can reach a server on your computer, and opening ports can't fix it. <a href="https://tailscale.com" target="_blank" rel="noopener">Tailscale</a> is a free app that connects your group's computers and phones as if they were on the same network, so your friends can reach your Iskra server directly.</p>
 <p><strong>What it costs and what it sees.</strong> Tailscale's Personal plan is free for personal, non-commercial use: up to 6 people and as many devices as you like. You share only the computer that runs your server, and each friend uses their own free Tailscale account (terms checked 2026-10-12 on <a href="https://tailscale.com/pricing" target="_blank" rel="noopener">tailscale.com/pricing</a>; they can change). Tailscale sees which devices connect to which, and when, not what you say, write or share: that travels encrypted (WireGuard). It tries a direct connection first and falls back to Tailscale's relays, so it works even when everyone is behind CGNAT. Tailscale is a separate company's service: Iskra doesn't run it, isn't part of your account and never sees it, and you can remove it any time.</p>

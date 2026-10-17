@@ -1,6 +1,6 @@
 # Hosting an Iskra server
 
-> **Your server, your choice.** Iskra gets nothing from any of this; this is just a guide.
+> **Your server, your choice.** Iskra charges nothing; this is just a guide. The one exception: the app's DigitalOcean sign-up link is Iskra's referral link (Iskra gets a little DigitalOcean credit, you pay nothing extra), and the app says so.
 
 An Iskra server is **a folder**. Everything lives in it: settings, members, messages, files and keys. Back it up from the app with one click and restore it on any machine (see [Backups, moving and importing](#backups-moving-and-importing)).
 
@@ -283,7 +283,7 @@ Prefer to forward ports yourself? Set `"PortMapping": false` and your `Domain` i
 
 ### Use Tailscale (free)
 
-> **Your server, your choice.** Iskra gets nothing from this; it's just a guide.
+> **Your server, your choice.** Iskra charges nothing; it's just a guide.
 
 **Why you need this.** Your internet provider shares one internet address between many homes (this is called CGNAT). That's normal, but it means nobody outside can reach a server on your computer, and opening ports can't fix it. [Tailscale](https://tailscale.com) is a free app that connects your group's computers and phones as if they were on the same network, so your friends can reach your Iskra server directly.
 

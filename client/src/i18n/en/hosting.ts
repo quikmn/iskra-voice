@@ -1,7 +1,7 @@
 // Easy hosting (English): the setup wizard, "Keep my server running", reachability, port forwarding and
 // what to do behind a shared (CGNAT) connection. Keep in step with ../sv/hosting.ts.
 export const hosting = {
-  ownership: "Your server, your choice. Iskra gets nothing from this; it's just a guide.",
+  ownership: "Your server, your choice. Iskra charges nothing; it's just a guide.",
   wizard: {
     stepName: 'Name',
     stepTemplate: 'Channels',
