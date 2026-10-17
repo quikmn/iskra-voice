@@ -7,6 +7,7 @@ export const app: Messages['app'] = {
   skipToContent: 'Hoppa till huvudinnehållet',
   spoiler: 'Spoiler, klicka för att visa',
   openInApp: 'Har du Iskra-appen? <a>Öppna i appen</a>',
+  backAgainToLeave: 'Tryck bakåt igen för att lämna',
   crash: {
     title: 'Något gick fel här',
     appText: 'Iskra stötte på ett problem den inte kom förbi. Oftast hjälper det att ladda om; dina meddelanden och inställningar är kvar.',

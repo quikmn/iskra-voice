@@ -39,6 +39,7 @@ public static class MemberFeature
 
         s.World.Store.SetMemberRole(target.AccountKey, role);
         if (role != target.Role) Audit.Record(s, "member.role", target.AccountKey, details: new { from = target.Role, to = role });
+        if (role != target.Role) s.Hub.Outhooks?.MemberUpdated(target.AccountKey, "role");
         var member = s.Hub.PublicMember(target with { Role = role });
         s.Hub.Broadcast(Frames.Event("member.updated", new { member }));
         s.Hub.RefreshChannels(target.AccountKey);

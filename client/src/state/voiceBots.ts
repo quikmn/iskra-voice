@@ -16,6 +16,6 @@ onServerEvent((serverKey, type, body) => {
   const { channelId } = body as Events['voice.disconnected']
   void import('./voice').then(({ leaveVoice, useVoice }) => {
     const session = useVoice.getState().session
-    if (session?.serverKey === serverKey && session.channelId === channelId && !session.call && !session.group) void leaveVoice()
+    if (session?.serverKey === serverKey && session.channelId === channelId && !session.call && !session.group) void leaveVoice('kicked')
   })
 })

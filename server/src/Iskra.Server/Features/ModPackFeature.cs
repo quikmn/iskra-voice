@@ -23,7 +23,7 @@ public static class ModPackFeature
     public static readonly string[] HistoryActions =
     [
         "member.warn", "member.timeout", "member.timeout.remove", "member.kick", "member.ban", "member.unban",
-        "message.delete", "automod.block", "report.resolve", "join.approve",
+        "message.delete", "automod.block", "report.resolve", "join.approve", "member.join",
     ];
 
     public static void Register(Router router)
@@ -81,6 +81,7 @@ public static class ModPackFeature
         {
             s.Hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id, channelId = channel.Id }));
             ForumFeature.RootDeleted(s, channel, id);
+            s.Hub.Outhooks?.MessageDeleted(channel, id);
         }
         ThreadFeature.Touched(s, channel);
         return new { deleted = deleted.Count };
@@ -101,6 +102,7 @@ public static class ModPackFeature
             {
                 s.Hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id, channelId = channel.Id }));
                 ForumFeature.RootDeleted(s, channel, id);
+                s.Hub.Outhooks?.MessageDeleted(channel, id);
             }
             ThreadFeature.Touched(s, channel);
         }

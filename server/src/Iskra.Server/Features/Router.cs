@@ -99,6 +99,9 @@ public sealed class Router
         LandingFeature.Register(this);
         BuddyBackupFeature.Register(this);
         ActivitiesFeature.Register(this);
+        VoiceStatusFeature.Register(this);
+        WebhookSigningFeature.Register(this);
+        InviteTrackFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

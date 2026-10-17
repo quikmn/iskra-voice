@@ -2,6 +2,8 @@
 // voice, crashes, updates). Nothing here is ever free text: every entry is checked against an allowlist of kinds and
 // fields with tight patterns, so message text, names, keys, addresses and links can't get in. Lost on reload.
 
+import { VOICE_LEFT_REASONS, type VoiceLeftReason } from '../voiceLeft'
+
 export const MAX_ENTRIES = 500
 export const MAX_AGE_MS = 30 * 60_000
 
@@ -12,7 +14,8 @@ export type DiagEntry =
   /** `server`: a number per server in this session (1, 2, …), never its key, name or address. */
   | { at: number; kind: 'connection'; server: number; state: ConnState; code?: string; retryMs?: number }
   | { at: number; kind: 'request'; type: string; code: string }
-  | { at: number; kind: 'voice'; state: VoiceState; call?: 'channel' | 'dm' | 'group'; engine?: string }
+  /** `reason`: why a session ended (`left` only): see VoiceLeftReason. */
+  | { at: number; kind: 'voice'; state: VoiceState; call?: 'channel' | 'dm' | 'group'; engine?: string; reason?: VoiceLeftReason }
   /** An error's class name ("TypeError") and where it was thrown (a bundle file and line), never its message. */
   | { at: number; kind: 'error'; source: 'window' | 'promise' | 'render'; name: string; frame?: string }
   | { at: number; kind: 'update'; state: string; version?: string }
@@ -60,6 +63,7 @@ export function sanitizeEntry(raw: unknown): DiagEntry | null {
       const entry: DiagEntry = { at, kind: 'voice', state: r.state }
       if (isIn(CALLS, r.call)) entry.call = r.call
       if (matches(ENGINE, r.engine)) entry.engine = r.engine
+      if (r.state === 'left' && isIn(VOICE_LEFT_REASONS, r.reason)) entry.reason = r.reason
       return entry
     }
     case 'error': {

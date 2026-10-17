@@ -148,6 +148,7 @@ export const roles: Messages['roles'] = {
     send: 'Skicka meddelanden',
     connect: 'Ansluta',
     speak: 'Prata',
+    setVoiceStatus: 'Sätta röstkanalens status',
   },
   overridesTitle: 'Behörigheter per roll',
   overridesIntro: 'Utöver vem som kan läsa och skriva. Om en roll tillåter något vinner det över en annan rolls nej.',

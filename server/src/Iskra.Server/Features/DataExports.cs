@@ -208,7 +208,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             FROM scheduled_messages WHERE account_key {Mine} ORDER BY id;
             """);
         Section("inbox", $"SELECT account_key, message_id, channel_id, kind, created_at FROM inbox_items WHERE account_key {Mine} ORDER BY message_id;");
-        Section("invitesCreated", $"SELECT created_by, created_at, expires_at, max_uses, uses, role, revoked FROM invites WHERE created_by {Mine};");
+        Section("invitesCreated", $"SELECT created_by, created_at, expires_at, max_uses, uses, role, revoked, label FROM invites WHERE created_by {Mine};");
+        Section("joinedVia", $"SELECT account_key, invite_id, label, created_by, role, approved_by, joined_at FROM member_invites WHERE account_key {Mine};");
         Section("outgoingWebhooksCreated", $"SELECT id, name, url, events, created_by, created_at FROM outgoing_webhooks WHERE created_by {Mine};");
         Section("serverImagesSet", $"SELECT kind, file_id, set_by, set_at FROM server_images WHERE set_by {Mine};");
         Section("activitiesAdded", $"SELECT id, name, version, size, files, enabled, added_by, added_at FROM activities WHERE added_by {Mine} ORDER BY added_at;");
@@ -234,6 +235,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         - membership, nickname, customRoles, profile, profilePage, presence: who you are on this server.
         - joinRequest: if you asked to join through an invite that needs a moderator's approval and they haven't decided
           (or turned you away in the last day): your name, the last characters of the invite, its role, when you asked.
+        - joinedVia: the invite you joined with, as moderators see it: its id (not the link), label, who made it, its
+          role, who let you in if it needed approval, and when.
         - syncedSettings, notificationSettings, rulesAccepted, blockList: your settings as the server keeps them.
         - alertSettings: alert words and follows (people and roles, per channel) you asked this server to watch for while
           Iskra is closed (only if you turned that on), and your quiet hours (days, times and time zone; only where your

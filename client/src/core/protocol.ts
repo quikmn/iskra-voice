@@ -159,7 +159,7 @@ export interface Requests {
   /** `deleteMessagesMs`: also delete what they wrote in the last 24 h or 7 d (see "Mod pack"). Works on someone who left too. */
   'member.ban': [{ accountKey: string; reason?: string; deleteMessagesMs?: number }, { deletedMessages?: number }]
   'member.unban': [{ accountKey: string }, Record<string, never>]
-  'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean; approve?: boolean }, { invite: Invite }]
+  'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean; approve?: boolean; label?: string }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
   'voice.join': [{ channelId: number }, { url: string; token: string; room: string; channelId?: number; canSpeak: boolean; canHear?: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }]
@@ -1117,7 +1117,7 @@ export type Permission =
   | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers' | 'manageAutoMod'
   | 'prioritySpeaker' | 'sendTts'
 
-export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak'
+export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak' | 'setVoiceStatus'
 
 /** A custom role. Position 1 is the lowest. */
 export interface ServerRole {
@@ -1960,6 +1960,8 @@ export interface Requests {
 // See "Outgoing webhooks" in PROTOCOL.md.
 
 export type OutHookEvent = 'message.created' | 'reaction.added' | 'member.joined' | 'member.left' | 'event.started'
+  | 'voice.joined' | 'voice.left' | 'thread.created' | 'member.updated' | 'role.created' | 'role.updated' | 'role.deleted'
+  | 'channel.created' | 'channel.updated' | 'channel.deleted' | 'message.updated' | 'message.deleted'
 
 export type OutHookOutcome = 'ok' | 'http' | 'timeout' | 'network' | 'blocked' | 'redirect' | 'rate_limited' | 'queue_full' | 'too_large'
 
@@ -2823,6 +2825,55 @@ export interface Requests {
 export interface Message {
   /** Sent with /tts: read aloud for people who turned on "Play /tts messages" (PROTOCOL.md "Text to speech"). */
   tts?: boolean | null
+}
+
+// ── voice channel status ──
+
+/** A voice channel's status ("CS2 ranked"), set by someone in the call; gone when the call empties. */
+export interface VoiceStatus {
+  text: string
+  setBy: string
+  setAt: number
+}
+
+export interface VoiceChannelState {
+  /** Missing from older servers. */
+  status?: VoiceStatus | null
+}
+
+export interface Requests {
+  /** Empty `text` clears it. */
+  'voice.status.set': [{ channelId: number; text: string }, { status: VoiceStatus | null }]
+}
+
+// ── invite tracking and webhook formats ──
+// See "Invite tracking" and "Webhook formats" in PROTOCOL.md.
+
+export interface Invite {
+  /** A public id derived from the code: names the invite without letting anyone join with it. */
+  id?: string
+  /** What its maker called it ("Reddit post"), or null. */
+  label?: string | null
+}
+
+/** Which invite a current member joined with (moderators only). */
+export interface JoinedVia {
+  accountKey: string
+  joinedAt: number
+  invite: { id: string; label: string | null; createdBy: string | null; createdByName: string | null; role: Role }
+  approvedBy: string | null
+  approvedByName: string | null
+}
+
+export interface Webhook {
+  /** A signing secret is set: /github, /gitea and /gitlab posts must be signed with it. */
+  signed?: boolean
+}
+
+export interface Requests {
+  'invite.joins': [{ accountKey?: string; inviteId?: string; limit?: number }, { joins: JoinedVia[] }]
+  /** `secret: ''` removes it. */
+  'webhook.signing.set': [{ id: string; secret: string }, { webhook: Webhook }]
 }
 
 // ── logging: the connection's id in the server's log ──

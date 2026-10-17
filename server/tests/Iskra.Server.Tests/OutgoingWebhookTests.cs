@@ -13,7 +13,7 @@ namespace Iskra.Server.Tests;
 public class OutgoingWebhookTests
 {
     /// <summary>A webhook receiver on 127.0.0.1 for one test: records every request and answers with <see cref="Status"/>.</summary>
-    private sealed class Receiver : IDisposable
+    internal sealed class Receiver : IDisposable
     {
         private readonly HttpListener _listener = new();
         public string Url { get; }
@@ -74,12 +74,12 @@ public class OutgoingWebhookTests
         public void Dispose() => _listener.Close();
     }
 
-    private static IskraServer Server(string retries = "40,40,40", int disableAfter = 10) => new()
+    internal static IskraServer Server(string retries = "40,40,40", int disableAfter = 10) => new()
     {
         Settings = { ["OutgoingWebhooks:RetryDelaysMs"] = retries, ["OutgoingWebhooks:DisableAfter"] = disableAfter.ToString(), ["OutgoingWebhooks:TimeoutMs"] = "3000" },
     };
 
-    private static async Task<(string Id, string Secret)> Create(User owner, string url, string[] events, long[]? channelIds = null, bool allowLocal = true)
+    internal static async Task<(string Id, string Secret)> Create(User owner, string url, string[] events, long[]? channelIds = null, bool allowLocal = true)
     {
         var created = await owner.RequestAsync("outhook.create", new { name = "Bridge", url, events, channelIds = channelIds ?? [], allowLocal });
         Assert.Equal("result", created.Type());
@@ -99,7 +99,7 @@ public class OutgoingWebhookTests
         throw new TimeoutException("The delivery log never got there.");
     }
 
-    private static void AssertSigned((Dictionary<string, string> Headers, string Body) request, string secret)
+    internal static void AssertSigned((Dictionary<string, string> Headers, string Body) request, string secret)
     {
         var timestamp = request.Headers["Iskra-Webhook-Timestamp"];
         var id = request.Headers["Iskra-Webhook-Id"];

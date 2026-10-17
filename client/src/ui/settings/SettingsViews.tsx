@@ -95,33 +95,6 @@ export function SettingsLayer() {
     : <ServerSettings key={`${view.serverKey}:${opened}`} serverKey={view.serverKey} section={view.section} onClose={closeSettings} />
 }
 
-const MARK = 'iskraSettings'
-
-/**
- * The browser/phone back button: an entry in the history while the view is open. `onBack` returns true when the
- * view stays open (a phone section went back to the list), and the entry is put back. Closing any other way marks
- * the entry spent rather than going back (that would race a view opened right after); the next view reuses it.
- */
-function useBackButton(onBack: () => boolean) {
-  const latest = useRef(onBack)
-  useEffect(() => {
-    latest.current = onBack
-  })
-  useEffect(() => {
-    const live = { [MARK]: 'open' }
-    if ((history.state as Record<string, unknown> | null)?.[MARK] === 'spent') history.replaceState(live, '')
-    else history.pushState(live, '')
-    const onPop = () => {
-      if (latest.current()) history.pushState(live, '')
-    }
-    window.addEventListener('popstate', onPop)
-    return () => {
-      window.removeEventListener('popstate', onPop)
-      if ((history.state as Record<string, unknown> | null)?.[MARK] === 'open') history.replaceState({ [MARK]: 'spent' }, '')
-    }
-  }, [])
-}
-
 /** The window title names what's open, while it's open. */
 function useTitle(title: string) {
   useEffect(() => {
@@ -159,16 +132,9 @@ function Takeover<Id extends string>({ kind, label, style, band, crumb, groups, 
   const [picked, setPicked] = useState<Id | null>(initial && all.some((s) => s.id === initial) ? initial : isPhone() ? null : all[0]?.id ?? null)
   // A section can vanish (rights changed); wide screens always show one.
   const current = all.find((s) => s.id === picked) ?? (phone ? null : all[0] ?? null)
-  useEscapeLayer(onClose)
+  // The back button (phone or browser) goes up a level from a phone section page, then closes.
+  useEscapeLayer(onClose, true, { back: () => (phone && current ? setPicked(null) : onClose()) })
   useFocusTrap(ref)
-  useBackButton(() => {
-    if (phone && current) {
-      setPicked(null)
-      return true
-    }
-    onClose()
-    return false
-  })
 
   const closeButton = (
     <button className="icon-button room-close" onClick={onClose} aria-label={t('common.close')} title={t('settings.room.closeHint')}>

@@ -2,10 +2,17 @@
 // delivery reads in the log. See "Outgoing webhooks" in PROTOCOL.md.
 import type { OutHookDelivery, OutHookEvent } from '../core/protocol'
 
-export const OUTHOOK_EVENTS: OutHookEvent[] = ['message.created', 'reaction.added', 'member.joined', 'member.left', 'event.started']
+export const OUTHOOK_EVENTS: OutHookEvent[] = [
+  'message.created', 'message.updated', 'message.deleted', 'reaction.added', 'thread.created', 'voice.joined', 'voice.left',
+  'member.joined', 'member.left', 'member.updated', 'role.created', 'role.updated', 'role.deleted',
+  'channel.created', 'channel.updated', 'channel.deleted', 'event.started',
+]
+
+/** Events about what happens in channels (the server refuses them without channels). */
+export const CHANNEL_EVENTS: OutHookEvent[] = ['message.created', 'message.updated', 'message.deleted', 'reaction.added', 'thread.created', 'voice.joined', 'voice.left']
 
 /** Events that need channels to be picked. */
-export const needsChannels = (events: OutHookEvent[]): boolean => events.some((e) => e === 'message.created' || e === 'reaction.added')
+export const needsChannels = (events: OutHookEvent[]): boolean => events.some((e) => CHANNEL_EVENTS.includes(e))
 
 const PRIVATE_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|\[f[cd][0-9a-f]{2}:|\[::1\])/i
 

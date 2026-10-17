@@ -38,6 +38,7 @@ public sealed class VoiceRegistry
             if (!available) Whisper.Clear();
             if (!available) _rooms.Clear(); // LiveKit restarted: everyone was dropped
             if (!available) _afkForced.Clear();
+            if (!available) Statuses.ClearAll(); // ...and every call's status
             if (!available) Stages.SyncAll(); // ...and every stage ended
             if (!available) Watch.SyncAll(); // ...and every watch party
             if (!available) Features.ActivitiesFeature.SyncAll(hub, world.Store, this); // ...and every activity
@@ -55,6 +56,9 @@ public sealed class VoiceRegistry
 
     /// <summary>Whispers: talking only to chosen people or another voice channel, each in its own LiveKit room.</summary>
     public WhisperRegistry Whisper { get; }
+
+    /// <summary>Voice channel statuses (VoiceStatusFeature): cleared when the call empties.</summary>
+    public VoiceStatusBoard Statuses { get; } = new();
 
     /// <summary>Priority on or off for someone in voice (the caller checked the permission). False if they aren't in voice.</summary>
     public bool SetPriority(string accountKey, bool on)
@@ -228,6 +232,7 @@ public sealed class VoiceRegistry
             afk = _afkForced.ContainsKey(m.AccountKey),
             priority = m.Priority && !m.Muted && !_serverMuted.ContainsKey(m.AccountKey) && !_afkForced.ContainsKey(m.AccountKey),
         }),
+        status = VoiceStatusBoard.Public(Statuses.Get(channelId)),
     };
 
     /// <summary>Voice state for every voice channel this member can see.</summary>
@@ -314,10 +319,15 @@ public sealed class VoiceRegistry
         }
     }
 
+    /// <summary>Sends the channel's voice state again (its status changed).</summary>
+    public void Republish(long channelId) => Publish(channelId);
+
     private void Publish(long channelId)
     {
+        if (Participants(channelId).Count == 0) Statuses.Clear(channelId); // the call emptied: its status goes too
         var channel = world.Store.GetChannel(channelId);
         if (channel is not null) hub.BroadcastToReaders(channel, Frames.Event("voice.state", PublicState(channelId)));
+        hub.Outhooks?.VoicePresence(channelId, channel, Participants(channelId).Select(p => p.AccountKey));
         Stages.Sync(channelId);
         Watch.Sync(channelId);
         Features.ActivitiesFeature.Sync(hub, world.Store, this, channelId);

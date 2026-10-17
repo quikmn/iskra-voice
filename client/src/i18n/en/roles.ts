@@ -147,6 +147,7 @@ export const roles = {
     send: 'Send messages',
     connect: 'Connect',
     speak: 'Speak',
+    setVoiceStatus: 'Set the voice status',
   },
   overridesTitle: 'Permissions by role',
   overridesIntro: "On top of who can read and write. A role's allow wins over another role's deny.",

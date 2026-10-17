@@ -35,6 +35,7 @@ import { ClipsMark } from '../clips/ClipControls'
 import { BotBadge } from '../chat/BotBits'
 import { RoomMarks } from '../rooms/RoomBits'
 import { canEnterRoom, isLobby } from '../../state/roomsLogic'
+import { VoiceStatusLine } from '../voiceStatus/VoiceStatus'
 
 type Drag = { kind: 'channel' | 'category'; id: number }
 type Over = { kind: 'channel' | 'category' | 'top'; id: number; after?: boolean }
@@ -340,6 +341,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
           <More />
         </button>
       </div>
+      <VoiceStatusLine server={server} channelId={channel.id} />
       {participants.length > 0 && (
         <ul className="voice-participants">
           {participants.map((p) => {

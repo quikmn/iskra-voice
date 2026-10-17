@@ -227,6 +227,85 @@ describe('connection: reconnecting', () => {
     expect(FakeSocket.all.length).toBe(count)
   })
 
+  // A desktop user's log: retries 0.5…6.4 s, an InvalidStateError, then no attempt for 13 minutes. Whatever throws
+  // inside one attempt (the socket, a status listener, the address lookup), later attempts must still come.
+  it('keeps retrying when the socket, a status listener or the address lookup throws InvalidStateError', async () => {
+    const invalid = () => Object.assign(new Error('The object is in an invalid state.'), { name: 'InvalidStateError' })
+    const reported: unknown[] = []
+    const original = globalThis.reportError
+    globalThis.reportError = (e: unknown) => void reported.push(e)
+    let mode = 0
+    class ThrowingSocket extends FakeSocket {
+      readyState = 1
+      constructor(url: string) {
+        super(url)
+        if (mode === 1) throw invalid()
+      }
+      send(): void {
+        throw invalid() // a socket that started closing
+      }
+      close(): void {
+        throw invalid()
+      }
+    }
+    const statuses: ConnectionStatus[] = []
+    let lookups = 0
+    const connection = new Connection({
+      serverUrl: 'http://192.168.1.20:47070',
+      identity: {} as Identity,
+      name: () => 'Ann',
+      resolveUrl: () => {
+        lookups++
+        if (mode === 2) throw invalid()
+        return mode === 3 ? Promise.reject(invalid()) : Promise.resolve(null)
+      },
+      onStatus: (s) => {
+        statuses.push(s)
+        if (mode === 4 && s.state === 'offline') throw invalid() // a store subscriber blowing up
+        if (mode === 5 && s.state === 'connecting') throw invalid()
+      },
+      onWelcome: () => undefined,
+      onEvent: () => undefined,
+      WebSocketImpl: ThrowingSocket as unknown as typeof WebSocket,
+    })
+    try {
+      connection.start()
+      await vi.advanceTimersByTimeAsync(0)
+      // A request on a socket that can't send any more fails as "disconnected"; its close reconnects.
+      FakeSocket.all.at(-1)!.welcome()
+      await expect(connection.request('p2p.status', {})).rejects.toMatchObject({ code: 'disconnected' })
+      for (mode = 1; mode <= 5; mode++) {
+        FakeSocket.all.at(-1)!.drop(1006)
+        // Two more attempts each time (each at most 30 s + 30% away), however the failure went.
+        for (let i = 0; i < 2; i++) {
+          const at = lookups
+          const end = Date.now() + 40_000
+          while (lookups === at && Date.now() <= end) await vi.advanceTimersByTimeAsync(100)
+          expect(lookups, `mode ${mode}, attempt ${i}`).toBe(at + 1)
+          await vi.advanceTimersByTimeAsync(0)
+          if (i === 0 && mode >= 2) FakeSocket.all.at(-1)!.drop(1006)
+        }
+      }
+      expect(statuses.filter((s) => s.state === 'offline').length).toBeGreaterThan(5)
+      expect(reported.length).toBeGreaterThan(0) // listener errors still reach the diagnostics
+      connection.stop() // close() throwing doesn't matter either
+    } finally {
+      globalThis.reportError = original
+    }
+  })
+
+  it('retries at once when asked, but never stacks a second attempt on one under way', () => {
+    const { connection, socket } = connect()
+    socket().welcome()
+    socket().drop(1006)
+    const count = FakeSocket.all.length
+    connection.retryNow()
+    expect(FakeSocket.all.length).toBe(count + 1) // the backoff was skipped
+    connection.retryNow()
+    expect(FakeSocket.all.length).toBe(count + 1) // still connecting: no second socket
+    connection.stop()
+  })
+
   it('reads the restart reason defensively', () => {
     expect(restartHint('{"v":1,"reason":"update","etaMs":20000}')).toEqual({ reason: 'update', etaMs: 20000 })
     expect(restartHint('{"v":2,"reason":"restart","extra":true}')).toEqual({ reason: 'restart' })

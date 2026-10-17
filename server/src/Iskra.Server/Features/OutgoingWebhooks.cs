@@ -18,7 +18,7 @@ namespace Iskra.Server.Features;
 /// DNS on every connection), unless the owner allowed the local network for that webhook; never redirects. Retries with
 /// backoff, a delivery log without payloads, and a webhook that keeps failing turns itself off and tells the admins.
 /// </summary>
-public sealed class OutgoingWebhooks : BackgroundService
+public sealed partial class OutgoingWebhooks : BackgroundService
 {
     /// <summary>Signed before the timestamp, delivery id and body, so a signature can't be reused for anything else.</summary>
     public const string Context = "iskra-webhook-v1";
@@ -28,7 +28,16 @@ public sealed class OutgoingWebhooks : BackgroundService
     /// <summary>Deliveries waiting or retrying per webhook; more are dropped.</summary>
     public const int MaxPending = 100;
 
-    public static readonly string[] EventTypes = ["message.created", "reaction.added", "member.joined", "member.left", "event.started"];
+    public static readonly string[] EventTypes =
+    [
+        "message.created", "reaction.added", "member.joined", "member.left", "event.started",
+        "voice.joined", "voice.left", "thread.created", "member.updated", "role.created", "role.updated", "role.deleted",
+        "channel.created", "channel.updated", "channel.deleted", "message.updated", "message.deleted",
+    ];
+
+    /// <summary>Events about what happens in channels: a webhook with any of them must pick channels.</summary>
+    public static readonly string[] ChannelEvents =
+        ["message.created", "reaction.added", "voice.joined", "voice.left", "thread.created", "message.updated", "message.deleted"];
 
     private readonly World _world;
     private readonly Hub _hub;

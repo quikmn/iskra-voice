@@ -81,7 +81,9 @@ const workerUrl = () => `/push-sw.js?lang=${currentLanguage()}`
 
 async function pushRegistrations(): Promise<ServiceWorkerRegistration[]> {
   if (!('serviceWorker' in navigator)) return []
-  return (await navigator.serviceWorker.getRegistrations()).filter((r) => serverOfScope(r.scope) !== null)
+  // The desktop app's app:// page has no service workers: getRegistrations() rejects (InvalidStateError).
+  const regs = await navigator.serviceWorker.getRegistrations().catch(() => [] as readonly ServiceWorkerRegistration[])
+  return regs.filter((r) => serverOfScope(r.scope) !== null)
 }
 
 /** Resolves once the registration has an active worker (subscribing needs one). */
@@ -261,7 +263,7 @@ export function startPush(): () => void {
     order = state.order
     if (!removed.length) return
     void pushRegistrations().then((regs) => {
-      for (const reg of regs) if (removed.includes(serverOfScope(reg.scope)!)) void reg.unregister()
+      for (const reg of regs) if (removed.includes(serverOfScope(reg.scope)!)) void reg.unregister().catch(() => undefined)
     })
     for (const key of removed) setServer(key, null)
   })

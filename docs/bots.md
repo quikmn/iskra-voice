@@ -47,8 +47,25 @@ The body uses the same fields as a Discord webhook, so tools that can post to Di
 
 - `?wait=true` answers with the posted message (JSON) instead of an empty `204`.
 - Forms work too: `curl -d "content=hello" <url>`, or Discord's multipart `payload_json`.
-- **GitHub**: in your repository's *Settings → Webhooks*, use `<url>/github` as the payload URL (content type JSON). Pushes, issues, pull requests, comments, releases and stars become short cards.
 - **Grafana** and other tools with a "Discord" notification type: paste the Iskra URL as the Discord webhook URL.
+
+### GitHub, Gitea, GitLab and Slack
+
+Add a suffix to the URL and Iskra reads that service's own format. Events it doesn't post about are answered `204`, so
+nothing retries.
+
+| Suffix | Where to paste it | What becomes a card |
+|---|---|---|
+| `<url>/github` | Repository *Settings → Webhooks* → Payload URL, content type `application/json` | Pushes, pull requests and issues (opened, closed, merged, reopened), comments, releases, finished workflow runs (failures, and successes of CI/Release/Deploy workflows), stars |
+| `<url>/gitea` | Repository *Settings → Webhooks → Add webhook → Gitea* | The same as GitHub |
+| `<url>/gitlab` | Project *Settings → Webhooks* → URL | Pushes, new tags, merge requests (opened, closed, merged, reopened), issues, comments, finished pipelines (failures, and successes that weren't scheduled). Confidential issues and comments are never posted. |
+| `<url>/slack` | Any tool with a "Slack incoming webhook" option | `text` (Slack's `*bold*`, `<url\|label>` links), `blocks` (headers, sections, context) and old-style `attachments`. Answers `ok`, like Slack. |
+
+**Signing secret.** Click **Signing secret** on the webhook, then **Generate** (or paste your own, 16–256 characters)
+and **Save**, and paste the same secret into GitHub's or Gitea's *Secret* field or GitLab's *Secret token*. Iskra then
+refuses `/github`, `/gitea` and `/gitlab` posts that aren't signed with it (`401`). A webhook with a signing secret is a
+GitHub, Gitea or GitLab webhook: its plain URL and `/slack`, which can't be signed, are refused too, so a leaked URL alone
+can't post anything. The secret is shown only while you set it. Webhooks without one keep working as before.
 
 What's left out on purpose: images, thumbnails and avatar URLs from the payload. Showing them would make every viewer's app fetch a third-party address (revealing their IP). Give the webhook a picture in its settings instead.
 
@@ -58,7 +75,7 @@ What's left out on purpose: images, thumbnails and avatar URLs from the payload.
 |---|---|
 | Message text | Same rules as chat (1–4000 characters, no invisible control characters) |
 | Embeds | Up to 10 per message, 6000 characters in total; titles 256, descriptions 4096, up to 25 fields |
-| Request size | 64 KB (1 MB for `/github`) |
+| Request size | 64 KB (1 MB for `/github`, `/gitea`, `/gitlab`, `/slack`) |
 | Rate limit | Per webhook: 5 messages at once, then one every 2 seconds. Too fast gets `429` with `Retry-After`. |
 | Mentions | Off by default: `@everyone`, `@here` and mentions of members are shown as plain text and ping nobody. Turn on **Can mention people** for a webhook you trust; the payload's `allowed_mentions` can then narrow it further. |
 | Webhooks per channel | 15 |
@@ -71,7 +88,20 @@ The other way round: your server POSTs to a web address when something happens, 
 connection open (a Minecraft chat bridge, Home Assistant, IFTTT, a small script).
 
 In **Server settings → Bots & webhooks → Outgoing**, pick a name, the `https://` address, the events and (for messages
-and reactions) the channels. Events: a new message, a reaction added, a member joined or left, a scheduled event started.
+and the other channel events) the channels. Events:
+
+| Event | When |
+|---|---|
+| `message.created`, `message.updated`, `message.deleted` | A message is posted, edited or deleted in a chosen channel (deleted: only its id) |
+| `reaction.added` | Someone reacts in a chosen channel |
+| `thread.created` | A thread or forum post starts in a chosen channel |
+| `voice.joined`, `voice.left` | Someone joins or leaves a chosen voice channel (who and where, nothing about audio) |
+| `member.joined`, `member.left` | Someone joins or leaves the server |
+| `member.updated` | A member's level, roles or server nickname change (never their profile) |
+| `role.created`, `role.updated`, `role.deleted` | Roles change |
+| `channel.created`, `channel.updated`, `channel.deleted` | Channels everyone can read (or that the webhook lists) change |
+| `event.started` | A scheduled event starts |
+
 Copy the **signing secret** shown once (**New secret** makes another). **Send a test** posts a `ping`, and **Log** shows
 the last 50 attempts (status only, never what was sent). Every member can see the webhook's host under
 **My settings → Privacy & data → Who Iskra talks to**.

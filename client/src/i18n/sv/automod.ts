@@ -26,6 +26,7 @@ export const automod: Messages['automod'] = {
       thread: 'ett trådnamn',
       event: 'ett evenemang',
       watch: 'ett meddelande i Titta tillsammans',
+      voicestatus: 'en status för en röstkanal',
       join: 'en anslutning',
     },
     joins: 'Pausade inbjudningarna: {{count}} personer gick med inom {{minutes}} minuter. En admin återupptar dem under AutoMod eller i inbjudningsdialogen när det lugnat sig.',

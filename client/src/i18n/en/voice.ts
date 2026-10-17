@@ -27,6 +27,7 @@ export const voice = {
     group: 'Group',
     voice: 'voice',
     listeningOnly: 'Listening only',
+    otherDevice: 'You joined voice on your other device.',
   },
   stage: {
     openChannels: 'Open channels',

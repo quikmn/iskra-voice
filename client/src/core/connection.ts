@@ -104,24 +104,25 @@ export class Connection {
     this.rejected = false
     this.restart = null
     this.serverStopped = false
-    this.open()
+    this.tryOpen()
   }
 
   stop(): void {
     this.stopped = true
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
     this.reconnectTimer = null
-    this.socket?.close(1000)
+    safeClose(this.socket)
     this.socket = null
     this.failPending('disconnected', 'Disconnected.')
   }
 
-  /** Reconnect right away (e.g. the browser came back online). */
+  /** Reconnect right away (e.g. the browser came back online, or the app came back to the front). */
   retryNow(): void {
     if (this.stopped || this.rejected || this.ready) return
+    if (this.socket && !this.reconnectTimer) return // an attempt is already under way
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
     this.reconnectTimer = null
-    this.open()
+    this.tryOpen()
   }
 
   get isOnline(): boolean {
@@ -140,12 +141,29 @@ export class Connection {
         reject(new RequestError('timeout', 'The server took too long to answer.', type))
       }, timeoutMs ?? this.options.requestTimeoutMs ?? 15_000)
       this.pending.set(id, { type, resolve: resolve as (b: unknown) => void, reject, timer })
-      socket.send(JSON.stringify({ type, id, body }))
+      try {
+        socket.send(JSON.stringify({ type, id, body }))
+      } catch {
+        // The socket is closing (InvalidStateError): its close event reconnects; this request fails now.
+        clearTimeout(timer)
+        this.pending.delete(id)
+        reject(new RequestError('disconnected', 'Not connected.', type))
+      }
     })
   }
 
   /** Counts attempts, so an address resolved for an attempt that was stopped or superseded meanwhile is dropped. */
   private attempt = 0
+
+  /** One attempt; whatever goes wrong in it (a status listener or the resolver throwing), the next one is scheduled. */
+  private tryOpen(): void {
+    try {
+      this.open()
+    } catch {
+      this.socket = null
+      if (!this.stopped && !this.rejected) this.scheduleReconnect()
+    }
+  }
 
   private open(): void {
     this.ready = false
@@ -156,14 +174,37 @@ export class Connection {
       )
       return
     }
-    this.options.onStatus(this.restartStatus() ?? (this.awaitingApproval ? { state: 'pending' } : { state: 'connecting' }))
     const attempt = ++this.attempt
+    this.status(this.restartStatus() ?? (this.awaitingApproval ? { state: 'pending' } : { state: 'connecting' }))
     if (!this.options.resolveUrl) return this.openSocket(this.options.serverUrl)
     const stillWanted = () => attempt === this.attempt && !this.stopped && !this.rejected
-    this.options.resolveUrl().then(
-      (url) => stillWanted() && this.openSocket(url ?? this.options.serverUrl),
-      () => stillWanted() && this.openSocket(this.options.serverUrl),
-    )
+    const go = (url: string | null) => {
+      if (!stillWanted()) return
+      try {
+        this.openSocket(url ?? this.options.serverUrl)
+      } catch {
+        this.socket = null
+        this.scheduleReconnect()
+      }
+    }
+    let resolving: Promise<string | null>
+    try {
+      resolving = this.options.resolveUrl()
+    } catch {
+      resolving = Promise.resolve(null)
+    }
+    resolving.then(go, () => go(null))
+  }
+
+  /** Tells the app; a listener that throws must never stop the reconnect loop (the caller has already scheduled). */
+  private status(status: ConnectionStatus): void {
+    try {
+      this.options.onStatus(status)
+    } catch (e) {
+      // Report it like an uncaught error (diagnostics see it), without unwinding the connection's own state.
+      if (typeof globalThis.reportError === 'function') globalThis.reportError(e)
+      else console.error(e)
+    }
   }
 
   private openSocket(url: string): void {
@@ -204,7 +245,7 @@ export class Connection {
         this.serverStopped = false
         this.awaitingApproval = false
         this.invite = undefined // we're a member now
-        this.options.onStatus({ state: 'online' })
+        this.status({ state: 'online' })
         this.options.onWelcome(body as unknown as Welcome)
         return
       case 'result':
@@ -222,7 +263,7 @@ export class Connection {
           if (body.code === 'join_pending') {
             // Not a no: a moderator has to let us in. The socket closes; we knock again in a while (handleClose).
             this.awaitingApproval = true
-            this.options.onStatus({ state: 'pending' })
+            this.status({ state: 'pending' })
             return
           }
           // Rejected during the handshake.
@@ -236,6 +277,16 @@ export class Connection {
         return
       default:
         if (frame.type && this.ready) this.options.onEvent(frame.type as keyof Events, body as never)
+    }
+  }
+
+  private send(frame: unknown): void {
+    const socket = this.socket
+    if (!socket || (socket.readyState !== undefined && socket.readyState !== 1)) return // not open: its close event follows
+    try {
+      socket.send(JSON.stringify(frame))
+    } catch {
+      /* closing (InvalidStateError): the close event reconnects */
     }
   }
 
@@ -261,14 +312,16 @@ export class Connection {
     if (presence) body.presence = presence
     const rotations = this.options.rotations?.() ?? []
     if (rotations.length) body.rotations = rotations
-    this.socket?.send(JSON.stringify({ type: 'auth', id: 'auth', body }))
+    this.send({ type: 'auth', id: 'auth', body })
   }
 
   private reject(code: string, message: string, detail?: Record<string, unknown>, key?: string): void {
     this.rejected = true
     this.ready = false
-    this.options.onStatus({ state: 'rejected', code, message, ...(detail ? { detail } : {}), ...(key ? { key } : {}) })
-    this.socket?.close(1000)
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
+    this.reconnectTimer = null
+    safeClose(this.socket)
+    this.status({ state: 'rejected', code, message, ...(detail ? { detail } : {}), ...(key ? { key } : {}) })
   }
 
   private handleClose(code: number, reason = ''): void {
@@ -318,22 +371,23 @@ export class Connection {
     if (restarting) {
       // Fast and steady while the server comes back; jitter so everyone doesn't knock at the same moment.
       this.schedule(Math.round(RESTART_RETRY_MS * (0.75 + Math.random() * 0.5)))
-      this.options.onStatus(restarting)
+      this.status(restarting)
       return
     }
     this.restart = null
     const base = Math.min(MAX_BACKOFF_MS, MIN_BACKOFF_MS * 2 ** this.attempts)
     const delay = Math.round(base * (0.7 + Math.random() * 0.6)) // jitter so clients don't stampede after a restart
     this.attempts++
-    this.options.onStatus({ state: 'offline', retryInMs: delay, ...(this.serverStopped ? { stopped: true } : {}) })
+    // The timer first: nothing the status update does can stop the next attempt.
     this.schedule(delay)
+    this.status({ state: 'offline', retryInMs: delay, ...(this.serverStopped ? { stopped: true } : {}) })
   }
 
   private schedule(delay: number): void {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
-      if (!this.stopped && !this.rejected) this.open()
+      if (!this.stopped && !this.rejected) this.tryOpen()
     }, delay)
   }
 
@@ -343,6 +397,15 @@ export class Connection {
       pending.reject(new RequestError(code, message, pending.type))
     }
     this.pending.clear()
+  }
+}
+
+/** close() on a socket that's already closing or broken must not throw into the reconnect path. */
+function safeClose(socket: WebSocket | null): void {
+  try {
+    socket?.close(1000)
+  } catch {
+    /* already closed */
   }
 }
 

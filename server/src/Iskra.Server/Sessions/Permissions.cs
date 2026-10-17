@@ -61,7 +61,7 @@ public static class Permissions
         var rank = Roles.Rank(member.Role);
         var bits = ChannelPerm.None;
         if (rank >= Roles.Rank(channel.ReadRole)) bits |= ChannelPerm.View | ChannelPerm.Connect;
-        if (rank >= Roles.Rank(channel.WriteRole)) bits |= ChannelPerm.Send | ChannelPerm.Speak;
+        if (rank >= Roles.Rank(channel.WriteRole)) bits |= ChannelPerm.Send | ChannelPerm.Speak | ChannelPerm.SetVoiceStatus;
         if (channel.Overrides.Length > 0 && member.RoleIds.Length > 0)
         {
             ChannelPerm allow = ChannelPerm.None, deny = ChannelPerm.None;
@@ -89,6 +89,10 @@ public static class Permissions
 
     /// <summary>Joining a voice channel (listening).</summary>
     public static bool CanConnect(Member member, Channel channel) => Access(member, channel).HasFlag(ChannelPerm.View | ChannelPerm.Connect);
+
+    /// <summary>Setting the status of a voice channel you're in (VoiceStatusFeature).</summary>
+    public static bool CanSetVoiceStatus(Member member, Channel channel) =>
+        Access(member, channel).HasFlag(ChannelPerm.View | ChannelPerm.Connect | ChannelPerm.SetVoiceStatus);
 
     public static bool CanDeleteMessage(Member actor, Message message, Member? author) =>
         message.AuthorKey == actor.AccountKey || (Has(actor, Perm.ManageMessages) && (author is null || Outranks(actor, author)));

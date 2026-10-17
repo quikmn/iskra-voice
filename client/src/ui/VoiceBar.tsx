@@ -4,7 +4,7 @@ import { hangUp, useCalls } from '../state/calls'
 import { nameOf, openConversation } from '../state/dms'
 import { leaveGroupCall } from '../state/groupCalls'
 import { openGroup, titleOf, useGroups } from '../state/groups'
-import { clearVoiceError, leaveVoice, setStageOpen, toggleDeafen, toggleMute, useVoice } from '../state/voice'
+import { clearVoiceError, clearVoiceNotice, leaveVoice, setStageOpen, toggleDeafen, toggleMute, useVoice } from '../state/voice'
 import { Close, Headphones, HeadphonesOff, Mic, MicOff, PhoneOff } from './icons'
 import { SoundboardButton } from './expressions/Soundboard'
 import { VoicePopoutButton } from './popout/PopoutButtons'
@@ -20,6 +20,7 @@ export function VoiceBar() {
   const muted = useVoice((s) => s.muted)
   const deafened = useVoice((s) => s.deafened)
   const error = useVoice((s) => s.error)
+  const notice = useVoice((s) => s.notice)
   const talking = useVoice((s) => s.localSpeaking)
   const server = useApp((s) => (session ? s.servers[session.serverKey] : null))
   const channel = server?.channels.find((c) => c.id === session?.channelId)
@@ -27,6 +28,15 @@ export function VoiceBar() {
   const group = useGroups((s) => (session?.group ? s.groups[session.group.key] : undefined))
 
   if (!session) {
+    if (!error && notice === 'other_device') {
+      // Not an error: the account moved its voice to another device (one connection per account).
+      return (
+        <div className="voice-bar notice" role="status" data-testid="voice-other-device">
+          <span>{t('voice.bar.otherDevice')}</span>
+          <button className="icon-button small" onClick={clearVoiceNotice} aria-label={t('app.dismiss')}><Close size={14} /></button>
+        </div>
+      )
+    }
     return error ? (
       <div className="voice-bar error" role="alert">
         <span>{error}</span>

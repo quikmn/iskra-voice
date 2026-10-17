@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { activeChannelId, activeServerState, useApp } from '../state/store'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -46,6 +46,7 @@ import { VoiceRoom } from './clips/VoiceRoom'
 import { ClipLayer } from './clips/ClipControls'
 import { PopoutLayer } from './popout/PopoutLayer'
 import { QuietDigestCard } from './quietDigest/QuietDigestCard'
+import { usePhoneNav } from './nav/PhoneNav'
 
 export type Panel = 'none' | 'nav' | 'members'
 
@@ -63,11 +64,14 @@ export function Shell() {
   const isStageChannel = !!server?.channels.some((c) => c.id === stageChannel && c.kind === 'stage')
   const hasServers = useApp((s) => s.order.length > 0)
   const channelId = useApp(activeChannelId)
-  // Escape closes an open drawer (phones and narrow windows).
-  useEscapeLayer(() => setPanel('none'), panel !== 'none')
+  // Escape (and back) closes an open drawer (phones and narrow windows).
+  useEscapeLayer(() => setPanel('none'), panel !== 'none', { kind: panel === 'nav' ? 'nav' : undefined })
+  // Phones: back opens the channels, swipes move the drawers.
+  const shellRef = useRef<HTMLDivElement>(null)
+  const dragging = usePhoneNav(shellRef, panel, setPanel, !!server)
 
   return (
-    <div className={`shell panel-${panel} ${server ? '' : 'no-members'}`}>
+    <div ref={shellRef} className={`shell panel-${panel} ${server ? '' : 'no-members'} ${dragging ? `swiping swiping-${dragging}` : ''}`}>
       <button className="skip-link" onClick={() => document.getElementById('main-content')?.focus()}>{t('app.skipToContent')}</button>
       <div className="nav-column">
         <ServerRail onJoin={() => setJoining(true)} onNavigate={() => setPanel('none')} />
@@ -115,7 +119,7 @@ export function Shell() {
       <RoomLayer />
       <StreamerPill floating />
       <LfgLayer />
-      {panel !== 'none' && <div className="scrim" onClick={() => setPanel('none')} />}
+      {(panel !== 'none' || dragging) && <div className="scrim" style={dragging && panel === 'none' ? { opacity: 0 } : undefined} onClick={() => setPanel('none')} />}
       <IncomingCall />
       <IncomingGroupCall />
       <ProfileLayer />

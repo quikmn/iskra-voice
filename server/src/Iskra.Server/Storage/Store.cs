@@ -28,6 +28,8 @@ public sealed record Invite(string Code, string CreatedBy, long CreatedAt, long?
 {
     /// <summary>Joining through it waits for a moderator's approval (JoinFeature).</summary>
     public bool Approve { get; init; }
+    /// <summary>A name its maker gave it ("Reddit post"), so moderators see where people came from (InviteTrackFeature).</summary>
+    public string? Label { get; init; }
 }
 public sealed record Ban(string AccountKey, string Reason, string BannedBy, long BannedAt);
 public sealed record DirectMessage(long Id, string From, string To, string Envelope, long CreatedAt)
@@ -371,6 +373,10 @@ public sealed partial class Store : IDisposable
         ("tts-1", TtsMigration),
         // Starboard, Birthdays and Welcome: their settings, cards, opted-in birthdays and welcomes waiting for the rules.
         ("builtinbots2-1", BuiltinBots2Migration),
+        // Which invite each member joined with (moderators see it), and invite labels.
+        ("invitetrack-1", InviteTrackMigration),
+        // Signing secrets for the GitHub, Gitea and GitLab webhook formats.
+        ("webhookformats-1", WebhookFormatsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────
