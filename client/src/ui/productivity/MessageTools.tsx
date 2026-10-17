@@ -36,10 +36,10 @@ export function SaveRemindItems({ target, wrap, icons }: { target: MessageTarget
   return (
     <>
       <button role="menuitem" onClick={wrap(t(saved ? 'productivity.actions.removed' : 'productivity.actions.saved'), () => toggle(target))}>
-        {icons && <Bookmark filled={saved} />} {t(saved ? 'productivity.actions.unsave' : 'productivity.actions.save')}
+        {icons && <Bookmark filled={saved} />}{t(saved ? 'productivity.actions.unsave' : 'productivity.actions.save')}
       </button>
       <button role="menuitem" onClick={wrap(null, () => openRemindDialog(target))}>
-        {icons && <AlarmClock />} {t('productivity.actions.remind')}
+        {icons && <AlarmClock />}{t('productivity.actions.remind')}
       </button>
     </>
   )
@@ -124,7 +124,7 @@ function PrivateSheet({ target, text, translate, onClose }: { target: MessageTar
         <span className="sheet-grabber" aria-hidden />
         <div className="sheet-list" role="menu">
           <SaveRemindItems target={target} wrap={wrap} icons />
-          {text && <button role="menuitem" onClick={wrap(null, () => navigator.clipboard.writeText(text))}><Copy /> {t('productivity.actions.copyText')}</button>}
+          {text && <button role="menuitem" onClick={wrap(null, () => navigator.clipboard.writeText(text))}><Copy />{t('productivity.actions.copyText')}</button>}
           <TranslateMenuItem item={translate} wrap={wrap} icon />
         </div>
         {error && <p className="error-text sheet-error" role="alert">{error}</p>}

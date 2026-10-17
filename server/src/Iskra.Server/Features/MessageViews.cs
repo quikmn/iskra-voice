@@ -46,6 +46,7 @@ public static class MessageViews
             components = BotComponents.View(store, m.Id),
             interaction = InteractionFeature.MessageView(store, m.Id),
             lfg = LfgFeature.View(store, m.Id),
+            tts = TtsFeature.View(store, m.Id),
             expiresAt,
             disappear = notice is { } seconds ? new { seconds } : null,
         };

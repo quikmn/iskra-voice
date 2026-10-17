@@ -8,6 +8,7 @@ import { askableGroups, openRolePicker, roleGroupsFor, rolesFor } from '../../st
 import { useApp } from '../../state/store'
 import { canSplit, openTeams } from '../../state/teams'
 import { useVoice } from '../../state/voice'
+import { ttsBlocked } from '../../state/speech'
 import type { CommandEntry } from './commandMatch'
 
 /** The "bot" an app command shows as. */
@@ -44,6 +45,11 @@ function commands(): AppCommand[] {
         openLfg(serverKey, channelId, game, slots)
         return null
       },
+    },
+    {
+      // Sent by the composer when it can be (ChatView): this only says why it can't.
+      command: { name: 'tts', description: t('speech.tts.description'), usage: t('speech.tts.usage') },
+      run: (serverKey, _channelId, args) => ttsBlocked(serverKey, args.trim()),
     },
     {
       command: { name: 'roles', description: t('roles.picker.command') },

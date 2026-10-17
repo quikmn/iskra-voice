@@ -14,6 +14,8 @@ import { Close, FileIcon, Lock, Paperclip, Send, Smile } from '../icons'
 import { EmojiPicker } from '../expressions/EmojiPicker'
 import { insertAt } from '../expressions/emoji'
 import { VoicePlayer, VoiceRecordButton } from '../chat/voice/VoiceMessages'
+import { transcriptKey } from '../../state/transcripts/transcriptCache'
+import type { TranscriptItem } from '../../state/transcripts'
 import { voiceRecordingSupported, type Recording } from '../chat/voice/recorder'
 import { useSendLater } from '../productivity/SendLater'
 import { useQueuedSend } from '../chat/QueuedSend'
@@ -269,6 +271,12 @@ function useSave(file: DmFile) {
   return { ...state, save, cancel: () => abort.current?.abort() }
 }
 
+/** An encrypted voice message's transcript: from the bytes decrypted here, kept in memory only. */
+const encryptedTranscript = (file: DmFile, durationMs: number): TranscriptItem => ({
+  key: transcriptKey.encrypted(file.server, file.id), serverKey: file.server, durationMs,
+  audio: () => openDmFile(file).then((o) => o.blob.arrayBuffer()),
+})
+
 const percent = (fraction: number) => formatNumber(fraction, { style: 'percent', maximumFractionDigits: 0 })
 
 function DmAttachment({ file }: { file: DmFile }) {
@@ -280,7 +288,7 @@ function DmAttachment({ file }: { file: DmFile }) {
 
   if (file.voice) {
     if (error) return <div className="message-notice"><Lock size={13} /> {error} <button className="link" onClick={open}>{t('common.retry')}</button></div>
-    return <VoicePlayer src={opened?.url ?? null} voice={file.voice} />
+    return <VoicePlayer src={opened?.url ?? null} voice={file.voice} transcript={opened ? encryptedTranscript(file, file.voice.duration) : null} />
   }
   if (opened?.inline && opened.type.startsWith('image/')) {
     const items = [{ url: opened.url, name: file.name, size: file.size }]

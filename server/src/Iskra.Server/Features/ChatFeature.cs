@@ -65,6 +65,7 @@ public static class ChatFeature
         var voice = VoiceMessageFeature.Parse(s, body, attachments, text);
         var sticker = StickerFeature.Parse(s, body, attachments, text);
         var gif = GifFeature.Parse(s, body, attachments, text);
+        var tts = TtsFeature.Parse(me, body, text, voice is not null);
 
         long? replyTo = body.OptionalLong("replyTo", min: 1);
         if (replyTo is { } replyId && s.World.Store.GetMessage(replyId)?.ChannelId != channel.Id)
@@ -90,6 +91,7 @@ public static class ChatFeature
         VoiceMessageFeature.Saved(s.World.Store, message, voice);
         if (sticker is not null) s.World.Store.SetMessageSticker(message.Id, sticker);
         GifFeature.Saved(s.World.Store, message, gif);
+        TtsFeature.Saved(s.World.Store, message, tts);
         BotCommandFeature.Saved(s.World.Store, message.Id, cards);
         if (components is { Count: > 0 }) s.World.Store.SetMessageComponents(message.Id, components.ToJsonString());
         saved?.Invoke(message);
@@ -148,6 +150,7 @@ public static class ChatFeature
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.edited", new { message = edited }));
         s.Hub.Outhooks?.MessageUpdated(channel, message with { Text = text, EditedAt = s.Now });
         ForumFeature.Edited(s, channel, message);
+        StarboardBot.Edited(s, channel, message with { Text = text, EditedAt = s.Now });
         return new { message = edited };
     }
 
@@ -162,6 +165,7 @@ public static class ChatFeature
             Audit.Record(s, "message.delete", author?.AccountKey,
                 details: new { channelId = channel.Id, channelName = channel.Name, messageId = message.Id, author = message.AuthorKey });
 
+        StarboardBot.Deleting(s, message);
         s.World.Store.DeleteMessage(message.Id);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id = message.Id, channelId = channel.Id }));
         s.Hub.Outhooks?.MessageDeleted(channel, message.Id);
@@ -201,6 +205,7 @@ public static class ChatFeature
         if (on && !had) s.Hub.Outhooks?.ReactionAdded(channel, message, me.AccountKey, emoji);
         s.Hub.BroadcastToReaders(channel, Frames.Event("chat.reactions",
             new { id = message.Id, channelId = channel.Id, reactions = MessageViews.Reactions(s.World.Store, message.Id) }));
+        StarboardBot.Reacted(s, channel, message);
         return null;
     }
 

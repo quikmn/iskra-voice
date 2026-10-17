@@ -1,0 +1,6 @@
+/* ── Read aloud and transcripts (settings, header) ─────────────────── */
+.speech-settings h3 { margin: 14px 0 6px; font-size: 14px; }
+.speech-settings .field input[type="range"] { width: min(320px, 100%); }
+.speech-settings .field select { width: min(420px, 100%); }
+.speech-test { margin: 6px 0; }
+.read-aloud-on { color: var(--accent); }

@@ -369,6 +369,10 @@ public sealed partial class Store : IDisposable
         ("buddybackup-1", BuddyBackupMigration),
         // Activities: bundles admins added, built-ins turned off, channels without activities, who may start one.
         ("activities-1", ActivitiesMigration),
+        // Messages sent with /tts (read aloud for people who turned that on).
+        ("tts-1", TtsMigration),
+        // Starboard, Birthdays and Welcome: their settings, cards, opted-in birthdays and welcomes waiting for the rules.
+        ("builtinbots2-1", BuiltinBots2Migration),
         // Which invite each member joined with (moderators see it), and invite labels.
         ("invitetrack-1", InviteTrackMigration),
         // Signing secrets for the GitHub, Gitea and GitLab webhook formats.

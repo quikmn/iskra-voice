@@ -166,7 +166,7 @@ Check: with the secret `whs_test`, timestamp `1760000000`, id `abc` and the body
 
 ## Built-in bots
 
-Three small bots come with every server and run inside it, so there's nothing to install, host or keep running. An
+Six small bots come with every server and run inside it, so there's nothing to install, host or keep running. An
 admin turns each one on in **Server settings → Bots & webhooks → Bots**:
 
 | Bot | Command | Does |
@@ -174,8 +174,12 @@ admin turns each one on in **Server settings → Bots & webhooks → Bots**:
 | **Dice** | `/roll 2d6+3`, `/roll d20` | Rolls dice (up to 100 dice and 10 terms; `/roll` alone is `1d6`). |
 | **Polls** | `/poll Pizza or tacos? \| Pizza \| Tacos` | Starts a normal poll in a text channel (2–10 answers). |
 | **Reminders** | `/remind me in 10m take the pizza out` | Reminds you about that message later (1 minute up to a year), like any reminder. |
+| **Starboard** | (react with ⭐) | When a message gets enough stars (⭐ ×3 unless you pick another reaction or number; the author's own and bots' don't count), it gets a card in `#starboard` that links back to it. The card keeps its count and text up to date and goes when the message does. Messages from channels that are more private than the board never go there. |
+| **Birthdays** | `/birthday set 14 March`, `/birthday list`, `/birthday remove` | Members who want to share their birthday (day and month, never the year; also in their profile for the server) get a greeting once a year, at the time and in the time zone you pick. |
+| **Welcome** | | Greets people when they actually get in (after approval or agreeing to the rules, if you use those) with your own text (`{name}`, `{server}`, `{memberCount}`, markdown), optionally with a private welcome too. When lots of people join at once, they get one shared greeting. |
 
-Turned on, each is a bot member like any other: give it a role or channel overrides to choose where it answers. It
+Turned on, each is a bot member like any other: give it a role or channel overrides to choose where it answers.
+Starboard, Birthdays and Welcome post in the channel you pick under their switch (they need to see it, not write in it). It
 reads only its own commands, answers mistakes privately to the person who typed them, and stays out of encrypted
 channels. Turning it off removes it; turning it on again brings back the same member. Details:
 [PROTOCOL.md → Built-in bots](../protocol/PROTOCOL.md#built-in-bots).

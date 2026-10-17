@@ -78,6 +78,7 @@ public static class JoinFeature
         Audit.Record(s, "join.approve", request.AccountKey, details: new { role = request.Role, invite = via });
         s.Hub.Broadcast(Frames.Event("member.joined", new { member = s.Hub.PublicMember(member) }));
         s.Hub.Outhooks?.MemberJoined(member);
+        s.Hub.BuiltinBots?.Joined(member);
         QueueChanged(store, s.Hub);
         return new { member = s.Hub.PublicMember(member) };
     }

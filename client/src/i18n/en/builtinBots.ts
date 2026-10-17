@@ -5,16 +5,23 @@ export const builtinBots = {
     dice: 'Dice',
     polls: 'Polls',
     reminders: 'Reminders',
+    starboard: 'Starboard',
+    birthdays: 'Birthdays',
+    welcome: 'Welcome',
   },
   about: {
     dice: 'Rolls dice for games: /roll 2d6+3',
     polls: 'Starts a poll: /poll Pizza or tacos? | Pizza | Tacos',
     reminders: 'Reminds you later: /remind me in 10m take the pizza out',
+    starboard: 'Shows the most-starred messages in one channel',
+    birthdays: 'Wishes members a happy birthday: /birthday set 14 March',
+    welcome: 'Greets people when they join',
   },
   commands: {
     roll: { description: 'Roll dice, like 2d6+3', usage: '2d6+3' },
     poll: { description: 'Start a poll', usage: 'Question | Answer | Answer' },
     remind: { description: 'Get a reminder later', usage: 'me in 10m what' },
+    birthday: { description: 'Share your birthday, or see whose is coming up', usage: 'set 14 March | remove | list' },
   },
   settings: {
     title: 'Built-in bots',

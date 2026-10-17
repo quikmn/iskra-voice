@@ -23,6 +23,8 @@ public sealed class Hub(World world, TimeProvider time)
     public RestartSignal Restart { get; } = new(world.Path, time);
     /// <summary>Outgoing webhooks (Features/OutgoingWebhooks.cs); set when that service starts.</summary>
     public Features.OutgoingWebhooks? Outhooks { get; set; }
+    /// <summary>Starboard, Birthdays and Welcome (set when the service starts).</summary>
+    public Features.BuiltinBotRuntime? BuiltinBots { get; set; }
     /// <summary>Which whiteboard each session is viewing (Features/WhiteboardFeature.cs).</summary>
     public Features.BoardRegistry Boards { get; } = new();
     /// <summary>Running activities in voice channels (Features/ActivitiesFeature.cs).</summary>

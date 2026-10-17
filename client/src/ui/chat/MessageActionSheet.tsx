@@ -25,6 +25,7 @@ import { rolesFor } from '../../state/roles'
 import { ChannelSaveRemind } from '../productivity/MessageTools'
 import { TranslateMenuItem } from '../translate/Translate'
 import { channelItem } from '../translate/items'
+import { ReadAloudMenuItem } from '../speech/ReadAloud'
 
 const FlagIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -85,27 +86,28 @@ export function MessageActionSheet({ server, message, canEdit, canDelete, onEdit
               <button aria-label={t('chat.reactions.moreEmoji')} onClick={() => setView('emoji')}><SmilePlus size={20} /></button>
             </div>
             <div className="sheet-list" role="menu">
-              <button role="menuitem" onClick={run(() => setReply(server.key, message.channelId, message))}><Reply /> {t('chat.message.reply')}</button>
-              {threadable && <button role="menuitem" onClick={() => setView('thread')}><ThreadIcon /> {t('chat.threads.start')}</button>}
+              <button role="menuitem" onClick={run(() => setReply(server.key, message.channelId, message))}><Reply />{t('chat.message.reply')}</button>
+              {threadable && <button role="menuitem" onClick={() => setView('thread')}><ThreadIcon />{t('chat.threads.start')}</button>}
               {pinnable && (
                 <button role="menuitem" onClick={run(() => setPinned(server.key, message, !message.pinned))}>
-                  {message.pinned ? <><PinOffIcon /> {t('chat.pins.unpinMessage')}</> : <><PinIcon /> {t('chat.pins.pinMessage')}</>}
+                  {message.pinned ? <><PinOffIcon />{t('chat.pins.unpinMessage')}</> : <><PinIcon />{t('chat.pins.pinMessage')}</>}
                 </button>
               )}
-              {onForward && <button role="menuitem" onClick={run(onForward)}><ForwardIcon /> {t('chat.message.forward')}</button>}
-              {canEdit && <button role="menuitem" onClick={run(onEdit)}><Pencil /> {t('chat.actions.editMessage')}</button>}
-              {text && <button role="menuitem" onClick={run(() => navigator.clipboard.writeText(text))}><Copy /> {t('chat.actions.copyText')}</button>}
-              <button role="menuitem" onClick={run(() => copyMessageLink(server, message))}><Copy /> {t('chat.actions.copyLink')}</button>
-              <button role="menuitem" onClick={run(() => markUnread(server.key, message.channelId, message.id))}><Reply /> {t('chat.actions.markUnread')}</button>
+              {onForward && <button role="menuitem" onClick={run(onForward)}><ForwardIcon />{t('chat.message.forward')}</button>}
+              {canEdit && <button role="menuitem" onClick={run(onEdit)}><Pencil />{t('chat.actions.editMessage')}</button>}
+              {text && <button role="menuitem" onClick={run(() => navigator.clipboard.writeText(text))}><Copy />{t('chat.actions.copyText')}</button>}
+              <button role="menuitem" onClick={run(() => copyMessageLink(server, message))}><Copy />{t('chat.actions.copyLink')}</button>
+              <button role="menuitem" onClick={run(() => markUnread(server.key, message.channelId, message.id))}><Reply />{t('chat.actions.markUnread')}</button>
               <ChannelSaveRemind server={server} message={message} wrap={(_label, action) => run(action)} icons />
               {!message.tempId && <TranslateMenuItem item={channelItem(server, message)} wrap={(_label, action) => run(action)} icon />}
-              {message.reactions.length > 0 && <button role="menuitem" onClick={() => setView('reactions')}><SmilePlus /> {t('chat.actions.viewReactions')}</button>}
+              {!message.tempId && <ReadAloudMenuItem server={server} message={message} wrap={(_label, action) => run(action)} icon />}
+              {message.reactions.length > 0 && <button role="menuitem" onClick={() => setView('reactions')}><SmilePlus />{t('chat.actions.viewReactions')}</button>}
               {canReport(server, message) && (
-                <button role="menuitem" className="danger" onClick={run(() => openReport({ kind: 'message', serverKey: server.key, message }))}><FlagIcon /> {t('safety.report.menuMessage')}</button>
+                <button role="menuitem" className="danger" onClick={run(() => openReport({ kind: 'message', serverKey: server.key, message }))}><FlagIcon />{t('safety.report.menuMessage')}</button>
               )}
-              {canDelete && <button role="menuitem" className="danger" onClick={() => setView('delete')}><Trash /> {t('chat.actions.deleteMessage')}</button>}
+              {canDelete && <button role="menuitem" className="danger" onClick={() => setView('delete')}><Trash />{t('chat.actions.deleteMessage')}</button>}
               {has(server.me, rolesFor(server.key), 'manageMessages') && (
-                <button role="menuitem" onClick={run(() => startSelecting(server.key, message.channelId, message.id))}><Trash /> {t('chat.actions.selectMessages')}</button>
+                <button role="menuitem" onClick={run(() => startSelecting(server.key, message.channelId, message.id))}><Trash />{t('chat.actions.selectMessages')}</button>
               )}
             </div>
           </>
