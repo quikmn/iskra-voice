@@ -28,7 +28,7 @@ export interface VoiceSession {
   call?: { id: string; peer: string }
   /** Set for a group DM call (channelId is then 0). `key` is the group's key in groups.ts. */
   group?: { key: string; callId: string }
-  /** Our media is end-to-end encrypted (DM calls). */
+  /** Our media is end-to-end encrypted (DM and group calls, encrypted voice channels). */
   encrypted?: boolean
   /** The AFK channel: the server mutes and deafens us here (LiveKit takes no audio from us and sends us none). */
   afk?: boolean
@@ -435,18 +435,21 @@ async function joinChannel(serverKey: string, channelId: number, stageOpen: bool
   const connection = connectionFor(serverKey)
   if (!connection) return false
   // Encrypted voice channels: media is end-to-end encrypted with a key from the channel's current epoch.
-  let groupKey: { key: Uint8Array; index: number } | null = null
+  // Never in plaintext: without the key there's no joining (the server also keeps the room to those who hold it).
+  let groupKey: VoiceKeys | null = null
   try {
     groupKey = await channelVoiceKeys(serverKey, channelId)
-  } catch (e) {
-    useVoice.setState({ error: (e as Error).message })
+  } catch {
+    useVoice.setState({ error: t('e2ee.voice.noKey') })
     return false
   }
   return connect({ serverKey, channelId, state: 'connecting', canSpeak: false }, () => connection.request('voice.join', { channelId }),
     { ...(groupKey ? { groupKey } : {}), stageOpen })
 }
 
-type ChannelVoiceKeys = (serverKey: string, channelId: number) => Promise<{ key: Uint8Array; index: number } | null>
+/** A media key in its LiveKit slot, plus earlier epochs' keys still in use while everyone switches (oldest first). */
+export type VoiceKeys = { key: Uint8Array; index: number; previous?: { key: Uint8Array; index: number }[] }
+type ChannelVoiceKeys = (serverKey: string, channelId: number) => Promise<VoiceKeys | null>
 let channelVoiceKeys: ChannelVoiceKeys = async () => null
 /** state/e2eeChannels.ts gives the media key of encrypted voice channels (null for other channels). */
 export function setChannelVoiceKeys(provider: ChannelVoiceKeys): void {
@@ -485,14 +488,16 @@ export async function joinGroupCall(
 }
 
 /** A new media key for the group call you're in. Senders switch to it; frames under older keys still decrypt. */
-export async function setCallKey(key: Uint8Array, index: number): Promise<void> {
-  await keyProvider?.setIndexedKey(key, index)
+export async function setCallKey(key: Uint8Array, index: number): Promise<boolean> {
+  if (!keyProvider) return false
+  await keyProvider.setIndexedKey(key, index)
+  return true
 }
 
 async function connect(
   session: VoiceSession,
   target: () => Promise<{ url: string; token: string; channelId?: number; canSpeak: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }>,
-  options: { e2eeKey?: Uint8Array; groupKey?: { key: Uint8Array; index: number } | 'later'; camera?: boolean; stageOpen?: boolean } = {},
+  options: { e2eeKey?: Uint8Array; groupKey?: VoiceKeys | 'later'; camera?: boolean; stageOpen?: boolean } = {},
 ): Promise<boolean> {
   useVoice.setState({
     session, error: null, speaking: {}, tiles: [], stageOpen: options.stageOpen ?? (!session.call && !session.group), camera: false, screen: false,
@@ -516,7 +521,11 @@ async function connect(
       provider = newCallKeyProvider()
       // A random 32-byte key: LiveKit derives the frame key from it with HKDF.
       if (options.e2eeKey) await provider.setKey(options.e2eeKey.slice().buffer)
-      else if (options.groupKey !== 'later' && options.groupKey) await provider.setIndexedKey(options.groupKey.key, options.groupKey.index)
+      else if (options.groupKey !== 'later' && options.groupKey) {
+        // Older keys first: the last key set is the one we send with.
+        for (const old of options.groupKey.previous ?? []) await provider.setIndexedKey(old.key, old.index)
+        await provider.setIndexedKey(options.groupKey.key, options.groupKey.index)
+      }
       worker = new E2EEWorker()
       encryption = { keyProvider: provider, worker }
     }
@@ -573,7 +582,12 @@ async function connect(
     }
 
     next
-      .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, _pub, participant: RemoteParticipant) => {
+      .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, pub: RemoteTrackPublication, participant: RemoteParticipant) => {
+        // An encrypted call never plays media that arrives unencrypted (a modified app, or a server slipping its own in).
+        if (encryption && !pub.isEncrypted) {
+          pub.setSubscribed(false)
+          return
+        }
         if (track.kind === Track.Kind.Audio) {
           const element = track.attach()
           audioElements.set(participant.identity + track.sid, element)

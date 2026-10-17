@@ -25,6 +25,7 @@ public static class VoiceFeature
         var bot = s.World.Store.IsBot(me.AccountKey);
         if (bot) VoiceBotFeature.CheckJoin(s.World.Store, me, channel);
         if (!Permissions.CanConnect(me, channel)) throw RequestException.Forbidden("You can't join this voice channel.", "voice_cant_join");
+        E2eeVoiceFeature.CheckJoin(s.World.Store, me, channel);
         var lobby = channel.Kind == "voice" && RoomFeature.IsLobby(s.World.Store, channel.Id);
         if (!lobby)
         {

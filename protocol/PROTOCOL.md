@@ -2255,7 +2255,7 @@ Someone removed at version n keeps the epoch keys of the versions before n and t
 - **Push:** `"New message in #channel"` / `"Open Iskra to read it."`, never content. Replies still push; mentions can't (the server can't see them): apps notify for mentions once they decrypt a message that arrives while they're open.
 - **Reports:** a message report may carry `messages: [{ author, text, at }]`: the reported message's decrypted text, shared by the reporter. Moderators are told it can't be checked.
 - **Edit history** isn't kept for encrypted messages.
-- **Voice:** the LiveKit key is `crypto_kdf_derive_from_key(32, 1, "iskra-vc", epochKey)` in key slot `version mod 16`; on a new epoch everyone in the room switches (frames under the previous key still decrypt during the switch).
+- **Voice:** the LiveKit key is `crypto_kdf_derive_from_key(32, 1, "iskra-vc", epochKey)` in key slot `version mod 16`; on a new epoch everyone in the room switches (frames under the previous key still decrypt during the switch). See [Encrypted voice channels](#encrypted-voice-channels).
 - **Your data:** `data.export` lists `encryptedChannelMessages` (channel, time, version, envelope size) and `encryptedChannels` (the changes you signed), never content. Retention and message deletion delete the envelopes with the messages.
 - **New members** read from the epoch they were added in. Older history isn't shared with them (as in Signal); this version has no way to hand it over.
 
@@ -3699,3 +3699,50 @@ bug inbox off when the existing channel of that name is readable by more people 
 `iskra-server templates <file> --json` gains per-channel `topic`, `messages` (a count), `pages` (titles), `disappear`
 and `settings.translation`. `server.template.export` gains `topic`, `disappear` and `settings.translation` (never
 messages or pages); it writes `"version": 3` when it has any of them, else `2`, so older servers can still read it.
+
+## Encrypted voice channels
+
+A voice channel made [end-to-end encrypted](#end-to-end-encrypted-channels) (`channel.create` with `kind: "voice"` and
+`e2ee`; at creation only, never later and never undone, as for every encrypted channel) carries its audio, video and
+screen shares end-to-end encrypted: LiveKit only forwards ciphertext. There are no new requests or events; this is how
+the existing pieces fit together.
+
+- **Key.** Each member's app derives the media key from the channel's current epoch key:
+  `crypto_kdf_derive_from_key(32, 1, "iskra-vc", epochKey)`, set as a raw 32-byte key (LiveKit derives the AES-GCM frame
+  key from it with HKDF) in LiveKit key slot `version mod 16`. On joining, an app also loads the keys of up to 2 earlier
+  epochs it holds into their slots, so people still sending under them are heard; it sends with the current one.
+- **Rotation.** Every chain change (someone added or removed, a rekey) is a new epoch with a new random key. Apps in
+  the room switch to the new slot as soon as they have its key, without leaving the room (frames under the previous
+  slots keep decrypting meanwhile), and only ever forward (a key for an older version never replaces a newer one).
+  Someone removed at version n never receives the key of n or later, so they can't decrypt media sent after the switch.
+- **Never plaintext.** An app that has no key for the current version doesn't join (it shows why); it never joins
+  unencrypted. In an encrypted room apps never play a track LiveKit reports as unencrypted: they unsubscribe from it and
+  mark the person in the call. Data messages in the room (clip announcements) are encrypted as well.
+- **Who may be in the room** (server): `voice.join` in an encrypted channel needs your account in the channel's current
+  chain, besides the usual read and connect checks: otherwise `bad_request`, key `e2ee_voice_waiting` (a member's app
+  adds you when they're online), or `e2ee_voice_full` (args `{ max }`, 50 people hold the key already). LiveKit joins by
+  anyone not in the chain are removed (the webhook check), and every `echan.change` re-checks who is in the room.
+  `voice.move` into an encrypted channel needs the person in its chain (`forbidden`, key `e2ee_voice_they_waiting`). The
+  LiveKit token is the usual one; the server stores only that the channel is encrypted, the chain and key envelopes.
+- **Bots** never hold the key: `voice.join` by a bot is `bad_request`, key `bot_e2ee_voice` ([Voice bots](#voice-bots)).
+
+How the other voice features behave in an encrypted voice channel:
+
+| Feature | In an encrypted voice channel |
+|---|---|
+| Voice channel chat, voice messages, files | Encrypted, as in every encrypted channel |
+| Captions, noise removal, translation | Work: they run on each device, after decryption |
+| Clips | Work: recorded on the device as always; the "saved a clip" notice goes to the room as an (encrypted) data message on topic `iskra.clips` instead of the chat (`voice.clip` is refused), and sharing a clip uploads it encrypted. Who has clips on still shows (`voice.state` `clips`) |
+| Soundboard | Works: the server relays which sound was played (`sound.played`, as everywhere); the sounds are the server's own files, not your media |
+| Whiteboard in the call | Encrypted ([Encrypted boards](#encrypted-boards)) |
+| Pop-outs, phones, the desktop app | Work (the frames are decrypted in the app's own worker) |
+| Watch parties and listen together | Off: every `watch.*` request is `bad_request`, key `watch_e2ee` (the server would see what's played, titles and the chat). Apps show the button dimmed; a tap says why |
+| Whispers | Off (`whisper_e2ee`); `voice.join` answers `whisper: false` |
+| Team splits, join-to-create (lobby) | Off (`teams_encrypted`, `lobby_encrypted`) |
+| AFK channel | An encrypted channel can't be the AFK channel (`afk.update`: `bad_request`, key `afk_encrypted`; the server moves people in, key or not). Idle people are never moved into one they have no key for |
+| Stage channels | Can't be encrypted |
+| Voice bots, music bots | Refused (`bot_e2ee_voice`) |
+
+What it doesn't hide: the server (and LiveKit) still see who is in the room, when, who speaks and how much (packet
+sizes and timing), mute and camera state, and soundboard plays. Everyone holding the key can decrypt everyone's media,
+so a member's app could forward or record what it hears, as in any call.

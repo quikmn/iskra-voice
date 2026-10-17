@@ -15,7 +15,8 @@ import {
   callPlace, CLIP_TOPIC, clipFileName, encodeClipData, flagToSend, parseClipData, parseClipSettings, type CallPlace, type ClipData,
   type ClipSettings,
 } from './clipsLogic'
-import { connectionFor, onServerEvent, sendMessage, uploadFile, useApp } from './store'
+import { connectionFor, onServerEvent, sendMessage, useApp } from './store'
+import { isEncrypted, uploadFor } from './e2eeChannels'
 import { activeRoom, cleanedAudio, onIncomingAudio, useVoice, videoTrackFor } from './voice'
 import { sendDm } from './dms'
 import { uploadDmFile } from './dmFiles'
@@ -305,7 +306,12 @@ export async function saveClip(): Promise<void> {
     const clip = await recorder.snapshot(state.settings.seconds)
     if (!clip || clip.duration < 500) throw new Error(t('clips.nothingYet'))
     const place = callPlace(session)
-    if (place.kind === 'channel') {
+    if (place.kind === 'channel' && isEncrypted(place.serverKey, place.channelId)) {
+      // Encrypted voice channels: the server can't post a notice to their chat, so the room hears it (as in DM calls).
+      if (!bound) throw new Error(t('clips.notReady'))
+      await flagged(place)
+      await publish(bound, { saved: true })
+    } else if (place.kind === 'channel') {
       const connection = connectionFor(place.serverKey)
       if (!connection) throw new Error(t('errors.codes.disconnected'))
       await flagged(place)
@@ -352,7 +358,8 @@ export async function downloadClip(file: File): Promise<void> {
 /** Posts the clip where the call happens: the voice channel's chat, the DM, or the group. */
 export async function shareClip(file: File, place: CallPlace, onProgress: (fraction: number) => void): Promise<void> {
   if (place.kind === 'channel') {
-    const info = await uploadFile(place.serverKey, file, onProgress)
+    // Encrypted channels get an encrypted upload (the server never sees the clip).
+    const info = await uploadFor(place.serverKey, place.channelId, file, onProgress)
     await sendMessage(place.serverKey, place.channelId, '', { attachments: [info] })
   } else if (place.kind === 'dm') {
     const sent = await uploadDmFile(place.serverKey, place.peer, file, onProgress)

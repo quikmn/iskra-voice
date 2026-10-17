@@ -334,6 +334,7 @@ public static partial class RoleFeature
         if (to is null || to.Kind != "voice" || !Permissions.CanRead(me, to)) throw RequestException.NotFound("Channel");
         if (to.Id == from.Id) return null;
         if (!Permissions.CanConnect(target, to)) throw RequestException.Forbidden("They can't join that channel.", "they_cant_join");
+        E2eeVoiceFeature.CheckMove(s.World.Store, target, to);
 
         s.Voice.Move(target.AccountKey, to.Id, s.Now); // moving fills a full channel too
         Audit.Record(s, "voice.move", target.AccountKey, details: new { from = from.Name, to = to.Name, channelId = to.Id });

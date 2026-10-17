@@ -7,6 +7,7 @@ import { ROLES, type Category, type Channel, type Role } from '../../core/protoc
 import { connectionFor, type ServerState } from '../../state/store'
 import { createCategory, moveChannel, renameCategory, useCategories } from '../../state/organize'
 import { Modal } from '../bits'
+import { Lock } from '../icons'
 import { RolePicker } from '../dialogs/CreateChannelDialog'
 import { slowmodeLabel, SLOWMODE_STEPS } from '../../state/moderationRules'
 import { ChannelOverrides } from '../roles/RoleSettings'
@@ -144,7 +145,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
           <small className="muted">{t('organize.channelSettings.hifiHint')}</small>
         </div>
       )}
-      {channel.kind === 'voice' && !channel.room && (
+      {channel.kind === 'voice' && !channel.room && !channel.e2ee && (
         <div className="field">
           <label className="checkbox">
             <input type="checkbox" checked={lobby} onChange={(e) => setLobby(e.target.checked)} />
@@ -152,6 +153,11 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
           </label>
           <small className="muted">{t('organize.channelSettings.lobbyHint')}</small>
         </div>
+      )}
+      {channel.e2ee && (
+        <p className="field muted small-text e2ee-settings-note" data-testid="e2ee-settings-note">
+          <Lock size={13} /> {t('e2ee.settingsNote')}
+        </p>
       )}
       <ChannelOverrides server={server} channel={channel} />
       <label className="field inline">

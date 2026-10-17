@@ -46,6 +46,7 @@ export const e2ee: Messages['e2ee'] = {
     record: 'Du startade om krypteringen {{date}}.',
     history: 'Historik',
   },
+  settingsNote: 'Totalsträckskrypterad: valdes när kanalen skapades och går inte att stänga av.',
   waiting: 'Väntar på att någon i kanalen delar nyckeln med dig. Det sker automatiskt när någon av dem är online.',
   message: {
     pending: 'Dekrypterar…',
@@ -68,6 +69,13 @@ export const e2ee: Messages['e2ee'] = {
   },
   voice: {
     noKey: 'Du kan inte gå med än: den här enheten har inte kanalens nyckel.',
+    badge: 'Krypterad röst',
+    pending: 'Krypterar…',
+    explain: 'Röst, video och skärmdelning här krypteras på varje enhet med kanalens nyckel, så servern skickar bara vidare sådant den inte kan läsa. Bara de som kan se kanalen har nyckeln, och den byts när de ändras.',
+    version: 'Nyckelversion {{version}}',
+    notEncrypted: '{{name}} skickar inte krypterat ljud eller bild, så du hör och ser det inte.',
+    createHint: 'Röst, video och skärmdelning krypteras också. Bottar, Titta tillsammans, viskningar, laguppdelning och lobbyrum är avstängda i den.',
+    watchOff: 'Titta tillsammans är avstängt i krypterade röstkanaler: servern skulle se vad som spelas.',
   },
   errors: {
     moved: 'Meddelandet har flyttats hit från ett annat ställe.',
