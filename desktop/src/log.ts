@@ -1,8 +1,8 @@
 // The desktop app's own log: one line per event in the server's format (docs/development.md "Logs"),
 // `UTC-time  LEVEL  SRC  AREA  event  CODE  key=value…`, written to userData/logs/YYYY-MM-DD.log (UTC days) and
 // trimmed by the same retention stairs as the server's logs: plain for 60 days, gzipped until 180, then deleted, and
-// never more than 50 MB in all. Sources: `desk` (this main process), `upd` (the updater) and `app` (the page's own
-// lines, checked again here). Fields come from a fixed vocabulary with a shape per key, so names, file names, keys,
+// never more than 50 MB in all. Sources: `desk` (this main process), `upd` (the updater), `p2p` (the tunnel) and `app`
+// (the page's own lines, checked again here). Fields come from a fixed vocabulary with a shape per key, so names, file names, keys,
 // addresses and sentences can't get in; only `msg` carries text (an error's first line), scrubbed. Never throws.
 // The rules here match client/src/core/log.ts; protocol/log-format.json holds golden lines both must render.
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, statSync, unlinkSync, writeSync, appendFileSync, fstatSync } from 'node:fs'
@@ -11,8 +11,8 @@ import { gzipSync } from 'node:zlib'
 
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
 const LEVELS: readonly LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR']
-export type LogSource = 'desk' | 'upd' | 'app'
-const SOURCES: readonly LogSource[] = ['desk', 'upd', 'app']
+export type LogSource = 'desk' | 'upd' | 'app' | 'p2p'
+const SOURCES: readonly LogSource[] = ['desk', 'upd', 'app', 'p2p']
 export const AREAS = ['life', 'conn', 'sess', 'voice', 'call', 'media', 'e2ee', 'tunnel', 'nat', 'tls', 'update', 'push', 'backup', 'sweep', 'rate', 'store', 'ui', 'http', 'sched', 'misc']
 
 export const FIELDS = new Set([
@@ -20,6 +20,8 @@ export const FIELDS = new Set([
   'jitter', 'took', 'dur', 'retry', 'n', 'close', 'why', 'reason', 'op', 'name', 'msg', 'ver', 'os', 'engine',
   'kind', 'count', 'status', 'port',
   'frame', 'state', 'code', 'type', 'what', 'from', 'to', 'mode', 'exit', 'browser', 'lang', 'arch', 'gz', 'deleted',
+  // the network route and voice quality (numbers and fixed words only)
+  'peer', 'turn', 'lossout', 'kbps', 'conceal', 'in', 'out',
 ])
 
 const CODE = /^[A-Z][A-Z0-9]{1,2}-[0-9]{3}$/
@@ -33,6 +35,7 @@ const VERSION = /^\d{1,4}\.\d{1,4}\.\d{1,4}(-[0-9A-Za-z.-]{1,30})?$/
 const SCHEMA: Record<string, RegExp> = {
   srv: /^([0-9a-f]{4}|s\d{1,3})$/, conn: /^[0-9a-z]{1,8}$/, acct: /^[0-9a-f]{6}$/,
   chan: NUM, room: NUM, n: NUM, count: NUM, close: NUM, port: NUM, exit: NUM, status: NUM, loss: NUM, gz: NUM, deleted: NUM,
+  lossout: NUM, kbps: NUM, conceal: NUM, in: NUM, out: NUM,
   rtt: /^\d{1,9}(\.\d{1,2})?(ms)?$/, jitter: /^\d{1,9}(\.\d{1,2})?(ms)?$/,
   took: DUR, dur: DUR, retry: DUR,
   ver: VERSION, from: VERSION, to: VERSION,

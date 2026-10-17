@@ -8,8 +8,9 @@ export type ConnectionStatus =
   | { state: 'connecting' }
   | { state: 'online' }
   /** `closeCode`: the WebSocket close code of the attempt that just ended (none: the socket couldn't even be made).
-   * `stopped`: the server said it stopped for good (close 1001, reason "stop"), not a restart; the usual backoff. */
-  | { state: 'offline'; retryInMs: number; stopped?: boolean; closeCode?: number }
+   * `stopped`: the server said it stopped for good (close 1001, reason "stop"), not a restart; the usual backoff.
+   * `timedOut`: the handshake (socket, hello, auth, welcome) didn't finish within HANDSHAKE_TIMEOUT_MS, so we gave up on it. */
+  | { state: 'offline'; retryInMs: number; stopped?: boolean; closeCode?: number; timedOut?: true }
   /** The server said it's restarting (close 1012): we retry about every second for a while. `etaMs` is its own estimate;
    * `update`: it's restarting into a new version. */
   | { state: 'restarting'; since: number; etaMs?: number; update?: true }
@@ -45,6 +46,8 @@ export interface ConnectionOptions {
   onEvent: <K extends keyof Events>(type: K, body: Events[K]) => void
   WebSocketImpl?: typeof WebSocket
   requestTimeoutMs?: number
+  /** Tests: how long the handshake may take (HANDSHAKE_TIMEOUT_MS). */
+  handshakeTimeoutMs?: number
 }
 
 /** Told about failed requests (type and error code only), for bug report diagnostics. */
@@ -65,6 +68,8 @@ export const RESTART_RETRY_MS = 1000
 export const RESTART_WINDOW_MS = 120_000
 /** While a moderator decides whether to let us in: a steady, slow knock (the server answers `join_pending` each time). */
 export const PENDING_RETRY_MS = 15_000
+/** A socket that doesn't get through the handshake (hello → auth → welcome) in this long is dropped and retried. */
+export const HANDSHAKE_TIMEOUT_MS = 30_000
 
 /** The reason of a 1012 or 1001 close: `{ v: 1, reason, etaMs? }`. Anything else counts as `restart`, without a hint. */
 export function restartHint(reason: string): { reason: string; etaMs?: number } {
@@ -96,6 +101,9 @@ export class Connection {
   private awaitingApproval = false
   /** The close code of the attempt that just ended, for the next offline status (diagnostics). */
   private lastCloseCode: number | undefined
+  /** Gives up on a socket whose handshake doesn't finish (a tunnel or proxy that accepts but never answers). */
+  private handshakeTimer: ReturnType<typeof setTimeout> | null = null
+  private handshakeTimedOut = false
 
   constructor(options: ConnectionOptions) {
     this.options = options
@@ -112,6 +120,7 @@ export class Connection {
 
   stop(): void {
     this.stopped = true
+    this.clearHandshake()
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
     this.reconnectTimer = null
     safeClose(this.socket)
@@ -220,6 +229,14 @@ export class Connection {
       return
     }
     this.socket = socket
+    this.clearHandshake()
+    this.handshakeTimer = setTimeout(() => {
+      this.handshakeTimer = null
+      if (this.socket !== socket || this.ready || this.stopped || this.rejected) return
+      this.handshakeTimedOut = true
+      safeClose(socket)
+      this.handleClose(1006)
+    }, this.options.handshakeTimeoutMs ?? HANDSHAKE_TIMEOUT_MS)
     socket.onmessage = (event) => {
       if (this.socket === socket) this.handleFrame(String(event.data))
     }
@@ -243,6 +260,7 @@ export class Connection {
         return
       case 'welcome':
         this.ready = true
+        this.clearHandshake()
         this.attempts = 0
         this.restart = null
         this.serverStopped = false
@@ -318,8 +336,14 @@ export class Connection {
     this.send({ type: 'auth', id: 'auth', body })
   }
 
+  private clearHandshake(): void {
+    if (this.handshakeTimer) clearTimeout(this.handshakeTimer)
+    this.handshakeTimer = null
+  }
+
   private reject(code: string, message: string, detail?: Record<string, unknown>, key?: string): void {
     this.rejected = true
+    this.clearHandshake()
     this.ready = false
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
     this.reconnectTimer = null
@@ -329,6 +353,7 @@ export class Connection {
 
   private handleClose(code: number, reason = ''): void {
     this.socket = null
+    this.clearHandshake()
     this.lastCloseCode = code
     this.ready = false
     this.failPending('disconnected', 'Connection lost.')
@@ -383,10 +408,12 @@ export class Connection {
     const delay = Math.round(base * (0.7 + Math.random() * 0.6)) // jitter so clients don't stampede after a restart
     this.attempts++
     const closeCode = this.lastCloseCode
+    const timedOut = this.handshakeTimedOut
     this.lastCloseCode = undefined
+    this.handshakeTimedOut = false
     // The timer first: nothing the status update does can stop the next attempt.
     this.schedule(delay)
-    this.status({ state: 'offline', retryInMs: delay, ...(this.serverStopped ? { stopped: true } : {}), ...(closeCode !== undefined ? { closeCode } : {}) })
+    this.status({ state: 'offline', retryInMs: delay, ...(this.serverStopped ? { stopped: true } : {}), ...(closeCode !== undefined ? { closeCode } : {}), ...(timedOut ? { timedOut: true as const } : {}) })
   }
 
   private schedule(delay: number): void {

@@ -14,6 +14,7 @@ import { friendKeyPair, hostKeyHex, hostKeyPair } from './keys'
 import type { P2pHostStatus } from './hostTunnel'
 import { runSidecar } from './sidecar'
 import { openTunnel } from './tunnel'
+import type { TunnelLogEvent } from './tunnelLog'
 
 const LOCAL = '127.0.0.1'
 
@@ -22,11 +23,19 @@ function sidecar(world: string, env: Record<string, string>) {
   const stdout = new PassThrough()
   const stderr = new PassThrough()
   const statuses: P2pHostStatus[] = []
+  const logs: TunnelLogEvent[] = []
+  const raw: string[] = []
   let buffered = ''
   stdout.setEncoding('utf8')
   stdout.on('data', (chunk: string) => {
     buffered += chunk
-    for (let i; (i = buffered.indexOf('\n')) >= 0; buffered = buffered.slice(i + 1)) statuses.push(JSON.parse(buffered.slice(0, i)).status)
+    for (let i; (i = buffered.indexOf('\n')) >= 0; buffered = buffered.slice(i + 1)) {
+      const line = buffered.slice(0, i)
+      raw.push(line)
+      const parsed = JSON.parse(line) as { status?: P2pHostStatus; log?: TunnelLogEvent }
+      if (parsed.status) statuses.push(parsed.status)
+      if (parsed.log) logs.push(parsed.log)
+    }
   })
   stderr.resume()
   const exit = runSidecar({ argv: [world], env, stdin, stdout, stderr })
@@ -38,7 +47,7 @@ function sidecar(world: string, env: Record<string, string>) {
     }
     throw new Error(`no such status in ${JSON.stringify(statuses)}`)
   }
-  return { stdin, statuses, exit, until }
+  return { stdin, statuses, logs, raw, exit, until }
 }
 
 test('the sidecar serves a world on a testnet, follows a new secret and stops with its stdin', async () => {
@@ -65,8 +74,9 @@ test('the sidecar serves a world on a testnet, follows a new secret and stops wi
     assert.ok(ready.nat, 'the NAT picture is reported')
 
     const sidecarRun = run
+    const friendLogs: TunnelLogEvent[] = []
     const reach = async (secret: Buffer) => {
-      const tunnel = await openTunnel(friendDht, hostKeyPair(secret).publicKey, { web: 0 }, { keyPair: friendKeyPair(secret) })
+      const tunnel = await openTunnel(friendDht, hostKeyPair(secret).publicKey, { web: 0 }, { keyPair: friendKeyPair(secret), log: (e) => friendLogs.push(e), logFields: [['srv', '5f7f']] })
       try {
         return await new Promise<string>((resolve, reject) => {
           const sock = net.connect(tunnel.ports.web, LOCAL, () => sock.write('hi'))
@@ -80,6 +90,15 @@ test('the sidecar serves a world on a testnet, follows a new secret and stops wi
       }
     }
     assert.equal(await reach(first), 'hello from the world')
+    // Both sides say how it went, in types and numbers: the host announced (with its NAT type), the friend connected.
+    const announced = run.logs.find((e) => e.event === 'announced')
+    assert.ok(announced, JSON.stringify(run.logs))
+    assert.ok(announced.fields.some(([k, v]) => k === 'nat' && ['open', 'consistent', 'randomized'].includes(String(v))))
+    const connected = friendLogs.find((e) => e.event === 'connected')
+    assert.ok(connected, JSON.stringify(friendLogs))
+    assert.deepEqual(connected.fields.filter(([k]) => k === 'srv' || k === 'kind'), [['srv', '5f7f'], ['kind', 'cold']])
+    assert.ok(connected.fields.some(([k, v]) => k === 'path' && typeof v === 'string' && /^[a-z-]+$/.test(v)))
+    assert.ok(!run.raw.filter((l) => l.startsWith('{"log"')).join(' ').includes(LOCAL), 'no address in a log line')
 
     // A rotated secret: the server writes p2p.key and says "sync"; the new host key is announced.
     writeFileSync(join(world, 'p2p.key'), `${second.toString('base64url')}\n`)

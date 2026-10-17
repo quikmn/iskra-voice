@@ -14,6 +14,7 @@ import type { KeyPair, NoiseStream } from 'hyperdht'
 import dgram from 'node:dgram'
 import net from 'node:net'
 import { proxyV2Header } from './proxy'
+import { errorWhy, FriendNotes, HostNotes, isLocalAddress, nodeNat, noLog, punchCounters, routeOf, TURN_SAMPLE_MS, type TunnelLogger, type TunnelLogValue } from './tunnelLog'
 
 export const SERVICE = { web: 1, turn: 2 } as const
 export type Service = keyof typeof SERVICE
@@ -29,7 +30,8 @@ export interface HostServices {
 export interface HostTunnelOptions {
   /** Which DHT keys may connect (onlyFriends(secret)). */
   allow: (remotePublicKey: Buffer) => boolean
-  log?: (...args: unknown[]) => void
+  /** Its log lines (tunnelLog.ts): types, counts and durations only. */
+  log?: TunnelLogger
   /** Test knobs: carry everything through this blind relay, and never punch or use the LAN shortcut. */
   relayThrough?: Buffer | null
   forceRelay?: boolean
@@ -42,6 +44,8 @@ export interface TunnelStats {
   /** TURN datagrams carried each way. */
   datagramsIn: number
   datagramsOut: number
+  /** Voice flows (TURN senders) carried right now. */
+  flows: number
 }
 
 export interface HostTunnel {
@@ -70,8 +74,8 @@ function splice(stream: NoiseStream, sock: net.Socket): void {
 }
 
 export async function serveTunnel(dht: DHT, keyPair: KeyPair, services: HostServices, opts: HostTunnelOptions): Promise<HostTunnel> {
-  const log = opts.log ?? (() => undefined)
-  const stats: TunnelStats = { open: 0, total: 0, datagramsIn: 0, datagramsOut: 0 }
+  const notes = new HostNotes(opts.log ?? noLog)
+  const stats: TunnelStats = { open: 0, total: 0, datagramsIn: 0, datagramsOut: 0, flows: 0 }
   const server = dht.createServer(
     {
       firewall: (remotePublicKey) => !opts.allow(remotePublicKey),
@@ -81,8 +85,12 @@ export async function serveTunnel(dht: DHT, keyPair: KeyPair, services: HostServ
     (stream) => {
       stats.open++
       stats.total++
+      notes.peers(stats.open, stats.total)
       stream.on('error', () => undefined)
-      stream.once('close', () => stats.open--)
+      stream.once('close', () => {
+        stats.open--
+        notes.peers(stats.open, stats.total)
+      })
       stream.once('data', (first: Buffer) => {
         const rest = first.subarray(1)
         switch (first[0]) {
@@ -90,7 +98,7 @@ export async function serveTunnel(dht: DHT, keyPair: KeyPair, services: HostServ
             forwardTcp(stream, services.web, rest)
             return
           case SERVICE.turn:
-            if (services.turn) forwardDatagrams(stream, services.turn, stats, log)
+            if (services.turn) forwardDatagrams(stream, services.turn, stats)
             else stream.destroy()
             return
           default:
@@ -99,9 +107,28 @@ export async function serveTunnel(dht: DHT, keyPair: KeyPair, services: HostServ
       })
     },
   )
+  const listening = performance.now()
   await server.listen(keyPair)
-  log('p2p host: announced', keyPair.publicKey.toString('hex').slice(0, 12))
-  return { publicKey: keyPair.publicKey, stats, close: () => server.close() }
+  notes.announced(performance.now() - listening, nodeNat(dht))
+  // Now and then: a new NAT type (another network), the friend count, and voice carried since the last line.
+  let turnAt = Date.now()
+  const timer = setInterval(() => {
+    notes.natSeen(nodeNat(dht))
+    notes.peers(stats.open, stats.total)
+    if (Date.now() - turnAt >= TURN_SAMPLE_MS) {
+      turnAt = Date.now()
+      notes.turn(stats.flows, stats.datagramsIn, stats.datagramsOut)
+    }
+  }, 15_000)
+  timer.unref?.()
+  return {
+    publicKey: keyPair.publicKey,
+    stats,
+    close: () => {
+      clearInterval(timer)
+      return server.close()
+    },
+  }
 }
 
 /** The web service: one local TCP connection to the server's tunnel listener, introduced with a PROXY header. */
@@ -117,7 +144,7 @@ function forwardTcp(stream: NoiseStream, port: number, rest: Buffer): void {
 }
 
 /** The TURN service: one local UDP socket per friend flow, so LiveKit sees a distinct 5-tuple per flow. */
-function forwardDatagrams(stream: NoiseStream, port: number, stats: TunnelStats, log: (...args: unknown[]) => void): void {
+function forwardDatagrams(stream: NoiseStream, port: number, stats: TunnelStats): void {
   const flows = new Map<number, dgram.Socket>()
   stream.on('message', (message: Buffer) => {
     if (message.length < 2) return
@@ -128,7 +155,8 @@ function forwardDatagrams(stream: NoiseStream, port: number, stats: TunnelStats,
       if (flows.size >= 64) return // one friend doesn't get to open endless sockets
       sock = dgram.createSocket('udp4')
       sock.bind(0, LOCAL)
-      sock.on('error', (e) => log('p2p host: udp', e.message))
+      sock.on('error', () => undefined) // a local socket to LiveKit's TURN port: nothing worth a line
+      stats.flows++
       sock.on('message', (data) => {
         const out = Buffer.allocUnsafe(data.length + 2)
         out.writeUInt16BE(id, 0)
@@ -141,7 +169,10 @@ function forwardDatagrams(stream: NoiseStream, port: number, stats: TunnelStats,
     sock.send(message.subarray(2), port, LOCAL)
   })
   stream.on('data', () => undefined) // keep the reliable side flowing (keep-alives)
-  stream.on('close', () => flows.forEach((s) => s.close()))
+  stream.on('close', () => {
+    stats.flows -= flows.size
+    flows.forEach((s) => s.close())
+  })
 }
 
 export interface FriendPorts {
@@ -152,7 +183,9 @@ export interface FriendPorts {
 
 export interface FriendTunnelOptions {
   keyPair: KeyPair
-  log?: (...args: unknown[]) => void
+  /** Its log lines (tunnelLog.ts), each with `logFields` first (the server's srv= id). */
+  log?: TunnelLogger
+  logFields?: [string, TunnelLogValue][]
   relayThrough?: Buffer | null
   /** Test knob: never punch (relay only). */
   forceRelay?: boolean
@@ -168,21 +201,31 @@ export interface FriendTunnel {
 }
 
 export async function openTunnel(dht: DHT, hostPublicKey: Buffer, ports: FriendPorts, opts: FriendTunnelOptions): Promise<FriendTunnel> {
-  const log = opts.log ?? (() => undefined)
+  const notes = new FriendNotes(opts.log ?? noLog, () => opts.logFields ?? [])
   const timings: number[] = []
-  const stats: TunnelStats = { open: 0, total: 0, datagramsIn: 0, datagramsOut: 0 }
+  const stats: TunnelStats = { open: 0, total: 0, datagramsIn: 0, datagramsOut: 0, flows: 0 }
   const connect = (service: number): NoiseStream => {
     stats.total++
     stats.open++
     const started = performance.now()
+    const punches = punchCounters(dht)
     const stream = dht.connect(hostPublicKey, {
       keyPair: opts.keyPair,
       relayThrough: opts.relayThrough ?? null,
       ...(opts.forceRelay ? { holepunch: () => false } : {}),
     })
+    let opened = false
     stream.once('open', () => {
-      timings.push(performance.now() - started)
+      opened = true
+      const ms = performance.now() - started
+      timings.push(ms)
       if (timings.length > 20) timings.shift()
+      // How it got through: punch counters and whether the peer is on this machine or LAN (the address isn't kept).
+      const path = routeOf(punches, punchCounters(dht), { relayed: !!opts.relayThrough || !!opts.forceRelay, local: isLocalAddress(stream.rawStream?.remoteHost) })
+      notes.connected(path, ms, nodeNat(dht))
+    })
+    stream.once('error', (e: unknown) => {
+      if (!opened) notes.failed(errorWhy(e), performance.now() - started, nodeNat(dht))
     })
     stream.once('close', () => stats.open--)
     stream.write(Buffer.from([service]))
@@ -202,13 +245,12 @@ export async function openTunnel(dht: DHT, hostPublicKey: Buffer, ports: FriendP
   let turn: { port: number; close(): void } | null = null
   if (ports.turn !== undefined) {
     try {
-      turn = await datagramFriend(connect, ports.turn, stats, log)
+      turn = await datagramFriend(connect, ports.turn, stats, notes)
     } catch (e) {
       web.close()
       throw e
     }
   }
-  log('p2p friend: listening on', webPort, turn?.port)
   return {
     ports: { web: webPort, turn: turn?.port ?? null },
     timings,
@@ -224,7 +266,7 @@ export async function openTunnel(dht: DHT, hostPublicKey: Buffer, ports: FriendP
  * The friend's TURN socket: LiveKit (in the renderer) sends TURN to 127.0.0.1:<port>; every sender address becomes a
  * flow over ONE long-lived DHT connection, remade if it drops.
  */
-async function datagramFriend(connect: (service: number) => NoiseStream, port: number, stats: TunnelStats, log: (...args: unknown[]) => void) {
+async function datagramFriend(connect: (service: number) => NoiseStream, port: number, stats: TunnelStats, notes: FriendNotes) {
   const sock = dgram.createSocket('udp4')
   await new Promise<void>((resolve, reject) => {
     sock.once('error', reject)
@@ -239,12 +281,17 @@ async function datagramFriend(connect: (service: number) => NoiseStream, port: n
     if (stream && !stream.destroyed) return stream
     open = false
     const next = (stream = connect(SERVICE.turn))
-    next.once('open', () => (open = true))
+    let openedAt = 0
+    next.once('open', () => {
+      open = true
+      openedAt = performance.now()
+    })
     next.on('error', () => undefined)
     next.on('data', () => undefined)
     next.on('close', () => {
       if (stream === next) stream = null
-      if (!closed) log('p2p friend: turn connection closed')
+      // Voice through the tunnel lost its link (it's remade with the next packet); a link that never opened is a failed connect.
+      if (!closed && openedAt) notes.turnClosed(performance.now() - openedAt)
     })
     next.on('message', (message: Buffer) => {
       if (message.length < 2) return
@@ -261,6 +308,7 @@ async function datagramFriend(connect: (service: number) => NoiseStream, port: n
       if (flows.size >= 64) return
       id = flows.size + 1
       flows.set(key, id)
+      stats.flows = flows.size
       back.set(id, { address: rinfo.address, port: rinfo.port })
     }
     const s = ensure()

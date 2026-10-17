@@ -103,8 +103,8 @@ describe('the server id', () => {
 
 // ── Codes: every code the app uses is in protocol/log-codes.json, and every app code listed there is used ──────
 
-/** Listed for the app but logged only once the voice quality sampler (ICE) and the handshake timeout exist. */
-const NOT_YET: string[] = ['VOI-130', 'CON-120']
+/** Listed for the app but not logged yet. */
+const NOT_YET: string[] = []
 /** Strings that look like codes but aren't. */
 const NOT_CODES = ['SHA-256']
 

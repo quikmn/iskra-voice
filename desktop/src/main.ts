@@ -14,6 +14,7 @@ import { HostTunnels } from './p2p/hostTunnel'
 import { p2pNetwork } from './p2p/network'
 import { P2pNode } from './p2p/node'
 import { TunnelledVoice } from './p2p/webrtcPolicy'
+import { natType, type TunnelLogger } from './p2p/tunnelLog'
 import { isBackupDownload, isBuddyAddress, readBackupInfo } from './restore'
 import { DoRental, errorReply, testOverrides } from './digitalocean'
 import { DO_OAUTH_CLIENT_ID, oauthConfigured, oauthTestOverrides, oauthToken } from './doOAuth'
@@ -98,16 +99,18 @@ const ptt = new PushToTalk(
 // Development builds and ISKRA_LOCAL_ONLY runs bind 127.0.0.1 and only join a testnet named by ISKRA_P2P_BOOTSTRAP.
 const p2pNode = new P2pNode(p2pNetwork(process.env, app.isPackaged))
 const hostTunnelStates = new Map<string, string>()
+// The tunnel's own lines (src p2p): how friends got through, NAT types, counts and durations; never an address or key.
+const tunnelLog: TunnelLogger = (e) => deskLog.write(e.level, 'p2p', 'tunnel', e.event, e.code ?? null, e.fields)
 const hostTunnels = new HostTunnels(p2pNode, (id, p2p) => {
   // The log has the tunnel's state changes only: never the server's folder name, its key or any address.
   if (hostTunnelStates.get(id) !== p2p.state) {
     hostTunnelStates.set(id, p2p.state)
-    if (p2p.state === 'failed') deskLog.write('ERROR', 'desk', 'tunnel', 'failed', 'TUN-150', [['what', 'host']])
-    else deskLog.info('tunnel', 'changed', [['what', 'host'], ['state', p2p.state]])
+    if (p2p.state === 'failed') deskLog.write('ERROR', 'desk', 'tunnel', 'failed', 'TUN-150', [['what', 'host'], ['nat', natType(p2p.nat)]])
+    else deskLog.info('tunnel', 'changed', [['what', 'host'], ['state', p2p.state], ['nat', natType(p2p.nat)]])
   }
   window?.webContents.send('iskra:host-p2p', { id, p2p })
-})
-const clientTunnels = new ClientTunnels(p2pNode)
+}, tunnelLog)
+const clientTunnels = new ClientTunnels(p2pNode, tunnelLog)
 const host = new Host(hostTunnels)
 // While the page's voice goes through a tunnel, WebRTC uses one any-address socket (see p2p/webrtcPolicy.ts).
 const tunnelledVoice = new TunnelledVoice()

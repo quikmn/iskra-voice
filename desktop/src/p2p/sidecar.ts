@@ -9,7 +9,9 @@
 // environment). The DHT: ISKRA_P2P_BOOTSTRAP / ISKRA_P2P_PORT / ISKRA_P2P_BIND as in network.ts; with
 // ISKRA_LOCAL_ONLY=1 it binds 127.0.0.1 and only joins a testnet named by ISKRA_P2P_BOOTSTRAP.
 // stdin: a line "sync" re-reads the world (a new secret); the end of stdin stops it cleanly (the server closed it, or
-// went away). stdout: one JSON line `{"status":P2pHostStatus}` whenever the status changes. Logs go to stderr.
+// went away). stdout: one JSON line `{"status":P2pHostStatus}` whenever the status changes, and `{"log":TunnelLogEvent}`
+// for the tunnel's own log lines (types, counts and durations: the server checks them again and writes them as `p2p`).
+// Anything else (usage, a crash) goes to stderr.
 import { existsSync, statSync } from 'node:fs'
 import type { Readable, Writable } from 'node:stream'
 import { HostTunnels, type P2pHostStatus } from './hostTunnel'
@@ -50,7 +52,7 @@ export async function runSidecar(io: SidecarIo): Promise<number> {
     last = line
     io.stdout.write(`${line}\n`)
   }
-  const tunnels = new HostTunnels(node, (_, status) => report(status))
+  const tunnels = new HostTunnels(node, (_, status) => report(status), (event) => void io.stdout.write(`${JSON.stringify({ log: event })}\n`))
 
   let code = 0
   let finish: () => void = () => undefined
