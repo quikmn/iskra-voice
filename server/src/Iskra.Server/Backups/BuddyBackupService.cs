@@ -377,8 +377,8 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
     {
         try
         {
-            // Let everything come up first.
-            await Task.Delay(TimeSpan.FromSeconds(30) < _tick ? TimeSpan.FromSeconds(30) : _tick, time, stoppingToken);
+            // Let everything come up first (unless the owner adds a buddy or clicks Back up now meanwhile).
+            await _wake.WaitAsync(TimeSpan.FromSeconds(30) < _tick ? TimeSpan.FromSeconds(30) : _tick, stoppingToken);
             while (!stoppingToken.IsCancellationRequested)
             {
                 try { await RunOnceAsync(stoppingToken); }

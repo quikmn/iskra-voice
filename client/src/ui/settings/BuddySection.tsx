@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage, translatedServerMessage } from '../../i18n/errors'
-import { formatBytes, formatDate } from '../../i18n/format'
+import { formatBytes, formatDate, formatNumber } from '../../i18n/format'
 import { t as i18nT } from '../../i18n'
 import type { Buddy, BuddyProblem, BuddySpot } from '../../core/protocol'
 import {
@@ -13,6 +13,9 @@ import {
 import type { ServerState } from '../../state/store'
 import { Spinner } from '../bits'
 import './buddies.css'
+
+/** A quota: whole gigabytes without decimals ("2 GB", not "2.0 GB"). */
+const quotaText = (bytes: number) => bytes % 2 ** 30 === 0 ? `${formatNumber(bytes / 2 ** 30)} GB` : formatBytes(bytes)
 
 const when = (ms: number) => formatDate(ms, { dateStyle: 'medium', timeStyle: 'short' })
 
@@ -90,7 +93,7 @@ function BuddyRow({ server, buddy }: { server: ServerState; buddy: Buddy }) {
         </span>
         {state === 'sending' && <progress value={percent} max={100} aria-label={t('buddies.state.sending', { percent })} />}
         {state === 'ok' && buddy.error === null && (
-          <span className="muted buddy-detail">{t('buddies.keeps', { count: buddy.keep, quota: formatBytes(buddy.quotaBytes) })}</span>
+          <span className="muted buddy-detail">{t('buddies.keeps', { count: buddy.keep, quota: quotaText(buddy.quotaBytes) })}</span>
         )}
         {error && <span className="error-text">{error}</span>}
       </div>
@@ -211,9 +214,9 @@ function SpotRow({ server, spot }: { server: ServerState; spot: BuddySpot }) {
           {spot.state === 'removing' && t('buddies.spot.removing', { when: when(spot.deleteAt ?? 0) })}
         </span>
         <div className="buddy-usage">
-          <progress value={spotUsage(spot)} max={1} aria-label={t('buddies.spot.usage', { used: formatBytes(spot.used), quota: formatBytes(spot.quotaBytes) })} />
+          <progress value={spotUsage(spot)} max={1} aria-label={t('buddies.spot.usage', { used: formatBytes(spot.used), quota: quotaText(spot.quotaBytes) })} />
           <span className="muted">
-            {t('buddies.spot.usage', { used: formatBytes(spot.used), quota: formatBytes(spot.quotaBytes) })}
+            {t('buddies.spot.usage', { used: formatBytes(spot.used), quota: quotaText(spot.quotaBytes) })}
             {' · '}{t('buddies.spot.copies', { count: spot.versions.length, keep: spot.keep })}
           </span>
         </div>
@@ -297,7 +300,7 @@ function Spots({ server }: { server: ServerState }) {
             <label className="field">
               <span>{t('buddies.spot.quota')}</span>
               <select value={quotaMb} onChange={(e) => setQuotaMb(Number(e.target.value))} disabled={busy}>
-                {QUOTA_CHOICES_MB.map((mb) => <option key={mb} value={mb}>{formatBytes(mb * 1024 * 1024)}</option>)}
+                {QUOTA_CHOICES_MB.map((mb) => <option key={mb} value={mb}>{quotaText(mb * 1024 * 1024)}</option>)}
               </select>
             </label>
             <label className="field">

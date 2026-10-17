@@ -10,7 +10,13 @@
 .buddy-state.ok, .buddy-state.active { color: var(--green-strong, var(--text)); }
 .buddy-state.problem, .buddy-state.removed { color: var(--red, var(--text)); }
 .buddy-state.waiting, .buddy-state.removing { color: var(--muted); }
-.buddy-row progress { width: 100%; max-width: 320px; height: 8px; margin-top: 4px; }
+.buddy-row progress {
+  width: 100%; max-width: 320px; height: 8px; margin-top: 4px; appearance: none; border: 0; border-radius: 99px;
+  background: var(--surface-3, var(--surface-2)); overflow: hidden;
+}
+.buddy-row progress::-webkit-progress-bar { background: var(--surface-3, var(--surface-2)); }
+.buddy-row progress::-webkit-progress-value { background: var(--accent); border-radius: 99px; transition: width 0.2s; }
+.buddy-row progress::-moz-progress-bar { background: var(--accent); border-radius: 99px; }
 .buddy-usage { display: grid; gap: 4px; font-size: 13px; margin-top: 4px; }
 .buddy-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; flex: none; max-width: 50%; }
 .buddy-actions .muted { font-size: 13px; }
