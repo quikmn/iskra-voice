@@ -97,7 +97,35 @@ test('a queue plays on by itself, the host can make it audio only, and phones ge
   await queue(friend).getByRole('button', { name: 'Add', exact: true }).click()
   await expect(items(host)).toHaveCount(1)
   await friend.getByTestId('watch-next').click()
+
+  // It plays from another site: everyone is asked first, the host too (they didn't start this one), and the
+  // now-playing bar waits behind the question. Agreeing covers that site for the rest of the party.
+  const gate = (page: Page) => page.getByTestId('watch-gate')
+  for (const page of [host, friend]) {
+    await expect(gate(page)).toBeVisible()
+    await expect(gate(page)).toContainText('media.example.com')
+    await expect(page.getByTestId('watch-now-playing')).toHaveCount(0)
+  }
+  await gate(host).getByRole('button', { name: 'Watch from media.example.com' }).click()
+  await expect(gate(host)).toHaveCount(0)
   await expect(host.getByTestId('watch-now-playing').locator('strong')).toHaveText('Song C')
+  await expect(gate(friend)).toBeVisible() // the friend hasn't agreed
+
+  // A different site asks again; the same site doesn't.
+  await queue(host).getByLabel('Link').fill('https://cdn.example.net/song-d.mp3')
+  await queue(host).getByLabel('Title (optional)').fill('Song D')
+  await queue(host).getByRole('button', { name: 'Add', exact: true }).click()
+  await queue(host).getByLabel('Link').fill('https://media.example.com/song-e.mp3')
+  await queue(host).getByLabel('Title (optional)').fill('Song E')
+  await queue(host).getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(items(host)).toHaveCount(2)
+  await host.getByTestId('watch-next').click()
+  await expect(gate(host)).toContainText('cdn.example.net')
+  await gate(host).getByRole('button', { name: 'Watch from cdn.example.net' }).click()
+  await expect(host.getByTestId('watch-now-playing').locator('strong')).toHaveText('Song D')
+  await host.getByTestId('watch-next').click()
+  await expect(host.getByTestId('watch-now-playing').locator('strong')).toHaveText('Song E')
+  await expect(gate(host)).toHaveCount(0)
 
   // Phones: the queue (still open) becomes a sheet from the bottom.
   await friend.setViewportSize({ width: 390, height: 844 })

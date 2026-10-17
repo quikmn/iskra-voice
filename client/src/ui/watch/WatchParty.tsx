@@ -7,6 +7,7 @@ import {
 } from '../../state/watch'
 import { correction, formatTime, parseWatchInput, positionAt, WATCH_RATES } from '../../state/watchSync'
 import { sourceKey } from '../../state/watchQueueLogic'
+import { needsGate, startedSites, withAgreedSite } from '../../state/watchConsentLogic'
 import { Avatar, Modal } from '../bits'
 import { Expand, Send } from '../icons'
 import { videoAdapter, YouTubeBridge, youTubeEmbedUrl, YOUTUBE_FRAME, type PlayerAdapter } from './players'
@@ -159,11 +160,12 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
   const queue = party.queue ?? []
   const audioOnly = !!party.audioOnly
   const host = party.host === server.me?.accountKey
-  // Plays from another site: say so first (the host already did, by starting it), unless this device always allows it.
+  // Plays from another site: say so first, once per site for this party (a queued item from elsewhere asks again),
+  // unless this device always allows it. The host already agreed to the site of what they started themselves.
   const site = watchSourceSite(party.source, server.url)
   const always = useAlwaysLoads(site)
-  const [agreed, setAgreed] = useState(host)
-  const gated = !!site && !always && !agreed
+  const [agreed, setAgreed] = useState(() => startedSites(party, server.me?.accountKey, site))
+  const gated = needsGate(site, agreed, always)
   // A link that isn't a plain web address (or a file elsewhere than this server) never plays: it would skip the gate.
   const src = party.source.kind === 'youtube' ? null : watchVideoSrc(party.source, server.url)
   const badLink = party.source.kind !== 'youtube' && !src
@@ -247,7 +249,7 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
           {badLink ? (
             <div className="watch-overlay" data-testid="watch-bad-link"><p>{t('watch.unplayableLink')}</p></div>
           ) : gated ? (
-            <WatchGate site={site!} onWatch={() => setAgreed(true)} />
+            <WatchGate site={site!} onWatch={() => setAgreed((sites) => withAgreedSite(sites, site!))} />
           ) : party.source.kind === 'youtube' ? (
             <YouTubeFrame videoId={party.source.videoId!} onReady={(a) => { adapter.current = a; setReady(true) }} onError={setFailed} />
           ) : (
@@ -273,7 +275,7 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
         )}
       </div>
 
-      {hidden && <NowPlaying server={server} party={party} title={title} showArt={!site || always || agreed} />}
+      {hidden && <NowPlaying server={server} party={party} title={title} showArt={!gated} />}
       <div className="watch-bar">
         {!hidden && (
           <div className="watch-title">
