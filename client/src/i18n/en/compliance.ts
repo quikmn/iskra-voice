@@ -171,6 +171,7 @@ export const compliance = {
     server_move_cancel: 'Cancelled the move',
     retention_update: 'Changed data retention',
     data_export: 'Downloaded data',
+    channel_export: 'Exported channels',
     security_log_export: 'Exported the security log',
     update_check: 'Checked for updates',
     update_settings: 'Changed update settings',

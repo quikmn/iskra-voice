@@ -566,6 +566,29 @@ From the command line, best with the server stopped:
 iskra-server import-discord my-server export.zip              # add --read-only for an archive
 ```
 
+### Exporting channels
+
+Admins (and anyone whose role has **Export channels**) can download channels to keep or share outside Iskra, like
+DiscordChatExporter does for Discord. Open **Server settings → Export channels**, tick the channels, optionally pick a
+date range, and choose whether to include files and images and threads. The server builds a zip in the background
+(you'll see its progress, and you can keep chatting); then **Download** it. The link works for an hour, then the
+file is deleted from the server.
+
+In the zip, each channel has its own folder with:
+
+- `channel.html`: open it in any browser to read the channel as it looked: names, times, replies, reactions, pins,
+  polls, threads, forum posts and docs pages, with images shown inline. It works offline and loads nothing from the
+  internet (it has no scripts at all, and a strict content security policy).
+- `channel.json`: the same content for programs, in a documented, versioned format (see "Channel export" in
+  [the protocol reference](../protocol/PROTOCOL.md#channel-export)).
+- `attachments/`: the files and images posted there (if you included them).
+
+What's never exported: end-to-end encrypted channels (the server can't read them; they can only be exported from a
+member's device), direct messages and group chats, deleted messages and disappearing messages. People appear under
+their display name at export time; account keys aren't included. Each export is noted in the activity log and the
+security log (which channels and dates, never what was in them). A zip can be at most 1 GB: leave out files or pick a
+shorter range for bigger channels. One export runs at a time per server.
+
 ## `server.json` reference
 
 ```jsonc

@@ -10,7 +10,7 @@ export type ServerSectionId =
   | 'overview' | 'channels' | 'serverVoice' | 'emoji' | 'gifs' | 'sounds' | 'pages' | 'rules' | 'onboarding'
   | 'members' | 'roles' | 'reports' | 'automod' | 'audit' | 'securityLog'
   | 'integrations' | 'activities' | 'bugInbox'
-  | 'internet' | 'limits' | 'backup' | 'import' | 'updates' | 'translate'
+  | 'internet' | 'limits' | 'backup' | 'export' | 'import' | 'updates' | 'translate'
 
 export type SectionId = MySectionId | ServerSectionId
 
@@ -54,6 +54,7 @@ const SERVER: { id: ServerSectionId; group: ServerGroup; min: Role; perms?: Perm
   { id: 'internet', group: 'hosting', min: 'admin' },
   { id: 'limits', group: 'hosting', min: 'owner' },
   { id: 'backup', group: 'hosting', min: 'owner' },
+  { id: 'export', group: 'hosting', min: 'admin', perms: ['exportChannels'] },
   { id: 'import', group: 'hosting', min: 'owner' },
   { id: 'updates', group: 'hosting', min: 'owner' },
 ]

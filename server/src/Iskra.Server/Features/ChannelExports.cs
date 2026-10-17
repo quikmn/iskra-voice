@@ -123,7 +123,8 @@ public sealed class ChannelExports
             job.FileName = $"iskra-export-{Slug(_world.Settings.Name, 40)}-{DateTimeOffset.FromUnixTimeMilliseconds(job.CreatedAt):yyyy-MM-dd}.zip";
             job.Token = Ed25519.ToB64u(RandomNumberGenerator.GetBytes(24));
             _byToken[job.Token] = job;
-            job.State = "done";
+            job.ExpiresAt = (Time.GetUtcNow() + Lifetime).ToUnixTimeMilliseconds();
+            job.State = "done"; // last: a status read never sees a finished job without its link and expiry
         }
         catch (Exception ex)
         {
@@ -131,18 +132,15 @@ public sealed class ChannelExports
             if (job.Cancel.IsCancellationRequested) job.State = "cancelled";
             else
             {
+                if (ex is not RequestException) Log?.LogError(ex, "A channel export failed");
+                job.Error = ex as RequestException ?? new RequestException("internal", "The export couldn't be made.", "export_failed");
+                job.ExpiresAt = (Time.GetUtcNow() + Lifetime).ToUnixTimeMilliseconds();
                 job.State = "failed";
-                job.Error = ex as RequestException;
-                if (job.Error is null)
-                {
-                    Log?.LogError(ex, "A channel export failed");
-                    job.Error = new RequestException("internal", "The export couldn't be made.", "export_failed");
-                }
             }
         }
         finally
         {
-            job.ExpiresAt = (Time.GetUtcNow() + Lifetime).ToUnixTimeMilliseconds();
+            job.ExpiresAt ??= (Time.GetUtcNow() + Lifetime).ToUnixTimeMilliseconds();
             job.Expiry = Time.CreateTimer(_ => Remove(job), null, Lifetime, Timeout.InfiniteTimeSpan);
             Volatile.Write(ref _running, 0);
             changed(job);
@@ -327,6 +325,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
     {
         public readonly Dictionary<string, string> Ids = new();
         public readonly List<(string Id, string Name, string Type)> Authors = [];
+        private readonly Dictionary<string, (string Name, string Type)> _byId = new();
         /// <summary>file id → its path in the zip (only with attachments on, and only files still on disk).</summary>
         public readonly Dictionary<string, string> Files = new();
         private readonly Dictionary<string, string?> _names = new();
@@ -375,10 +374,12 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
             id = $"a{Authors.Count + 1}";
             Ids[key] = id;
             Authors.Add((id, name, type));
+            _byId[id] = (name, type);
             return id;
         }
 
-        public string NameOfId(string id) => Authors.First(a => a.Id == id).Name;
+        public string NameOfId(string id) => _byId[id].Name;
+        public string TypeOfId(string id) => _byId[id].Type;
 
         public string? FilePath(StoredFile f, Files.Uploads uploads)
         {
@@ -672,7 +673,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
         var serverName = _r.ServerName;
         var prefix = c.Kind is "docs" or "forum" ? "" : "#";
         w.Write(ExportPage.Head(_r.Lang, $"{prefix}{c.Name} · {serverName}"));
-        w.Write("<header class=\"top\"><div class=\"server\">");
+        w.Write("<header class=\"top\"><div class=\"wrap\"><div class=\"server\">");
         w.Write(E(serverName));
         w.Write("</div><h1>");
         w.Write(E(prefix + c.Name));
@@ -681,7 +682,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
         w.Write($"<p class=\"meta\">{E(string.Format(ctx.Word("exported"), _r.RequesterName, ctx.FormatTime(job.CreatedAt)))}");
         if (_r.From is not null || _r.To is not null)
             w.Write(" · " + E(string.Format(ctx.Word("range"), _r.From is { } f ? ctx.FormatTime(f) : ctx.Word("start"), _r.To is { } t ? ctx.FormatTime(t) : ctx.Word("now"))));
-        w.Write("</p></header>\n<main>\n");
+        w.Write("</p></div></header>\n<main>\n");
 
         var threadsByRoot = plan.Threads.ToDictionary(t => t.RootId);
         var shown = new HashSet<long>();
@@ -763,9 +764,8 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
                 : $"<div class=\"reply\">↪ <a href=\"#m{r.Id}\"><b>{E(ctx.NameOfId(r.Author!))}</b></a> {E(r.Excerpt ?? "")}</div>");
         }
         w.Write($"<div class=\"head\"><span class=\"author\">{E(name)}</span>");
-        var type = ctx.Authors.First(a => a.Id == x.Author).Type;
-        if (type is "bot" or "webhook") w.Write("<span class=\"tag\">BOT</span>");
-        w.Write($"<time datetime=\"{DateTimeOffset.FromUnixTimeMilliseconds(m.CreatedAt):yyyy-MM-ddTHH:mm:ssZ}\">{E(ctx.FormatTime(m.CreatedAt))}</time>");
+        if (ctx.TypeOfId(x.Author) is "bot" or "webhook") w.Write("<span class=\"tag\">BOT</span>");
+        w.Write($"<time datetime=\"{DateTimeOffset.FromUnixTimeMilliseconds(m.CreatedAt).ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture)}\">{E(ctx.FormatTime(m.CreatedAt))}</time>");
         if (m.EditedAt is not null) w.Write($"<span class=\"edited\">({E(ctx.Word("edited"))})</span>");
         if (x.Pinned) w.Write($"<span class=\"pin\">📌 {E(ctx.Word("pinned"))}</span>");
         if (x.Forwarded) w.Write($"<span class=\"tag\">{E(ctx.Word("forwarded"))}</span>");

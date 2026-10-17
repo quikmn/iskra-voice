@@ -59,6 +59,7 @@ import { activities } from './activities'
 import { speech } from './speech'
 import { sounds } from './sounds'
 import { voiceStatus } from './voiceStatus'
+import { channelExport } from './channelExport'
 
 export const sv: Messages = {
   common,
@@ -120,4 +121,5 @@ export const sv: Messages = {
   moreBots,
   sounds,
   voiceStatus,
+  channelExport,
 }

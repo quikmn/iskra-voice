@@ -106,7 +106,7 @@ Gap: write a short STRIDE-style threat model per component (server, client, desk
 
 | Area | Evidence | Verdict |
 |---|---|---|
-| 7.1 Log content | Security log (`security_log`, owner-only `security.log.list`) records auth failures (reason; IP address only when the owner opts in), rate-limit hits (throttled), joins (and join requests pending, approved or declined, invites paused or resumed), new-device sign-ins, key rotations and disputes, account deletions, device revocations, backups, moves, retention changes, data exports; the audit log records moderation/admin actions. No message text, invite codes, passphrases or keys | met |
+| 7.1 Log content | Security log (`security_log`, owner-only `security.log.list`) records auth failures (reason; IP address only when the owner opts in), rate-limit hits (throttled), joins (and join requests pending, approved or declined, invites paused or resumed), new-device sign-ins, key rotations and disputes, account deletions, device revocations, backups, moves, retention changes, data exports, channel exports; the audit log records moderation/admin actions. No message text, invite codes, passphrases or keys | met |
 | 7.2 Log processing, 7.3 log protection | Stored in the server's database, readable only by the owner (security log) or `ViewAuditLog` holders (audit log); exportable as JSON; retention configurable (`Retention.SecurityLogDays`, `Retention.AuditDays`) | met |
 | 7.4 Error handling | Clients get generic errors (`internal`: "Something went wrong on the server."); details only in the server log ([Router.cs](../../server/src/Iskra.Server/Features/Router.cs)) | met |
 | 7.3.4 Time source | Host clock; Ubuntu's default NTP client on the droplet (to confirm with `timedatectl`) | partial |

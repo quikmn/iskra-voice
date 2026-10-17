@@ -33,6 +33,7 @@ export const settings = {
     limits: 'Limits',
     serverVoice: 'Voice',
     backup: 'Backup & move',
+    export: 'Export channels',
     import: 'Import from Discord',
     updates: 'Server updates',
     translate: 'Translation',

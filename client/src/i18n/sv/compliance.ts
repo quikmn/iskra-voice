@@ -173,6 +173,7 @@ export const compliance: Messages['compliance'] = {
     server_move_cancel: 'Avbröt flytten',
     retention_update: 'Ändrade lagringstider',
     data_export: 'Laddade ner data',
+    channel_export: 'Exporterade kanaler',
     security_log_export: 'Exporterade säkerhetsloggen',
     update_check: 'Sökte efter uppdateringar',
     update_settings: 'Ändrade inställningar för uppdateringar',

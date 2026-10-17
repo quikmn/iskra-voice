@@ -275,6 +275,7 @@ public static class ExportPage
         *{box-sizing:border-box}
         body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
         header.top{padding:20px 16px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+        .wrap{max-width:928px;margin:0 auto}
         header.top .server{color:var(--muted);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
         h1{margin:4px 0 6px;font-size:22px}
         .meta,.topic{margin:2px 0;color:var(--muted);font-size:13px}

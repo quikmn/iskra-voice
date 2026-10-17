@@ -1115,7 +1115,7 @@ export interface Requests {
 export type Permission =
   | 'manageMessages' | 'timeoutMembers' | 'kickMembers' | 'banMembers' | 'manageChannels' | 'manageRoles'
   | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers' | 'manageAutoMod'
-  | 'prioritySpeaker' | 'sendTts'
+  | 'prioritySpeaker' | 'sendTts' | 'exportChannels'
 
 export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak' | 'setVoiceStatus'
 
@@ -2842,4 +2842,45 @@ export interface VoiceChannelState {
 export interface Requests {
   /** Empty `text` clears it. */
   'voice.status.set': [{ channelId: number; text: string }, { status: VoiceStatus | null }]
+}
+
+// ── channel export ──
+
+/** A channel export made on the server (PROTOCOL.md "Channel export"): running, then a zip behind a short-lived link. */
+export interface ExportJob {
+  id: string
+  state: 'running' | 'done' | 'failed' | 'cancelled'
+  channelIds: number[]
+  from: number | null
+  to: number | null
+  attachments: boolean
+  threads: boolean
+  done: number
+  total: number
+  createdAt: number
+  url: string | null
+  name: string | null
+  size: number | null
+  expiresAt: number | null
+  error: { code: string; message: string; key?: string; args?: Record<string, string | number> } | null
+}
+
+export interface ExportOptions {
+  channelIds: number[]
+  from?: number
+  to?: number
+  attachments?: boolean
+  threads?: boolean
+  timeZone?: string
+  lang?: string
+}
+
+export interface Requests {
+  'channel.export': [ExportOptions, { job: ExportJob }]
+  'channel.export.status': [Record<string, never>, { jobs: ExportJob[] }]
+  'channel.export.cancel': [{ id: string }, { job: ExportJob }]
+}
+
+export interface Events {
+  'channel.export.progress': { job: ExportJob }
 }

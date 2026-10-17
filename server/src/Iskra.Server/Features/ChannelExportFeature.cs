@@ -75,7 +75,7 @@ public static class ChannelExportFeature
             ?? throw new RequestException("rate_limited", "An export is being made right now. Try again when it's done.", "channel_export_busy");
 
         // What was exported and by whom: never any content.
-        var details = new { channelIds = ids, from, to, attachments, threads };
+        var details = new { channelIds = ids, channelNames = channels.Select(c => c.Name), from, to, attachments, threads };
         Audit.Record(s, "channel.export", details: details);
         SecurityLog.Record(s, "channel.export", details: details);
         return new { job = ChannelExports.View(job) };
