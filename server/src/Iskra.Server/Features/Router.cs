@@ -79,6 +79,7 @@ public sealed class Router
         OutgoingWebhookFeature.Register(this);
         BuiltinBotFeature.Register(this);
         FeedsFeature.Register(this);
+        BuiltinBots3.Register(this);
         ServerImageFeature.Register(this);
         BotScope.Register(this);
         InteractionFeature.Register(this);

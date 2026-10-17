@@ -65,6 +65,7 @@ public sealed class BuiltinBotRuntime : BackgroundService
         var now = when.ToUnixTimeMilliseconds();
         Safely("welcome", () => FlushWelcomes(now, forceWelcome));
         Safely("private welcome", () => DeliverCards(now));
+        Safely("giveaways", () => GiveawayBot.Tick(_world.Store, _hub, _push, now));
         if (at is not null || now - _lastBirthdayCheck >= 10_000)
         {
             _lastBirthdayCheck = now;

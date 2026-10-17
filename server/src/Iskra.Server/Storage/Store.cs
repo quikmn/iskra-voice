@@ -381,6 +381,8 @@ public sealed partial class Store : IDisposable
         ("media-1", "ALTER TABLE forum_posts ADD COLUMN untitled INTEGER NOT NULL DEFAULT 0;"),
         // Feeds bot: RSS/Atom, YouTube and Twitch subscriptions, the items they have seen, the Twitch app credentials.
         ("feeds-1", FeedsMigration),
+        // Tags, Suggestions, Giveaways and Counting bots: snippets, suggestion cards and votes, giveaways and entries, counts.
+        ("builtinbots3-1", BuiltinBots3Migration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────
