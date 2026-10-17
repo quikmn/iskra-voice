@@ -89,7 +89,7 @@ export function channelAccess(member: Member | null | undefined, channel: Channe
   if (!member) return out
   const rank = roleRank(member.role)
   if (rank >= roleRank(channel.readRole)) { out.add('view'); out.add('connect') }
-  if (rank >= roleRank(channel.writeRole)) { out.add('send'); out.add('speak') }
+  if (rank >= roleRank(channel.writeRole)) { out.add('send'); out.add('speak'); out.add('setVoiceStatus') }
   const mine = new Set(member.roles ?? [])
   const overrides = (channel.overrides ?? []).filter((o) => mine.has(o.roleId) && roles.some((r) => r.id === o.roleId))
   for (const o of overrides) for (const p of o.deny) out.delete(p)

@@ -317,7 +317,7 @@ export function VoiceModControls({ server, member }: { server: ServerState; memb
 
 const CHANNEL_PERMS: Record<'text' | 'voice', ChannelPermission[]> = {
   text: ['view', 'send'],
-  voice: ['view', 'connect', 'speak'],
+  voice: ['view', 'connect', 'speak', 'setVoiceStatus'],
 }
 
 type Choice = 'deny' | 'inherit' | 'allow'

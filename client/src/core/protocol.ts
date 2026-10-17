@@ -1117,7 +1117,7 @@ export type Permission =
   | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers' | 'manageAutoMod'
   | 'prioritySpeaker'
 
-export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak'
+export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak' | 'setVoiceStatus'
 
 /** A custom role. Position 1 is the lowest. */
 export interface ServerRole {
@@ -2781,4 +2781,23 @@ export interface Requests {
   'act.send': [{ channelId: number; sessionId: string; data: unknown }, { seq: number }]
   'act.snapshot': [{ channelId: number; sessionId: string; seq: number; state: unknown }, Record<string, never>]
   'act.end': [{ channelId: number; sessionId: string }, Record<string, never>]
+}
+
+// ── voice channel status ──
+
+/** A voice channel's status ("CS2 ranked"), set by someone in the call; gone when the call empties. */
+export interface VoiceStatus {
+  text: string
+  setBy: string
+  setAt: number
+}
+
+export interface VoiceChannelState {
+  /** Missing from older servers. */
+  status?: VoiceStatus | null
+}
+
+export interface Requests {
+  /** Empty `text` clears it. */
+  'voice.status.set': [{ channelId: number; text: string }, { status: VoiceStatus | null }]
 }

@@ -1,0 +1,25 @@
+/* ── Voice channel status ─────────────────────────────────────────── */
+.vstatus-line {
+  margin: -2px 0 4px; padding: 0 8px 0 38px; font-size: 12px; line-height: 1.35; color: var(--text-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vstatus-bar {
+  display: flex; align-items: center; gap: 8px; flex: none; min-width: 0; padding: 6px 16px;
+  background: var(--surface); border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-2);
+}
+.vstatus-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.vstatus-text.muted { color: var(--muted); }
+.vstatus-bar.editing { flex-wrap: wrap; padding-block: 8px; }
+.vstatus-field { position: relative; flex: 1 1 260px; min-width: 0; display: flex; }
+.vstatus-field input { flex: 1; min-width: 0; padding-right: 56px; }
+.vstatus-count {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--muted);
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.vstatus-count.over { color: var(--red); }
+.vstatus-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.vstatus-bar.editing .error-text, .vstatus-hint { flex-basis: 100%; margin: 0; font-size: 12px; }
+@media (max-width: 640px) {
+  .vstatus-bar { padding-inline: 12px; }
+  .vstatus-bar .icon-button.small { width: 36px; height: 36px; }
+}
