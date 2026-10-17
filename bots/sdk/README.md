@@ -62,6 +62,13 @@ where it can, and a bot that never joins voice doesn't load them. An admin has t
 Bots play files and streams their operator has the right to play. No YouTube, Spotify or other streaming services:
 the SDK has no extractors for them and never will.
 
+## Other languages
+
+`npx iskra-bots bridge --name Roll -- python roll.py` logs in as the bot and runs your program with its stdin and stdout
+connected: events come in as JSON lines, requests go out as JSON lines. No HTTP and no open ports. The line protocol:
+[docs/bots.md → Other languages](https://github.com/quikmn/iskra-voice/blob/main/docs/bots.md#other-languages). There's
+also a Python SDK, in [bots/python](https://github.com/quikmn/iskra-voice/tree/main/bots/python).
+
 ## DMs and privacy
 
 DMs to a bot are end-to-end encrypted to the bot's own keys, so the server can't read them and whoever runs the bot

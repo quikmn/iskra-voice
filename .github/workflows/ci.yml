@@ -249,8 +249,11 @@ jobs:
           key: livekit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
       - if: steps.livekit.outputs.cache-hit != 'true'
         run: bash ../scripts/get-livekit.sh
-      - run: npm ci && npm run typecheck
+      - run: npm ci && npm run typecheck && npm test
         working-directory: bots
+      # The Python bot SDK (the runner's python3, versions pinned): its tests, then pybot.test.ts runs it against the server.
+      - run: python3 -m venv .venv && .venv/bin/pip install --quiet -c ci-constraints.txt -e ".[test]" && .venv/bin/python -m pytest -q
+        working-directory: bots/python
       # The p2p interop test checks voice through the tunnel in a real Chromium.
       - run: npx playwright install --with-deps chromium
       - run: npm run test:interop

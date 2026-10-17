@@ -1,0 +1,11 @@
+# The versions CI tests the Python SDK with (pip install -c ci-constraints.txt -e ".[test]").
+cffi==2.1.1
+colorama==0.4.6
+iniconfig==2.3.1
+packaging==26.3
+pluggy==1.7.0
+pycparser==3.11
+Pygments==2.21.0
+PyNaCl==1.6.2
+pytest==9.1.1
+websockets==17.2

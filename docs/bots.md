@@ -212,7 +212,7 @@ Bots and webhooks stay out of **end-to-end encrypted channels**: a bot holds no 
 
 ### Your first bot in 5 minutes
 
-You need [Node.js](https://nodejs.org) 22 or newer, [Git](https://git-scm.com), and a server where you're an admin. Any server works, including one you run on your own computer.
+You need [Node.js](https://nodejs.org) 22 or newer, [Git](https://git-scm.com), and a server where you're an admin. Any server works, including one you run on your own computer. Prefer Python? See [Python](#python); any other language works through [the bridge](#other-languages).
 
 1. **Get the SDK.** It lives in the Iskra repository, next to the app code it reuses (it's also packaged for npm as
    [`iskra-bots`](#the-sdk-on-npm)):
@@ -279,6 +279,8 @@ The bot saves its keys and the server's address in `greeter.bot.json`, so from n
 | **Music** ([`examples/music.ts`](../bots/examples/music.ts)) | `npm run music` | A [voice bot](#voice-bots) for the songs people upload: attach audio to a message that mentions @Music (or send it in a DM) and it joins your voice channel and plays it; `/play <link to a file on this server>`, a queue (`/queue`, `/remove`, `/clear`), `/pause`, `/resume`, `/skip`, `/stop`, `/volume`; a "Now playing" card with buttons; admins choose who controls it (`/music-control`) |
 | **Jukebox** ([`examples/jukebox.ts`](../bots/examples/jukebox.ts)) | `npm run jukebox` | A [voice bot](#voice-bots): `/play [song]` joins your voice channel and plays the files in a folder (and radio streams you list), `/skip`, `/stop`, `/songs`; a "Now playing" card with **Pause**, **Skip** and **Stop** buttons that it keeps up to date |
 | **Planner** ([`examples/planner.ts`](../bots/examples/planner.ts)) | `npm run planner` | `/poll Pizza or tacos? \| Pizza \| Tacos` (posts the result and a CSV file when it closes), `/remind 10m stretch`, `/event 2h Game night`, `/events` (a card); usage hints, edits, files, polls, events, an activity, and keeping state across restarts |
+| **Dice in Python** ([`python/examples/dice.py`](../bots/python/examples/dice.py)) | `python examples/dice.py` (in `bots/python`) | The Dice bot with the [Python SDK](#python) |
+| **Roll, any language** ([`roll.py`](../bots/examples/bridge/roll.py), [`Roll.cs`](../bots/examples/bridge/Roll.cs)) | `npm run bridge -- --name Roll -- python examples/bridge/roll.py` | A bot without any SDK, through [the bridge](#other-languages) |
 
 Start either one the first time with `ISKRA_INVITE='<bot invite link>' npm run planner` (PowerShell: `$env:ISKRA_INVITE='<link>'; npm run planner`). Each needs its own bot invite.
 
@@ -554,6 +556,168 @@ GitHub Actions with a provenance statement, so `npm audit signatures` can check 
 Maintainers build it with `npm run build:sdk` in `bots/` (`npm run pack:sdk` lists what would be
 published); [docs/ci-cd.md](ci-cd.md#npm-bot-sdk) has the release steps.
 
+### Python
+
+The Python SDK (package `iskra-bots`, `import iskra`, in [`bots/python`](../bots/python)) does what the Node SDK does,
+except voice: commands with `/help`, buttons, menus, forms and cards, files, polls, threads, end-to-end encrypted DMs,
+reconnecting, and the same `<name>.bot.json`, so a bot can move between Node and Python and keep its identity. It's
+asyncio, typed, and needs only [PyNaCl](https://pypi.org/project/PyNaCl/) (libsodium) and
+[websockets](https://pypi.org/project/websockets/). Python 3.11 or newer.
+
+```sh
+git clone https://github.com/quikmn/iskra-voice.git
+pip install ./iskra-voice/bots/python
+```
+
+```python
+import os
+from iskra import Bot
+
+bot = Bot("Greeter", invite=os.environ.get("ISKRA_INVITE"))
+
+@bot.command("hello", "Says hello")
+async def hello(ctx):
+    await ctx.reply(f"Hi {ctx.user_name}!")
+
+@bot.command("score", "Shows a score card", options=[{"name": "team", "description": "Which team", "type": "string", "required": True}])
+async def score(ctx):
+    await ctx.reply({
+        "cards": [{"title": f"Team {ctx.options['team']}", "color": 0x57F287, "fields": [{"name": "Points", "value": "12", "inline": True}]}],
+        "components": [{"type": "row", "items": [{"type": "button", "customId": "cheer", "label": "Cheer 🎉"}]}],
+    })
+
+@bot.on_component("cheer")
+async def cheer(ctx):
+    await ctx.reply(f"{ctx.user_name} cheers!", private=True)
+
+@bot.on("message")                                # messages that mention the bot
+async def pizza(message):
+    if "pizza" in message.text:
+        await message.react("🍕")
+
+@bot.on("dm")                                     # end-to-end encrypted DMs; commands work there too
+async def dm(dm):
+    if not dm.text.startswith("/"):
+        await dm.reply("Hi! Try /hello")
+
+bot.run()                                         # until Ctrl+C; or: await bot.start() in your own asyncio code
+```
+
+Start it once with the invite (`ISKRA_INVITE='<bot invite link>' python greeter.py`; PowerShell:
+`$env:ISKRA_INVITE='<link>'; python greeter.py`); after that it finds the server in `greeter.bot.json`. The example
+Dice bot is [`bots/python/examples/dice.py`](../bots/python/examples/dice.py).
+
+| Node | Python |
+|---|---|
+| `new Bot({ name, invite, stateFile, hearBots, log })` | `Bot(name, invite=None, *, state_file=None, hear_bots=False, log=None)` |
+| `bot.command(name, description, handler, details)`, `bot.commands([...])` | the same, or `@bot.command(name, description, options=..., usage=..., role=..., permission=...)` |
+| `bot.onComponent(id or /re/, ...)`, `bot.onModalSubmit(...)` | `@bot.on_component("id" or re.compile(...))`, `@bot.on_modal_submit(...)` |
+| `bot.on('message' \| 'dm' \| 'memberJoined' \| 'messageEdited' \| ...)` | `@bot.on("message" \| "dm" \| "member_joined" \| "message_edited" \| ...)` (the camelCase names work too) |
+| Context: `userName`, `channelId`, `options`, `args`, `reply`, `defer`, `showModal`, `update`, `customId`, `values`, `fields` | `ctx.user_name`, `ctx.channel_id`, `ctx.options`, `ctx.args`, `await ctx.reply(content, private=True)`, `ctx.defer()`, `ctx.show_modal(modal)`, `ctx.update(...)`, `ctx.custom_id`, `ctx.values`, `ctx.fields` |
+| `m.text`, `m.authorName`, `m.reply()`, `m.react()`; `dm.from`, `dm.reply()` | `m.text`, `m.author_name`, `m.data` (the whole message), `await m.reply()`, `await m.react()`; `dm.author`, `await dm.reply()` |
+| `send`, `edit`, `delete`, `react`, `upload`, `sendFile`, `poll`, `thread`, `setActivity`, `sendDm`, `downloadDmFile`, `request` | `send(channel_id, content, reply_to=, attachments=, cards=, components=)`, `edit`, `delete`, `react`, `upload(name, data)`, `send_file(channel_id, name, data, text=)`, `poll(channel_id, question, answers, multi=, duration_ms=)`, `thread`, `set_activity`, `send_dm`, `download_dm_file`, `request(type, body)` (all `async`) |
+| `bot.channels`, `bot.members`, `bot.me`, `channelByName`, `mention`, `fileUrl` | `bot.channels`, `bot.members` (a dict), `bot.me`, `channel_by_name`, `mention`, `file_url` |
+
+Content is a string or a dict with the protocol's own field names (`text`, `cards`, `components`, `attachments`,
+`replyTo`); messages, members and channels arrive as plain dicts (typed `TypedDict`s). Failed requests raise
+`RequestError` with a `code`; a refused start raises `Rejected` (with the same explanations as in
+[When it won't start](#when-it-wont-start)). Handlers may be plain or `async`; one that raises is logged and the bot
+carries on.
+
+The crypto is libsodium through PyNaCl, nothing hand-rolled, and its tests check it against the protocol's test vectors
+([`protocol/vectors.json`](../protocol/vectors.json)) and against DMs the app's own code encrypted. Voice bots are
+Node only for now.
+
 ### Other languages
 
-Nothing about bots is specific to Node. A bot is any client that follows [PROTOCOL.md](../protocol/PROTOCOL.md): make an Ed25519 account key and device key, certify the device, connect to `wss://<server>/ws`, and send `auth` with `profile: { name, bot: true }` and the bot invite code (the last part of the invite link).
+Any language can run a bot through the **bridge**: a small program in the npm package that logs in as the bot with the
+Node SDK (the normal signed handshake, keys in `<name>.bot.json`) and talks to your program in JSON, one object per
+line, over your program's **stdin and stdout**. There's no HTTP API and nothing listens on a port: your program only
+reads and writes lines.
+
+```sh
+# Starts your program and connects its stdin/stdout to the bot. The invite is only needed the first time.
+npx iskra-bots bridge --name Roll --invite '<bot invite link>' -- python roll.py
+npx iskra-bots bridge --name Roll -- dotnet run Roll.cs
+```
+
+Without a program after `--`, the bridge uses its own stdin and stdout instead, for a program that starts the bridge
+itself. Options: `--name` (or `ISKRA_BOT_NAME`), `--invite` (or `ISKRA_INVITE`), `--state <file>` (or
+`ISKRA_BOT_STATE`), `--hear-bots`, `--raw`. In the repository: `npm run bridge -- --name Roll -- python roll.py` in
+`bots/`. The program is started without a shell, so on Windows name its `.exe` (`python`, `node`, `dotnet`). The
+bridge's own messages go to stderr, and so does your program's stderr.
+
+Two complete examples, each about 30 lines: [`roll.py`](../bots/examples/bridge/roll.py) (Python without the SDK) and
+[`Roll.cs`](../bots/examples/bridge/Roll.cs) (one C# file).
+
+#### The line protocol (version 1)
+
+**From the bridge** (your stdin), events:
+
+```jsonc
+{"event":"hello","body":{"v":1,"bridge":"iskra-bots 0.1.1","name":"Roll"}}       // always the first line
+{"event":"ready","body":{"me":Member,"channels":[Channel],"commands":[Command]}}  // online (again, after a reconnect)
+{"event":"command","ref":"r1","body":{"command":"roll","args":"2d6","options":{"dice":"2d6"},
+  "user":"<accountKey>","userName":"Viktor","channelId":1,"dm":false,"private":false,"messageId"?:42}}
+{"event":"component","ref":"r2","body":{"customId":"again","values":[],"user":"...","userName":"...","channelId":1,"messageId"?:43,"responseId"?:"...","private":false}}
+{"event":"modal","ref":"r3","body":{"customId":"plan","fields":{"title":"Game night"},"user":"...","userName":"...","channelId":1}}
+{"event":"message","ref":"r4","body":{"message":Message,"authorName":"Viktor"}}  // messages the bot may read
+{"event":"dm","ref":"r5","body":{"id":"...","from":"<accountKey>","authorName":"Viktor","text":"hi","sentAt":0,"files":[DmFile]}}
+{"event":"memberJoined","body":{"member":Member}}
+{"event":"messageEdited","body":{"message":Message}}   // also messageDeleted, reactions, pollUpdated (the server's bodies)
+{"event":"status","body":{"state":"offline","retryInMs":2000}}                  // connecting, online, offline, restarting, rejected
+{"event":"server","type":"chat.typing","body":{...}}   // every server event, only with --raw
+{"event":"stopped","body":{"reason":"..."}}            // the bot couldn't start or was turned away; the bridge ends
+```
+
+Objects (`Member`, `Message`, ...) are the protocol's ([PROTOCOL.md](../protocol/PROTOCOL.md#objects)). A `ref`
+answers what it came with for 15 minutes (the last 1000 are kept).
+
+**To the bridge** (your stdout), requests, each with your own `id` (a string of 1–64 characters, or an integer):
+
+```jsonc
+{"id":1,"type":"bridge.commands","body":{"commands":[{"name":"roll","description":"Rolls dice","options":[...]}]}}
+{"id":2,"type":"bridge.reply","body":{"ref":"r1","text":"Rolled 7","cards"?:[...],"components"?:[...],"private"?:true}}
+{"id":3,"type":"chat.history","body":{"channelId":1}}     // any request in PROTOCOL.md, sent as the bot
+```
+
+and the answer to each, on one line:
+
+```jsonc
+{"id":2,"ok":true,"body":{"message":Message}}
+{"id":3,"ok":false,"error":{"code":"forbidden","message":"...","key"?:"bot_no_read","args"?:{}}}
+```
+
+| Request | Body | Answer |
+|---|---|---|
+| `bridge.commands` | `commands`: the command list, as [above](#commands) (`name`, `description`, `usage?`, `options?`, `role?`, `permission?`). Replaces the list set before; `/help` is built in. Works before the bot is online. | `{ commands: [names] }` |
+| `bridge.reply` | `ref` (a command, click, form, message or DM), and `text?`, `cards?`, `components?`, `private?` | `{ message }` (null for private answers and DMs) |
+| `bridge.defer` | `ref` (a command, click or form): "thinking…" | |
+| `bridge.update` | `ref` (a click), and the new `text?`, `cards?`, `components?` of the message it was on | |
+| `bridge.modal` | `ref` (a command or click), `modal` ([a form](#buttons-menus-and-forms)) | |
+| `bridge.react` | `ref` (a message, or a command typed as text), `emoji` | |
+| `bridge.send` | `channelId`, `text?`, `cards?`, `components?`, `replyTo?`, `attachments?` (retries when rate limited; text over 4000 characters is cut) | `{ message }` |
+| `bridge.dm` | `accountKey`, `text?`, `cards?`: an end-to-end encrypted DM | |
+| `bridge.upload` | `name`, `data` (base64) | `{ file }`, for `attachments` |
+| `bridge.dmFile` | `file` (from a `dm` event's `files`) | `{ data }` (base64, decrypted and checked) |
+| `bridge.info` | | `{ me, channels, members, commands }` |
+| anything else | the protocol request's body | its result |
+
+| | |
+|---|---|
+| Line length | Up to 1 MiB per line from your program (longer lines are refused whole: `too_large`). Lines from the bridge have no limit of their own; they're as big as the server's events. |
+| Encoding | UTF-8, one JSON object per line, `\n` (or `\r\n`) at the end. Read stdin as UTF-8. |
+| Waiting answers | At most 64 requests at once (more: `busy`). Answers can come in any order: match them by `id`. |
+| Before it's online | Requests wait until the bot is online (`bridge.commands` and `bridge.info` don't). |
+| Errors | `code` is the server's ([PROTOCOL.md → Errors](../protocol/PROTOCOL.md#errors-and-close-codes)) or the bridge's: `bad_request` (a malformed line or body; `id` is `null` when the line had no usable id), `unknown_ref`, `unknown_type`, `too_large`, `busy`, `disconnected`, `failed`. |
+| Other output | A line that doesn't start with `{` (a stray `print`) is passed to the bridge's log, not treated as a request. |
+| Ending | When your program exits, the bridge stops the bot and exits with your program's exit code; without `--`, it stops when its stdin closes. |
+| Versions | `hello` carries the protocol version (`v: 1`). New events, fields and request types can be added in version 1, so ignore what you don't know; anything incompatible would be version 2. |
+
+What the bridge doesn't change: the bot is still a bot (the same [limits](#bots), read scope and badge), and the
+program it runs can do anything the bot can, so run programs you trust, and keep `<name>.bot.json` private.
+
+Writing a client from scratch is possible too: a bot is any client that follows [PROTOCOL.md](../protocol/PROTOCOL.md):
+make an Ed25519 account key and device key, certify the device, connect to `wss://<server>/ws`, and send `auth` with
+`profile: { name, bot: true }` and the bot invite code (the last part of the invite link). The Python SDK is a complete
+example of that.
