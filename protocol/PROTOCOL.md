@@ -12,7 +12,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages)
 - **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group) · [Whiteboards](#whiteboards)
-- **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
+- **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports) · [Backup buddies](#backup-buddies)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Built-in roles](#built-in-roles) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
 - **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server) · [Passkeys and key transparency](#passkeys-and-key-transparency)
 
@@ -3746,3 +3746,171 @@ How the other voice features behave in an encrypted voice channel:
 What it doesn't hide: the server (and LiveKit) still see who is in the room, when, who speaks and how much (packet
 sizes and timing), mute and camera state, and soundboard plays. Everyone holding the key can decrypt everyone's media,
 so a member's app could forward or record what it hears, as in any call.
+
+## Backup buddies
+
+A server's [automatic daily backups](#backups) can also go to **a friend's Iskra server** that agreed to keep them.
+The friend's server (the **holder**) keeps them in a **spot** its owner made, with a size cap and a number of versions
+the holder's owner chose. Every copy is encrypted on the server it came from (the **source**) before it's sent; only
+the source's owner has the key (a recovery code). Nothing goes through Iskra or anyone else: the source talks to the
+holder directly, over HTTPS (or plain HTTP on a local network). This is the one place where an Iskra server makes
+requests to another Iskra server.
+
+### Keys and the recovery code
+
+- **Recovery code.** The first time a source adds a buddy, it makes a recovery code: 25 characters from Crockford's
+  base32 alphabet (`0123456789ABCDEFGHJKMNPQRSTVWXYZ`, 125 random bits), shown as five groups of five. Typed codes are
+  normalized like [claim codes](#owner-claim-rented-servers) (upper case, spaces and `-` removed, `O` → `0`, `I`/`L` → `1`).
+  The source keeps it (in its database) so it can encrypt every day without anyone around. One code covers all of a
+  server's buddies, for good: it's never changed (a new one would orphan the copies already out there).
+- **Encryption.** Each copy is a daily backup (`backups/auto-YYYY-MM-DD.zip`) encrypted in exactly the
+  [`.iskrabackup` format](#backups) with the normalized code as the passphrase (Argon2id `ops` 2, `mem` 64 MB: the code
+  is random, so the cost only needs to be modest). Header `name` and `createdAt` are the server's and the daily
+  backup's. So a copy from a buddy also restores with plain `iskra-server restore`, using the recovery code as the
+  passphrase. The holder never gets the code and never parses, opens or runs what it stores.
+- **Restore key.** `seed = BLAKE2b-256("iskra/buddy-restore-key/v1" || 0x00 || utf8(normalized code))`, an Ed25519 key
+  pair from that seed. The source registers its public half when it pairs, so whoever has the recovery code (and
+  nobody else) can list and download the copies after the source machine is gone.
+- **Server keys.** The source signs with its server key, the holder with its own; both are learned at pairing and
+  checked on every request after it.
+
+### Pairing
+
+The holder's owner makes a spot (`buddy.spot.create`) and gets a **pairing code**:
+`iskra-buddy:` + base64url(UTF-8 JSON `{ "v": 1, "url": "<holder address>", "key": "<holder server key>", "token": "<b64u 32 random bytes>" }`),
+at most 1024 characters. It's single use and works for 24 hours; the holder keeps only the token's SHA-256. The
+address is the holder's internet address if it has one, else its `PublicUrl` (the owner can give another).
+
+The source's owner pastes it (`buddy.add`). The source then calls the holder:
+
+`POST <url>/buddy/v1/pair` with JSON `{ token, sourceKey, restoreKey, name, at, sig }` (≤ 4 KB):
+`sig = Ed25519.sign(sourceSecret, "iskra/buddy-pair/v1" || 0x00 || holderKey(32) || token(32) || restoreKey(32) || u64be(at) || utf8(name))`,
+`name` the source server's name (1–100 characters), `at` within 5 minutes of the holder's clock.
+
+The holder answers `200 { spotId, quotaBytes, keep, graceDays, name, at, sig }`:
+`sig = Ed25519.sign(holderSecret, "iskra/buddy-paired/v1" || 0x00 || sourceKey(32) || token(32) || u64be(at) || utf8(spotId))`.
+The source checks it against the key in the pairing code before saving anything, so a code can only ever pair with the
+server it names. Errors: `404` (no such token, used or expired; one answer for all three), `400` (malformed, bad
+signature, clock off), `409` (this source already has a spot here), `429` (see limits).
+
+### Signed requests
+
+Every request after pairing carries
+`Authorization: IskraBuddy key=<b64u 32>, at=<ms>, nonce=<b64u 16>, sig=<b64u 64>` with
+`sig = Ed25519.sign(secret, "iskra/buddy-request/v1" || 0x00 || holderKey(32) || u64be(at) || nonce(16) || SHA-256(utf8(METHOD + " " + path-and-query)) || SHA-256(body))`.
+`key` is the source's server key or its restore key. The holder refuses (`401`, nothing else said) a key it doesn't
+know, a bad signature, an `at` more than 5 minutes off, or a nonce it has seen from that key in the last 10 minutes.
+
+| Request | Who | Body | Answer |
+|---|---|---|---|
+| `GET /buddy/v1/hello` | anyone (unsigned) | | `{ iskra: 1, key }`: the holder's server key, for a restore that only has the address |
+| `GET /buddy/v1/spot` | source, restore key | | `{ spotId, quotaBytes, keep, graceDays, used, removing, deleteAt, versions: [{ id, size, at }] }` (newest first) |
+| `POST /buddy/v1/uploads` | source | `{ size }` | `{ id, received, chunkBytes }`; a new upload replaces an unfinished one |
+| `GET /buddy/v1/uploads/<id>` | source | | `{ id, size, received }` (to resume) |
+| `PUT /buddy/v1/uploads/<id>?offset=<n>` | source | raw bytes, 1 B – 4 MB | `{ received }`; `409 { received }` unless `offset` is exactly what the holder has |
+| `POST /buddy/v1/uploads/<id>/finish` | source | `{ sha256 }` (hex) | `{ version: { id, size, at } }`; `409` if incomplete, `422` (upload dropped) if the hash differs |
+| `GET /buddy/v1/versions/<id>` | source, restore key | | the stored bytes (`application/octet-stream`) |
+| `DELETE /buddy/v1/spot` | source | | `{ deleteAt }`: the source stops; the copies stay for the grace period |
+
+- `413` when `size` is over the spot's quota, `507` when the holder's disk would have less than 1 GB left, `410` when
+  the spot is being removed (no uploads; listing and downloads still work until `deleteAt`), `429` over a limit.
+- Uploads expire after 24 hours unfinished. Answers carry `Cache-Control: no-store` and no CORS headers (browsers never
+  call these).
+
+### What the holder keeps, and its limits
+
+- The bytes go to `buddy-held/<spotId>/` in the holder's world folder (owner-only permissions on Linux and macOS),
+  never into its database, and never into the holder's own backups. The database has the spot (label, quota, keep,
+  grace, the source's key, name and restore key) and each version's id, size, time and SHA-256.
+- After each finished upload the holder keeps the newest `keep` versions, then deletes the oldest until the spot fits its
+  quota (never the newest). While an upload runs the spot can briefly hold its quota plus that upload.
+- At most 3 finished uploads per spot in any 24 hours (`429`), so a source taken over by someone else can't flush out
+  the good copies in minutes. Per spot: 2 requests a second, burst 60. Per client address, for pairing and refused
+  requests: burst 10, then one every 6 seconds. At most 20 spots per holder.
+- **Removing.** Either owner can stop. The holder's owner removes a spot (`buddy.spot.remove`): uploads stop at once,
+  and the copies are deleted after the spot's grace period (`graceDays`, 0–90, default 7), or right away with `now`.
+  The source's owner removes a buddy (`buddy.remove`): the source calls `DELETE /buddy/v1/spot` and the holder starts
+  the same grace period, so a source taken over by someone else can't wipe its own copies. During the grace period the
+  copies can still be listed and downloaded (a restore still works). Holder spots that were never paired go at once.
+
+### Requests
+
+Owner only (`forbidden`, key `owner_backup`), like the other backup requests.
+
+On the source:
+
+| type | body | result |
+|---|---|---|
+| `buddy.status` | | `BuddyStatus` |
+| `buddy.add` | `code` (≤ 1024 chars) | `BuddyStatus` plus `recoveryCode` (string when this made it, else null) |
+| `buddy.remove` | `id` | `BuddyStatus` |
+| `buddy.backupNow` | | `BuddyStatus` (makes today's daily backup if there's none yet, then every buddy tries now) |
+| `buddy.recoveryCode` | | `{ recoveryCode }` (to write it down again; security log `buddy.recovery.shown`) |
+
+```jsonc
+BuddyStatus { "autoEnabled": true, "recoveryCodeSet": true, "buddies": [Buddy] }
+Buddy {
+  "id": "<16 hex>", "url": "https://friend.example", "holderKey": "<b64u>", "name": "Friend's server",
+  "quotaBytes": 2147483648, "keep": 3, "addedAt": 1760000000000,
+  "lastOk": { "at": 1760000000000, "name": "auto-2026-10-17.zip", "size": 52428800 } | null,
+  "error": { "code": "bad_request", "message": "…", "key": "buddy_unreachable", "args": {} } | null,
+  "nextTryAt": 1760000000000 | null, "uploading": { "done": 0, "total": 52428800 } | null,
+  "removed": false           // true: the holder stopped holding (410); remove it here
+}
+```
+
+- `buddy.add` errors (`bad_request` with key): `buddy_code` (not a pairing code), `buddy_address` (not http(s), has a
+  user name, plain http to a public address, or a LocalOnly server given a non-loopback address), `buddy_unreachable`
+  (`args: { reason }`), `buddy_code_used` (the holder said `404`), `buddy_already` (`409`, or already a buddy here),
+  `buddy_wrong_server` (the answer isn't signed by the key in the code), `buddy_self` (your own server),
+  `buddy_too_many` (8 buddies), `buddy_refused` (`args: { status }`, any other answer).
+- Problems in `Buddy.error`: `buddy_unreachable`, `buddy_unknown` (`401`/`403`: the holder doesn't know us any more),
+  `buddy_too_big` (`args: { size, quota }`), `buddy_full` (the holder's disk), `buddy_limited` (`429`), `buddy_removed`,
+  `buddy_failed` (`args: { reason }`), `buddy_backups_off` (daily backups are off: nothing to send).
+- Uploads: the newest daily backup, encrypted once to `backups/buddy-<name>.iskrabackup` and sent to every buddy that
+  doesn't have it yet, in 4 MB parts, one buddy at a time, at most `BuddyBackups.UploadKbPerSecond` (server.json,
+  default 1024; 0 = no limit). A cut-off upload resumes where it stopped. After a failure it tries again after 1, 5, 15,
+  60 and 180 minutes, then every 6 hours. Event `buddy.changed {}` goes to the owner's sessions when a buddy's status
+  changes (look again with `buddy.status`).
+- Connections: only to the pairing code's address, no redirects, plain http only to loopback and private networks
+  (never link-local), and only loopback from a LocalOnly server. 60 s per request.
+
+On the holder:
+
+| type | body | result |
+|---|---|---|
+| `buddy.spots` | | `{ spots: [Spot], address }` (`address`: what a new pairing code would carry, or null) |
+| `buddy.spot.create` | `label` (1–64), `quotaMb?` (100–1048576, default 2048), `keep?` (1–30, default 3), `graceDays?` (0–90, default 7), `url?` (http(s) ≤ 512) | `{ spot, code }` |
+| `buddy.spot.update` | `id`, any of `label`, `quotaMb`, `keep`, `graceDays` | `{ spot }` |
+| `buddy.spot.remove` | `id`, `now?` | `{ spots, address }` |
+
+```jsonc
+Spot {
+  "id": "<16 hex>", "label": "Anna's server", "state": "waiting" | "active" | "removing",
+  "sourceName": "Game Night" | null, "sourceKey": "<b64u>" | null,
+  "quotaBytes": 2147483648, "keep": 3, "graceDays": 7, "used": 52428800,
+  "versions": [{ "id": "<16 hex>", "size": 52428800, "at": 1760000000000 }],
+  "createdAt": 1760000000000, "lastUploadAt": 1760000000000 | null,
+  "codeExpiresAt": 1760000000000 | null, "deleteAt": 1760000000000 | null
+}
+```
+
+`buddy.spot.create` errors: `buddy_spots_full` (20 spots), `buddy_no_address` (no address to put in the code: give
+`url`). Event `buddy.changed {}` goes to the holder owner's sessions after pairing, uploads and removals.
+
+### Restoring from a buddy
+
+`iskra-server restore-buddy <holder-address> <world-folder> [--version <id>] [--list] [--json]`, the recovery code from
+`--code-stdin` (one line), `$ISKRA_BUDDY_RECOVERY_CODE` or a prompt. It derives the restore key, lists the spot
+(`--list` prints the versions and stops; with `--json`: `{ ok, versions: [{ id, size, at }] }`), downloads the newest
+(or the given) version to a private temp file and restores it exactly like `iskra-server restore` (same checks, same
+`--json` result), then deletes the temp file. A recovery code the holder doesn't know gets `401` ("That recovery code
+isn't known there"); a changed or cut-off copy fails the backup's own checks. The desktop app's **Restore from a backup
+→ From a buddy's server** runs this.
+
+### Security log
+
+Source: `buddy.added` (`{ url, holderKey }`), `buddy.removed` (`{ url }`), `buddy.upload.failed` (`{ url, error }`,
+once per new problem), `buddy.recovery.shown`. Holder: `buddy.spot.created` (`{ quotaMb, keep }`), `buddy.spot.paired`
+(`{ sourceKey, name }`), `buddy.spot.removed` (`{ by: "holder" | "source", deleteAt }`), `buddy.spot.deleted`,
+`buddy.auth.failed` (refused signed requests, `{ reason }`). Never codes, tokens, secrets or contents.

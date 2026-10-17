@@ -14,6 +14,7 @@ namespace Iskra.Server;
 /// <summary>
 /// Commands besides running a server:
 ///   iskra-server restore &lt;backup&gt; &lt;world-folder&gt;      restore a backup into a new folder
+///   iskra-server restore-buddy &lt;address&gt; &lt;world-folder&gt;  restore from a backup buddy (a friend's server)
 ///   iskra-server backup &lt;world-folder&gt; &lt;file&gt;         make an encrypted backup
 ///   iskra-server move &lt;world-folder&gt; &lt;new-address&gt;   publish "this server moved" (or --cancel)
 ///   iskra-server import-discord &lt;world-folder&gt; &lt;export&gt; [--read-only]
@@ -25,7 +26,7 @@ namespace Iskra.Server;
 /// </summary>
 public static class Cli
 {
-    private static readonly string[] Commands = ["restore", "backup", "move", "import-discord", "templates", "install-autostart", "remove-autostart", "expect-restart", "version", "--version", "help", "--help"];
+    private static readonly string[] Commands = ["restore", "restore-buddy", "backup", "move", "import-discord", "templates", "install-autostart", "remove-autostart", "expect-restart", "version", "--version", "help", "--help"];
 
     public static bool IsCommand(string? first) => first is not null && Commands.Contains(first);
 
@@ -38,6 +39,7 @@ public static class Cli
             return rest.FirstOrDefault() switch
             {
                 "restore" when rest.Length == 3 => Restore(rest[1], rest[2], flags),
+                "restore-buddy" => RestoreBuddy(args),
                 "backup" when rest.Length == 3 => Backup(rest[1], rest[2], flags),
                 "move" when rest.Length == 3 || (rest.Length == 2 && flags.Contains("--cancel")) => Move(rest[1], rest.ElementAtOrDefault(2), flags),
                 "import-discord" when rest.Length == 3 => ImportDiscord(rest[1], rest[2], flags),
@@ -112,6 +114,8 @@ public static class Cli
             Usage:
               iskra-server <world-folder>                              run a server (the folder is created if needed)
               iskra-server restore <backup> <world-folder>             restore a backup into a new, empty folder
+              iskra-server restore-buddy <address> <world-folder>      restore from a friend's server that keeps your backups
+                [--version <id>] [--list]                             (asks for the recovery code; --list shows the copies)
               iskra-server backup <world-folder> <file.iskrabackup>    make an encrypted backup (works while it runs)
               iskra-server move <world-folder> <new-address>           tell members the server moved there
               iskra-server move <world-folder> --cancel                take that notice down again
@@ -129,7 +133,8 @@ public static class Cli
               iskra-server version                                     print the version
             A new server can start from a template: iskra-server <world-folder> --template gaming
             Passphrases: --passphrase-stdin (one line), or $ISKRA_BACKUP_PASSPHRASE, or you're asked.
-            Add --json to restore for a machine-readable result.
+            Recovery codes: --code-stdin (one line), or $ISKRA_BUDDY_RECOVERY_CODE, or you're asked.
+            Add --json to restore and restore-buddy for a machine-readable result.
             """);
         return 2;
     }
@@ -162,17 +167,56 @@ public static class Cli
     private static int Restore(string backup, string target, HashSet<string> flags)
     {
         var result = BackupArchive.Restore(backup, target, () => Passphrase(flags, confirm: false), message => Console.Error.WriteLine(message));
-        if (flags.Contains("--json"))
+        PrintRestored(result, flags.Contains("--json"));
+        return 0;
+    }
+
+    /// <summary>
+    /// restore-buddy &lt;address&gt; [&lt;world-folder&gt;] [--version &lt;id&gt;] [--list] [--json] [--code-stdin]: lists or restores
+    /// the copies a backup buddy keeps for whoever has the recovery code.
+    /// </summary>
+    internal static int RestoreBuddy(string[] args)
+    {
+        var positional = new List<string>();
+        string? version = null;
+        var flags = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (args[i] == "--version" && i + 1 < args.Length) version = args[++i];
+            else if (args[i].StartsWith("--", StringComparison.Ordinal)) flags.Add(args[i]);
+            else positional.Add(args[i]);
+        }
+        var list = flags.Contains("--list");
+        if (positional.Count != (list ? 1 : 2)) return Usage();
+        var code = flags.Contains("--code-stdin") ? Console.In.ReadLine() ?? ""
+            : Environment.GetEnvironmentVariable("ISKRA_BUDDY_RECOVERY_CODE") is { Length: > 0 } fromEnv ? fromEnv
+            : Prompt("Recovery code: ");
+        using var http = new BuddyHttp(null, localOnly: false);
+        var json = flags.Contains("--json");
+        if (list)
+        {
+            var versions = BuddyRestore.ListAsync(http, positional[0], code, CancellationToken.None).GetAwaiter().GetResult();
+            if (json) Console.WriteLine(JsonSerializer.Serialize(new { ok = true, versions = versions.Select(v => new { id = v.Id, size = v.Size, at = v.At }) }));
+            else if (versions.Count == 0) Console.WriteLine("No copies there yet.");
+            else foreach (var v in versions) Console.WriteLine($"{v.Id}  {DateTimeOffset.FromUnixTimeMilliseconds(v.At).ToLocalTime():yyyy-MM-dd HH:mm}  {v.Size:N0} bytes");
+            return 0;
+        }
+        var result = BuddyRestore.RestoreAsync(http, positional[0], code, positional[1], version, message => Console.Error.WriteLine(message), CancellationToken.None)
+            .GetAwaiter().GetResult();
+        PrintRestored(result, json);
+        return 0;
+    }
+
+    private static void PrintRestored(RestoreResult result, bool json)
+    {
+        if (json)
         {
             Console.WriteLine(JsonSerializer.Serialize(new { ok = true, name = result.Name, serverKey = result.ServerKey, folder = result.Folder, uploads = result.Uploads, messages = result.Messages }));
+            return;
         }
-        else
-        {
-            Console.WriteLine($"Restored '{result.Name}' into {result.Folder} ({result.Messages:N0} messages, {result.Uploads:N0} files).");
-            Console.WriteLine($"Start it with: iskra-server \"{result.Folder}\"");
-            Console.WriteLine("Check the ports and PublicUrl in server.json if this computer's address is different.");
-        }
-        return 0;
+        Console.WriteLine($"Restored '{result.Name}' into {result.Folder} ({result.Messages:N0} messages, {result.Uploads:N0} files).");
+        Console.WriteLine($"Start it with: iskra-server \"{result.Folder}\"");
+        Console.WriteLine("Check the ports and PublicUrl in server.json if this computer's address is different.");
     }
 
     private static int Backup(string worldPath, string output, HashSet<string> flags)

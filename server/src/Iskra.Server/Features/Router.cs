@@ -96,6 +96,7 @@ public sealed class Router
         JoinFeature.Register(this);
         ModPackFeature.Register(this);
         MemberAvatarFeature.Register(this);
+        BuddyBackupFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

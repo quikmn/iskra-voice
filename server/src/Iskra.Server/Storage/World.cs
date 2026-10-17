@@ -63,6 +63,9 @@ public sealed record WorldSettings
 
     public BackupSettings Backups { get; init; } = new();
 
+    /// <summary>Backup buddies: how fast copies go to friends' servers (see Backups/BuddyBackupService).</summary>
+    public Backups.BuddyBackupSettings BuddyBackups { get; init; } = new();
+
     public ImportSettings Import { get; init; } = new();
 
     /// <summary>Soundboard, emoji and sticker limits (Settings → Limits in the app, or here).</summary>

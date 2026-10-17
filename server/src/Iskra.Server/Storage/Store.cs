@@ -359,6 +359,8 @@ public sealed partial class Store : IDisposable
         ("modpack-1", ModPackMigration),
         // A picture per server, shown instead of the profile picture there.
         ("member-avatars-1", MemberAvatarsMigration),
+        // Backup buddies: friends' servers that keep our encrypted backups, and the spots we keep for friends.
+        ("buddybackup-1", BuddyBackupMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────
