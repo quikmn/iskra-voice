@@ -58,6 +58,7 @@ export function InviteList({ server, current, refresh, onRevoked }: {
               <div className="invite-main">
                 <span className="invite-code"><Secret value={invite.code.slice(-6)} title={invite.code} prefix="…" /></span>
                 {invite.code === current && <span className="invite-this">{t('settings.invite.thisLink')}</span>}
+                {invite.approve && <span className="pill invite-approval">{t('settings.invite.approval')}</span>}
                 <span className="invite-meta">
                   {levelName(invite.role)}
                   {' · '}

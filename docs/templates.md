@@ -47,7 +47,7 @@ bug reports turns it on).
 
 ```jsonc
 {
-  "version": 3,                                // 3 for this format; 2 and 1 (no version) still work
+  "version": 4,                                // 4 for this format; 3, 2 and 1 (no version) still work
   "name": "Book club",                         // 1–60 characters
   "description": "Reading together.",          // optional, up to 300
   "channels": [                                // optional: outside any category, listed first
@@ -81,7 +81,12 @@ bug reports turns it on).
   ],
   "roles": [                                   // optional, up to 100, highest first
     { "name": "Moderator", "color": "#3fa66b", "icon": "📚", "hoist": true, "mentionable": false,
-      "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] }
+      "permissions": ["manageMessages", "timeoutMembers", "kickMembers", "muteMembers", "moveMembers", "viewAuditLog"] },
+    { "name": "Fiction", "selfAssign": true },  // members pick it themselves (no permissions allowed)
+    { "name": "Non-fiction", "selfAssign": true }
+  ],
+  "roleGroups": [                              // optional, up to 20: what new members are asked to pick
+    { "title": "Shelf", "question": "What do you mostly read?", "multi": true, "roles": ["Fiction", "Non-fiction"] }
   ],
   "builtinRoles": {                            // optional: owner, admin, trusted, member, guest
     "owner": { "color": "#c27ce0" },
@@ -129,7 +134,13 @@ run as code.
 
 `roles` are custom roles. Names can't be `everyone` or a built-in role's. Permissions: `manageMessages`,
 `timeoutMembers`, `kickMembers`, `banMembers`, `manageChannels`, `manageRoles`, `viewAuditLog`, `manageExpressions`,
-`manageWebhooks`, `mentionEveryone`, `moveMembers`, `muteMembers`, `manageAutoMod`.
+`manageWebhooks`, `mentionEveryone`, `moveMembers`, `muteMembers`, `manageAutoMod`. A role with `"selfAssign": true`
+is one members give themselves (Pick your roles); it can't have permissions.
+
+`roleGroups` are the questions new members answer after agreeing to the rules (and from "Pick your roles" later):
+`title` (1–60 characters), an optional `question` (up to 200), `multi` (several answers at once; otherwise picking one
+drops the others) and `roles`, 1–25 of the template's `selfAssign` roles in the order shown. Up to 20 groups. Opt-in
+channels come from `overrides` on those roles (allow `view` for "PlayStation" on `#playstation`).
 
 `builtinRoles` sets a built-in role's `color` (`#rrggbb`, or `""` for none) and, optionally, what it can do:
 `abilities` and `permissions`, each the whole set (left out: the defaults, the same as in **Server settings → Roles**).

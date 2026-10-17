@@ -4,7 +4,7 @@ import type { BotCommand } from '../../core/protocol'
 import { t } from '../../i18n'
 import { openLfg } from '../../state/lfg'
 import { parseLfgArgs } from '../../state/lfgLogic'
-import { rolesFor } from '../../state/roles'
+import { askableGroups, openRolePicker, roleGroupsFor, rolesFor } from '../../state/roles'
 import { useApp } from '../../state/store'
 import { canSplit, openTeams } from '../../state/teams'
 import { useVoice } from '../../state/voice'
@@ -42,6 +42,14 @@ function commands(): AppCommand[] {
         if (!channel || channel.kind !== 'text' || channel.e2ee) return t('errors.server.lfg_channel')
         const { slots, game } = parseLfgArgs(args)
         openLfg(serverKey, channelId, game, slots)
+        return null
+      },
+    },
+    {
+      command: { name: 'roles', description: t('roles.picker.command') },
+      run: (serverKey) => {
+        if (askableGroups(roleGroupsFor(serverKey), rolesFor(serverKey)).length === 0) return t('roles.picker.none')
+        openRolePicker(serverKey)
         return null
       },
     },

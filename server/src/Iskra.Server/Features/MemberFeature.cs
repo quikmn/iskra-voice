@@ -48,10 +48,12 @@ public static class MemberFeature
 
     private static void Remove(Session s, Member target, string reason, string key, int closeCode)
     {
+        var how = key == "kicked_banned" ? "banned" : "kicked";
         s.World.Store.RemoveMember(target.AccountKey);
+        s.World.Store.RecordDeparture(target.AccountKey, target.Name, how, s.AccountKey, s.Now); // "People who left" (ModPackFeature)
         s.Hub.Disconnect(target.AccountKey, closeCode, reason, key);
         s.Hub.Broadcast(Frames.Event("member.removed", new { accountKey = target.AccountKey }));
-        s.Hub.Outhooks?.MemberLeft(target.AccountKey, target.Name, key == "kicked_banned" ? "banned" : "kicked");
+        s.Hub.Outhooks?.MemberLeft(target.AccountKey, target.Name, how);
         s.Voice.EnforceAccess();
     }
 
@@ -63,14 +65,27 @@ public static class MemberFeature
         return null;
     }
 
+    /// <summary>
+    /// Bans a member (ranked below you), or someone who already left (so a report about them can still be acted on).
+    /// `deleteMessagesMs` (24 hours or 7 days) also deletes what they wrote in that time, everywhere.
+    /// </summary>
     private static object? BanMember(Session s, Member me, Body body)
     {
-        var target = Target(s, me, body, Perm.BanMembers);
+        if (!Permissions.Has(me, Perm.BanMembers)) throw RequestException.Forbidden();
+        var key = body.String("accountKey", 64);
+        if (key == me.AccountKey) throw RequestException.BadRequest("You can't do that to yourself.", "not_to_self");
+        var store = s.World.Store;
+        var target = store.GetMember(key);
+        if (target is not null && !Permissions.Outranks(me, target)) throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
+        if (target is null && store.GetDeparture(key) is null) throw RequestException.NotFound("Member");
         var reason = body.OptionalString("reason", MaxReasonLength) ?? "";
-        s.World.Store.AddBan(target.AccountKey, reason, me.AccountKey, s.Now);
-        Audit.Record(s, "member.ban", target.AccountKey, reason);
-        Remove(s, target, "You were banned from this server.", "kicked_banned", CloseCodes.Forbidden);
-        return null;
+        var window = ModPackFeature.DeleteWindow(body);
+
+        store.AddBan(key, reason, me.AccountKey, s.Now);
+        var deleted = window is { } ms ? ModPackFeature.DeleteRecent(s, key, ms) : 0;
+        Audit.Record(s, "member.ban", key, reason, window is null ? new { name = target?.Name ?? store.GetDeparture(key)?.Name } : new { name = target?.Name ?? store.GetDeparture(key)?.Name, deletedMessages = deleted, deleteMessagesMs = window });
+        if (target is not null) Remove(s, target, "You were banned from this server.", "kicked_banned", CloseCodes.Forbidden);
+        return new { deletedMessages = deleted };
     }
 
     private static object? Unban(Session s, Member me, Body body)

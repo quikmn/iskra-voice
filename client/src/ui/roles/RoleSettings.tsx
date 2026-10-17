@@ -136,6 +136,7 @@ function RoleEditor({ server, role, onDeleted }: { server: ServerState; role: Se
   const [icon, setIcon] = useState(role.icon ?? '')
   const [hoist, setHoist] = useState(role.hoist)
   const [mentionable, setMentionable] = useState(!!role.mentionable)
+  const [selfAssign, setSelfAssign] = useState(!!role.selfAssign)
   const [perms, setPerms] = useState<Permission[]>(role.permissions)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
@@ -146,7 +147,7 @@ function RoleEditor({ server, role, onDeleted }: { server: ServerState; role: Se
 
   async function save() {
     try {
-      await updateRole(server.key, role.id, { name, color: color ?? '', icon, hoist, mentionable, permissions: perms })
+      await updateRole(server.key, role.id, { name, color: color ?? '', icon, hoist, mentionable, selfAssign, permissions: perms })
       setError(null)
       setStatus(t('common.saved'))
     } catch (e) {
@@ -183,17 +184,26 @@ function RoleEditor({ server, role, onDeleted }: { server: ServerState; role: Se
         <input type="checkbox" checked={mentionable} disabled={!editable} onChange={(e) => setMentionable(e.target.checked)} />
         {t('roles.mentionable')}
       </label>
+      {/* A role people pick can't carry permissions (the server refuses both), so one locks the other. */}
+      <label className="checkbox">
+        <input type="checkbox" checked={selfAssign} disabled={!editable || perms.length > 0} onChange={(e) => setSelfAssign(e.target.checked)} />
+        <span>
+          {t('roles.selfAssign')}
+          <br /><small className="muted">{perms.length > 0 ? t('roles.selfAssignBlocked') : t('roles.selfAssignHint')}</small>
+        </span>
+      </label>
       <div className="role-perms-head">
         <strong>{t('roles.permissionsTitle')}</strong>
-        <button className="button small" disabled={!editable} onClick={() => setPerms(MODERATOR_PRESET.filter(grantable))}>{t('roles.moderatorPreset')}</button>
+        <button className="button small" disabled={!editable || selfAssign} onClick={() => setPerms(MODERATOR_PRESET.filter(grantable))}>{t('roles.moderatorPreset')}</button>
         <button className="button small ghost" disabled={!editable} onClick={() => setPerms([])}>{t('common.clear')}</button>
       </div>
+      {selfAssign && <p className="muted">{t('roles.selfAssignNoPerms')}</p>}
       <ul className="role-perms">
         {PERMISSIONS.map((p) => (
           <li key={p}>
             <label className="checkbox">
               <input
-                type="checkbox" checked={perms.includes(p)} disabled={!editable || !grantable(p)}
+                type="checkbox" checked={perms.includes(p)} disabled={!editable || !grantable(p) || selfAssign}
                 onChange={(e) => setPerms(e.target.checked ? [...perms, p] : perms.filter((x) => x !== p))}
               />
               <span>

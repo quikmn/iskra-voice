@@ -133,5 +133,13 @@ public class AccountDeletionTests
         Assert.Equal(System.Text.Json.JsonValueKind.Null, report.GetProperty("reporter").ValueKind);
         Assert.Equal("", report.GetProperty("reporterName").GetString());
         Assert.Equal(bob.Key, report.GetProperty("target").GetString());
+
+        // A moderator's notes about others outlive the moderator's account, without their name (like audit rows).
+        using var mira = await server.JoinAsync("Mira", "admin");
+        Assert.Equal("result", (await mira.RequestAsync("member.notes.add", new { accountKey = bob.Key, text = "Spam in #general" })).Type());
+        Assert.Equal("result", (await mira.RequestAsync("account.delete", new { deletion = Deletion(mira.Identity, false) })).Type());
+        var note = (await admin.RequestAsync("member.notes.list", new { accountKey = bob.Key })).Body().GetProperty("notes")[0];
+        Assert.Equal("Spam in #general", note.GetProperty("text").GetString());
+        Assert.Equal("", note.GetProperty("authorName").GetString());
     }
 }

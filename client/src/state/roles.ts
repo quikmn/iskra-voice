@@ -1,10 +1,12 @@
-// Custom roles per server, and the actions that manage them (roles, members' roles, channel overrides, voice moderation).
+// Custom roles per server, and the actions that manage them (roles, members' roles, channel overrides, voice moderation),
+// plus the pick groups of self-assignable roles and the "Pick your roles" screen.
 import { create } from 'zustand'
-import type { ChannelPermission, Events, Permission, ServerRole } from '../core/protocol'
+import type { ChannelPermission, Events, Permission, RoleGroup, ServerRole } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { senderRules } from './senderRules'
 import { setBaseRoles } from './baseRoles'
 import { canPingGroups, mentionsMyRole } from './permissions'
+import { askableGroups, shouldOpenPickerAfterJoin } from './rolePickerLogic'
 import { mentions } from '../ui/markdown'
 import { t } from '../i18n'
 import { useSyncExternalStore } from 'react'
@@ -19,18 +21,61 @@ export const rolesFor = (serverKey: string) => useRoles.getState()[serverKey] ??
 
 const sorted = (roles: ServerRole[]) => [...roles].sort((a, b) => b.position - a.position)
 
+// ── Pick groups and the picker ──────────────────────────────────────────────
+
+interface GroupsState {
+  /** serverKey → the server's pick groups, in order. */
+  groups: Record<string, RoleGroup[]>
+  /** The "Pick your roles" screen, when open on its own. */
+  picker: string | null
+}
+
+export const useRoleGroups = create<GroupsState>(() => ({ groups: {}, picker: null }))
+
+const NO_GROUPS: RoleGroup[] = []
+/** A server's pick groups (askableGroups filters out the ones with nothing left to pick). */
+export const useServerRoleGroups = (serverKey: string | undefined) =>
+  useRoleGroups((s) => (serverKey ? s.groups[serverKey] ?? NO_GROUPS : NO_GROUPS))
+export const roleGroupsFor = (serverKey: string) => useRoleGroups.getState().groups[serverKey] ?? NO_GROUPS
+export { askableGroups }
+
+export const openRolePicker = (serverKey: string) => useRoleGroups.setState({ picker: serverKey })
+export const closeRolePicker = () => useRoleGroups.setState({ picker: null })
+
+function put(serverKey: string, roles: ServerRole[], groups: RoleGroup[] | undefined) {
+  useRoles.setState({ [serverKey]: sorted(roles) })
+  useRoleGroups.setState((s) => ({ groups: { ...s.groups, [serverKey]: groups ?? [] } }))
+}
+
 function connection(serverKey: string) {
   const c = connectionFor(serverKey)
   if (!c) throw new Error(t('errors.codes.disconnected'))
   return c
 }
 
-export async function createRole(serverKey: string, role: { name: string; color?: string; icon?: string; hoist?: boolean; permissions?: Permission[] }) {
+export async function createRole(serverKey: string, role: { name: string; color?: string; icon?: string; hoist?: boolean; permissions?: Permission[]; selfAssign?: boolean }) {
   return (await connection(serverKey).request('role.create', role)).role
 }
 
-export async function updateRole(serverKey: string, id: number, patch: { name?: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[] }) {
+export async function updateRole(serverKey: string, id: number, patch: { name?: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[]; selfAssign?: boolean }) {
   return (await connection(serverKey).request('role.update', { id, ...patch })).role
+}
+
+export async function createRoleGroup(serverKey: string, group: { title: string; question?: string; multi?: boolean; roles: number[] }) {
+  return (await connection(serverKey).request('role.group.create', group)).group
+}
+
+export async function updateRoleGroup(serverKey: string, id: number, patch: { title?: string; question?: string; multi?: boolean; roles?: number[] }) {
+  return (await connection(serverKey).request('role.group.update', { id, ...patch })).group
+}
+
+export async function deleteRoleGroup(serverKey: string, id: number) {
+  await connection(serverKey).request('role.group.delete', { id })
+}
+
+/** Gives yourself or drops a self-assignable role. Your roles update when the server's `member.updated` arrives. */
+export async function pickRole(serverKey: string, roleId: number, on: boolean) {
+  await connection(serverKey).request('roles.self', on ? { add: [roleId] } : { remove: [roleId] })
 }
 
 export async function deleteRole(serverKey: string, id: number) {
@@ -65,19 +110,21 @@ export async function moveToChannel(serverKey: string, accountKey: string, chann
   await connection(serverKey).request('voice.move', { accountKey, channelId })
 }
 
-onWelcomeHook((serverKey) => {
+onWelcomeHook((serverKey, welcome, firstJoin) => {
   connectionFor(serverKey)?.request('role.list', {})
-    .then(({ roles, baseRoles }) => {
-      useRoles.setState({ [serverKey]: sorted(roles) })
+    .then(({ roles, baseRoles, groups }) => {
+      put(serverKey, roles, groups)
       setBaseRoles(serverKey, baseRoles)
+      // Just joined, and the server asks something: the picker opens once (with required rules, the rules screen shows it after agreeing).
+      if (shouldOpenPickerAfterJoin(firstJoin, groups ?? [], roles, !!welcome.rules?.mustAgree)) openRolePicker(serverKey)
     })
     .catch(() => undefined) // an older server: no custom roles
 })
 
 onServerEvent((serverKey, type, body) => {
   if (type === 'roles') {
-    const { roles, baseRoles } = body as Events['roles']
-    useRoles.setState({ [serverKey]: sorted(roles) })
+    const { roles, baseRoles, groups } = body as Events['roles']
+    put(serverKey, roles, groups)
     setBaseRoles(serverKey, baseRoles)
   }
   if (type === 'voice.moved' && !(body as Events['voice.moved']).reason) {

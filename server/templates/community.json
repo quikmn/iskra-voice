@@ -5,7 +5,7 @@
   //   iskra-server templates apply <world> community.json --apply
   // Only adds what's missing, so running it again is safe. The bug inbox only turns on with server.json
   // "BugInbox": { "Accept": true }. The testers' invite is a never-expiring one (REVIEW_INVITE_URL).
-  "version": 3,
+  "version": 4,
   "name": "Iskra",
   "description": "Iskra's own community server: help, ideas, self-hosting, a playground with every kind of channel, and a home for testers.",
   "categories": [
@@ -372,6 +372,30 @@
         "moveMembers",
         "viewAuditLog",
         "prioritySpeaker"
+      ]
+    },
+    {
+      "name": "Desktop",
+      "selfAssign": true
+    },
+    {
+      "name": "Phone",
+      "selfAssign": true
+    },
+    {
+      "name": "Browser",
+      "selfAssign": true
+    }
+  ],
+  "roleGroups": [
+    {
+      "title": "Where you use Iskra",
+      "question": "Pick everything you use. It helps people answer your questions.",
+      "multi": true,
+      "roles": [
+        "Desktop",
+        "Phone",
+        "Browser"
       ]
     }
   ],

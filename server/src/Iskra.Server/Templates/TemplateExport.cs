@@ -75,8 +75,20 @@ public static class TemplateExport
                 if (r.Hoist) o["hoist"] = true;
                 if (r.Mentionable) o["mentionable"] = true;
                 o["permissions"] = Names(RoleFeature.PermList(r.Perms));
+                if (r.SelfAssign) o["selfAssign"] = true;
                 return (JsonNode)o;
             }).ToArray());
+        var groups = store.AllRoleGroups().Where(g => g.RoleIds.Length > 0 && g.RoleIds.All(roleNames.ContainsKey)).ToList();
+        if (groups.Count > 0)
+            template["roleGroups"] = new JsonArray(groups.Select(g =>
+            {
+                var o = new JsonObject { ["title"] = g.Title };
+                if (g.Question.Length > 0) o["question"] = g.Question;
+                if (g.Multi) o["multi"] = true;
+                o["roles"] = Names(g.RoleIds.Select(id => roleNames[id]));
+                return (JsonNode)o;
+            }).ToArray());
+        var format4 = groups.Count > 0 || roles.Any(r => r.SelfAssign);
 
         var colors = store.BaseRoleColors();
         var changed = store.ChangedBasePowers();
@@ -124,8 +136,8 @@ public static class TemplateExport
             settings["bugInbox"] = inbox.Name;
         if (world.Settings.Translate.Offer) settings["translation"] = true;
         if (settings.Count > 0) template["settings"] = settings;
-        // Format 3 only when it uses format 3's fields, so servers that read format 2 can still use the file.
-        if (!format3 && !settings.ContainsKey("translation")) template["version"] = 2;
+        // The lowest format that holds everything in it, so older servers can still read the file.
+        if (!format4) template["version"] = format3 || settings.ContainsKey("translation") ? 3 : 2;
         return template;
     }
 

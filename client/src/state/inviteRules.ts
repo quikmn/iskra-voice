@@ -21,10 +21,11 @@ export function lifetimeChoices(admin: boolean): Lifetime[] {
   return admin ? [...LIFETIMES, { ms: NEVER }] : LIFETIMES
 }
 
-/** The `invite.create` body for the picked options. */
-export function inviteRequest(lifetimeMs: number, singleUse: boolean): Requests['invite.create'][0] {
+/** The `invite.create` body for the picked options (`approve`: joiners wait for a moderator). */
+export function inviteRequest(lifetimeMs: number, singleUse: boolean, approve = false): Requests['invite.create'][0] {
   const maxUses = singleUse ? 1 : undefined
-  return lifetimeMs === NEVER ? { neverExpires: true, maxUses } : { expiresInMs: lifetimeMs, maxUses }
+  const base = lifetimeMs === NEVER ? { neverExpires: true, maxUses } : { expiresInMs: lifetimeMs, maxUses }
+  return approve ? { ...base, approve: true } : base
 }
 
 /** Never-expiring invites first (they're the ones that stay around), then newest first. */

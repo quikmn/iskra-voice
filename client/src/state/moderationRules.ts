@@ -101,13 +101,16 @@ export function countdown(ms: number): string {
 /** Filter choices in the audit log viewer. */
 export const AUDIT_ACTIONS = [
   'member.kick', 'member.ban', 'member.unban', 'member.timeout', 'member.timeout.remove', 'member.role', 'member.roles',
-  'role.create', 'role.update', 'role.delete', 'role.reorder', 'role.base', 'role.base.powers', 'channel.overrides', 'voice.mute', 'voice.move', 'voice.disconnect',
+  'role.create', 'role.update', 'role.delete', 'role.reorder', 'role.group.create', 'role.group.update', 'role.group.delete',
+  'role.base', 'role.base.powers', 'channel.overrides', 'voice.mute', 'voice.move', 'voice.disconnect',
   'channel.create', 'channel.update', 'channel.delete', 'message.delete', 'thread.delete', 'message.pin', 'message.unpin',
   'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
   'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
   'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'buginbox.update', 'afk.update', 'notify.default', 'server.template.export',
   'server.images', 'automod.block', 'automod.update',
   'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
+  'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers',
+  'message.delete.bulk', 'member.warn', 'member.note.add', 'member.note.delete', 'member.avatar',
 ] as const
 
 export type AuditFilter = (typeof AUDIT_ACTIONS)[number]
@@ -149,6 +152,22 @@ export function auditText(e: AuditEntry): string {
     case 'role.update': return t('moderation.audit.roleUpdate', { actor, name: str(d.name) })
     case 'role.delete': return t('moderation.audit.roleDelete', { actor, name: str(d.name) })
     case 'role.reorder': return t('moderation.audit.roleReorder', { actor })
+    case 'role.group.create': return t('moderation.audit.roleGroupCreate', { actor, title: str(d.title) })
+    case 'role.group.update': return t('moderation.audit.roleGroupUpdate', { actor, title: str(d.title) })
+    case 'role.group.delete': return t('moderation.audit.roleGroupDelete', { actor, title: str(d.title) })
+    case 'message.delete.bulk': return t('moderation.audit.messageDeleteBulk', { actor, count: Number(d.count) || 0, channel: channel(d.channelName) })
+    case 'member.warn': return t('moderation.audit.warn', { actor, target })
+    case 'member.avatar': return t(d.removed ? 'moderation.audit.avatarRemoved' : 'moderation.audit.avatarSet', { actor, target })
+    case 'member.note.add': return t('moderation.audit.noteAdd', { actor, target: e.targetName || str(d.name) || t('moderation.audit.someoneLower') })
+    case 'member.note.delete': return t('moderation.audit.noteDelete', { actor, target: e.targetName || str(d.name) || t('moderation.audit.someoneLower') })
+    case 'join.approve': return t('moderation.audit.joinApprove', { actor, target })
+    case 'join.decline': return t('moderation.audit.joinDecline', { actor, name: str(d.name) || t('moderation.audit.someoneLower') })
+    case 'invites.pause': return t('moderation.audit.invitesPause', { actor })
+    case 'invites.resume': return t('moderation.audit.invitesResume', { actor })
+    case 'join.newcomers':
+      return Number(d.hours) > 0 && Number(d.slowmode) > 0
+        ? t('moderation.audit.joinNewcomers', { actor, hours: str(d.hours), slowmode: slowmodeLabel(Number(d.slowmode)).toLowerCase() })
+        : t('moderation.audit.joinNewcomersOff', { actor })
     case 'channel.overrides': return t('moderation.audit.overrides', { actor, role: str(d.role), channel: channel(d.name) })
     case 'voice.mute': return t('moderation.audit.voiceMute', { actor, target, channel: channel(d.channelName) })
     case 'voice.unmute': return t('moderation.audit.voiceUnmute', { actor, target, channel: channel(d.channelName) })

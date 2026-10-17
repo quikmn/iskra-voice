@@ -53,6 +53,7 @@ public static class AccountFeature
         var store = s.World.Store;
         var messages = deletion.Messages ? store.MessagesBy(me.AccountKey) : [];
         var channels = messages.Select(m => m.ChannelId).Distinct().Select(store.GetChannel).OfType<Channel>().ToList();
+        store.RecordDeparture(me.AccountKey, "", "deleted", null, s.Now); // no name: they asked to be forgotten
         store.DeleteAccount(deletion, s.Now);
         SecurityLog.Record(s.World.Store, s.Now, "account.delete", me.AccountKey, details: new { messages = deletion.Messages });
 

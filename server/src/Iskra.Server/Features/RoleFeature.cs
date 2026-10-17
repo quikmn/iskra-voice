@@ -44,7 +44,7 @@ public static partial class RoleFeature
 
     public static void Register(Router router)
     {
-        router.Add("role.list", (s, _, _) => new { roles = s.World.Store.AllRoles().Select(Public), baseRoles = PublicBaseRoles(s.World.Store) });
+        router.Add("role.list", (s, _, _) => RoleList(s.World.Store));
         router.Add("role.base.update", UpdateBase);
         router.Add("role.create", Create);
         router.Add("role.update", Update);
@@ -54,6 +54,10 @@ public static partial class RoleFeature
         router.Add("channel.overrides.set", SetOverride);
         router.Add("voice.mute", Mute);
         router.Add("voice.move", Move);
+        router.Add("role.group.create", CreateGroup);
+        router.Add("role.group.update", UpdateGroup);
+        router.Add("role.group.delete", DeleteGroup);
+        router.Add("roles.self", SetSelf);
     }
 
     public static string[] PermList(Perm perms) => PermNames.Where(p => perms.HasFlag(p.Value)).Select(p => p.Key).ToArray();
@@ -62,8 +66,12 @@ public static partial class RoleFeature
     public static object Public(CustomRole r) => new
     {
         id = r.Id, name = r.Name, color = r.Color, icon = r.Icon, hoist = r.Hoist, mentionable = r.Mentionable, position = r.Position,
-        permissions = PermList(r.Perms),
+        permissions = PermList(r.Perms), selfAssign = r.SelfAssign,
     };
+
+    /// <summary>`role.list` and the `roles` event: custom roles, built-in roles and the pick groups.</summary>
+    private static object RoleList(Store store) =>
+        new { roles = store.AllRoles().Select(Public), baseRoles = PublicBaseRoles(store), groups = PublicGroups(store) };
 
     // ── Validation ───────────────────────────────────────────────────────────
 
@@ -121,7 +129,7 @@ public static partial class RoleFeature
 
     private static void RolesChanged(Session s)
     {
-        s.Hub.Broadcast(Frames.Event("roles", new { roles = s.World.Store.AllRoles().Select(Public), baseRoles = PublicBaseRoles(s.World.Store) }));
+        s.Hub.Broadcast(Frames.Event("roles", RoleList(s.World.Store)));
     }
 
     /// <summary>After role membership, deletion or overrides change: members, channel lists and voice follow.</summary>
@@ -141,16 +149,25 @@ public static partial class RoleFeature
         RequireManager(me);
         if (s.World.Store.RoleCount() >= MaxRoles) throw RequestException.BadRequest($"A server can have up to {MaxRoles} roles.", "roles_max", new { max = MaxRoles });
         var name = RoleName(body.String("name", 128));
-        var role = s.World.Store.CreateRole(name, Color(body, null), Icon(body, null), body.OptionalBool("hoist") ?? false,
-            ParsePerms(body, me, Perm.None), s.Now);
-        if (body.OptionalBool("mentionable") == true)
+        var perms = ParsePerms(body, me, Perm.None);
+        var selfAssign = body.OptionalBool("selfAssign") ?? false;
+        CheckSelfAssign(selfAssign, perms);
+        var role = s.World.Store.CreateRole(name, Color(body, null), Icon(body, null), body.OptionalBool("hoist") ?? false, perms, s.Now);
+        if (body.OptionalBool("mentionable") == true || selfAssign)
         {
-            role = role with { Mentionable = true };
+            role = role with { Mentionable = body.OptionalBool("mentionable") ?? false, SelfAssign = selfAssign };
             s.World.Store.UpdateRole(role);
         }
-        Audit.Record(s, "role.create", details: new { id = role.Id, name = role.Name, permissions = PermList(role.Perms) });
+        Audit.Record(s, "role.create", details: new { id = role.Id, name = role.Name, permissions = PermList(role.Perms), selfAssign });
         RolesChanged(s);
         return new { role = Public(role) };
+    }
+
+    /// <summary>A role members pick themselves can never carry a permission: whatever it grants, anyone could take.</summary>
+    private static void CheckSelfAssign(bool selfAssign, Perm perms)
+    {
+        if (selfAssign && perms != Perm.None)
+            throw RequestException.BadRequest("A role members pick themselves can't have permissions.", "role_self_assign_perms");
     }
 
     private static object Update(Session s, Member me, Body body)
@@ -165,14 +182,19 @@ public static partial class RoleFeature
             Hoist = body.OptionalBool("hoist") ?? role.Hoist,
             Mentionable = body.OptionalBool("mentionable") ?? role.Mentionable,
             Perms = ParsePerms(body, me, role.Perms),
+            SelfAssign = body.OptionalBool("selfAssign") ?? role.SelfAssign,
         };
+        CheckSelfAssign(updated.SelfAssign, updated.Perms);
         s.World.Store.UpdateRole(updated);
+        if (role.SelfAssign && !updated.SelfAssign) s.World.Store.RemoveRoleFromGroups(role.Id); // no longer anyone's to pick
         Audit.Record(s, "role.update", details: new
         {
             id = role.Id, name = updated.Name,
             added = PermList(updated.Perms & ~role.Perms), removed = PermList(role.Perms & ~updated.Perms),
+            selfAssign = updated.SelfAssign == role.SelfAssign ? (bool?)null : updated.SelfAssign,
         });
         RolesChanged(s);
+        if (role.SelfAssign != updated.SelfAssign) AccessChanged(s, s.World.Store.MembersWithRole(role.Id)); // their rank follows
         return new { role = Public(updated) };
     }
 

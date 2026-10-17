@@ -101,6 +101,14 @@ export const safety = {
     confirmBan: 'Ban {{name}}? They can’t come back until unbanned.',
     resolutionNote: 'Note for the other moderators (optional)',
   },
+  joins: {
+    title_one: '{{count}} person waiting to join',
+    title_other: '{{count}} people waiting to join',
+    intro: 'They came through an invite that needs approval. Let them in, or turn them away (their invite use is spent either way).',
+    via: 'Invite …{{tail}} by {{name}}',
+    approve: 'Let in',
+    decline: 'Turn away',
+  },
   deleteAccount: {
     title: 'Delete account',
     hint: 'Permanently deletes your account on every server you’re in, and everything on this device.',

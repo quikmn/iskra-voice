@@ -69,6 +69,8 @@ export interface Invite {
   expiresAt: number | null
   maxUses: number | null
   uses: number
+  /** Joining through it waits for a moderator's approval (PROTOCOL.md "Join gating and raid controls"). */
+  approve?: boolean
 }
 
 export interface VoiceParticipant {
@@ -92,6 +94,8 @@ export interface Welcome {
     p2p?: string | null
     /** The server's icon and banner (missing from older servers). */
     images?: ServerImages
+    /** Invites don't work right now: an admin or AutoMod paused them (see "Join gating and raid controls"). */
+    invitesPaused?: boolean
   }
   channels: Channel[]
   members: Member[]
@@ -152,8 +156,10 @@ export interface Requests {
   'profile.pages.configure': [{ enabled: boolean }, Record<string, never>]
   'member.setRole': [{ accountKey: string; role: Role }, { member: Member }]
   'member.kick': [{ accountKey: string }, Record<string, never>]
-  'member.ban': [{ accountKey: string; reason?: string }, Record<string, never>]
-  'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean }, { invite: Invite }]
+  /** `deleteMessagesMs`: also delete what they wrote in the last 24 h or 7 d (see "Mod pack"). Works on someone who left too. */
+  'member.ban': [{ accountKey: string; reason?: string; deleteMessagesMs?: number }, { deletedMessages?: number }]
+  'member.unban': [{ accountKey: string }, Record<string, never>]
+  'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean; approve?: boolean }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
   'voice.join': [{ channelId: number }, { url: string; token: string; room: string; channelId?: number; canSpeak: boolean; canHear?: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }]
@@ -792,6 +798,13 @@ export interface Member {
   nick?: string | null
   /** Their own profile name. */
   profileName?: string
+  /** A picture for this server only (`avatar` already shows it; the profile picture is underneath). URL or null. */
+  serverAvatar?: string | null
+}
+
+export interface Requests {
+  /** A per-server picture: an upload of yours (`""` removes); `accountKey` for admins changing someone below them. */
+  'member.avatar': [{ file: string; accountKey?: string }, { member: Member }]
 }
 
 export type NotifyLevel = 'all' | 'mentions' | 'none'
@@ -1117,6 +1130,19 @@ export interface ServerRole {
   mentionable?: boolean
   position: number
   permissions: Permission[]
+  /** Members give it to and take it from themselves (never with permissions, never counted as rank). */
+  selfAssign?: boolean
+}
+
+/** A question new members answer by picking self-assignable roles (PROTOCOL.md "Self-assignable roles and pick groups"). */
+export interface RoleGroup {
+  id: number
+  title: string
+  question: string
+  /** Several answers at once; otherwise picking one drops the others. */
+  multi: boolean
+  /** Role ids, in the order shown. */
+  roles: number[]
 }
 
 export interface ChannelOverride {
@@ -1140,16 +1166,21 @@ export interface VoiceParticipant {
 }
 
 export interface Events {
-  roles: { roles: ServerRole[]; baseRoles?: BaseRoleInfo[] }
+  roles: { roles: ServerRole[]; baseRoles?: BaseRoleInfo[]; groups?: RoleGroup[] }
   'voice.moved': { channelId: number; reason?: 'afk' | 'teams' }
 }
 
 export interface Requests {
-  'role.list': [Record<string, never>, { roles: ServerRole[]; baseRoles?: BaseRoleInfo[] }]
-  'role.create': [{ name: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[] }, { role: ServerRole }]
-  'role.update': [{ id: number; name?: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[] }, { role: ServerRole }]
+  'role.list': [Record<string, never>, { roles: ServerRole[]; baseRoles?: BaseRoleInfo[]; groups?: RoleGroup[] }]
+  'role.create': [{ name: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[]; selfAssign?: boolean }, { role: ServerRole }]
+  'role.update': [{ id: number; name?: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[]; selfAssign?: boolean }, { role: ServerRole }]
   'role.delete': [{ id: number }, Record<string, never>]
   'role.reorder': [{ ids: number[] }, { roles: ServerRole[] }]
+  'role.group.create': [{ title: string; question?: string; multi?: boolean; roles: number[] }, { group: RoleGroup }]
+  'role.group.update': [{ id: number; title?: string; question?: string; multi?: boolean; roles?: number[] }, { group: RoleGroup }]
+  'role.group.delete': [{ id: number }, Record<string, never>]
+  /** Your own self-assignable roles: `add` and/or `remove`. */
+  'roles.self': [{ add?: number[]; remove?: number[] }, { member: Member }]
   'member.roles.set': [{ accountKey: string; roles: number[] }, { member: Member }]
   'channel.overrides.set': [{ id: number; roleId: number; allow?: ChannelPermission[]; deny?: ChannelPermission[] }, { channel: Channel }]
   'voice.mute': [{ accountKey: string; muted: boolean }, Record<string, never>]
@@ -1334,23 +1365,105 @@ export interface AutoModConfig {
   flood: { enabled: boolean; count: number; seconds: number; action: AutoModAction }
   duplicates: { enabled: boolean; count: number; seconds: number; action: AutoModAction }
   links: { enabled: boolean; mode: 'invites' | 'all'; allowedDomains: string[]; action: AutoModAction }
+  /** Join flood: more than `count` invite joins within `minutes` pauses invites (older servers leave it out). */
+  joins?: { enabled: boolean; count: number; minutes: number }
   exemptRoles: number[]
   exemptChannels: number[]
   alertChannelId: number | null
 }
 
-export type AutoModRule = 'words' | 'mentions' | 'flood' | 'duplicates' | 'links'
+export type AutoModRule = 'words' | 'mentions' | 'flood' | 'duplicates' | 'links' | 'joins'
 
 /** On an AutoMod alert (author "automod:"): what was blocked. Channel and snippet are null when they'd reveal a private channel. */
 export interface AutoModAlert {
   rule: AutoModRule
-  what: 'message' | 'edit' | 'poll' | 'post' | 'thread' | 'event' | 'watch'
+  what: 'message' | 'edit' | 'poll' | 'post' | 'thread' | 'event' | 'watch' | 'join'
   member: string
   memberName: string
   channelId: number | null
   channelName: string | null
   snippet: string | null
   timeoutMs: number
+  /** Rule `joins`: how many joined within how many minutes. */
+  joins?: number
+  minutes?: number
+}
+
+// ── join gating and raid controls ──
+// See "Join gating and raid controls" in PROTOCOL.md.
+
+/** Someone who joined through an approval invite and waits for a moderator. */
+export interface JoinRequest {
+  accountKey: string
+  name: string
+  role: Role
+  requestedAt: number
+  /** The invite's last characters (never the whole code) and who made it. */
+  invite: { tail: string; createdBy: string | null }
+}
+
+export interface JoinSettings {
+  invitesPaused: boolean
+  pausedAt: number | null
+  /** An account key, or "automod:" when the join-flood rule paused them. */
+  pausedBy: string | null
+  /** Members younger than this many hours get at least `newcomerSlowmode` seconds between messages (0 = off). */
+  newcomerHours: number
+  newcomerSlowmode: number
+}
+
+// ── mod pack ──
+// See "Mod pack" in PROTOCOL.md: bulk delete, warnings, moderator notes, a person's history, people who left.
+
+/** A moderator's private note about a person. Never shown to them. */
+export interface ModNote {
+  id: number
+  text: string
+  author: string
+  authorName: string
+  createdAt: number
+}
+
+/** Someone who isn't a member any more. `name` is "" after an account deletion. */
+export interface Departed {
+  accountKey: string
+  name: string
+  reason: 'left' | 'kicked' | 'banned' | 'deleted'
+  at: number
+  by: string | null
+  byName: string | null
+  banned: boolean
+}
+
+export const BAN_DELETE_WINDOWS = [24 * 3600_000, 7 * 24 * 3600_000] as const
+
+export interface Events {
+  'member.warned': { reason: string; by: string; byName: string; at: number }
+}
+
+export interface Requests {
+  'chat.delete.bulk': [{ channelId: number; ids: number[] }, { deleted: number }]
+  'member.warn': [{ accountKey: string; reason: string }, Record<string, never>]
+  'member.notes.list': [{ accountKey: string }, { notes: ModNote[] }]
+  'member.notes.add': [{ accountKey: string; text: string }, { note: ModNote }]
+  'member.notes.delete': [{ id: number }, Record<string, never>]
+  'member.history': [{ accountKey: string; limit?: number }, { entries: AuditEntry[] }]
+  'member.departed': [{ limit?: number }, { people: Departed[] }]
+}
+
+export interface Events {
+  'join.count': { pending: number }
+  'invites.paused': { paused: boolean }
+  'join.settings': { settings: JoinSettings }
+}
+
+export interface Requests {
+  'join.list': [Record<string, never>, { requests: JoinRequest[] }]
+  'join.count': [Record<string, never>, { pending: number }]
+  'join.approve': [{ accountKey: string }, { member: Member }]
+  'join.decline': [{ accountKey: string }, Record<string, never>]
+  'join.settings.get': [Record<string, never>, { settings: JoinSettings }]
+  'join.settings.update': [{ invitesPaused?: boolean; newcomerHours?: number; newcomerSlowmode?: number }, { settings: JoinSettings }]
 }
 
 export interface Message {

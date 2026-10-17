@@ -19,6 +19,7 @@ import { Modal } from '../bits'
 import { CreateChannelDialog } from '../dialogs/CreateChannelDialog'
 import { InviteDialog } from '../dialogs/InviteDialog'
 import { ServerRulesItem } from '../rules/Rules'
+import { PickRolesItem } from '../roles/Onboarding'
 import { openServerSettings } from '../settings/open'
 import { serverSections, type ServerSectionId } from '../settings/sections'
 import { ServerTile } from '../settings/ServerTile'
@@ -26,7 +27,7 @@ import { FolderDialog } from './FolderDialog'
 import { NotifyRows, NotifyViews, useRunner, type Run } from './Menus'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgMenu'
 import { LfgNotifyItem } from '../teams/TeamsBits'
-import { NicknameField } from './ServerSettings'
+import { NicknameField, ServerAvatarField } from './ServerSettings'
 import { serverMenuLayout } from './serverMenuLayout'
 
 export type ServerAction = { kind: 'invite' } | { kind: 'channel' } | { kind: 'nickname' } | { kind: 'hide' } | { kind: 'leave' } | { kind: 'folder'; folderId: string }
@@ -93,6 +94,7 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
               }
             })}
             <ServerRulesItem serverKey={server.key} onDone={onClose} />
+            <PickRolesItem server={server} onDone={onClose} />
             <div className="org-sep" role="separator" />
             {me && <NotifyRows server={server} channelId={null} setView={setView} run={run} />}
             {me && <LfgNotifyItem server={server} run={run} />}
@@ -175,6 +177,7 @@ function NicknameDialog({ server, onClose }: { server: ServerState; onClose: () 
   return (
     <Modal title={t('app.serverMenu.nicknameTitle', { name: server.name })} onClose={onClose}>
       <NicknameField server={server} member={server.me} />
+      <ServerAvatarField server={server} member={server.me} />
     </Modal>
   )
 }

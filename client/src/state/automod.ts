@@ -16,11 +16,15 @@ export function defaultAutoMod(): AutoModConfig {
     flood: { enabled: false, count: 8, seconds: 10, action: none() },
     duplicates: { enabled: false, count: 3, seconds: 60, action: none() },
     links: { enabled: false, mode: 'invites', allowedDomains: [], action: none() },
+    joins: { enabled: false, count: 10, minutes: 10 },
     exemptRoles: [],
     exemptChannels: [],
     alertChannelId: null,
   }
 }
+
+/** The join-flood rule as the form shows it (older servers send none). */
+export const joinsRule = (c: AutoModConfig) => c.joins ?? { enabled: false, count: 10, minutes: 10 }
 
 /**
  * A sensible starting point: spam rules on, invite links blocked, alerts to the chosen channel. Short timeouts only
@@ -73,14 +77,16 @@ export function parseDomains(text: string): { domains: string[]; bad: string | n
   return { domains: [...new Set(domains)], bad }
 }
 
-const RULES: readonly string[] = ['words', 'mentions', 'flood', 'duplicates', 'links'] satisfies AutoModRule[]
+const RULES: readonly string[] = ['words', 'mentions', 'flood', 'duplicates', 'links', 'joins'] satisfies AutoModRule[]
 
 /** "Blocked word"; a rule this app doesn't know yet as is. */
 export const ruleLabel = (rule: string): string => (RULES.includes(rule) ? t(`automod.ruleLabels.${rule as AutoModRule}`) : rule)
 
 /** How many rules are on (for the summary line). */
-export const activeRules = (c: AutoModConfig): AutoModRule[] =>
-  (['words', 'mentions', 'flood', 'duplicates', 'links'] as const).filter((r) => c[r].enabled)
+export const activeRules = (c: AutoModConfig): AutoModRule[] => [
+  ...(['words', 'mentions', 'flood', 'duplicates', 'links'] as const).filter((r) => c[r].enabled),
+  ...(joinsRule(c).enabled ? ['joins' as const] : []),
+]
 
 /** An error from the server that means AutoMod stopped this (the message says why). */
 export const isAutoModError = (e: unknown): boolean => (e as { code?: string } | null)?.code === 'automod'

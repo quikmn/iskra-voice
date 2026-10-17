@@ -24,7 +24,11 @@ public sealed record Channel(long Id, string Name, string Kind, int Position, st
 public sealed record Message(long Id, long ChannelId, string AuthorKey, string Text, long CreatedAt, long? EditedAt,
     string[] Attachments, long? ReplyTo);
 public sealed record StoredFile(string Id, string Sha256, string Name, long Size, string Type, int? Width, int? Height, string Uploader, long CreatedAt);
-public sealed record Invite(string Code, string CreatedBy, long CreatedAt, long? ExpiresAt, int? MaxUses, int Uses, string Role, bool Revoked);
+public sealed record Invite(string Code, string CreatedBy, long CreatedAt, long? ExpiresAt, int? MaxUses, int Uses, string Role, bool Revoked)
+{
+    /// <summary>Joining through it waits for a moderator's approval (JoinFeature).</summary>
+    public bool Approve { get; init; }
+}
 public sealed record Ban(string AccountKey, string Reason, string BannedBy, long BannedAt);
 public sealed record DirectMessage(long Id, string From, string To, string Envelope, long CreatedAt)
 {
@@ -346,6 +350,15 @@ public sealed partial class Store : IDisposable
         // Emoji and stickers brought over from other servers.
         ("external-expressions-1", ExternalExpressionsMigration),
         ("rooms-1", RoomsMigration),
+        // Roles members pick themselves, and the questions new members answer with them (Server settings → Onboarding).
+        ("roles-3", "ALTER TABLE roles ADD COLUMN self_assign INTEGER NOT NULL DEFAULT 0;"),
+        ("role-groups-1", RoleGroupsMigration),
+        // Invites that need approval, the people waiting on one, paused invites and newcomer slowmode.
+        ("joins-1", JoinsMigration),
+        // Moderators' private notes about people, and who left the server (and how).
+        ("modpack-1", ModPackMigration),
+        // A picture per server, shown instead of the profile picture there.
+        ("member-avatars-1", MemberAvatarsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

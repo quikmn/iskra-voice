@@ -10,6 +10,7 @@ import { BotBadge } from '../chat/BotBits'
 import { TimeoutBadge } from '../moderation/Moderation'
 import { RoleChips } from '../roles/RoleSettings'
 import { userMenuProps } from '../people/userMenuProps'
+import { DepartedList } from '../moderation/ModPack'
 
 export function MembersSection({ server }: { server: ServerState }) {
   const { t } = useTranslation()
@@ -41,6 +42,7 @@ export function MembersSection({ server }: { server: ServerState }) {
         ))}
       </ul>
       {members.length === 0 && <p className="muted">{t('settings.members.none')}</p>}
+      <DepartedList server={server} />
     </section>
   )
 }

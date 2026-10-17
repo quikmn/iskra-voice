@@ -12,6 +12,17 @@ const WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch'] as 
 
 export function AutoModAlertCard({ server, alert }: { server: ServerState; alert: Alert }) {
   const { t } = useTranslation()
+  if (alert.rule === 'joins') {
+    // A join flood paused the invites: numbers, never a person.
+    return (
+      <div className="automod-alert" data-testid="automod-alert">
+        <div className="automod-alert-line">
+          <span className="automod-alert-rule">{ruleLabel(alert.rule)}</span>
+          <span>{t('automod.alert.joins', { count: alert.joins ?? 0, minutes: alert.minutes ?? 0 })}</span>
+        </div>
+      </div>
+    )
+  }
   const member = server.members[alert.member]
   const name = member?.name ?? alert.memberName
   const channel = alert.channelId !== null ? server.channels.find((c) => c.id === alert.channelId) : undefined

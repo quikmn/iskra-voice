@@ -9,7 +9,7 @@ const settled = (page: Page) => page.evaluate(() => Promise.all(document.getAnim
 
 const MINE = ['Profile', 'Appearance', 'Language', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Streamer mode', 'Voice & audio', 'Camera', 'Blocked people', 'Account', 'Privacy & data', 'About & legal']
 const SERVER_SECTIONS = [
-  'Overview', 'Channels', 'Voice', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Translation',
+  'Overview', 'Channels', 'Voice', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Onboarding', 'Translation',
   'Members', 'Roles', 'Reports', 'AutoMod', 'Activity log', 'Sign-ins & security',
   'Bots & webhooks',
   'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates',

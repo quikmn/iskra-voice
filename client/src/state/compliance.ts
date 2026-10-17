@@ -52,6 +52,7 @@ export const SECURITY_EVENTS = [
   'captions.model.download', 'captions.model.rejected', 'translate.model.download', 'translate.model.rejected', 'translate.settings',
   'server.template', 'server.template.merge', 'server.autostart.install', 'server.autostart.remove',
   'account.dispute.resolve', 'keylog.alert', 'keylog.reloaded', 'keylog.broken', 'owner.claim.created',
+  'join.pending', 'join.approved', 'join.declined', 'invites.paused', 'invites.resumed',
 ] as const
 
 export function securityEventLabel(event: string): string {

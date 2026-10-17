@@ -15,6 +15,7 @@ public static class LeaveFeature
         if (me.Role == Roles.Owner) throw RequestException.Forbidden("The owner can't leave their own server.", "owner_cant_leave");
         if (s.World.Store.IsBot(me.AccountKey)) throw RequestException.Forbidden("Bots can't leave on their own.");
         s.World.Store.RemoveMember(me.AccountKey);
+        s.World.Store.RecordDeparture(me.AccountKey, me.Name, "left", null, s.Now); // "People who left" (ModPackFeature)
         s.Hub.Broadcast(Frames.Event("member.removed", new { accountKey = me.AccountKey }));
         s.Hub.Outhooks?.MemberLeft(me.AccountKey, me.Name, "left");
         s.Voice.EnforceAccess();

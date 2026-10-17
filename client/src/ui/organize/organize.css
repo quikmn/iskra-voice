@@ -78,6 +78,11 @@
 .org-notify .h4 { margin: 0; font-size: 14px; }
 .org-notify .segmented { flex-wrap: wrap; }
 .org-notify-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* The per-server picture, under the nickname. */
+.org-avatar { display: grid; gap: 6px; margin-top: 16px; }
+.org-avatar .field-label { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.org-avatar-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.org-avatar p { margin: 0; font-size: 13px; }
 .org-nick-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
 .org-nick-row .field { flex: 1; min-width: 160px; margin: 0; }
 .profile-realname { margin-top: -4px; font-size: 13px; color: var(--muted); }

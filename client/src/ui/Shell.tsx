@@ -21,6 +21,7 @@ import { IncomingGroupCall } from './groups/GroupCall'
 import { SoundToasts } from './expressions/Soundboard'
 import { OuthookToast } from './OuthookToast'
 import { AfkToast } from './afk/AfkToast'
+import { WarnToast } from './moderation/ModPack'
 import { LfgLayer, LfgToast } from './lfg/Lfg'
 import { TeamsBar } from './teams/TeamsBits'
 import { TeamsLayer } from './teams/TeamsDialog'
@@ -37,6 +38,7 @@ import { DisputeNotices } from './keys/KeyScreens'
 import { KtNotices } from './keys/KeyTransparency'
 import { Shortcuts } from './organize/Shortcuts'
 import { RulesLayer } from './rules/Rules'
+import { RolePickerLayer } from './roles/Onboarding'
 import { ServerUpdateNotice } from './ServerUpdateNotice'
 import { RestartBanner } from './RestartBanner'
 import { ProductivityLayer } from './productivity/InboxButton'
@@ -106,6 +108,7 @@ export function Shell() {
       <SoundToasts />
       <OuthookToast />
       <AfkToast />
+      <WarnToast />
       <LfgToast />
       <TeamsLayer />
       <RoomLayer />
@@ -122,6 +125,7 @@ export function Shell() {
       <EventsLayer />
       <Shortcuts />
       <RulesLayer />
+      <RolePickerLayer />
       <ProductivityLayer />
       <ClipLayer />
       <PopoutLayer />

@@ -7,6 +7,9 @@ import type { Message } from '../../core/protocol'
 import type { PendingMessage, ServerState } from '../../state/store'
 import { markUnread } from '../../state/unread'
 import { canReport, openReport } from '../../state/reports'
+import { startSelecting } from '../../state/modpack'
+import { has } from '../../state/permissions'
+import { rolesFor } from '../../state/roles'
 import { Avatar, Modal } from '../bits'
 import { appUrl } from '../format'
 import { EmojiGlyph } from '../expressions/EmojiPicker'
@@ -82,6 +85,9 @@ function MoreMenu({ server, message, anchor, onClose, onReactions }: {
             <ChannelSaveRemind server={server} message={message} wrap={act} />
             <TranslateMenuItem item={channelItem(server, message)} wrap={act} />
             {message.reactions.length > 0 && <button role="menuitem" onClick={act(null, onReactions)}>{t('chat.actions.viewReactions')}</button>}
+            {has(server.me, rolesFor(server.key), 'manageMessages') && (
+              <button role="menuitem" onClick={act(null, () => startSelecting(server.key, message.channelId, message.id))}>{t('chat.actions.selectMessages')}</button>
+            )}
             {canReport(server, message) && (
               <button role="menuitem" className="danger" onClick={act(null, () => openReport({ kind: 'message', serverKey: server.key, message }))}>{t('safety.report.menuMessage')}</button>
             )}

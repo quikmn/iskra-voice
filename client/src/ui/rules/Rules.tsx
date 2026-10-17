@@ -8,9 +8,11 @@ import { acceptRules, closeRules, loadRules, showRules, updateRules, useRules, u
 import {
   MAX_RULES_LENGTH, MAX_WELCOME_LENGTH, hasRules, rulesProblem, rulesUpdate, shouldAutoOpen, type RulesDraft,
 } from '../../state/voiceRulesLogic'
+import { askableGroups, useServerRoleGroups, useServerRoles } from '../../state/roles'
 import { renderMarkdown } from '../markdown'
 import { Modal, Spinner } from '../bits'
 import { MenuItem } from '../organize/OrgMenu'
+import { RolePicker } from '../roles/Onboarding'
 import './rules.css'
 
 const BookIcon = ({ size = 16 }: { size?: number }) => (
@@ -45,6 +47,9 @@ function RulesScreen({ server }: { server: ServerState }) {
   const rules = useServerRules(server.key)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // After agreeing, the same screen asks the server's onboarding questions (when it has any).
+  const [picking, setPicking] = useState(false)
+  const asks = askableGroups(useServerRoleGroups(server.key), useServerRoles(server.key)).length > 0
   if (!rules) return null
   const mustAgree = rules.mustAgree
 
@@ -53,11 +58,22 @@ function RulesScreen({ server }: { server: ServerState }) {
     setError(null)
     try {
       await acceptRules(server.key)
-      closeRules()
+      if (asks) setPicking(true)
+      else closeRules()
     } catch (e) {
       setError(errorMessage(e))
       setBusy(false)
     }
+  }
+
+  if (picking) {
+    return (
+      <Modal title={t('roles.picker.title')} onClose={closeRules} wide className="rules-modal"
+        footer={<button className="button primary" onClick={closeRules} data-testid="role-picker-done">{t('roles.picker.done')}</button>}>
+        <p className="muted rules-lead">{t('roles.picker.intro', { server: server.name })}</p>
+        <RolePicker server={server} />
+      </Modal>
+    )
   }
 
   return (

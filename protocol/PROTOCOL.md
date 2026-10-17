@@ -235,7 +235,7 @@ Servers before this rule may send no `createdAt`; then only a missing channel co
 | `member.ban` | `accountKey, reason?` | | same as above |
 | `member.unban` | `accountKey` | | admin+ |
 | `member.bans` | | `{ bans }` | admin+ |
-| `invite.create` | `role? (default member), maxUses? (1–1000), expiresInMs? (1 min – 30 days, default 7 days), neverExpires? (true: no expiry, can't be combined with expiresInMs)` | `{ invite }` | member+ for guest/member invites; higher roles need the right to grant them; `neverExpires` admin+ (`forbidden`, key `invite_never`) |
+| `invite.create` | `role? (default member), maxUses? (1–1000), expiresInMs? (1 min – 30 days, default 7 days), neverExpires? (true: no expiry, can't be combined with expiresInMs), approve? (joiners wait for a moderator, see [Join gating](#join-gating-and-raid-controls))` | `{ invite }` | member+ for guest/member invites; higher roles need the right to grant them; `neverExpires` admin+ (`forbidden`, key `invite_never`) |
 | `invite.list` | | `{ invites }` | admins see all, others their own |
 | `invite.revoke` | `code` | | the creator or admin+ |
 
@@ -1065,6 +1065,85 @@ BlockEntry { "accountKey": "<b64u 32>", "blocked": true, "at": 1760000000000 }  
 
 - Each member can send one message (`chat.send` or `poll.create`) per interval in that channel; sooner is `rate_limited` ("You can send again in 12 s"). Admins and the owner are exempt. Threads have no slowmode of their own. The server keeps the send times in memory, so a restart forgets them.
 
+### Join gating and raid controls
+
+Three ways to slow a raid or vet newcomers, all applied in the handshake:
+
+- **Approval invites.** `invite.create` takes `approve?` (default false); `Invite` gains `approve`. Joining through one
+  spends a use as usual but makes no member: the joiner gets `error` `join_pending` ("Waiting for a moderator to let
+  you in", close 4401) and their app retries the handshake now and then (every 15 s or so) until a moderator decides.
+  Approved: the next handshake gets its `welcome` (the invite's role). Declined: `join_declined` (close 4403; the use
+  stays spent, and after a day the request is forgotten, so a new invite is needed). Requests nobody answers are
+  forgotten after 7 days. Bots never wait.
+- **Paused invites.** While paused, every invite but the owner's first answers `invites_paused` (close 4401) before a
+  use is spent. Admins pause and resume by hand; AutoMod's join-flood rule pauses (never resumes).
+- **Newcomer slowmode.** Members younger than `newcomerHours` get at least `newcomerSlowmode` seconds between messages
+  in every channel (the channel's own slowmode if longer; the usual exemptions). 0 = off.
+
+```jsonc
+JoinRequest  { "accountKey": "<b64u>", "name": "Sam", "role": "member", "requestedAt": 1760000000000,
+               "invite": { "tail": "Xy9kQw", "createdBy": "<accountKey>" | null } }   // the invite's last 6 characters, never the whole code
+JoinSettings { "invitesPaused": false, "pausedAt": null, "pausedBy": "<accountKey>" | "automod:" | null,
+               "newcomerHours": 0, "newcomerSlowmode": 0 }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `join.list` | | `{ requests: [JoinRequest] }` (oldest first) | moderators (as [reports](#reports); `forbidden`, key `mods_joins`) |
+| `join.count` | | `{ pending }` (0 for everyone else) | anyone |
+| `join.approve` | `accountKey` | `{ member }` | moderators; `not_found` unless they're waiting; `bad_request` (key `join_banned`) if banned meanwhile |
+| `join.decline` | `accountKey` | | moderators |
+| `join.settings.get` | | `{ settings: JoinSettings }` | admin+ (`forbidden`, key `admins_joins`) |
+| `join.settings.update` | any of `invitesPaused`, `newcomerHours` (0–720), `newcomerSlowmode` (a slowmode step) | `{ settings }` | admin+. Rate limited (10, then 1 a second) |
+
+- Events: `join.count { pending }` to online moderators whenever the queue changes; `invites.paused { paused }` to
+  everyone when invites stop or start working (`welcome.server.invitesPaused` says how it stands); `join.settings
+  { settings }` to online admins after a change. Approving sends `member.joined` to everyone like any join.
+- [AutoMod](#automod) gains the rule `joins` `{ enabled, count (2–100), minutes (1–60) }`: more than `count` invite
+  joins (not bots, not approvals) within `minutes` pauses invites and, with an alert channel, posts an alert with
+  `rule: "joins"`, `what: "join"`, `joins` and `minutes` (no member). Its audit entry `invites.pause` is by AutoMod
+  with reason "join flood".
+- Audit: `join.approve` (target: the newcomer) `{ role }`, `join.decline` `{ accountKey, name }`, `invites.pause`,
+  `invites.resume`, `join.newcomers` `{ hours, slowmode }`; `invite.create` details gain `approve`. Security log:
+  `join.pending`, `join.approved`, `join.declined`, `invites.paused`, `invites.resumed`. The joiner's address is never
+  shown to moderators (it reaches the security log only under the owner's IP setting, like every event).
+
+### Mod pack
+
+Moderators (the [reports](#reports) power) get a few more tools. Everything about a person works on members ranked
+below the moderator, and notes, history and bans also on people who left.
+
+```jsonc
+ModNote   { "id": 3, "text": "Warned twice about spoilers", "author": "<accountKey>", "authorName": "Mira", "createdAt": 1760000000000 }
+Departed  { "accountKey": "<b64u>", "name": "Troll", "reason": "left" | "kicked" | "banned" | "deleted", "at": 1760000000000,
+            "by": "<accountKey>" | null, "byName": "Mira" | null, "banned": false }   // name is "" after an account deletion
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `chat.delete.bulk` | `channelId`, `ids` (1–100 message ids in that channel) | `{ deleted }` | `manageMessages`; every message must be yours or from someone below you (`forbidden`, key `bulk_delete_rank`); ids already gone are skipped. Rate limited (5, then 1 every 5 s) |
+| `member.ban` | gains `deleteMessagesMs?` (86 400 000 or 604 800 000: also delete what they wrote in that time, everywhere) and works on someone who left (`accountKey` of a `Departed`) | `{ deletedMessages }` | `banMembers`; a member must rank below you |
+| `member.warn` | `accountKey`, `reason` (1–200) | | moderators, target below you. Rate limited (10, then 1 every 2 s) |
+| `member.notes.list` | `accountKey` | `{ notes: [ModNote] }` (newest first) | moderators |
+| `member.notes.add` | `accountKey`, `text` (1–1000, newlines allowed) | `{ note }` | moderators (a member must rank below you); ≤ 50 notes per person. Rate limited (10, then 1 every 2 s) |
+| `member.notes.delete` | `id` | | the note's author, or an admin |
+| `member.history` | `accountKey`, `limit?` (1–100, default 50) | `{ entries: [AuditEntry] }` (newest first) | moderators |
+| `member.departed` | `limit?` (1–100, default 50) | `{ people: [Departed] }` (newest first; people who came back are left out) | moderators |
+
+- `member.history` is the audit log filtered to the person as the target, for these actions only: `member.warn`,
+  `member.timeout`, `member.timeout.remove`, `member.kick`, `member.ban`, `member.unban`, `message.delete`,
+  `automod.block`, `report.resolve`, `join.approve`. It needs no `viewAuditLog`.
+- A warning sends `member.warned { reason, by, byName, at }` to the person's sessions; apps show it. Notes are never
+  sent to the person they're about, nor in their data export (notes you wrote are in yours, under
+  `moderatorNotesWritten`, with the author's name blanked once they delete their account); they're deleted with the
+  person's account. Departures: `departure` in the export; kept 90 days (`Retention.AuditDays`, the audit log's
+  horizon; `ModerationSweeper`), the name removed earlier if the account is deleted.
+- End-to-end encrypted channels: deleting there removes the stored envelopes only (apps say so before a bulk delete);
+  copies already on other devices stay, as with any encrypted message.
+- Audit: `message.delete.bulk` `{ channelId, channelName, count, authors }` (one entry for the lot), `member.warn`
+  (reason), `member.note.add` / `member.note.delete` `{ noteId, name }` (never the text), `member.ban` details gain
+  `{ name, deletedMessages?, deleteMessagesMs? }`.
+
 ### Audit log
 
 | type | body | result | who |
@@ -1099,7 +1178,7 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 | type | body | result | who |
 |---|---|---|---|
 | `role.list` | | `{ roles: [Role], baseRoles: [BaseRole] }` (highest first; [built-in roles](#built-in-roles)) | anyone |
-| `role.create` | `name` (1–32), `color?` (`#rrggbb`), `icon?` (one emoji, ≤ 16 chars), `hoist?`, `permissions?` | `{ role }` | `manageRoles`; ≤ 100 roles |
+| `role.create` | `name` (1–32), `color?` (`#rrggbb`), `icon?` (one emoji, ≤ 16 chars), `hoist?`, `permissions?`, `selfAssign?` | `{ role }` | `manageRoles`; ≤ 100 roles |
 | `role.update` | `id` and any of the above (`""` clears `color`/`icon`) | `{ role }` | `manageRoles`, the role below your highest |
 | `role.delete` | `id` | | same (takes it off everyone and removes its overrides) |
 | `role.reorder` | `ids` (every role once, highest first) | `{ roles }` | `manageRoles`; roles at or above your highest can't move, and nothing can move up to them |
@@ -1120,6 +1199,37 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 **Role mentions**: `<@&roleId>` in message text, shown as `@Role`. `Role` gains `mentionable` (default false; set with `role.create`/`role.update`). A role mention notifies (push, and clients count it as a mention) the role's members when the role is mentionable or the author may mention everyone (trusted+ or `mentionEveryone`); otherwise it's just text. Webhook posts never ping roles. Clients autocomplete only roles the author may mention.
 
 **Pushes and blocks**: the server sends no mention or reply push from someone the recipient has blocked. Clients also leave messages from blocked people out of unread and mention counts and notifications.
+
+### Self-assignable roles and pick groups
+
+`Role` gains `selfAssign` (default false; set with `role.create`/`role.update`): members give it to and take it from
+themselves. Such a role **never grants anything above the member base role**: it can't carry a permission
+(`role.create`/`role.update` with both → `bad_request`, key `role_self_assign_perms`), it doesn't count in the
+[hierarchy](#roles-and-permissions) (a member holding only self-assignable roles ranks by their level, as if they held
+none), and `roles.self` checks both again on every call. Channel overrides for it still apply, which is how opt-in
+channels work ("pick PlayStation to see #playstation").
+
+Admins group them into the questions new members answer (Server settings → Onboarding):
+
+```jsonc
+RoleGroup { "id": 1, "title": "Platform", "question": "What do you play on?", "multi": true, "roles": [4, 5, 6] }   // role ids, in the order shown
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `role.group.create` | `title` (1–60), `question?` (≤ 200; `""` none), `multi?` (default false: picking one drops the group's others), `roles` (1–25 ids of roles with `selfAssign`, in order) | `{ group }` | `manageRoles`; ≤ 20 groups (`bad_request`, key `role_groups_max`) |
+| `role.group.update` | `id` and any of the above | `{ group }` | `manageRoles` |
+| `role.group.delete` | `id` | | `manageRoles` |
+| `roles.self` | `add?: [roleId]`, `remove?: [roleId]` (one of them; ≤ 100 each) | `{ member }` | any member who isn't a bot; every id must be a role with `selfAssign` and no permissions (`forbidden`, key `role_not_self_assign`). Rate limited (10, then 1 a second) |
+
+- `role.list` and the `roles` event gain `groups: [RoleGroup]` (in order). A role that stops being `selfAssign` leaves
+  every group; a deleted role too. A group may end up empty; clients skip those.
+- `roles.self` with a role from a single-choice group takes the group's other roles off you first. Changes send
+  `member.updated` and a fresh `channels` list like `member.roles.set`.
+- Audit: `role.create`/`role.update` details gain `selfAssign`; `role.group.create` / `role.group.update`
+  `{ id, title, roles }` (names), `role.group.delete` `{ id, title }`. Picking your own roles isn't audited.
+- Clients show the groups on the welcome screen after agreeing to the rules, from "Pick your roles" in the server menu,
+  and for `/roles`. Templates: `roles[].selfAssign` and `roleGroups` (format 4, see [Starter templates](#starter-templates)).
 
 ## Reliable sends
 
@@ -1217,6 +1327,20 @@ Category { "id": 3, "name": "Games", "position": 0 }
 
 - `Member.name` is the name to show on this server (the nickname when set). Members gain `nick` (string or null) and `profileName` (their own profile name).
 - Broadcast as `member.updated`. Push notifications use nicknames too. A nickname is removed when the member leaves.
+
+### Per-server avatar
+
+| type | body | result | who |
+|---|---|---|---|
+| `member.avatar` | `file` (an upload of yours: PNG, JPEG or WebP, ≤ 1 MB, ≤ 4096 px a side, not animated; `""` removes), `accountKey?` (default: yourself) | `{ member }` | anyone for themselves; admins for members ranked below them (`forbidden`, key `rank_avatars`). Rate limited (10, then 1 every 2 s) |
+
+- A picture for this server only. `Member.avatar` (and `avatarHash`) then point at it instead of the profile picture;
+  `Member.serverAvatar` (URL or null) says whether one is set, so apps can offer to remove it. Removing it shows the
+  profile picture again. Apps crop on the device as for the profile picture; the server checks the bytes and stores a
+  copy without metadata (EXIF, GPS, text, thumbnails), like the [server icon](#server-icon-and-banner).
+- Broadcast as `member.updated`. The picture goes when the member leaves (with their nickname) and with their account;
+  it's in the data export (`serverAvatar`) and in backups with the other uploads. Audit `member.avatar` `{ removed }`
+  only when an admin changes someone else's.
 
 ### Notification levels and mutes
 
@@ -1601,6 +1725,7 @@ AutoMod {
   "flood":      { "enabled": false, "count": 8, "seconds": 10, "action": Action },   // more than count messages within seconds
   "duplicates": { "enabled": false, "count": 3, "seconds": 60, "action": Action },   // the same text more than count times within seconds
   "links":      { "enabled": false, "mode": "invites" | "all", "allowedDomains": ["youtube.com"], "action": Action },
+  "joins":      { "enabled": false, "count": 10, "minutes": 10 },     // more than count joins within minutes pauses invites (Join gating)
   "exemptRoles": [roleId], "exemptChannels": [channelId], "alertChannelId": 7 | null
 }
 Action { "timeoutMs": 0, "alert": false }   // a block always happens; optionally also a timeout and an alert
@@ -2839,6 +2964,8 @@ permission and ability.
 |---|---|---|---|
 | `role.base.update` | `role` (a built-in role); any of `color` (`#rrggbb`; `""` clears), `abilities` (the whole set, ≤ 19 names), `permissions` (the whole set, ≤ 14 names), `reset: true` (back to the default powers; not with `abilities`/`permissions`) | `{ baseRole: BaseRole }` | `manageRoles`. Colour: the owner may change any, everyone else only `trusted`, `member` and `guest` (`forbidden`, key `rank_base_roles`). Powers: see below. Rate limited (30, then 2 a second) |
 
+`role.list` and the `roles` event also carry `groups` ([pick groups](#self-assignable-roles-and-pick-groups)).
+
 Safety rules for powers, all checked on the server before anything changes:
 
 - The owner's role never changes, not even by the owner (`forbidden`, key `base_role_owner`); `runServer` and
@@ -2996,15 +3123,16 @@ Whoever runs the bot reads what's sent to it: that's the point of writing to a b
 A template (format in `docs/templates.md`) sets up a new server once: channels of every kind (text, voice, forum,
 stage, docs; hi-fi, user limits, slowmode, forum tags), who can see and use each (`readRole`/`writeRole` and per-role
 overrides for the template's own roles), custom roles, built-in role colours and powers, rules, the AFK channel and
-settings (default notifications, limits, built-in bots, bug inbox). `"version": 3` (format 3 adds starting content: see
-"Channel topics and template content"); formats 2 and 1 (no version) stay valid; a newer format is refused with a clear
-message. Unknown fields are an error. Up to 256 KB, 500
-channels, 50 categories, 100 roles. The server checks every template it reads with the same rules as the requests that
-make the same changes (built-in role powers included).
+settings (default notifications, limits, built-in bots, bug inbox). `"version": 4` (format 4 adds `roles[].selfAssign`
+and `roleGroups`, the pick groups of [self-assignable roles](#self-assignable-roles-and-pick-groups); format 3 added
+starting content: see "Channel topics and template content"); formats 3, 2 and 1 (no version) stay valid; a newer
+format is refused with a clear message. Unknown fields are an error. Up to 256 KB, 500
+channels, 50 categories, 100 roles, 20 pick groups. The server checks every template it reads with the same rules as the requests that
+make the same changes (built-in role powers and self-assignable roles included).
 
 | type | body | result | who |
 |---|---|---|---|
-| `server.template.export` | `{}` | `{ template: object }` (format 3, or 2 when it needs nothing newer) | admins (`forbidden`, key `admins_template_export`). Rate limited (3, then 1 every 10 s) |
+| `server.template.export` | `{}` | `{ template: object }` (the lowest format that holds everything in it: 4, 3 or 2) | admins (`forbidden`, key `admins_template_export`). Rate limited (3, then 1 every 10 s) |
 | `notify.default.set` | `level`: `auto` (all messages under 15 people, only @mentions above), `all` or `mentions` | `{ level }` | the `organize` ability (`forbidden`, key `admins_notify_default`). Rate limited (10, then 1 a second) |
 
 - `server.template.export` ("Save this server as a template") contains only structure and settings: never members,
@@ -3019,7 +3147,8 @@ make the same changes (built-in role powers included).
   list of names; `roleDetails`, `builtinRoles`, `settings` and per-channel `readRole`, `writeRole`, `hifi`, `slowmode`,
   `overrides`, `tags` are new).
 - `iskra-server templates apply <world> <file> [--apply]` adds a template to a server already in use, additive only:
-  roles and categories it doesn't have (by name), channels it doesn't have (by name and kind, anywhere on the server),
+  roles and categories it doesn't have (by name), pick groups it doesn't have (by title, when every role in them is one
+  members may pick), channels it doesn't have (by name and kind, anywhere on the server),
   and settings still at their defaults. It never deletes, renames or changes existing channels, roles, members or
   messages. Without `--apply` it only prints what it would add. It refuses while the server runs (its port answers on
   localhost). Security log `server.template.merge`.

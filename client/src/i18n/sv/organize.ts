@@ -139,6 +139,16 @@ export const organize: Messages['organize'] = {
     useTheirs: 'Använd deras namn',
     saved: 'Sparat.',
   },
+  avatar: {
+    label: 'Bild på den här servern',
+    hintYours: 'Visas i stället för din profilbild bara på {{server}}. Din profilbild är kvar som den är överallt annars.',
+    hintTheirs: 'Visas i stället för deras profilbild bara på {{server}}.',
+    upload: 'Använd en bild här',
+    change: 'Byt bild',
+    crop: 'Beskär din bild för den här servern',
+    updated: 'Bilden är uppdaterad.',
+    removed: 'Bilden är borttagen: profilbilden visas igen.',
+  },
   shortcuts: {
     title: 'Kortkommandon',
     gettingAround: 'Hitta runt',

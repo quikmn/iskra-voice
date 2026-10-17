@@ -138,6 +138,16 @@ export const organize = {
     useTheirs: 'Use their name',
     saved: 'Saved.',
   },
+  avatar: {
+    label: 'Picture on this server',
+    hintYours: 'Shown instead of your profile picture on {{server}} only. Your profile picture stays as it is everywhere else.',
+    hintTheirs: 'Shown instead of their profile picture on {{server}} only.',
+    upload: 'Use a picture here',
+    change: 'Change picture',
+    crop: 'Crop your picture for this server',
+    updated: 'Picture updated.',
+    removed: 'Picture removed: the profile picture shows again.',
+  },
   shortcuts: {
     title: 'Keyboard shortcuts',
     gettingAround: 'Getting around',

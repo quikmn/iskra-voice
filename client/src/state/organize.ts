@@ -2,7 +2,7 @@
 // levels and mutes (kept by the server for your account, so every device and push follow them), and nicknames.
 import { create } from 'zustand'
 import type { Category, Events, Member, NotifyDefault, NotifyLevel, NotifySetting } from '../core/protocol'
-import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, useApp } from './store'
+import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, uploadFile, useApp } from './store'
 import { knownThread } from './threads'
 import { t } from '../i18n'
 import { defaultLevel, effectiveNotify, nextMuteEnd, notifyKey, type EffectiveNotify, type NotifyMap } from './organizeLogic'
@@ -203,4 +203,14 @@ export async function moveChannel(serverKey: string, id: number, categoryId: num
 /** Your own nickname (no accountKey) or someone else's (admins). "" resets it. */
 export async function setNickname(serverKey: string, nick: string, accountKey?: string): Promise<Member> {
   return (await connection(serverKey).request('member.nick', { accountKey, nick })).member
+}
+
+/** A picture for this server only (cropped on the device already); null removes it. Everyone sees it through `member.updated`. */
+export async function setServerAvatar(serverKey: string, image: Blob | null, accountKey?: string): Promise<Member> {
+  let file = ''
+  if (image) {
+    const ext = image.type === 'image/webp' ? 'webp' : image.type === 'image/jpeg' ? 'jpg' : 'png'
+    file = (await uploadFile(serverKey, new File([image], `avatar.${ext}`, { type: image.type }), () => {})).id
+  }
+  return (await connection(serverKey).request('member.avatar', { file, accountKey })).member
 }
