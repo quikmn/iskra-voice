@@ -91,6 +91,7 @@ public sealed partial class Store
             if (deletion.Messages) Run(tx, DocsForgetAuthor, k); // docs pages stay (they're shared); see Store.Docs.cs
             if (deletion.Messages) Run(tx, BoardsForgetAuthor, k); // so do whiteboards; see Store.Whiteboards.cs
             Run(tx, KeyLogForgetNames, k); // the key log keeps its entries (the chain), not the names; see Store.KeyLog.cs
+            Run(tx, ActivitiesForgetAdder, k); // activities stay with the server, not who added them; see Store.Activities.cs
             Run(tx, """
                 INSERT INTO account_deletions (account_key, deleted_at, messages, sig, applied_at) VALUES ($k, $at, $m, $sig, $now)
                 ON CONFLICT(account_key) DO NOTHING;

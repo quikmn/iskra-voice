@@ -45,6 +45,9 @@ public sealed partial class Store
         );
         """;
 
+    /// <summary>Deleting an account: the activities it added stay (they're the server's), without who added them.</summary>
+    private const string ActivitiesForgetAdder = "UPDATE activities SET added_by = '' WHERE added_by = $k;";
+
     private const string ActivityColumns = "id, name, description, icon, min_players, max_players, version, size, files, enabled, added_by, added_at";
 
     private static StoredActivity ReadActivity(Microsoft.Data.Sqlite.SqliteDataReader r) =>

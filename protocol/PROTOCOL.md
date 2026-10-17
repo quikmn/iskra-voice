@@ -3881,4 +3881,4 @@ account keys; a person keeps their id for the whole session (on another device t
 
 **Your data:** `data.export` gains `activitiesAdded` (the activities you added: id, name, when). What activities send is
 never stored, so there is nothing else to export or delete. Deleting an account keeps the activities it added (they
-belong to the server); `addedBy` then names nobody.
+belong to the server) and clears who added them (`addedBy` becomes `""`).

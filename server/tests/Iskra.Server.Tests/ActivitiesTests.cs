@@ -203,6 +203,11 @@ public class ActivitiesTests
         Assert.Null(server.World.Store.GetActivityFile(id, "index.html"));
         Assert.Single(server.World.Store.SecurityEvents("activity.removed", null, null, 10));
         Assert.Equal("not_found", (await admin.RequestAsync("act.remove", new { id })).ErrorCode());
+
+        // Deleting the account keeps the server's activities, without who added them.
+        var kept = (await AddAsync(server, admin, Good())).GetProperty("id").GetString()!;
+        server.World.Store.DeleteAccount(new AccountDeletion(admin.Key, 0, false, "sig"), 0);
+        Assert.Equal("", server.World.Store.GetActivity(kept)!.AddedBy);
     }
 
     [Fact]
