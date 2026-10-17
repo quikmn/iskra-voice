@@ -207,6 +207,14 @@ public sealed class Session
         DeviceKey = deviceKey;
         ReadFilter = BotScope.Filter(_world.Store, member.AccountKey);
         var cameOnline = _hub.Add(this);
+        // A new name or profile from this connect reaches everyone, even when another of their devices was already online.
+        // Before the welcome goes out: an app that connects the moment it has its welcome (tests do) is in the hub by
+        // then, and would otherwise hear about this connect as a stray member.updated after its own.
+        if (cameOnline || _profileChanged)
+        {
+            var update = Frames.Event("member.updated", new { member = _hub.PublicMember(member) });
+            foreach (var other in _hub.Sessions.Where(s => s != this)) other.Send(update);
+        }
         SendNow(Frames.Event("welcome", new
         {
             you = _hub.PublicMember(member),
@@ -236,12 +244,6 @@ public sealed class Session
         {
             foreach (var frame in _early!) SendNow(frame);
             _early = null;
-        }
-        // A new name or profile from this connect reaches everyone, even when another of their devices was already online.
-        if (cameOnline || _profileChanged)
-        {
-            var update = Frames.Event("member.updated", new { member = _hub.PublicMember(member) });
-            foreach (var other in _hub.Sessions.Where(s => s != this)) other.Send(update);
         }
         _log.LogInformation("{Name} ({Key}) connected", member.Name, member.AccountKey[..8]);
 
