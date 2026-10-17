@@ -11,6 +11,7 @@ public enum BaseAbility
     RunServer, TransferOwnership,
     Whisper,
     ServerImages,
+    ExternalEmoji,
 }
 
 /// <summary>
@@ -28,6 +29,7 @@ public static class BaseRoles
         (BaseAbility.Invite, "invite", Roles.Member),                 // invite friends as guests or members
         (BaseAbility.Events, "events", Roles.Member),                 // schedule events
         (BaseAbility.Whisper, "whisper", Roles.Member),               // whisper to people or a voice channel (WhisperFeature)
+        (BaseAbility.ExternalEmoji, "externalEmoji", Roles.Member),   // bring emoji and stickers over from other servers (emoji.import, sticker.import)
         (BaseAbility.Pin, "pin", Roles.Trusted),                      // pin messages where they can post
         (BaseAbility.MentionEveryone, "mentionEveryone", Roles.Trusted),
         (BaseAbility.UploadSounds, "uploadSounds", Roles.Trusted),    // add soundboard sounds
@@ -51,7 +53,7 @@ public static class BaseRoles
 
     /// <summary>What guests and members can be given: everyday things, nothing that acts on other people.</summary>
     public static readonly BaseAbility[] Everyday =
-        [BaseAbility.Invite, BaseAbility.Events, BaseAbility.Pin, BaseAbility.MentionEveryone, BaseAbility.UploadSounds, BaseAbility.Whisper];
+        [BaseAbility.Invite, BaseAbility.Events, BaseAbility.Pin, BaseAbility.MentionEveryone, BaseAbility.UploadSounds, BaseAbility.Whisper, BaseAbility.ExternalEmoji];
     public const Perm EverydayPerms = Perm.MentionEveryone;
 
     public static readonly Perm AllPerms = Enum.GetValues<Perm>().Aggregate(Perm.None, (all, p) => all | p);

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { ServerEvent } from '../core/protocol'
-import { creatorTime, defaultEventStart, eventIcs, icsFileName, icsFold, icsText, openEvents, startsIn, utcToZoned, zonedToUtc, zoneOffset } from './eventTime'
+import {
+  creatorTime, defaultEventStart, eventIcs, icsFileName, icsFold, icsRule, icsText, openEvents, repeatText, startsIn, untilEndOfDay, utcToZoned,
+  zonedToUtc, zoneOffset,
+} from './eventTime'
 
 const event = (patch: Partial<ServerEvent> = {}): ServerEvent => ({
   id: 5, title: 'Game night', description: null, startAt: Date.UTC(2026, 9, 24, 17, 30), endAt: Date.UTC(2026, 9, 24, 19, 30),
   timeZone: 'Europe/Stockholm', location: { kind: 'place', text: 'Here' }, image: null, createdBy: 'k', createdAt: 0,
-  status: 'scheduled', interested: [], ...patch,
+  status: 'scheduled', interested: [], repeat: 'none', until: null, seriesId: null, ...patch,
 })
 
 describe("a new event's start", () => {
@@ -88,6 +91,31 @@ describe('iCalendar', () => {
     expect(lines).toContain('LOCATION:lounge (voice) on Gaming')
     expect(lines).toContain('STATUS:CONFIRMED')
     expect(eventIcs(event({ status: 'cancelled' }), { serverKey: 'a', place: '' })).toContain('STATUS:CANCELLED')
+  })
+
+  it('gives a repeating event an RRULE, its start in the creator\'s zone and the series UID', () => {
+    expect(icsRule(event())).toBeNull()
+    expect(icsRule(event({ repeat: 'daily' }))).toBe('FREQ=DAILY')
+    expect(icsRule(event({ repeat: 'biweekly', until: Date.UTC(2026, 11, 31, 22, 59, 59) }))).toBe('FREQ=WEEKLY;INTERVAL=2;UNTIL=20261231T225959Z')
+    const lines = eventIcs(event({ repeat: 'weekly', until: Date.UTC(2026, 11, 31, 22, 59, 59), seriesId: 3 }), { serverKey: 'abc', place: '' }).split('\r\n')
+    expect(lines).toContain('DTSTART;TZID=Europe/Stockholm:20261024T193000')
+    expect(lines).toContain('DTEND;TZID=Europe/Stockholm:20261024T213000')
+    expect(lines).toContain('RRULE:FREQ=WEEKLY;UNTIL=20261231T225959Z')
+    expect(lines).toContain('UID:event-series-3-abc@iskra')
+    // A UTC series needs no TZID.
+    expect(eventIcs(event({ repeat: 'monthly', timeZone: 'UTC', seriesId: 5 }), { serverKey: 'abc', place: '' })).toContain('DTSTART:20261024T173000Z')
+  })
+
+  it('ends a series at the end of the chosen day in its zone', () => {
+    expect(untilEndOfDay('2026-12-31', 'Europe/Stockholm')).toBe(Date.UTC(2026, 11, 31, 23) - 1)
+    expect(untilEndOfDay('2026-10-25', 'Europe/Stockholm')).toBe(Date.UTC(2026, 9, 25, 23) - 1) // a 25-hour day
+    expect(untilEndOfDay('nope', 'UTC')).toBeNull()
+  })
+
+  it('says how an event repeats', () => {
+    expect(repeatText(event())).toBeNull()
+    expect(repeatText(event({ repeat: 'weekly' }))).toBe('Repeats: Every week')
+    expect(repeatText(event({ repeat: 'biweekly', until: Date.UTC(2026, 11, 31, 22, 59, 59) }), 'en-US')).toBe('Repeats: Every 2 weeks until Dec 31')
   })
 
   it('escapes and folds long lines without splitting characters', () => {

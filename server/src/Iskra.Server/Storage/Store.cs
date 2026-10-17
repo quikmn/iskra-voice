@@ -339,6 +339,12 @@ public sealed partial class Store : IDisposable
         ("id-floors-1", IdFloorsMigration),
         ("id-floors-2", IdFloors2Migration),
         ("server-images-1", ServerImagesMigration),
+        // Repeating events: how often, until when, which series.
+        ("events-2", Events2Migration),
+        // Follow people and roles in a channel (alert settings).
+        ("alerts-2", Alerts2Migration),
+        // Emoji and stickers brought over from other servers.
+        ("external-expressions-1", ExternalExpressionsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

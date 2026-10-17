@@ -153,10 +153,13 @@ public class PortMappingTests
         Assert.Contains("another device", error.Message);
     }
 
-    /// <summary>A NAT-PMP gateway on loopback.</summary>
+    /// <summary>
+    /// A NAT-PMP gateway on loopback. It only ever ends by cancellation (ReceiveAsync throws), never by noticing the
+    /// token between a reply and the next receive: the test cancels right after the last reply and expects the throw.
+    /// </summary>
     private static async Task RunPmpGateway(UdpClient udp, uint grant, ushort refuseBelow, CancellationToken cancel)
     {
-        while (!cancel.IsCancellationRequested)
+        while (true)
         {
             var request = await udp.ReceiveAsync(cancel);
             var r = request.Buffer;

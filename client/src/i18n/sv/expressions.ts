@@ -10,6 +10,8 @@ export const expressions: Messages['expressions'] = {
     search: 'Sök emoji',
     categoriesLabel: 'Emojikategorier',
     pickOne: 'Välj en emoji',
+    fromServer: '{{name}} (från {{server}})',
+    adding: 'Lägger till {{name}} på {{server}}…',
     categories: {
       Smileys: 'Smileys',
       People: 'Människor',

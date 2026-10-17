@@ -626,6 +626,10 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .member-list { padding: 14px 8px; }
 .member-list h2 { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 12px 8px 6px; }
 .member-list section:first-child h2 { margin-top: 0; }
+/* A hoisted role's heading is a button (follow the role); it looks like the other headings. */
+.member-group-head { all: unset; cursor: pointer; border-radius: 4px; }
+.member-group-head:hover { color: var(--text); }
+.member-group-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .member {
   width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 0; border-radius: calc(var(--radius) * 0.6);
   background: transparent; text-align: left;
@@ -835,6 +839,12 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .switcher-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .switcher-context { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
 .switcher-empty { padding: 18px 10px; text-align: center; }
+/* "Search everywhere for …": the way from Ctrl+K into a search of every server and your DMs. */
+.switcher-search-everywhere {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 16px; border: 0; border-top: 1px solid var(--border);
+  background: none; color: var(--text); text-align: left; font-size: 14px;
+}
+.switcher-search-everywhere:hover, .switcher-search-everywhere:focus-visible { background: var(--hover); }
 .switcher-hint { display: flex; gap: 16px; padding: 10px 16px; font-size: 12px; border-top: 1px solid var(--border); background: var(--sidebar); }
 @media (max-width: 760px) {
   .switcher-backdrop { padding-top: calc(12px + var(--safe-top)); }

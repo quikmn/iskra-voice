@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { PushSettings } from './PushSettings'
-import { AlertWordsSettings, QuietHoursSettings } from '../alerts/AlertSettings'
+import { AlertWordsSettings, FollowSettings, QuietHoursSettings } from '../alerts/AlertSettings'
 import type { ServerState } from '../../state/store'
 import { ServerNotifySettings } from '../organize/ServerSettings'
 import { enableDesktopNotifications, notificationsSupported, playTone, updateNotify, useNotify } from '../../state/notify'
@@ -36,6 +36,7 @@ export function NotificationSettingsSection({ server }: { server?: ServerState |
       </label>
       {server?.me && <ServerNotifySettings server={server} />}
       <AlertWordsSettings />
+      <FollowSettings />
       <QuietHoursSettings />
     </section>
   )

@@ -106,6 +106,12 @@ label.header-search.panel-search input, label.header-search.panel-search input:f
 .thread-started-by { margin: 10px 0 0; font-size: 13px; }
 
 /* Search results */
+.search-scope { margin: 8px 8px 0; flex: none; }
+.search-scope button { padding: 6px; font-size: 13px; }
+.search-group h3 { display: flex; align-items: baseline; gap: 8px; margin: 10px 8px 6px; font-size: 13px; }
+.search-group h3 .search-group-name { color: var(--text-strong); }
+.search-group h3 .search-group-status { font-weight: 400; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-group h3 .spinner { width: 12px; height: 12px; }
 .search-results { flex: 1; overflow-y: auto; padding: 8px; overscroll-behavior: contain; }
 .search-note { padding: 8px; margin: 0; text-align: center; }
 .search-note p { margin: 0 0 4px; }

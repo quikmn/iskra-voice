@@ -53,6 +53,7 @@ export const roles: Messages['roles'] = {
       profilePages: 'Slå på eller av profilsidor och ta bort dem',
       resolveDisputes: 'Avgöra omstridda konton',
       serverImages: 'Ändra serverns ikon och banderoll',
+      externalEmoji: 'Använda emoji och klistermärken från sina andra servrar här',
       runServer: 'Driva servern: gränser, uppdateringar, säkerhetskopior, flytt, import, säkerhetsinställningar och internetåtkomst',
       transferOwnership: 'Lämna över servern till någon annan',
     },

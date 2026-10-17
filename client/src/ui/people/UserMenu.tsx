@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { b64u } from '../../core/crypto'
 import { errorMessage } from '../../i18n/errors'
+import { channelHere, setFollowing, useFollowing } from '../../state/alerts'
 import { callServers, startCall } from '../../state/calls'
 import { nameOf, openConversation, sharedServers, useDms } from '../../state/dms'
 import { acceptFriend, addFriend, blockPerson, cancelFriendRequest, ignoreFriend, removeFriend, useFriends, useRelation } from '../../state/friends'
@@ -84,6 +85,10 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   const canCall = !self && !blocked && !bot && callServers(accountKey).length > 0
   const canTransfer = !!member && !self && !member.bot && me?.role === 'owner'
   const canMessage = !self && !bot?.builtin && (sharedServers(accountKey).length > 0 || !!useDms.getState().conversations[accountKey])
+  // "Follow here": their posts in the channel you're looking at count like a mention (state/alerts.ts).
+  const hereId = useApp((s) => (server ? s.activeChannel[server.key] : undefined))
+  const here = server && member && !self && !member.bot ? channelHere(server, hereId) : undefined
+  const following = useFollowing({ server: server?.key ?? '', member: accountKey, channel: here?.id })
 
   const run = (action: () => unknown) => async () => {
     try {
@@ -172,6 +177,11 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
         {canCall && <MenuItem onClick={go(() => void startCall(accountKey, false))}>{t('friends.menu.call')}</MenuItem>}
         {member && canEditNickname(me, member) && (
           <MenuItem onClick={() => setView('nick')}>{self ? t('friends.menu.nickname') : t('friends.menu.nicknameFor', { name: member.profileName ?? member.name })}</MenuItem>
+        )}
+        {here && (
+          <MenuItem onClick={run(() => { if (!setFollowing({ server: server!.key, member: accountKey, channel: here.id }, !following)) throw new Error(t('alerts.follow.full', { max: 50 })) })}>
+            {following ? t('alerts.follow.unfollowHere', { channel: here.name }) : t('alerts.follow.followHere', { channel: here.name })}
+          </MenuItem>
         )}
         {!self && !blocked && !bot && (
           <>

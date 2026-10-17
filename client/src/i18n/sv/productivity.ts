@@ -119,6 +119,7 @@ export const productivity: Messages['productivity'] = {
       role: 'nämnde din roll',
       everyone: 'pingade alla',
       keyword: 'skrev ett av dina bevakade ord',
+      follow: 'skrev i en kanal du följer',
     },
     dm_one: '{{count}} nytt meddelande',
     dm_other: '{{count}} nya meddelanden',

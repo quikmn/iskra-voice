@@ -53,6 +53,33 @@ public class StickerTests
     }
 
     [Fact]
+    public async Task Members_bring_stickers_over_from_other_servers()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var bob = await server.JoinAsync("Bob");
+        using var guest = await server.JoinAsync("Guest", "guest");
+        var picture = Png(200, 100);
+        Task<JsonElement> Import(User user, string name, byte[] image) =>
+            user.RequestAsync("sticker.import", new { name, fileId = EmojiTests.Upload(server, user, image, "s.png").Result });
+
+        Assert.Equal("forbidden", (await Import(guest, "nope", picture)).ErrorCode());
+        Assert.Equal("bad_request", (await Import(bob, "huge", Png(321, 100))).ErrorCode());
+        var imported = (await Import(bob, "Party", picture)).Body().GetProperty("sticker");
+        Assert.True(imported.GetProperty("external").GetBoolean());
+        var id = imported.GetProperty("id").GetString()!;
+        // Not in the picker's list, kept once, and sendable like any sticker (the message carries its picture).
+        Assert.Empty((await bob.RequestAsync("sticker.list")).Body().GetProperty("stickers").EnumerateArray());
+        Assert.Equal(id, (await Import(admin, "Same bytes", picture)).Body().GetProperty("sticker").GetProperty("id").GetString());
+        var sent = (await bob.RequestAsync("chat.send", new { channelId = server.General, sticker = id })).Body().GetProperty("message").GetProperty("sticker");
+        Assert.Equal("Party", sent.GetProperty("name").GetString());
+        Assert.StartsWith("/files/", sent.GetProperty("url").GetString());
+        Assert.Equal("not_found", (await admin.RequestAsync("sticker.rename", new { id, name = "x" })).ErrorCode());
+        Assert.Equal("result", (await admin.RequestAsync("sticker.delete", new { id })).Type());
+        Assert.Null(server.World.Store.GetSticker(id));
+    }
+
+    [Fact]
     public async Task A_sticker_is_a_message_of_its_own_and_survives_being_deleted_by_name()
     {
         using var server = new IskraServer();

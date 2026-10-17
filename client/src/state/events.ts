@@ -1,6 +1,6 @@
 // Scheduled events per server: loaded after welcome, kept live from events, plus in-app reminders.
 import { create } from 'zustand'
-import { roleRank, type EventFields, type Events, type Requests, type ServerEvent } from '../core/protocol'
+import { roleRank, type EventFields, type Events, type EventScope, type Requests, type ServerEvent } from '../core/protocol'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp, type ServerState } from './store'
 import { showNotification } from './notify'
 import { t } from '../i18n'
@@ -69,14 +69,15 @@ export async function createEvent(serverKey: string, fields: Requests['event.cre
   return event
 }
 
-export async function updateEvent(serverKey: string, id: number, fields: EventFields): Promise<ServerEvent> {
-  const { event } = await request(serverKey, 'event.update', { id, ...fields })
+/** `scope` matters for a repeating event: this occurrence only, or the whole series (the default). */
+export async function updateEvent(serverKey: string, id: number, fields: EventFields, scope: EventScope = 'series'): Promise<ServerEvent> {
+  const { event } = await request(serverKey, 'event.update', { id, scope, ...fields })
   put(serverKey, event)
   return event
 }
 
-export async function cancelEvent(serverKey: string, id: number): Promise<void> {
-  await request(serverKey, 'event.cancel', { id })
+export async function cancelEvent(serverKey: string, id: number, scope: EventScope = 'series'): Promise<void> {
+  await request(serverKey, 'event.cancel', { id, scope })
   remove(serverKey, id)
 }
 

@@ -118,6 +118,7 @@ export const productivity = {
       role: 'mentioned your role',
       everyone: 'pinged everyone',
       keyword: 'used one of your alert words',
+      follow: 'posted in a channel you follow',
     },
     dm_one: '{{count}} new message',
     dm_other: '{{count}} new messages',

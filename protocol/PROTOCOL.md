@@ -353,14 +353,22 @@ Server emoji are written in message text and reactions as `<:name:id>` (`name`: 
 
 | type | body | result | who |
 |---|---|---|---|
-| `emoji.list` | | `{ emojis: [Emoji] }` | anyone |
+| `emoji.list` | | `{ emojis: [Emoji], external: [Emoji] }` | anyone |
 | `emoji.create` | `name, fileId` (your own upload: PNG, GIF or WebP by content, ≤ 256 KB, ≤ 128×128) | `{ emoji }` | admin+ |
-| `emoji.rename` | `id, name` | `{ emoji }` | admin+ |
-| `emoji.delete` | `id` | | admin+ |
+| `emoji.import` | `name, fileId` (the same rules; the picture of an emoji from another server, uploaded here by your app) | `{ emoji }` (`external: true`, or the emoji this server already had with the same bytes) | the `externalEmoji` [ability](#built-in-roles) (member+ by default) |
+| `emoji.rename` | `id, name` | `{ emoji }` | admin+; not external ones |
+| `emoji.delete` | `id` | | admin+ (external ones too) |
 
-- `Emoji { id, name, url: "/files/<fileId>/<name>", animated, createdBy }`. Names are unique; up to 200 per server.
-- `chat.react` also accepts `<:name:id>` for an emoji on this server (stored under its current name).
-- Event `emoji.updated` `{ emojis }` to everyone after any change.
+- `Emoji { id, name, url: "/files/<fileId>/<name>", animated, createdBy, external }`. Names are unique; up to 200 per server.
+- `chat.react` also accepts `<:name:id>` for an emoji on this server (stored under its current name), external ones included.
+- **Emoji from other servers:** apps show every joined server's emoji in the picker; sending one elsewhere means the app
+  downloads the picture from its home server and uploads it to the destination (the normal upload path, the
+  destination's upload rules), then `emoji.import` turns it into an external emoji there and the message or reaction
+  uses `<:name:id>` as usual. A server never fetches anything from another server. The same bytes (SHA-256) are kept
+  once: importing them again answers with the existing emoji, own or external, and names needn't be unique among
+  external ones. A server keeps at most 300 external emoji (the oldest are forgotten, their messages then show
+  `:name:`). External emoji are in `external`, not `emojis`, so pickers skip them while messages still render.
+- Event `emoji.updated` `{ emojis, external }` to everyone after any change, imports included.
 
 ## Voice
 
@@ -839,22 +847,24 @@ An event has a time, a place and people who are interested. Times are UTC millis
 Event { "id": 5, "title": "Game night", "description": "Bring snacks" | null, "startAt": 0, "endAt": 0, "timeZone": "Europe/Stockholm",
         "location": { "kind": "voice", "channelId": 7 | null } | { "kind": "place", "text": "Viktor's place" },
         "image": File | null, "createdBy": "<accountKey>", "createdAt": 0,
-        "status": "scheduled" | "live" | "ended" | "cancelled", "interested": [accountKey] }
+        "status": "scheduled" | "live" | "ended" | "cancelled", "interested": [accountKey],
+        "repeat": "none" | "daily" | "weekly" | "biweekly" | "monthly", "until": 0 | null, "seriesId": 3 | null }
 ```
 
 | type | body | result | who |
 |---|---|---|---|
 | `event.list` | | `{ events }` (scheduled and live, soonest first) | anyone |
-| `event.create` | `title` (1–100), `description?` (≤ 1000, newlines allowed), `startAt, endAt` (start from now on, ≤ 1 year ahead; end after start, ≤ 7 days later), `timeZone` (≤ 64), `location: { channelId }` (a voice or stage channel you can see) or `{ text }` (1–100), `image?` (file id: your own PNG, JPEG, WebP or GIF upload, ≤ 5 MB) | `{ event }` | member+ (not guests); ≤ 100 scheduled or live events per server; 5 at once, then 1 every 2 minutes per account |
-| `event.update` | `id` and any of the fields above (`""` clears `description` and `image`) | `{ event }` | whoever created it, or an admin who outranks them; while scheduled or live (a live event's start can't move) |
-| `event.cancel` | `id` | | same as above |
+| `event.create` | `title` (1–100), `description?` (≤ 1000, newlines allowed), `startAt, endAt` (start from now on, ≤ 1 year ahead; end after start, ≤ 7 days later), `timeZone` (≤ 64), `location: { channelId }` (a voice or stage channel you can see) or `{ text }` (1–100), `image?` (file id: your own PNG, JPEG, WebP or GIF upload, ≤ 5 MB), `repeat?` (default `none`), `until?` (UTC ms, only with a repeat: ≥ `startAt`, ≤ 2 years from now) | `{ event }` | member+ (not guests); ≤ 100 scheduled or live events per server; 5 at once, then 1 every 2 minutes per account |
+| `event.update` | `id`, `scope?` (`"series"`, the default, or `"one"`) and any of the fields above (`""` clears `description` and `image`, `until: 0` clears `until`) | `{ event }` | whoever created it, or an admin who outranks them; while scheduled or live (a live event's start can't move) |
+| `event.cancel` | `id`, `scope?` (as above) | | same as above |
 | `event.interest` | `id, on?` (default true) | `{ event }` | anyone who can see it, while scheduled or live; 1/s, burst 5 per connection |
 
 - The creator is interested from the start. `interested` lists current members only.
 - **Visibility:** an event in a voice channel is only visible to people who can read that channel (others get `not_found` and no events). If the channel is deleted, `channelId` becomes `null` and the event is visible to everyone.
 - **Timing:** the server moves an event to `live` at `startAt` and to `ended` at `endAt` (within about a second), and forgets ended and cancelled events after 30 days. Moving the start time re-arms the reminder.
 - **Reminders:** 15 minutes before the start (only for events created further ahead than that) and again when it goes live, every interested member who can see it gets `event.reminder` on their sessions and a [push](#push-notifications-web-push) of kind `event` (no `channelId`: a click opens the server).
-- "Add to calendar" is client-side: an iCalendar (RFC 5545) file with UTC times, built from the event.
+- **Repeating events** are a series of ordinary events (occurrences) sharing `seriesId` (the first one's id). The server keeps one open occurrence per series: when it ends, the next one is created (`event.updated`, a new id, same title, description, place, image, repeat and `until`, the same wall-clock time in `timeZone` a day, a week, two weeks or a month later; occurrences the server slept through are skipped) and the creator is interested in it. Interest, reminders and edits are per occurrence unless `scope` says otherwise: `event.update` with the default `scope: "series"` changes this occurrence and so everything after it (including `repeat` and `until`; `repeat: "none"` ends the series after this one); `scope: "one"` takes this occurrence out of the series (it becomes a one-off, `repeat` and `until` can't be sent) and creates the series' next occurrence right away. `event.cancel` with `scope: "series"` ends the series; `scope: "one"` skips this occurrence and creates the next one now. Nothing is created past `until`.
+- "Add to calendar" is client-side: an iCalendar (RFC 5545) file with UTC times, built from the event; a repeating event gets an `RRULE` (with `UNTIL`) and its start in `timeZone`.
 
 | event | body | sent to |
 |---|---|---|
@@ -984,11 +994,12 @@ Admins upload stickers (bigger pictures than emoji); anyone who can write in a c
 |---|---|---|---|
 | `sticker.list` | | `{ stickers: [Sticker] }` | anyone |
 | `sticker.create` | `name` (1–30 chars, the same rules as names), `fileId` (your own upload: PNG, GIF or WebP, ≤ 512 KB, ≤ 320×320 px) | `{ sticker }` | admin+; ≤ 60 per server |
-| `sticker.rename` | `id, name` | `{ sticker }` | admin+ |
-| `sticker.delete` | `id` | | admin+ |
-| `chat.send` | adds `sticker?: id`; `text` must then be empty and there are no `attachments` | | channel writers |
+| `sticker.import` | `name, fileId` (the same rules; a sticker from another server, uploaded here by your app) | `{ sticker }` (`external: true`, or the sticker this server already had with the same bytes) | the `externalEmoji` [ability](#built-in-roles) (member+ by default) |
+| `sticker.rename` | `id, name` | `{ sticker }` | admin+; not external ones |
+| `sticker.delete` | `id` | | admin+ (external ones too) |
+| `chat.send` | adds `sticker?: id` (own or external); `text` must then be empty and there are no `attachments` | | channel writers |
 
-`Sticker { id, name, url: "/files/<id>/<name>", animated, createdBy }`. Event `stickers.updated { stickers }` goes to everyone on any change. `Message` gains `sticker: { id, name, url, animated } | null`: the name is kept as it was when sent, and `url` is `null` once the sticker is deleted. Sticker messages can't be edited.
+`Sticker { id, name, url: "/files/<id>/<name>", animated, createdBy, external }`. Event `stickers.updated { stickers }` goes to everyone on any change to the server's own stickers (external ones, like [emoji from other servers](#custom-emoji), are brought over by the app and never listed: a sent one carries its `url`; a server keeps at most 100, oldest forgotten). `Message` gains `sticker: { id, name, url, animated } | null`: the name is kept as it was when sent, and `url` is `null` once the sticker is deleted. Sticker messages can't be edited.
 
 Message links (client side, no protocol change): `<appUrl>/#/open/<serverKey>/c/<channelId>/m/<messageId>` opens the app at that message (it extends the push notification routes above). Spoiler attachments are files whose name starts with `SPOILER_`; apps show them covered until clicked. Encrypted DM attachments carry the same prefix inside their (encrypted) name.
 
@@ -2799,7 +2810,7 @@ BaseRole { "id": "trusted", "color": "#5b9bd5" | null,
 ```
 
 Abilities and the lowest role that has them **by default**: `invite` (invite guests and members), `events`, `whisper`
-([whisper](#whisper-and-priority-speakers)) (member);
+([whisper](#whisper-and-priority-speakers)), `externalEmoji` ([emoji and stickers from other servers](#custom-emoji)) (member);
 `pin`, `mentionEveryone`, `uploadSounds` (soundboard) (trusted); `giveBaseRoles` (`member.setRole`, invites and bot
 invites into roles below your own), `bots` (bot invites, voice bots, built-in bots), `organize` (categories, the
 default notification level), `rules`, `stickers`, `gifs`, `stageModerators`, `forumTags`, `profilePages`,
@@ -2821,7 +2832,7 @@ Safety rules for powers, all checked on the server before anything changes:
   and `guest`; only the owner changes `admin`.
 - Only powers you have yourself, to give or to take (`forbidden`, key `base_power_not_yours`), so nobody lifts a role
   past their own.
-- `guest` and `member` only get everyday powers: `invite`, `events`, `whisper`, `pin`, `mentionEveryone`, `uploadSounds` and the
+- `guest` and `member` only get everyday powers: `invite`, `events`, `whisper`, `externalEmoji`, `pin`, `mentionEveryone`, `uploadSounds` and the
   permission `mentionEveryone` (`bad_request`, key `base_power_not_allowed`, args `{ role }`). `trusted` and `admin` may
   get any ability but the owner's and any permission.
 - Unknown names → `bad_request`.
@@ -2999,17 +3010,23 @@ make the same changes (built-in role powers included).
 
 ## Keyword alerts and quiet hours
 
-Alert words ("Alert me for these words") and quiet hours (a do-not-disturb schedule) are the app's settings: the app
+Alert words ("Alert me for these words"), follows ("alert me when this person, or anyone with this role, posts in
+this channel / anywhere on this server") and quiet hours (a do-not-disturb schedule) are the app's settings: the app
 keeps them on the device, syncs them across the account's devices sealed in `prefs` (name `alerts`), and matches alert
-words itself, in encrypted channels and DMs too. A server only gets a copy when push needs one:
+words and follows itself, in encrypted channels and DMs too. A server only gets a copy when push needs one:
 
-- **Alert words** only if the member turned on "Also when Iskra is closed" (the words then apply to this server's
-  channels that aren't encrypted; the server can't read encrypted ones).
+- **Alert words and follows** only if the member turned on "Also when Iskra is closed" (the words then apply to this
+  server's channels that aren't encrypted; the server can't read encrypted ones. A follow needs no text, so it works in
+  encrypted channels too).
 - **Quiet hours** only on servers where one of the member's devices has push on, so pushes follow the schedule.
 
 ```jsonc
 Alerts { "words": ["pizza", "raid night"],     // ≤ 25, each 1–50 characters after trimming
+         "follows": [Follow],                   // ≤ 50
          "quiet": Quiet | null }
+Follow { "member": "<accountKey>" | null,       // exactly one of member (43 base64url characters) and role (an id)
+         "role": 7 | null,
+         "channelId": 12 | null }               // null: any channel on this server
 Quiet  { "days": 62,                            // 1–127, bit 0 = Sunday … bit 6 = Saturday
          "from": 1320, "to": 420,               // 0–1439, minutes after midnight, wall clock in timeZone
          "timeZone": "Europe/Stockholm",        // IANA name, ≤ 64 characters, known to the server
@@ -3019,26 +3036,33 @@ Quiet  { "days": 62,                            // 1–127, bit 0 = Sunday … b
 | type | body | result | who |
 |---|---|---|---|
 | `alerts.get` | | `{ alerts: Alerts }` | anyone (their own) |
-| `alerts.set` | `words?` (list, default `[]`), `quiet?` (`Quiet` or `null`, default `null`) | `{ alerts: Alerts }` | anyone (their own) |
+| `alerts.set` | `words?` (list, default `[]`), `follows?` (list, default `[]`), `quiet?` (`Quiet` or `null`, default `null`) | `{ alerts: Alerts }` | anyone (their own) |
 
-- `alerts.set` replaces both. Words are trimmed, runs of spaces become one, empty ones are dropped and duplicates
+- `alerts.set` replaces all three. Words are trimmed, runs of spaces become one, empty ones are dropped and duplicates
   (ignoring case) kept once; control characters are refused (`bad_request`, key `alerts_word`). More than 25 words or one
-  longer than 50 characters: `bad_request`. `quiet` needs `days`, `from`, `to` in range (key `alerts_quiet`) and a time
-  zone the server knows (key `alerts_time_zone`). With no words and no quiet hours nothing is stored. Event
-  `alerts.updated { alerts }` to the member's sessions.
+  longer than 50 characters: `bad_request`. Follows: more than 50 (key `alerts_follows`), or one that isn't exactly a
+  person or a role (key `alerts_follow`): `bad_request`; the same follow twice is kept once; only the shape is checked
+  (a person who left, or a deleted role or channel, just never matches). `quiet` needs `days`, `from`, `to` in range
+  (key `alerts_quiet`) and a time zone the server knows (key `alerts_time_zone`). With no words, no follows and no quiet
+  hours nothing is stored. Event `alerts.updated { alerts }` to the member's sessions.
 - **Matching** (server and apps alike): each word or phrase as a whole, ignoring case: no letter, digit, combining mark
   or `_` right before or after it, and any run of white space between a phrase's words. Words are literal text, never
   patterns. The server matches new messages in channels that aren't encrypted, for members who can read the channel,
   never the author's own messages, forwarded ones, or between people where one blocked the other. A match notifies like a
   mention: push kind `keyword` (unless the member's level there is "nothing"; muting doesn't silence it), and an inbox
-  item of kind `keyword` (the weakest kind: a message that also mentions you is a `mention`).
+  item of kind `keyword` (a weak kind: a message that also mentions you is a `mention`).
+- **Follows** (server and apps alike): a new message counts when its author is the followed person, or has the followed
+  role, and the message is in the followed channel (or any channel here when `channelId` is null); never the follower's
+  own messages, forwarded ones, or between people where one blocked the other; only for members who can read the
+  channel. A match gives push kind `follow` (unless the member's level there is "nothing" or they muted the channel or
+  the server; quiet hours stop it) and an inbox item of kind `follow` (the weakest kind).
 - **Quiet hours**: active on the picked days from `from` to `to` in `timeZone`; a stretch that crosses midnight belongs
   to the day it starts on (Friday 23:00–02:00 runs into Saturday morning); `from` = `to` is the whole day. While active,
   pushes stop, except (with `mentions: true`) kinds `mention`, `reply`, `keyword`, `dm`, `group` and `call`, which are
   delivered with `silent: true` (the service worker shows them without sound or vibration). Inbox items and unread
   counts are unaffected. Do not disturb still stops every push.
 - Leaving the server, being removed and deleting the account delete the stored copy. It's in "Download my data"
-  (`alertSettings`). Storage: `alert_settings` (migration `alerts-1`).
+  (`alertSettings`). Storage: `alert_settings` (migrations `alerts-1`, `alerts-2` for follows).
 - Rate limit: the general bucket.
 
 ## Whisper and priority speakers

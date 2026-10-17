@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { nameOf, openConversation, openFriends, useDms } from '../state/dms'
+import { openGlobalSearch } from '../state/search'
 import { selectChannel, selectServer, useApp } from '../state/store'
 import { channelConv, dmConv, useReads } from '../state/readState'
 import { setStageOpen } from '../state/voice'
@@ -68,6 +69,13 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
     setStageOpen(false)
   }
 
+  // Typed something that isn't a place: search every server and your DMs for it (Enter when nothing matches).
+  const canSearch = query.trim().length > 0 && order.some((k) => servers[k])
+  function searchEverywhere() {
+    onClose()
+    openGlobalSearch(query.trim())
+  }
+
   return (
     <div className="modal-backdrop switcher-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal switcher" role="dialog" aria-modal="true" aria-label={t('app.switcher.title')} ref={ref} tabIndex={-1}>
@@ -90,6 +98,9 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
               } else if (e.key === 'Enter' && shown[active]) {
                 e.preventDefault()
                 go(shown[active])
+              } else if (e.key === 'Enter' && canSearch) {
+                e.preventDefault()
+                searchEverywhere()
               }
             }}
           />
@@ -115,6 +126,12 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
             </li>
           ))}
         </ul>
+        {canSearch && (
+          <button className="switcher-search-everywhere" onClick={searchEverywhere}>
+            <Search size={16} />
+            <span>{t('app.switcher.searchEverywhere', { query: query.trim() })}</span>
+          </button>
+        )}
         <footer className="switcher-hint muted">
           <span><Trans i18nKey="app.switcher.hintMove" components={{ kbd: <kbd /> }} /></span>{' '}
           <span><Trans i18nKey="app.switcher.hintOpen" components={{ kbd: <kbd /> }} /></span>{' '}

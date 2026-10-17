@@ -1,13 +1,14 @@
-// Keyword alerts and quiet hours. The settings live on this device and follow the account, sealed, through every
-// server (prefs "alerts"); the app matches alert words itself, so they work in encrypted channels and DMs too. A
-// server gets a readable copy only where push needs one (alertsLogic.serverCopy): the words with "Also when Iskra is
-// closed", quiet hours where push is on.
+// Keyword alerts, follows and quiet hours. The settings live on this device and follow the account, sealed, through
+// every server (prefs "alerts"); the app matches alert words and follows itself, so they work in encrypted channels and
+// DMs too. A server gets a readable copy only where push needs one (alertsLogic.serverCopy): the words and follows
+// with "Also when Iskra is closed", quiet hours where push is on.
 import { useEffect, useState } from 'react'
 import { create } from 'zustand'
 import { openPrefs, prefsKey, sealPrefs } from '../core/prefs'
 import type { InboxItem, Message, ServerAlerts } from '../core/protocol'
 import {
-  alertPattern, emptyAlerts, matchesAlert, parseAlerts, quietActive, sameCopy, serverCopy, wordsFor, type AlertSettings,
+  addFollow, alertPattern, emptyAlerts, matchesAlert, matchesFollow, parseAlerts, quietActive, removeFollow, sameCopy, sameFollow, serverCopy, wordsFor,
+  type AlertSettings, type Follow,
 } from './alertsLogic'
 import { mergeItems } from './inboxLogic'
 import { quietRules } from './notify'
@@ -67,12 +68,44 @@ export function useAlertPattern(serverKey: string | null): RegExp | null {
   return alertPattern(wordsFor(words, serverKey))
 }
 
+/** A follow covers this message: by someone you follow (or anyone with a role you follow) in the channel, or anywhere on the server. */
+function followed(serverKey: string, message: Message): boolean {
+  const author = useApp.getState().servers[serverKey]?.members[message.author]
+  return !!author && matchesFollow(useAlerts.getState().settings.follows, serverKey, author, message.channelId)
+}
+
 senderRules.alertsMe = (server, message) =>
-  !!server.me && message.author !== server.me.accountKey && matchesAlert(alertPatternFor(server.key), message.text)
+  !!server.me && message.author !== server.me.accountKey && (matchesAlert(alertPatternFor(server.key), message.text) || followed(server.key, message))
 
 senderRules.alerted = (serverKey: string, message: Message) => {
-  const item: InboxItem = { kind: 'keyword', channelId: message.channelId, at: message.createdAt, message }
+  const kind = matchesAlert(alertPatternFor(serverKey), message.text) ? 'keyword' : 'follow'
+  const item: InboxItem = { kind, channelId: message.channelId, at: message.createdAt, message }
   useAlerts.setState((s) => ({ hits: { ...s.hits, [serverKey]: mergeItems(s.hits[serverKey] ?? [], [item], 200) } }))
+}
+
+// ── Follows ─────────────────────────────────────────────────────────────────
+
+/** The channel "here" means for a follow: the one chosen on the server, else the first text channel (as the chat view shows). */
+export function channelHere(server: { channels: { id: number; kind: string; name: string }[] }, chosen: number | undefined): { id: number; name: string } | undefined {
+  return server.channels.find((c) => c.id === chosen) ?? server.channels.find((c) => c.kind === 'text')
+}
+
+/** The follow for a person or role on a server, in `channel` (none: anywhere there), if you have one. */
+export function followOf(follow: Follow): Follow | undefined {
+  return useAlerts.getState().settings.follows.find((f) => sameFollow(f, follow))
+}
+
+export function useFollowing(follow: Follow): boolean {
+  return useAlerts((s) => s.settings.follows.some((f) => sameFollow(f, follow)))
+}
+
+/** Follows or unfollows. False if a new follow couldn't be added (the server's 50 are used up). */
+export function setFollowing(follow: Follow, on: boolean): boolean {
+  const { follows } = useAlerts.getState().settings
+  const next = on ? addFollow(follows, follow) : removeFollow(follows, follow)
+  if (!next) return false
+  updateAlerts({ follows: next })
+  return true
 }
 
 // ── Quiet hours ─────────────────────────────────────────────────────────────

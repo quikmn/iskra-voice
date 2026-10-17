@@ -441,6 +441,8 @@ export interface CustomEmoji {
   url: string | null
   animated: boolean
   createdBy: string
+  /** Brought over from another server by a member (emoji.import): shown in messages, not in the picker. Missing from older servers. */
+  external?: boolean
 }
 
 export interface Sound {
@@ -455,7 +457,7 @@ export interface Sound {
 
 export interface Events {
   'poll.updated': { id: number; channelId: number; poll: Poll }
-  'emoji.updated': { emojis: CustomEmoji[] }
+  'emoji.updated': { emojis: CustomEmoji[]; external?: CustomEmoji[] }
   'sounds.updated': { sounds: Sound[] }
   'sound.played': { channelId: number; accountKey: string; sound: Sound }
 }
@@ -464,8 +466,9 @@ export interface Requests {
   'poll.create': [{ channelId: number; question: string; options: string[]; multi?: boolean; durationMs?: number }, { message: Message }]
   'poll.vote': [{ id: number; options: number[] }, Record<string, never>]
   'poll.end': [{ id: number }, Record<string, never>]
-  'emoji.list': [Record<string, never>, { emojis: CustomEmoji[] }]
+  'emoji.list': [Record<string, never>, { emojis: CustomEmoji[]; external?: CustomEmoji[] }]
   'emoji.create': [{ name: string; fileId: string }, { emoji: CustomEmoji }]
+  'emoji.import': [{ name: string; fileId: string }, { emoji: CustomEmoji }]
   'emoji.rename': [{ id: string; name: string }, { emoji: CustomEmoji }]
   'emoji.delete': [{ id: string }, Record<string, never>]
   'sound.list': [Record<string, never>, { sounds: Sound[] }]
@@ -573,7 +576,18 @@ export interface ServerEvent {
   createdAt: number
   status: 'scheduled' | 'live' | 'ended' | 'cancelled'
   interested: string[]
+  repeat: EventRepeat
+  /** UTC ms: no occurrence starts after it. Null: open-ended (or no repeat). */
+  until: number | null
+  /** The first occurrence's id, shared by the whole series. Null when the event doesn't repeat. */
+  seriesId: number | null
 }
+
+export type EventRepeat = 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly'
+export const EVENT_REPEATS: readonly EventRepeat[] = ['none', 'daily', 'weekly', 'biweekly', 'monthly']
+
+/** Which part of a repeating event a change is about: this occurrence, or the whole series (the default). */
+export type EventScope = 'one' | 'series'
 
 export interface EventFields {
   title?: string
@@ -584,6 +598,9 @@ export interface EventFields {
   location?: { channelId: number } | { text: string }
   /** A file id; "" removes the cover. */
   image?: string
+  repeat?: EventRepeat
+  /** UTC ms; 0 clears it. Only with a repeat. */
+  until?: number
 }
 
 export interface Events {
@@ -609,8 +626,8 @@ export interface Requests {
   'forum.tags.set': [{ channelId: number; tags: { id?: number; name: string; emoji?: string | null }[] }, { tags: ForumTag[] }]
   'event.list': [Record<string, never>, { events: ServerEvent[] }]
   'event.create': [EventFields & Required<Pick<EventFields, 'title' | 'startAt' | 'endAt' | 'timeZone' | 'location'>>, { event: ServerEvent }]
-  'event.update': [EventFields & { id: number }, { event: ServerEvent }]
-  'event.cancel': [{ id: number }, Record<string, never>]
+  'event.update': [EventFields & { id: number; scope?: EventScope }, { event: ServerEvent }]
+  'event.cancel': [{ id: number; scope?: EventScope }, Record<string, never>]
   'event.interest': [{ id: number; on: boolean }, { event: ServerEvent }]
 }
 
@@ -1152,6 +1169,8 @@ export interface Sticker {
   url: string | null
   animated: boolean
   createdBy?: string
+  /** Brought over from another server by a member (sticker.import); never listed. */
+  external?: boolean
 }
 
 export interface Message {
@@ -1166,6 +1185,7 @@ export interface Events {
 export interface Requests {
   'sticker.list': [Record<string, never>, { stickers: Sticker[] }]
   'sticker.create': [{ name: string; fileId: string }, { sticker: Sticker }]
+  'sticker.import': [{ name: string; fileId: string }, { sticker: Sticker }]
   'sticker.rename': [{ id: string; name: string }, { sticker: Sticker }]
   'sticker.delete': [{ id: string }, Record<string, never>]
 }
@@ -1418,7 +1438,7 @@ export interface WireScheduled {
   error: string | null
 }
 
-export type InboxKind = 'mention' | 'reply' | 'role' | 'everyone' | 'keyword'
+export type InboxKind = 'mention' | 'reply' | 'role' | 'everyone' | 'keyword' | 'follow'
 
 export interface InboxItem {
   kind: InboxKind
@@ -2061,7 +2081,7 @@ export interface Requests {
 export type BaseAbility =
   | 'invite' | 'events' | 'pin' | 'mentionEveryone' | 'uploadSounds' | 'giveBaseRoles' | 'bots' | 'organize' | 'rules'
   | 'stickers' | 'gifs' | 'stageModerators' | 'forumTags' | 'profilePages' | 'resolveDisputes' | 'runServer' | 'transferOwnership'
-  | 'whisper' | 'serverImages'
+  | 'whisper' | 'serverImages' | 'externalEmoji'
 
 /** A base role (owner … guest) as listed next to custom roles: its colour and its powers (both adjustable, powers within limits). */
 export interface BaseRoleInfo {
@@ -2178,9 +2198,17 @@ export interface QuietHours {
   mentions: boolean
 }
 
-/** A server's copy, kept only where push needs it. */
+/** "Alert me when this person (or anyone with this role) posts", in one channel or anywhere on the server (channelId null). */
+export interface FollowRule {
+  member: string | null
+  role: number | null
+  channelId: number | null
+}
+
+/** A server's copy, kept only where push needs it. `follows` is missing from older servers. */
 export interface ServerAlerts {
   words: string[]
+  follows?: FollowRule[]
   quiet: QuietHours | null
 }
 
@@ -2190,7 +2218,7 @@ export interface Events {
 
 export interface Requests {
   'alerts.get': [Record<string, never>, { alerts: ServerAlerts }]
-  'alerts.set': [{ words: string[]; quiet: QuietHours | null }, { alerts: ServerAlerts }]
+  'alerts.set': [{ words: string[]; follows: FollowRule[]; quiet: QuietHours | null }, { alerts: ServerAlerts }]
 }
 
 // ── whisper and priority speakers ──

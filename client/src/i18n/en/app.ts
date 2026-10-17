@@ -155,6 +155,7 @@ export const app = {
     results: 'Results',
     directMessage: 'Direct message',
     noMatch: 'Nothing matches “{{query}}”.',
+    searchEverywhere: 'Search everywhere for “{{query}}”',
     hintMove: '<kbd>↑</kbd> <kbd>↓</kbd> to move',
     hintOpen: '<kbd>Enter</kbd> to open',
     hintClose: '<kbd>Esc</kbd> to close',

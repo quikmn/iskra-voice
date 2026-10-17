@@ -113,7 +113,7 @@ public class BaseRoleTests
         Assert.Empty(Names(list[0].GetProperty("adjustable"), "abilities")); // owner: nothing
         Assert.DoesNotContain("runServer", Names(list[1].GetProperty("adjustable"), "abilities"));
         Assert.Equal(14, Names(list[1].GetProperty("adjustable"), "permissions").Length);
-        Assert.Equal(["invite", "events", "whisper", "pin", "mentionEveryone", "uploadSounds"], Names(list[3].GetProperty("adjustable"), "abilities"));
+        Assert.Equal(["invite", "events", "whisper", "externalEmoji", "pin", "mentionEveryone", "uploadSounds"], Names(list[3].GetProperty("adjustable"), "abilities"));
         Assert.Equal(["mentionEveryone"], Names(list[4].GetProperty("adjustable"), "permissions"));
     }
 

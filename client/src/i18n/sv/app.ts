@@ -156,6 +156,7 @@ export const app: Messages['app'] = {
     results: 'Resultat',
     directMessage: 'Direktmeddelande',
     noMatch: 'Inget matchar ”{{query}}”.',
+    searchEverywhere: 'Sök överallt efter ”{{query}}”',
     hintMove: '<kbd>↑</kbd> <kbd>↓</kbd> för att bläddra',
     hintOpen: '<kbd>Enter</kbd> för att öppna',
     hintClose: '<kbd>Esc</kbd> för att stänga',

@@ -18,7 +18,7 @@ public static partial class InboxFeature
     public static readonly TimeSpan Retention = TimeSpan.FromDays(60);
 
     /// <summary>Kinds, strongest first: a message that both mentions and replies to you is a mention.</summary>
-    public static readonly string[] Kinds = ["mention", "reply", "role", "everyone", "keyword"];
+    public static readonly string[] Kinds = ["mention", "reply", "role", "everyone", "keyword", "follow"];
 
     [GeneratedRegex("<@([A-Za-z0-9_-]{43})>")]
     private static partial Regex MentionToken();
@@ -61,6 +61,7 @@ public static partial class InboxFeature
         if (message.ReplyTo is { } replyId && store.GetMessage(replyId) is { } original) Add(original.AuthorKey, "reply");
         foreach (Match m in MentionToken().Matches(message.Text)) Add(m.Groups[1].Value, "mention");
         foreach (var key in AlertFeature.KeywordTargets(store, channel, message)) Add(key, "keyword"); // alert words stored here
+        foreach (var key in AlertFeature.FollowTargets(store, channel, message)) Add(key, "follow");
         kinds.Remove(message.AuthorKey);
 
         var targets = kinds.Where(k => store.GetMember(k.Key) is { } target && Permissions.CanRead(target, channel)

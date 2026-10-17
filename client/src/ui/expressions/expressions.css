@@ -29,6 +29,9 @@
 .emoji-cell { height: 38px; border: 0; border-radius: 6px; background: none; font-size: 24px; line-height: 1; display: grid; place-items: center; padding: 0; }
 .emoji-cell:hover, .emoji-cell:focus-visible { background: var(--surface-3); outline: none; }
 .emoji-cell .custom-emoji { width: 28px; height: 28px; }
+/* An emoji from another server on its way into this one. */
+.emoji-cell.busy { opacity: 0.5; animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.9; } }
 .emoji-preview { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 12px; border-top: 1px solid var(--border); font-size: 13px; font-weight: 600; flex: none; }
 .emoji-preview-glyph { font-size: 24px; line-height: 1; }
 .emoji-preview-glyph .custom-emoji { width: 28px; height: 28px; vertical-align: middle; }
