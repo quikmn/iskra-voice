@@ -30,6 +30,10 @@ Play asks what data "your app" **collects** (sends off the device) and **shares*
 - **IP addresses:** every server sees the phone's IP while connected (it has to). Iskra's server stores no IP
   addresses in its database by default (the security log records them only if the owner turns that on) and never
   derives a location from them, so no "Location" type applies.
+- **Moderation records about you** (a warning, a moderator's private note, the "people who left" list, and a join
+  request while a moderator decides whether to let you in) are kept by the server you joined, under the same types as
+  the rest (Name, User IDs, Other user-generated content). Nothing new leaves the phone for them, and moderators never
+  see your IP address.
 
 ## Section 1: Data collection and security
 
@@ -63,7 +67,7 @@ server) unless noted. Purpose for every type: **App functionality**; for Name an
 | Health and fitness (all) | No | | |
 | Messages → **Other in-app messages** | Yes | Required | Messages in server channels, threads, forums and voice-channel chats (DMs and group chats are end-to-end encrypted and not counted) |
 | Messages → Emails, SMS or MMS | No | | |
-| Photos and videos → **Photos** | Yes | Optional | Avatars, images you post in server channels, custom emoji and stickers |
+| Photos and videos → **Photos** | Yes | Optional | Avatars (your profile picture, and a picture you can set for one server only), images you post in server channels, custom emoji and stickers (also ones your app copies in from another server you're on) |
 | Photos and videos → **Videos** | Yes | Optional | Videos you upload to server channels or for a watch party. Camera video in voice channels passes through the server's voice service live and isn't stored |
 | Audio → **Voice or sound recordings** | Yes | Optional | Voice messages in server channels. Live voice in voice channels passes through the server's voice service and isn't recorded |
 | Audio → **Music files** | No | | |
@@ -71,9 +75,9 @@ server) unless noted. Purpose for every type: **App functionality**; for Name an
 | Files and docs | Yes | Optional | Files you upload to server channels; docs pages |
 | Calendar → Calendar events | No | | Iskra's events live on the server; "Add to calendar" only hands a file to your own calendar app |
 | Contacts | No | | The app never reads the phone's contacts. Friends are Iskra accounts on your servers |
-| App activity → **Other user-generated content** | Yes | Optional | Reactions, polls and votes, pins, events you create or mark Interested, server rules you accept, reports you file |
-| App activity → **Other actions** | Yes | Required | Presence (online, idle, in voice: kept in memory only, so tick **processed ephemerally**), notification levels and your block list on each server |
-| App activity → App interactions, In-app search history, Installed apps | No | | Searches run on the server and aren't stored; no usage tracking; the app never lists installed apps |
+| App activity → **Other user-generated content** | Yes | Optional | Reactions, polls and votes, pins, events you create or mark Interested, roles you pick for yourself, server rules you accept, reports you file, notes you write as a moderator |
+| App activity → **Other actions** | Yes | Required | Presence (online, idle, in voice: kept in memory only, so tick **processed ephemerally**), notification levels and your block list on each server; alert words and follows only if you tick "Also when Iskra is closed" |
+| App activity → App interactions, In-app search history, Installed apps | No | | Searches run on the server you ask (with "Everywhere", on each server you're on; your DMs are searched on the phone) and aren't stored; no usage tracking; the app never lists installed apps |
 | Web browsing | No | | Link previews are fetched by the server, not the phone |
 | App info and performance (crash logs, diagnostics, other) | No | | No crash reporting or analytics |
 | Device or other IDs | Yes | Required | The per-device public key Iskra creates (an app-instance identifier). No Android ID, advertising ID or IMEI |
@@ -100,3 +104,9 @@ If the form asks for a purpose per type: Name and User IDs → App functionality
 | No IP addresses stored by default | privacy policy §3, `SecurityLog` (`LoggedIp`) |
 | No push on Android | mobile/README.md, privacy policy §7 |
 | Account deletion | `site/delete-account.html`, Settings → Account |
+
+## Re-checks
+
+| Date | What changed in the app | Outcome |
+|---|---|---|
+| 2026-10-17 | Per-server pictures, follows, emoji and stickers copied from your other servers, moderator notes and warnings, the people-who-left list, invite approval and paused invites, search everywhere, listen-together queues, streamer mode | All fit the types and purposes above (wording updated). **No new type or purpose: the form needs no re-submission.** If `data-safety.csv` is re-exported, only its descriptions change |

@@ -11,7 +11,7 @@ USER-GENERATED CONTENT (GUIDELINE 1.2)
 - Terms: everyone accepts the Terms of Use (https://iskra.foo/terms, including community guidelines with zero tolerance for objectionable content and abuse) before using the app.
 - Report: every message and every person has "Report" in its menu (the message's "..." menu, or tap a person). Reports go to that server's moderators, who see a report queue and can delete the content, time the person out, kick or ban them; the reported person never sees who reported them.
 - Block: "Block" in a person's menu stops their DMs and calls on every shared server; My settings > Blocked people manages the list.
-- Moderation tools: roles and permissions, message deletion, timeouts, kick and ban, slow mode, AutoMod (blocked words, links, spam), and an activity log.
+- Moderation tools: roles and permissions, message deletion (one message or up to 100 at once), warnings, timeouts, kick and ban (optionally deleting the person's messages from the last day or week), private moderator notes and each member's moderation history, invites that need a moderator's approval, pausing all invites, a slowmode for newcomers, slow mode, AutoMod (blocked words, links, spam, join floods), and an activity log.
 - Contact: the Iskra team acts on safety reports sent to spark@iskra.foo (https://iskra.foo/support#safety), including servers whose moderators don't act. On servers we run (like this review server), we remove offending content and people ourselves.
 
 OTHER NOTES

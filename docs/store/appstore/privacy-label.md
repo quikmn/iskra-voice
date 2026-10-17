@@ -39,13 +39,13 @@ your account key). **Used for tracking:** No.
 | Sensitive Info | No | |
 | Contacts | No | The address book is never read |
 | User Content → **Emails or Text Messages** | Yes | Messages in server channels, threads, forums and voice-channel chats (DMs and group chats are end-to-end encrypted and left out) |
-| User Content → **Photos or Videos** | Yes | Avatars, images and videos posted in server channels, custom emoji and stickers. Camera video in voice passes live through the server and isn't stored |
+| User Content → **Photos or Videos** | Yes | Avatars (your profile picture, and a picture you can set for one server only), images and videos posted in server channels, custom emoji and stickers (also ones your app copies in from another server you're on). Camera video in voice passes live through the server and isn't stored |
 | User Content → **Audio Data** | Yes | Voice messages and soundboard sounds in server channels. Live voice passes through and isn't recorded |
 | User Content → Gameplay Content | No | |
 | User Content → Customer Support | No | Bug reports are sent only when you press Send; they go to Iskra's own server. If the owner wants to be thorough, tick it (App Functionality, linked: No) |
-| User Content → **Other User Content** | Yes | Profile fields, reactions, polls and votes, events, files and docs pages, reports you file |
+| User Content → **Other User Content** | Yes | Profile fields, reactions, polls and votes, events, roles you pick for yourself, files and docs pages, reports you file, notes you write as a moderator; alert words and follows only if you tick "Also when Iskra is closed" |
 | Browsing History | No | Link previews are fetched by the server |
-| Search History | No | Searches run on the server and aren't stored |
+| Search History | No | Searches run on the server you ask (with "Everywhere", on each server you're on; your DMs are searched on the device) and aren't stored |
 | Identifiers → **User ID** | Yes | Your account's public key and device public keys |
 | Identifiers → Device ID | No | No IDFA, IDFV or hardware ids; the device key above is an app-made key (counted under User ID) |
 | Purchases | No | No purchases; tips are hidden in the phone apps |
@@ -61,3 +61,7 @@ your account key). **Used for tracking:** No.
 
 The app starts sending anything new off the device (for example phone push through a relay, analytics, a new
 embed); update this file, data-safety.md and privacy-connections.md together.
+
+Re-checked 2026-10-17 (per-server pictures, follows, emoji and stickers copied from your other servers, moderator
+notes and warnings, the people-who-left list, invite approval, search everywhere, listen-together queues, streamer
+mode): everything fits the types above. The label doesn't change and needn't be published again.

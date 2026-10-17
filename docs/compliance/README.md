@@ -35,7 +35,7 @@ backups), but their own operations are theirs to document.
 
 - **Technical controls in the product:** key-based authentication with signed handshakes, server-side permission
   checks on every request and broadcast, end-to-end encryption for DMs, group chats and their calls, rate and size
-  limits, upload content checks, SSRF-safe link previews, security headers and TLS 1.2+, encrypted backups, a
+  limits, join approval and raid controls (paused invites, newcomer slowmode, join-flood), upload content checks, SSRF-safe link previews, security headers and TLS 1.2+, encrypted backups, a
   security event log with configurable retention, owner-configurable data retention, a "Download my data" export,
   account deletion across servers. See [docs/security.md](../security.md) for the user-facing description.
 - **Pipeline controls:** CI on three OSes, CodeQL, Dependabot with a cooldown, actions pinned to commit SHAs,
