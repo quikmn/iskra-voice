@@ -172,7 +172,14 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
         await _running.WaitAsync(cancel);
         try
         {
-            foreach (var buddy in world.Store.Buddies())
+            var buddies = world.Store.Buddies();
+            // No buddies (any more): the encrypted copy for them isn't needed.
+            if (buddies.Count == 0 && Directory.Exists(backups.Folder))
+            {
+                foreach (var stale in Directory.EnumerateFiles(backups.Folder, $"buddy-*{BackupFile.Extension}")) TryDelete(stale);
+                _sealed = null;
+            }
+            foreach (var buddy in buddies)
             {
                 if (buddy.Removed || (buddy.NextTryAt is { } next && next > Now)) continue;
                 if (world.Store.GetBuddy(buddy.Id) is not { } current) continue; // removed meanwhile

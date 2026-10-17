@@ -248,24 +248,23 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
     private async Task<IResult> Signed(HttpContext context, bool sourceOnly, Func<BuddySpotRow, byte[], bool, Task<IResult>> handle)
     {
         NoStore(context);
-        var isPut = HttpMethods.IsPut(context.Request.Method);
         var auth = BuddyCrypto.ParseAuthorization(context.Request.Headers.Authorization.ToString());
-        var bytes = await ReadBody(context, isPut ? PartBytes : MaxJsonBytes);
-        if (bytes is null) return Status(413);
         var now = Now;
-        string? reason = null;
-        BuddySpotRow? spot = null;
-        if (auth is null) reason = "no_signature";
-        else if (Math.Abs(now - auth.At) > ClockSkewMs) reason = "clock";
-        else if ((spot = world.Store.BuddySpotForKey(Ed25519.ToB64u(auth.Key))) is null) reason = "unknown_key";
-        else
+        // Who it claims to be is checked before the body is read (a key nobody paired never gets that far); refused requests
+        // count against the client address, so even someone using a known public key can't make us read 4 MB parts often.
+        var spot = auth is null ? null : world.Store.BuddySpotForKey(Ed25519.ToB64u(auth.Key));
+        string? reason = auth is null ? "no_signature" : Math.Abs(now - auth.At) > ClockSkewMs ? "clock" : spot is null ? "unknown_key" : null;
+        byte[]? bytes = null;
+        if (reason is null)
         {
+            bytes = await ReadBody(context, HttpMethods.IsPut(context.Request.Method) ? PartBytes : MaxJsonBytes);
+            if (bytes is null) return Status(413);
             var path = $"{context.Request.PathBase}{context.Request.Path}{context.Request.QueryString}";
-            if (!Ed25519.Verify(auth.Key, BuddyCrypto.RequestPayload(world.ServerPublicKey, auth.At, auth.Nonce, context.Request.Method, path, bytes), auth.Sig))
+            if (!Ed25519.Verify(auth!.Key, BuddyCrypto.RequestPayload(world.ServerPublicKey, auth.At, auth.Nonce, context.Request.Method, path, bytes), auth.Sig))
                 reason = "signature";
             else if (!RememberNonce(auth, now)) reason = "replay";
         }
-        if (reason is not null || spot is null || auth is null)
+        if (reason is not null || spot is null || auth is null || bytes is null)
         {
             if (!AddressAllows(context)) return TooMany(context);
             SecurityLog.Record(world.Store, now, "buddy.auth.failed", ip: LoggedIp(context), details: new { reason }, source: Address(context));

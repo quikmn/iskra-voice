@@ -53,6 +53,8 @@ export const SECURITY_EVENTS = [
   'server.template', 'server.template.merge', 'server.autostart.install', 'server.autostart.remove',
   'account.dispute.resolve', 'keylog.alert', 'keylog.reloaded', 'keylog.broken', 'owner.claim.created',
   'join.pending', 'join.approved', 'join.declined', 'invites.paused', 'invites.resumed',
+  'buddy.added', 'buddy.removed', 'buddy.upload.failed', 'buddy.recovery.shown', 'buddy.spot.created', 'buddy.spot.paired',
+  'buddy.spot.removed', 'buddy.spot.deleted', 'buddy.auth.failed',
 ] as const
 
 export function securityEventLabel(event: string): string {
