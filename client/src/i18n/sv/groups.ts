@@ -98,7 +98,7 @@ export const groups: Messages['groups'] = {
     starting: 'Startar…',
     waitingKey: 'Väntar på samtalsnyckeln…',
     groupCall: 'Gruppsamtal',
-    onlyPeople: 'Bara personerna i gruppchatten kan höra och se det här samtalet',
+    onlyPeople: 'Totalsträckskrypterat: bara personerna i gruppchatten kan höra och se det här samtalet',
     inCall: '{{count}} i samtalet',
     aGroup: 'en gruppchatt',
     started: '{{name}} startade ett gruppsamtal',
