@@ -6,7 +6,7 @@
   'use strict'
   if (!W || W.iskra) return
   var V = 1
-  var LINE = '⁣iskra-activity:'
+  var LINE = '\u2063iskra-activity:'
   var walled = W.parent === W
   var handlers = { players: [], message: [], end: [] }
   var held = [] // messages that arrive before anyone listens for them

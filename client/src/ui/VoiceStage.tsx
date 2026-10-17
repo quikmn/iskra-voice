@@ -29,6 +29,8 @@ import { VideoPopoutButton } from './popout/PopoutButtons'
 import { ChannelTopic } from './chat/ChannelTopic'
 import './afk/afk.css'
 import { EncryptedVoiceBadge, PeerEncryptionMark } from './e2ee/E2eeVoice'
+import { ActivityButton, ActivityPanel } from './activities/Activities'
+import { sessionFor, useActivities } from '../state/activities'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
 export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -44,6 +46,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
   const party = useWatch(partyFor(server.key, session.channelId))
   const board = useWhiteboard(voiceBoardFor(server.key, session.channelId))
   const boardShown = useBoardShown((s) => !!s[`${server.key}:${session.channelId}`]) && !!board
+  const activity = useActivities(sessionFor(server.key, session.channelId))
   // A watch party takes the big spot; screen shares then sit with the other tiles.
   const focused = party ? null : (tiles.find((t) => t.id === focusId) ?? tiles.find((t) => t.source === 'screen') ?? null)
   const others = tiles.filter((t) => t !== focused)
@@ -69,9 +72,10 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
       </header>
       <ChannelTopic channel={channel} />
 
-      <div className={`stage-body ${focused || party || boardShown ? 'has-focus' : ''}`}>
+      <div className={`stage-body ${focused || party || boardShown || activity ? 'has-focus' : ''}`}>
         {channel && <WatchPartyPanel server={server} channel={channel} />}
         {channel && <VoiceBoardPanel server={server} channel={channel} />}
+        {channel && <ActivityPanel server={server} channel={channel} />}
         {focused && <VideoTile tile={focused} name={nameIn(server, focused.accountKey)} big speaking={!!speaking[focused.accountKey]} />}
         <div className="stage-grid">
           {others.map((tile) => (
@@ -108,7 +112,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
         {participants.length === 0 && session.state !== 'connected' && <p className="muted stage-hint">{t('voice.bar.connecting')}</p>}
       </div>
 
-      <CallControls extra={channel && <><WatchButton server={server} channel={channel} /><WhiteboardButton server={server} channel={channel} /></>} nameOf={(key) => nameIn(server, key)} />
+      <CallControls extra={channel && <><WatchButton server={server} channel={channel} /><WhiteboardButton server={server} channel={channel} /><ActivityButton server={server} channel={channel} /></>} nameOf={(key) => nameIn(server, key)} />
     </div>
   )
 }

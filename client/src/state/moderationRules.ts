@@ -111,6 +111,7 @@ export const AUDIT_ACTIONS = [
   'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
   'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers',
   'message.delete.bulk', 'member.warn', 'member.note.add', 'member.note.delete', 'member.avatar',
+  'act.add', 'act.update', 'act.remove', 'act.configure',
 ] as const
 
 export type AuditFilter = (typeof AUDIT_ACTIONS)[number]
@@ -121,6 +122,15 @@ export const auditActionLabel = (action: AuditFilter): string =>
   t(`moderation.audit.filters.${action.replace(/\./g, '_') as Underscored<AuditFilter>}`)
 
 const AUTOMOD_WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch', 'page'] as const
+
+const START_ROLES = ['guest', 'member', 'trusted', 'admin'] as const
+const BUILTINS = ['draw', 'trivia', 'four'] as const
+
+/** An activity in an audit entry: a built-in by its name in your language, else the name it was added with. */
+function activityName(d: Record<string, unknown>): string {
+  const builtin = BUILTINS.find((b) => d.builtin === true && d.id === b)
+  return builtin ? t(`activities.builtins.${builtin}.name`) : str(d.name)
+}
 
 const str = (v: unknown): string => (typeof v === 'string' || typeof v === 'number' ? String(v) : '')
 
@@ -253,6 +263,15 @@ export function auditText(e: AuditEntry): string {
     case 'docs.page.restore': {
       const version = str((d.extra as Record<string, unknown> | null)?.version)
       return t('moderation.audit.docsPageRestore', { actor, title: str(d.title), channel: channel(d.channelName), version })
+    }
+    case 'act.add': return t('moderation.audit.actAdd', { actor, name: activityName(d) })
+    case 'act.remove': return t('moderation.audit.actRemove', { actor, name: activityName(d) })
+    case 'act.update': return t(d.enabled ? 'moderation.audit.actOn' : 'moderation.audit.actOff', { actor, name: activityName(d) })
+    case 'act.configure': {
+      const lines: string[] = []
+      if (START_ROLES.includes(d.startRole as never)) lines.push(t('moderation.audit.actStartRole', { actor, who: t(`activities.settings.roles.${d.startRole as (typeof START_ROLES)[number]}`) }))
+      if (typeof d.off === 'boolean') lines.push(t(d.off ? 'moderation.audit.actChannelOff' : 'moderation.audit.actChannelOn', { actor, channel: channel(d.channelName) }))
+      return lines.join(' · ') || t('moderation.audit.other', { actor, action: e.action })
     }
     case 'docs.home.set': return d.pageId ? t('moderation.audit.docsHomeSet', { actor, title: str(d.title) }) : t('moderation.audit.docsHomeClear', { actor })
     case 'automod.block': {

@@ -1,0 +1,46 @@
+/* Activities in a call (ui/activities): the launcher, the "X started Y" card and the activity in the big spot. */
+.call-button.act-waiting { box-shadow: 0 0 0 2px var(--accent); }
+.call-button.act-off { opacity: 0.45; }
+
+.activity-call {
+  flex: 1 1 60%; min-height: 360px; display: flex; flex-direction: column; border-radius: calc(var(--radius) * 1.2);
+  overflow: hidden; border: 1px solid var(--border); background: var(--surface);
+}
+.activity-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.activity-head strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
+.activity-spacer { flex: 1; }
+.activity-players { display: inline-flex; gap: 2px; align-items: center; }
+.activity-stage { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--stage); }
+.activity-frame { flex: 1; width: 100%; min-height: 320px; border: 0; display: flex; background: var(--stage); }
+.activity-wall { margin: 0; padding: 4px 12px; }
+.activity-note { margin: 0; padding: 6px 12px; background: var(--surface-2); color: var(--text-2); font-size: 0.9em; border-radius: 8px; }
+
+.activity-invite {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: calc(var(--radius) * 1.2);
+  border: 1px solid var(--accent); background: var(--surface); width: 100%; max-width: 640px; margin: 0 auto;
+}
+.activity-invite-text { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.activity-invite-text strong { overflow-wrap: anywhere; }
+
+.activity-group { margin: 14px 0 6px; font-size: 0.95em; color: var(--text-2); }
+.activity-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.activity-choice { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.activity-choice-icon { flex: none; width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-3); color: var(--accent); }
+.activity-choice-icon img { border-radius: 6px; object-fit: cover; }
+.activity-choice-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.activity-choice-text strong, .activity-choice-text span { overflow-wrap: anywhere; }
+
+/* Server settings → Activities */
+.activity-settings-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.activity-settings-list li { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); }
+.activity-settings-list .activity-choice-text { flex: 1; }
+.activity-channels { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+
+@media (max-width: 720px) {
+  .activity-call { min-height: 65vh; }
+  .activity-head strong { max-width: 60%; }
+  .activity-invite { flex-wrap: wrap; }
+  .activity-invite .button { width: 100%; }
+  .activity-choice { flex-wrap: wrap; }
+  .activity-choice .button { margin-left: auto; }
+}

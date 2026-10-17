@@ -3783,7 +3783,7 @@ activity off, removing it, or turning a channel off ends the sessions it affects
 
 **Bundles** (`act.add`): the upload must be a zip of at most 5 MB, with at most 200 files and 10 MB unpacked (each file at
 most 5 MB; sizes are counted while unpacking, never taken from the zip's headers). A server holds at most 25
-(`bad_request`, key `act_too_many`, args `{ max }`).
+(`bad_request`, key `act_limit`, args `{ max }`).
 
 - **Paths:** each part `[A-Za-z0-9_.-]`, 1–64 characters, not starting with `.`; at most 8 parts and 200 characters;
   no two files whose paths differ only in case. Folders, `__MACOSX/…`, `.DS_Store` and `Thumbs.db` are skipped. When

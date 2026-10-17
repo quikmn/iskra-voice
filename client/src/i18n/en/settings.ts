@@ -23,6 +23,7 @@ export const settings = {
     gifs: 'GIFs',
     sounds: 'Soundboard',
     integrations: 'Bots & webhooks',
+    activities: 'Activities',
     bugInbox: 'Bug inbox',
     pages: 'Profile pages',
     internet: 'Internet access',

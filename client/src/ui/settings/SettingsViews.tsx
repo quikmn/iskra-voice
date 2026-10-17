@@ -36,6 +36,7 @@ import { BotDmSettings } from './BotDmSettings'
 import { HiddenServersSection } from './HiddenServers'
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
+import { ActivitiesSection } from '../activities/ActivitiesSection'
 import { BackupSection } from './BackupSection'
 import { LimitsSection } from './LimitsSection'
 import { BugInboxSection } from './BugInboxSection'
@@ -343,6 +344,7 @@ function ServerSection({ id, server, onClose }: { id: ServerSectionId; server: S
     case 'audit': return <AuditLogSection server={server} />
     case 'securityLog': return <SecurityLogSection server={server} />
     case 'integrations': return <IntegrationsSection server={server} />
+    case 'activities': return <ActivitiesSection server={server} />
     case 'internet': return <InternetSection server={server} />
     case 'limits': return <LimitsSection server={server} />
     case 'bugInbox': return <BugInboxSection server={server} />

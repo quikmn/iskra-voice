@@ -24,6 +24,7 @@ export const settings: Messages['settings'] = {
     gifs: 'GIF:ar',
     sounds: 'Ljudbräda',
     integrations: 'Bottar och webhooks',
+    activities: 'Aktiviteter',
     bugInbox: 'Felrapporter',
     pages: 'Profilsidor',
     internet: 'Internetåtkomst',

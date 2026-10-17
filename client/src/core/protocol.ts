@@ -2592,3 +2592,87 @@ export interface Requests {
   'room.invite': [{ channelId: number; accountKey: string }, { channel: Channel }]
   'room.uninvite': [{ channelId: number; accountKey: string }, { channel: Channel }]
 }
+
+// ── activities ──
+// See "Activities" in PROTOCOL.md; the frame side is docs/activities.md.
+
+/** An activity an admin added to the server (a zip bundle the server serves from `entry`). */
+export interface ServerActivity {
+  id: string
+  name: string
+  description: string
+  /** Server-relative path of its icon, or null. */
+  icon: string | null
+  minPlayers: number
+  maxPlayers: number
+  version: string
+  size: number
+  files: number
+  enabled: boolean
+  addedBy: string
+  addedAt: number
+  entry: string
+}
+
+export type BuiltinActivityId = 'draw' | 'trivia' | 'four'
+
+export interface ActivityCatalog {
+  activities: ServerActivity[]
+  builtins: { id: BuiltinActivityId; enabled: boolean }[]
+  /** The lowest level that may start an activity. */
+  startRole: Role
+  /** Voice channels where activities are turned off. */
+  off: number[]
+}
+
+/** A running activity in a voice channel. `players[].id` is the player's id inside the activity (never an account key). */
+export interface ActivitySession {
+  id: string
+  channelId: number
+  activity: string
+  /** Server-added activities' name; null for built-ins. */
+  name: string | null
+  startedBy: string
+  startedAt: number
+  players: { id: string; accountKey: string }[]
+}
+
+export interface ActivityMessage {
+  seq: number
+  from: string
+  data: unknown
+}
+
+export interface ActivityJoin {
+  session: ActivitySession
+  me: string
+  seq: number
+  state: unknown
+  stateSeq: number
+  messages: ActivityMessage[]
+  missed: boolean
+}
+
+export interface Welcome {
+  activities?: ActivitySession[]
+}
+
+export interface Events {
+  'act.session': { channelId: number; session: ActivitySession | null }
+  'act.msg': { channelId: number; sessionId: string } & ActivityMessage
+  'act.catalog': Record<string, never>
+}
+
+export interface Requests {
+  'act.list': [Record<string, never>, ActivityCatalog]
+  'act.add': [{ file: string }, { activity: ServerActivity }]
+  'act.update': [{ id: string; enabled: boolean }, Record<string, never>]
+  'act.remove': [{ id: string }, Record<string, never>]
+  'act.configure': [{ startRole?: Role; channelId?: number; off?: boolean }, { startRole: Role; off: number[] }]
+  'act.start': [{ channelId: number; activity: string }, { session: ActivitySession }]
+  'act.join': [{ channelId: number; sessionId: string }, ActivityJoin]
+  'act.leave': [{ channelId: number; sessionId?: string }, Record<string, never>]
+  'act.send': [{ channelId: number; sessionId: string; data: unknown }, { seq: number }]
+  'act.snapshot': [{ channelId: number; sessionId: string; seq: number; state: unknown }, Record<string, never>]
+  'act.end': [{ channelId: number; sessionId: string }, Record<string, never>]
+}

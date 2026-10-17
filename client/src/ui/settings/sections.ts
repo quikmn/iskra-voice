@@ -9,7 +9,7 @@ export type MySectionId =
 export type ServerSectionId =
   | 'overview' | 'channels' | 'serverVoice' | 'emoji' | 'gifs' | 'sounds' | 'pages' | 'rules' | 'onboarding'
   | 'members' | 'roles' | 'reports' | 'automod' | 'audit' | 'securityLog'
-  | 'integrations' | 'bugInbox'
+  | 'integrations' | 'activities' | 'bugInbox'
   | 'internet' | 'limits' | 'backup' | 'import' | 'updates' | 'translate'
 
 export type SectionId = MySectionId | ServerSectionId
@@ -49,6 +49,7 @@ const SERVER: { id: ServerSectionId; group: ServerGroup; min: Role; perms?: Perm
   { id: 'audit', group: 'safety', min: 'admin', perms: ['viewAuditLog'] },
   { id: 'securityLog', group: 'safety', min: 'owner' },
   { id: 'integrations', group: 'apps', min: 'admin', perms: ['manageWebhooks'] },
+  { id: 'activities', group: 'apps', min: 'admin' },
   { id: 'bugInbox', group: 'apps', min: 'owner' },
   { id: 'internet', group: 'hosting', min: 'admin' },
   { id: 'limits', group: 'hosting', min: 'owner' },

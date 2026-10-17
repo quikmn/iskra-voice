@@ -89,7 +89,7 @@ public static partial class ActivitiesFeature
         var file = store.GetFile(body.String("file", 64));
         if (file is null || file.Uploader != me.AccountKey) throw RequestException.BadRequest("Unknown activity file.");
         if (store.ActivityCount() >= MaxActivities)
-            throw RequestException.BadRequest($"A server can have up to {MaxActivities} activities.", "act_too_many", new { max = MaxActivities });
+            throw RequestException.BadRequest($"A server can have up to {MaxActivities} activities.", "act_limit", new { max = MaxActivities });
         if (file.Size > ActivityBundle.MaxZipBytes)
             throw new BundleException("act_zip", "Activities must be a zip of up to 5 MB.", new { maxMb = ActivityBundle.MaxZipBytes / 1024 / 1024, maxFiles = ActivityBundle.MaxFiles }).ToRequest();
 

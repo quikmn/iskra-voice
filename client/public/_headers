@@ -20,6 +20,12 @@
   ! X-Frame-Options
   Content-Security-Policy: frame-ancestors 'self'
 
+# Built-in activities are framed by the app itself (sandboxed; each has its own no-network policy).
+/activities/*
+  ! X-Frame-Options
+  Content-Security-Policy: frame-ancestors 'self'
+  Cache-Control: no-cache
+
 # Digital Asset Links for the Android app (Trusted Web Activity).
 /.well-known/assetlinks.json
   Content-Type: application/json
