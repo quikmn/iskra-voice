@@ -359,6 +359,8 @@ public sealed partial class Store : IDisposable
         ("modpack-1", ModPackMigration),
         // A picture per server, shown instead of the profile picture there.
         ("member-avatars-1", MemberAvatarsMigration),
+        // When each member's quiet stretch began, for the summary when quiet hours end.
+        ("quietdigest-1", QuietDigestMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

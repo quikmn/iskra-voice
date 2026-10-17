@@ -57,6 +57,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Per-server avatar (the picture, without its metadata, and when it was set) | While the person is a member (goes with their nickname when they leave, and with their account) | Leaving, kick/ban, account deletion; `member.avatar` with `""` | — |
 | Profiles (and the stamp of the newest profile edit, `profile_stamps`), memberships, roles, devices, push subscriptions | While the person is a member | Leaving, kick/ban, account deletion, device revocation | — |
 | Alert words, follows (people and roles followed, per channel) and quiet hours (`alert_settings`): words and follows only if the member turned on "Also when Iskra is closed", the schedule (days, times, time zone) only where their push is on | Until they change or turn them off, or stop being a member | The member's app (`alerts.set`), leaving, kick/ban, account deletion | — |
+| When the member's current quiet stretch began (`alert_settings.quiet_since`), for the summary push when quiet hours end; whether they want that summary (`digest` in the schedule) | Until the stretch ends (cleared then), or with the rest of the alert settings | The scheduler when quiet hours end, the member's app (`alerts.set`), leaving, kick/ban, account deletion | — |
 | Captions model (`models/`; no personal data) | Until the owner deletes it | The owner | `Captions.ModelDownload` (off: not fetched or served) |
 | Translation models (`models/translate/`; no personal data) | Until the owner deletes them | The owner | Server settings → Translation (off: not fetched or served) |
 | Owner claim of a rented server (`owner-claim`), or a server image's claim code (`owner-claim`, `owner-claim-code.txt`) | Until the owner joins; a claim code also stops working after 24 hours and is replaced on the next start | `OwnerSetup` | — |
@@ -124,3 +125,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-15 | Message translation on the device (texts never leave it); translation models folder on the server |
 | 2026-10-15 | Whiteboards: board objects, unfolded batches and their authors, pictures on boards |
 | 2026-10-17 | Follows in alert settings; emoji and stickers brought over from other servers; join-to-create voice rooms; watch party queues; account deletion covers the per-server picture and moderators' notes; streamer mode and search everywhere stay on the device |
+| 2026-10-17 | Quiet hours digest: when the current quiet stretch began, cleared when it ends |

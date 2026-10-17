@@ -3175,7 +3175,8 @@ Follow { "member": "<accountKey>" | null,       // exactly one of member (43 bas
 Quiet  { "days": 62,                            // 1–127, bit 0 = Sunday … bit 6 = Saturday
          "from": 1320, "to": 420,               // 0–1439, minutes after midnight, wall clock in timeZone
          "timeZone": "Europe/Stockholm",        // IANA name, ≤ 64 characters, known to the server
-         "mentions": true }                     // let mentions, replies, alert words, DMs and calls through, silently
+         "mentions": true,                      // let mentions, replies, alert words, DMs and calls through, silently
+         "digest": true }                       // optional, default true: a summary when they end (see Quiet hours digest)
 ```
 
 | type | body | result | who |
@@ -3699,3 +3700,34 @@ bug inbox off when the existing channel of that name is readable by more people 
 `iskra-server templates <file> --json` gains per-channel `topic`, `messages` (a count), `pages` (titles), `disappear`
 and `settings.translation`. `server.template.export` gains `topic`, `disappear` and `settings.translation` (never
 messages or pages); it writes `"version": 3` when it has any of them, else `2`, so older servers can still read it.
+
+## Quiet hours digest
+
+When quiet hours end, people catch up with one summary instead of a pile of notifications. `Quiet` (see
+[Keyword alerts and quiet hours](#keyword-alerts-and-quiet-hours)) gains `digest` (bool, optional, default `true`;
+`alerts.get` always returns it; older servers ignore it). No new requests or events.
+
+- **The stretch.** A server that stores a member's quiet hours (only where push is on for one of their devices) notes
+  when the current quiet stretch began: at the minute it began by the schedule (at most 7 days back), as soon as it sees
+  it running (checked every 30 seconds, and on `alerts.set`). The stretch ends when the schedule ends (in its own time
+  zone, across clock changes), or at once when `alerts.set` turns quiet hours off (`quiet: null`) or moves them off
+  the present moment.
+- **The push.** When a stretch ends, if `digest` isn't `false` (for quiet hours turned off: the value they had), the
+  server counts its own items from the stretch, as the member can see them now: pings in its [inbox](#inbox)
+  (`mentions`: kinds `mention`, `reply`, `role`, `everyone`; `keywords`: `keyword`; `follows`: `follow`) in channels
+  they can still read, DMs and group messages from others (`messages`; never their content: the server can't read
+  them), [reminders](#reminders) that came due (`reminders`) and [events](#scheduled-events) they're interested in and can see that
+  started or start within an hour after the end (`events`); nothing from or to people either of them blocked. Only if
+  anything counted, each device that isn't looking at Iskra gets one push, without a sound:
+  `{ kind: "digest", tag: "digest", title: "While it was quiet", body: "2 mentions, 1 message", text: { title: "digest",
+  body: "digestBody", args: { mentions, messages, keywords, follows, events, reminders } }, silent: true }` (TTL 12
+  hours, never merged). [Do not disturb](#presence-and-custom-status) still stops it. A click opens the server. Each server sums up only
+  its own items; the apps show one card across all servers (below).
+- **The apps.** Every open device shows a "While it was quiet" card when quiet hours end there (or the next time it
+  opens, within a day), gathered on the device across every connected server: mentions and replies, DMs and groups
+  (counts and who, never content), alert words, follows, events, due reminders, each opening its place; a server that
+  is offline is listed as such. Dismissing it records the stretch as seen in the sealed `alerts` preference
+  (`digestSeen`, the end time), so the card closes on the account's other devices too. "Summary when quiet hours end"
+  (`digest`) turns off both the card and the push.
+- Storage: `alert_settings.quiet_since` (migration `quietdigest-1`), deleted with the rest of the alert settings (leaving,
+  removal, deleting the account); in "Download my data" under `alertSettings`.
