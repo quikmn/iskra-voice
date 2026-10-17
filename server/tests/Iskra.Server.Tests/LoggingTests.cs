@@ -173,9 +173,23 @@ public class LoggingTests
         using var alice = await server.JoinAsync("CANARYNAME");
         var http = server.CreateClient();
 
-        // chat, a channel, an upload
+        // an outgoing webhook that gets every new message (to 127.0.0.1, which must not show up either)
+        using var receiver = new OutgoingWebhookTests.Receiver();
+        var (_, outSecret) = await OutgoingWebhookTests.Create(owner, receiver.Url, ["message.created"], [server.General]);
+
+        // chat, a channel, an upload, a /tts message
         var channel = (await owner.RequestAsync("channel.create", new { name = "canarychan" })).Body().GetProperty("channel").GetProperty("id").GetInt64();
-        Assert.Equal("result", (await alice.RequestAsync("chat.send", new { channelId = server.General, text = "CANARYTEXT hello" })).Type());
+        var sent = await alice.RequestAsync("chat.send", new { channelId = server.General, text = "CANARYTEXT hello" });
+        Assert.Equal("result", sent.Type());
+        Assert.Contains("CANARYTEXT", (await receiver.NextAsync()).Body);
+        Assert.Equal("result", (await owner.RequestAsync("chat.send", new { channelId = server.General, text = "CANARYTEXT read aloud", tts = true })).Type());
+
+        // Starboard: one star puts alice's message on the board
+        Assert.Equal("result", (await owner.RequestAsync("builtin.bots.set", new { bot = "starboard", enabled = true })).Type());
+        Assert.Equal("result", (await owner.RequestAsync("builtin.bots.config.set", new { bot = "starboard", emoji = "⭐", threshold = 1 })).Type());
+        Assert.Equal("result", (await owner.RequestAsync("chat.react", new { id = sent.Body().GetProperty("message").GetProperty("id").GetInt64(), emoji = "⭐", on = true })).Type());
+        var board = server.World.Store.AllChannels().Single(c => c.Name == "starboard").Id;
+        await Eventually(() => server.World.Store.History(board, null, null, 10).Count > 0);
         var png = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
         var ticket = (await alice.RequestAsync("upload.begin", new { name = "CANARYFILE.png", size = png.Length })).Body();
         Assert.Equal(HttpStatusCode.OK, (await http.PutAsync(ticket.GetProperty("url").GetString(), new ByteArrayContent(png))).StatusCode);
@@ -184,6 +198,7 @@ public class LoggingTests
         // voice: LiveKit says someone joined and left, and a stranger who gets removed
         var voice = server.World.Store.CreateChannel("canaryvoice", "voice", "member", "member", 0).Id;
         Assert.Equal(HttpStatusCode.OK, await LiveKitWebhook(server, new { @event = "participant_joined", room = new { name = $"voice-{voice}" }, participant = new { identity = alice.Key } }));
+        Assert.Equal("result", (await alice.RequestAsync("voice.status.set", new { channelId = voice, text = "CANARYSTATUS ranked" })).Type());
         Assert.Equal(HttpStatusCode.OK, await LiveKitWebhook(server, new { @event = "participant_left", room = new { name = $"voice-{voice}" }, participant = new { identity = alice.Key } }));
         Assert.Equal(HttpStatusCode.OK, await LiveKitWebhook(server, new { @event = "participant_joined", room = new { name = $"voice-{voice}" }, participant = new { identity = "CANARYSTRANGER" } }));
         LiveKitLines.Relay(server.Services.GetRequiredService<ILogger<LiveKitHost>>(),
@@ -194,6 +209,16 @@ public class LoggingTests
         var hookPath = hook.GetProperty("path").GetString()!;
         var hookSecret = hook.GetProperty("secret").GetString()!;
         Assert.True((await http.PostAsJsonAsync(hookPath, new { content = "CANARYTEXT from a hook" })).IsSuccessStatusCode);
+        // a /github post with a bad signature
+        var hookId = hook.GetProperty("webhook").GetProperty("id").GetString()!;
+        var signing = string.Concat(Enumerable.Repeat("cd", 8));
+        Assert.Equal("result", (await owner.RequestAsync("webhook.signing.set", new { id = hookId, secret = signing })).Type());
+        using (var github = new HttpRequestMessage(HttpMethod.Post, hookPath + "/github") { Content = new StringContent("{\"zen\":\"CANARYTEXT\"}", Encoding.UTF8, "application/json") })
+        {
+            github.Headers.Add("X-GitHub-Event", "ping");
+            github.Headers.Add("X-Hub-Signature-256", "sha256=" + new string('0', 64));
+            Assert.Equal(HttpStatusCode.Unauthorized, (await http.SendAsync(github)).StatusCode);
+        }
 
         // a bug report
         var bugs = (await owner.RequestAsync("channel.create", new { name = "canarybugs", readRole = "admin" })).Body().GetProperty("channel").GetProperty("id").GetInt64();
@@ -230,10 +255,12 @@ public class LoggingTests
         Assert.Contains(" bug   http   received ", all);
         Assert.Contains(" lk    voice  warn ", all);
         Assert.Contains(" life   start ", all);
+        Assert.Contains("in-bad-signature:1", all);
+        Assert.Contains("out-ok:", all);
 
         string?[] canaries =
         [
-            "CANARY", "canary", "Canary", alice.Key, alice.Key[..8], owner.Key[..8], carol.Key[..8], sha, sha[..12], invite, hookSecret,
+            "CANARY", "canary", "Canary", outSecret, signing, receiver.Url, alice.Key, alice.Key[..8], owner.Key[..8], carol.Key[..8], sha, sha[..12], invite, hookSecret,
             hookPath, p2pSecret, ticket.GetProperty("url").GetString(), "198.51.100", "127.0.0.1", "::1", server.WorldPath, "example.com",
         ];
         foreach (var canary in canaries.Where(c => !string.IsNullOrEmpty(c)))

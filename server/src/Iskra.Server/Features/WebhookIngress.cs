@@ -109,6 +109,7 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
             var ip = context.Connection.RemoteIpAddress ?? IPAddress.None;
             var bucket = _failures.GetOrAdd(ip, _ => new TokenBucket(FailBurst, FailPerSecond, time));
             if (_failures.Count > 10_000) _failures.Clear();
+            LogCounts.Hooks(world).Hit("in-bad-signature"); // the log only counts them; who sent it is in the security log (LoggedIp rules)
             if (!bucket.TryTake(out var failWait)) return RateLimited(context, failWait);
             SecurityLog.Record(world.Store, time.GetUtcNow().ToUnixTimeMilliseconds(), "webhook.bad_signature",
                 ip: world.Settings.Retention.SecurityLogIps ? ip.ToString() : null,
