@@ -132,6 +132,7 @@ export const moderation = {
       role_group_update: 'Onboarding questions edited',
       role_group_delete: 'Onboarding questions deleted',
       join_approve: 'People let in',
+      member_join: 'People who joined',
       join_decline: 'People turned away',
       invites_pause: 'Invites paused',
       invites_resume: 'Invites resumed',

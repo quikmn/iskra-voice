@@ -132,6 +132,7 @@ export const moderation: Messages['moderation'] = {
       role_group_update: 'Redigerade introduktionsfrågor',
       role_group_delete: 'Raderade introduktionsfrågor',
       join_approve: 'Insläppta personer',
+      member_join: 'Personer som gick med',
       join_decline: 'Avvisade personer',
       invites_pause: 'Inbjudningar pausade',
       invites_resume: 'Inbjudningar återupptagna',

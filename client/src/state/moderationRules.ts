@@ -3,6 +3,7 @@ import type { AuditEntry, BlockEntry, Member } from '../core/protocol'
 import { t } from '../i18n'
 import { formatDate } from '../i18n/format'
 import { levelName } from './permissions'
+import { inviteName } from './inviteTrackRules'
 
 /** Per person the newest change wins; on a tie a block beats an unblock (same rule as the server). */
 export function mergeBlocks(...lists: BlockEntry[][]): BlockEntry[] {
@@ -109,7 +110,7 @@ export const AUDIT_ACTIONS = [
   'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'buginbox.update', 'afk.update', 'notify.default', 'server.template.export',
   'server.images', 'automod.block', 'automod.update',
   'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
-  'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers', 'landing.update',
+  'member.join', 'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers', 'landing.update',
   'message.delete.bulk', 'member.warn', 'member.note.add', 'member.note.delete', 'member.avatar',
   'act.add', 'act.update', 'act.remove', 'act.configure',
 ] as const
@@ -171,6 +172,11 @@ export function auditText(e: AuditEntry): string {
     case 'member.note.add': return t('moderation.audit.noteAdd', { actor, target: e.targetName || str(d.name) || t('moderation.audit.someoneLower') })
     case 'member.note.delete': return t('moderation.audit.noteDelete', { actor, target: e.targetName || str(d.name) || t('moderation.audit.someoneLower') })
     case 'join.approve': return t('moderation.audit.joinApprove', { actor, target })
+    case 'member.join': {
+      const invite = d.invite as { id?: unknown; label?: unknown } | undefined
+      const name = inviteName({ id: str(invite?.id), label: str(invite?.label) || null })
+      return t('invitetrack.audit.join', { target, invite: name })
+    }
     case 'join.decline': return t('moderation.audit.joinDecline', { actor, name: str(d.name) || t('moderation.audit.someoneLower') })
     case 'invites.pause': return t('moderation.audit.invitesPause', { actor })
     case 'invites.resume': return t('moderation.audit.invitesResume', { actor })

@@ -14,6 +14,8 @@ import { useStreamerMode } from '../../state/streamer'
 import { maskSecret } from '../../state/streamerLogic'
 import '../bots.css'
 import { OutgoingWebhooks } from './OutgoingWebhooks'
+import { FormatPicker, SigningSecret } from './WebhookExtras'
+import { webhookFormatUrl, type WebhookFormat } from '../../state/inviteTrackRules'
 import { BuiltinBotsSection } from '../settings/BuiltinBotsSection'
 
 type Tab = 'webhooks' | 'outgoing' | 'bots'
@@ -36,9 +38,11 @@ export function IntegrationsSection({ server }: { server: ServerState }) {
 }
 
 /** A freshly made secret URL: shown once, then only its hash is kept on the server. */
-function SecretUrl({ url, onDone }: { url: string; onDone: () => void }) {
+function SecretUrl({ url: plainUrl, onDone }: { url: string; onDone: () => void }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
+  const [format, setFormat] = useState<WebhookFormat>('discord')
+  const url = webhookFormatUrl(plainUrl, format)
   return (
     <div className="secret-box" role="status">
       <p>{t('settings.integrations.copyNow')}</p>
@@ -49,7 +53,8 @@ function SecretUrl({ url, onDone }: { url: string; onDone: () => void }) {
         </button>
         <button className="button" onClick={onDone}>{t('common.done')}</button>
       </div>
-      <pre>{`curl -H "Content-Type: application/json" -d '{"content":"Hello from a webhook"}' \\\n  ${url}`}</pre>
+      <FormatPicker value={format} onChange={(f) => { setFormat(f); setCopied(false) }} />
+      {format === 'discord' && <pre>{`curl -H "Content-Type: application/json" -d '{"content":"Hello from a webhook"}' \\\n  ${url}`}</pre>}
     </div>
   )
 }
@@ -63,6 +68,7 @@ function Webhooks({ server }: { server: ServerState }) {
   const [secretUrl, setSecretUrl] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [signing, setSigning] = useState<string | null>(null)
 
   const reload = useCallback(() => {
     connection?.request('webhook.list', {}).then((r) => setHooks(r.webhooks)).catch((e: Error) => setError(errorMessage(e)))
@@ -94,8 +100,13 @@ function Webhooks({ server }: { server: ServerState }) {
               <span className="hook-meta">
                 #{channelName(hook.channelId)} · {hook.lastUsedAt ? t('settings.integrations.lastUsed', { when: messageTime(hook.lastUsedAt) }) : t('settings.integrations.notUsed')}
                 {hook.mentions ? ` · ${t('settings.integrations.canMention')}` : ''}
+                {hook.signed ? ` · ${t('invitetrack.signing.on')}` : ''}
               </span>
-              {editing === hook.id ? (
+              {signing === hook.id ? (
+                <div className="hook-actions">
+                  <SigningSecret serverKey={server.key} hook={hook} onDone={() => { setSigning(null); reload() }} />
+                </div>
+              ) : editing === hook.id ? (
                 <div className="hook-actions">
                   <WebhookForm
                     server={server}
@@ -117,6 +128,7 @@ function Webhooks({ server }: { server: ServerState }) {
               ) : (
                 <div className="hook-actions">
                   <button className="button" onClick={() => setEditing(hook.id)}>{t('common.edit')}</button>
+                  <button className="button" onClick={() => setSigning(hook.id)} data-testid="webhook-signing-open">{t('invitetrack.signing.button')}</button>
                   <button
                     className="button"
                     title={t('settings.integrations.newUrlHint')}

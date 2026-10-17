@@ -54,6 +54,7 @@ import { translate } from './translate'
 import { whiteboard } from './whiteboard'
 import { landing } from './landing'
 import { activities } from './activities'
+import { invitetrack } from './invitetrack'
 
 export const en = {
   common,
@@ -111,4 +112,5 @@ export const en = {
   whiteboard,
   landing,
   activities,
+  invitetrack,
 } as const

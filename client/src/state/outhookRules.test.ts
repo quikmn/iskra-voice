@@ -27,7 +27,7 @@ describe('outgoing webhook addresses', () => {
 })
 
 describe('outgoing webhook events and log', () => {
-  it('need channels for messages and reactions only', () => {
+  it('need channels for events in channels only', () => {
     expect(needsChannels(['member.joined', 'event.started'])).toBe(false)
     expect(needsChannels(['member.joined', 'reaction.added'])).toBe(true)
   })

@@ -1,0 +1,43 @@
+import type { Messages } from '../types'
+
+export const invitetrack: Messages['invitetrack'] = {
+  label: 'Etikett',
+  labelPlaceholder: 'Valfritt, t.ex. Reddit-inlägg',
+  labelHint: 'Moderatorer ser vilken inbjudan varje person gick med via. En etikett visar dem var den delades.',
+  named: '”{{label}}”',
+  unnamed: 'inbjudan {{id}}',
+  via: 'Gick med via {{invite}}',
+  viaFrom: 'Gick med via {{invite}} från {{name}}',
+  approved: '{{text}}, insläppt av {{name}}',
+  setupLink: 'startlänken',
+  someone: 'någon',
+  notTracked: 'Gick med innan inbjudningar spårades',
+  filter: 'Gick med via',
+  filterAny: 'Vilken inbjudan som helst',
+  filterOption: '{{invite}} ({{count}})',
+  audit: {
+    join: '{{target}} gick med via {{invite}}',
+  },
+  formats: {
+    label: 'Format',
+    hint: 'Välj tjänsten du klistrar in det här i. Händelser som Iskra inte postar om hoppas över.',
+    discord: 'Discord-stil',
+    github: 'GitHub',
+    gitea: 'Gitea',
+    gitlab: 'GitLab',
+    slack: 'Slack',
+  },
+  signing: {
+    button: 'Signeringshemlighet',
+    title: 'Signeringshemlighet för {{name}}',
+    intro: 'Klistra in samma hemlighet i GitHubs eller Giteas fält ”Secret”, eller GitLabs ”Secret token”. Då måste inlägg till /github, /gitea och /gitlab vara signerade med den, så webbadressen räcker inte ensam.',
+    secret: 'Hemlighet',
+    generate: 'Skapa',
+    save: 'Spara',
+    remove: 'Ta bort',
+    copyNow: 'Kopiera den nu: den visas inte igen.',
+    on: 'signerad',
+    length: 'Använd {{min}}–{{max}} tecken.',
+    characters: 'Använd bokstäver, siffror, symboler och mellanslag (inte först eller sist).',
+  },
+}
