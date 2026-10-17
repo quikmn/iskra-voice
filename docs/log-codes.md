@@ -11,6 +11,7 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | BAK-130 | WARN | srv | backup | The daily backup couldn't be copied to the extra folder (Backups.CopyTo). | Check that the folder or drive is there and writable. |
 | BAK-140 | INFO | srv | backup | A removed backup buddy couldn't be told that it no longer keeps our backups. | Nothing: it deletes the copies after its grace period anyway. |
 | BAK-150 | WARN | srv | backup | Copies kept for a friend's server couldn't be deleted or swept yet. | Check the world folder's permissions; it tries again. |
+| BAK-160 | ERROR | srv | backup | A channel export failed for an unexpected reason (the admin sees "The export couldn't be made"). | Check free disk space and the world folder's exports/ folder; try the export again. Report a bug if it keeps failing. |
 | BOT-110 | WARN | bot, srv | sched | A built-in bot's scheduled work failed (what= names the bot). | Report it with the log line; the bot tries again on its next tick. |
 | CON-110 | WARN | app | conn | The connection to a server closed or failed; the app retries. | Look at close= and why= and the server's SES lines for the same conn=. |
 | CON-120 | WARN | app | conn | The handshake with a server timed out. | Check the server is up and reachable. |

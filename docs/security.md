@@ -200,6 +200,18 @@ The GIF picker uses KLIPY. An admin adds a KLIPY key and chooses how members' ap
 
 Ads stay off, and anything that isn't a GIF from KLIPY's own hosts is left out.
 
+### Feeds
+
+The Feeds bot (off until an admin turns it on) makes the server fetch the RSS/Atom feeds, YouTube channel feeds and,
+with the owner's own Twitch app, Twitch's API that admins pick. It reaches only public addresses (checked after DNS on
+every connection, redirects included), only ports 80, 443 and 1024 and up, gives every unreachable or refused address
+the same answer, cuts each request off after 20 seconds including its body, reads at most 2 MB, reads XML without DTDs
+or external entities, and never fetches images. Text from feeds can't mention anyone. **The Twitch app's client secret
+is stored in the server's database (`iskra.db`) as it is, like the KLIPY key**, so it's in the world folder and in
+its backups: it's never sent to any app, and the owner can remove it (Server settings → Bots → Feeds → Twitch app) and
+make a new one at dev.twitch.tv if a copy of the world folder or a backup gets out. Use a Twitch app made just for this
+server; it can only read public data.
+
 ### Watch parties
 
 A watch party only shares a clock: each app plays the video itself, from its source. **Whoever hosts the video sees your IP address**: YouTube for a YouTube video, the website for a link, your server for an upload. Before anything loads from YouTube or a website, the app says where it plays from and waits for you to press Watch (unless you ticked "Always load from <site>" on that device). YouTube plays in its privacy-enhanced (youtube-nocookie.com) player inside a sandboxed frame; no YouTube code runs inside the app itself, where it could reach your keys. The desktop app sends YouTube the web app's address as the referring page (YouTube requires one) and nothing else.

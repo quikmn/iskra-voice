@@ -99,6 +99,9 @@ builder.Services.AddHostedService<ProductivityScheduler>();
 builder.Services.AddHostedService<QuietDigestScheduler>();
 builder.Services.AddSingleton<BuiltinBotRuntime>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<BuiltinBotRuntime>());
+builder.Services.AddSingleton<FeedFetcher>();
+builder.Services.AddSingleton<FeedService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<FeedService>());
 builder.Services.AddSingleton<AfkSweeper>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AfkSweeper>());
 builder.Services.AddSingleton<TeamSweeper>();
@@ -370,6 +373,7 @@ MoveFeature.MapEndpoints(app);
 ImportFeature.MapEndpoints(app);
 // "Download my data" links.
 ComplianceFeature.MapEndpoints(app);
+ChannelExportFeature.MapEndpoints(app);
 app.Services.GetRequiredService<Iskra.Server.Import.ImportService>().CleanUp();
 
 app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,

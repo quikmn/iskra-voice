@@ -11,6 +11,7 @@ export const builtinBots: Messages['builtinBots'] = {
     starboard: 'Starboard',
     birthdays: 'Birthdays',
     welcome: 'Welcome',
+    feeds: 'Feeds',
   },
   about: {
     dice: 'Slår tärningar till spel: /roll 2d6+3',
@@ -19,6 +20,7 @@ export const builtinBots: Messages['builtinBots'] = {
     starboard: 'Visar de mest stjärnmärkta meddelandena i en kanal',
     birthdays: 'Gratulerar medlemmar på födelsedagen: /birthday sätt 14 mars',
     welcome: 'Hälsar nya medlemmar välkomna',
+    feeds: 'Lägger upp nya blogginlägg, YouTube-videor och Twitch-sändningar',
   },
   commands: {
     roll: { description: 'Slå tärningar, till exempel 2d6+3', usage: '2d6+3' },

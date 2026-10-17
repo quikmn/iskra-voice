@@ -47,7 +47,7 @@ export const updateRetention = (serverKey: string, change: Partial<Retention>) =
 export const SECURITY_EVENTS = [
   'auth.failed', 'rate_limited', 'member.joined', 'device.new', 'device.revoke', 'account.rotate', 'account.rotate.disputed',
   'account.delete', 'backup.download', 'backup.settings', 'backup.cli', 'backup.restored', 'server.move', 'server.move.cancel',
-  'retention.update', 'data.export', 'security.log.export',
+  'retention.update', 'data.export', 'security.log.export', 'channel.export',
   'update.check', 'update.settings', 'update.install', 'update.installed', 'update.failed', 'update.rolledback',
   'captions.model.download', 'captions.model.rejected', 'translate.model.download', 'translate.model.rejected', 'translate.settings',
   'server.template', 'server.template.merge', 'server.autostart.install', 'server.autostart.remove',

@@ -25,6 +25,7 @@ public sealed class Hub(World world, TimeProvider time)
     public Features.OutgoingWebhooks? Outhooks { get; set; }
     /// <summary>Starboard, Birthdays and Welcome (set when the service starts).</summary>
     public Features.BuiltinBotRuntime? BuiltinBots { get; set; }
+    public Features.FeedService? Feeds { get; set; }
     /// <summary>Which whiteboard each session is viewing (Features/WhiteboardFeature.cs).</summary>
     public Features.BoardRegistry Boards { get; } = new();
     /// <summary>Running activities in voice channels (Features/ActivitiesFeature.cs).</summary>

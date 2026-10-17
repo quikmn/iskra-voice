@@ -6,10 +6,13 @@ import { replyLine, rollTerms } from '../../state/builtinBotsLogic'
 import { errorMessage } from '../../i18n/errors'
 import { whenText } from '../productivity/WhenPicker'
 import { isMoreReply, MoreBuiltinReply } from './MoreBuiltinReply'
+import { FeedPost } from './FeedPost'
+import { isFeedReply } from '../../state/feedsLogic'
 import '../bots.css'
 
 export function BuiltinReply({ server, reply }: { server: ServerState; reply: Reply }) {
   if (isMoreReply(reply)) return <MoreBuiltinReply server={server} reply={reply} />
+  if (isFeedReply(reply)) return <FeedPost server={server} reply={reply} />
   return <ClassicReply server={server} reply={reply} />
 }
 

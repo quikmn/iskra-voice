@@ -1,7 +1,7 @@
 // Built-in bots (Dice, Polls, Reminders): pure helpers for their command hints and how their answers read.
 import type { BotCommand, BuiltinBotId, BuiltinReply } from '../core/protocol'
 
-export const BUILTIN_BOTS: readonly BuiltinBotId[] = ['dice', 'polls', 'reminders', 'starboard', 'birthdays', 'welcome']
+export const BUILTIN_BOTS: readonly BuiltinBotId[] = ['dice', 'polls', 'reminders', 'starboard', 'birthdays', 'welcome', 'feeds']
 
 type T = (key: string, args?: Record<string, unknown>) => string
 

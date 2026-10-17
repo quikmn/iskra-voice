@@ -102,7 +102,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 | 5.14 Information transfer | TLS, E2EE, encrypted backups (passphrase sealed to the server key) | SEC | met |
 | 5.15 Access control | Policy and product access control | POL/access-control | met |
 | 5.16 Identity management | Accounts are keys; device certificates; signed per-server key log (key transparency) with client-side checks and gossip; admin accounts listed | POL/access-control, POL/asset-inventory | met |
-| 5.17 Authentication information | Recovery keys user-held; secrets in GitHub/devkeys; MFA and old v1 secrets to handle | OA 1, OA 18 | owner-action |
+| 5.17 Authentication information | Recovery keys user-held; secrets in GitHub/devkeys; third-party keys a server holds (KLIPY key, the Feeds bot's Twitch app secret) stay in `iskra.db`, never sent to apps, removable by admins/the owner (docs/security.md, Feeds); MFA and old v1 secrets to handle | OA 1, OA 18 | owner-action |
 | 5.18 Access rights | Yearly access review defined | POL/access-control "Access review" | owner-action |
 | 5.19 Supplier relationships | Vendor register with checks before adding | POL/vendor-register | met |
 | 5.20 Security in supplier agreements | DPAs to confirm and file | OA 12 | owner-action |

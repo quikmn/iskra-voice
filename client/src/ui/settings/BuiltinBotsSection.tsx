@@ -10,6 +10,7 @@ import type { ServerState } from '../../state/store'
 import { Avatar } from '../bits'
 import { BotBadge } from '../chat/BotBits'
 import { MoreBuiltinBotSettings } from './MoreBuiltinBotSettings'
+import { FeedSettings } from './FeedSettings'
 import '../dialogs/InternetSettings.css'
 import '../bots.css'
 
@@ -42,7 +43,7 @@ export function BuiltinBotsSection({ server }: { server: ServerState }) {
         const bot = listed.find((b) => b.id === id)
         const on = !!bot?.enabled
         const name = t(`builtinBots.names.${id}`)
-        const settings = admin && on && isMoreBuiltin(id)
+        const settings = admin && on && (isMoreBuiltin(id) || id === 'feeds')
         return (
           <div key={id} className="builtin-bot-item">
             <div className="bot-row builtin-bot-row">
@@ -61,7 +62,7 @@ export function BuiltinBotsSection({ server }: { server: ServerState }) {
                 {t('moreBots.settings.show', { name })}
               </button>
             )}
-            {settings && open === id && <MoreBuiltinBotSettings server={server} bot={id} />}
+            {settings && open === id && (id === 'feeds' ? <FeedSettings server={server} /> : isMoreBuiltin(id) && <MoreBuiltinBotSettings server={server} bot={id} />)}
           </div>
         )
       })}

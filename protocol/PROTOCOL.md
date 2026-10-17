@@ -285,7 +285,7 @@ A new world has no owner. On startup the server writes a single-use owner invite
 |---|---|---|---|
 | `link.preview` | `url` (http/https, no credentials) | `{ preview: { url, siteName, title, description } \| null }` | anyone |
 
-The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s, ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. IPv6 addresses that carry an IPv4 one (NAT64 `64:ff9b::/96`, 6to4 `2002::/16`, `::a.b.c.d`, `::ffff:…`) get the IPv4 rules; Teredo, local NAT64 and documentation ranges are refused. Push deliveries use the same check. No images are fetched or shown. Runs off the read loop.
+The server fetches the page (so viewers' IPs aren't sent to every site): ≤ 512 KB of HTML, 6 s for the headers and 8 s in all including the body (a page that trickles is cut off), ≤ 3 redirects, cached for an hour. It only connects to public addresses: each connection's IP is checked after DNS resolution, so private ranges, loopback, link-local/cloud metadata and redirects into them are refused. IPv6 addresses that carry an IPv4 one (NAT64 `64:ff9b::/96`, 6to4 `2002::/16`, `::a.b.c.d`, `::ffff:…`) get the IPv4 rules; Teredo, local NAT64 and documentation ranges are refused. Push deliveries use the same check. No images are fetched or shown. Runs off the read loop.
 
 ## Pins, search and threads
 
@@ -1173,7 +1173,7 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 - `hoist`: shown as its own group in the member list. Name colour: the highest role with a colour. Both are client-side choices.
 - `Member` gains `roles: [roleId]` (highest first); members can hold several. `Channel` gains `overrides: [{ roleId, allow: [ChannelPerm], deny: [ChannelPerm] }]`.
 
-**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`, `manageAutoMod` ([AutoMod](#automod) settings), `prioritySpeaker` ([priority speaker](#whisper-and-priority-speakers)), `sendTts` ([/tts messages](#text-to-speech-tts)). Clients offer a "Moderator" preset with all of them. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
+**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`, `manageAutoMod` ([AutoMod](#automod) settings), `prioritySpeaker` ([priority speaker](#whisper-and-priority-speakers)), `sendTts` ([/tts messages](#text-to-speech-tts)), `exportChannels` ([channel export](#channel-export)). Clients offer a "Moderator" preset with all of them but `exportChannels`. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
 
 **Hierarchy**: the owner, then admins, then members with custom roles by their highest role's position, then trusted, member, guest. Kicking, banning, timing out, deleting someone's message, managing someone's roles, muting and moving work only on people strictly below you. Members holding the same highest role are equal.
 
@@ -2695,7 +2695,7 @@ BuiltinBot { "id": "dice", "accountKey": "<b64u>" | null, "enabled": true }
   author). Event `builtin.bots { bots }` goes to everyone on a change, next to the usual `member.joined` and
   `bot.commands` (on) or `member.removed` (off). Turning on a bot that's on (or off one that's off) changes nothing.
 - The bot's key is a fresh Ed25519 public key whose private key is never kept, so nobody can sign in as it.
-- Members carry `builtin: "dice" | "polls" | "reminders" | "starboard" | "birthdays" | "welcome" | null`; built-in bots always show as online. Kicking one is
+- Members carry `builtin: "dice" | "polls" | "reminders" | "starboard" | "birthdays" | "welcome" | "feeds" | null`; built-in bots always show as online. Kicking one is
   the same as turning it off. Rate limit: 10, then one a second.
 
 ### Commands
@@ -4428,3 +4428,188 @@ be matched up without either one naming anyone.
   invite link doesn't.
 - No new requests or events. Log line format and codes: [docs/development.md, Logs](../docs/development.md#logs) and
   [docs/log-codes.md](../docs/log-codes.md) (from `protocol/log-codes.json`).
+
+## Channel export
+
+Admins can export channels as a zip that opens offline: one readable HTML page and one JSON file per channel, plus the
+attachments (like DiscordChatExporter). The server builds it in the background and hands out a short-lived download link,
+like [Download my data](#download-my-data).
+
+| type | body | result | who |
+|---|---|---|---|
+| `channel.export` | `channelIds` (1–25 channel ids, no duplicates), `from?`, `to?` (ms, inclusive; `from` ≤ `to`), `attachments?` (default true), `threads?` (default true), `timeZone?` (IANA name ≤ 64 chars, for the times in the HTML; unknown: UTC), `lang?` (`en` \| `sv`, the HTML's own words; default `en`) | `{ job: ExportJob }` (running) | `exportChannels` permission (admins and the owner by default; `forbidden`, key `export_forbidden`), never bots (key `export_bot`) |
+| `channel.export.status` | | `{ jobs: [ExportJob] }` (yours, newest first, until their link expires) | `exportChannels` |
+| `channel.export.cancel` | `id` (a running job of yours) | `{ job }` | `exportChannels` |
+
+| event | body | sent to |
+|---|---|---|
+| `channel.export.progress` | `{ job: ExportJob }` (about every 2%, and once when it ends) | the requester's sessions |
+
+```jsonc
+ExportJob { "id": "<b64u 12>", "state": "running" | "done" | "failed" | "cancelled", "channelIds": [1, 7], "from": null, "to": null,
+            "attachments": true, "threads": true, "done": 120, "total": 400,   // items (messages, posts, pages) written so far
+            "createdAt": 1760000000000,
+            "url": "/channel-export/<token>" | null, "name": "iskra-export-gaming-2026-10-17.zip" | null, "size": 123456 | null,
+            "expiresAt": 1760003600000 | null,                                  // when done: the link and file go then
+            "error": { "code", "message", "key", "args" } | null }              // when failed
+```
+
+- **What can be exported:** text, voice and stage channels (their chat), forum channels (posts with their first message
+  and comments) and docs channels (every page as it is now; the range doesn't apply). Threads come with their channel
+  when `threads` is on (a thread's messages are filtered by the range too). Whiteboards can't be exported (`bad_request`,
+  key `export_kind`). Every channel must be one you can read now (`not_found` otherwise, as for every channel).
+- **Never exported:** end-to-end encrypted channels (`bad_request`, key `export_encrypted`: the server only has
+  ciphertext, so they can only be exported from a member's device), DMs and group DMs (they aren't channels), deleted
+  messages (they're gone), and disappearing messages (anything with an expiry is left out, so an export never outlives
+  a timer). Account keys are never in the export: authors are numbered (`a1`, `a2`, …) with their display name (server
+  nickname, else name) at export time; `<@accountKey>` mentions become `@Name`, `<@&roleId>` `@Role`, in every text
+  (messages, topics, titles, thread and post names, polls, embeds, file names, GIF titles). Names, titles and file
+  names lose invisible format characters (Unicode Cf such as bidi overrides; the emoji joiner stays).
+- **Job:** one at a time per server (`rate_limited`, key `channel_export_busy`); 3 per account, then one every 10
+  minutes (`rate_limited`, key `channel_export_slow`). The requester's sessions get `channel.export.progress`;
+  `channel.export.status` brings back the jobs after a reconnect (a server restart forgets them and deletes the files).
+- **Size cap:** 1 GB per zip. Attachments are counted before anything is written; over the cap, the job fails at once
+  with key `export_too_big` (`args: { maxMb }`): turn off attachments or pick a shorter range. Without attachments a
+  zip that still grows over the cap fails the same way (checked while it's written). A job also fails at once with key
+  `export_disk` when the server's disk has less free space than its estimated size plus 1 GB.
+- **Rights are checked again** before each channel is written and when the link is used: if the requester is no
+  longer a member, lost `exportChannels` or can no longer read one of the channels, the job fails
+  (`export_forbidden`), or the link answers `404` and the file is deleted.
+- **Download:** `GET /channel-export/<token>` (24 random bytes) returns the zip (`Content-Disposition: attachment`,
+  `no-store`, `nosniff`, a sandbox CSP) for 1 hour; then the link is gone and the file deleted. Files are written to
+  `exports/` in the world folder, which backups leave out; leftovers are deleted when the server starts, and the hourly
+  retention sweep deletes any `channels-*.zip` older than an hour that no job holds.
+- **Records:** each export adds an audit log entry `channel.export` and a security log entry `channel.export`, both
+  with `{ channelIds, channelNames, from, to, attachments, threads }` (never any content). Cancelled and failed jobs are recorded too
+  (they were asked for).
+
+**The zip:**
+
+```
+README.txt
+<channelId>-<name>/channel.html      readable offline
+<channelId>-<name>/channel.json      the same content, for programs
+<channelId>-<name>/attachments/<n>-<file name>   (with attachments on)
+```
+
+**`channel.json`** (`format: "iskra-channel-export"`, `version: 1`; new fields may be added in a version, a field never
+changes meaning without a new version):
+
+```jsonc
+{ "format": "iskra-channel-export", "version": 1, "exportedAt": 1760000000000, "exportedBy": "Viktor",
+  "server": { "name": "Gaming" },
+  "channel": { "id": 1, "name": "general", "kind": "text", "topic": "" },
+  "range": { "from": null, "to": null }, "includes": { "attachments": true, "threads": true },
+  "authors": { "a1": { "name": "Viktor", "type": "member" | "bot" | "webhook" | "imported" | "former" } },
+  "messages": [ExportMessage],                                   // text, voice, stage and forum (forum: none, see posts)
+  "threads": [{ "id", "name", "rootId", "author", "createdAt", "messages": [ExportMessage] }],
+  "posts": [{ "id", "title", "author", "createdAt", "tags": ["name"], "pinned", "closed", "locked",
+              "message": ExportMessage | null, "comments": [ExportMessage] }],   // forum channels
+  "pages": [{ "id", "parentId", "title", "text", "createdAt", "updatedAt", "updatedBy" }] }   // docs channels
+
+ExportMessage { "id", "author": "a1", "createdAt", "editedAt": null, "text": "hi @Sam",
+  "replyTo": { "id", "author": "a2" | null, "excerpt" } | { "id", "deleted": true } | null,
+  "attachments": [{ "name", "type", "size", "width", "height", "file": "attachments/1-cat.png" | null }],
+  "reactions": [{ "emoji", "count" }], "pinned": false,
+  "poll": { "question", "multi", "closed", "options": [{ "text", "votes" }] } | null,
+  "embeds": [{ "title", "description", "url", "fields": [{ "name", "value" }], "footer" }],   // webhook embeds
+  "sticker": "name" | null, "gif": { "title", "url" } | null, "voiceMessage": { "durationMs" } | null,
+  "forwarded": true | false, "thread": threadId | null }
+```
+
+Lists are oldest first; times are ms. `author` keys only point into `authors`.
+
+**`channel.html`** is rendered on the server and has no script at all. Every piece of user text (names, messages,
+titles, file names, embeds) is HTML-escaped; message formatting (bold, italic, strike, spoilers, code, quotes, headings,
+lists, links) is turned into a fixed set of tags, and only `http:` and `https:` links become links
+(`rel="noopener noreferrer nofollow"`). A strict CSP sits in a `<meta>` tag: `default-src 'none'; img-src 'self' file:; media-src 'self' file:; style-src 'sha256-…'` (the page's own stylesheet only), `base-uri 'none'; form-action 'none'`.
+Nothing is loaded from the network: no fonts, scripts or remote images (GIFs and remote embeds are links). Images
+among the attachments are shown inline from `attachments/` (SVG only as a file); other files are links. Only passive
+extensions are kept in the zip (`png jpg jpeg gif webp avif bmp mp4 webm mov mp3 ogg opus wav flac m4a txt md csv zip
+7z`); any other attachment, and one without an extension, gets `.bin` added (`report.pdf.bin`, `page.html.bin`).
+A failed job's `error.key` is `export_too_big`, `export_disk`, `export_forbidden` or `export_failed` (a bug; the server logs it).
+
+## Feeds
+
+**Feeds** is another [built-in bot](#built-in-bots) (`builtin.bots.set`, `bot: "feeds"`): it posts new posts from RSS
+or Atom feeds, new videos from YouTube channels and "went live" from Twitch channels, each in the text channel an admin
+picks. It's the one built-in bot that makes the **server contact other sites**, so it's off until an admin turns it on,
+and while it's off nothing is fetched (subscriptions are kept). It's a bot member like the others (role, channel
+overrides, `builtin: "feeds"`), listed after Welcome in `welcome.builtinBots`; it has no command and never posts in
+[encrypted channels](#end-to-end-encrypted-channels).
+
+| type | body | result | who |
+|---|---|---|---|
+| `feeds.get` | | `{ subscriptions: [FeedSubscription], twitch: { configured, clientId \| null }, max: 25 }` | admins (`forbidden`, key `feeds_admin`) |
+| `feeds.add` | `kind: "rss" \| "youtube" \| "twitch"`, `source` (≤ 512), `channelId`, optional `mention`, `mentionRoleId`, `template`, `intervalMinutes` | `{ subscription }` | admins, while Feeds is on (`bad_request`, key `feeds_off`); audit `feed.add` |
+| `feeds.update` | `id`, any of `channelId`, `mention`, `mentionRoleId`, `template`, `intervalMinutes`, `paused` | `{ subscription }` | admins; audit `feed.update` (`{ id, changed: [field] }`) |
+| `feeds.remove` | `id` | `{}` | admins; audit `feed.remove` |
+| `feeds.check` | `id` | `{ subscription }` (after checking now) | admins; once a minute per subscription (`feeds_check_wait`, args `{ seconds }`) |
+| `feeds.twitch.set` | `clientId`, `clientSecret` (both `""` removes them) | `{ twitch: { configured, clientId } }` | the owner (`forbidden`, key `feeds_twitch_owner`); audit `feed.twitch` (never the secret) |
+
+```jsonc
+FeedSubscription {
+  "id": 3, "kind": "rss" | "youtube" | "twitch",
+  "source": "https://blog.example/feed.xml" | "UC…(24)" | "twitch_login",
+  "name": "Example blog",                 // the feed's title, the YouTube channel's or the Twitch channel's name (≤ 100)
+  "url": "https://…",                     // where people can see it: the feed's address, youtube.com/channel/…, twitch.tv/…
+  "channelId": 12, "mention": "everyone" | "here" | "role" | null, "mentionRoleId": 4 | null,
+  "template": "",                         // empty: the default post
+  "intervalMinutes": 15, "paused": false,
+  "createdBy": "<accountKey>", "createdAt": 0,
+  "lastCheckAt": 0 | null, "lastOkAt": 0 | null, "lastPostAt": 0 | null, "nextCheckAt": 0,
+  "failures": 0, "lastError": null | "unreachable" | "http" | "not_feed" | "too_large" | "rate_limited" | "twitch_setup" | "twitch_auth",
+  "canPing": true                         // whether the mention will notify, given the Feeds bot's own permissions
+}
+```
+
+- **Sources.** `rss`: an `http(s)` address of an RSS (0.9x, 1.0, 2.0) or Atom feed; a web page that names its feed
+  (`<link rel="alternate" type="application/rss+xml|atom+xml">`) is replaced by that feed's address when added. `youtube`:
+  a channel id (`UC` + 22 characters), a `youtube.com/channel/UC…` address, a channel feed address, or a handle
+  (`@name` or `youtube.com/@name`), which the server looks up once on YouTube's public channel page (no API key);
+  when that fails: `feeds_youtube_channel` (apps say where to find the channel id). The server reads YouTube's public
+  feed `https://www.youtube.com/feeds/videos.xml?channel_id=…`. `twitch`: a login or `twitch.tv/<login>` (1–25 letters,
+  digits or `_`, `feeds_twitch_login`), only when the owner has given the server a Twitch app's client id and secret
+  (`feeds_twitch_setup` otherwise; made at dev.twitch.tv, free). The server uses Twitch's Helix API with an app token
+  (client credentials): `GET /helix/users?login=` when added (unknown: `feeds_twitch_unknown`), then `GET
+  /helix/streams?user_login=`. The secret is stored in `iskra.db` and never sent to any app; credentials Twitch refuses
+  are `feeds_twitch_credentials`.
+- **Adding** fetches the source once: not reachable, refused, timed out or not allowed (a private address) are all
+  `feeds_unreachable` (one answer, so it can't be used to probe hosts or ports), not a feed `feeds_not_feed`, too big
+  `feeds_too_large`, a bad address `feeds_url` (also any port but 80, 443 or 1024 and up). Everything already in it is marked as seen,
+  so nothing old is posted (a Twitch channel that's live right now is posted the next time it goes live). The same
+  source twice in one channel: `feeds_duplicate`. At most 25 per server (`feeds_max`, args `{ max }`).
+- **Fields.** `channelId`: as for the other built-in bots (`builtin_bot_channel`, unknown or unreadable `not_found`),
+  and one the admin can post in (`feeds_channel_send`); the Feeds bot must be able to post there too (unlike
+  Starboard's read-only board), else nothing is posted. `intervalMinutes`: RSS and YouTube 5–1440 (default 15), Twitch 2–60
+  (default 3) (`feeds_interval`, args `{ min, max }`). `template` ≤ 500 characters, newlines allowed (`feeds_template`,
+  args `{ max }`), with `{title}`, `{url}`, `{name}` (the feed's or channel's name); values from the feed are escaped
+  for markdown and get a joiner after every `@`, and the whole filled text is defused (`@everyone`, `@here`, `<@`), so
+  only `mention` pings. A placeholder right after `@`, `<` or `&` is refused (`feeds_template_placeholder`). The
+  filled text is cut to 3000 characters. `mention`: `null`, `"role"` (with `mentionRoleId`), `"everyone"` or `"here"`.
+  An admin may only pick `everyone`/`here`, or a role that isn't mentionable, if they may mention everyone themselves
+  (`forbidden`, key `feeds_mention_denied`); an unknown role is `not_found`. Whether it notifies then follows the
+  usual rules for the Feeds bot as author ([role mentions](#roles-and-permissions), `@everyone`): `canPing` says
+  whether it will. The mention goes on at most one post per subscription every 10 minutes.
+- **Posting.** Each new item is a message from the Feeds bot (oldest first, at most 5 per check; more are marked as
+  seen), plain English `text` with the mention, the title and the link (apps show a link preview by their own rules),
+  and `builtin`: `{ "bot": "feeds", "kind": "feed.item", "for": "<the bot's key>", "source": "rss" | "youtube" |
+  "twitch", "subscriptionId", "name", "title" (≤ 300, one line), "url" (http(s), ≤ 2048) | null, "mention": "everyone"
+  | "here" | "role" | null, "mentionRoleId", "text": "<filled template>" | null }` (`null`: the default post, worded by
+  the app). Posts push like any message from the bot. Paused subscriptions, a channel the bot can't see, an encrypted
+  channel or a timed-out bot: nothing is posted (items are still marked as seen). The subscription is read again after
+  the fetch: one removed meanwhile posts nothing, and changes made meanwhile (channel, mention, text) apply.
+- **Fetching.** `GET` with `If-None-Match`/`If-Modified-Since` from the last answer (304: nothing new), user agent
+  `Iskra-Feeds/1`, connect timeout 5 s, 20 s in all for the request, its redirects and its whole body (a site that
+  trickles bytes is cut off; checks run side by side and never wait for each other's), at most 3 redirects. Like [link previews](#link-previews), only
+  public addresses are reached, checked after DNS on every connection (redirects and DNS rebinding included); a
+  LocalOnly server reaches only loopback addresses (for tests). Answers: an XML content type (or `text/plain`), at
+  most 2 MiB; XML is read without DTDs, entities from them or any external resource. Images are never fetched (not
+  even thumbnails). Checks happen every `intervalMinutes` plus up to 10% random delay; after a failure the wait doubles
+  each time (at most 6 hours; `Retry-After` is respected). Seen items are kept per subscription (the last 500, by a
+  hash of their id or link).
+- **Rate limits:** adds that get as far as fetching 10 then one per 5 s (`rate_limited`, key `feeds_slow`), `feeds.update`/`feeds.remove` 20 then 2/s, `feeds.check` 5 then
+  one per 5 s, `feeds.twitch.set` 5 then one per 10 s, `feeds.get` 10 then 2/s.
+
+Migration `feeds-1`: `feed_subscriptions` (deleted with their channel), `feed_seen` (deleted with the subscription)
+and `feed_settings` (the Twitch credentials).

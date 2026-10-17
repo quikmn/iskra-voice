@@ -96,6 +96,12 @@ public sealed class RateLimiter(TimeProvider time)
         ["builtin.bots.config.set"] = (20, 2),
         ["birthday.set"] = (5, 0.5),
         ["builtin.bots.set"] = (10, 1),
+        ["feeds.get"] = (10, 2),
+        ["feeds.added"] = (10, 0.2), // checked by FeedsFeature: only adds that go on to fetch count
+        ["feeds.update"] = (20, 2),
+        ["feeds.remove"] = (20, 2),
+        ["feeds.check"] = (5, 0.2),
+        ["feeds.twitch.set"] = (5, 0.1),
         ["interaction.invoke"] = (5, 2),
         ["interaction.respond"] = (20, 5),
         ["teams.created"] = (3, 0.1), // checked by TeamsFeature: only splits that go ahead count

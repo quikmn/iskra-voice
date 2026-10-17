@@ -20,6 +20,8 @@ public enum Perm : long
     ManageAutoMod = 1 << 12,
     PrioritySpeaker = 1 << 13,
     SendTts = 1 << 14,
+    /// <summary>Export channels as a zip (Features/ChannelExports.cs).</summary>
+    ExportChannels = 1 << 15,
 }
 
 /// <summary>What a channel override can allow or deny for a role.</summary>

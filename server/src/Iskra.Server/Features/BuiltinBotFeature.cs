@@ -30,6 +30,7 @@ public static partial class BuiltinBotFeature
         new("starboard", "Starboard", null, "", ""),
         new("birthdays", "Birthdays", "birthday", "Birthday greetings", "set 14 March | remove | list"),
         new("welcome", "Welcome", null, "", ""),
+        new("feeds", "Feeds", null, "", ""),
     ];
 
     /// <summary>Marks reminder data written by the Reminders bot (not sealed: the command was a plain channel message).</summary>

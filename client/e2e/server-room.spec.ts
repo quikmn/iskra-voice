@@ -12,7 +12,7 @@ const SERVER_SECTIONS = [
   'Overview', 'Channels', 'Voice', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Onboarding', 'Translation',
   'Members', 'Roles', 'Reports', 'AutoMod', 'Activity log', 'Sign-ins & security',
   'Bots & webhooks', 'Activities',
-  'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates',
+  'Internet access', 'Limits', 'Backup & move', 'Export channels', 'Import from Discord', 'Server updates',
 ]
 
 test('the server room belongs to one server; My settings has no server sections', async ({ browser }) => {

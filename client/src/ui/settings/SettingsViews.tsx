@@ -38,6 +38,7 @@ import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
 import { ActivitiesSection } from '../activities/ActivitiesSection'
 import { BackupSection } from './BackupSection'
+import { ExportSection } from './ExportSection'
 import { LimitsSection } from './LimitsSection'
 import { BugInboxSection } from './BugInboxSection'
 import { AfkSection } from '../afk/AfkSection'
@@ -317,6 +318,7 @@ function ServerSection({ id, server, onClose }: { id: ServerSectionId; server: S
     case 'limits': return <LimitsSection server={server} />
     case 'bugInbox': return <BugInboxSection server={server} />
     case 'backup': return <BackupSection server={server} />
+    case 'export': return <ExportSection server={server} />
     case 'import': return <ImportSection server={server} />
     case 'updates': return <UpdatesSection server={server} />
     case 'translate': return <TranslateServerSection server={server} />
