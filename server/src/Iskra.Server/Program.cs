@@ -283,9 +283,12 @@ app.MapGet("/.well-known/iskra-probe/{token}", (string token, InternetHost inter
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20), KeepAliveTimeout = TimeSpan.FromSeconds(30) });
 
 // Readable from any page: the invite landing shows the server's name (and icon, from GET /icon) before joining.
-app.MapGet("/", (HttpContext context, World w) =>
+// A browser opening the address itself gets the public page instead (LandingPage).
+app.MapGet("/", (HttpContext context, World w, Hub hub) =>
 {
+    if (LandingPage.WantsHtml(context.Request)) return LandingPage.Serve(context, w, hub);
     context.Response.Headers.AccessControlAllowOrigin = "*";
+    context.Response.Headers.Vary = "Accept";
     return Results.Json(new { iskra = 1, name = w.Settings.Name, icon = ServerImageFeature.IconVersion(w.Store) });
 });
 app.MapGet("/icon", (HttpContext context, World w, Uploads uploads) => ServerImageFeature.ServeIcon(context, w, uploads));

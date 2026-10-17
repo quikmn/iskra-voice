@@ -155,6 +155,7 @@ export const compliance = {
     join_declined: 'Turned away by a moderator',
     invites_paused: 'Invites paused',
     invites_resumed: 'Invites resumed',
+    landing_settings: 'Changed the public page',
     device_revoke: 'Removed a device',
     account_rotate: 'Replaced their account key',
     account_rotate_disputed: 'Account key disputed',

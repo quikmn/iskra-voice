@@ -786,7 +786,7 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 
 | Endpoint | What it is |
 |---|---|
-| `GET /` | `{ iskra: 1, name, icon }`: identifies an Iskra server. Any origin may read it (`Access-Control-Allow-Origin: *`): invite landings show the name. `icon`: a stamp of the server icon (16 hex characters) or `null` ([Server icon and banner](#server-icon-and-banner)) |
+| `GET /` | `{ iskra: 1, name, icon }`: identifies an Iskra server (a browser asking for `text/html` gets the [public page](#public-page) instead). Any origin may read it (`Access-Control-Allow-Origin: *`): invite landings show the name. `icon`: a stamp of the server icon (16 hex characters) or `null` ([Server icon and banner](#server-icon-and-banner)) |
 | `GET /icon` | The server icon alone, for invite landings before joining; `404` without one ([Server icon and banner](#server-icon-and-banner)) |
 | `GET /health` | Version, uptime and voice status for uptime monitors ([Health](#health)) |
 | `GET /ws` | The WebSocket ([Connection](#connection)) |
@@ -3699,3 +3699,49 @@ bug inbox off when the existing channel of that name is readable by more people 
 `iskra-server templates <file> --json` gains per-channel `topic`, `messages` (a count), `pages` (titles), `disappear`
 and `settings.translation`. `server.template.export` gains `topic`, `disappear` and `settings.translation` (never
 messages or pages); it writes `"version": 3` when it has any of them, else `2`, so older servers can still read it.
+
+## Public page
+
+A browser that opens the server's own address gets an HTML page instead of the JSON above: `GET /` with an `Accept`
+header that names `text/html` (a navigation). Anything else (the apps' `fetch`, curl, monitors) still gets
+`{ iskra: 1, name, icon }`, unchanged. The page is rendered on the server with every user-written string HTML-encoded,
+has no scripts, loads nothing from anywhere but this server, and works without JavaScript.
+
+- **Off (the default):** the page says only that this is an Iskra server, with links to download Iskra
+  (`https://iskra.foo/#download`, the releases page) and to open the web app (`AppUrl`). No name, icon, banner,
+  description, counts or invite.
+- **On:** the server's name, icon (`/icon`) and banner (its `/files/` address), the owner's description, and, each only
+  when ticked, the start of the rules (up to 800 characters, cut at a word) and an approximate count of members and of
+  members online now (people only, invisible members not counted; exact below 10, then rounded down to 5, 10 or 100).
+  When the owner picked an invite: "Join in your browser" (`<AppUrl>/#/join/<token>`) and "Open in the Iskra app"
+  (`iskra://join/<token>`), the [invite link](#invite-links) token built from the server's public address
+  (`InternetUrl`, else `PublicUrl`, else the address the browser used) without a p2p secret. While invites are paused
+  the page says so instead; once the invite is expired, used up or revoked the page asks people to get an invite from
+  someone. An approval invite adds that a moderator lets them in.
+- **Language:** Swedish when `Accept-Language` prefers `sv`, else English (`Content-Language`, `<html lang>`).
+- **Headers:** `Content-Security-Policy: default-src 'none'; style-src 'sha256-…'; img-src 'self'; base-uri 'none';
+  form-action 'none'; frame-ancestors 'none'` (the one inline stylesheet by its hash), `Permissions-Policy` as for
+  profile pages, `Cache-Control: no-store`, `Vary: Accept, Accept-Language`, and `X-Robots-Tag: noindex, nofollow`
+  (plus `<meta name="robots">`) unless the page is on and the owner ticked "Let search engines list this page".
+- **Limits:** 30 page loads at once per client address (IPv6: per /64), then one a second; over that `429` with
+  `Retry-After: 10`. Addresses are used in memory for this only.
+
+| type | body | result | who |
+|---|---|---|---|
+| `landing.get` | | `{ settings }` | owner (others: `forbidden`, key `owner_landing`) |
+| `landing.update` | any of `enabled`, `description`, `showRules`, `showCounts`, `indexable` (bools but `description`), `invite` (an invite code; `""` or `null` removes it) | `{ settings }` | owner; rate limit 10, then 1 a second |
+
+`settings`: `{ enabled, description, showRules, showCounts, indexable, invite: Invite | null, inviteGone }`. `invite`
+is the chosen invite while it still works; `inviteGone` is true when one was chosen but has expired, been used up or been
+revoked. Fields left out keep their value; everything defaults to off and empty.
+
+- `description`: plain text up to 500 characters, newlines allowed, trimmed and NFC-normalized, no control or invisible
+  formatting characters (else `bad_request`, key `landing_description`, args `{ max }`); blank removes it. Shown as
+  text, never as HTML or Markdown.
+- `invite`: must be an invite that still works (else `bad_request`, key `landing_invite`) for the member or guest role
+  (else key `landing_invite_role`). The owner sees every invite (`invite.list`).
+- Event `landing.settings { settings }` to all of the owner's sessions after every update.
+- Audit `landing.update` (`{ enabled }`); security log `landing.settings` (`{ enabled, indexable, showRules,
+  showCounts, invite: bool, descriptionChanged }`, never the text) when something changed.
+- Storage: `landing_page` (one row: `enabled`, `description`, `show_rules`, `show_counts`, `indexable`,
+  `invite_code`), migration `landing-1`. Server data, not personal data: no account keys.

@@ -2592,3 +2592,32 @@ export interface Requests {
   'room.invite': [{ channelId: number; accountKey: string }, { channel: Channel }]
   'room.uninvite': [{ channelId: number; accountKey: string }, { channel: Channel }]
 }
+
+// ── public page ──
+// See "Public page" in PROTOCOL.md: what a browser sees at the server's own address.
+
+export interface LandingSettings {
+  /** Off: the page only says this is an Iskra server. */
+  enabled: boolean
+  /** Plain text, up to 500 characters (newlines allowed); "" = none. */
+  description: string
+  showRules: boolean
+  /** An approximate count of members and of members online. */
+  showCounts: boolean
+  /** Lets search engines list the page (otherwise noindex). */
+  indexable: boolean
+  /** The invite behind the page's Join button, while it still works. */
+  invite: Invite | null
+  /** An invite was chosen but has expired, been used up or been revoked. */
+  inviteGone: boolean
+}
+
+export interface Events {
+  'landing.settings': { settings: LandingSettings }
+}
+
+export interface Requests {
+  'landing.get': [Record<string, never>, { settings: LandingSettings }]
+  /** Owner only. `invite: ''` or `null` removes the invite. */
+  'landing.update': [Partial<Omit<LandingSettings, 'invite' | 'inviteGone'>> & { invite?: string | null }, { settings: LandingSettings }]
+}

@@ -34,6 +34,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Uploaded files still in use | Until their message/avatar/etc. is deleted, or the retention period (files used by avatars, emoji, stickers, sounds, events and webhooks are kept) | `RetentionSweeper` | `Retention.UploadsDays` (0 = keep) |
 | Server icon and banner (the pictures, without their metadata, and which admin set each one and when) | The picture until an admin changes or removes it (the old file then goes with the 24-hour sweep); who set it until that account is deleted | `ServerImageFeature`; account deletion | No |
 | Emoji and stickers members bring over from their other servers (the picture, its name, who brought it, when, and the SHA-256 of the bytes, so the same picture is stored once) | Until an admin deletes them, or until newer ones push the oldest out (300 emoji, 100 stickers per server); their files then go with the 24-hour sweep | Admins (`emoji.delete`, `sticker.delete`); `emoji.import` / `sticker.import` trimming; `UploadSweeper` | No |
+| Public page settings (on or off, the owner's description of the server, which parts to show, which invite) | Until the owner changes them. Server data, not personal data: no account keys are kept with them (the activity log says who changed what) | `LandingFeature` | No |
 | Uploads nothing uses | 24 hours | `UploadSweeper` | No |
 | Unfinished uploads in parts (part of a file, often encrypted DM ciphertext) | 10 minutes after the last part arrived, deleted with the next upload or the hourly sweep | `Uploads`, `UploadSweeper` | No |
 | Audit log (moderation and admin actions) | 90 days | `ModerationSweeper` | `Retention.AuditDays` (0 = keep) |
@@ -123,4 +124,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-15 | Looking-for-group posts and team splits |
 | 2026-10-15 | Message translation on the device (texts never leave it); translation models folder on the server |
 | 2026-10-15 | Whiteboards: board objects, unfolded batches and their authors, pictures on boards |
-| 2026-10-17 | Follows in alert settings; emoji and stickers brought over from other servers; join-to-create voice rooms; watch party queues; account deletion covers the per-server picture and moderators' notes; streamer mode and search everywhere stay on the device |
+| 2026-10-17 | Public page settings (server data, no account keys); follows in alert settings; emoji and stickers brought over from other servers; join-to-create voice rooms; watch party queues; account deletion covers the per-server picture and moderators' notes; streamer mode and search everywhere stay on the device |

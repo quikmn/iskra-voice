@@ -157,6 +157,7 @@ export const compliance: Messages['compliance'] = {
     join_declined: 'Avvisad av en moderator',
     invites_paused: 'Inbjudningar pausade',
     invites_resumed: 'Inbjudningar återupptagna',
+    landing_settings: 'Ändrade den offentliga sidan',
     device_revoke: 'Tog bort en enhet',
     account_rotate: 'Bytte kontonyckel',
     account_rotate_disputed: 'Omstridd kontonyckel',

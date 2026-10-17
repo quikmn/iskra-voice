@@ -359,6 +359,8 @@ public sealed partial class Store : IDisposable
         ("modpack-1", ModPackMigration),
         // A picture per server, shown instead of the profile picture there.
         ("member-avatars-1", MemberAvatarsMigration),
+        // The public page a browser sees at the server's address.
+        ("landing-1", LandingMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

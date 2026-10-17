@@ -104,6 +104,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["lfg.created"] = (3, 1 / 30.0), // checked by LfgFeature: only posts that go ahead count
         ["lfg.join"] = (10, 1),
         ["lfg.leave"] = (10, 1),
+        ["landing.update"] = (10, 1),
         // Every request also takes from this one. The burst covers an app connecting: it asks for its settings, lists and
         // states feature by feature (~90 startup hooks). At 40 the first actions after joining were refused.
         ["*"] = (150, 20),
