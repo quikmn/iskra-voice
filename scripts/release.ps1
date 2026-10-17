@@ -390,8 +390,9 @@ try {
     $done = Wait-Run $run 30 'bots-sdk'
     if (-not $done -or $done.conclusion -ne 'success') { Stop-At 'npm publish failed' "Report: gh run view $($run.databaseId) -R $repo --log-failed. Don't move the tag; the next try is the next version." }
     $onNpm = $null
-    for ($i = 0; $i -lt 10 -and $onNpm -ne $Version; $i++) { if ($i) { Start-Sleep -Seconds 15 }; $onNpm = npm view "iskra-bots@$Version" version 2>$null }
-    if ($onNpm -ne $Version) { Stop-At 'not on npm yet' "bots-sdk.yml succeeded but npm doesn't list iskra-bots $Version yet. Check https://www.npmjs.com/package/iskra-bots in a few minutes." }
+    # npm's registry can take several minutes to list a fresh version (0.2.1 took about 4): wait up to 10.
+    for ($i = 0; $i -lt 40 -and $onNpm -ne $Version; $i++) { if ($i) { Start-Sleep -Seconds 15 }; $onNpm = npm view "iskra-bots@$Version" version 2>$null }
+    if ($onNpm -ne $Version) { Stop-At 'not on npm yet' "bots-sdk.yml succeeded but npm doesn't list iskra-bots $Version after 10 minutes. Check https://www.npmjs.com/package/iskra-bots; the publish itself succeeded." }
     Ok "iskra-bots $Version is on npm, with provenance"
     exit 0
   }
