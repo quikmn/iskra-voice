@@ -14,6 +14,7 @@ import {
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgMenu'
 import { GameNightItems } from '../teams/TeamsBits'
 import { RoomMenuItem } from '../rooms/RoomBits'
+import { ReadAloudChannelItem } from '../speech/ReadAloud'
 import { ClearVoiceStatusItem } from '../voiceStatus/VoiceStatus'
 import { SoundMenuRow, SoundMenuView } from '../sounds/SoundSettings'
 
@@ -145,6 +146,7 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
             {channel.kind !== 'forum' && channel.kind !== 'whiteboard' && <NotifyRows server={server} channelId={channel.id} setView={setView} run={run} />}
             <GameNightItems server={server} channel={channel} onClose={onClose} />
             <RoomMenuItem server={server} channel={channel} onClose={onClose} />
+            <ReadAloudChannelItem server={server} channel={channel} />
             <ClearVoiceStatusItem server={server} channel={channel} run={run} />
             {isAdmin && (
               <>

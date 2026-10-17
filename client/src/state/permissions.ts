@@ -7,7 +7,7 @@ import { t } from '../i18n'
 
 export const PERMISSIONS: Permission[] = [
   'manageMessages', 'timeoutMembers', 'kickMembers', 'banMembers', 'manageChannels', 'manageRoles', 'viewAuditLog',
-  'manageExpressions', 'manageWebhooks', 'mentionEveryone', 'moveMembers', 'muteMembers', 'manageAutoMod', 'prioritySpeaker',
+  'manageExpressions', 'manageWebhooks', 'mentionEveryone', 'moveMembers', 'muteMembers', 'manageAutoMod', 'prioritySpeaker', 'sendTts',
 ]
 
 export const permissionLabel = (p: Permission) => t(`roles.permissions.${p}.label`)

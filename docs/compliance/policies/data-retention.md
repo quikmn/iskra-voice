@@ -20,11 +20,13 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Disappearing messages (channel messages, DM and group envelopes, encrypted channel envelopes, with their reactions, pins, threads, search entries and files) | Until their expiry: the conversation's timer when sent (5 minutes to 4 weeks), or sooner if the sender's signed envelope says so. Never in any backup | `DisappearSweeper` (every 5 s, rows overwritten on disk); apps delete their copies on their own clocks; backups leave them out | Per conversation: people who manage channels (channels), either person (DMs), any member (groups) |
 | Disappearing message timers (which conversation, seconds, who set it and when) | Until changed; channel and group timers go with the channel or group | Channel or group deletion | — |
 | Keys protecting DM envelopes (prekeys) | Replaced weekly, deleted 30 days later (≈5 weeks); afterwards old envelopes can't be decrypted | Client and server prekey rotation | No |
+| Which messages were sent with /tts (a flag per message, no other data) | Same as the message | `RetentionSweeper` and message deletion | `Retention.MessagesDays` |
 | Earlier versions of edited messages (edit history) | Up to 20 per message; go with the message | `RetentionSweeper` and message deletion | `Retention.MessagesDays` |
 | Docs pages and their revisions | Pages until deleted; the last 50 revisions per page, older revisions also by the retention period | Docs edits; `RetentionSweeper` | `Retention.MessagesDays` |
 | Whiteboards (objects drawn; batches of changes with their author until folded into the board's snapshot, encrypted boards as ciphertext; pictures from uploads) | Until the board is cleared or its channel deleted; batches lose their author when folded (plain boards: by the server once 500 batches or 512 KB pile up; encrypted: when a member's app uploads a snapshot); live cursors are never stored | `wb.clear`, channel deletion, compaction; account deletion with messages removes authorship | No |
 | Reminders (due time; channel and message for server channels; what it's about and the note sealed) | Until 30 days after they fire, or until cancelled | `ProductivityScheduler` (hourly) | No |
 | Built-in bots' answers (Dice rolls, Polls and Reminders replies: the bot, who asked, what it meant) and their reminders (set with /remind: the note readable by the server, as the command was) | Answers: same as messages; reminders: as other reminders | `RetentionSweeper` and message deletion (answers go with their message); `ProductivityScheduler` | `Retention.MessagesDays` |
+| Birthdays bot: the day and month a member shared (never a year) and the year it was last announced; Starboard cards (the starred message's author, excerpt, first picture link and star count); members waiting to be welcomed until they agree to the rules; Welcome bot's private welcome (in memory, 15 minutes at most) | Birthday: until the member removes it, leaves, is removed or deletes their account; cards: as messages, and gone with the starred message; waiting welcomes: until they agree or leave | `birthday.remove`, member removal and account deletion; message deletion and `RetentionSweeper`; `BuiltinBotRuntime` | `Retention.MessagesDays` (cards) |
 | Scheduled messages | Until sent (then deleted) or deleted by the author; failed ones stay until the author edits or deletes them | `ScheduledFeature` | No |
 | Bot commands you used (who asked, on the bot's public answer) | With the answer message | `RetentionSweeper` and message deletion | `Retention.MessagesDays` |
 | DMs from bots: your setting (allowed or not, and when you changed it) and which bots you have a conversation with (who wrote first, when it started) | Until the account is deleted | Account deletion | No |
@@ -107,6 +109,9 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
   or stored; captions are dropped from memory seconds after they're shown. The speech model is downloaded once from
   the member's own Iskra server (which fetched it once from Hugging Face) and kept with the settings on the device
   (Cache Storage or IndexedDB) until the app or site data is removed ([voice-processing.md](../../voice-processing.md)).
+- Voice message transcripts are made on the device and never sent: channel ones are kept in the app's IndexedDB (at
+  most 2000, oldest dropped first) until sign-out or the app's data is removed; transcripts of end-to-end encrypted
+  voice messages only in memory. Read aloud uses the device's speech engine; nothing is stored or sent.
 - iskra.foo and app.iskra.foo store nothing about visitors; Cloudflare's short-lived request logs follow
   Cloudflare's retention.
 - Emails to spark@iskra.foo (support, safety, security, data requests): kept as long as needed to handle them, and
@@ -136,4 +141,5 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-17 | Public page settings (server data, no account keys); follows in alert settings; emoji and stickers brought over from other servers; join-to-create voice rooms; watch party queues; account deletion covers the per-server picture and moderators' notes; streamer mode and search everywhere stay on the device |
 | 2026-10-17 | Quiet hours digest: when the current quiet stretch began, cleared when it ends |
 | 2026-10-17 | Activities: bundles admins add (in `iskra.db`), running activities only in memory |
+| 2026-10-17 | Built-in bots Starboard, Birthdays and Welcome: birthdays, starboard cards, waiting welcomes |
 | 2026-10-17 | Voice channel status in memory only; notification sounds (synced choices, your own sound stays on the device) |

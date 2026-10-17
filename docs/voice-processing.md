@@ -187,6 +187,44 @@ translate into (your app language unless you choose another; also in My settings
   under a key that doesn't depend on the server: one download per language and direction per device. Models of an
   older version are removed.
 
+## Voice message transcripts
+
+**Show transcript** (the lines button on a voice message's player, in channels, encrypted channels, DMs and group
+DMs) shows what was said under the player. Settings → Voice & audio → Speech → **Transcribe voice messages
+automatically** (off by default) does it for every voice message you see.
+
+- **The captions model, on your device.** It's the same Whisper base model and worker as [live captions](#live-captions),
+  downloaded the same way (once, from your own server, after **Download**, SHA-256 checked, kept on the device). The
+  app decodes the recording itself (the browser's own decoder, to 16 kHz mono), Silero VAD finds the speech, and the
+  phrases are packed into as few 30-second Whisper windows as they fit. English and Swedish, as set for captions.
+- **Never uploaded.** Neither the recording (which the app already has) nor the text leaves the device. Transcripts of
+  channel voice messages are kept in IndexedDB (`iskra-transcripts`, at most 2000, the oldest dropped first) so they
+  don't have to be made again; transcripts of end-to-end encrypted voice messages are kept in memory only and are gone
+  when the app closes. Signing out deletes them.
+- **Too slow.** If a transcript takes more than four times the recording's length (at least a minute), it stops with
+  "This device took too long" and automatic transcripts stop on that device (asking still works; turning the setting
+  off and on tries again). Browsers that can't run captions can't transcribe either and say so.
+
+## Read aloud
+
+**Read aloud** in a message's menu reads it with the device's own speech voices (`speechSynthesis`: Windows, macOS and
+iOS voices; speech-dispatcher on Linux). A channel's menu has **Read new messages aloud** (for gaming: a speaker button
+in the header shows it's on and turns it off). Messages sent with `/tts <text>` are read aloud for people who turned on
+Settings → Voice & audio → Speech → **Play /tts messages** (off by default); sending them needs the `sendTts`
+permission (admins have it; others get it from a role).
+
+- **What's read.** The author's name and the message as plain words: mentions by name, custom emoji by name, links as
+  their host names ("link to github.com"), code blocks named, not read ("code block, 3 lines"), spoilers never read,
+  runs of the same emoji and stretched words shortened, at most 300 characters. Your own messages are never read.
+- **When.** Only in the channel you have open, never while it's muted or set to "Nothing", in quiet hours, with do not
+  disturb or in streamer mode. Switching channels stops it. At most five messages wait; older ones are dropped.
+- **Nothing leaves the device.** The text goes to the operating system's speech engine only. Voice, speed and volume
+  are settings on the device.
+- **Screen readers.** A screen reader already reads new messages. A web page can't tell that one is running, so with
+  one, leave "Read new messages aloud" off to avoid hearing everything twice.
+- **Where it works.** The web app and desktop app (Windows, macOS; Linux with speech-dispatcher) and iOS. Android's
+  web view has no speech synthesis, so the options aren't shown there.
+
 ## How transparent it is
 
 `node scripts/audio-quality.mjs` in `client/` runs the e2e speech fixture (a real recording: a quiet room, noise

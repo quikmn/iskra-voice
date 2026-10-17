@@ -813,7 +813,11 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
   width: min(520px, 100%); background: var(--float); border: 1px solid var(--border); border-bottom: 0; outline: none;
   border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0; padding: 8px 12px calc(12px + var(--safe-bottom));
   box-shadow: var(--shadow-modal); animation: sheet-up 0.2s var(--ease);
+  /* A long list scrolls instead of reaching under the status bar. */
+  max-height: calc(100dvh - var(--safe-top) - 12px); display: flex; flex-direction: column;
 }
+.action-sheet > * { flex: none; }
+.action-sheet > .sheet-list { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .sheet-grabber { display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--surface-3); margin: 0 auto 10px; }
 .sheet-reactions { display: flex; justify-content: space-between; gap: 6px; padding: 4px 0 12px; }
 .sheet-reactions button {

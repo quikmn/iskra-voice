@@ -1,13 +1,13 @@
 // Built-in bots (Dice, Polls, Reminders): pure helpers for their command hints and how their answers read.
 import type { BotCommand, BuiltinBotId, BuiltinReply } from '../core/protocol'
 
-export const BUILTIN_BOTS: readonly BuiltinBotId[] = ['dice', 'polls', 'reminders']
+export const BUILTIN_BOTS: readonly BuiltinBotId[] = ['dice', 'polls', 'reminders', 'starboard', 'birthdays', 'welcome']
 
 type T = (key: string, args?: Record<string, unknown>) => string
 
 /** A built-in bot's command with its description and usage in the app's language (the server's are English). */
 export function localizeCommand(command: BotCommand, t: T): BotCommand {
-  if (command.name !== 'roll' && command.name !== 'poll' && command.name !== 'remind') return command
+  if (command.name !== 'roll' && command.name !== 'poll' && command.name !== 'remind' && command.name !== 'birthday') return command
   return {
     ...command,
     description: t(`builtinBots.commands.${command.name}.description`),
@@ -48,6 +48,7 @@ export function replyLine(reply: BuiltinReply, name: string, t: T, when: (ms: nu
     case 'remind': return t('builtinBots.reply.remind', { name, when: when(reply.dueAt) })
     case 'remind.usage': return t('builtinBots.reply.remindUsage', { name })
     case 'error': return t('builtinBots.reply.error', { name, message: error(reply.error) })
+    default: return '' // Starboard, Birthdays and Welcome have their own (ui/chat/MoreBuiltinReply.tsx)
   }
 }
 

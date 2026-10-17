@@ -32,6 +32,7 @@ public static partial class RoleFeature
         ["muteMembers"] = Perm.MuteMembers,
         ["manageAutoMod"] = Perm.ManageAutoMod,
         ["prioritySpeaker"] = Perm.PrioritySpeaker,
+        ["sendTts"] = Perm.SendTts,
     };
 
     private static readonly IReadOnlyDictionary<string, ChannelPerm> ChannelNames = new Dictionary<string, ChannelPerm>

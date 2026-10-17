@@ -228,6 +228,8 @@ export interface OpenedFile {
   /** From the decrypted bytes, never from the sender's claim. */
   type: string
   inline: boolean
+  /** The decrypted bytes (voice message transcripts read them; blob: URLs can't be fetched under the CSP). */
+  blob: Blob
 }
 
 const opened = new Map<string, Promise<OpenedFile>>()
@@ -247,7 +249,8 @@ export function openDmFile(file: DmFile, onProgress?: (fraction: number) => void
     run = streamDmFile(file, sink, (fraction) => openProgress.get(tag)?.forEach((listener) => listener(fraction))).then(() => {
       const kind = sniff(sink.head())
       // Only types channels show inline get their real type; everything else stays an opaque download.
-      return { url: URL.createObjectURL(sink.blob(kind.inline ? kind.type : 'application/octet-stream')), type: kind.type, inline: kind.inline }
+      const blob = sink.blob(kind.inline ? kind.type : 'application/octet-stream')
+      return { url: URL.createObjectURL(blob), type: kind.type, inline: kind.inline, blob }
     })
     opened.set(tag, run)
     run.catch(() => opened.delete(tag)) // let a later try go again

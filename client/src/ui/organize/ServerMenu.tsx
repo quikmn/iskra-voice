@@ -28,6 +28,7 @@ import { NotifyRows, NotifyViews, useRunner, type Run } from './Menus'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgMenu'
 import { LfgNotifyItem } from '../teams/TeamsBits'
 import { NicknameField, ServerAvatarField } from './ServerSettings'
+import { BirthdayField } from './BirthdayField'
 import { serverMenuLayout } from './serverMenuLayout'
 
 export type ServerAction = { kind: 'invite' } | { kind: 'channel' } | { kind: 'nickname' } | { kind: 'hide' } | { kind: 'leave' } | { kind: 'folder'; folderId: string }
@@ -178,6 +179,7 @@ function NicknameDialog({ server, onClose }: { server: ServerState; onClose: () 
     <Modal title={t('app.serverMenu.nicknameTitle', { name: server.name })} onClose={onClose}>
       <NicknameField server={server} member={server.me} />
       <ServerAvatarField server={server} member={server.me} />
+      <BirthdayField server={server} />
     </Modal>
   )
 }

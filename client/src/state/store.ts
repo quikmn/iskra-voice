@@ -677,9 +677,11 @@ export interface SendOptions {
   gif?: { token: string | DirectGif; shown: MessageGif }
   /** Reuse a nonce (retrying a failed message). */
   nonce?: string
+  /** Sent with /tts (state/speech.ts). */
+  tts?: boolean
 }
 
-type SendBody = { channelId: number; text: string; attachments: string[]; replyTo?: number; nonce: string; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif }
+type SendBody = { channelId: number; text: string; attachments: string[]; replyTo?: number; nonce: string; voice?: VoiceInfo; sticker?: string; gif?: string | DirectGif; tts?: boolean }
 /** Sends that lost their connection, by tempId: sent again when the server is back. */
 const unsentSends = new Map<string, { key: string; channelId: number; body: SendBody }>()
 
@@ -756,12 +758,12 @@ export async function sendMessage(key: string, channelId: number, text: string, 
     id: Number.MAX_SAFE_INTEGER, channelId, author: server.me.accountKey, text, createdAt: Date.now(), editedAt: null,
     attachments, reactions: [], voice: options.voice ?? null, sticker: options.sticker ?? null, gif: options.gif?.shown ?? null, gifToken: options.gif?.token,
     replyTo: reply ? { id: reply.id, author: reply.author, text: reply.text, hasAttachments: reply.attachments.length > 0 } : null,
-    pending: 'sending', tempId, nonce: options.nonce ?? b64u(randomBytes(16)),
+    pending: 'sending', tempId, nonce: options.nonce ?? b64u(randomBytes(16)), ...(options.tts ? { tts: true } : {}),
   }
   patchServer(key, (s) => ({ messages: { ...s.messages, [channelId]: [...(s.messages[channelId] ?? []), temp] } }))
   await deliver(key, channelId, tempId, {
     channelId, text, attachments: attachments.map((a) => a.id), replyTo: reply?.id, nonce: temp.nonce!, voice: options.voice,
-    sticker: options.sticker?.id, gif: options.gif?.token,
+    sticker: options.sticker?.id, gif: options.gif?.token, ...(options.tts ? { tts: true } : {}),
   })
 }
 
@@ -773,7 +775,7 @@ export async function retryFailed(key: string, channelId: number, message: Pendi
   if (!message.tempId) return
   discardFailed(key, channelId, message.tempId)
   await sendMessage(key, channelId, message.text, { attachments: message.attachments, voice: message.voice ?? undefined, nonce: message.nonce,
-    sticker: message.sticker ?? undefined, gif: message.gif && message.gifToken ? { token: message.gifToken, shown: message.gif } : undefined,
+    sticker: message.sticker ?? undefined, gif: message.gif && message.gifToken ? { token: message.gifToken, shown: message.gif } : undefined, tts: !!message.tts,
   })
 }
 

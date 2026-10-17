@@ -35,6 +35,7 @@ import { media } from './media'
 import { hosting } from './hosting'
 import { outhooks } from './outhooks'
 import { builtinBots } from './builtinBots'
+import { moreBots } from './moreBots'
 import { rental } from './rental'
 import { bugReport } from './bugReport'
 import { afk } from './afk'
@@ -54,6 +55,7 @@ import { translate } from './translate'
 import { whiteboard } from './whiteboard'
 import { landing } from './landing'
 import { activities } from './activities'
+import { speech } from './speech'
 import { sounds } from './sounds'
 import { voiceStatus } from './voiceStatus'
 
@@ -113,6 +115,8 @@ export const en = {
   whiteboard,
   landing,
   activities,
+  speech,
+  moreBots,
   sounds,
   voiceStatus,
 } as const

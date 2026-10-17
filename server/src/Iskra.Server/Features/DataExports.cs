@@ -200,6 +200,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             SELECT r.message_id, m.channel_id, m.created_at, r.reply FROM builtin_replies r JOIN messages m ON m.id = r.message_id
             WHERE json_extract(r.reply, '$.for') {Mine} ORDER BY r.message_id;
             """);
+        // Your birthday, if you shared it with the Birthdays bot (day and month only), and the year it was last announced.
+        Section("birthday", $"SELECT account_key, month, day, set_at, last_posted_year FROM birthdays WHERE account_key {Mine};");
         // Encrypted scheduled DMs and group messages are left out (the server can't read them); channel ones include their text.
         Section("scheduledMessages", $"""
             SELECT id, account_key, kind, channel_id, peer_key, group_id, text, reply_to, send_at, created_at, status, error
@@ -257,7 +259,9 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         - reminders, scheduledMessages, inbox: your reminders (what each is about is sealed by your devices: "data"), messages
           waiting to be sent later (encrypted DMs and group messages only by time and recipient), and messages that mentioned you.
           Reminders set with the built-in Reminders bot (/remind) aren't sealed: their "data" starts with "bot." and holds the note.
-        - builtinBotAnswers: what the built-in bots (Dice, Polls, Reminders) answered to your commands.
+        - builtinBotAnswers: what the built-in bots answered to your commands (Dice, Polls, Reminders, Birthdays), Starboard
+          cards about your messages, and Welcome and Birthdays greetings that name you first.
+        - birthday: the day and month you shared with the Birthdays bot (never a year), and the year it was last announced.
         - activitiesAdded: activities you added to this server (name, version, size, when). What activities send while
           people play is never stored.
         - timeouts, bans, reportsMade, reportsAboutYou, auditLog, securityLog: moderation and security records about you.
