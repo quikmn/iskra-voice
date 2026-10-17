@@ -366,6 +366,7 @@ MoveFeature.MapEndpoints(app);
 ImportFeature.MapEndpoints(app);
 // "Download my data" links.
 ComplianceFeature.MapEndpoints(app);
+ChannelExportFeature.MapEndpoints(app);
 app.Services.GetRequiredService<Iskra.Server.Import.ImportService>().CleanUp();
 
 app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
