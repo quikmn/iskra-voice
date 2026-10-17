@@ -5,6 +5,7 @@
 - Your emoji and stickers follow you: the picker shows every server you're on, and sending one elsewhere copies the picture into that server (admins can turn this off per built-in role under Roles).
 - Follow people or roles: right-click someone (or a role group) in the member list to hear about their posts in that channel like a mention, in your inbox and as a notification; manage follows under My settings → Notifications.
 - Events can repeat every day, week, two weeks or month (with an optional end date): the next one is planned when the current one ends, you can change or cancel just one or the whole series, and the calendar file carries the repeat.
+- On phones the message box has room again: attach, polls, GIFs, emoji and voice messages sit behind one "+" button next to it.
 
 ### Fixes
 - Self-hosting: a server bound to `127.0.0.1` (`Https.BindAddress`) without `Https.ProxyProtocol` now warns at start that every client looks like the machine itself (one shared rate limit, no addresses in the security log).

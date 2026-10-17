@@ -54,6 +54,7 @@ export const chat: Messages['chat'] = {
     gifs: 'GIF:ar',
     emoji: 'Emoji',
     emojiTitle: 'Emoji, GIF:ar och klistermärken',
+    more: 'Lägg till i meddelandet',
   },
   typing: {
     one: '{{name}} skriver…',

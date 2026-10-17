@@ -555,6 +555,15 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 }
 .reaction-picker button { font-size: 18px; padding: 4px; }
 .composer-wrap { flex: none; }
+/* Phones: the composer's buttons fold into one "+" (ui/chat/ComposerMenu.tsx) so "Message #channel" has room. The mic
+   stays: it sits where Send appears, so it costs the box nothing. */
+.composer-plus { display: none; }
+@media (max-width: 480px) {
+  .composer > .attach-button:not(.composer-plus):not(.voice-record-button) { display: none; }
+  .composer > .composer-plus { display: inline-grid; }
+}
+.composer-menu .org-item svg, .composer-menu-gif { flex: none; width: 18px; text-align: center; }
+.composer-menu-gif { font-size: 10px; font-weight: 800; letter-spacing: 0.04em; }
 .reply-bar, .pending-uploads { margin: 0 16px; padding: 6px 12px; background: var(--surface-2); border-radius: 10px 10px 0 0; font-size: 13px; color: var(--text-2); }
 .reply-bar { display: flex; align-items: center; justify-content: space-between; }
 .pending-uploads { display: flex; gap: 8px; overflow-x: auto; padding: 8px; }

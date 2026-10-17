@@ -53,6 +53,7 @@ export const chat = {
     gifs: 'GIFs',
     emoji: 'Emoji',
     emojiTitle: 'Emoji, GIFs and stickers',
+    more: 'Add to your message',
   },
   typing: {
     one: '{{name}} is typing…',

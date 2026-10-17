@@ -293,6 +293,20 @@ export async function send(page: Page, text: string) {
   await box.press('Enter')
 }
 
+/**
+ * Clicks one of the composer's actions ("Emoji", "GIFs", "Attach files", "Create a poll", "Record a voice message").
+ * Below 480 px they sit behind the "+" button (a sheet), so that opens first.
+ */
+export async function composerAction(page: Page, name: string) {
+  const plus = page.locator('.composer').getByRole('button', { name: 'Add to your message' })
+  if (await plus.isVisible()) {
+    await plus.click()
+    await page.getByRole('menuitem', { name, exact: true }).click()
+  } else {
+    await page.locator('.composer').getByRole('button', { name, exact: true }).click()
+  }
+}
+
 export async function createInviteLink(page: Page): Promise<string> {
   await page.getByRole('button', { name: 'Invite friends' }).click()
   const linkInput = page.locator('.copy-row input')

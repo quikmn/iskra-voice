@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import { join } from 'node:path'
 import { expect, test, type BrowserContext } from '@playwright/test'
-import { createInviteLink, freePort, joinVia, openServerSettings, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { composerAction, createInviteLink, freePort, joinVia, openServerSettings, openSettings, SHOTS, startServer, type TestServer } from './helpers'
 
 // A 3×2 PNG, served as every GIF.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAYAAACddGYaAAAAEUlEQVR4nGNgYGD4z4AEMDgAHNoB/zrD+5kAAAAASUVORK5CYII=', 'base64')
@@ -125,7 +125,7 @@ test('GIFs: off until an admin adds a key, through the server by default, or dir
 
   // Favourites stay on the device; on a phone the picker is a sheet with the same tabs.
   await friend.setViewportSize({ width: 390, height: 844 })
-  await friend.getByRole('button', { name: 'Emoji', exact: true }).click()
+  await composerAction(friend, 'Emoji') // behind the "+" on phones
   await friend.getByRole('tab', { name: 'GIFs' }).click()
   await expect(friend.locator('.emoji-picker-layer.sheet')).toBeVisible()
   await expect(friend.getByRole('button', { name: 'Favourite GIFs (1)' })).toBeVisible()

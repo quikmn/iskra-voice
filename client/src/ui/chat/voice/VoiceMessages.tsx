@@ -26,7 +26,8 @@ function micError(e: unknown): string {
  * Hold to record and let go to send; slide left to cancel. A short tap keeps recording with cancel and send buttons
  * (also what keyboard users get). Stops and sends by itself at 5 minutes.
  */
-export function VoiceRecordButton({ onSend, disabled }: { onSend: (recording: Recording) => Promise<void>; disabled?: boolean }) {
+/** `startSignal`: each change (not the value it mounts with) starts a recording, as a tap would (the phone "+" menu). */
+export function VoiceRecordButton({ onSend, disabled, startSignal = 0 }: { onSend: (recording: Recording) => Promise<void>; disabled?: boolean; startSignal?: number }) {
   const [mode, setMode] = useState<Mode>('idle')
   const [error, setError] = useState<string | null>(null)
   const [levels, setLevels] = useState<number[]>([])
@@ -45,6 +46,14 @@ export function VoiceRecordButton({ onSend, disabled }: { onSend: (recording: Re
   }, [recording])
 
   useEffect(() => () => recorder.current?.cancel(), [])
+
+  const started = useRef(startSignal)
+  useEffect(() => {
+    if (startSignal === started.current) return
+    started.current = startSignal
+    if (mode === 'idle' && !disabled) void begin()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startSignal])
 
   async function begin() {
     setError(null)
