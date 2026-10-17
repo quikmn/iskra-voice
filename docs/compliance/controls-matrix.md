@@ -57,7 +57,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 | Control | How Iskra meets it | Evidence | Status |
 |---|---|---|---|
 | A1.1 Capacity | Upload quotas, size limits, rate limits; droplet with swap; no capacity monitoring | HOST `server.json` reference, OA 10 | partial |
-| A1.2 Backups and recovery infrastructure | Daily backups (same disk, optionally copied to another disk or share with `Backups.CopyTo`), encrypted downloads; off-site copies pending | [BackupService.cs][backupsvc], OA 8–9 | owner-action |
+| A1.2 Backups and recovery infrastructure | Daily backups (same disk, optionally copied to another disk or share with `Backups.CopyTo`, and off-site to backup buddies: friends' Iskra servers, encrypted with a recovery code only the owner has), encrypted downloads; off-site copies for chat.iskra.foo pending | [BackupService.cs][backupsvc], [BuddyBackupService.cs][buddysvc], [BuddyHolder.cs][buddyholder], OA 8–9 | owner-action |
 | A1.3 Recovery testing | Automated backup → restore drill on every CI run; yearly real restore pending | CI `scripts-and-drill` (artifact `restore-drill-report`), [RestoreDrillTests.cs][drill], OA 11 | partial |
 
 ### Confidentiality
@@ -175,7 +175,7 @@ Hosted services run at Cloudflare and DigitalOcean, whose data-centre controls a
 | 8.10 Information deletion | Retention sweeper, upload sweeper, account deletion (moderators' notes about the account included), join requests pruned (7 days; refusals 1 day), empty voice rooms removed | POL/data-retention, [RetentionSweeper.cs][retention] | met |
 | 8.11 Data masking | Audit/report entries and the "people who left" entry keep actions with names removed after deletion; join requests show moderators the invite's last characters, never the code or an address; push DM notifications have no content; KLIPY gets a pseudonym | SEC, PRIV | met |
 | 8.12 Data leakage prevention | No analytics; link previews fetched by server; gitleaks in CI; push protection pending; old v1 secrets to revoke | [secrets.yml][secretsyml], OA 2, OA 18 | partial |
-| 8.13 Information backup | Daily + encrypted backups; off-site copies pending | [BackupService.cs][backupsvc], OA 9 | partial |
+| 8.13 Information backup | Daily + encrypted backups; off-site to backup buddies (encrypted at the source, signed server-to-server requests, holder quota, versions, rate limits and grace period; [BuddyBackupTests.cs][buddytests]); off-site copies for chat.iskra.foo pending | [BackupService.cs][backupsvc], [BuddyBackupService.cs][buddysvc], OA 9 | partial |
 | 8.14 Redundancy | Single droplet; static sites on Cloudflare's network | POL/risk-register R9 (accepted) | partial |
 | 8.15 Logging | SecLog + Audit (join approvals, refusals and invite pauses included), no content or secrets (moderators' notes never reach the audit log), configurable retention, owner export | [ComplianceFeature.cs][seclog], [ModerationFeature.cs][moderation], [ComplianceTests.cs][compliancetests] | met |
 | 8.16 Monitoring activities | Owner reviews SecLog; no automated alerting/uptime monitor | OA 10 | partial |
@@ -306,6 +306,9 @@ Details and evidence: [asvs-l2-self-assessment.md](asvs-l2-self-assessment.md).
 [uploads]: ../../server/src/Iskra.Server/Files/Uploads.cs
 [upsweep]: ../../server/src/Iskra.Server/Files/UploadSweeper.cs
 [backupsvc]: ../../server/src/Iskra.Server/Backups/BackupService.cs
+[buddysvc]: ../../server/src/Iskra.Server/Backups/BuddyBackupService.cs
+[buddyholder]: ../../server/src/Iskra.Server/Backups/BuddyHolder.cs
+[buddytests]: ../../server/tests/Iskra.Server.Tests/BuddyBackupTests.cs
 [seclog]: ../../server/src/Iskra.Server/Features/ComplianceFeature.cs
 [retention]: ../../server/src/Iskra.Server/Features/RetentionSweeper.cs
 [disappear]: ../../server/src/Iskra.Server/Features/DisappearFeature.cs
