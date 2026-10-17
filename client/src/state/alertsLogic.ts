@@ -28,6 +28,8 @@ export interface AlertSettings {
   closed: boolean
   quietOn: boolean
   quiet: QuietHours
+  /** The end of the last quiet hours summary dismissed on any device (state/quietDigest.ts). */
+  digestSeen: number
   updatedAt: number
 }
 
@@ -40,9 +42,9 @@ export const localTimeZone = (): string => {
 }
 
 /** Weeknights 22:00–07:00 here, off until chosen. */
-export const defaultQuiet = (): QuietHours => ({ days: 0b0111110, from: 22 * 60, to: 7 * 60, timeZone: localTimeZone(), mentions: true })
+export const defaultQuiet = (): QuietHours => ({ days: 0b0111110, from: 22 * 60, to: 7 * 60, timeZone: localTimeZone(), mentions: true, digest: true })
 
-export const emptyAlerts = (): AlertSettings => ({ words: [], follows: [], closed: false, quietOn: false, quiet: defaultQuiet(), updatedAt: 0 })
+export const emptyAlerts = (): AlertSettings => ({ words: [], follows: [], closed: false, quietOn: false, quiet: defaultQuiet(), digestSeen: 0, updatedAt: 0 })
 
 /** Trimmed, runs of spaces as one; null if it can't be an alert word. */
 export function cleanWord(raw: string): string | null {
@@ -168,7 +170,7 @@ export function serverCopy(settings: AlertSettings, serverKey: string, pushHere:
 }
 
 export function sameCopy(a: ServerAlerts | null, b: ServerAlerts): boolean {
-  const q = (x: ServerAlerts['quiet']) => (x ? `${x.days}|${x.from}|${x.to}|${x.timeZone}|${x.mentions}` : '')
+  const q = (x: ServerAlerts['quiet']) => (x ? `${x.days}|${x.from}|${x.to}|${x.timeZone}|${x.mentions}|${x.digest !== false}` : '')
   const f = (x: ServerAlerts['follows']) => (x ?? []).map((r) => `${r.member ?? ''}|${r.role ?? ''}|${r.channelId ?? ''}`).sort().join('\n')
   return !!a && a.words.join('\n') === b.words.join('\n') && f(a.follows) === f(b.follows) && q(a.quiet) === q(b.quiet)
 }
@@ -239,7 +241,8 @@ export function parseAlerts(value: unknown): AlertSettings | null {
   const minute = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n < 1440
   const quiet: QuietHours = q && typeof q === 'object' && typeof q.days === 'number' && q.days >= 1 && q.days <= 127 && Number.isInteger(q.days)
     && minute(q.from) && minute(q.to) && typeof q.timeZone === 'string' && q.timeZone.length <= 64 && wallClock(new Date(0), q.timeZone)
-    ? { days: q.days, from: q.from!, to: q.to!, timeZone: q.timeZone, mentions: q.mentions === true }
+    ? { days: q.days, from: q.from!, to: q.to!, timeZone: q.timeZone, mentions: q.mentions === true, digest: q.digest !== false }
     : defaultQuiet()
-  return { words, follows, closed: v.closed === true, quietOn: v.quietOn === true, quiet, updatedAt: v.updatedAt }
+  const digestSeen = typeof v.digestSeen === 'number' && Number.isFinite(v.digestSeen) && v.digestSeen >= 0 ? v.digestSeen : 0
+  return { words, follows, closed: v.closed === true, quietOn: v.quietOn === true, quiet, digestSeen, updatedAt: v.updatedAt }
 }

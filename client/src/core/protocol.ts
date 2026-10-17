@@ -2330,6 +2330,8 @@ export interface QuietHours {
   timeZone: string
   /** Let mentions, replies, alert words, DMs and calls through, silently. */
   mentions: boolean
+  /** A summary when they end ("Quiet hours digest" in PROTOCOL.md); missing means on (older servers and settings). */
+  digest?: boolean
 }
 
 /** "Alert me when this person (or anyone with this role) posts", in one channel or anywhere on the server (channelId null). */

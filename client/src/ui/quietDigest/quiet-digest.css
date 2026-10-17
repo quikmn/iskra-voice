@@ -1,0 +1,59 @@
+/* ── "While it was quiet": the card when quiet hours end ───────────── */
+.quiet-digest {
+  position: fixed; right: 16px; bottom: calc(84px + var(--safe-bottom)); z-index: var(--z-toast);
+  display: flex; flex-direction: column; gap: 10px;
+  width: min(380px, calc(100vw - 32px)); max-height: calc(100dvh - 120px - var(--safe-bottom));
+  padding: 14px 10px 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 1.2);
+  box-shadow: var(--shadow-pop);
+  animation: quiet-digest-in 0.25s ease-out;
+}
+.quiet-digest-head { display: flex; align-items: center; gap: 10px; }
+.quiet-digest-mark {
+  flex: none; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+  font-size: 17px; color: var(--on-accent); background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+.quiet-digest-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.quiet-digest h2 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; }
+.quiet-digest-span { font-size: 12px; color: var(--text-2); }
+.quiet-digest-body { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; padding-right: 4px; }
+.quiet-digest-section h3 {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 0 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--text-2);
+}
+.quiet-digest-count {
+  min-width: 22px; padding: 1px 7px; border-radius: 999px; text-align: center;
+  font-size: 12px; text-transform: none; color: var(--text); background: var(--surface-3);
+}
+.quiet-digest-section ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.quiet-digest-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 8px;
+  border: 0; border-radius: var(--radius); background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer;
+}
+.quiet-digest-row:hover { background: var(--hover); }
+.quiet-digest-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.quiet-digest-icon { flex: none; display: grid; place-items: center; width: 28px; height: 28px; }
+.quiet-digest-glyph {
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  font-size: 14px; color: var(--text-2); background: var(--surface-3);
+}
+.quiet-digest-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.quiet-digest-row-title, .quiet-digest-row-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quiet-digest-row-title { font-size: 13.5px; }
+.quiet-digest-row-sub { font-size: 12px; color: var(--text-2); }
+.quiet-digest-time { flex: none; font-size: 11.5px; color: var(--text-2); }
+.quiet-digest-more, .quiet-digest-offline { margin: 2px 8px 0; font-size: 12px; }
+.quiet-digest-actions { display: flex; justify-content: flex-end; padding-right: 4px; }
+.quiet-digest .button { padding: 7px 14px; }
+@keyframes quiet-digest-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quiet-digest { animation: none; }
+}
+@media (max-width: 760px) {
+  .quiet-digest { right: 16px; left: 16px; width: auto; bottom: calc(76px + var(--safe-bottom)); }
+}
