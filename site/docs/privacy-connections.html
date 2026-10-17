@@ -60,6 +60,7 @@
       <ul>
         <li><a href="/docs/voice-processing">Voice processing</a></li>
         <li><a href="/docs/activities">Activities</a></li>
+        <li><a href="/docs/assistant">The assistant (bring your own AI)</a></li>
         <li><a href="/docs/testers">A guide for testers</a></li>
       </ul>
       <div class="side-group">Build</div>
@@ -289,6 +290,22 @@ when it happens, what the other side learns, and how to turn it off. The apps sh
 <td>Nothing: a page can't load anything from elsewhere (images only from its own server)</td>
 <td>—</td>
 <td>—</td>
+</tr>
+<tr>
+<td><strong>Your AI provider (the assistant)</strong></td>
+<td>Your device → the AI provider you chose in My settings → Assistant (for example <code>api.anthropic.com</code>, <code>api.openai.com</code>, or a model on this computer at <code>localhost</code>); the desktop app sends it from its main process, the web and phone apps straight from the page. Never through Iskra or your servers</td>
+<td>Only when you press Send in the assistant (and when a local MCP client you set up calls a tool)</td>
+<td>The AI provider you choose sees what you send, only when you send: your question, the conversation so far, and what the assistant's tools read for it (names, channel lists, recent messages of a channel you can read). Never encrypted chats (unless you paste them), keys or invite links. Your key goes only to that provider</td>
+<td>Off</td>
+<td>My settings → Assistant (turn it off, remove the key)</td>
+</tr>
+<tr>
+<td><strong>Local MCP clients (desktop app)</strong></td>
+<td>An AI app on your computer (Claude Desktop, Claude Code) → <code>Iskra --mcp</code> → the running Iskra over a private local pipe or socket (no network port)</td>
+<td>Only while &quot;Allow local MCP clients&quot; is on and that app calls a tool; every change waits for your OK in the Iskra window</td>
+<td>That AI app sees the tool results it asks for (and sends them to its own provider)</td>
+<td>Off</td>
+<td>My settings → Assistant</td>
 </tr>
 <tr>
 <td><strong>Links you click</strong></td>

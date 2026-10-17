@@ -120,6 +120,11 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 - Voice message transcripts are made on the device and never sent: channel ones are kept in the app's IndexedDB (at
   most 2000, oldest dropped first) until sign-out or the app's data is removed; transcripts of end-to-end encrypted
   voice messages only in memory. Read aloud uses the device's speech engine; nothing is stored or sent.
+- The personal assistant (off by default): its settings, including the user's AI provider key, are kept sealed on the
+  device (with the other device secrets) until the user removes them, signs out or removes the app; the conversation
+  only in memory (gone when the app closes or "New conversation" is pressed); the "Assistant activity" list (tool, outcome,
+  server name, time; at most 200 entries) sealed on the device until cleared. Nothing of it reaches Iskra or the user's
+  servers; what the user sends goes to the AI provider they chose, under that provider's retention.
 - iskra.foo and app.iskra.foo store nothing about visitors; Cloudflare's short-lived request logs follow
   Cloudflare's retention.
 - Emails to spark@iskra.foo (support, safety, security, data requests): kept as long as needed to handle them, and
@@ -155,3 +160,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-17 | Voice channel status in memory only; notification sounds (synced choices, your own sound stays on the device) |
 | 2026-10-17 | The server's own log files (`logs/`): no personal data, 180 days at most |
 | 2026-10-17 | The desktop app's own log files (its data folder, `logs/`): no personal data, 180 days and 50 MB at most; the app's in-memory diagnostics (30 minutes) |
+| 2026-10-17 | Personal assistant (bring your own AI): settings and key sealed on the device, conversation in memory, activity list on the device; nothing on servers |

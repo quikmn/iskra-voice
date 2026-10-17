@@ -78,3 +78,4 @@
 }
 .assistant-command pre { flex: 1; min-width: 0; margin: 0; }
 .assistant-command pre code { display: block; white-space: pre-wrap; }
+.assistant-settings .field > label > span { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }

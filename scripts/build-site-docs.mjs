@@ -33,6 +33,7 @@ export const GROUPS = [
   { name: 'Using Iskra', pages: [
     { slug: 'voice-processing', title: 'Voice processing', blurb: 'Noise removal, camera effects and live captions, all on your own device.' },
     { slug: 'activities', title: 'Activities', blurb: 'Small apps to use together in a voice channel, and how to make one.' },
+    { slug: 'assistant', title: 'The assistant (bring your own AI)', blurb: 'Help, bots and organizing your server with an AI provider you choose; nothing goes through Iskra.' },
     { slug: 'testers', title: 'A guide for testers', blurb: 'Getting the test apps, what to try and how to report a bug.' },
   ] },
   { name: 'Build', pages: [

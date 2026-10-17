@@ -79,15 +79,15 @@ function Settings() {
           </select>
         </label>
 
-        <label className="field">
-          <span>{t('assistant.settingsSection.baseUrl')}</span>
-          <input value={baseUrl} spellCheck={false} autoComplete="off" inputMode="url" placeholder="https://…"
+        <div className="field">
+          <label htmlFor="assistant-base-url"><span>{t('assistant.settingsSection.baseUrl')}</span></label>
+          <input id="assistant-base-url" aria-describedby="assistant-base-url-hint" value={baseUrl} spellCheck={false} autoComplete="off" inputMode="url" placeholder="https://…"
             onChange={(e) => setBaseUrl(e.target.value)}
             onBlur={() => url.ok && url.url !== config.baseUrl && void saveConfig({ baseUrl: url.url })} />
-          <small className={url.ok || !baseUrl ? 'muted' : 'error-text'}>
+          <small id="assistant-base-url-hint" className={url.ok || !baseUrl ? 'muted' : 'error-text'}>
             {url.ok || !baseUrl ? t('assistant.settingsSection.baseUrlHint') : t(`assistant.settingsSection.badUrl.${url.problem}`)}
           </small>
-        </label>
+        </div>
 
         <div className="field">
           <span>{t('assistant.settingsSection.key')}</span>
@@ -114,14 +114,14 @@ function Settings() {
           <small className="muted">{t('assistant.settingsSection.keyHint')}{isLocalUrl(config.baseUrl) ? ` ${t('assistant.settingsSection.keyOptional')}` : ''}</small>
         </div>
 
-        <label className="field">
-          <span>{t('assistant.settingsSection.model')}</span>
-          <input value={model} list="assistant-models" spellCheck={false} autoComplete="off"
+        <div className="field">
+          <label htmlFor="assistant-model"><span>{t('assistant.settingsSection.model')}</span></label>
+          <input id="assistant-model" aria-describedby="assistant-model-hint" value={model} list="assistant-models" spellCheck={false} autoComplete="off"
             onChange={(e) => setModel(e.target.value)}
             onBlur={() => model.trim() !== config.model && void saveConfig({ model: model.trim() })} />
           <datalist id="assistant-models">{models.map((m) => <option key={m} value={m} />)}</datalist>
-          <small className="muted">{t('assistant.settingsSection.modelHint')}</small>
-        </label>
+          <small id="assistant-model-hint" className="muted">{t('assistant.settingsSection.modelHint')}</small>
+        </div>
 
         <div className="assistant-test-row">
           <button className="button" disabled={test.state === 'testing' || !checkBaseUrl(config.baseUrl).ok} onClick={() => void runTest()}>

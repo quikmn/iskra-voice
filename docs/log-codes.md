@@ -6,6 +6,8 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 
 | Code | Level | From | Area | Meaning | What to do |
 |---|---|---|---|---|---|
+| AI-110 | WARN | app | ai | The assistant couldn't get an answer from the AI provider the user chose (why= auth, rate, network, http, timeout, bad_response or blocked; status= the provider's HTTP status). | Check the key, address and model in My settings → Assistant; a model on this computer may need to allow requests from Iskra (docs/assistant.md). |
+| AI-120 | WARN | desk | ai | A local MCP client couldn't connect to the desktop app (why= auth, off, busy or socket). | Turn on Allow local MCP clients in My settings → Assistant, keep Iskra open, and add the server again with the command shown there. |
 | BAK-110 | WARN | srv | backup | The daily backup failed. | Check free disk space and that the world folder's backups/ is writable; Settings → Backups shows the last result. |
 | BAK-120 | WARN | srv | backup | A backup couldn't be sent to a backup buddy (why= says what went wrong). | Usually the friend's server is offline; it retries on its own. Settings → Backups → Backup buddies shows the details. |
 | BAK-130 | WARN | srv | backup | The daily backup couldn't be copied to the extra folder (Backups.CopyTo). | Check that the folder or drive is there and writable. |

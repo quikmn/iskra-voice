@@ -104,7 +104,9 @@ function Chat() {
   const secrets = useAssistant((s) => s.secrets)
   const [draft, setDraft] = useState('')
   const end = useRef<HTMLDivElement>(null)
-  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [turns.length, approvals.length, secrets.length, busy])
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: 'end' })
+  }, [turns.length, approvals.length, secrets.length, busy])
 
   function submit(text = draft) {
     if (!text.trim() || busy) return
