@@ -38,7 +38,7 @@ export const outhooks = {
   allowLocalOwner: 'Only the owner can turn this on.',
   secretNow: "Copy this signing secret now. For safety it won't be shown again. Your receiver uses it to check that requests really come from your server.",
   secretLabel: 'Signing secret',
-  verifyHelp: 'How to check the signature: docs/bots.md → Outgoing webhooks.',
+  verifyHelp: 'How to check the signature: iskra.foo/docs/bots#outgoing-webhooks',
   local: 'own network',
   offFailures: 'Turned off after {{count}} failed deliveries in a row',
   offByAdmin: 'Turned off',

@@ -50,7 +50,7 @@ await bot.start()
 | Voice | `bot.joinVoice(channelId)`, then `voice.play(file, stream or bytes)`, `pause`, `resume`, `setVolume`, `stop`, `leave` |
 | Anything else | `bot.request(type, body)`: every request in the protocol, typed |
 
-The full guide, with every option and limit: [docs/bots.md](https://github.com/quikmn/iskra-voice/blob/main/docs/bots.md).
+The full guide, with every option and limit: [iskra.foo/docs/bots](https://iskra.foo/docs/bots).
 Example bots (dice, a planner, a music bot) are in [bots/examples](https://github.com/quikmn/iskra-voice/tree/main/bots/examples).
 
 ## Voice

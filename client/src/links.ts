@@ -18,13 +18,15 @@ export const LINKS = {
   serverMacIntel: download(`iskra-server-${RELEASE_VERSION}-osx-x64.tar.gz`),
   releases: 'https://github.com/quikmn/iskra-voice/releases',
   website: 'https://iskra.foo',
-  license: 'https://github.com/quikmn/iskra-voice/blob/main/LICENSE',
+  license: 'https://iskra.foo/license',
   // The Android app (mobile/scripts/build-android.ps1) is attached to every release.
   androidApp: 'https://github.com/quikmn/iskra-voice/releases/latest',
   kofi: 'https://ko-fi.com/vlundgren',
   paypal: 'https://paypal.me/iskrafoo',
-  hostingGuide: 'https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md',
-  gifsGuide: 'https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#gifs',
+  // The hosting guide on iskra.foo, and the full reference behind it (docs/*.md as pages, scripts/build-site-docs.mjs).
+  hostingGuide: 'https://iskra.foo/hosting',
+  hostingReference: 'https://iskra.foo/docs/hosting',
+  gifsGuide: 'https://iskra.foo/docs/hosting#gifs',
   // KLIPY's Partner Panel, where an admin makes the free API key for their server's GIF picker.
   klipy: 'https://partner.klipy.com',
   // Rent a server on DigitalOcean. The sign-up link is Iskra's referral link (the app says so): Iskra gets some

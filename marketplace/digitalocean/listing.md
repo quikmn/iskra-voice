@@ -62,7 +62,7 @@ answer, try again shortly.
 Firewall (ufw): 22/tcp (SSH and the DigitalOcean console), 80/tcp and 443/tcp (the website and its certificate),
 7881/tcp and 7882/udp (voice and video). Everything else is closed.
 
-Documentation: https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#digitalocean-marketplace
+Documentation: https://iskra.foo/docs/hosting#digitalocean-marketplace
 
 ## Support
 

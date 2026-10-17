@@ -152,7 +152,7 @@ export function RentServerDialog({ onClose }: { onClose: () => void }) {
         </li>
       </ol>
       <p className="muted small">
-        <Trans i18nKey="hosting.rent.bring" components={{ move: external(`${LINKS.hostingGuide}#moving-a-server-to-another-computer`) }} />{' '}
+        <Trans i18nKey="hosting.rent.bring" components={{ move: external(`${LINKS.hostingReference}#moving-a-server-to-another-computer`) }} />{' '}
         <button className="link" onClick={startOver}>{t('hosting.rent.newClaim')}</button>
       </p>
       {!asking ? (

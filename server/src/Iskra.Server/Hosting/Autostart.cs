@@ -266,7 +266,7 @@ public static class Autostart
             }
             case "linux":
             {
-                if (system.Elevated) throw new IOException("Run this as the user who should run the server, not as root. For a system-wide service, see the systemd section in docs/hosting.md.");
+                if (system.Elevated) throw new IOException("Run this as the user who should run the server, not as root. For a system-wide service, see https://iskra.foo/docs/hosting#on-a-linux-vps-with-systemd");
                 var dir = SystemdDir(system);
                 Directory.CreateDirectory(dir);
                 var unit = UnitName(slug);

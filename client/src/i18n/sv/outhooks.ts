@@ -39,7 +39,7 @@ export const outhooks: Messages['outhooks'] = {
   allowLocalOwner: 'Bara ägaren kan slå på det här.',
   secretNow: 'Kopiera signeringshemligheten nu. Av säkerhetsskäl visas den inte igen. Din mottagare använder den för att kontrollera att anropen verkligen kommer från din server.',
   secretLabel: 'Signeringshemlighet',
-  verifyHelp: 'Så kontrollerar du signaturen: docs/bots.md → Outgoing webhooks.',
+  verifyHelp: 'Så kontrollerar du signaturen: iskra.foo/docs/bots#outgoing-webhooks',
   local: 'eget nätverk',
   offFailures: 'Avstängd efter {{count}} misslyckade leveranser i rad',
   offByAdmin: 'Avstängd',

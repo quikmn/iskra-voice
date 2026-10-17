@@ -101,7 +101,7 @@
     <li><strong>Your profile:</strong> display name, avatar (and, if you set one, a picture shown on that server only, stored without its metadata), bio, pronouns, profile colour, custom status, and your profile page if you make one. Plus your nickname, roles (including ones you pick yourself), when you joined, and which server rules you accepted.</li>
     <li><strong>What you post:</strong> messages (with up to 20 earlier versions after edits, which you and the moderators can see), files, images, voice messages, reactions, polls and votes, pins, threads, forum posts, docs pages and their history, whiteboard drawings, events you create or are interested in, emoji, stickers and sounds you add (and emoji or stickers your app copies in from another server you're on, so you can use them here), and a notice when you save a clip.</li>
     <li><strong>Reminders and scheduled messages</strong> you set: when they're due, and for server channels which message or what to send. What a reminder is about and its note are encrypted so the server can't read them; scheduled DMs and group messages are already encrypted. Your <strong>inbox</strong> lists the messages that mention or reply to you. Saved messages are a synced setting (see above).</li>
-    <li><strong>The server's key log:</strong> every account key the server has shown, with the name it showed, and every key change, signed by the server so members' apps can check it (see <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md#key-transparency" target="_blank" rel="noopener">key transparency</a>). It only ever grows.</li>
+    <li><strong>The server's key log:</strong> every account key the server has shown, with the name it showed, and every key change, signed by the server so members' apps can check it (see <a href="/docs/security#key-transparency">key transparency</a>). It only ever grows.</li>
     <li><strong>Settings for that server</strong>, such as notification levels, and your block list (so the server can stop DMs and calls from people you've blocked; nobody else sees it).</li>
     <li><strong>Push subscriptions</strong> for the devices where you turned notifications on (see <a href="#push">Notifications</a>).</li>
     <li><strong>Your presence</strong> (online, idle, in voice) is kept in memory only while you're connected.</li>
@@ -113,7 +113,7 @@
   <p><strong>Bots</strong> on a server are programs an admin added; they show a BOT badge. A bot gets only its commands, button clicks and forms, and messages that mention it or reply to it, unless an admin lets it read all messages (you can see which bots can). The built-in bots (Dice, Polls, Reminders) run inside the server and read only their own commands. In an encrypted channel, a command you send to a bot goes to the server and the bot <strong>unencrypted</strong>; the app tells you before you send it, and the answer is shown only to you.</p>
 
   <h2 id="e2ee">4. Direct messages, group chats and calls</h2>
-  <p>Direct messages and group chats, including their pictures, files and voice messages, are <strong>end-to-end encrypted</strong>: only the people in the conversation can read them. Voice and video calls in DMs and group chats are end-to-end encrypted too, and so are <strong>encrypted channels</strong> (an option for small private channels: text, voice and whiteboards), which only the people who can see the channel can read. You can read the details in our <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">security notes</a>.</p>
+  <p>Direct messages and group chats, including their pictures, files and voice messages, are <strong>end-to-end encrypted</strong>: only the people in the conversation can read them. Voice and video calls in DMs and group chats are end-to-end encrypted too, and so are <strong>encrypted channels</strong> (an option for small private channels: text, voice and whiteboards), which only the people who can see the channel can read. You can read the details in our <a href="/docs/security">security notes</a>.</p>
   <p>A server that carries them stores <strong>only the ciphertext and the metadata needed to deliver it</strong>: who sent what to whom, when, and how big it is, plus group and encrypted channel membership. It also knows who calls whom, when and for how long. It can't read the content or listen to the call.</p>
   <p>A <strong>bot</strong> can be a DM partner too. The server still can't read those messages, but whoever runs the bot can: that's the point of writing to it, and the app says so. You can turn off DMs from bots in your settings.</p>
   <p><strong>Disappearing messages:</strong> a conversation can make its new messages disappear after a set time (5 minutes to 4 weeks). The server deletes them when the time is up, and the apps delete their own copies too. Someone in the conversation can still copy or screenshot a message before then.</p>
@@ -145,7 +145,7 @@
   <p>On phones, the Iskra apps (Android, iPhone and iPad) show notifications while the app is open, straight from your servers. They don't use any push service, so nobody else learns when you get one. For notifications while Iskra is closed, use the web app in your phone's browser.</p>
 
   <h2 id="third">8. Who Iskra talks to</h2>
-  <p id="connections">Your devices talk to the servers you join. These are the only other services the apps and servers contact, and only in the situations listed. The apps show the same list in <span class="path">My settings → Privacy &amp; data</span>. The <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/privacy-connections.md" target="_blank" rel="noopener">technical version</a> has the details.</p>
+  <p id="connections">Your devices talk to the servers you join. These are the only other services the apps and servers contact, and only in the situations listed. The apps show the same list in <span class="path">My settings → Privacy &amp; data</span>. The <a href="/docs/privacy-connections">technical version</a> has the details.</p>
   <div class="table-wrap">
     <table>
       <thead><tr><th>Service</th><th>When</th><th>What it sees</th><th>How to turn it off</th></tr></thead>
@@ -225,11 +225,12 @@
 
 <!-- FOOTER -->
 <footer>
-  <span>© 2026 Viktor Lundgren · <a href="https://github.com/quikmn/iskra-voice/blob/main/LICENSE" target="_blank" rel="noopener">PolyForm Noncommercial 1.0.0</a></span>
+  <span>© 2026 Viktor Lundgren · <a href="/license">PolyForm Noncommercial 1.0.0</a></span>
   <div class="footer-links">
-    <a href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
-    <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md" target="_blank" rel="noopener">Hosting guide</a>
-    <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">Security</a>
+    <a href="/github">GitHub</a>
+    <a href="/hosting">Hosting guide</a>
+    <a href="/docs/">Docs</a>
+    <a href="/docs/security">Security</a>
     <a href="/terms">Terms</a>
     <a href="/privacy" aria-current="page">Privacy</a>
     <a href="/privacy#third">Who Iskra talks to</a>

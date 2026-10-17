@@ -350,9 +350,12 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
-      # scripts/appstore.mjs and play-upload.mjs load jose and google-auth-library from mobile/.
+      # scripts/appstore.mjs and play-upload.mjs load jose and google-auth-library from mobile/; build-site-docs.mjs
+      # loads markdown-it from the root package.json.
       - name: Release-script dependencies
-        run: npm ci --prefix mobile --no-audit --no-fund --ignore-scripts
+        run: |
+          npm ci --prefix mobile --no-audit --no-fund --ignore-scripts
+          npm ci --no-audit --no-fund --ignore-scripts
       # actionlint for scripts/workflows.test.mjs (pinned, SHA-256 checked; outside the repo).
       - name: actionlint
         env:

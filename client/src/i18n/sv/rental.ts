@@ -163,7 +163,7 @@ export const rental: Messages['rental'] = {
       '- Portar: 80/tcp (certifikatkontroll), 443/tcp (webb och WebSocket), 7881/tcp och 7882/udp (röst). Öppna i ufw på dropleten (tillsammans med 22/tcp) och i DigitalOceans molnbrandvägg "{{droplet}}-firewall": {{ssh}}.\n' +
       '- Automatiska uppdateringar från GitHub releases (server.json "Updates": {"Mode": "auto"}) och dagliga säkerhetskopior i /opt/iskra/world/backups.\n' +
       '- Loggar: journalctl -u iskra -n 200 --no-pager. Status: systemctl status iskra. Hälsa: curl -s {{url}}/health\n' +
-      '- Guide: https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md\n\n' +
+      '- Guide: https://iskra.foo/docs/hosting\n\n' +
       'Mitt problem: <beskriv det här>',
   },
 }

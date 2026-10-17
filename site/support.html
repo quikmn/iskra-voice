@@ -64,7 +64,7 @@
     <summary>How do I start my own server?</summary>
     <p>In the desktop app, click <strong>Create a server</strong>, pick a name and a starting point (a gaming group, a friends hangout, board games, or empty). The server runs on your computer, and you're its owner. Click <strong>Invite friends</strong> to get a link. Tick <strong>Keep my server running</strong> and Iskra starts with your computer and keeps the server going, even with the window closed.</p>
     <p>Friends on your home network can join right away. For friends elsewhere, turn on <strong>Let friends anywhere join</strong> in <span class="path">Server settings → Internet access</span>: it opens the ports on your router and sets up HTTPS for you. For a server that's always on without your PC, choose <strong>Rent a small server</strong> there, or run the standalone server on a spare computer.</p>
-    <p>Everything is explained in the <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md" target="_blank" rel="noopener">hosting guide</a>. Your server, your choice: Iskra gets nothing from any of it.</p>
+    <p>Everything is explained in the <a href="/hosting">hosting guide</a>. Your server, your choice: Iskra gets nothing from any of it.</p>
   </details>
 
   <details>
@@ -74,7 +74,7 @@
       <li><strong>The router didn't open the ports:</strong> press <strong>Show me how</strong> for step-by-step port forwarding with your exact addresses and ports, or <strong>Copy a prompt for an AI assistant</strong> to get help for your router.</li>
       <li><strong>"You're behind CGNAT":</strong> your provider shares one internet address between customers, and port forwarding can't help. The app lists your options, quickest first: rent a small server, check for or ask your provider for a public IPv4 address, use Tailscale (free; the app shows you how), or let a friend with an open connection host (the whole server is one folder, so it moves easily).</li>
     </ul>
-    <p>Details in the hosting guide: <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#reaching-your-server-from-the-internet" target="_blank" rel="noopener">reaching your server from the internet</a>.</p>
+    <p>Details in the hosting guide: <a href="/hosting#internet">reaching your server from the internet</a>.</p>
   </details>
 
   <details>
@@ -134,7 +134,7 @@
     <ul>
       <li>Check that Iskra may use your microphone (browser site settings, or your system's privacy settings), and pick the right devices in <span class="path">My settings → Voice &amp; audio</span>.</li>
       <li>Make sure you're not muted or deafened, and that push-to-talk isn't on by mistake.</li>
-      <li>If voice works at home but not for friends elsewhere, the server's voice ports need to be reachable: <code>7881/tcp</code> and <code>7882/udp</code>. "Let friends anywhere join" opens them on most routers; otherwise forward them by hand (see the <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md#ports-at-a-glance" target="_blank" rel="noopener">ports in the hosting guide</a>).</li>
+      <li>If voice works at home but not for friends elsewhere, the server's voice ports need to be reachable: <code>7881/tcp</code> and <code>7882/udp</code>. "Let friends anywhere join" opens them on most routers; otherwise forward them by hand (see the <a href="/hosting#faq-ports">ports in the hosting guide</a>).</li>
       <li>Strict networks (some workplaces, schools and VPNs) can block voice. Try another network to check.</li>
     </ul>
   </details>
@@ -168,21 +168,22 @@
 
   <h2 id="bugs">Bugs and ideas</h2>
   <p>Found a bug, or have an idea for Iskra? <a href="https://github.com/quikmn/iskra-voice/issues" target="_blank" rel="noopener">Open an issue on GitHub</a>. Say which app you use (desktop, web, phone), its version, and what you did. Please don't put private messages, keys or invite links in a public issue.</p>
-  <p>Testing the phone apps? The <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/testers.md" target="_blank" rel="noopener">tester guide</a> shows how to install them, what to try, and how to send a bug report from inside the app: tap your name at the bottom of the channel list, then Report a bug.</p>
+  <p>Testing the phone apps? The <a href="/docs/testers">tester guide</a> shows how to install them, what to try, and how to send a bug report from inside the app: tap your name at the bottom of the channel list, then Report a bug.</p>
   <p>Found a security problem? Email <a href="mailto:spark@iskra.foo?subject=Security">spark@iskra.foo</a> instead of opening a public issue.</p>
 
   <h2 id="contact">Contact</h2>
   <p>Iskra is made by Viktor Lundgren ("From a Spark") in Sweden. Email <a href="mailto:spark@iskra.foo">spark@iskra.foo</a>. We can't help with servers we don't run (we can't see them); for those, ask the server's owner.</p>
-  <p>See also: <a href="/terms">Terms of Use</a> · <a href="/privacy">Privacy policy</a> · <a href="/delete-account">Delete your account</a> · <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">Security</a></p>
+  <p>See also: <a href="/terms">Terms of Use</a> · <a href="/privacy">Privacy policy</a> · <a href="/delete-account">Delete your account</a> · <a href="/docs/security">Security</a></p>
 </main>
 
 <!-- FOOTER -->
 <footer>
-  <span>© 2026 Viktor Lundgren · <a href="https://github.com/quikmn/iskra-voice/blob/main/LICENSE" target="_blank" rel="noopener">PolyForm Noncommercial 1.0.0</a></span>
+  <span>© 2026 Viktor Lundgren · <a href="/license">PolyForm Noncommercial 1.0.0</a></span>
   <div class="footer-links">
-    <a href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
-    <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/hosting.md" target="_blank" rel="noopener">Hosting guide</a>
-    <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/security.md" target="_blank" rel="noopener">Security</a>
+    <a href="/github">GitHub</a>
+    <a href="/hosting">Hosting guide</a>
+    <a href="/docs/">Docs</a>
+    <a href="/docs/security">Security</a>
     <a href="/terms">Terms</a>
     <a href="/privacy">Privacy</a>
     <a href="/privacy#third">Who Iskra talks to</a>

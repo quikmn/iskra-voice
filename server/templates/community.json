@@ -174,7 +174,7 @@
         },
         {
           "name": "bots-and-webhooks",
-          "topic": "🤖 Building bots with the iskra-bots SDK, webhooks and integrations. Share code, ask questions. Docs: https://github.com/quikmn/iskra-voice/blob/main/docs/bots.md"
+          "topic": "🤖 Building bots with the iskra-bots SDK, webhooks and integrations. Share code, ask questions. Docs: https://iskra.foo/docs/bots"
         }
       ]
     },

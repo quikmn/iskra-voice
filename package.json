@@ -4,5 +4,8 @@
   "description": "Release scripts for the whole repo. The apps have their own package.json in client/, desktop/ and bots/.",
   "scripts": {
     "test": "node --test \"scripts/*.test.mjs\""
+  },
+  "devDependencies": {
+    "markdown-it": "14.1.0"
   }
 }
