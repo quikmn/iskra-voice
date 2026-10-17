@@ -1,13 +1,10 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
 import { test } from 'node:test'
 import { HttpError } from 'builder-util-runtime'
 // The providers electron-updater uses, run against a fake GitHub (they don't need Electron).
 import { GenericProvider } from 'electron-updater/out/providers/GenericProvider'
 import { GitHubProvider } from 'electron-updater/out/providers/GitHubProvider'
-import { autoFeed, errorLine, healState, logLine, STALE_DOWNLOAD_MS, UpdateLog } from './updateCheck'
+import { autoFeed, healState, STALE_DOWNLOAD_MS } from './updateCheck'
 import type { GitHubRelease } from './platform'
 
 const REPO = 'quikmn/iskra-voice'
@@ -88,27 +85,4 @@ test('a stuck or meaningless state is reset so the next check runs', () => {
   // A real update waiting stays, however old.
   assert.deepEqual(healState({ state: 'ready', version: '2.0.0-alpha.19' }, 0, now, RUNNING), { state: 'ready', version: '2.0.0-alpha.19' })
   assert.deepEqual(healState({ state: 'none' }, 0, now, RUNNING), { state: 'none' })
-})
-
-test('log lines carry no tokens, query strings or line breaks', () => {
-  const line = logLine('failed https://objects.githubusercontent.com/x/y.exe?X-Amz-Signature=abc&token=s3cret#frag\nat stack token=hunter2')
-  assert.equal(line, 'failed https://objects.githubusercontent.com/x/y.exe at stack token=…')
-  assert.ok(logLine('x'.repeat(1000)).length <= 300)
-  assert.equal(errorLine(Object.assign(new Error('Cannot find latest.yml\nXML: <feed>…'), { code: 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND' })), 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND: Cannot find latest.yml')
-  assert.equal(errorLine('plain'), 'plain')
-})
-
-test('the update log stays a few KB and keeps the newest lines', () => {
-  const dir = mkdtempSync(path.join(tmpdir(), 'iskra-updlog-'))
-  try {
-    const file = path.join(dir, 'logs', 'updates.log')
-    const log = new UpdateLog(file, 2048, () => new Date('2026-10-15T12:00:00Z'))
-    for (let i = 0; i < 500; i++) log.write(`check ${i}`)
-    const text = readFileSync(file, 'utf8')
-    assert.ok(text.length <= 2048, `log is ${text.length} bytes`)
-    assert.ok(text.endsWith('2026-10-15T12:00:00.000Z check 499\n'))
-    assert.ok(!text.includes('check 0\n'))
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
 })

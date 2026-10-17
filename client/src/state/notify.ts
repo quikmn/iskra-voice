@@ -1,6 +1,7 @@
 // Desktop notifications, the unread count in the window title, and small sounds.
 // Notifications fire for mentions (every message at "All messages") and DMs when you aren't already looking at them.
 import { create } from 'zustand'
+import { logError } from '../core/log'
 import { t } from '../i18n'
 import { plainText } from '../ui/markdown'
 import { stripMarkdown } from '../ui/plainMarkdown'
@@ -144,6 +145,7 @@ export function notifyChannelMessage(serverKey: string, message: Message): void 
       hook(serverKey, message)
     } catch (e) {
       console.warn('[iskra] message hook failed', e)
+      logError('ui', 'message-hook', e)
     }
   }
   const alerted = !message.forwarded && senderRules.alertsMe(server, message)

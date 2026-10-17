@@ -44,6 +44,11 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   },
   // Bug reports: a picture of one of the app's own windows ('main' or a pop-out's name; PNG data URL), never the screen.
   captureWindow: (target: string): Promise<string | null> => ipcRenderer.invoke('iskra:capture-window', target),
+  // The app log (userData/logs): the page's own entries go in (checked again there), and a bug report takes the last 30 minutes.
+  logs: {
+    write: (entry: unknown): void => ipcRenderer.send('iskra:log', entry),
+    tail: (): Promise<unknown> => ipcRenderer.invoke('iskra:log-tail'),
+  },
   openSystemSettings: (pane: string): Promise<void> => ipcRenderer.invoke('iskra:open-settings', pane),
   setLanguage: (language: string): Promise<void> => ipcRenderer.invoke('iskra:set-language', language),
 

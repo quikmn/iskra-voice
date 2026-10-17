@@ -138,6 +138,11 @@ export interface DesktopBridge {
    * window), and never the screen. null if there's no such window or nothing to capture (missing in older desktop builds).
    */
   captureWindow?(target: string): Promise<string | null>
+  /**
+   * The desktop app's log file (missing in older desktop builds): `write` keeps one of this page's entries there (the
+   * app checks it again), `tail` gives the last 30 minutes of its lines (main process, updater, this page) for a bug report.
+   */
+  logs?: { write(entry: unknown): void; tail(): Promise<unknown> }
   /** macOS: opens a Privacy & Security page in System Settings. */
   openSystemSettings(pane: 'accessibility' | 'screen' | 'microphone' | 'camera'): Promise<void>
   /** Tells the shell the app's language, for the tray and native dialogs (older shells don't have it). */

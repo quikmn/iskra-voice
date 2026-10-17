@@ -5,6 +5,7 @@
 // in IndexedDB, encrypted ones in memory only. English and Swedish, like captions (Settings → Voice & audio →
 // Captions → Language). A device too slow for it gets a "too slow" note, and automatic transcripts stop there.
 import { useEffect } from 'react'
+import { errorFields, log } from '../core/log'
 import { create } from 'zustand'
 import { captionsSupported, useCaptions } from './captions'
 import { findWhisperSource, startWhisperWorker } from './captions/whisperHost'
@@ -258,12 +259,14 @@ async function run(item: TranscriptItem, auto: boolean): Promise<void> {
   } catch (e) {
     if (e instanceof TooSlow) {
       console.warn('[iskra] transcript: this device is too slow for it')
+      log('WARN', 'media', 'failed', 'MED-150', [['what', 'transcript'], ['why', 'slow']])
       stopWorker()
       saveSettings({ slow: true })
       return setEntry(item.key, { status: 'tooSlow', shown: true })
     }
     console.warn('[iskra] transcript failed', e)
     const kind = e instanceof NotOffered ? 'notOffered' : e instanceof ModelError ? e.kind : null
+    log('WARN', 'media', 'failed', 'MED-150', [['what', 'transcript'], ['why', kind ?? undefined], ...errorFields(e)])
     const status: TranscriptStatus = kind === 'notOffered' ? 'notOffered' : kind === 'download' ? 'downloadFailed' : kind === 'corrupt' ? 'corrupt' : 'failed'
     setEntry(item.key, { status, shown: shownNow() || !auto })
   } finally {

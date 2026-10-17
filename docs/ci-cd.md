@@ -306,10 +306,11 @@ Installed desktop apps (Windows installer, AppImage, signed Mac) check about 15 
 window comes back after 15 minutes (tray → "Check for updates" any time). They pick the newest **published** release
 from the GitHub releases API and let electron-updater read that release's `latest*.yml`. They don't use the
 `releases.atom` feed: it also lists tags whose release is still a draft (a release finalize refused), and a draft has no
-`latest.yml`, so every check would fail until a newer release is out. Each app keeps a few KB of its latest checks in
-`logs/updates.log` in its data folder (Windows: `%APPDATA%\iskra-desktop\logs\updates.log`; macOS:
-`~/Library/Application Support/iskra-desktop/logs`; Linux: `~/.config/iskra-desktop/logs`): start, each check and what
-it found, downloads and errors (no links with tokens). The downloaded installer waits in
+`latest.yml`, so every check would fail until a newer release is out. Each app writes its checks to its own log,
+`logs/YYYY-MM-DD.log` in its data folder (Windows: `%APPDATA%\iskra-desktop\logs`; macOS:
+`~/Library/Application Support/iskra-desktop/logs`; Linux: `~/.config/iskra-desktop/logs`), as `upd` lines: start, each
+check and what it found, downloads and errors (`UPD-110`, `UPD-120`; no links with tokens). It replaced `updates.log`,
+which the app deletes. The downloaded installer waits in
 `%LOCALAPPDATA%\iskra-desktop-updater\pending` on Windows; a leftover one there is harmless.
 
 ## 3. Deploying without a release

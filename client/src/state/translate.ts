@@ -4,6 +4,7 @@
 // never sent anywhere or stored; translations live in memory until the app closes. The models come from your own
 // Iskra server, once each (translate/modelFiles.ts), after you say yes to the download.
 import { useEffect } from 'react'
+import { errorFields, log } from '../core/log'
 import { create } from 'zustand'
 import wasmUrl from '../../vendor/bergamot/bergamot-translator.wasm?url'
 import { currentLanguage } from '../i18n'
@@ -277,6 +278,7 @@ async function run(item: TranslateItem, auto: boolean): Promise<void> {
   } catch (e) {
     console.warn('[iskra] translation failed', e)
     const kind = e instanceof ModelError ? e.kind : null
+    log('WARN', 'media', 'failed', 'MED-150', [['what', 'translation'], ['why', kind ?? undefined], ...errorFields(e)])
     setEntry(key, { status: kind === 'notOffered' ? 'notOffered' : kind === 'corrupt' ? 'corrupt' : 'failed', shown: true })
   }
 }

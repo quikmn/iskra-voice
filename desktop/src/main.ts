@@ -2,7 +2,7 @@
 // It adds what browsers can't do: push-to-talk while a game has focus, a screen/window picker,
 // the tray, and a stable app:// origin for local storage.
 import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, powerMonitor, safeStorage, screen, session, shell, systemPreferences, Tray } from 'electron'
-import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
@@ -37,6 +37,7 @@ import { captureAppPage, captureTarget } from './capture'
 import { readBuildCommit, windowTitle } from './title'
 import { pickerChoices, placeTestWindow, realScreenThumbnails, testWindowArea, thumbnailSize } from './testMode'
 import { PopoutWindows } from './popoutWindows'
+import { deskLog, duration, errorFields, type LogFields } from './log'
 import { parsePopoutPatch } from './popouts'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
@@ -95,7 +96,16 @@ const ptt = new PushToTalk(
 // Friends without port forwarding: one DHT node for the app; tunnels for the servers hosted here and the ones you join.
 // Development builds and ISKRA_LOCAL_ONLY runs bind 127.0.0.1 and only join a testnet named by ISKRA_P2P_BOOTSTRAP.
 const p2pNode = new P2pNode(p2pNetwork(process.env, app.isPackaged))
-const hostTunnels = new HostTunnels(p2pNode, (id, p2p) => window?.webContents.send('iskra:host-p2p', { id, p2p }))
+const hostTunnelStates = new Map<string, string>()
+const hostTunnels = new HostTunnels(p2pNode, (id, p2p) => {
+  // The log has the tunnel's state changes only: never the server's folder name, its key or any address.
+  if (hostTunnelStates.get(id) !== p2p.state) {
+    hostTunnelStates.set(id, p2p.state)
+    if (p2p.state === 'failed') deskLog.write('ERROR', 'desk', 'tunnel', 'failed', 'TUN-150', [['what', 'host']])
+    else deskLog.info('tunnel', 'changed', [['what', 'host'], ['state', p2p.state]])
+  }
+  window?.webContents.send('iskra:host-p2p', { id, p2p })
+})
 const clientTunnels = new ClientTunnels(p2pNode)
 const host = new Host(hostTunnels)
 // While the page's voice goes through a tunnel, WebRTC uses one any-address socket (see p2p/webrtcPolicy.ts).
@@ -121,6 +131,36 @@ function refreshTitle(): void {
 // A second launch (e.g. an iskra:// link) hands over to this one and quits before showing anything.
 const primaryInstance = app.requestSingleInstanceLock()
 if (!primaryInstance) app.quit()
+
+// The app's own log, userData/logs/YYYY-MM-DD.log (log.ts): kept by the one running copy, trimmed at start and daily.
+const startedAt = Date.now()
+if (primaryInstance) {
+  const logs = path.join(app.getPath('userData'), 'logs')
+  deskLog.open(logs)
+  deskLog.info('life', 'start', [['ver', app.getVersion()], ['os', process.platform], ['arch', process.arch], ['mode', app.isPackaged ? 'packaged' : 'dev']])
+  // The updater's own small log is part of this one now.
+  try {
+    rmSync(path.join(logs, 'updates.log'), { force: true })
+  } catch {
+    /* not there, or busy: harmless */
+  }
+  const sweep = () => {
+    const result = deskLog.sweep()
+    if (result && result.compressed + result.deleted + result.skipped > 0)
+      deskLog.info('sweep', 'done', [['what', 'logs'], ['gz', result.compressed], ['deleted', result.deleted], ['n', result.skipped]])
+  }
+  setTimeout(sweep, 10_000).unref()
+  setInterval(sweep, 24 * 3_600_000).unref()
+}
+
+// A page or a helper process that went away (a crash, out of memory, killed): kind and Electron's reason only.
+const processGone = (kind: string, details: { reason: string; exitCode: number }) => {
+  const fields: LogFields = [['kind', kind], ['reason', details.reason], ['exit', details.exitCode]]
+  if (details.reason === 'clean-exit') deskLog.info('life', 'gone', fields)
+  else deskLog.warn('DSK-110', 'life', 'gone', fields)
+}
+app.on('render-process-gone', (_event, contents, details) => processGone(contents === window?.webContents ? 'page' : 'popout', details))
+app.on('child-process-gone', (_event, details) => processGone(details.type.toLowerCase().replace(/[^a-z]+/g, '-'), details))
 
 // ── Starting up: the splash window ───────────────────────────────────────
 // Shown at once on every start (not when started hidden in the tray), then fades into the main window once its page
@@ -225,6 +265,9 @@ function createWindow(): void {
     },
   })
   allowPageViews(window, isAppUrl)
+  deskLog.info('ui', 'opened', [['what', 'window']])
+  window.on('unresponsive', () => deskLog.warn('DSK-150', 'ui', 'unresponsive'))
+  window.on('responsive', () => deskLog.info('ui', 'responsive'))
   window.webContents.setWebRTCIPHandlingPolicy(tunnelledVoice.policy) // 'default', unless voice is already through the tunnel
 
   // Started with the computer: stay in the tray until opened. Otherwise the splash shows it when everything's ready.
@@ -260,11 +303,13 @@ function createWindow(): void {
     if (!quitting && settings.closeToTray) {
       event.preventDefault()
       window?.hide()
+      deskLog.info('ui', 'hidden', [['what', 'window']])
     }
   })
   // Gone for good (quitting, or closed without the tray): late callbacks see no window rather than a destroyed one.
   const created = window
   created.on('closed', () => {
+    deskLog.info('ui', 'closed', [['what', 'window']])
     if (window === created) window = null
   })
 }
@@ -353,6 +398,7 @@ function createTray(): void {
   tray.setToolTip('Iskra')
   updateTray()
   tray.on('click', showWindow)
+  deskLog.info('ui', 'opened', [['what', 'tray']])
 }
 
 /** The tray menu, rebuilt whenever the updater's state changes. */
@@ -413,6 +459,17 @@ async function checkForUpdates(): Promise<void> {
 
 /** IPC is only accepted from the app's own page. */
 const fromApp = (event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent) => !!event.senderFrame && isAppUrl(event.senderFrame.url)
+
+// The page's log lines into the app log (checked again there; at most 50 a second), and the last 30 minutes of it
+// for a bug report.
+let pageLines = { since: 0, count: 0 }
+ipcMain.on('iskra:log', (event, entry: unknown) => {
+  if (!fromApp(event)) return
+  const now = Date.now()
+  if (now - pageLines.since > 1000) pageLines = { since: now, count: 0 }
+  if (++pageLines.count <= 50) deskLog.fromPage(entry)
+})
+ipcMain.handle('iskra:log-tail', (event) => (fromApp(event) ? deskLog.tail() : []))
 
 // A button in one of the shell's notices (notices.ts): "Open System Settings" for the macOS Screen Recording
 // permission, and "Open source licences" on the About & legal page.
@@ -514,6 +571,7 @@ ipcMain.handle('iskra:set-desktop-settings', (event, patch: unknown) => {
     saveDesktopSettings(settings)
   } catch (error) {
     console.error('Saving settings:', error)
+    deskLog.warn('DSK-140', 'store', 'failed', [['what', 'settings'], ...errorFields(error)])
   }
   return settings
 })
@@ -529,6 +587,7 @@ ipcMain.handle('iskra:set-language', (event, value: unknown) => {
     saveDesktopSettings(settings)
   } catch (error) {
     console.error('Saving settings:', error)
+    deskLog.warn('DSK-140', 'store', 'failed', [['what', 'settings'], ...errorFields(error)])
   }
 })
 ipcMain.handle('iskra:relaunch', (event) => {
@@ -724,6 +783,7 @@ ipcMain.handle('iskra:p2p-open', async (event, serverKey: unknown, secret: unkno
   try {
     return await clientTunnels.get(serverKey, secret)
   } catch (error) {
+    deskLog.info('tunnel', 'failed', [['what', 'join'], ...errorFields(error)])
     return { error: (error as Error).message }
   }
 })
@@ -749,6 +809,7 @@ ipcMain.handle('iskra:host-keep-running', (event, id: unknown, on: unknown) => {
     saveDesktopSettings(settings)
   } catch (error) {
     console.error('Saving settings:', error)
+    deskLog.warn('DSK-140', 'store', 'failed', [['what', 'settings'], ...errorFields(error)])
   }
   return withKeep(server)
 })
@@ -918,6 +979,7 @@ app.whenReady().then(() => {
       saveDesktopSettings(settings)
     } catch (error) {
       console.error('Saving settings:', error)
+      deskLog.warn('DSK-140', 'store', 'failed', [['what', 'settings'], ...errorFields(error)])
     }
   }
   setUpSession()
@@ -936,6 +998,10 @@ app.whenReady().then(() => {
   // A page that never paints still shows (with whatever it has) rather than leaving only the splash.
   setTimeout(() => launchChanged({ page: 'ready', serversGaveUp: true }), LAUNCH_GIVE_UP_MS)
   updates.start(settings.updateChecks)
+  powerMonitor.on('suspend', () => deskLog.info('life', 'sleep'))
+  powerMonitor.on('resume', () => deskLog.info('life', 'resumed'))
+  powerMonitor.on('lock-screen', () => deskLog.info('life', 'locked'))
+  powerMonitor.on('unlock-screen', () => deskLog.info('life', 'unlocked'))
   activity.configure(settings.activity, settings.customGames)
   streamerPrograms.configure(settings.streamerAuto, settings.customGames)
 })
@@ -947,12 +1013,18 @@ app.on('activate', () => {
 })
 
 let serversStopped: Promise<void> | null = null
+let stopLogged = false
 /** How long quitting waits for hosted servers (and the p2p node) at most: they're force-stopped well before. */
 const QUIT_WAIT_MS = GRACEFUL_STOP_MS + 3000
 app.on('before-quit', () => {
+  if (!stopLogged) deskLog.info('life', 'stop', [['why', serverStop], ['dur', duration(Date.now() - startedAt)]])
+  stopLogged = true
   quitting = true
   // Nothing may hold the quit up: Electron's error box for a late callback's error would block it for good.
-  logUncaughtErrors()
+  logUncaughtErrors(process, (error) => {
+    console.error('While quitting:', error)
+    deskLog.error('DSK-900', 'life', 'failed', error)
+  })
   ptt.stop()
   void clientTunnels.closeAll()
   // Restarting (a relaunch, an update): hosted servers tell members "restarting", since they're back in a moment.

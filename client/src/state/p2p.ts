@@ -7,6 +7,8 @@ import { desktop, type P2pHostStatus, type TunnelEndpoint } from '../platform/de
 import { t } from '../i18n'
 import { noteHosted, useHostedHere } from './hosting'
 import { connectionFor, patchServer, setUrlResolver, useApp } from './store'
+import { duration, log } from '../core/log'
+import { serverLogFields } from './logIds'
 
 interface P2pState {
   /** p2p.status per server key (the owner's view). */
@@ -100,16 +102,23 @@ export async function resolveServerUrl(key: string): Promise<string | null> {
     return server.directUrl
   }
   const since = preferTunnel.get(key)
-  if (!(since !== undefined && Date.now() - since < RETRY_DIRECT_MS) && (await reachable(server.directUrl))) {
+  const tryDirect = !(since !== undefined && Date.now() - since < RETRY_DIRECT_MS)
+  if (tryDirect && (await reachable(server.directUrl))) {
     preferTunnel.delete(key)
     useTunnel(key, null)
     return server.directUrl
   }
+  // Only ids and outcomes in the log: never the address, the secret or the tunnel's error text.
+  const srv = serverLogFields(key)
+  if (tryDirect) log('INFO', 'tunnel', 'fallback', 'TUN-120', srv)
+  const opening = Date.now()
   const endpoint = await desktop.p2p.open(key, server.p2p).catch(() => null)
   if (!endpoint || 'error' in endpoint) {
+    log('WARN', 'tunnel', 'failed', 'TUN-110', [...srv, ['why', endpoint ? 'open-failed' : 'no-answer'], ['took', duration(Date.now() - opening)]])
     useTunnel(key, null)
     return server.directUrl
   }
+  if (useP2p.getState().via[key]?.url !== endpoint.url) log('INFO', 'tunnel', 'opened', null, [...srv, ['took', duration(Date.now() - opening)]])
   preferTunnel.set(key, Date.now())
   useTunnel(key, endpoint)
   return endpoint.url
