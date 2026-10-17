@@ -24,7 +24,7 @@ public class BuddyBackupTests
     };
 
     /// <summary>Two real servers: the source reaches the holder through the holder's own test handler.</summary>
-    private sealed class Pair : IDisposable
+    internal sealed class Pair : IDisposable
     {
         public IskraServer Holder { get; } = new() { Settings = Quick };
         private readonly IskraServer _sourceBase = new() { Settings = Quick };
@@ -48,14 +48,16 @@ public class BuddyBackupTests
         /// <summary>The holder's HTTP side, as another server would call it.</summary>
         public BuddyHttp Http() => new(Holder.Server.CreateHandler(), localOnly: false, allowLoopback: true);
 
-        public async Task<User> SourceOwnerAsync()
+        public Task<User> SourceOwnerAsync() => SourceJoinAsync("Source owner", "owner");
+
+        public async Task<User> SourceJoinAsync(string name, string role)
         {
             var world = SourceWorld;
             var identity = new TestIdentity();
             var ws = await Source.Server.CreateWebSocketClient().ConnectAsync(new Uri(Source.Server.BaseAddress, "ws"), CancellationToken.None);
             var client = new TestClient(ws);
-            var invite = world.Store.CreateInvite(InviteFeature.NewCode(), "test", "owner", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), null, null).Code;
-            var welcome = await client.LoginAsync(identity, "Source owner", invite);
+            var invite = world.Store.CreateInvite(InviteFeature.NewCode(), "test", role, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), null, null).Code;
+            var welcome = await client.LoginAsync(identity, name, invite);
             return new User(identity, client, welcome);
         }
 
@@ -70,7 +72,7 @@ public class BuddyBackupTests
     /// <summary>The holder's address in the tests (its in-memory handler answers any address).</summary>
     private const string Url = "http://localhost";
 
-    private static async Task<(string Id, string Code)> CreateSpot(User holderOwner, object? body = null)
+    internal static async Task<(string Id, string Code)> CreateSpot(User holderOwner, object? body = null)
     {
         var result = (await holderOwner.RequestAsync("buddy.spot.create", body ?? new { label = "Anna's server", url = Url })).Body();
         return (result.GetProperty("spot").GetProperty("id").GetString()!, result.GetProperty("code").GetString()!);
@@ -79,7 +81,7 @@ public class BuddyBackupTests
     private static string? ErrorKey(JsonElement frame) =>
         frame.Type() == "error" && frame.Body().TryGetProperty("key", out var key) ? key.GetString() : null;
 
-    private static async Task<string> PairedAsync(Pair pair, User holderOwner, User sourceOwner)
+    internal static async Task<string> PairedAsync(Pair pair, User holderOwner, User sourceOwner)
     {
         var (_, code) = await CreateSpot(holderOwner);
         var added = await sourceOwner.RequestAsync("buddy.add", new { code });

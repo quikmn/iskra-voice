@@ -56,7 +56,9 @@
 
 - **Every CI run:** the restore drill in `.github/workflows/ci.yml` (job `scripts-and-drill`) makes a backup of a seeded test
   world, restores it into a new folder and checks integrity (SQLite `PRAGMA integrity_check`, row counts per table,
-  upload file hashes, the server key). Its report is uploaded as the `restore-drill-report` artifact. Plus the
+  upload file hashes, the server key). The same drill also pairs it with a second in-process server as a backup buddy, sends the
+  off-site copy there and restores it from the recovery code alone (as `iskra-server restore-buddy` does), with the same checks;
+  the report records the copy's size and the upload and restore times. Its report is uploaded as the `restore-drill-report` artifact. Plus the
   backup tests in `server/tests/Iskra.Server.Tests/BackupTests.cs`.
 - **Yearly:** restore a real chat.iskra.foo backup onto a scratch machine (localhost only) and time it against the
   RTO. Record the result here.
