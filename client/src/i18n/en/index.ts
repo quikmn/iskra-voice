@@ -63,6 +63,7 @@ import { mediaChannels } from './mediaChannels'
 import { channelExport } from './channelExport'
 import { feeds } from './feeds'
 import { bots3 } from './bots3'
+import { pcBots } from './pcBots'
 
 export const en = {
   common,
@@ -129,4 +130,5 @@ export const en = {
   channelExport,
   feeds,
   bots3,
+  pcBots,
 } as const

@@ -14,6 +14,7 @@ export const settings: Messages['settings'] = {
     video: 'Kamera',
     blocked: 'Blockerade',
     desktop: 'Skrivbordsappen',
+    pcBots: 'Bottar på den här datorn',
     account: 'Konto',
     about: 'Om och juridik',
     reports: 'Anmälningar',

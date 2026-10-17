@@ -11,8 +11,8 @@ describe('My settings', () => {
     expect(mySections().map((s) => s.label)).not.toContain('Overview')
   })
 
-  it('shows Desktop app only in the desktop app', () => {
-    expect(mySections(true).map((s) => s.id)).toEqual([...mine.slice(0, 11), 'desktop', ...mine.slice(11)])
+  it('shows Desktop app and Bots on this PC only in the desktop app', () => {
+    expect(mySections(true).map((s) => s.id)).toEqual([...mine.slice(0, 11), 'desktop', 'pcBots', ...mine.slice(11)])
   })
 })
 
