@@ -229,8 +229,9 @@ public class AlertTests
         await bob.RequestAsync("alerts.set", new { quiet = (object?)null });
         var other = server.World.Store.CreateChannel("other", "text", "member", "member", 0).Id;
         await Say(alice, other, $"<@{bob.Key}> and now?");
-        // (Turning quiet hours off also sent the summary of what came in meanwhile: QuietDigestTests.)
-        var loud = (await server.Push.WaitForAsync(endpoint, 3)).Single(p => p.GetProperty("kind").GetString() == "mention" && p.GetProperty("body").GetString()!.Contains("and now"));
+        // Wait for this mention itself, not a count: turning quiet hours off may also send the summary of what came in
+        // meanwhile (QuietDigestTests), and it can arrive before or after it.
+        var loud = await server.Push.WaitForMatchAsync(endpoint, p => p.GetProperty("kind").GetString() == "mention" && p.GetProperty("body").GetString()!.Contains("and now"));
         Assert.Equal(JsonValueKind.Null, loud.GetProperty("silent").ValueKind);
     }
 
