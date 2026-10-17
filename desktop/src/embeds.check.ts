@@ -8,7 +8,7 @@ import { app, BrowserWindow, session, type Session } from 'electron'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
 import { isAppPage, YOUTUBE_REFERRER } from './platform'
 
