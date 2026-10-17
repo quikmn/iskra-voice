@@ -19,5 +19,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "vitest.interop.config.ts", "activities.vite.ts"]
+  "include": ["vite.config.ts", "vitest.interop.config.ts", "activities.vite.ts", "help.vite.ts"]
 }

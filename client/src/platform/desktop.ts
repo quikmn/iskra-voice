@@ -230,6 +230,18 @@ export interface DesktopBridge {
     voice?(on: boolean): Promise<void>
   }
   /**
+   * The personal assistant (missing in older desktop builds): requests to the user's AI provider go out from the main
+   * process (no browser CORS; only https or this computer, only the provider endpoints), and the local MCP bridge.
+   */
+  assistant?: {
+    fetch(request: { url: string; method: 'GET' | 'POST'; headers: Record<string, string>; body?: string }): Promise<{ ok: true; status: number; body: string } | { ok: false; error: string }>
+    /** Turns the local MCP bridge on or off; `command` is what an MCP client runs (this app with --mcp). */
+    setMcp(on: boolean): Promise<{ on: boolean; command: string | null }>
+    /** A request from a local MCP client: list the tools, or call one. Answer with mcpReply. */
+    onMcp(callback: (request: { id: string; method: 'list' | 'call'; name?: string; args?: unknown }) => void): () => void
+    mcpReply(id: string, result: unknown): Promise<void>
+  }
+  /**
    * Rent a server on DigitalOcean (missing in older desktop builds). The token goes to the main process once and stays
    * there; replies carry an error code (DigitalOceanError) and DigitalOcean's own words, never the token.
    */

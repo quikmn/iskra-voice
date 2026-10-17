@@ -6,6 +6,7 @@ import { defineConfig, type Plugin } from 'vite'
 import { shortCommit } from './src/commit.ts'
 import { CSP } from './src/csp.ts'
 import { activities } from './activities.vite.ts'
+import { help } from './help.vite.ts'
 import { RELEASE_VERSION } from './src/links.ts'
 import { releaseNotesFor } from './src/releaseNotes.ts'
 
@@ -36,7 +37,7 @@ const WHATS_NEW = releaseNotesFor(RELEASE_VERSION, (file) => {
 })
 
 export default defineConfig({
-  plugins: [react(), csp(), activities()],
+  plugins: [react(), csp(), activities(), help()],
   define: { __ISKRA_COMMIT__: JSON.stringify(COMMIT), __ISKRA_WHATS_NEW__: JSON.stringify(WHATS_NEW) },
   // Only workers import these: bundle them up front, or the dev server reloads the page when it finds them.
   optimizeDeps: { include: ['onnxruntime-web/wasm', '@mediapipe/tasks-vision', 'eld/extrasmall'] },

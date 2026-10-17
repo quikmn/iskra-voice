@@ -521,3 +521,8 @@ export const savePrivate = (name: string, value: unknown) => setSecret(`producti
 export const loadE2ee = <T>(slot: string) => getSecret<T>(`e2ee:${slot}`)
 export const saveE2ee = (slot: string, value: unknown) => setSecret(`e2ee:${slot}`, value)
 export const deleteE2ee = (slot: string) => remove(`e2ee:${slot}`)
+
+// ── Personal assistant (see state/assistant/): its settings hold the user's AI provider key, so they're sealed ──
+export const loadAssistant = <T>(slot: 'config' | 'activity') => getSecret<T>(`assistant:${slot}`)
+export const saveAssistant = (slot: 'config' | 'activity', value: unknown) => setSecret(`assistant:${slot}`, value)
+export const clearAssistant = (slot: 'config' | 'activity') => remove(`assistant:${slot}`)
