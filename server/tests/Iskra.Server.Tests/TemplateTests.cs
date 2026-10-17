@@ -38,14 +38,15 @@ public class TemplateTests : IDisposable
         var categories = world.Store.AllCategories();
         Assert.Equal(["Text channels", "Voice"], categories.Select(c => c.Name));
         var channels = world.Store.AllChannels().OrderBy(c => c.Position).ToList();
-        Assert.Equal(["general", "announcements", "clips", "looking-for-group", "mod-chat", "Lobby", "Squad 1", "Squad 2", "Raid", "Tournament", "AFK"],
+        Assert.Equal(["general", "announcements", "clips", "screenshots", "looking-for-group", "mod-chat", "Lobby", "Squad 1", "Squad 2", "Raid", "Tournament", "AFK"],
             channels.Select(c => c.Name));
         // The starting #general is reused, not duplicated.
         Assert.Equal(general, channels[0].Id);
         Assert.Equal("admin", channels[1].WriteRole);
-        Assert.All(channels.Take(5), c => Assert.Equal(categories[0].Id, c.CategoryId));
-        Assert.All(channels.Skip(5), c => Assert.Equal(categories[1].Id, c.CategoryId));
+        Assert.All(channels.Take(6), c => Assert.Equal(categories[0].Id, c.CategoryId));
+        Assert.All(channels.Skip(6), c => Assert.Equal(categories[1].Id, c.CategoryId));
         Assert.Equal("stage", channels.Single(c => c.Name == "Tournament").Kind);
+        Assert.Equal("media", channels.Single(c => c.Name == "screenshots").Kind);
         Assert.Equal(30, world.Store.Slowmode(channels.Single(c => c.Name == "looking-for-group").Id));
         var limits = world.Store.AllUserLimits();
         Assert.Equal(5, limits[channels.Single(c => c.Name == "Squad 1").Id]);
@@ -84,7 +85,7 @@ public class TemplateTests : IDisposable
         // Again (a restart with the same setting): nothing changes.
         Assert.Equal(ServerTemplates.Outcome.AlreadyApplied, ServerTemplates.ApplyOnStart(world, "gaming", 2000));
         Assert.Equal(ServerTemplates.Outcome.AlreadyApplied, ServerTemplates.ApplyOnStart(world, "friends", 2000));
-        Assert.Equal(11, world.Store.AllChannels().Count);
+        Assert.Equal(12, world.Store.AllChannels().Count);
         Assert.Equal(2, world.Store.AllCategories().Count);
         Assert.Equal(2, world.Store.AllRoles().Count);
     }
@@ -135,7 +136,7 @@ public class TemplateTests : IDisposable
     }
 
     [Theory]
-    [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "vioce" } ] }""", "'kind' must be one of text, voice, forum, stage, docs, whiteboard, not \"vioce\"")]
+    [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "vioce" } ] }""", "'kind' must be one of text, voice, forum, stage, docs, whiteboard, media, not \"vioce\"")]
     [InlineData("""{ "name": "x", "chanels": [] }""", "unknown field at $.chanels")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "voice", "userLimit": 100 } ] }""", "'userLimit' must be 0 (no limit) to 99")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "userLimit": 3 } ] }""", "only voice channels have a 'userLimit'")]
@@ -169,7 +170,7 @@ public class TemplateTests : IDisposable
     [InlineData("""{ "name": "x", "roles": [ { "name": "Mods" } ], "channels": [ { "name": "a", "overrides": [ { "role": "mods", "allow": ["fly"] } ] } ] }""", "unknown channel permission 'fly'")]
     [InlineData("""{ "name": "x", "roles": [ { "name": "Mods" } ], "channels": [ { "name": "a", "overrides": [ { "role": "Mods", "allow": ["send"], "deny": ["send"] } ] } ] }""", "can't both allow and deny")]
     [InlineData("""{ "name": "x", "roles": [ { "name": "Mods" } ], "channels": [ { "name": "a", "overrides": [ { "role": "Mods", "allow": ["send"] }, { "role": "mods", "deny": ["view"] } ] } ] }""", "each role can only have one override per channel")]
-    [InlineData("""{ "name": "x", "channels": [ { "name": "a", "tags": [ { "name": "News" } ] } ] }""", "only forums have tags")]
+    [InlineData("""{ "name": "x", "channels": [ { "name": "a", "tags": [ { "name": "News" } ] } ] }""", "only forums and media channels have tags")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "forum", "tags": [ { "name": "News" }, { "name": "news" } ] } ] }""", "two tags have the same name")]
     [InlineData("""{ "name": "x", "builtinRoles": { "owner": { "abilities": [] } } }""", "the owner can always do everything")]
     [InlineData("""{ "name": "x", "builtinRoles": { "member": { "permissions": ["kickMembers"] } } }""", "guests and members can only get everyday powers")]

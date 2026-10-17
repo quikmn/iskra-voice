@@ -11,7 +11,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers) · [Encrypted voice channels](#encrypted-voice-channels) · [Activities](#activities)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages) · [Quiet hours digest](#quiet-hours-digest)
-- **Community:** [Forum channels](#forum-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group) · [Whiteboards](#whiteboards)
+- **Community:** [Forum channels](#forum-channels) · [Media channels](#media-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group) · [Whiteboards](#whiteboards)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Public page](#public-page) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
 
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports) · [Backup buddies](#backup-buddies)
@@ -695,7 +695,7 @@ Webhook { "id": "<b64u 16>", "channelId": 1, "name": "GitHub", "avatar": File | 
 - Mentions: unless an admin turned on `mentions` for the webhook, `<@accountKey>` becomes plain `@Name` and `@everyone`/`@here` get a zero-width joiner, so nobody is pinged.
 - Body ≤ 64 KB (`413`). Rate limit per webhook: 5 at once, then one every 2 s (`429` with `Retry-After` and `{ message, retry_after, global: false }`). Wrong ids or secrets count against the caller's address (20 at once, then 1/s).
 - Answers: `204` (posted), `200` with a Discord-style message for `?wait=true`, `400 { message, code }` for invalid payloads, `404` for an unknown webhook or wrong secret (indistinguishable). `GET` on the URL returns `{ type: 1, id, name, channel_id }`.
-- `POST <server>/hooks/<id>/<secret>/github` accepts GitHub's own webhook format (JSON, or form with `payload`) and posts a short embed for `ping`, `push`, `issues`, `pull_request`, `issue_comment`, `release` and `star`; other actions are answered `204` without a message. Body ≤ 1 MB.
+- `POST <server>/hooks/<id>/<secret>/github` (also `/gitea`, `/gitlab`, `/slack`) accepts that service's own webhook format (JSON, or form with `payload`) and posts a short card; other events are answered `204` without a message. Body ≤ 1 MB. See [Webhook formats](#webhook-formats).
 
 The message is a normal `chat.message` to channel readers, with `author: "webhook:<id>"` (never an account key) and:
 
@@ -2623,6 +2623,8 @@ Outcome = "ok" | "http" | "timeout" | "network" | "blocked" | "redirect" | "rate
 | `event.started` | `{ event: { id, title, description, startAt, endAt, channel \| null, location } }` | events without a channel, or in a chosen channel |
 | `ping` | `{ hook: { id, name } }` | `outhook.test` only |
 
+More events (voice, threads, edits, deletions, members, roles, channels): [More outgoing webhook events](#more-outgoing-webhook-events).
+
 - Managers only see (list, update, regenerate, delete, log, test) webhooks whose channels they can all read; others are
   `not_found`, so nobody can point a webhook for a channel they can't read at their own address.
 - `channelIds` are text, voice, stage or forum channels you can read, never [end-to-end encrypted](#end-to-end-encrypted-channels)
@@ -4290,6 +4292,127 @@ It belongs to the call, not the channel: it goes away by itself when the last pe
   see the channel can read it. Apps say so where it's set.
 - **Rate limit:** 5 changes, then one every 10 s, per account (all its connections together): `rate_limited`, key
   `voice_status_slow`.
+
+## Invite tracking
+
+Moderators (the people who can see [join requests](#join-gating-and-raid-controls)) can see which invite each member
+joined with: its public id, label and maker, never its code.
+
+- `Invite` gains `id` (11 base64url characters: the first 66 bits of SHA-256 of `"iskra-invite-id-v1\n" + code`; it
+  names the invite without letting anyone join with it) and `label` (string or null).
+- `invite.create` takes `label?` (≤ 40 characters, one line, no invisible characters; `""` means none; else
+  `bad_request`, key `invite_label`, args `{ max }`).
+
+| type | body | result | who |
+|---|---|---|---|
+| `invite.joins` | `accountKey?`, `inviteId?` (filters), `limit?` (1–1000, default 500) | `{ joins: [JoinedVia] }`, newest first | moderators (else `forbidden`, key `mods_only`) |
+
+```jsonc
+JoinedVia { "accountKey": "...", "joinedAt": 0,
+            "invite": { "id": "<11 chars>", "label": "Reddit post" | null, "createdBy": accountKey | "server" | null,
+                        "createdByName": "Anna" | null, "role": "member" },   // label, maker and role as they were at the join
+            "approvedBy": accountKey | null, "approvedByName": "..." | null }  // who let them in, for approval invites
+```
+
+- Recorded at the join (bots too). Only current members are listed: the record is deleted when the member leaves, is
+  kicked or banned, or deletes their account. A member who comes back gets a new one.
+- Audit log: a direct join adds `member.join` (actor and target: the new member) `{ role, invite: { id, label, createdBy } }`;
+  `join.approve` details gain the same `invite`. Both show in the person's `member.history`. `invite.create` details
+  gain `id` and `label`.
+- Your data: `data.export` gains `joinedVia` (your own record), and `invitesCreated` gains `label`.
+
+## Webhook formats
+
+Besides the Discord-style body, an incoming webhook URL takes other services' own formats on a suffix (like Discord's
+`/github`): `POST <server>/hooks/<id>/<secret>/<format>`. Any other suffix is `404`. Bodies ≤ 1 MB (`413`); same rate
+limits as the plain URL. Events and actions that aren't posted are answered `204` with no message, so senders don't
+retry. No pictures are ever fetched or shown (avatars, gravatars, Slack images and icons are dropped), and nothing pings.
+
+| suffix | event from | posts a card for |
+|---|---|---|
+| `/github` | `X-GitHub-Event` | `ping`, `push` (with commits), `pull_request` and `issues` (opened, closed/merged, reopened), `issue_comment` (created), `release` (published), `workflow_run` (completed: failures; successes of CI/Release/Deploy-like workflows not run on a schedule), `star` (created) |
+| `/gitea` | `X-Gitea-Event` (or `X-Gogs-Event`, `X-GitHub-Event`) | the same as GitHub (Gitea's payloads copy GitHub's; `compare_url` is used for pushes) |
+| `/gitlab` | the body's `object_kind` | `push` (with commits), `tag_push` (a new tag), `merge_request` (open, close, reopen, merge), `issue` (open, close, reopen), `note` (comments on merge requests, issues, commits, snippets), `pipeline` (success unless scheduled, failed). Confidential issues and notes are never posted. |
+| `/slack` | | Slack-style `text` (mrkdwn: `<url\|label>` links, `<@user>`, `<#channel>`, `<!here>` as plain text, `*bold*`, `~strike~`, `&amp;` escapes), `blocks` (header → title, section text and fields, rich_text, context → footer; images, buttons and inputs dropped; with blocks, `text` is ignored), legacy `attachments` (title, title_link, pretext, text, color, author_name/author_link, fields, footer, ts) and `username`. Answers `200` `ok` (Slack's answer); `400` when there's nothing to post. Also as a form with `payload`. |
+
+Cards are the message's `webhook.embeds`: `title` (≤ 256), `url`, `description` (≤ 4096), `color`, `author.name` (the
+sender's user name), and for Slack `fields`, `footer` and `timestamp`. Text from the sender is cut to these limits
+rather than refused.
+
+**Signing secrets.** An admin who manages the webhook can give it a signing secret, the one entered at GitHub, Gitea or
+GitLab. Once set, posts to `/github` and `/gitea` must carry `X-Hub-Signature-256: sha256=<hex HMAC-SHA256(secret, body)>`
+(Gitea: or `X-Gitea-Signature: <hex>`), and posts to `/gitlab` `X-Gitlab-Token: <secret>`; anything else is
+`401 { message, code: 50014 }` and nothing is posted. Compared in constant time. A webhook with a signing secret is a
+GitHub, Gitea or GitLab webhook: posts to its plain URL and to `/slack` (formats that can't be signed) are `401` too. Without
+a secret every format works and the secret URL is the only key. The signature is checked before the webhook's rate limit is
+used; refused posts count against the sender's address (20 at once, then 1/s, like wrong secrets) and are recorded in the
+security log as `webhook.bad_signature` `{ webhook, format }` (never a secret or signature; the IP only under the owner's
+IP setting).
+
+| type | body | result | who |
+|---|---|---|---|
+| `webhook.signing.set` | `id`, `secret` (16–256 printable ASCII characters, spaces allowed but not at the start or end; `""` removes it) | `{ webhook }` | admin+ who can read the webhook's channel (else `not_found`); a bad secret is `bad_request`, key `webhook_signing_secret`, args `{ min, max }` |
+
+- `Webhook` gains `signed` (boolean). The secret itself is never returned. It's stored as given (an HMAC needs it) and
+  goes with the webhook. Setting or removing it is audited as `webhook.update` `{ id, name, channelId, signed }`.
+
+## More outgoing webhook events
+
+[Outgoing webhooks](#outgoing-webhooks) can also send these `EventType`s (same signing, retries, limits and log):
+
+| type | `data` | sent for |
+|---|---|---|
+| `voice.joined`, `voice.left` | `{ channel, member: { accountKey, name, bot } }` | voice and stage channels the webhook lists; nothing about mute, audio or video |
+| `thread.created` | `{ thread: { id, name, rootId, channel, createdBy: { accountKey, name, bot }, createdAt } }` | threads and forum posts in the chosen channels |
+| `message.updated` | `{ message: { id, channel, author, text, createdAt, editedAt } }` | edits in the chosen channels and their threads |
+| `message.deleted` | `{ messageId, channel }` (never the text) | deletions there, also in bulk and by moderators |
+| `member.updated` | `{ member: { accountKey, name, nick, role, bot, roles: [{ id, name }] }, changes: ["role" \| "roles" \| "nick"] }` | the whole server: built-in level, custom roles (also self-picked) and server nickname changes. Never profile data (bio, pronouns, pictures, presence) |
+| `role.created`, `role.updated` | `{ role: Role }` (as in `role.list`) | the whole server |
+| `role.deleted` | `{ role: { id, name } }` | the whole server |
+| `channel.created`, `channel.updated`, `channel.deleted` | `{ channel: { id, name, kind, categoryId, readRole, writeRole }, changes: [field] \| null }` (`changes` for updates: `name`, `readRole`, `writeRole`, `slowmode`, `userLimit`, `hifi`, `topic`, `lobby`; never the topic's text) | channels every member can read, or that the webhook lists; never [end-to-end encrypted](#end-to-end-encrypted-channels) channels or threads |
+
+- `voice.*`, `thread.created`, `message.updated` and `message.deleted` need at least one channel, like `message.created`
+  (`bad_request`, key `outhook_channels`). Encrypted channels, DMs and group chats are never sent, as before.
+
+## Media channels
+
+A media channel (`channel.create` with `kind: "media"`) is a gallery: a [forum](#forum-channels) where every post is
+pictures or videos, with an optional title, a caption (the first message's text) and tags, and comments as the post's
+thread. Everything a forum does works the same way: `forum.posts`, `forum.post.create`, `forum.post.get`,
+`forum.post.update`, `forum.post.set`, `forum.tags.set`, their events, who can post and comment (`readRole`,
+`writeRole`), moderators, pinning, closing, locking, deleting, unread counts and [search](#search). `chat.send`,
+`poll.create` and `thread.create` don't work in a media channel directly (`bad_request`). Media channels can't be
+end-to-end encrypted (`e2ee_kinds`).
+
+`forum.post.create` in a media channel:
+
+| field | rule |
+|---|---|
+| `attachments` | 1–10 of your own uploads, each a picture or a video by the type the server found in its first bytes (`image/*`: PNG, JPEG, GIF, WebP; `video/*`: MP4, WebM). None: `bad_request`, key `media_post_needs_media`; anything else among them: `bad_request`, key `media_post_only_media`. Upload limits, quotas and metadata stripping are those of [ordinary uploads](#files-replies-and-reactions) |
+| `title` | optional: 0–100 characters (one line). Blank or missing makes the post **untitled** |
+| `text` | the caption, as `chat.send` text; may be empty |
+| `tags` | as in forums |
+
+Posts (in forums and media channels alike) gain:
+
+```jsonc
+Post { …, "media": [File],          // the first message's pictures and videos, in order (≤ 10)
+          "untitled": false,          // true: made without a title; `title` is then a stand-in
+          "reactionCount": 0 }        // reactions on the first message (one per person per emoji)
+```
+
+- **Untitled posts:** the post's thread still needs a name (thread lists, notifications, search results), so `title` is
+  a stand-in: the caption's first line without mentions or custom emoji (cut to 100 characters with `…`), else the first
+  file's name without `SPOILER_` and its extension, else `Media`. Apps show the caption instead of the stand-in.
+  `forum.post.update` with a `title` makes the post titled.
+- **Sort:** `forum.posts` also takes `sort: "top"`: most reactions on the first message first, newest first among equals
+  (pinned posts still come first). It works in forums too.
+- **Search:** `forum.posts` `query` also matches posts where every word is in the title or one of the post's tag names
+  (ignoring case and accents), in forums too; captions and comments are found by full-text search as before.
+- **Sensitive pictures:** [spoilers](#stickers) as anywhere: files whose name starts with `SPOILER_` are shown blurred
+  until clicked.
+- **Templates:** `kind: "media"` (with `tags`, like a forum) in [starter templates](#starter-templates) and exports.
+- Migration `media-1`: `forum_posts.untitled`.
 
 ## Feeds
 

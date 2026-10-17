@@ -11,7 +11,8 @@ using Microsoft.Net.Http.Headers;
 namespace Iskra.Server.Features;
 
 /// <summary>
-/// The HTTP side of webhooks: <c>POST /hooks/{id}/{secret}</c> (Discord-style JSON) and <c>/hooks/{id}/{secret}/github</c>.
+/// The HTTP side of webhooks: <c>POST /hooks/{id}/{secret}</c> (Discord-style JSON), and the vendor formats at
+/// <c>/hooks/{id}/{secret}/github</c>, <c>/gitea</c>, <c>/gitlab</c> and <c>/slack</c>.
 /// Answers like Discord does (204, or 200 with the message for <c>?wait=true</c>; 429 with <c>retry_after</c>), so
 /// existing tools understand it.
 /// </summary>
@@ -19,6 +20,9 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
 {
     public const int MaxBodyBytes = 64 * 1024;
     public const int MaxGitHubBodyBytes = 1024 * 1024;
+
+    /// <summary>The URL suffixes for other services' own formats (each ≤ 1 MB).</summary>
+    public enum Format { Discord, GitHub, Gitea, GitLab, Slack }
 
     /// <summary>Per webhook: 5 at once, then one every 2 seconds (30 a minute), like Discord.</summary>
     public const double Burst = 5, PerSecond = 0.5;
@@ -46,10 +50,20 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
 
     public static void Map(WebApplication app)
     {
-        app.MapPost("/hooks/{id}/{secret}", (HttpContext c, string id, string secret, WebhookIngress hooks) => hooks.PostAsync(c, id, secret, github: false));
-        app.MapPost("/hooks/{id}/{secret}/github", (HttpContext c, string id, string secret, WebhookIngress hooks) => hooks.PostAsync(c, id, secret, github: true));
+        app.MapPost("/hooks/{id}/{secret}", (HttpContext c, string id, string secret, WebhookIngress hooks) => hooks.PostAsync(c, id, secret, Format.Discord));
+        app.MapPost("/hooks/{id}/{secret}/{format}", (HttpContext c, string id, string secret, string format, WebhookIngress hooks) =>
+            ParseFormat(format) is { } f ? hooks.PostAsync(c, id, secret, f) : Task.FromResult(Error(StatusCodes.Status404NotFound, "Unknown Webhook", 10015)));
         app.MapGet("/hooks/{id}/{secret}", (HttpContext c, string id, string secret, WebhookIngress hooks) => hooks.Info(c, id, secret));
     }
+
+    private static Format? ParseFormat(string suffix) => suffix switch
+    {
+        "github" => Format.GitHub,
+        "gitea" => Format.Gitea,
+        "gitlab" => Format.GitLab,
+        "slack" => Format.Slack,
+        _ => null,
+    };
 
     private static IResult Error(int status, string message, int code = 0) =>
         Results.Json(new { message, code }, statusCode: status);
@@ -80,34 +94,56 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
         return Results.Json(new { type = 1, id = hook.Id, name = hook.Name, channel_id = hook.ChannelId.ToString() });
     }
 
-    public async Task<IResult> PostAsync(HttpContext context, string id, string secret, bool github)
+    public async Task<IResult> PostAsync(HttpContext context, string id, string secret, Format format)
     {
         var (hook, failure) = Authorize(context, id, secret);
         if (hook is null) return failure!;
-        if (!_hooks.GetOrAdd(hook.Id, _ => new TokenBucket(Burst, PerSecond, time)).TryTake(out var wait))
-            return RateLimited(context, wait);
 
-        var limit = github ? MaxGitHubBodyBytes : MaxBodyBytes;
+        var vendor = format != Format.Discord;
+        var limit = vendor ? MaxGitHubBodyBytes : MaxBodyBytes;
         var body = await ReadBodyAsync(context, limit);
         if (body is null) return Error(StatusCodes.Status413PayloadTooLarge, "Request entity too large", 40005);
+        // Signatures first, so unsigned junk can't use up the webhook's rate; bad ones count against the sender's address.
+        if (!SignatureOk(context, hook, format, body))
+        {
+            var ip = context.Connection.RemoteIpAddress ?? IPAddress.None;
+            var bucket = _failures.GetOrAdd(ip, _ => new TokenBucket(FailBurst, FailPerSecond, time));
+            if (_failures.Count > 10_000) _failures.Clear();
+            if (!bucket.TryTake(out var failWait)) return RateLimited(context, failWait);
+            SecurityLog.Record(world.Store, time.GetUtcNow().ToUnixTimeMilliseconds(), "webhook.bad_signature",
+                ip: world.Settings.Retention.SecurityLogIps ? ip.ToString() : null,
+                details: new { webhook = hook.Id, format = format.ToString().ToLowerInvariant() }, source: ip.ToString());
+            return Error(StatusCodes.Status401Unauthorized, "Invalid webhook signature.", 50014);
+        }
+        if (!_hooks.GetOrAdd(hook.Id, _ => new TokenBucket(Burst, PerSecond, time)).TryTake(out var wait))
+            return RateLimited(context, wait);
 
         WebhookPostRequest? post;
         try
         {
-            using var doc = await PayloadDocumentAsync(context, body, github);
-            post = github
-                ? WebhookGitHub.Translate(context.Request.Headers["X-GitHub-Event"].ToString() is { Length: > 0 and <= 64 } e ? e : null, doc.RootElement)
-                : WebhookPayload.Parse(doc.RootElement);
+            using var doc = await PayloadDocumentAsync(context, body, vendor);
+            post = format switch
+            {
+                Format.GitHub => WebhookGitHub.Translate(Header(context, "X-GitHub-Event"), doc.RootElement),
+                Format.Gitea => WebhookGitHub.Translate(Header(context, "X-Gitea-Event") ?? Header(context, "X-Gogs-Event") ?? Header(context, "X-GitHub-Event"), doc.RootElement, gitea: true),
+                Format.GitLab => WebhookGitLab.Translate(doc.RootElement),
+                Format.Slack => WebhookSlack.Translate(doc.RootElement),
+                _ => WebhookPayload.Parse(doc.RootElement),
+            };
         }
         catch (PayloadException ex)
         {
             return Error(StatusCodes.Status400BadRequest, ex.Message, 50006);
         }
+        catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
+        {
+            return Error(StatusCodes.Status400BadRequest, "The text is too complex to post.", 50006);
+        }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or ArgumentException or InvalidDataException or IOException)
         {
             return Error(StatusCodes.Status400BadRequest, "The request body isn't valid JSON.", 50109);
         }
-        if (post is null) return Results.NoContent(); // a GitHub event we don't post about
+        if (post is null) return Results.NoContent(); // an event we don't post about
 
         var channel = world.Store.GetChannel(hook.ChannelId);
         if (channel is null) return Error(StatusCodes.Status404NotFound, "Unknown Webhook", 10015);
@@ -123,6 +159,7 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
         hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = view }));
         log.LogInformation("Webhook {Name} posted in #{Channel}", hook.Name, channel.Name);
 
+        if (format == Format.Slack) return Results.Text("ok"); // what Slack answers, and what its tools check for
         if (!string.Equals(context.Request.Query["wait"], "true", StringComparison.OrdinalIgnoreCase)) return Results.NoContent();
         return Results.Json(new
         {
@@ -136,6 +173,27 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
             embeds = post.Embeds,
             iskra = view,
         }, Json.Options);
+    }
+
+    private static string? Header(HttpContext context, string name) =>
+        context.Request.Headers[name].ToString() is { Length: > 0 and <= 64 } value ? value : null;
+
+    /// <summary>
+    /// With a signing secret set, GitHub and Gitea posts must carry its HMAC of the body (X-Hub-Signature-256 or
+    /// X-Gitea-Signature) and GitLab posts the secret itself (X-Gitlab-Token). A signed webhook is a GitHub, Gitea or
+    /// GitLab webhook: the plain and Slack formats, which can't be signed, are refused, so a leaked URL can't post.
+    /// </summary>
+    private bool SignatureOk(HttpContext context, Webhook hook, Format format, byte[] body)
+    {
+        if (world.Store.WebhookSigningSecret(hook.Id) is not { } secret) return true;
+        if (format is Format.Discord or Format.Slack) return false;
+        var headers = context.Request.Headers;
+        return format switch
+        {
+            Format.GitLab => WebhookText.TokenMatches(secret, headers["X-Gitlab-Token"].ToString()),
+            Format.Gitea => WebhookText.HmacMatches(secret, body, headers["X-Hub-Signature-256"].ToString() is { Length: > 0 } hub ? hub : headers["X-Gitea-Signature"].ToString()),
+            _ => WebhookText.HmacMatches(secret, body, headers["X-Hub-Signature-256"].ToString()),
+        };
     }
 
     /// <summary>Reads at most <paramref name="limit"/> bytes. Null if the body is bigger.</summary>
@@ -154,9 +212,9 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
     /// JSON straight up, or the JSON inside a form: Discord's multipart <c>payload_json</c> (files are ignored),
     /// a urlencoded <c>payload_json</c>/<c>payload</c> (GitHub's form mode), or plain <c>content</c>/<c>username</c> fields.
     /// </summary>
-    private static async Task<JsonDocument> PayloadDocumentAsync(HttpContext context, byte[] body, bool github)
+    private static async Task<JsonDocument> PayloadDocumentAsync(HttpContext context, byte[] body, bool vendor)
     {
-        var options = new JsonDocumentOptions { MaxDepth = github ? 64 : 16 };
+        var options = new JsonDocumentOptions { MaxDepth = vendor ? 64 : 16 };
         var type = MediaTypeHeaderValue.TryParse(context.Request.ContentType, out var media) ? media.MediaType.Value : null;
         Dictionary<string, string>? form = null;
         if (string.Equals(type, "application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))

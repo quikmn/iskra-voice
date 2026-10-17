@@ -9,6 +9,7 @@
         { "name": "general" },
         { "name": "game-night-plans" },
         { "name": "rules-questions" },
+        { "name": "art", "kind": "media", "tags": [{ "name": "Characters", "emoji": "🧝" }, { "name": "Maps", "emoji": "🗺️" }, { "name": "Minis", "emoji": "🎲" }] },
         { "name": "campaign-notes", "kind": "docs", "overrides": [{ "role": "Game master", "allow": ["send"] }] },
         { "name": "gm-screen", "readRole": "admin", "overrides": [{ "role": "Game master", "allow": ["view", "send"] }] }
       ]

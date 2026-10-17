@@ -58,6 +58,8 @@ import { activities } from './activities'
 import { speech } from './speech'
 import { sounds } from './sounds'
 import { voiceStatus } from './voiceStatus'
+import { invitetrack } from './invitetrack'
+import { mediaChannels } from './mediaChannels'
 import { feeds } from './feeds'
 
 export const en = {
@@ -117,8 +119,10 @@ export const en = {
   landing,
   activities,
   speech,
+  mediaChannels,
   moreBots,
   sounds,
   voiceStatus,
+  invitetrack,
   feeds,
 } as const

@@ -72,7 +72,7 @@ public static partial class ServerTemplates
     internal static void AddContent(World world, Channel? channel, TemplateChannel c, bool apply, List<string> plan, long now)
     {
         var store = world.Store;
-        var label = c.Kind is "text" or "forum" ? $"#{c.Name}" : c.Name;
+        var label = c.Kind is "text" or "forum" or "media" ? $"#{c.Name}" : c.Name;
         if (c.Topic is { Length: > 0 } topic && (channel is null || store.Topic(channel.Id).Length == 0))
         {
             plan.Add($"topic for {label}");

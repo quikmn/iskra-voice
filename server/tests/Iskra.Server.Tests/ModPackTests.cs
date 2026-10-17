@@ -151,7 +151,7 @@ public class ModPackTests
         Assert.Equal("forbidden", (await mod.RequestAsync("audit.list", new { })).ErrorCode()); // no viewAuditLog
         var history = (await mod.RequestAsync("member.history", new { accountKey = member.Key })).Body().GetProperty("entries").EnumerateArray()
             .Select(e => e.GetProperty("action").GetString()).ToList();
-        Assert.Equal(["member.timeout", "member.warn"], history); // notes aren't history
+        Assert.Equal(["member.timeout", "member.warn", "member.join"], history); // notes aren't history; how they joined is
         // A departed person's notes and history stay readable.
         await owner.RequestAsync("member.kick", new { accountKey = member.Key });
         await mod.RequestAsync("member.notes.add", new { accountKey = member.Key, text = "Kicked for repeat spoilers" });

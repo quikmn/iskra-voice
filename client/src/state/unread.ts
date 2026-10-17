@@ -9,6 +9,7 @@ import { useDms } from './dms'
 import { notifyFor, useOrganize } from './organize'
 import { channelBadges, layoutChannels } from './organizeLogic'
 import { resetForumSeen } from './forums'
+import { hasPosts } from './forumLogic'
 import { senderRules } from './senderRules'
 import {
   channelConv, dmConv, groupConv, markConversationRead, markConversationUnread, markReadWhere, serverPrefix, setShown, useReads,
@@ -47,7 +48,7 @@ export function channelCounts(serverKey: string, channel: Pick<Channel, 'id' | '
     const r = convs[channelConv(serverKey, thread.id)]
     if (!r) continue
     mentions += r.mentions
-    if (channel.kind === 'forum') unread += r.unread
+    if (hasPosts(channel.kind)) unread += r.unread
   }
   return { unread, mentions }
 }
@@ -106,12 +107,12 @@ export function markChannelRead(serverKey: string, channelId: number): void {
     .map((id) => channelConv(serverKey, id)))
   markReadWhere((k) => keys.has(k))
   const channel = useApp.getState().servers[serverKey]?.channels.find((c) => c.id === channelId)
-  if (channel?.kind === 'forum') resetForumSeen(serverKey, channelId)
+  if (hasPosts(channel?.kind)) resetForumSeen(serverKey, channelId)
 }
 
 export function markServerRead(serverKey: string): void {
   markReadWhere((k) => k.startsWith(serverPrefix(serverKey)))
-  for (const c of useApp.getState().servers[serverKey]?.channels ?? []) if (c.kind === 'forum') resetForumSeen(serverKey, c.id)
+  for (const c of useApp.getState().servers[serverKey]?.channels ?? []) if (hasPosts(c.kind)) resetForumSeen(serverKey, c.id)
 }
 
 /** "Mark unread" on a message: unread from there on, counted the way arriving messages are. */

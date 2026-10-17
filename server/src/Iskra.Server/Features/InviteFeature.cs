@@ -21,7 +21,7 @@ public static class InviteFeature
     public static string NewCode() => Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16));
 
     public static object PublicInvite(Invite i) =>
-        new { code = i.Code, role = i.Role, createdBy = i.CreatedBy, createdAt = i.CreatedAt, expiresAt = i.ExpiresAt, maxUses = i.MaxUses, uses = i.Uses, approve = i.Approve };
+        new { code = i.Code, id = InviteTrackFeature.PublicId(i.Code), label = i.Label, role = i.Role, createdBy = i.CreatedBy, createdAt = i.CreatedAt, expiresAt = i.ExpiresAt, maxUses = i.MaxUses, uses = i.Uses, approve = i.Approve };
 
     /// <summary>Any member can invite friends as members. Inviting into a higher role needs the right to grant it.</summary>
     private static object Create(Session s, Member me, Body body)
@@ -48,8 +48,9 @@ public static class InviteFeature
 
         // Approval: whoever joins through it waits until a moderator lets them in (JoinFeature).
         var approve = body.OptionalBool("approve") ?? false;
-        var invite = s.World.Store.CreateInvite(NewCode(), me.AccountKey, role, now, expiresAt, maxUses, approve);
-        Audit.Record(s, "invite.create", details: new { role, maxUses, expiresAt = invite.ExpiresAt, approve });
+        var label = InviteTrackFeature.Label(body);
+        var invite = s.World.Store.CreateInvite(NewCode(), me.AccountKey, role, now, expiresAt, maxUses, approve, label);
+        Audit.Record(s, "invite.create", details: new { role, maxUses, expiresAt = invite.ExpiresAt, approve, id = InviteTrackFeature.PublicId(invite.Code), label });
         return new { invite = PublicInvite(invite) };
     }
 

@@ -57,6 +57,7 @@ export const SECURITY_EVENTS = [
   'buddy.added', 'buddy.removed', 'buddy.upload.failed', 'buddy.recovery.shown', 'buddy.spot.created', 'buddy.spot.paired',
   'buddy.spot.removed', 'buddy.spot.deleted', 'buddy.auth.failed',
   'activity.added', 'activity.removed', 'activity.rejected',
+  'webhook.bad_signature',
 ] as const
 
 export function securityEventLabel(event: string): string {

@@ -2,19 +2,19 @@ namespace Iskra.Server.Storage;
 
 public sealed partial class Store
 {
-    private const string InviteColumns = "code, created_by, created_at, expires_at, max_uses, uses, role, revoked, approve";
+    private const string InviteColumns = "code, created_by, created_at, expires_at, max_uses, uses, role, revoked, approve, label";
 
     private static Invite ReadInvite(Microsoft.Data.Sqlite.SqliteDataReader r) =>
         new(r.GetString(0), r.GetString(1), r.GetInt64(2), NullableLong(r, 3), NullableInt(r, 4), r.GetInt32(5), r.GetString(6), r.GetInt32(7) != 0)
-        { Approve = r.GetInt64(8) != 0 };
+        { Approve = r.GetInt64(8) != 0, Label = r.IsDBNull(9) ? null : r.GetString(9) };
 
-    public Invite CreateInvite(string code, string createdBy, string role, long now, long? expiresAt, int? maxUses, bool approve = false)
+    public Invite CreateInvite(string code, string createdBy, string role, long now, long? expiresAt, int? maxUses, bool approve = false, string? label = null)
     {
         Exec($"""
-            INSERT INTO invites (code, created_by, created_at, expires_at, max_uses, role, approve)
-            VALUES ($code, $by, $now, $exp, $max, $role, $approve);
-            """, ("$code", code), ("$by", createdBy), ("$now", now), ("$exp", expiresAt), ("$max", maxUses), ("$role", role), ("$approve", approve ? 1 : 0));
-        return new Invite(code, createdBy, now, expiresAt, maxUses, 0, role, false) { Approve = approve };
+            INSERT INTO invites (code, created_by, created_at, expires_at, max_uses, role, approve, label)
+            VALUES ($code, $by, $now, $exp, $max, $role, $approve, $label);
+            """, ("$code", code), ("$by", createdBy), ("$now", now), ("$exp", expiresAt), ("$max", maxUses), ("$role", role), ("$approve", approve ? 1 : 0), ("$label", label));
+        return new Invite(code, createdBy, now, expiresAt, maxUses, 0, role, false) { Approve = approve, Label = label };
     }
 
     public Invite? GetInvite(string code) =>

@@ -8,7 +8,7 @@ public static class ChannelFeature
 {
     public const int MaxNameLength = 32;
     public const int MaxTopicLength = 300;
-    private static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs", "whiteboard"];
+    private static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs", "whiteboard", "media"];
 
     public static void Register(Router router)
     {
@@ -80,7 +80,7 @@ public static class ChannelFeature
     {
         RequireAdmin(me);
         var kind = body.OptionalString("kind", 16) ?? "text";
-        if (!Kinds.Contains(kind)) throw RequestException.BadRequest("'kind' must be text, voice, forum, stage, docs or whiteboard.");
+        if (!Kinds.Contains(kind)) throw RequestException.BadRequest("'kind' must be text, voice, forum, stage, docs, whiteboard or media.");
         var readRole = Role(body, "readRole", Roles.Member);
         // Docs: everyone reads, trusted and above edit (unless chosen otherwise).
         var writeRole = Role(body, "writeRole", kind == "docs" && Roles.Rank(readRole) < Roles.Rank(Roles.Trusted) ? Roles.Trusted : readRole);
@@ -119,6 +119,7 @@ public static class ChannelFeature
         }
         Audit.Record(s, "channel.create", details: new { channelId = channel.Id, name = channel.Name, kind, readRole, writeRole, slowmode, userLimit, encrypted = e2ee is not null, hifi, lobby });
         BroadcastChannels(s);
+        s.Hub.Outhooks?.ChannelChanged("channel.created", channel);
         return new { channel = Hub.PublicChannel(channel, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi, topic, lobby) };
     }
 
@@ -164,6 +165,7 @@ public static class ChannelFeature
         if (topic != oldTopic) changes["topic"] = true; // the text itself stays out of the audit log
         if (lobby != oldLobby) changes["lobby"] = new { from = oldLobby, to = lobby };
         if (changes.Count > 0) Audit.Record(s, "channel.update", details: new { channelId = channel.Id, name = updated.Name, changes });
+        if (changes.Count > 0) s.Hub.Outhooks?.ChannelChanged("channel.updated", updated, changes.Keys);
         BroadcastChannels(s);
         s.Voice.EnforceAccess();
         return new { channel = Hub.PublicChannel(updated, slowmode, userLimit, E2eeChannelFeature.Info(s.World.Store, channel.Id), hifi, topic, lobby, RoomFeature.View(s.World.Store, channel.Id)) };
@@ -174,6 +176,7 @@ public static class ChannelFeature
         RequireAdmin(me);
         var channel = ManagedChannel(s, me, body);
         Audit.Record(s, "channel.delete", details: new { channelId = channel.Id, name = channel.Name, kind = channel.Kind });
+        s.Hub.Outhooks?.ChannelChanged("channel.deleted", channel);
         s.World.Store.DeleteChannel(channel.Id);
         BroadcastChannels(s);
         s.Voice.EnforceAccess();

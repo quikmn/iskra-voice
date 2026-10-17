@@ -14,7 +14,7 @@ export interface Member extends PublicProfile {
 export interface Channel {
   id: number
   name: string
-  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'
+  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media'
   position: number
   readRole: Role
   writeRole: Role
@@ -147,7 +147,7 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate & ProfileStamp, { member: Member; stale?: boolean }]
@@ -159,7 +159,7 @@ export interface Requests {
   /** `deleteMessagesMs`: also delete what they wrote in the last 24 h or 7 d (see "Mod pack"). Works on someone who left too. */
   'member.ban': [{ accountKey: string; reason?: string; deleteMessagesMs?: number }, { deletedMessages?: number }]
   'member.unban': [{ accountKey: string }, Record<string, never>]
-  'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean; approve?: boolean }, { invite: Invite }]
+  'invite.create': [{ role?: Role; maxUses?: number; expiresInMs?: number; neverExpires?: boolean; approve?: boolean; label?: string }, { invite: Invite }]
   'invite.list': [Record<string, never>, { invites: Invite[] }]
   'invite.revoke': [{ code: string }, Record<string, never>]
   'voice.join': [{ channelId: number }, { url: string; token: string; room: string; channelId?: number; canSpeak: boolean; canHear?: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }]
@@ -562,9 +562,15 @@ export interface ForumPost {
   excerpt: string | null
   image: FileInfo | null
   attachmentCount: number
+  /** The first message's pictures and videos, in order (media channels show these). */
+  media?: FileInfo[]
+  /** Made without a title (media channels): `title` is a stand-in; show the caption instead. */
+  untitled?: boolean
+  /** Reactions on the first message. */
+  reactionCount?: number
 }
 
-export type ForumSort = 'activity' | 'newest'
+export type ForumSort = 'activity' | 'newest' | 'top'
 
 export type EventLocation = { kind: 'voice'; channelId: number | null } | { kind: 'place'; text: string }
 
@@ -623,7 +629,7 @@ export interface Requests {
     { posts: ForumPost[]; tags: ForumTag[]; hasMore: boolean; cursor: string | null },
   ]
   'forum.post.create': [
-    { channelId: number; title: string; text: string; attachments?: string[]; tags?: number[] },
+    { channelId: number; title?: string; text: string; attachments?: string[]; tags?: number[] },
     { post: ForumPost; message: Message },
   ]
   'forum.post.get': [{ id: number }, { post: ForumPost; root: Message | null }]
@@ -1960,6 +1966,8 @@ export interface Requests {
 // See "Outgoing webhooks" in PROTOCOL.md.
 
 export type OutHookEvent = 'message.created' | 'reaction.added' | 'member.joined' | 'member.left' | 'event.started'
+  | 'voice.joined' | 'voice.left' | 'thread.created' | 'member.updated' | 'role.created' | 'role.updated' | 'role.deleted'
+  | 'channel.created' | 'channel.updated' | 'channel.deleted' | 'message.updated' | 'message.deleted'
 
 export type OutHookOutcome = 'ok' | 'http' | 'timeout' | 'network' | 'blocked' | 'redirect' | 'rate_limited' | 'queue_full' | 'too_large'
 
@@ -2908,4 +2916,34 @@ export interface VoiceChannelState {
 export interface Requests {
   /** Empty `text` clears it. */
   'voice.status.set': [{ channelId: number; text: string }, { status: VoiceStatus | null }]
+}
+
+// ── invite tracking and webhook formats ──
+// See "Invite tracking" and "Webhook formats" in PROTOCOL.md.
+
+export interface Invite {
+  /** A public id derived from the code: names the invite without letting anyone join with it. */
+  id?: string
+  /** What its maker called it ("Reddit post"), or null. */
+  label?: string | null
+}
+
+/** Which invite a current member joined with (moderators only). */
+export interface JoinedVia {
+  accountKey: string
+  joinedAt: number
+  invite: { id: string; label: string | null; createdBy: string | null; createdByName: string | null; role: Role }
+  approvedBy: string | null
+  approvedByName: string | null
+}
+
+export interface Webhook {
+  /** A signing secret is set: /github, /gitea and /gitlab posts must be signed with it. */
+  signed?: boolean
+}
+
+export interface Requests {
+  'invite.joins': [{ accountKey?: string; inviteId?: string; limit?: number }, { joins: JoinedVia[] }]
+  /** `secret: ''` removes it. */
+  'webhook.signing.set': [{ id: string; secret: string }, { webhook: Webhook }]
 }

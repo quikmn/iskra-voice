@@ -1,0 +1,21 @@
+/* Invite labels, which invite people joined with, and incoming webhook formats and signing secrets. */
+.invite-label {
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.invite-label-field small { display: block; margin-top: 4px; }
+.joined-via-text {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.joined-via { margin: 0 0 8px; font-size: 13px; overflow-wrap: anywhere; }
+.webhook-format { flex-wrap: wrap; margin-top: 8px; }
+.webhook-format small { flex-basis: 100%; }
+.webhook-signing { flex-basis: 100%; }
+.webhook-signing .copy-row input { font-family: var(--mono, ui-monospace, monospace); }

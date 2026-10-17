@@ -321,6 +321,7 @@ public sealed class VoiceRegistry
         if (Participants(channelId).Count == 0) Statuses.Clear(channelId); // the call emptied: its status goes too
         var channel = world.Store.GetChannel(channelId);
         if (channel is not null) hub.BroadcastToReaders(channel, Frames.Event("voice.state", PublicState(channelId)));
+        hub.Outhooks?.VoicePresence(channelId, channel, Participants(channelId).Select(p => p.AccountKey));
         Stages.Sync(channelId);
         Watch.Sync(channelId);
         Features.ActivitiesFeature.Sync(hub, world.Store, this, channelId);

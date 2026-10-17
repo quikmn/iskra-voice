@@ -30,7 +30,7 @@ public sealed record TemplateTag
 public sealed record TemplateChannel
 {
     public string Name { get; init; } = "";
-    /// <summary>"text" (default), "voice", "forum", "stage", "docs" or "whiteboard".</summary>
+    /// <summary>"text" (default), "voice", "forum", "stage", "docs", "whiteboard" or "media".</summary>
     public string Kind { get; init; } = "text";
     /// <summary>Voice only: how many people fit (0 = no limit).</summary>
     public int UserLimit { get; init; }
@@ -192,7 +192,7 @@ public static partial class ServerTemplates
     public const int MaxNameLength = 60;
     public const int MaxDescriptionLength = 300;
 
-    public static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs", "whiteboard"];
+    public static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs", "whiteboard", "media"];
     private static readonly string[] ChannelPermNames = ["view", "send", "connect", "speak"];
 
     private static readonly JsonSerializerOptions Options = new()
@@ -356,7 +356,7 @@ public static partial class ServerTemplates
             if (overrides.Select(o => o.Role).Distinct(StringComparer.OrdinalIgnoreCase).Count() != overrides.Length)
                 Fail($"{where}: each role can only have one override per channel.");
 
-            if (c.Tags.Length > 0 && kind != "forum") Fail($"{where}: only forums have tags.");
+            if (c.Tags.Length > 0 && !ForumFeature.HasPosts(kind)) Fail($"{where}: only forums and media channels have tags.");
             if (c.Tags.Length > ForumFeature.MaxTags) Fail($"{where}: a forum can have up to {ForumFeature.MaxTags} tags.");
             var tags = c.Tags.Select(tag =>
             {

@@ -49,7 +49,7 @@ function SwitcherDialog({ onClose }: { onClose: () => void }) {
       const server = servers[key]
       if (!server) continue
       for (const channel of server.channels) {
-        if (channel.kind !== 'text' && channel.kind !== 'docs' && channel.kind !== 'forum' && channel.kind !== 'whiteboard') continue
+        if (channel.kind !== 'text' && channel.kind !== 'docs' && channel.kind !== 'forum' && channel.kind !== 'whiteboard' && channel.kind !== 'media') continue
         list.push({ id: `ch:${key}:${channel.id}`, kind: 'channel', channelKind: channel.kind, label: channel.name, context: server.name, unread: reads[channelConv(key, channel.id)]?.unread ?? 0 })
       }
     }
