@@ -40,7 +40,10 @@ await build({
 })
 
 // Declarations: tsc from bots/ (it knows the SDK's and the app core's types), then one entry file.
-const tsc = createRequire(join(here, '..', 'package.json')).resolve('typescript/bin/tsc')
+// The package's own bin entry (TypeScript 7 doesn't export bin/tsc as a module path), run with this Node.
+const tsPackage = createRequire(join(here, '..', 'package.json')).resolve('typescript/package.json')
+const tsBin = JSON.parse(readFileSync(tsPackage, 'utf8')).bin
+const tsc = join(dirname(tsPackage), typeof tsBin === 'string' ? tsBin : tsBin.tsc)
 execFileSync(process.execPath, [tsc, '-p', join(here, 'tsconfig.build.json')], { stdio: 'inherit' })
 if (!existsSync(join(dist, 'types/bots/sdk/src/index.d.ts'))) throw new Error('tsc did not write the declarations')
 // Node's own ES module resolution ("moduleResolution": "nodenext") wants file extensions on relative imports.
