@@ -220,7 +220,8 @@ export class ToolRunner {
   readonly #cap = new RateCap()
   /** "Allow for this session" grants, per tool and server, chat only (cleared by clearSession). */
   readonly #granted = new Set<string>()
-  #writes = 0
+  /** Changes made per source: the chat conversation and MCP clients count separately. */
+  #writes = { chat: 0, mcp: 0 }
 
   readonly host: ToolHost
 
@@ -230,9 +231,10 @@ export class ToolRunner {
   }
 
   /** A new conversation (or the assistant turned off): grants and the session's change count start over. */
-  clearSession(): void {
-    this.#granted.clear()
-    this.#writes = 0
+  clearSession(source: 'chat' | 'mcp' | 'all' = 'all'): void {
+    if (source !== 'mcp') this.#granted.clear()
+    if (source !== 'mcp') this.#writes.chat = 0
+    if (source !== 'chat') this.#writes.mcp = 0
   }
 
   /** Whether the card may offer "Allow for this session". */
@@ -285,8 +287,10 @@ export class ToolRunner {
     }
 
     if (tool.risk !== 'read') {
-      if (this.#writes >= MAX_WRITES_PER_SESSION) {
-        const detail = `This conversation reached its limit of ${MAX_WRITES_PER_SESSION} changes. The user can start a new conversation.`
+      if (this.#writes[source] >= MAX_WRITES_PER_SESSION) {
+        const detail = source === 'mcp'
+          ? `MCP clients reached their limit of ${MAX_WRITES_PER_SESSION} changes. The user can turn "Allow local MCP clients" off and on again.`
+          : `This conversation reached its limit of ${MAX_WRITES_PER_SESSION} changes. The user can start a new conversation.`
         log('refused', server?.name ?? null, prepared.summary, detail)
         return { content: detail, isError: true }
       }
@@ -303,7 +307,7 @@ export class ToolRunner {
         }
         if (decision === 'session' && grantable) this.#granted.add(grant)
       }
-      this.#writes++
+      this.#writes[source]++
     }
 
     try {

@@ -95,15 +95,35 @@ export async function sendAssistantRequest(raw: unknown, base: string | null, fe
   }
 }
 
-/** The registered base, kept in the app's data folder (assistant.json) so it holds before the page has loaded. */
+/** The built-in presets' exact addresses (client/src/state/assistant/types.ts PRESETS): no confirmation needed. */
+export const PRESET_BASES: readonly string[] = [
+  'https://api.anthropic.com', 'https://api.openai.com/v1', 'https://api.mistral.ai/v1', 'https://api.groq.com/openai/v1',
+  'https://openrouter.ai/api/v1', 'https://generativelanguage.googleapis.com/v1beta/openai', 'http://localhost:11434/v1', 'http://localhost:1234/v1',
+]
+
+/** Asks the person, outside the page, whether this host (with its port) may get their questions. */
+export type ConfirmBase = (host: string) => Promise<boolean>
+
+export type SetBaseReply = { ok: true } | { ok: false; error: 'refused' | 'invalid' }
+
+/**
+ * The registered base, kept in the app's data folder (assistant.json) so it holds before the page has loaded, with the
+ * other addresses the person said yes to. A page can't register an address of its own choosing without that Yes.
+ */
 export class AssistantBase {
   #file: string
   #base: string | null = null
+  #confirmed: string[] = []
+  #confirm: ConfirmBase
 
-  constructor(file: string) {
+  constructor(file: string, confirm: ConfirmBase) {
     this.#file = file
+    this.#confirm = confirm
     try {
-      this.#base = checkBase((JSON.parse(readFileSync(file, 'utf8')) as { base?: unknown }).base)
+      const saved = JSON.parse(readFileSync(file, 'utf8')) as { base?: unknown; confirmed?: unknown }
+      this.#confirmed = Array.isArray(saved.confirmed) ? saved.confirmed.map(checkBase).filter((b): b is string => !!b).slice(-20) : []
+      const base = checkBase(saved.base)
+      this.#base = base && (PRESET_BASES.includes(base) || this.#confirmed.includes(base)) ? base : null
     } catch {
       this.#base = null
     }
@@ -113,10 +133,26 @@ export class AssistantBase {
     return this.#base
   }
 
-  set(raw: unknown): void {
-    this.#base = raw === null ? null : checkBase(raw)
+  async set(raw: unknown): Promise<SetBaseReply> {
+    if (raw === null) {
+      this.#base = null
+      this.#save()
+      return { ok: true }
+    }
+    const base = checkBase(raw)
+    if (!base) return { ok: false, error: 'invalid' }
+    if (!PRESET_BASES.includes(base) && !this.#confirmed.includes(base)) {
+      if (!(await this.#confirm(new URL(base).host))) return { ok: false, error: 'refused' }
+      this.#confirmed = [...this.#confirmed, base].slice(-20)
+    }
+    this.#base = base
+    this.#save()
+    return { ok: true }
+  }
+
+  #save(): void {
     try {
-      if (this.#base) writeFileSync(this.#file, JSON.stringify({ base: this.#base }))
+      if (this.#base || this.#confirmed.length) writeFileSync(this.#file, JSON.stringify({ base: this.#base, confirmed: this.#confirmed }))
       else rmSync(this.#file, { force: true })
     } catch {
       /* kept in memory for this run */

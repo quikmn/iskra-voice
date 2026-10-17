@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
@@ -55,15 +55,32 @@ test('sends with no redirects, stops reading a too-big answer, and says why it f
   assert.deepEqual(await sendAssistantRequest(post(`${base}/chat/completions`), base, (async () => { throw new TypeError('fetch failed') }) as typeof fetch), { ok: false, error: 'network' })
 })
 
-test('the registered address is kept in the data folder', () => {
+test('a preset address registers at once; any other needs a Yes in the app\'s own dialog, remembered', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'iskra-ai-'))
   const file = path.join(dir, 'assistant.json')
-  const base = new AssistantBase(file)
+  const asked: string[] = []
+  let answer = false
+  const base = new AssistantBase(file, async (host) => (asked.push(host), answer))
   assert.equal(base.current, null)
-  base.set('https://api.anthropic.com/')
-  assert.equal(new AssistantBase(file).current, 'https://api.anthropic.com')
-  base.set('http://evil.example')
+  assert.deepEqual(await base.set('https://api.anthropic.com/'), { ok: true })
+  assert.equal(base.current, 'https://api.anthropic.com')
+  assert.deepEqual(asked, [])
+  // A compromised page tries its own address: the person is asked, says no, nothing changes.
+  assert.deepEqual(await base.set('http://127.0.0.1:9999/anything'), { ok: false, error: 'refused' })
+  assert.deepEqual(asked, ['127.0.0.1:9999'])
+  assert.equal(base.current, 'https://api.anthropic.com')
+  assert.deepEqual(await base.set('http://evil.example'), { ok: false, error: 'invalid' })
+  // Yes: registered, and not asked again (also after a restart).
+  answer = true
+  assert.deepEqual(await base.set('https://llm.example.com:8443/v1'), { ok: true })
+  assert.deepEqual(asked, ['127.0.0.1:9999', 'llm.example.com:8443'])
+  const again = new AssistantBase(file, async () => assert.fail('asked again'))
+  assert.equal(again.current, 'https://llm.example.com:8443/v1')
+  assert.deepEqual(await again.set('https://llm.example.com:8443/v1'), { ok: true })
+  // A base written into the file by hand without a Yes isn't trusted.
+  writeFileSync(file, JSON.stringify({ base: 'https://other.example/v1', confirmed: [] }))
+  assert.equal(new AssistantBase(file, async () => false).current, null)
+  assert.deepEqual(await base.set(null), { ok: true })
   assert.equal(base.current, null)
-  assert.ok(!existsSync(file))
   rmSync(dir, { recursive: true, force: true })
 })

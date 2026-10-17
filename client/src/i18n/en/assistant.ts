@@ -118,6 +118,7 @@ export const assistant = {
     },
     baseUrl: 'Address',
     baseUrlHint: 'https only, except for a model on this computer (localhost).',
+    baseRefused: "You chose not to let the assistant use this address, so nothing is sent there. Change the address, or save it again to be asked again.",
     badUrl: {
       invalid: "That isn't a web address.",
       https: 'Use https (plain http only works for localhost).',

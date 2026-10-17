@@ -27,11 +27,11 @@ describe('assistant state', () => {
 
   it('a saved key goes with its address: changing the address to another origin drops it', async () => {
     useAssistant.setState({ config: { ...DEFAULT_CONFIG, enabled: true } })
-    expect(await saveConfig({ key: 'sk-ant-1' })).toBe(false)
+    expect((await saveConfig({ key: 'sk-ant-1' })).keyDropped).toBe(false)
     expect(useAssistant.getState().config).toMatchObject({ key: 'sk-ant-1', keyOrigin: 'https://api.anthropic.com' })
-    expect(await saveConfig({ baseUrl: 'https://api.anthropic.com/v1' })).toBe(false) // same origin
+    expect((await saveConfig({ baseUrl: 'https://api.anthropic.com/v1' })).keyDropped).toBe(false) // same origin
     expect(useAssistant.getState().config.key).toBe('sk-ant-1')
-    expect(await saveConfig({ preset: 'openai', kind: 'openai', baseUrl: 'https://api.openai.com/v1', model: '' })).toBe(true)
+    expect(await saveConfig({ preset: 'openai', kind: 'openai', baseUrl: 'https://api.openai.com/v1', model: '' })).toEqual({ keyDropped: true, baseRefused: false })
     expect(useAssistant.getState().config).toMatchObject({ key: '', keyOrigin: '' })
     // Stored without an origin (or for another one): never used.
     expect(parseConfig({ key: 'k', baseUrl: 'https://api.openai.com/v1' }).key).toBe('')

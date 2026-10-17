@@ -965,10 +965,16 @@ ipcMain.handle('iskra:do-forget', (event) => {
 // ── Personal assistant ───────────────────────────────────────────────────
 // Requests to the AI provider the user chose (assistantNet.ts: https or this computer, provider endpoints only).
 // The page registers the provider address the user saved; only its endpoints are reachable (kept in assistant.json).
-const assistantBase = new AssistantBase(path.join(app.getPath('userData'), 'assistant.json'))
-ipcMain.handle('iskra:assistant-base', (event, base: unknown) => {
-  if (fromApp(event) && event.sender === window?.webContents) assistantBase.set(base)
+// An address that isn't a built-in preset needs a Yes in a native dialog, the one exception to "the page words
+// everything the shell says" (notices.ts): the point is that a page can't answer it for the person.
+const assistantBase = new AssistantBase(path.join(app.getPath('userData'), 'assistant.json'), async (host) => {
+  const words = text().assistant
+  const options = { type: 'question' as const, title: words.title, message: words.question(host), detail: words.detail, buttons: [words.yes, words.no], defaultId: 1, cancelId: 1, noLink: true }
+  const { response } = window ? await dialog.showMessageBox(window, options) : await dialog.showMessageBox(options)
+  return response === 0
 })
+ipcMain.handle('iskra:assistant-base', (event, base: unknown) =>
+  fromApp(event) && event.sender === window?.webContents ? assistantBase.set(base) : { ok: false, error: 'invalid' })
 ipcMain.handle('iskra:assistant-fetch', (event, raw: unknown) =>
   fromApp(event) && event.sender === window?.webContents ? sendAssistantRequest(raw, assistantBase.current) : { ok: false, error: 'blocked' })
 

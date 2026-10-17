@@ -28,7 +28,11 @@ function Settings() {
   const [test, setTest] = useState<{ state: 'idle' | 'testing' } | { state: 'ok'; count: number } | { state: 'error'; text: string }>({ state: 'idle' })
   const [copied, setCopied] = useState<string | null>(null)
   const [keyDropped, setKeyDropped] = useState(false)
-  const save = (patch: Parameters<typeof saveConfig>[0]) => void saveConfig(patch).then((dropped) => dropped && setKeyDropped(true))
+  const [baseRefused, setBaseRefused] = useState(false)
+  const save = (patch: Parameters<typeof saveConfig>[0]) => void saveConfig(patch).then((result) => {
+    if (result.keyDropped) setKeyDropped(true)
+    setBaseRefused(result.baseRefused)
+  })
   const url = checkBaseUrl(baseUrl)
 
   function pickPreset(preset: ProviderPreset) {
@@ -69,7 +73,7 @@ function Settings() {
         <div className="internet-head">
           <strong>{t('assistant.settingsSection.enable')}</strong>
           <button className={`switch ${config.enabled ? 'on' : ''}`} role="switch" aria-checked={config.enabled}
-            aria-label={t('assistant.settingsSection.enable')} onClick={() => void saveConfig({ enabled: !config.enabled })}>
+            aria-label={t('assistant.settingsSection.enable')} onClick={() => save({ enabled: !config.enabled })}>
             <span />
           </button>
         </div>
@@ -89,6 +93,7 @@ function Settings() {
           <small id="assistant-base-url-hint" className={url.ok || !baseUrl ? 'muted' : 'error-text'}>
             {url.ok || !baseUrl ? t('assistant.settingsSection.baseUrlHint') : t(`assistant.settingsSection.badUrl.${url.problem}`)}
           </small>
+          {baseRefused && <small className="error-text" role="alert">{t('assistant.settingsSection.baseRefused')}</small>}
         </div>
 
         <div className="field">

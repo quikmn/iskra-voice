@@ -169,8 +169,25 @@ describe('assistant tool registry', () => {
     }
     tick(61_000)
     expect((await runner.call('move_category', { category: 'Games' }, 'chat')).content).toMatch(/limit of 40 changes/)
-    runner.clearSession()
+    // MCP clients have their own count: the chat's limit doesn't block them, and theirs resets on its own.
+    expect((await runner.call('move_category', { category: 'Games' }, 'mcp')).isError).toBe(false)
+    runner.clearSession('mcp')
+    expect((await runner.call('move_category', { category: 'Games' }, 'chat')).content).toMatch(/limit of 40 changes/)
+    runner.clearSession('chat')
     expect((await runner.call('move_category', { category: 'Games' }, 'chat')).isError).toBe(false)
+  })
+
+  it('MCP clients stop at their own limit until MCP is turned off and on', async () => {
+    const { runner, tick } = setup({ decision: 'approve' })
+    for (let i = 0; i < MAX_WRITES_PER_SESSION; i++) {
+      if (i % MAX_WRITES_PER_MINUTE === 0) tick(61_000)
+      await runner.call('move_category', { category: 'Games' }, 'mcp')
+    }
+    tick(61_000)
+    expect((await runner.call('move_category', { category: 'Games' }, 'mcp')).content).toMatch(/MCP clients reached their limit/)
+    expect((await runner.call('move_category', { category: 'Games' }, 'chat')).isError).toBe(false)
+    runner.clearSession('mcp')
+    expect((await runner.call('move_category', { category: 'Games' }, 'mcp')).isError).toBe(false)
   })
 
   it('shows every text others will see on the card, in full', async () => {

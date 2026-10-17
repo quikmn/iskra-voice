@@ -59,6 +59,13 @@ const en = {
     updating: (version: string) => `Updating Iskra to ${version}…`,
     updatingDetail: 'It’ll be back in a few seconds.',
   },
+  assistant: {
+    title: 'Iskra assistant',
+    question: (host: string) => `Let the assistant send your questions to ${host}?`,
+    detail: 'Only say yes if you entered this address yourself in My settings → Assistant. What you ask the assistant, and what it reads for you, will go there.',
+    yes: 'Yes, use it',
+    no: 'No',
+  },
   digitalOcean: {
     done: 'Connected to DigitalOcean. You can close this tab and go back to Iskra.',
     denied: 'Iskra wasn’t connected to DigitalOcean. You can close this tab and go back to Iskra.',
@@ -120,6 +127,13 @@ const sv: DesktopText = {
     updatedTo: (version) => `Uppdaterad till ${version}`,
     updating: (version) => `Uppdaterar Iskra till ${version}…`,
     updatingDetail: 'Iskra är tillbaka om några sekunder.',
+  },
+  assistant: {
+    title: 'Iskras assistent',
+    question: (host) => `Låta assistenten skicka dina frågor till ${host}?`,
+    detail: 'Säg bara ja om du själv skrev in adressen i Mina inställningar → Assistent. Det du frågar assistenten, och det den läser åt dig, skickas dit.',
+    yes: 'Ja, använd den',
+    no: 'Nej',
   },
   digitalOcean: {
     done: 'Ansluten till DigitalOcean. Du kan stänga fliken och gå tillbaka till Iskra.',

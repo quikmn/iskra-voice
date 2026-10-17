@@ -119,6 +119,7 @@ export const assistant: Messages['assistant'] = {
     },
     baseUrl: 'Adress',
     baseUrlHint: 'Bara https, utom för en modell på den här datorn (localhost).',
+    baseRefused: 'Du valde att inte låta assistenten använda den här adressen, så inget skickas dit. Ändra adressen, eller spara den igen för att få frågan igen.',
     badUrl: {
       invalid: 'Det är ingen webbadress.',
       https: 'Använd https (vanlig http fungerar bara för localhost).',

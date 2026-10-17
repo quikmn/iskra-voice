@@ -174,8 +174,11 @@ async function loadConfig(): Promise<void> {
   void syncMcp()
 }
 
-/** Saves settings. Returns true when a saved key was dropped because the address moved to another origin. */
-export async function saveConfig(patch: Partial<AssistantConfig>): Promise<boolean> {
+/**
+ * Saves settings. `keyDropped`: a saved key was removed because the address moved to another origin. `baseRefused`:
+ * the desktop app's confirmation for a new address was answered No (requests to it stay blocked).
+ */
+export async function saveConfig(patch: Partial<AssistantConfig>): Promise<{ keyDropped: boolean; baseRefused: boolean }> {
   const before = useAssistant.getState().config
   // A new key belongs to the address it's saved with.
   const keyOrigin = patch.key ? originOf(patch.baseUrl ?? before.baseUrl) : before.keyOrigin
@@ -187,19 +190,24 @@ export async function saveConfig(patch: Partial<AssistantConfig>): Promise<boole
     denyAll()
     runner.clearSession()
   } else if (!config.mcp) denyAll('mcp') // MCP turned off: its waiting cards are denied
-  if (fresh) runner.clearSession()
+  if (fresh) runner.clearSession('chat')
+  if (config.mcp !== before.mcp || config.enabled !== before.enabled) runner.clearSession('mcp') // MCP's own count starts over
   useAssistant.setState((s) => ({ config, ...(fresh || !config.enabled ? { turns: [], error: null, ended: null } : {}), open: config.enabled && s.open }))
   await storage.saveAssistant('config', config)
-  await syncBase()
+  const baseRefused = !(await syncBase())
   void syncMcp()
-  return keyDropped
+  return { keyDropped, baseRefused }
 }
 
-/** Desktop app: the main process sends provider requests only to this address's endpoints. */
-async function syncBase(): Promise<void> {
+/**
+ * Desktop app: the main process sends provider requests only to this address's endpoints; an address that isn't one
+ * of the presets needs the user's Yes in a dialog of the app's own. False when that was refused.
+ */
+async function syncBase(): Promise<boolean> {
   const { config } = useAssistant.getState()
   const base = checkBaseUrl(config.baseUrl)
-  await desktop?.assistant?.setBase?.(config.enabled && base.ok ? base.url : null).catch(() => undefined)
+  const reply = await desktop?.assistant?.setBase?.(config.enabled && base.ok ? base.url : null).catch(() => null)
+  return !reply || reply.ok
 }
 
 /** "Test connection": the models the key can use, or a ProviderError. */
@@ -279,7 +287,7 @@ export function stopAssistant(): void {
 
 export function newConversation(): void {
   stopAssistant()
-  runner.clearSession()
+  runner.clearSession('chat')
   useAssistant.setState({ turns: [], error: null, ended: null, secrets: [] })
 }
 
