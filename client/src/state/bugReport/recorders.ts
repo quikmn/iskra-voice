@@ -3,7 +3,7 @@
 // reconnecting, left with a reason and a code), failed requests (type and code), uncaught errors (class and bundle
 // line), device changes during a call, and the app's lifecycle (start, visibility, online/offline, sleep).
 import { requestErrorListeners, type ConnectionStatus } from '../../core/connection'
-import { addLogSink, duration, errorFields, log, type LogLevel, type LogValue } from '../../core/log'
+import { addLogSink, BrowserMessage, duration, errorFields, log, type LogLevel, type LogValue } from '../../core/log'
 import { desktop } from '../../platform/desktop'
 import { serverLogFields } from '../logIds'
 import { useP2p } from '../p2p'
@@ -187,7 +187,15 @@ export function startDiagnostics(): () => void {
   }
   media?.addEventListener?.('devicechange', onDevices)
 
-  const onError = (e: ErrorEvent) => log('ERROR', 'ui', 'error', 'ERR-900', [['kind', 'window'], ...errorFields(e.error)])
+  const onError = (e: ErrorEvent) => {
+    // No error object: the browser's own report (a cross-origin "Script error.", a ResizeObserver loop), in its words.
+    if (e.error == null && typeof e.message === 'string') {
+      // A layout loop the browser recovers from by itself: not worth a line.
+      if (e.message.includes('ResizeObserver loop')) return
+      return log('ERROR', 'ui', 'error', 'ERR-900', [['kind', 'window'], ['msg', new BrowserMessage(e.message)]])
+    }
+    log('ERROR', 'ui', 'error', 'ERR-900', [['kind', 'window'], ...errorFields(e.error)])
+  }
   const onRejection = (e: PromiseRejectionEvent) => log('ERROR', 'ui', 'error', 'ERR-900', [['kind', 'promise'], ...errorFields(e.reason)])
   const onOnline = () => log('INFO', 'life', 'online')
   const onOffline = () => log('INFO', 'life', 'offline')

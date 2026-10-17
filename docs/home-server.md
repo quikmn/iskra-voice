@@ -271,5 +271,6 @@ Iskra itself uses next to nothing while nobody talks; voice calls add a little.
 
 - Something's off? **Server settings → Internet access** explains what it found. The server's log is in
   `logs/` in the server folder (one file per day), and also in `journalctl -u iskra` (system service) or
-  `journalctl --user -u iskra-…` (user service).
+  `journalctl --user -u iskra-…` (user service). The desktop app keeps its own log too, in `logs/` in its data folder
+  (Windows: `%APPDATA%\iskra-desktop\logs`; see [hosting.md, Logs](hosting.md#logs)).
 - The full reference, every setting and every file: [hosting.md](hosting.md).

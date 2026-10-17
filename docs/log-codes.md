@@ -19,8 +19,15 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | CON-140 | INFO | app | conn | The server stopped (close 1001). | Nothing: the app reconnects when it's back. |
 | CON-150 | WARN | app | conn | The server refused the connection (code= is the protocol error code). | Depends on the code: an expired invite, a ban, a revoked device. |
 | CON-160 | INFO | app | conn | The app stopped trying (gave up, or the server was removed). | Nothing. |
+| DSK-110 | WARN | desk | life | A part of the desktop app stopped unexpectedly (kind=: page, gpu, utility; reason= from Electron). | If the window went blank, open it again from the tray (or restart the app); report it if it repeats. |
+| DSK-120 | WARN | desk | life | A server hosted in the desktop app stopped without being asked (exit= is its exit code). | Look at that server's logs/ folder for the same time. |
+| DSK-130 | WARN | desk | life | A server hosted in the desktop app couldn't start (why=). | Look at server.log and logs/ in that server's folder. |
+| DSK-140 | WARN | desk | store | The desktop app couldn't save its settings. | Check that the app's data folder is writable. |
+| DSK-150 | WARN | desk | ui | The app's window stopped responding for a while. | Nothing unless it repeats; then report it with the bug report. |
+| DSK-900 | ERROR | desk | life | An uncaught error in the desktop app's main process. | Report it with the log lines around it. |
 | E2E-110 | WARN | app | e2ee | Decrypting encrypted voice failed. | Rejoin the channel; report it if it repeats. |
 | ERR-900 | ERROR | app | ui | An uncaught error (area unknown). | Report it with the bug report. |
+| ERR-910 | ERROR | app | ui | A known step failed (area= and op= say which, name= and frame= where; msg= is the browser's own wording). | Report it with the bug report. |
 | HOK-110 | WARN | hook | http | An outgoing webhook delivery failed after its retries (why= is the outcome). | Check the receiving service; Server settings → Webhooks shows each delivery. |
 | HOK-120 | WARN | hook | http | An outgoing webhook was turned off after failing again and again. | Fix the receiving end, then turn the webhook back on in Server settings → Webhooks. |
 | HOK-130 | WARN | hook | http | Queueing or running an outgoing webhook delivery failed unexpectedly. | Report it with the log line. |
@@ -33,6 +40,11 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | LOG-110 | WARN | srv | sweep | Trimming the log files failed. | Check that the world folder's logs/ is writable. |
 | MED-110 | WARN | app | media | The microphone's noise suppression fell back (why= says why). | Nothing; report it if the microphone sounds wrong. |
 | MED-120 | WARN | app | media | An audio or video device was lost or changed during a call. | Pick the device again in Settings → Voice. |
+| MED-130 | WARN | app | media | Voice activity detection couldn't start; the microphone uses the volume threshold instead. | Nothing; report it if voice activity misbehaves. |
+| MED-140 | WARN | app | media | Cleaning incoming voices isn't available here (or fell back, why= says why). | Nothing; others' voices play as they come. |
+| MED-150 | WARN | app | media | Captions, a transcript or a translation couldn't start or stopped (what= says which). | Try again; on slow devices turn it off. |
+| MED-160 | WARN | app | media | The camera background effect couldn't start or was turned off (why= says why). | Nothing; the camera keeps working without it. |
+| MED-170 | WARN | app | media | The microphone couldn't be captured or sent; you stay muted. | Check the microphone permission and device in Settings → Voice. |
 | MOD-110 | WARN | srv | http | A captions or translation model from upstream failed its check and wasn't kept. | Nothing: it's fetched again on the next request. Report it if it repeats. |
 | NAT-110 | WARN | srv | nat | The router didn't open every port (UPnP / NAT-PMP), or couldn't be searched for. | Forward the ports by hand (docs/hosting.md) or turn on UPnP in the router. |
 | NAT-120 | INFO | srv | nat | The public address is shared with other customers (carrier-grade NAT): ports can't be opened. | Use "Let friends connect without port forwarding" (p2p), or ask the provider for a public IPv4 address. |
@@ -56,11 +68,11 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | TLS-130 | WARN | srv | tls | Bound to localhost without the PROXY protocol: every client looks like this machine. | Behind a proxy, turn on Https.ProxyProtocol (docs/hosting.md). |
 | TLS-140 | WARN | srv | tls | The stored certificate couldn't be read and is ignored. | Delete the certs/ folder's files to get a new one, or fix their permissions. |
 | TLS-150 | WARN | srv | http | A connection on a PROXY protocol listener was dropped (at most once a minute). | Check the proxy's proxy_protocol setting and Https.ProxyTrustedFrom. |
-| TUN-110 | WARN | app, desk | tunnel | Opening a peer-to-peer tunnel to a server failed. | Check the host's p2p status; very strict networks block it. |
-| TUN-120 | INFO | app, desk | tunnel | The direct address didn't answer; using the tunnel. | Nothing. |
-| TUN-130 | WARN | srv, desk | tunnel | The peer-to-peer tunnel stopped; it's started again after a pause (exit= is its exit code). | If it keeps happening, report it with the p2p lines around it. |
+| TUN-110 | WARN | app | tunnel | Opening a peer-to-peer tunnel to a server failed. | Check the host's p2p status; very strict networks block it. |
+| TUN-120 | INFO | app | tunnel | The direct address didn't answer; using the tunnel. | Nothing. |
+| TUN-130 | WARN | srv | tunnel | The peer-to-peer tunnel stopped; it's started again after a pause (exit= is its exit code). | If it keeps happening, report it with the p2p lines around it. |
 | TUN-140 | WARN | srv | tunnel | iskra-p2p wasn't found, so friends can't connect without port forwarding. | Put iskra-p2p next to iskra-server, or set P2p.SidecarPath. |
-| TUN-150 | ERROR | srv, p2p | tunnel | The peer-to-peer tunnel failed (to start, or it reported failed). | Report it with the p2p lines around it. |
+| TUN-150 | ERROR | srv, p2p, desk | tunnel | The peer-to-peer tunnel failed (to start, or it reported failed). | Report it with the p2p lines around it. |
 | UPD-110 | WARN | upd | update | The desktop app couldn't check for updates. | Nothing: it checks again later. |
 | UPD-120 | WARN | upd | update | Installing a desktop app update failed. | Download the app again from iskra.foo. |
 | UPS-110 | WARN | srv | update | Checking GitHub for server updates failed. | Nothing: it checks again in an hour. |
