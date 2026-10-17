@@ -203,6 +203,7 @@ export const compliance: Messages['compliance'] = {
     buddy_spot_paired: 'En väns server parades ihop med en plats för säkerhetskopior',
     buddy_spot_removed: 'Slutade spara en väns säkerhetskopior',
     buddy_spot_deleted: 'Raderade en väns säkerhetskopior efter respitiden',
+    webhook_bad_signature: 'Avvisade ett webhook-inlägg (signatur saknas eller är fel)',
     buddy_auth_failed: 'Nekade en begäran från en annan server (felaktig signatur)',
   },
 }

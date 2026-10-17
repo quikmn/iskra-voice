@@ -11,12 +11,16 @@ import { TimeoutBadge } from '../moderation/Moderation'
 import { RoleChips } from '../roles/RoleSettings'
 import { userMenuProps } from '../people/userMenuProps'
 import { DepartedList } from '../moderation/ModPack'
+import { JoinFilter, JoinedViaText } from '../moderation/JoinedVia'
+import { useMemberJoins } from '../../state/invitetrack'
 
 export function MembersSection({ server }: { server: ServerState }) {
   const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()
+  const joins = useMemberJoins(server)
   const members = Object.values(server.members)
+    .filter(joins.passes)
     .filter((m) => !needle || m.name.toLowerCase().includes(needle) || (m.profileName ?? '').toLowerCase().includes(needle))
     .sort((a, b) => roleRank(b.role) - roleRank(a.role) || a.name.localeCompare(b.name))
   return (
@@ -27,6 +31,7 @@ export function MembersSection({ server }: { server: ServerState }) {
         <span>{t('settings.members.search')}</span>
         <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('settings.members.searchPlaceholder')} />
       </label>
+      <JoinFilter state={joins} />
       <ul className="room-members" aria-label={t('settings.sections.members')}>
         {members.map((m) => (
           <li key={m.accountKey}>
@@ -35,6 +40,7 @@ export function MembersSection({ server }: { server: ServerState }) {
               <span className="room-member-text">
                 <span className="room-member-name">{m.name} {m.bot && <BotBadge builtin={!!m.builtin} />} <TimeoutBadge member={m} /></span>
                 <span className="muted capitalize">{t(`common.roles.${m.role}`)}</span>
+                <JoinedViaText server={server} join={joins.byKey[m.accountKey]} />
               </span>
               <RoleChips server={server} member={m} />
             </button>

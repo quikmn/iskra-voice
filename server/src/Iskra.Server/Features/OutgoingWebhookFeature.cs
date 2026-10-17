@@ -102,8 +102,8 @@ public static class OutgoingWebhookFeature
 
     private static void RequireChannels(string[] events, long[] channels)
     {
-        if (channels.Length == 0 && events.Any(e => e is "message.created" or "reaction.added"))
-            throw RequestException.BadRequest("Pick the channels to send messages and reactions from.", "outhook_channels");
+        if (channels.Length == 0 && events.Any(OutgoingWebhooks.ChannelEvents.Contains))
+            throw RequestException.BadRequest("Pick the channels to send these events from.", "outhook_channels");
     }
 
     /// <summary>Only the owner can let a webhook reach their own network (the server's LAN, loopback, Tailscale).</summary>

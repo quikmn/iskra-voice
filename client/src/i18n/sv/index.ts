@@ -59,6 +59,7 @@ import { activities } from './activities'
 import { speech } from './speech'
 import { sounds } from './sounds'
 import { voiceStatus } from './voiceStatus'
+import { invitetrack } from './invitetrack'
 import { channelExport } from './channelExport'
 
 export const sv: Messages = {
@@ -121,5 +122,6 @@ export const sv: Messages = {
   moreBots,
   sounds,
   voiceStatus,
+  invitetrack,
   channelExport,
 }

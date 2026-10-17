@@ -5,6 +5,10 @@
 - Voice channel status: give a voice channel a line like "CS2 ranked 🔫" so everyone sees what's going on; it clears itself when the call ends. And pick your own notification sounds for messages, mentions and DMs, per server or per channel, or use your own short sound (it stays on your device).
 - Three more built-in bots: Starboard shows your server's best messages in #starboard, Birthdays wishes members a happy birthday (day and month only, and only if they share it), and Welcome greets newcomers in your own words.
 - Voice messages as text: tap Show transcript and your device writes out what was said, nothing is uploaded, and it works in encrypted chats too. Have messages read aloud with your device's own voices, one at a time or every new message in a channel while you game, and send /tts messages that friends who opt in hear read aloud.
+- Invites can have a label ("Reddit post"), and moderators see which invite each person joined with, with a "Joined with" filter in Server settings → Members.
+- Webhooks take GitHub, Gitea, GitLab and Slack formats directly (add /github, /gitea, /gitlab or /slack to the URL), with an optional signing secret so only your repository can post.
+- Outgoing webhooks can also send voice joins and leaves, new threads, edits and deletions, member and role changes, and channel changes.
+- Export channels: admins can download channels (with threads, forum posts, docs pages and files) as a page that opens in any browser, even offline, plus JSON for programs. Encrypted channels and direct messages are never exported.
 
 ### Fixes
 - A server you saved stays in your list when it can't be reached (for example away from home) and keeps trying to reconnect; it's never removed by itself. Joining voice on your other device now says so instead of silently dropping you.

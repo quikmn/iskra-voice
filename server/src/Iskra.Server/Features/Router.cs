@@ -100,6 +100,8 @@ public sealed class Router
         BuddyBackupFeature.Register(this);
         ActivitiesFeature.Register(this);
         VoiceStatusFeature.Register(this);
+        WebhookSigningFeature.Register(this);
+        InviteTrackFeature.Register(this);
         ChannelExportFeature.Register(this);
     }
 

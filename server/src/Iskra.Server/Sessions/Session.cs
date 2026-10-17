@@ -464,6 +464,7 @@ public sealed class Session
         ProfileFeature.ApplyFromAuth(_world.Store, member.AccountKey, profile);
         PresenceFeature.ApplyFromAuth(_world.Store, member.AccountKey, body, Now);
         if (role == Roles.Owner) OwnerSetup.OwnerJoined(_world);
+        Features.InviteTrackFeature.Joined(_world.Store, member, invite!, null, Now);
         SecurityLog.Record(_world.Store, Now, "member.joined", member.AccountKey, LoggedIp, new { role, bot = isBot });
         _hub.Broadcast(Frames.Event("member.joined", new { member = _hub.PublicMember(member) }));
         _hub.Outhooks?.MemberJoined(member);

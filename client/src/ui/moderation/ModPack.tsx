@@ -20,6 +20,7 @@ import { fullTime, messageTime } from '../format'
 import { Close, Trash } from '../icons'
 import '../update-toast.css'
 import './moderation.css'
+import { JoinedViaLine } from './JoinedVia'
 
 // ── Selecting messages ──────────────────────────────────────────────────────
 
@@ -230,6 +231,7 @@ export function ModTools({ server, member }: { server: ServerState; member: Memb
   return (
     <section className="settings-section mod-tools">
       {outranks(me, member, roles) && <WarnControls server={server} member={member} onWarned={() => setWarned((n) => n + 1)} />}
+      <JoinedViaLine server={server} accountKey={member.accountKey} />
       <ModNotes server={server} accountKey={member.accountKey} />
       <ModHistory server={server} accountKey={member.accountKey} refresh={`${warned}:${member.timedOutUntil ?? ''}`} />
     </section>

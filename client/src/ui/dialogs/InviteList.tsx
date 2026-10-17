@@ -10,6 +10,7 @@ import { levelName } from '../../state/permissions'
 import { connectionFor, type ServerState } from '../../state/store'
 import { Spinner } from '../bits'
 import './InviteDialog.css'
+import '../invitetrack.css'
 
 /** `refresh` changes whenever the dialog made a new invite; `onRevoked` lets it drop a link it shows. */
 export function InviteList({ server, current, refresh, onRevoked }: {
@@ -57,6 +58,7 @@ export function InviteList({ server, current, refresh, onRevoked }: {
             <li key={invite.code} className="invite-row" data-testid="invite-row" data-never={invite.expiresAt === null || undefined}>
               <div className="invite-main">
                 <span className="invite-code"><Secret value={invite.code.slice(-6)} title={invite.code} prefix="…" /></span>
+                {invite.label && <span className="invite-label" data-testid="invite-label">{invite.label}</span>}
                 {invite.code === current && <span className="invite-this">{t('settings.invite.thisLink')}</span>}
                 {invite.approve && <span className="pill invite-approval">{t('settings.invite.approval')}</span>}
                 <span className="invite-meta">

@@ -30,3 +30,8 @@ db01296868ad012bf3a96d1b12694faa855a3450:client/src/ui/serverColor.test.ts:gener
 241458cc9f9a347ce7cae05471326adbca633b1e:desktop/src/doOAuth.ts:generic-api-key:16
 # scripts/simplysign.test.mjs: a made-up seed in a test fixture (an old stored file with the retired "switches" method), not a real secret
 e798453049ba69529ac0f358a4fb597a6316189b:scripts/simplysign.test.mjs:generic-api-key:85
+# webhook format test fixtures, not secrets
+81a09c79d1228dc77c219fcbd3d2cec20578a4f7:server/tests/Iskra.Server.Tests/WebhookFormatTests.cs:generic-api-key:322
+81a09c79d1228dc77c219fcbd3d2cec20578a4f7:server/tests/Iskra.Server.Tests/WebhookFormatTests.cs:generic-api-key:323
+81a09c79d1228dc77c219fcbd3d2cec20578a4f7:server/tests/Iskra.Server.Tests/WebhookFormatTests.cs:generic-api-key:332
+35752c8637501d96e385abcfa0e3b2c0967f4eae:server/tests/Iskra.Server.Tests/WebhookFormatTests.cs:generic-api-key:335
