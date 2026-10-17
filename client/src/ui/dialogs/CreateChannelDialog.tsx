@@ -90,7 +90,7 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
         {t('e2ee.create.toggle')}
       </label>
       {!canEncrypt && encrypted && <p className="muted small-text">{t('e2ee.create.kinds')}</p>}
-      {encrypted && canEncrypt && <EncryptedCreateNote count={readers} />}
+      {encrypted && canEncrypt && <EncryptedCreateNote count={readers} voice={kind === 'voice'} />}
       {categories.length > 0 && (
         <label className="field inline">
           <span>{t('settings.channel.category')}</span>

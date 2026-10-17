@@ -38,6 +38,21 @@ export function WatchButton({ server, channel, stage }: { server: ServerState; c
   const party = useWatch(partyFor(server.key, channel.id))
   const [open, setOpen] = useState(false)
   if (party || !mayHostWatch(server, channel, stage)) return null
+  // Encrypted voice channels: the server would see what's played (and the chat), so it's off, and the button says why.
+  // A tap says why (phones have no hover titles).
+  if (channel.e2ee) return (
+    <>
+      <button className="call-button watch-off" aria-label={t('watch.watchTogether')} title={t('e2ee.voice.watchOff')}
+        onClick={() => setOpen(true)} data-testid="watch-e2ee-off">
+        <TvIcon />
+      </button>
+      {open && (
+        <Modal title={t('watch.watchTogether')} onClose={() => setOpen(false)}>
+          <p data-testid="watch-e2ee-note">{t('e2ee.voice.watchOff')}</p>
+        </Modal>
+      )}
+    </>
+  )
   return (
     <>
       <button className="call-button" onClick={() => setOpen(true)} aria-label={t('watch.watchTogether')} title={t('watch.watchTogether')}>

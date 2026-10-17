@@ -16,7 +16,7 @@ import type { DmFile } from '../core/dmFiles'
 import { isExpiry, localExpiry } from '../core/disappear'
 import {
   decryptChannelMessage, encryptChannelMessage, MAX_CHANNEL_MEMBERS, MissingKeyError, newChainId, newEpochKey, openEpochKey, sealEpochKey,
-  signChannelChange, verifyChannelChain, voiceKey, voiceKeyIndex,
+  signChannelChange, verifyChannelChain,
   type ChannelAction, type ChannelChange, type ChannelContent, type ChannelEnvelope, type ChannelKeyEnvelope, type ChannelView, type MemberDevices,
 } from '../core/channelChain'
 import { GroupBehindError, GroupError, sameKey, type GroupChange } from '../core/group'
@@ -32,6 +32,8 @@ import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, patchServe
 import { acceptStartOver, CHAIN_REPLACED, chainFor, receiveChain, type ChainState, type PastChain } from './e2eeStartOver'
 import { checkSeen, noteSeen, ROLLED_BACK, seenIndex, type Seen } from './e2eeIntegrity'
 import { setChannelVoiceKeys, setCallKey, useVoice } from './voice'
+import { setVoiceVersion, useE2eeVoice } from './e2eeVoice'
+import { shouldSwitch, voiceKeySet } from './e2eeVoiceLogic'
 
 /** What the UI shows about an encrypted channel. */
 export interface ChannelCrypto {
@@ -968,22 +970,36 @@ export async function channelOpenKeys(serverKey: string, channelId: number, chai
 
 // ── Voice ──────────────────────────────────────────────────────────────────
 
-/** The LiveKit key for an encrypted voice channel (null: not encrypted). Throws if this device has no key yet. */
+/**
+ * The LiveKit keys for an encrypted voice channel (null: not encrypted): the current epoch's, which we send with, and
+ * the epochs just before it, so others still sending under those are heard while they switch. Throws without the key.
+ */
 setChannelVoiceKeys(async (serverKey, channelId) => {
   const channel = encryptedChannel(serverKey, channelId)
   if (!channel) return null
   const rec = await readyRec(serverKey, channel.id)
-  const v = rec.view!.version
-  return { key: voiceKey(rec.keys.get(v)!), index: voiceKeyIndex(v) }
+  const set = voiceKeySet(rec.keys, rec.view!.version)!
+  setVoiceVersion(set.version)
+  return set
 })
 
 /** A new epoch while you're in the channel's voice room: switch the media key (older frames still decrypt). */
 async function voiceKeyChanged(rec: Rec): Promise<void> {
   const session = useVoice.getState().session
-  if (!session || session.serverKey !== rec.serverKey || session.channelId !== rec.channelId || !rec.view) return
-  const key = rec.keys.get(rec.view.version)
-  if (key) await setCallKey(voiceKey(key), voiceKeyIndex(rec.view.version))
+  if (!session || session.call || session.group || session.serverKey !== rec.serverKey || session.channelId !== rec.channelId || !rec.view) return
+  const version = rec.view.version
+  const set = voiceKeySet(rec.keys, version)
+  if (!set || !shouldSwitch(useE2eeVoice.getState().version, version)) return
+  if (await setCallKey(set.key, set.index)) setVoiceVersion(version)
 }
+
+// A key that arrived while the room was still being set up: put it in place once connected.
+useVoice.subscribe((state, prev) => {
+  const session = state.session
+  if (!session || session.state !== 'connected' || prev.session?.state === 'connected' || session.call || session.group) return
+  const channel = encryptedChannel(session.serverKey, session.channelId)
+  if (channel) void load(session.serverKey, channel.id).then(voiceKeyChanged)
+})
 
 // ── Events ─────────────────────────────────────────────────────────────────
 

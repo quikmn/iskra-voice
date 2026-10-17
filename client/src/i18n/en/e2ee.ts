@@ -45,6 +45,7 @@ export const e2ee = {
     record: 'You started encryption over on {{date}}.',
     history: 'History',
   },
+  settingsNote: "End-to-end encrypted: chosen when the channel was made, and it can't be turned off.",
   waiting: "Waiting for someone in this channel to share its key with you. It happens automatically when one of them is online.",
   message: {
     pending: 'Decrypting…',
@@ -67,6 +68,13 @@ export const e2ee = {
   },
   voice: {
     noKey: "You can't join yet: this device doesn't have the channel's key.",
+    badge: 'Encrypted voice',
+    pending: 'Encrypting…',
+    explain: "Voice, video and screen shares here are encrypted on each device with the channel's key, so the server only passes on what it can't decode. Only the people who can see this channel hold the key, and it changes whenever they change.",
+    version: 'Key version {{version}}',
+    notEncrypted: "{{name}} isn't sending encrypted media, so you don't hear or see it.",
+    createHint: 'Voice, video and screen shares are encrypted too. Bots, watch parties, whispers, team splits and join-to-create rooms are off in it.',
+    watchOff: "Watch parties are off in encrypted voice channels: the server would see what's played.",
   },
   errors: {
     moved: 'This message was moved here from somewhere else.',

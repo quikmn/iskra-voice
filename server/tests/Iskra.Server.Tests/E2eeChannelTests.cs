@@ -12,7 +12,7 @@ public class E2eeChannelTests
     private static string DeviceKey(User u) => Ed25519.ToB64u(Ed25519.PublicKeyOf(u.Identity.Device));
 
     /// <summary>A signed channel membership change, built the way clients build them.</summary>
-    private static (JsonObject Change, string Head) Change(User by, string chain, long version, string prev, string action, string[] targets,
+    internal static (JsonObject Change, string Head) Change(User by, string chain, long version, string prev, string action, string[] targets,
         string[] members, NSec.Cryptography.Key? signWith = null)
     {
         var payload = Encoding.UTF8.GetBytes(new JsonObject
@@ -27,7 +27,7 @@ public class E2eeChannelTests
     }
 
     /// <summary>A channel key envelope as the server sees it: a header and one slot per device (contents opaque here).</summary>
-    private static JsonObject KeyEnvelope(User from, string chain, long version, params User[] to) => new()
+    internal static JsonObject KeyEnvelope(User from, string chain, long version, params User[] to) => new()
     {
         ["v"] = 2, ["kind"] = "channel-key",
         ["header"] = new JsonObject { ["from"] = from.Key, ["chain"] = chain, ["version"] = version, ["head"] = "", ["sentAt"] = 1, ["id"] = "k" },
@@ -93,7 +93,7 @@ public class E2eeChannelTests
     }
 
     /// <summary>An encrypted channel only trusted+ can read: the owner, Bob and Carol. Dave is a member.</summary>
-    internal static async Task<Setup> CreateAsync()
+    internal static async Task<Setup> CreateAsync(string kind = "text")
     {
         var server = new IskraServer();
         var owner = await server.JoinAsync("Owner", "owner");
@@ -104,7 +104,7 @@ public class E2eeChannelTests
         var (change, head) = Change(owner, chain, 1, "", "create", [bob.Key, carol.Key], [owner.Key, bob.Key, carol.Key]);
         var reply = await owner.RequestAsync("channel.create", new
         {
-            name = "secret", readRole = "trusted",
+            name = "secret", readRole = "trusted", kind,
             e2ee = new { change, keys = new[] { KeyEnvelope(owner, chain, 1, owner, bob, carol) } },
         });
         Assert.Equal("result", reply.Type());

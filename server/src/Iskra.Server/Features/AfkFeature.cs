@@ -46,6 +46,7 @@ public static class AfkFeature
         // Nobody stays in a lobby (joining one makes a room), so idle people couldn't be parked there.
         if (channelId is { } lobbyId && store.IsLobby(lobbyId))
             throw RequestException.BadRequest("A lobby can't be the AFK channel.", "afk_lobby");
+        E2eeVoiceFeature.RefuseAfk(store, channelId);
         if (!Minutes.Contains(minutes))
             throw RequestException.BadRequest("Move idle people after 5, 15, 30 or 60 minutes, or never (0).", "afk_minutes");
         if (levels.Any(l => !Roles.IsValid(l)))
@@ -139,7 +140,8 @@ public sealed class AfkSweeper(World world, Hub hub, VoiceRegistry voice, TimePr
                 {
                     if (moved >= MaxMovesPerSweep) return moved;
                     if (_lastMoved.ContainsKey(person.AccountKey) || !IdleFor(sessions[person.AccountKey], now, after)) continue;
-                    if (store.IsBot(person.AccountKey) || store.GetMember(person.AccountKey) is not { } member || !Permissions.CanConnect(member, target)) continue;
+                    if (store.IsBot(person.AccountKey) || store.GetMember(person.AccountKey) is not { } member || !Permissions.CanConnect(member, target)
+                        || !E2eeVoiceFeature.MayBeIn(store, member, target)) continue;
                     voice.Move(person.AccountKey, target.Id, now, reason: "afk");
                     _lastMoved[person.AccountKey] = now;
                     moved++;

@@ -56,7 +56,7 @@ export function EncryptionButton({ server, channel }: { server: ServerState; cha
   )
 }
 
-function EncryptionDialog({ server, channel, onClose }: { server: ServerState; channel: Channel; onClose: () => void }) {
+export function EncryptionDialog({ server, channel, onClose }: { server: ServerState; channel: Channel; onClose: () => void }) {
   const { t } = useTranslation()
   const state = useE2ee((s) => s.channels[slotOf(server.key, channel.id)])
   const findings = useKt((s) => s.findings)
@@ -84,6 +84,7 @@ function EncryptionDialog({ server, channel, onClose }: { server: ServerState; c
       {state?.offer ? <StartOverSection server={server} channel={channel} state={state} findings={findings} onVerify={setVerify} />
         : state?.problem && <p className="error-text" role="alert">{t('e2ee.panel.problem', { problem: e2eeText(state.problem) })}</p>}
       <p>{t('e2ee.panel.intro')}</p>
+      {channel.kind === 'voice' && <p className="muted small-text" data-testid="e2ee-voice-explain">{t('e2ee.voice.explain')}</p>}
       <ul className="e2ee-members" data-testid="e2ee-members">
         {members.map((key) => {
           const warn = findingsAbout(findings, key).length > 0
@@ -250,12 +251,13 @@ export function useEncryptedWriteBlock(server: ServerState, channelId: number): 
 }
 
 /** For the create dialog: how many people could read it, and whether that fits. */
-export function EncryptedCreateNote({ count }: { count: number }) {
+export function EncryptedCreateNote({ count, voice }: { count: number; voice?: boolean }) {
   const { t } = useTranslation()
   return (
     <div className="e2ee-create-note">
       <p className="muted">{t('e2ee.create.hint')}</p>
       <p className="muted small-text">{t('e2ee.create.limits', { max: MAX_CHANNEL_MEMBERS })}</p>
+      {voice && <p className="muted small-text">{t('e2ee.voice.createHint')}</p>}
       {count > MAX_CHANNEL_MEMBERS
         ? <p className="error-text">{t('e2ee.create.tooMany', { count, max: MAX_CHANNEL_MEMBERS })}</p>
         : <p className="muted">{t('e2ee.create.count', { count })}</p>}

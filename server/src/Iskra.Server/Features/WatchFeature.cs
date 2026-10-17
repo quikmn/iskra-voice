@@ -49,6 +49,7 @@ public static partial class WatchFeature
     {
         var channel = ChatFeature.ReadableChannel(s, me, body.Long("channelId"));
         if (channel.Kind is not ("voice" or "stage")) throw RequestException.BadRequest("Watch parties happen in voice channels.", "watch_voice_only");
+        E2eeVoiceFeature.RefuseWatch(s.World.Store, channel);
         return channel;
     }
 

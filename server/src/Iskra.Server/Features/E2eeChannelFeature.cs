@@ -222,6 +222,7 @@ public static class E2eeChannelFeature
         {
             channelId = channel.Id, e2ee = Public(after), change = new { version = change.Version, payload = payloadText, sig },
         }));
+        E2eeVoiceFeature.ChainChanged(s, channel);
         return new { e2ee = Public(after) };
     }
 

@@ -28,6 +28,7 @@ import { ResumeOffer } from './ResumeOffer'
 import { VideoPopoutButton } from './popout/PopoutButtons'
 import { ChannelTopic } from './chat/ChannelTopic'
 import './afk/afk.css'
+import { EncryptedVoiceBadge, PeerEncryptionMark } from './e2ee/E2eeVoice'
 
 /** The call screen: video tiles (screen shares first) and everyone's avatar, with call controls. */
 export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -59,6 +60,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
           <span className="hash"><Volume size={20} /></span>
           {channel?.name ?? t('voice.stage.voice')}
         </h1>
+        <EncryptedVoiceBadge variant="stage" />
         <span className="spacer" />
         <VoiceChatButton server={server} channelId={session.channelId} />
         <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label={t('voice.stage.members')} title={t('voice.stage.members')}>
@@ -95,6 +97,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
                 <Avatar name={name} accountKey={p.accountKey} size={72} />
                 <span className="tile-label">
                   {name}
+                  <PeerEncryptionMark accountKey={p.accountKey} name={name} />
                   <ClipsMark on={p.clips} />
                   {p.deafened ? <HeadphonesOff size={14} /> : p.muted ? <MicOff size={14} /> : null}
                 </span>
@@ -135,6 +138,7 @@ export function VideoTile({ tile, name, big, speaking, onClick }: { tile: Tile; 
       <video ref={ref} autoPlay playsInline muted className={tile.isLocal && tile.source === 'camera' ? 'mirror' : ''} />
       <span className="tile-label">
         {tile.source === 'screen' ? t('voice.stage.screenOf', { name }) : name}
+        {!tile.isLocal && <PeerEncryptionMark accountKey={tile.accountKey} name={name} />}
       </span>
       {speaking && tile.source === 'camera' && <span className="sr-only">{t('voice.isSpeaking', { name })}</span>}
       {/* The whole tile is the button that puts it in the big spot (a real button, so keyboards and screen readers get it). */}
