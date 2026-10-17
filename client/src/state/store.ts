@@ -249,21 +249,35 @@ export function activeChannelId(s: AppState): number | null {
   return server.channels.find((c) => c.kind === 'text')?.id ?? null
 }
 
-async function persistServers(): Promise<void> {
-  const { servers, order } = useApp.getState()
-  const saved = await storage.loadServers()
-  const byKey = new Map(saved.map((s) => [s.serverKey, s]))
-  await storage.saveServers(
-    order
-      .filter((key) => servers[key])
-      .map((key) => ({
-        url: servers[key].directUrl,
-        serverKey: key,
-        name: servers[key].name,
-        invite: servers[key].me ? undefined : byKey.get(key)?.invite,
-        p2p: servers[key].p2p ?? byKey.get(key)?.p2p,
-      })),
-  )
+/**
+ * Writes to the saved server list run one after another, in the order they were asked for: each one reads the list
+ * and writes it back, so two in flight at once would let the slower one undo the faster one (acceptInvite's invite
+ * landing after the welcome's save had dropped it; the next start then counted as a join again).
+ */
+let serverListWrites: Promise<void> = Promise.resolve()
+export function queueServerListWrite(write: () => Promise<void>): Promise<void> {
+  const next = serverListWrites.then(write, write)
+  serverListWrites = next.catch(() => undefined)
+  return next
+}
+
+function persistServers(): Promise<void> {
+  return queueServerListWrite(async () => {
+    const { servers, order } = useApp.getState()
+    const saved = await storage.loadServers()
+    const byKey = new Map(saved.map((s) => [s.serverKey, s]))
+    await storage.saveServers(
+      order
+        .filter((key) => servers[key])
+        .map((key) => ({
+          url: servers[key].directUrl,
+          serverKey: key,
+          name: servers[key].name,
+          invite: servers[key].me ? undefined : byKey.get(key)?.invite,
+          p2p: servers[key].p2p ?? byKey.get(key)?.p2p,
+        })),
+    )
+  })
 }
 
 // ── Boot ────────────────────────────────────────────────────────────────────
@@ -334,8 +348,12 @@ export function acceptInvite(invite: InviteLink): void {
   }
   connectServer(invite.serverUrl, invite.serverKey, invite.serverUrl.replace(/^https?:\/\//, ''), invite.code, true, invite.p2p)
   useApp.setState({ activeServer: invite.serverKey })
-  void persistServers().then(async () => {
-    // Remember the invite until the first successful join, in case the tab closes mid-way.
+  void persistServers()
+  // Remember the invite until the first successful join, in case the tab closes mid-way. Queued behind the save above
+  // and ahead of the welcome's (which drops the invite once we're a member): a saved invite makes the next start
+  // connect as a join (boot), and a join's welcome opens the role picker.
+  void queueServerListWrite(async () => {
+    if (useApp.getState().servers[invite.serverKey]?.me) return // the welcome came first: already a member
     const saved = await storage.loadServers()
     await storage.saveServers(saved.map((s) => (s.serverKey === invite.serverKey ? { ...s, invite: invite.code } : s)))
   })
