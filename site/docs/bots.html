@@ -1121,7 +1121,7 @@ bridge's own messages go to stderr, and so does your program's stderr.</p>
 <a href="https://github.com/quikmn/iskra-voice/blob/main/bots/examples/bridge/Roll.cs" target="_blank" rel="noopener"><code>Roll.cs</code></a> (one C# file).</p>
 <h4 id="the-line-protocol-version-1">The line protocol (version 1)<a class="anchor" href="#the-line-protocol-version-1" aria-hidden="true" tabindex="-1">#</a></h4>
 <p><strong>From the bridge</strong> (your stdin), events:</p>
-<div class="code"><div class="code-lang">JSON</div><pre><code class="language-jsonc">{&quot;event&quot;:&quot;hello&quot;,&quot;body&quot;:{&quot;v&quot;:1,&quot;bridge&quot;:&quot;iskra-bots 0.2.0&quot;,&quot;name&quot;:&quot;Roll&quot;}}       // always the first line
+<div class="code"><div class="code-lang">JSON</div><pre><code class="language-jsonc">{&quot;event&quot;:&quot;hello&quot;,&quot;body&quot;:{&quot;v&quot;:1,&quot;bridge&quot;:&quot;iskra-bots 0.2.1&quot;,&quot;name&quot;:&quot;Roll&quot;}}       // always the first line
 {&quot;event&quot;:&quot;ready&quot;,&quot;body&quot;:{&quot;me&quot;:Member,&quot;channels&quot;:[Channel],&quot;commands&quot;:[Command]}}  // online (again, after a reconnect)
 {&quot;event&quot;:&quot;command&quot;,&quot;ref&quot;:&quot;r1&quot;,&quot;body&quot;:{&quot;command&quot;:&quot;roll&quot;,&quot;args&quot;:&quot;2d6&quot;,&quot;options&quot;:{&quot;dice&quot;:&quot;2d6&quot;},
   &quot;user&quot;:&quot;&lt;accountKey&gt;&quot;,&quot;userName&quot;:&quot;Viktor&quot;,&quot;channelId&quot;:1,&quot;dm&quot;:false,&quot;private&quot;:false,&quot;messageId&quot;?:42}}

@@ -692,7 +692,7 @@ Two complete examples, each about 30 lines: [`roll.py`](../bots/examples/bridge/
 **From the bridge** (your stdin), events:
 
 ```jsonc
-{"event":"hello","body":{"v":1,"bridge":"iskra-bots 0.2.0","name":"Roll"}}       // always the first line
+{"event":"hello","body":{"v":1,"bridge":"iskra-bots 0.2.1","name":"Roll"}}       // always the first line
 {"event":"ready","body":{"me":Member,"channels":[Channel],"commands":[Command]}}  // online (again, after a reconnect)
 {"event":"command","ref":"r1","body":{"command":"roll","args":"2d6","options":{"dice":"2d6"},
   "user":"<accountKey>","userName":"Viktor","channelId":1,"dm":false,"private":false,"messageId"?:42}}

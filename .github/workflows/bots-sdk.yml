@@ -42,6 +42,11 @@ jobs:
       - name: Install
         working-directory: bots
         run: npm ci --no-audit --no-fund
+      # The SDK bundles the app's client/src/core (handshake, crypto), and the examples and gallery type-check against
+      # it, so client's packages (libsodium) must be there too. No install scripts: only the files are needed.
+      - name: Install the client's packages
+        working-directory: client
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Type-check the SDK and examples
         working-directory: bots
         run: npm run typecheck
