@@ -9,6 +9,7 @@
 - Invites can have a label ("Reddit post"), and moderators see which invite each person joined with, with a "Joined with" filter in Server settings → Members.
 - Webhooks take GitHub, Gitea, GitLab and Slack formats directly (add /github, /gitea, /gitlab or /slack to the URL), with an optional signing secret so only your repository can post.
 - Outgoing webhooks can also send voice joins and leaves, new threads, edits and deletions, member and role changes, and channel changes.
+- Feeds, a new built-in bot: new blog posts (RSS or Atom), YouTube videos and, with your own Twitch app, Twitch streams going live are posted in the channel you pick, optionally pinging a role. It's off until an admin turns it on, since your server then checks those sites itself (text only, never pictures).
 
 ### Fixes
 - A server you saved stays in your list when it can't be reached (for example away from home) and keeps trying to reconnect; it's never removed by itself. Joining voice on your other device now says so instead of silently dropping you.
