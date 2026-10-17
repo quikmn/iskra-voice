@@ -3783,15 +3783,20 @@ address is the holder's internet address if it has one, else its `PublicUrl` (th
 
 The source's owner pastes it (`buddy.add`). The source then calls the holder:
 
-`POST <url>/buddy/v1/pair` with JSON `{ token, sourceKey, restoreKey, name, at, sig }` (≤ 4 KB):
+`POST <url>/buddy/v1/pair` with JSON `{ token, sourceKey, restoreKey, name, at, sig, restoreSig }` (≤ 4 KB):
 `sig = Ed25519.sign(sourceSecret, "iskra/buddy-pair/v1" || 0x00 || holderKey(32) || token(32) || restoreKey(32) || u64be(at) || utf8(name))`,
-`name` the source server's name (1–100 characters), `at` within 5 minutes of the holder's clock.
+`restoreSig = Ed25519.sign(restoreSecret, "iskra/buddy-pair-restore/v1" || 0x00 || holderKey(32) || token(32) || sourceKey(32) || u64be(at))`
+(proof that the restore key is held, so nobody registers someone else's key), `name` the source server's name
+(1–100 characters), `at` within 5 minutes of the holder's clock. `sourceKey` and `restoreKey` must differ, and neither
+may already be used by any spot on the holder, as a source key or a restore key (`409`): every key means one spot and
+one role.
 
 The holder answers `200 { spotId, quotaBytes, keep, graceDays, name, at, sig }`:
 `sig = Ed25519.sign(holderSecret, "iskra/buddy-paired/v1" || 0x00 || sourceKey(32) || token(32) || u64be(at) || utf8(spotId))`.
 The source checks it against the key in the pairing code before saving anything, so a code can only ever pair with the
-server it names. Errors: `404` (no such token, used or expired; one answer for all three), `400` (malformed, bad
-signature, clock off), `409` (this source already has a spot here), `429` (see limits).
+server it names. Errors: `404` (no such token, used or expired; one answer for all three), `400` (malformed, a bad
+signature or restore signature, clock off, the same key twice), `409` (a key is already used by a spot here), `429`
+(see limits).
 
 ### Signed requests
 
@@ -3799,7 +3804,9 @@ Every request after pairing carries
 `Authorization: IskraBuddy key=<b64u 32>, at=<ms>, nonce=<b64u 16>, sig=<b64u 64>` with
 `sig = Ed25519.sign(secret, "iskra/buddy-request/v1" || 0x00 || holderKey(32) || u64be(at) || nonce(16) || SHA-256(utf8(METHOD + " " + path-and-query)) || SHA-256(body))`.
 `key` is the source's server key or its restore key. The holder refuses (`401`, nothing else said) a key it doesn't
-know, a bad signature, an `at` more than 5 minutes off, or a nonce it has seen from that key in the last 10 minutes.
+know, a bad signature, an `at` more than 5 minutes off, a nonce it has seen from that key in the last 10 minutes, or an
+`at` from before the holder started (nonces are remembered in memory only, so nothing replays across a restart). The
+key is looked up before the body is read; refused requests count against the client address.
 
 | Request | Who | Body | Answer |
 |---|---|---|---|
@@ -3807,12 +3814,12 @@ know, a bad signature, an `at` more than 5 minutes off, or a nonce it has seen f
 | `GET /buddy/v1/spot` | source, restore key | | `{ spotId, quotaBytes, keep, graceDays, used, removing, deleteAt, versions: [{ id, size, at }] }` (newest first) |
 | `POST /buddy/v1/uploads` | source | `{ size }` | `{ id, received, chunkBytes }`; a new upload replaces an unfinished one |
 | `GET /buddy/v1/uploads/<id>` | source | | `{ id, size, received }` (to resume) |
-| `PUT /buddy/v1/uploads/<id>?offset=<n>` | source | raw bytes, 1 B – 4 MB | `{ received }`; `409 { received }` unless `offset` is exactly what the holder has |
+| `PUT /buddy/v1/uploads/<id>?offset=<n>` | source | raw bytes, 1 B – 4 MB | `{ received }` (must be exactly `offset` + the part's length, or the source fails the sync); `409 { received }` unless `offset` is exactly what the holder has |
 | `POST /buddy/v1/uploads/<id>/finish` | source | `{ sha256 }` (hex) | `{ version: { id, size, at } }`; `409` if incomplete, `422` (upload dropped) if the hash differs |
 | `GET /buddy/v1/versions/<id>` | source, restore key | | the stored bytes (`application/octet-stream`) |
-| `DELETE /buddy/v1/spot` | source | | `{ deleteAt }`: the source stops; the copies stay for the grace period |
+| `DELETE /buddy/v1/spot` | source | | `{ deleteAt }`: the source stops; the copies stay for the grace period, at least 1 day |
 
-- `413` when `size` is over the spot's quota, `507` when the holder's disk would have less than 1 GB left, `410` when
+- `413` when `size` plus the protected copy (below) is over the spot's quota, `507` when the holder's disk would have less than 1 GB left, `410` when
   the spot is being removed (no uploads; listing and downloads still work until `deleteAt`), `429` over a limit.
 - Uploads expire after 24 hours unfinished. Answers carry `Cache-Control: no-store` and no CORS headers (browsers never
   call these).
@@ -3822,15 +3829,20 @@ know, a bad signature, an `at` more than 5 minutes off, or a nonce it has seen f
 - The bytes go to `buddy-held/<spotId>/` in the holder's world folder (owner-only permissions on Linux and macOS),
   never into its database, and never into the holder's own backups. The database has the spot (label, quota, keep,
   grace, the source's key, name and restore key) and each version's id, size, time and SHA-256.
-- After each finished upload the holder keeps the newest `keep` versions, then deletes the oldest until the spot fits its
-  quota (never the newest). While an upload runs the spot can briefly hold its quota plus that upload.
-- At most 3 finished uploads per spot in any 24 hours (`429`), so a source taken over by someone else can't flush out
-  the good copies in minutes. Per spot: 2 requests a second, burst 60. Per client address, for pairing and refused
-  requests: burst 10, then one every 6 seconds. At most 20 spots per holder.
+- **The protected copy:** the newest version that is at least 48 hours old is never deleted by pruning, whatever `keep`
+  and the quota say, and a new upload must fit beside it (`413`). So a source taken over by someone else can't flush out
+  every good copy: the last copy from before the takeover (once it's 2 days old) stays until a newer one is 2 days old.
+- After each finished upload the holder keeps the newest `keep` versions plus the protected copy, then deletes the
+  oldest until the spot fits its quota (never the newest or the protected copy). While an upload runs the spot can
+  briefly hold its quota plus that upload.
+- At most 3 finished uploads per spot in any 24 hours (`429`). Per spot: 2 requests a second, burst 60. Per client
+  address (IPv6 by its /64), for pairing and refused requests: burst 10, then one every 6 seconds; at most 10,000
+  addresses are remembered, the oldest forgotten first. At most 20 spots per holder.
 - **Removing.** Either owner can stop. The holder's owner removes a spot (`buddy.spot.remove`): uploads stop at once,
   and the copies are deleted after the spot's grace period (`graceDays`, 0–90, default 7), or right away with `now`.
   The source's owner removes a buddy (`buddy.remove`): the source calls `DELETE /buddy/v1/spot` and the holder starts
-  the same grace period, so a source taken over by someone else can't wipe its own copies. During the grace period the
+  the spot's grace period, but at least 1 day even when it's 0, so a source taken over by someone else can't wipe its own
+  copies (only the holder's owner can delete at once). During the grace period the
   copies can still be listed and downloaded (a restore still works). Holder spots that were never paired go at once.
 
 ### Requests
@@ -3872,8 +3884,12 @@ Buddy {
   default 1024; 0 = no limit). A cut-off upload resumes where it stopped. After a failure it tries again after 1, 5, 15,
   60 and 180 minutes, then every 6 hours. Event `buddy.changed {}` goes to the owner's sessions when a buddy's status
   changes (look again with `buddy.status`).
-- Connections: only to the pairing code's address, no redirects, plain http only to loopback and private networks
-  (never link-local), and only loopback from a LocalOnly server. 60 s per request.
+- Connections: only to the pairing code's address, which must be just a server (`http(s)://host[:port]`, no path), no
+  redirects, plain http only to private networks, never link-local, and loopback only from a LocalOnly server (which
+  connects to nothing else). 60 s per request; answers are buffered up to 1 MiB (downloads stream).
+- Uploading: each `PUT` answer must say exactly `offset` + the part's length; after a `409` the source carries on from
+  the holder's `received`, but 3 rewinds in a row without getting further fail the sync (`buddy_failed`). The pace limit
+  counts every part sent, rewinds included.
 
 On the holder:
 
@@ -3900,11 +3916,14 @@ Spot {
 
 ### Restoring from a buddy
 
-`iskra-server restore-buddy <holder-address> <world-folder> [--version <id>] [--list] [--json]`, the recovery code from
+`iskra-server restore-buddy [--version <id>] [--list] [--json] [--code-stdin] [--] <holder-address> <world-folder>` (after
+`--` everything is an address or folder, never a flag; the desktop app always passes it), the recovery code from
 `--code-stdin` (one line), `$ISKRA_BUDDY_RECOVERY_CODE` or a prompt. It derives the restore key, lists the spot
 (`--list` prints the versions and stops; with `--json`: `{ ok, versions: [{ id, size, at }] }`), downloads the newest
 (or the given) version to a private temp file and restores it exactly like `iskra-server restore` (same checks, same
-`--json` result), then deletes the temp file. A recovery code the holder doesn't know gets `401` ("That recovery code
+`--json` result), then deletes the temp file. Before downloading it refuses a size over 1 TB (the biggest spot) or
+more than this computer has room for (the copy, and as much again for the restored server). The command may reach
+loopback addresses (it runs on the person's own computer). A recovery code the holder doesn't know gets `401` ("That recovery code
 isn't known there"); a changed or cut-off copy fails the backup's own checks. The desktop app's **Restore from a backup
 → From a buddy's server** runs this.
 

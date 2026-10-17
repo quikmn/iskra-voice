@@ -21,6 +21,7 @@ public static class BuddyCrypto
 {
     public const string PairContext = "iskra/buddy-pair/v1";
     public const string PairedContext = "iskra/buddy-paired/v1";
+    public const string PairRestoreContext = "iskra/buddy-pair-restore/v1";
     public const string RequestContext = "iskra/buddy-request/v1";
     public const string RestoreKeyContext = "iskra/buddy-restore-key/v1";
     public const string CodePrefix = "iskra-buddy:";
@@ -89,6 +90,10 @@ public static class BuddyCrypto
 
     public static byte[] PairPayload(byte[] holderKey, byte[] token, byte[] restoreKey, long at, string name) =>
         Ed25519.Payload(PairContext, holderKey, token, restoreKey, Ed25519.U64BigEndian(at), Encoding.UTF8.GetBytes(name));
+
+    /// <summary>Signed with the restore key at pairing: proof that whoever registers it holds it.</summary>
+    public static byte[] PairRestorePayload(byte[] holderKey, byte[] token, byte[] sourceKey, long at) =>
+        Ed25519.Payload(PairRestoreContext, holderKey, token, sourceKey, Ed25519.U64BigEndian(at));
 
     public static byte[] PairedPayload(byte[] sourceKey, byte[] token, long at, string spotId) =>
         Ed25519.Payload(PairedContext, sourceKey, token, Ed25519.U64BigEndian(at), Encoding.UTF8.GetBytes(spotId));

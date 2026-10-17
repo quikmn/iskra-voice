@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { adjustRestoredSettings, isBackupDownload, readBackupInfo } from './restore'
+import { adjustRestoredSettings, isBackupDownload, isBuddyAddress, readBackupInfo } from './restore'
 
 function encrypted(header: object): Uint8Array {
   const json = new TextEncoder().encode(JSON.stringify(header))
@@ -43,4 +43,17 @@ test('restored settings get this computer\'s ports and address', () => {
   const tests = adjustRestoredSettings({ PublicUrl: 'https://chat.example.com' }, { port: 47075, voicePort: 7890 }, '10.0.0.8', true)
   assert.equal(tests.PublicUrl, 'http://localhost:47075')
   assert.equal(tests.LocalOnly, true)
+})
+
+test('only takes http(s) addresses for a buddy restore, never something that looks like a flag', () => {
+  assert.equal(isBuddyAddress('https://friend.example'), true)
+  assert.equal(isBuddyAddress('http://localhost:47070'), true)
+  assert.equal(isBuddyAddress('--json'), false)
+  assert.equal(isBuddyAddress('-https://friend.example'), false)
+  assert.equal(isBuddyAddress('friend.example'), false)
+  assert.equal(isBuddyAddress('file:///etc/passwd'), false)
+  assert.equal(isBuddyAddress('https://a:b@friend.example'), false)
+  assert.equal(isBuddyAddress(' https://friend.example'), false)
+  assert.equal(isBuddyAddress(`https://${'a'.repeat(600)}.example`), false)
+  assert.equal(isBuddyAddress(42), false)
 })

@@ -30,10 +30,13 @@ public class BuddyBackupTests
         private readonly IskraServer _sourceBase = new() { Settings = Quick };
         public WebApplicationFactory<Program> Source { get; }
 
-        public Pair()
+        /// <param name="wrap">Stands between the source and the holder (a holder that misbehaves).</param>
+        public Pair(Func<HttpMessageHandler, HttpMessageHandler>? wrap = null)
         {
             var handler = Holder.Server.CreateHandler();
-            Source = _sourceBase.WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton(new BuddyHttp(handler, localOnly: false))));
+            if (wrap is not null) handler = wrap(handler);
+            // The holder answers at http://localhost: only a LocalOnly source may go there.
+            Source = _sourceBase.WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton(new BuddyHttp(handler, localOnly: true))));
         }
 
         public World SourceWorld => Source.Services.GetRequiredService<World>();
@@ -43,7 +46,7 @@ public class BuddyBackupTests
         public string SourcePath => _sourceBase.WorldPath;
 
         /// <summary>The holder's HTTP side, as another server would call it.</summary>
-        public BuddyHttp Http() => new(Holder.Server.CreateHandler(), localOnly: false);
+        public BuddyHttp Http() => new(Holder.Server.CreateHandler(), localOnly: false, allowLoopback: true);
 
         public async Task<User> SourceOwnerAsync()
         {
@@ -128,6 +131,14 @@ public class BuddyBackupTests
         Assert.False(BuddyHttp.MayConnect(IPAddress.Parse("169.254.169.254"), localOnly: false, plainHttp: false));
         Assert.True(BuddyHttp.MayConnect(IPAddress.Loopback, localOnly: true, plainHttp: true));
         Assert.False(BuddyHttp.MayConnect(IPAddress.Parse("10.0.0.2"), localOnly: true, plainHttp: false));
+        // Regression: a server that isn't LocalOnly never reaches its own machine, and a code can't pick the path.
+        Assert.False(BuddyHttp.MayConnect(IPAddress.Loopback, localOnly: false, plainHttp: true));
+        Assert.False(BuddyHttp.MayConnect(IPAddress.IPv6Loopback, localOnly: false, plainHttp: false));
+        Assert.True(BuddyHttp.MayConnect(IPAddress.Loopback, localOnly: false, plainHttp: true, allowLoopback: true));
+        await Assert.ThrowsAsync<Protocol.RequestException>(() => BuddyHttp.CheckUrlAsync("http://127.0.0.1:8080", localOnly: false, default));
+        await Assert.ThrowsAsync<Protocol.RequestException>(() => BuddyHttp.CheckUrlAsync("http://localhost:4000/admin", localOnly: true, default));
+        await Assert.ThrowsAsync<Protocol.RequestException>(() => BuddyHttp.CheckUrlAsync("https://friend.example/x/", localOnly: false, default));
+        Assert.Equal("http://localhost:4000", await BuddyHttp.CheckUrlAsync("http://localhost:4000", localOnly: false, default, allowLoopback: true));
     }
 
     [Fact]
@@ -305,16 +316,16 @@ public class BuddyBackupTests
         using var holder = new IskraServer { Settings = Quick };
         using var holderOwner = await holder.JoinAsync("Holder owner", "owner");
         var (spotId, code) = await CreateSpot(holderOwner, new { label = "Bo", quotaMb = 100, keep = 2, url = Url });
-        using var http = new BuddyHttp(holder.Server.CreateHandler(), localOnly: false);
+        using var http = new BuddyHttp(holder.Server.CreateHandler(), localOnly: true);
         using var source = Ed25519.KeyFromSeed(Ed25519.NewSeed());
         using var restore = Ed25519.KeyFromSeed(Ed25519.NewSeed());
         long Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var pairing = BuddyCrypto.DecodePairingCode(code)! with { Url = "http://localhost" };
-        var paired = await http.PairAsync(pairing, source, Ed25519.PublicKeyOf(restore), "Bo's server", Now(), default);
+        var paired = await http.PairAsync(pairing, source, restore, "Bo's server", Now(), default);
         Assert.Equal(spotId, paired.SpotId);
         // Single use.
         using var other = Ed25519.KeyFromSeed(Ed25519.NewSeed());
-        Assert.Equal(404, (await Assert.ThrowsAsync<BuddyHttpException>(() => http.PairAsync(pairing, other, Ed25519.PublicKeyOf(restore), "Other", Now(), default))).Status);
+        Assert.Equal(404, (await Assert.ThrowsAsync<BuddyHttpException>(() => http.PairAsync(pairing, other, restore, "Other", Now(), default))).Status);
         var holderKey = pairing.HolderKey;
         const string url = "http://localhost";
 
@@ -463,6 +474,208 @@ public class BuddyBackupTests
         var status = (await sourceOwner.RequestAsync("buddy.status")).Body();
         Assert.False(status.GetProperty("autoEnabled").GetBoolean());
         Assert.Equal("buddy_backups_off", status.GetProperty("buddies")[0].GetProperty("error").GetProperty("key").GetString());
+    }
+
+    /// <summary>A holder with one fake source paired to a spot (keep, quota), and an upload helper.</summary>
+    private sealed class Held : IDisposable
+    {
+        public IskraServer Holder { get; } = new() { Settings = Quick };
+        public BuddyHttp Http { get; }
+        public NSec.Cryptography.Key Source { get; } = Ed25519.KeyFromSeed(Ed25519.NewSeed());
+        public NSec.Cryptography.Key Restore { get; } = Ed25519.KeyFromSeed(Ed25519.NewSeed());
+        public byte[] HolderKey => Holder.World.ServerPublicKey;
+        public string SpotId { get; private set; } = "";
+        public const string At = "http://localhost";
+
+        public Held() => Http = new BuddyHttp(Holder.Server.CreateHandler(), localOnly: true);
+
+        public static long Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        public async Task<User> PairAsync(object spot)
+        {
+            var owner = await Holder.JoinAsync("Holder owner", "owner");
+            var (id, code) = await CreateSpot(owner, spot);
+            SpotId = id;
+            await Http.PairAsync(BuddyCrypto.DecodePairingCode(code)! with { Url = At }, Source, Restore, "Source", Now(), default);
+            return owner;
+        }
+
+        public async Task<BuddyVersion> UploadAsync(byte[] data)
+        {
+            var (id, _, _) = await Http.BeginUploadAsync(At, HolderKey, Source, data.Length, Now(), default);
+            await Http.PutPartAsync(At, HolderKey, Source, id, 0, data, Now(), default);
+            return await Http.FinishAsync(At, HolderKey, Source, id, Convert.ToHexStringLower(SHA256.HashData(data)), Now(), default);
+        }
+
+        public void Dispose()
+        {
+            Http.Dispose();
+            Source.Dispose();
+            Restore.Dispose();
+            Holder.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task Regression_a_source_taken_over_cannot_flush_the_last_good_copy()
+    {
+        using var held = new Held();
+        using var owner = await held.PairAsync(new { label = "Bo", quotaMb = 100, keep = 1, graceDays = 0, url = Url });
+        var good = await held.UploadAsync(RandomNumberGenerator.GetBytes(3000));
+        // Two days later the source starts sending junk.
+        held.Holder.World.Store.SetBuddyVersionAt(good.Id, Held.Now() - 49 * 60 * 60 * 1000L);
+        // A copy as big as the whole quota would push the good one out: refused.
+        Assert.Equal(413, (await Assert.ThrowsAsync<BuddyHttpException>(() =>
+            held.Http.BeginUploadAsync(Held.At, held.HolderKey, held.Source, 100L * 1024 * 1024, Held.Now(), default))).Status);
+        // With keep = 1, junk replaces junk, never the protected copy.
+        var junk1 = await held.UploadAsync(RandomNumberGenerator.GetBytes(1000));
+        var junk2 = await held.UploadAsync(RandomNumberGenerator.GetBytes(1000));
+        var ids = (await held.Http.SpotAsync(Held.At, held.HolderKey, held.Restore, Held.Now(), default)).Versions.Select(v => v.Id).ToList();
+        Assert.Equal([junk2.Id, good.Id], ids);
+        Assert.DoesNotContain(junk1.Id, ids);
+
+        // The source removing itself can't skip the grace period, even when the spot's is 0 days.
+        using var request = new HttpRequestMessage(HttpMethod.Delete, "/buddy/v1/spot");
+        request.Headers.TryAddWithoutValidation("Authorization", BuddyCrypto.Authorization(held.Source, held.HolderKey, Held.Now(), "DELETE", "/buddy/v1/spot", []));
+        using var client = held.Holder.CreateClient();
+        using var removed = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
+        var spot = held.Holder.World.Store.GetBuddySpot(held.SpotId)!;
+        Assert.InRange(spot.DeleteAt!.Value - Held.Now(), BuddyHolder.DayMs - 60_000, BuddyHolder.DayMs);
+        Assert.Equal(2, held.Holder.World.Store.BuddyVersions(held.SpotId).Count);
+        // The holder's own owner may still delete at once.
+        await owner.RequestAsync("buddy.spot.remove", new { id = held.SpotId, now = true });
+        Assert.Null(held.Holder.World.Store.GetBuddySpot(held.SpotId));
+    }
+
+    [Fact]
+    public async Task Regression_a_restore_key_must_be_held_and_every_key_is_used_once()
+    {
+        using var held = new Held();
+        using var owner = await held.PairAsync(new { label = "Bo", url = Url });
+        using var client = held.Holder.CreateClient();
+
+        async Task<HttpStatusCode> Pair(NSec.Cryptography.Key source, byte[] restoreKey, Func<byte[], byte[]> restoreSig)
+        {
+            var (_, code) = await CreateSpot(owner, new { label = "Other", url = Url });
+            var pairing = BuddyCrypto.DecodePairingCode(code)!;
+            var now = Held.Now();
+            var sourceKey = Ed25519.PublicKeyOf(source);
+            var body = JsonSerializer.Serialize(new
+            {
+                token = Ed25519.ToB64u(pairing.Token), sourceKey = Ed25519.ToB64u(sourceKey), restoreKey = Ed25519.ToB64u(restoreKey), name = "Other", at = now,
+                sig = Ed25519.ToB64u(Ed25519.Sign(source, BuddyCrypto.PairPayload(pairing.HolderKey, pairing.Token, restoreKey, now, "Other"))),
+                restoreSig = Ed25519.ToB64u(restoreSig(BuddyCrypto.PairRestorePayload(pairing.HolderKey, pairing.Token, sourceKey, now))),
+            });
+            using var response = await client.PostAsync("/buddy/v1/pair", new StringContent(body, Encoding.UTF8, "application/json"));
+            return response.StatusCode;
+        }
+
+        using var attacker = Ed25519.KeyFromSeed(Ed25519.NewSeed());
+        // Registering someone else's public key (here the paired source's) as a restore key: no signature, no pairing.
+        var victim = Ed25519.PublicKeyOf(held.Source);
+        Assert.Equal(HttpStatusCode.BadRequest, await Pair(attacker, victim, payload => Ed25519.Sign(attacker, payload)));
+        // Keys already in use, as a source or a restore key, in either direction.
+        Assert.Equal(HttpStatusCode.Conflict, await Pair(attacker, Ed25519.PublicKeyOf(held.Restore), payload => Ed25519.Sign(held.Restore, payload)));
+        using var fresh = Ed25519.KeyFromSeed(Ed25519.NewSeed());
+        Assert.Equal(HttpStatusCode.Conflict, await Pair(held.Restore, Ed25519.PublicKeyOf(fresh), payload => Ed25519.Sign(fresh, payload)));
+        // The same key as source and restore key isn't allowed either.
+        Assert.Equal(HttpStatusCode.BadRequest, await Pair(fresh, Ed25519.PublicKeyOf(fresh), payload => Ed25519.Sign(fresh, payload)));
+        // A proper pairing still works.
+        using var restore = Ed25519.KeyFromSeed(Ed25519.NewSeed());
+        Assert.Equal(HttpStatusCode.OK, await Pair(attacker, Ed25519.PublicKeyOf(restore), payload => Ed25519.Sign(restore, payload)));
+    }
+
+    /// <summary>A holder that answers every part with what the test says.</summary>
+    private sealed class PartsAnswer(HttpMessageHandler inner, Func<long, long, HttpResponseMessage> answer) : DelegatingHandler(inner)
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancel)
+        {
+            if (request.Method != HttpMethod.Put) return await base.SendAsync(request, cancel);
+            var offset = long.Parse(request.RequestUri!.Query.Split('=')[1]);
+            var length = (await request.Content!.ReadAsByteArrayAsync(cancel)).Length;
+            return answer(offset, length);
+        }
+    }
+
+    private static HttpResponseMessage Json(HttpStatusCode status, object body) =>
+        new(status) { Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json") };
+
+    [Theory]
+    [InlineData("rewind")]
+    [InlineData("overclaim")]
+    public async Task Regression_a_holder_that_lies_about_parts_fails_the_sync(string lie)
+    {
+        var puts = 0;
+        using var pair = new Pair(inner => new PartsAnswer(inner, (offset, length) =>
+        {
+            puts++;
+            return lie == "rewind" ? Json(HttpStatusCode.Conflict, new { received = 0 }) : Json(HttpStatusCode.OK, new { received = offset + length + 1 });
+        }));
+        using var holderOwner = await pair.Holder.JoinAsync("Holder owner", "owner");
+        using var sourceOwner = await pair.SourceOwnerAsync();
+        await PairedAsync(pair, holderOwner, sourceOwner);
+        await sourceOwner.RequestAsync("buddy.backupNow");
+        await pair.SourceBuddies.RunOnceAsync(default);
+        var buddy = (await sourceOwner.RequestAsync("buddy.status")).Body().GetProperty("buddies")[0];
+        Assert.Equal("buddy_failed", buddy.GetProperty("error").GetProperty("key").GetString());
+        Assert.InRange(puts, 1, 2 * (BuddyBackupService.MaxRewinds + 2));
+    }
+
+    [Fact]
+    public async Task Regression_answers_are_never_buffered_past_a_mebibyte()
+    {
+        var huge = new FakeHandler(() => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new MemoryStream(new byte[3 * 1024 * 1024])), // no length: as if chunked
+        });
+        using var http = new BuddyHttp(huge, localOnly: true);
+        await Assert.ThrowsAnyAsync<Exception>(() => http.HelloAsync("http://localhost", default));
+        Assert.Equal(1024 * 1024, BuddyHttp.MaxJsonBytes);
+    }
+
+    private sealed class FakeHandler(Func<HttpResponseMessage> answer) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancel) => Task.FromResult(answer());
+    }
+
+    [Fact]
+    public void Regression_restores_check_the_size_the_holder_reports()
+    {
+        BuddyRestore.CheckRoom(1000, 10_000, 10_000);
+        BuddyRestore.CheckRoom(1000, null, null); // can't tell: carry on
+        Assert.Throws<InvalidDataException>(() => BuddyRestore.CheckRoom(0, null, null));
+        Assert.Throws<InvalidDataException>(() => BuddyRestore.CheckRoom(BuddyRestore.MaxCopyBytes + 1, null, null));
+        Assert.Throws<InvalidDataException>(() => BuddyRestore.CheckRoom(1000, 500, 10_000));
+        Assert.Throws<InvalidDataException>(() => BuddyRestore.CheckRoom(1000, 1500, 1500)); // same disk: room for two
+    }
+
+    [Fact]
+    public void Regression_rate_limits_group_ipv6_by_network_and_restore_buddy_arguments_end_at_double_dash()
+    {
+        Assert.Equal(BuddyHolder.AddressKey(IPAddress.Parse("2001:db8:1:2::1")), BuddyHolder.AddressKey(IPAddress.Parse("2001:db8:1:2:ffff::9")));
+        Assert.NotEqual(BuddyHolder.AddressKey(IPAddress.Parse("2001:db8:1:2::1")), BuddyHolder.AddressKey(IPAddress.Parse("2001:db8:1:3::1")));
+        Assert.Equal("192.0.2.4", BuddyHolder.AddressKey(IPAddress.Parse("::ffff:192.0.2.4")));
+        Assert.Equal("local", BuddyHolder.AddressKey(null));
+
+        var (positional, version, flags) = Cli.ParseRestoreBuddy(["restore-buddy", "--code-stdin", "--json", "--", "--list", "C:/world"]);
+        Assert.Equal(["--list", "C:/world"], positional);
+        Assert.Null(version);
+        Assert.Equal(["--code-stdin", "--json"], flags.Order());
+    }
+
+    [Fact]
+    public async Task Regression_requests_signed_before_the_holder_started_are_refused()
+    {
+        using var held = new Held();
+        using var owner = await held.PairAsync(new { label = "Bo", url = Url });
+        using var client = held.Holder.CreateClient();
+        // Within the clock skew, but from before this start: its nonce may have been seen by the last run.
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/buddy/v1/spot");
+        request.Headers.TryAddWithoutValidation("Authorization", BuddyCrypto.Authorization(held.Source, held.HolderKey, Held.Now() - 4 * 60_000, "GET", "/buddy/v1/spot", []));
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains(held.Holder.World.Store.SecurityEvents("buddy.auth.failed", null, null, 10), e => e.Details!.Contains("before_start"));
     }
 
     private static int IndexOf(byte[] haystack, byte[] needle)

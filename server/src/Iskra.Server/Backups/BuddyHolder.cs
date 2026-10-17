@@ -27,10 +27,18 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
     public const int UploadsPerDay = 3;
     public const long DayMs = 24 * 60 * 60 * 1000;
     public const string FolderName = "buddy-held";
+    /// <summary>The newest copy at least this old is never pruned, so a source taken over can't flush every good copy.</summary>
+    public const long ProtectAfterMs = 48 * 60 * 60 * 1000;
+    /// <summary>When the source removes itself, the copies stay at least this long, whatever the spot's grace period.</summary>
+    public const int MinSourceGraceDays = 1;
+    public const int MaxAddressBuckets = 10_000;
 
     private readonly long _minFreeBytes = config.GetValue("BuddyBackups:MinFreeMb", 1024L) * 1024 * 1024;
     private readonly ConcurrentDictionary<string, long> _nonces = new();
     private readonly ConcurrentDictionary<string, WebhookIngress.TokenBucket> _addressBuckets = new();
+    private readonly ConcurrentQueue<string> _addressOrder = new();
+    /// <summary>Nonces are remembered in memory only: requests signed before this start are refused, so none replays after a restart.</summary>
+    private readonly long _startedAt = time.GetUtcNow().ToUnixTimeMilliseconds();
     private readonly ConcurrentDictionary<string, WebhookIngress.TokenBucket> _spotBuckets = new();
     private readonly ConcurrentDictionary<string, object> _spotLocks = new();
 
@@ -99,9 +107,11 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
         if (spot.PairedAt is null || now) DeleteSpot(spot.Id);
         else
         {
-            deleteAt = Now + spot.GraceDays * DayMs;
+            // The source can't shorten the grace: a source taken over must not wipe its own copies.
+            var graceDays = by == "source" ? Math.Max(MinSourceGraceDays, spot.GraceDays) : spot.GraceDays;
+            deleteAt = Now + graceDays * DayMs;
             world.Store.RemoveBuddySpotLater(spot.Id, deleteAt.Value);
-            if (spot.GraceDays == 0) DeleteSpot(spot.Id);
+            if (graceDays == 0) DeleteSpot(spot.Id);
             DropUploads(spot.Id);
         }
         SecurityLog.Record(world.Store, Now, "buddy.spot.removed", details: new { by, sourceKey = spot.SourceKey, deleteAt });
@@ -156,16 +166,30 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
 
     private static IResult Status(int code, object? body = null) => body is null ? Results.StatusCode(code) : Results.Json(body, statusCode: code);
 
-    private string Address(HttpContext context) =>
-        context.Connection.RemoteIpAddress is { } ip ? (ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip).ToString() : "local";
+    private static string Address(HttpContext context) => AddressKey(context.Connection.RemoteIpAddress);
+
+    /// <summary>The rate-limit key for a client address: IPv4 as is, IPv6 by its /64 (one home network).</summary>
+    internal static string AddressKey(System.Net.IPAddress? ip)
+    {
+        if (ip is null) return "local";
+        if (ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
+        if (ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetworkV6) return ip.ToString();
+        return Convert.ToHexStringLower(ip.GetAddressBytes().AsSpan(0, 8)) + "::/64";
+    }
 
     private string? LoggedIp(HttpContext context) => world.Settings.Retention.SecurityLogIps ? context.Connection.RemoteIpAddress?.ToString() : null;
 
     /// <summary>Pairing and refused requests, per client address: a burst of 10, then one every 6 seconds.</summary>
     private bool AddressAllows(HttpContext context)
     {
-        if (_addressBuckets.Count > 10_000) _addressBuckets.Clear();
-        return _addressBuckets.GetOrAdd(Address(context), _ => new WebhookIngress.TokenBucket(10, 1 / 6.0, time)).TryTake(out _);
+        var bucket = _addressBuckets.GetOrAdd(Address(context), key =>
+        {
+            _addressOrder.Enqueue(key);
+            return new WebhookIngress.TokenBucket(10, 1 / 6.0, time);
+        });
+        // Many addresses: forget the oldest ones, never all at once (that would reset everyone's limit).
+        while (_addressBuckets.Count > MaxAddressBuckets && _addressOrder.TryDequeue(out var oldest)) _addressBuckets.TryRemove(oldest, out _);
+        return bucket.TryTake(out _);
     }
 
     private static void NoStore(HttpContext context)
@@ -196,7 +220,7 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
         return buffer.ToArray();
     }
 
-    private sealed record PairBody(string Token, string SourceKey, string RestoreKey, string Name, long At, string Sig);
+    private sealed record PairBody(string Token, string SourceKey, string RestoreKey, string Name, long At, string Sig, string RestoreSig);
 
     private async Task<IResult> PairAsync(HttpContext context)
     {
@@ -211,7 +235,7 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
             || !Ed25519.TryFromB64u(body.Token, out var token) || token.Length != 32
             || !Ed25519.TryFromB64u(body.SourceKey, out var sourceKey) || sourceKey.Length != 32
             || !Ed25519.TryFromB64u(body.RestoreKey, out var restoreKey) || restoreKey.Length != 32
-            || !Ed25519.TryFromB64u(body.Sig, out var sig)) return Status(400);
+            || !Ed25519.TryFromB64u(body.Sig, out var sig) || !Ed25519.TryFromB64u(body.RestoreSig, out var restoreSig)) return Status(400);
         var now = Now;
         if (Math.Abs(now - body.At) > ClockSkewMs) return Status(400);
         if (!Ed25519.Verify(sourceKey, BuddyCrypto.PairPayload(world.ServerPublicKey, token, restoreKey, body.At, body.Name), sig))
@@ -219,12 +243,19 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
             SecurityLog.Record(world.Store, now, "buddy.auth.failed", ip: LoggedIp(context), details: new { reason = "pair_signature" }, source: Address(context));
             return Status(400);
         }
-        if (sourceKey.AsSpan().SequenceEqual(world.ServerPublicKey)) return Status(400);
+        // The restore key proves it's held too, so nobody registers someone else's key (e.g. a server key from /hello).
+        if (!Ed25519.Verify(restoreKey, BuddyCrypto.PairRestorePayload(world.ServerPublicKey, token, sourceKey, body.At), restoreSig))
+        {
+            SecurityLog.Record(world.Store, now, "buddy.auth.failed", ip: LoggedIp(context), details: new { reason = "pair_restore_signature" }, source: Address(context));
+            return Status(400);
+        }
+        if (sourceKey.AsSpan().SequenceEqual(world.ServerPublicKey) || sourceKey.AsSpan().SequenceEqual(restoreKey)) return Status(400);
         var hash = BuddyCrypto.TokenHash(token);
         var spot = world.Store.BuddySpotForToken(hash);
         if (spot is null || spot.CodeExpiresAt < now || spot.DeleteAt is not null) return Status(404);
         var sourceB64 = Ed25519.ToB64u(sourceKey);
-        if (world.Store.BuddySpotForKey(sourceB64) is not null) return Status(409);
+        // Every key appears once across both columns, so a request's key always means one spot and one role.
+        if (world.Store.BuddyKeyInUse(sourceB64) || world.Store.BuddyKeyInUse(Ed25519.ToB64u(restoreKey))) return Status(409);
         if (!world.Store.PairBuddySpot(spot.Id, hash, sourceB64, body.Name.Trim(), Ed25519.ToB64u(restoreKey), now)) return Status(409);
         AtomicFile.CreatePrivateDirectory(Root);
         AtomicFile.CreatePrivateDirectory(SpotFolder(spot.Id));
@@ -253,7 +284,8 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
         // Who it claims to be is checked before the body is read (a key nobody paired never gets that far); refused requests
         // count against the client address, so even someone using a known public key can't make us read 4 MB parts often.
         var spot = auth is null ? null : world.Store.BuddySpotForKey(Ed25519.ToB64u(auth.Key));
-        string? reason = auth is null ? "no_signature" : Math.Abs(now - auth.At) > ClockSkewMs ? "clock" : spot is null ? "unknown_key" : null;
+        string? reason = auth is null ? "no_signature" : Math.Abs(now - auth.At) > ClockSkewMs ? "clock"
+            : auth.At < _startedAt ? "before_start" : spot is null ? "unknown_key" : null;
         byte[]? bytes = null;
         if (reason is null)
         {
@@ -322,8 +354,10 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
             return Status(400);
         }
         if (size < 1) return Status(400);
-        if (size > spot.QuotaBytes) return Status(413, new { quotaBytes = spot.QuotaBytes });
         var now = Now;
+        // The protected copy (the newest one at least 48 hours old) stays, so the new one has to fit beside it.
+        var guarded = Protected(world.Store.BuddyVersions(spot.Id), now);
+        if (size + (guarded?.Size ?? 0) > spot.QuotaBytes) return Status(413, new { quotaBytes = spot.QuotaBytes, protectedBytes = guarded?.Size ?? 0 });
         if (RecentUploads(spot, now).Count >= UploadsPerDay) return Status(429);
         try
         {
@@ -406,7 +440,7 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
             world.Store.AddBuddyVersion(version);
             recent.Add(now);
             world.Store.BuddySpotUploaded(spot.Id, now, JsonSerializer.Serialize(recent));
-            Prune(spot, version.Id);
+            Prune(spot, version.Id, now);
         }
         Changed();
         return Results.Json(new { version = new { id = version.Id, size = version.Size, at = version.At } });
@@ -415,20 +449,35 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
     [GeneratedRegex("^[0-9a-f]{64}$")]
     private static partial Regex Sha256Hex();
 
-    /// <summary>The newest <c>keep</c> versions, then the oldest go until the spot fits its quota (never the newest).</summary>
-    private void Prune(BuddySpotRow spot, string newest)
+    /// <summary>The newest version that is at least 48 hours old: never pruned, whatever keep and the quota say.</summary>
+    internal static BuddyVersionRow? Protected(List<BuddyVersionRow> newestFirst, long now) =>
+        newestFirst.FirstOrDefault(v => v.At <= now - ProtectAfterMs);
+
+    /// <summary>
+    /// The newest <c>keep</c> versions, then the oldest go until the spot fits its quota. Never the newest, and never the
+    /// protected one (the newest at least 48 hours old), so junk uploads can't push out every good copy at once.
+    /// </summary>
+    private void Prune(BuddySpotRow spot, string newest, long now)
     {
         var versions = world.Store.BuddyVersions(spot.Id);
+        var guarded = Protected(versions, now);
         var kept = new List<BuddyVersionRow>();
+        var counted = 0;
         foreach (var v in versions)
         {
-            if (v.Id == newest || kept.Count < spot.Keep) kept.Add(v);
+            if (v.Id == newest || counted < spot.Keep)
+            {
+                kept.Add(v);
+                counted++;
+            }
+            else if (v.Id == guarded?.Id) kept.Add(v);
             else DropVersion(v);
         }
         var used = kept.Sum(v => v.Size);
         foreach (var v in kept.AsEnumerable().Reverse())
         {
-            if (used <= spot.QuotaBytes || v.Id == newest) break;
+            if (used <= spot.QuotaBytes) break;
+            if (v.Id == newest || v.Id == guarded?.Id) continue;
             DropVersion(v);
             used -= v.Size;
         }

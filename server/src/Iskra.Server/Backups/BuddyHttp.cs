@@ -38,9 +38,13 @@ public sealed class BuddyHttp : IDisposable
 
     public bool LocalOnly { get; }
 
-    public BuddyHttp(HttpMessageHandler? handler, bool localOnly)
+    /// <summary>Loopback addresses are allowed (LocalOnly servers, and the restore command on the person's own computer).</summary>
+    public bool AllowLoopback { get; }
+
+    public BuddyHttp(HttpMessageHandler? handler, bool localOnly, bool allowLoopback = false)
     {
         LocalOnly = localOnly;
+        AllowLoopback = localOnly || allowLoopback;
         handler ??= new SocketsHttpHandler
         {
             AllowAutoRedirect = false,
@@ -48,27 +52,33 @@ public sealed class BuddyHttp : IDisposable
             UseCookies = false,
             UseProxy = false,
             PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-            ConnectCallback = Connect(localOnly),
+            ConnectCallback = Connect(localOnly, AllowLoopback),
         };
-        _http = new HttpClient(handler) { Timeout = Timeout };
+        // Answers are small JSON (downloads stream with ResponseHeadersRead): never buffer more than 1 MiB of one.
+        _http = new HttpClient(handler) { Timeout = Timeout, MaxResponseContentBufferSize = MaxJsonBytes };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("Iskra-Buddy/1");
     }
 
     // ── Addresses ────────────────────────────────────────────────────────────
 
-    public static bool MayConnect(IPAddress address, bool localOnly, bool plainHttp)
+    /// <summary>
+    /// A LocalOnly server: loopback only. Otherwise loopback only when allowed (the restore command), never for a server
+    /// (a pasted code mustn't reach services on its own machine); plain http only on local networks.
+    /// </summary>
+    public static bool MayConnect(IPAddress address, bool localOnly, bool plainHttp, bool allowLoopback = false)
     {
         if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
         if (localOnly) return IPAddress.IsLoopback(address);
+        if (IPAddress.IsLoopback(address)) return allowLoopback;
         return plainHttp ? OutgoingWebhooks.IsLocalNetwork(address) : LinkPreviews.IsPublic(address) || OutgoingWebhooks.IsLocalNetwork(address);
     }
 
-    private static Func<SocketsHttpConnectionContext, CancellationToken, ValueTask<Stream>> Connect(bool localOnly) =>
+    private static Func<SocketsHttpConnectionContext, CancellationToken, ValueTask<Stream>> Connect(bool localOnly, bool allowLoopback) =>
         async (context, cancel) =>
         {
             var plain = context.InitialRequestMessage.RequestUri?.Scheme == Uri.UriSchemeHttp;
             var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancel);
-            var allowed = addresses.Where(a => MayConnect(a, localOnly, plain)).ToList();
+            var allowed = addresses.Where(a => MayConnect(a, localOnly, plain, allowLoopback)).ToList();
             if (allowed.Count == 0) throw new BuddyAddressException("That address isn't allowed for a backup buddy.");
             Exception? last = null;
             foreach (var address in allowed)
@@ -93,12 +103,13 @@ public sealed class BuddyHttp : IDisposable
     /// host that is a loopback or private address (or resolves only to such), a LocalOnly server only to loopback.
     /// Returns the address without a trailing slash, or throws <see cref="Protocol.RequestException"/> (key buddy_address).
     /// </summary>
-    public static async Task<string> CheckUrlAsync(string url, bool localOnly, CancellationToken cancel)
+    public static async Task<string> CheckUrlAsync(string url, bool localOnly, CancellationToken cancel, bool allowLoopback = false)
     {
         static Protocol.RequestException Bad() =>
             Protocol.RequestException.BadRequest("That address can't be used for a backup buddy.", "buddy_address");
         if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) || uri.Scheme is not ("https" or "http") || uri.Host.Length == 0
-            || !string.IsNullOrEmpty(uri.UserInfo) || uri.Query.Length > 0 || uri.Fragment.Length > 0 || url.Length > 512) throw Bad();
+            || !string.IsNullOrEmpty(uri.UserInfo) || uri.Query.Length > 0 || uri.Fragment.Length > 0 || url.Length > 512
+            || uri.AbsolutePath != "/") throw Bad(); // just the server: the paths are ours to add
         IPAddress[] addresses;
         if (IPAddress.TryParse(uri.Host.Trim('[', ']'), out var literal)) addresses = [literal];
         else
@@ -108,9 +119,9 @@ public sealed class BuddyHttp : IDisposable
         }
         // A LocalOnly server, or plain http: every address must be allowed (checked again on every connection).
         var plain = uri.Scheme == "http";
-        if ((localOnly || plain) && (addresses.Length == 0 || !addresses.All(a => MayConnect(a, localOnly, plain)))) throw Bad();
-        if (addresses.Length > 0 && !addresses.Any(a => MayConnect(a, localOnly, plain))) throw Bad();
-        return uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
+        if ((localOnly || plain) && (addresses.Length == 0 || !addresses.All(a => MayConnect(a, localOnly, plain, allowLoopback)))) throw Bad();
+        if (addresses.Length > 0 && !addresses.Any(a => MayConnect(a, localOnly, plain, allowLoopback))) throw Bad();
+        return uri.GetLeftPart(UriPartial.Authority);
     }
 
     // ── Requests ─────────────────────────────────────────────────────────────
@@ -127,14 +138,16 @@ public sealed class BuddyHttp : IDisposable
     }
 
     /// <summary>Pairs with the spot in the code, and checks the holder's signed answer against the code's key.</summary>
-    public async Task<BuddyPaired> PairAsync(BuddyPairingCode code, Key serverKey, byte[] restoreKey, string name, long now, CancellationToken cancel)
+    public async Task<BuddyPaired> PairAsync(BuddyPairingCode code, Key serverKey, Key restore, string name, long now, CancellationToken cancel)
     {
         var sourceKey = Ed25519.PublicKeyOf(serverKey);
+        var restoreKey = Ed25519.PublicKeyOf(restore);
         var sig = Ed25519.Sign(serverKey, BuddyCrypto.PairPayload(code.HolderKey, code.Token, restoreKey, now, name));
+        var restoreSig = Ed25519.Sign(restore, BuddyCrypto.PairRestorePayload(code.HolderKey, code.Token, sourceKey, now));
         var body = JsonSerializer.SerializeToUtf8Bytes(new
         {
             token = Ed25519.ToB64u(code.Token), sourceKey = Ed25519.ToB64u(sourceKey), restoreKey = Ed25519.ToB64u(restoreKey),
-            name, at = now, sig = Ed25519.ToB64u(sig),
+            name, at = now, sig = Ed25519.ToB64u(sig), restoreSig = Ed25519.ToB64u(restoreSig),
         });
         using var content = new ByteArrayContent(body);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
@@ -251,7 +264,7 @@ public sealed class BuddyHttp : IDisposable
         await ThrowUnlessOk(response, cancel);
     }
 
-    private const int MaxJsonBytes = 1024 * 1024;
+    public const int MaxJsonBytes = 1024 * 1024;
 
     private static async Task<JsonElement> ReadJson(HttpResponseMessage response, CancellationToken cancel)
     {

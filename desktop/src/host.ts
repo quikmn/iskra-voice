@@ -388,7 +388,7 @@ export class Host {
    * server keeps goes into a new server folder here, which then starts like any restored server.
    */
   async restoreBuddy(address: string, recoveryCode: string): Promise<{ server: HostedServer; serverKey: string; name: string }> {
-    return this.restoreWith((folder) => ['restore-buddy', address, folder, '--code-stdin', '--json'], recoveryCode, 'restored')
+    return this.restoreWith((folder) => ['restore-buddy', '--code-stdin', '--json', '--', address, folder], recoveryCode, 'restored')
   }
 
   private async restoreWith(args: (folder: string) => string[], secret: string, hint: string): Promise<{ server: HostedServer; serverKey: string; name: string }> {

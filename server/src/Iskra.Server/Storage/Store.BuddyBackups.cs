@@ -150,6 +150,13 @@ public sealed partial class Store
     public BuddySpotRow? BuddySpotForToken(string tokenHash) =>
         Query($"SELECT {SpotColumns} FROM buddy_spots WHERE token_hash = $t AND paired_at IS NULL;", ReadSpot, ("$t", tokenHash)).FirstOrDefault();
 
+    /// <summary>Whether a spot already uses this key, as its source key or its restore key.</summary>
+    public bool BuddyKeyInUse(string key) =>
+        Scalar("SELECT 1 FROM buddy_spots WHERE source_key = $k OR restore_key = $k;", ("$k", key)) is not null;
+
+    /// <summary>Tests: pretend a copy arrived earlier.</summary>
+    internal void SetBuddyVersionAt(string id, long at) => Exec("UPDATE buddy_versions SET at = $at WHERE id = $id;", ("$id", id), ("$at", at));
+
     public int CountBuddySpots() => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM buddy_spots;"));
 
     public void AddBuddySpot(BuddySpotRow s) =>

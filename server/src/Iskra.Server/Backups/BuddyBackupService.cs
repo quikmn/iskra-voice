@@ -26,6 +26,8 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
     IConfiguration config, ILogger<BuddyBackupService> log) : BackgroundService
 {
     public const int MaxBuddies = 8;
+    /// <summary>Times in a row the holder may send us back without us getting further, before the sync fails.</summary>
+    public const int MaxRewinds = 3;
     private static readonly long[] RetryMinutes = [1, 5, 15, 60, 180, 360];
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -82,7 +84,7 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
             throw RequestException.BadRequest("That server keeps backups for this one already.", "buddy_already");
         if (buddies.Count >= MaxBuddies)
             throw RequestException.BadRequest($"This server has {MaxBuddies} backup buddies already.", "buddy_max", new { max = MaxBuddies });
-        var url = await BuddyHttp.CheckUrlAsync(code.Url, http.LocalOnly, cancel);
+        var url = await BuddyHttp.CheckUrlAsync(code.Url, http.LocalOnly, cancel, http.AllowLoopback);
 
         var made = world.Store.BuddyRecoveryCode() is null;
         var recovery = world.Store.EnsureBuddyRecoveryCode(BuddyCrypto.NewRecoveryCode(), Now);
@@ -93,7 +95,7 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
         BuddyPaired paired;
         try
         {
-            paired = await http.PairAsync(code with { Url = url }, world.ServerKey, Ed25519.PublicKeyOf(restoreKey), name, Now, cancel);
+            paired = await http.PairAsync(code with { Url = url }, world.ServerKey, restoreKey, name, Now, cancel);
         }
         catch (BuddyHttpException ex)
         {
@@ -278,31 +280,43 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
             var pace = _unpaced ? 0 : (long)world.Settings.BuddyBackups.UploadKbPerSecond * 1024;
             var clock = Stopwatch.StartNew();
             long sent = 0;
+            long furthest = received;
+            var rewinds = 0;
             await using (var file = File.OpenRead(copy.Path))
             {
                 var buffer = new byte[partBytes];
                 while (received < copy.Size)
                 {
-                    file.Position = received;
-                    var length = await file.ReadAtLeastAsync(buffer.AsMemory(0, (int)Math.Min(partBytes, copy.Size - received)), (int)Math.Min(partBytes, copy.Size - received), throwOnEndOfStream: true, cancel);
-                    var part = length == buffer.Length ? buffer : buffer[..length];
-                    try
-                    {
-                        received = await http.PutPartAsync(buddy.Url, holderKey, world.ServerKey, id, received, part, Now, cancel);
-                    }
-                    catch (BuddyHttpException ex) when (ex.Status == 409 && ex.Received is { } at && at <= copy.Size)
-                    {
-                        received = at; // the holder has a different amount (a part went through but the answer didn't): carry on from there
-                        continue;
-                    }
-                    sent += length;
-                    Progress(buddy.Id, received, copy.Size, force: false);
-                    // Bandwidth-friendly: no faster than BuddyBackups.UploadKbPerSecond on average.
+                    // Bandwidth-friendly: no faster than BuddyBackups.UploadKbPerSecond on average, rewinds included.
                     if (pace > 0)
                     {
                         var due = TimeSpan.FromSeconds((double)sent / pace) - clock.Elapsed;
                         if (due > TimeSpan.Zero) await Task.Delay(due, time, cancel);
                     }
+                    file.Position = received;
+                    var length = await file.ReadAtLeastAsync(buffer.AsMemory(0, (int)Math.Min(partBytes, copy.Size - received)), (int)Math.Min(partBytes, copy.Size - received), throwOnEndOfStream: true, cancel);
+                    var part = length == buffer.Length ? buffer : buffer[..length];
+                    sent += length;
+                    try
+                    {
+                        var got = await http.PutPartAsync(buddy.Url, holderKey, world.ServerKey, id, received, part, Now, cancel);
+                        // The holder took exactly this part, or something is wrong with it.
+                        if (got != received + length) throw new BuddyHttpException(502, "The holder's answer doesn't match what was sent.");
+                        received = got;
+                    }
+                    catch (BuddyHttpException ex) when (ex.Status == 409 && ex.Received is { } at && at >= 0 && at <= copy.Size)
+                    {
+                        // The holder has a different amount (a part went through but the answer didn't): carry on from
+                        // there, but not forever: a holder that keeps sending us back gets the sync failed.
+                        received = at;
+                        if (at <= furthest && ++rewinds > MaxRewinds) throw new BuddyHttpException(502, "The holder keeps asking for parts again.");
+                    }
+                    if (received > furthest)
+                    {
+                        furthest = received;
+                        rewinds = 0;
+                    }
+                    Progress(buddy.Id, received, copy.Size, force: false);
                 }
             }
             await http.FinishAsync(buddy.Url, holderKey, world.ServerKey, id, copy.Sha256, Now, cancel);

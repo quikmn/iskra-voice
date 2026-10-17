@@ -114,9 +114,9 @@ public static class BuddyBackupFeature
         if (body.OptionalString("url", 512) is { } given)
         {
             if (!Uri.TryCreate(given.Trim(), UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || uri.Host.Length == 0
-                || !string.IsNullOrEmpty(uri.UserInfo) || uri.Query.Length > 0 || uri.Fragment.Length > 0)
+                || !string.IsNullOrEmpty(uri.UserInfo) || uri.Query.Length > 0 || uri.Fragment.Length > 0 || uri.AbsolutePath != "/")
                 throw RequestException.BadRequest("That address can't be used for a backup buddy.", "buddy_address");
-            address = uri.GetLeftPart(UriPartial.Path).TrimEnd('/');
+            address = uri.GetLeftPart(UriPartial.Authority);
         }
         else address = holder.Address();
         if (address is null)

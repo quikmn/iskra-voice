@@ -35,6 +35,21 @@ export function isBackupDownload(url: unknown): url is string {
   }
 }
 
+/**
+ * A backup buddy's address for "Restore from a buddy's server": an http(s) address of at most 512 characters, nothing
+ * else (it goes to iskra-server as an argument, so it must never look like a flag).
+ */
+export function isBuddyAddress(address: unknown): address is string {
+  if (typeof address !== 'string' || address.length === 0 || address.length > 512 || address.trim() !== address) return false
+  if (address.startsWith('-') || /[\s\u0000-\u001f]/.test(address)) return false
+  try {
+    const url = new URL(address)
+    return (url.protocol === 'https:' || url.protocol === 'http:') && url.hostname.length > 0 && !url.username && !url.password
+  } catch {
+    return false
+  }
+}
+
 export interface RestorePorts {
   port: number
   voicePort: number

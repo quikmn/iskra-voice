@@ -177,21 +177,13 @@ public static class Cli
     /// </summary>
     internal static int RestoreBuddy(string[] args)
     {
-        var positional = new List<string>();
-        string? version = null;
-        var flags = new HashSet<string>(StringComparer.Ordinal);
-        for (var i = 1; i < args.Length; i++)
-        {
-            if (args[i] == "--version" && i + 1 < args.Length) version = args[++i];
-            else if (args[i].StartsWith("--", StringComparison.Ordinal)) flags.Add(args[i]);
-            else positional.Add(args[i]);
-        }
+        var (positional, version, flags) = ParseRestoreBuddy(args);
         var list = flags.Contains("--list");
         if (positional.Count != (list ? 1 : 2)) return Usage();
         var code = flags.Contains("--code-stdin") ? Console.In.ReadLine() ?? ""
             : Environment.GetEnvironmentVariable("ISKRA_BUDDY_RECOVERY_CODE") is { Length: > 0 } fromEnv ? fromEnv
             : Prompt("Recovery code: ");
-        using var http = new BuddyHttp(null, localOnly: false);
+        using var http = new BuddyHttp(null, localOnly: false, allowLoopback: true); // the person's own computer, not a server
         var json = flags.Contains("--json");
         if (list)
         {
@@ -205,6 +197,24 @@ public static class Cli
             .GetAwaiter().GetResult();
         PrintRestored(result, json);
         return 0;
+    }
+
+    /// <summary>restore-buddy's arguments: after "--" everything is positional (an address can never become a flag).</summary>
+    internal static (List<string> Positional, string? Version, HashSet<string> Flags) ParseRestoreBuddy(string[] args)
+    {
+        var positional = new List<string>();
+        string? version = null;
+        var flags = new HashSet<string>(StringComparer.Ordinal);
+        var rest = false;
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (rest) positional.Add(args[i]);
+            else if (args[i] == "--") rest = true;
+            else if (args[i] == "--version" && i + 1 < args.Length) version = args[++i];
+            else if (args[i].StartsWith("--", StringComparison.Ordinal)) flags.Add(args[i]);
+            else positional.Add(args[i]);
+        }
+        return (positional, version, flags);
     }
 
     private static void PrintRestored(RestoreResult result, bool json)

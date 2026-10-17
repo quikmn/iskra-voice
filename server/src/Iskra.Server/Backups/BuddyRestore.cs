@@ -25,6 +25,7 @@ public static class BuddyRestore
         var spot = await Call(() => http.SpotAsync(clean, holderKey, key, Now, cancel));
         var version = (versionId is null ? spot.Versions.FirstOrDefault() : spot.Versions.FirstOrDefault(v => v.Id == versionId))
             ?? throw new InvalidDataException(versionId is null ? "Your friend's server has no copies of this server yet." : "Your friend's server has no copy with that id.");
+        CheckRoom(version.Size, FreeBytes(Path.GetTempPath()), FreeBytes(target));
         var folder = Path.Combine(Path.GetTempPath(), $"iskra-buddy-{Guid.NewGuid():N}");
         AtomicFile.CreatePrivateDirectory(folder);
         var temp = Path.Combine(folder, $"copy{BackupFile.Extension}");
@@ -46,6 +47,26 @@ public static class BuddyRestore
         }
     }
 
+    /// <summary>The biggest copy a restore downloads: the biggest spot a holder can give (1 TB).</summary>
+    public const long MaxCopyBytes = Features.BuddyBackupFeature.MaxQuotaMb * 1024 * 1024;
+
+    /// <summary>
+    /// The holder says how big the copy is: refuse absurd sizes, and sizes this computer has no room for (the download,
+    /// then the restored server, which is about as big again).
+    /// </summary>
+    internal static void CheckRoom(long size, long? freeTemp, long? freeTarget)
+    {
+        if (size is <= 0 or > MaxCopyBytes) throw new InvalidDataException("Your friend's server reports a copy of an impossible size.");
+        if (freeTemp < size || freeTarget < size || (freeTemp is { } t && freeTarget is { } g && t == g && t < 2 * size))
+            throw new InvalidDataException($"There isn't enough free disk space here for this copy ({size:N0} bytes, and as much again for the restored server).");
+    }
+
+    private static long? FreeBytes(string path)
+    {
+        try { return new DriveInfo(Path.GetPathRoot(Path.GetFullPath(path))!).AvailableFreeSpace; }
+        catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException) { return null; }
+    }
+
     private static long Now => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     private static async Task<(string Url, byte[] HolderKey, string Code)> PrepareAsync(BuddyHttp http, string url, string recoveryCode, CancellationToken cancel)
@@ -54,7 +75,7 @@ public static class BuddyRestore
             ?? throw new InvalidDataException("That isn't a recovery code: it's 25 letters and digits, like ABCDE-FGHJK-MNPQR-STVWX-YZ012.");
         if (!url.Contains("://", StringComparison.Ordinal)) url = "https://" + url.Trim();
         string clean;
-        try { clean = await BuddyHttp.CheckUrlAsync(url, http.LocalOnly, cancel); }
+        try { clean = await BuddyHttp.CheckUrlAsync(url, http.LocalOnly, cancel, http.AllowLoopback); }
         catch (Protocol.RequestException) { throw new InvalidDataException("That address can't be used for a backup buddy."); }
         var holderKey = await Call(() => http.HelloAsync(clean, cancel));
         return (clean, holderKey, code);
