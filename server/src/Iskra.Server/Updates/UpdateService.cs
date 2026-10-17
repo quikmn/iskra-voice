@@ -176,7 +176,7 @@ public sealed class UpdateService : BackgroundService
                 (_error, _errorCode) = (null, null);
             }
             _nextCheck = _time.GetUtcNow() + CheckEvery;
-            if (Newest() is { } newest) _log.LogInformation("Iskra {Version} is out (this server runs {Current}).", newest.Version, Env.Current);
+            if (Newest() is { } newest) _log.Info("update", "available", ("ver", newest.Version), ("from", Env.Current));
             return true;
         }
         catch (FeedRateLimitedException ex)
@@ -187,7 +187,7 @@ public sealed class UpdateService : BackgroundService
         }
         catch (Exception ex) when (ex is HttpRequestException or JsonException or TaskCanceledException or IOException && !cancel.IsCancellationRequested)
         {
-            _log.LogWarning("Update check failed: {Error}", ex.Message);
+            _log.Warn(ex, "UPS-110", "update", "failed", ("what", "check"));
             lock (_gate) (_error, _errorCode) = ("Couldn't reach GitHub to check for updates.", "unreachable");
             _nextCheck = _time.GetUtcNow() + TimeSpan.FromHours(1);
             return false;
@@ -216,7 +216,7 @@ public sealed class UpdateService : BackgroundService
             (_error, _errorCode) = (null, null);
             _attested = null;
         }
-        _log.LogInformation("Updating to Iskra {Version} ({How}).", newest.Version, manual ? "asked by the owner" : "automatic");
+        _log.Info("update", "start", ("ver", newest.Version), ("why", manual ? "owner" : "auto"));
         if (!manual) Log("update.install", new { from = Env.Current, to = newest.Version, auto = true }); // the owner's own is logged with their session
         Publish();
         _ = Task.Run(() => InstallAsync(candidate, _lifetime.ApplicationStopping));
@@ -269,7 +269,7 @@ public sealed class UpdateService : BackgroundService
             _installer.Apply(staged, names, Env.Current, version);
 
             Step("restarting");
-            _log.LogWarning("Iskra {Version} is installed; restarting into it.", version);
+            _log.Info("update", "installed", ("ver", version));
             _hub.Broadcast(Frames.Event("server.restarting", new { reason = "update", version }));
             await Task.Delay(RestartNotice, _time, cancel);
             _hub.Restart.Expect("update", ExpectedDowntime);
@@ -278,7 +278,7 @@ public sealed class UpdateService : BackgroundService
         catch (Exception ex) // runs on its own: anything that goes wrong ends as "failed", never as a stuck state
         {
             if (cancel.IsCancellationRequested) return;
-            _log.LogWarning("Update to {Version} failed: {Error}", version, ex.Message);
+            _log.Warn(ex, "UPS-120", "update", "failed", ("what", "install"), ("ver", version));
             lock (_gate)
             {
                 _state = "failed";
@@ -334,7 +334,7 @@ public sealed class UpdateService : BackgroundService
         if (!CanCheck || Interlocked.Exchange(ref _settled, 1) == 1) return;
         if (_installer.TakeRolledBack() is { } undone)
         {
-            _log.LogWarning("The update from {From} to {To} didn't start and was undone.", undone.From, undone.To);
+            _log.Warn("UPS-130", "update", "rolled-back", ("from", undone.From), ("to", undone.To));
             Log("update.rolledback", new { from = undone.From, to = undone.To });
             lock (_gate)
             {
@@ -357,7 +357,7 @@ public sealed class UpdateService : BackgroundService
     internal void Confirm()
     {
         if (_installer.Confirm() is not { } done) return;
-        _log.LogInformation("Updated from {From} to {To}.", done.From, done.To);
+        _log.Info("update", "done", ("from", done.From), ("to", done.To));
         Log("update.installed", new { from = done.From, to = done.To });
         lock (_gate) _last = new LastUpdate(done.From, done.To, true);
         Publish();
@@ -383,7 +383,7 @@ public sealed class UpdateService : BackgroundService
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     // Never take the server down over an update check.
-                    _log.LogWarning(ex, "Update check failed.");
+                    _log.Warn(ex, "UPS-110", "update", "failed", ("what", "check"));
                     _nextCheck = _time.GetUtcNow() + TimeSpan.FromHours(1);
                 }
             }

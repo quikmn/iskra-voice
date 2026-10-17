@@ -300,12 +300,13 @@ export class Host {
     const folder = path.join(this.root, id)
     this.refreshLanAddress(folder)
     const livekit = liveKitBinary()
-    // The server's output goes to server.log in its folder, handy when something's wrong.
+    // The server keeps its own log in logs/ in its folder (daily files it trims itself). Only its error output (why it
+    // couldn't start, a crash) goes to server.log there; the server empties that file at start once it's over 5 MB.
     const log = openSync(path.join(folder, 'server.log'), 'a')
     const child = spawn(binary, [folder], {
       cwd: folder,
       // stdin stays open while we want the server running; closing it stops the server cleanly.
-      stdio: ['pipe', log, log],
+      stdio: ['pipe', 'ignore', log],
       windowsHide: true,
       // Elsewhere, its own process group so stopping it also stops LiveKit (Windows uses a job object).
       detached: POSIX,

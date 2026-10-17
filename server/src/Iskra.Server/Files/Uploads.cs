@@ -82,7 +82,7 @@ public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uplo
         if (ticket.Temp is { } temp)
         {
             try { File.Delete(temp); }
-            catch (IOException ex) { log.LogInformation("Couldn't delete an unfinished upload: {Message}", ex.Message); }
+            catch (IOException ex) { log.Note("SWP-120", "sweep", "skipped", ("what", "upload-temp"), ("name", ex.GetType().Name)); }
         }
     }
 
@@ -177,7 +177,7 @@ public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uplo
         }
         catch (Exception ex) when (ex is IOException or OperationCanceledException)
         {
-            log.LogInformation("Upload aborted: {Message}", ex.Message);
+            log.Info("http", "aborted", ("what", "upload"), ("name", ex.GetType().Name));
             if (!context.Response.HasStarted) context.Response.StatusCode = StatusCodes.Status400BadRequest;
         }
         finally
@@ -236,7 +236,7 @@ public sealed partial class Uploads(World world, TimeProvider time, ILogger<Uplo
         }
         catch (Exception ex) when (ex is IOException or OperationCanceledException)
         {
-            log.LogInformation("Upload part aborted: {Message}", ex.Message);
+            log.Info("http", "aborted", ("what", "upload-part"), ("name", ex.GetType().Name));
             if (!context.Response.HasStarted) context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return true; // the next try starts again from Received
         }

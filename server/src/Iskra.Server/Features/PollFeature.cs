@@ -135,7 +135,7 @@ public sealed class PollCloser(World world, Hub hub, TimeProvider time, ILogger<
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            log.LogWarning(ex, "Closing expired polls failed");
+            log.Warn(ex, "SCH-110", "sched", "failed", ("what", "polls"));
         }
     }
 }

@@ -324,7 +324,7 @@ public sealed class GroupCallRegistry
                 EndWhere(c => c == call);
                 break;
             default:
-                _log.LogDebug("Ignoring LiveKit event {Type} for a group call", type);
+                _log.Debug("call", "skipped", ("kind", type));
                 break;
         }
     }

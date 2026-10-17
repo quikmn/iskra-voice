@@ -136,7 +136,7 @@ public sealed class Router
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Handler {Type} failed", request.Type);
+            _log.Error(ex, "SRV-910", "sess", "failed", ("conn", session.LogId), ("op", request.Type));
             session.Send(Frames.Error(request.Id, "internal", "Something went wrong on the server."));
         }
     }
@@ -168,7 +168,7 @@ public sealed class Router
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Handler {Type} failed", request.Type);
+            _log.Error(ex, "SRV-910", "sess", "failed", ("conn", session.LogId), ("op", request.Type));
             session.Send(Frames.Error(request.Id, "internal", "Something went wrong on the server."));
         }
     }

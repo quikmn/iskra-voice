@@ -269,7 +269,7 @@ Iskra itself uses next to nothing while nobody talks; voice calls add a little.
 
 ## Help
 
-- Something's off? **Server settings → Internet access** explains what it found. The server's output is in
-  `journalctl -u iskra` (system service), `journalctl --user -u iskra-…` (user service) or `server.log` in the server
-  folder (Windows and macOS autostart).
+- Something's off? **Server settings → Internet access** explains what it found. The server's log is in
+  `logs/` in the server folder (one file per day), and also in `journalctl -u iskra` (system service) or
+  `journalctl --user -u iskra-…` (user service).
 - The full reference, every setting and every file: [hosting.md](hosting.md).

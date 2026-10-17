@@ -63,7 +63,7 @@ public class AutostartTests : IDisposable
         Assert.NotNull(xml.Descendants(Task + "RestartOnFailure").SingleOrDefault());
         var exec = xml.Descendants(Task + "Exec").Single();
         Assert.Equal("conhost.exe", exec.Element(Task + "Command")!.Value);
-        Assert.Equal("--headless cmd.exe /d /s /c \"\"C:\\Iskra\\iskra-server.exe\" \"C:\\Servers\\Game & Night\" >> \"C:\\Servers\\Game & Night\\server.log\" 2>&1\"",
+        Assert.Equal("--headless cmd.exe /d /s /c \"\"C:\\Iskra\\iskra-server.exe\" \"C:\\Servers\\Game & Night\" > nul 2>> \"C:\\Servers\\Game & Night\\server.log\"\"",
             exec.Element(Task + "Arguments")!.Value);
         Assert.Equal(@"C:\Servers\Game & Night", exec.Element(Task + "WorkingDirectory")!.Value);
     }
@@ -143,7 +143,8 @@ public class AutostartTests : IDisposable
         Assert.Equal(["/Applications/Iskra/iskra-server", "/Users/ada/Game & Night"],
             dict.SkipWhile(e => e.Value != "ProgramArguments").Skip(1).First().Elements("string").Select(e => e.Value));
         Assert.Equal("true", dict.SkipWhile(e => e.Value != "RunAtLoad").Skip(1).First().Name.LocalName);
-        Assert.Equal("/Users/ada/Game & Night/server.log", After("StandardOutPath")!.Replace('\\', '/'));
+        Assert.Equal("/dev/null", After("StandardOutPath")); // the server keeps its own log in logs/
+        Assert.Equal("/Users/ada/Game & Night/server.log", After("StandardErrorPath")!.Replace('\\', '/'));
 
         var system = new FakeAutostartSystem("macos", _home);
         var result = Autostart.Install(system, World, "/Applications/Iskra/iskra-server", []);

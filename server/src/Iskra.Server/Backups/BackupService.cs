@@ -138,7 +138,7 @@ public sealed class BackupService(World world, TimeProvider time, ILogger<Backup
                         BackupArchive.Write(world, file, settings.IncludeUploads, now.ToUnixTimeMilliseconds());
                     File.Move(temp, path);
                     made = true;
-                    log.LogInformation("Daily backup written to {Path}", path);
+                    log.Info("backup", "done", ("what", "daily"), ("bytes", new FileInfo(path).Length));
                 }
                 finally
                 {
@@ -260,7 +260,7 @@ public sealed class BackupService(World world, TimeProvider time, ILogger<Backup
                         output.Flush(flushToDisk: true); // a USB stick may be pulled out
                     }
                     File.Move(temp, target, overwrite: true);
-                    log.LogInformation("Daily backup copied to {Path}", target);
+                    log.Info("backup", "done", ("what", "copy"));
                 }
                 finally
                 {
@@ -288,7 +288,7 @@ public sealed class BackupService(World world, TimeProvider time, ILogger<Backup
         void Failed(RequestException problem)
         {
             // Once per new problem, not every hour.
-            if (LastCopy?.Error?.Message != problem.Message) log.LogWarning("Daily backup not copied to {Folder}: {Problem}", settings.CopyTo, problem.Message);
+            if (LastCopy?.Error?.Message != problem.Message) log.Warn("BAK-130", "backup", "failed", ("what", "copy"), ("why", problem.Key ?? problem.Code));
             LastCopy = new BackupCopyResult(now, false, CopyName(newest.Name), problem);
         }
     }
@@ -321,7 +321,7 @@ public sealed class BackupService(World world, TimeProvider time, ILogger<Backup
                 try { RunDaily(); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
                 {
-                    log.LogWarning(ex, "Daily backup failed");
+                    log.Warn(ex, "BAK-110", "backup", "failed", ("what", "daily"));
                 }
                 Expire();
                 await Task.Delay(TimeSpan.FromHours(1), time, stoppingToken);

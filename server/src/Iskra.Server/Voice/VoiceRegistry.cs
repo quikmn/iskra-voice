@@ -240,7 +240,9 @@ public sealed class VoiceRegistry
     public void Joined(long channelId, string accountKey, long now)
     {
         var room = _rooms.GetOrAdd(channelId, _ => new());
+        if (room.IsEmpty) log.Info("voice", "opened", ("chan", channelId));
         room[accountKey] = new VoiceMember(accountKey, false, false, now);
+        log.Info("voice", "joined", ("chan", channelId), ("acct", LogIds.Account(world, accountKey)));
         // Into the AFK channel: LiveKit gets the forced state again (the setting may have changed since the token).
         var afk = world.Store.Afk();
         if (afk.ChannelId == channelId) ApplyAfk(afk, channelId, accountKey, force: true);
@@ -250,14 +252,18 @@ public sealed class VoiceRegistry
 
     public void Left(long channelId, string accountKey)
     {
-        if (!_rooms.TryGetValue(channelId, out var room) || !room.TryRemove(accountKey, out _)) return;
+        if (!_rooms.TryGetValue(channelId, out var room) || !room.TryRemove(accountKey, out var was)) return;
+        log.Info("voice", "left", ("chan", channelId), ("acct", LogIds.Account(world, accountKey)), ("dur", TimeSpan.FromMilliseconds(Math.Max(0, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - was.JoinedAt))));
+        if (room.IsEmpty) log.Info("voice", "closed", ("chan", channelId));
         _afkForced.TryRemove(accountKey, out _);
         Publish(channelId);
     }
 
     public void RoomFinished(long channelId)
     {
-        if (_rooms.TryRemove(channelId, out _)) Publish(channelId);
+        if (!_rooms.TryRemove(channelId, out _)) return;
+        log.Info("voice", "closed", ("chan", channelId), ("why", "room-finished"));
+        Publish(channelId);
     }
 
     public bool SetFlags(string accountKey, bool muted, bool deafened, bool? clips = null)
@@ -341,9 +347,6 @@ public sealed class VoiceRegistry
             return;
         }
         if (ChannelOf(room) is not { } channelId) return;
-        if (log.IsEnabled(LogLevel.Debug))
-            log.LogDebug("LiveKit {Type} in {Room}: {Identity} ({Sid})", type, room, identity,
-                evt.TryGetProperty("participant", out var who) && who.TryGetProperty("sid", out var sid) ? sid.GetString() : null);
 
         switch (type)
         {
@@ -361,6 +364,7 @@ public sealed class VoiceRegistry
                     || Features.RoomFeature.IsLobby(world.Store, channelId)
                     || !Features.RoomFeature.MayEnter(world.Store, this, member, channel, now))
                 {
+                    log.Note("VOI-150", "voice", "refused", ("chan", channelId), ("acct", LogIds.Account(world, identity)));
                     _ = backend.RemoveParticipantAsync(room!, identity);
                     return;
                 }
@@ -373,7 +377,7 @@ public sealed class VoiceRegistry
                 RoomFinished(channelId);
                 break;
             default:
-                log.LogDebug("Ignoring LiveKit event {Type}", type);
+                log.Debug("voice", "skipped", ("kind", type));
                 break;
         }
     }

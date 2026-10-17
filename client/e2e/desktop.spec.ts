@@ -297,12 +297,15 @@ test('creating a server from the desktop app makes you its owner', async () => {
   } finally {
     await app.close()
     rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
-    const log = join(hostRoot, 'living-room', 'server.log')
-    const logText = existsSync(log) ? readFileSync(log, 'utf8') : ''
-    console.log(`--- hosted server.log ---\n${logText.slice(-3000)}`)
+    // The server's own log: daily files in logs/ (server.log only gets its error output).
+    const logs = join(hostRoot, 'living-room', 'logs')
+    const logText = existsSync(logs)
+      ? readdirSync(logs).filter((f) => f.endsWith('.log')).sort().map((f) => readFileSync(join(logs, f), 'utf8')).join('')
+      : ''
+    console.log(`--- hosted server log ---\n${logText.slice(-3000)}`)
     rmSync(hostRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 })
     // Quitting the app stops the server cleanly (so it can remove router port mappings), not with a kill.
-    expect(logText).toContain('asked it to stop; shutting down')
+    expect(logText).toMatch(/ life +stopping +- +why=app-asked/)
   }
 })
 

@@ -4262,3 +4262,18 @@ approves them (`join.approve`), or, when the server asks members to agree to the
 
 Migration `builtinbots2-1`: `builtin_bot_config`, `starboard_cards` (with a trigger that deletes a card with its
 original), `birthdays` and `welcome_pending` (both deleted with the member).
+
+## Log ids
+
+Each connection gets a short id that the server uses in its own log, so a member's bug report and the host's log can
+be matched up without either one naming anyone.
+
+- `welcome.logId`: string, 1–8 characters `[0-9a-z]` (a per-process counter in base 36; it starts again when the server
+  restarts). Absent on older servers. Clients keep it per server for their own diagnostics and never send it back.
+- The server logs it as `conn=<logId>` on the session's lines (`sess opened`, `sess closed`, request failures). Accounts
+  appear there only as `acct=` (6 hex of a keyed BLAKE2b of the account key, keyed per server), never by name or key.
+- The server's id in logs, `srv=`, is the first 4 hex of BLAKE2b-256(`"iskra-log-v1"` ‖ 0x00 ‖ server public key),
+  the same context framing as signed payloads. Clients can compute it from `hello.serverKey`. It reveals nothing an
+  invite link doesn't.
+- No new requests or events. Log line format and codes: [docs/development.md, Logs](../docs/development.md#logs) and
+  [docs/log-codes.md](../docs/log-codes.md) (from `protocol/log-codes.json`).

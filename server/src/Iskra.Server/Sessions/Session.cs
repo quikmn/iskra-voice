@@ -129,7 +129,20 @@ public sealed class Session
 
     /// <summary>The member record as it is right now (roles can change mid-session).</summary>
     /// <summary>A per-session limit checked by a handler itself (see <see cref="RateLimiter.TryTakeOnly"/>). Read loop only.</summary>
-    public bool TryTakeLimit(string key) => _rateLimiter.TryTakeOnly(key);
+    public bool TryTakeLimit(string key)
+    {
+        if (_rateLimiter.TryTakeOnly(key)) return true;
+        LogCounts.Rate(_world).Hit(RateLimiter.KindOf(key));
+        return false;
+    }
+
+    /// <summary>This connection's id in the server log, sent to the client in welcome as <c>logId</c> (see LogIds).</summary>
+    public string LogId { get; } = LogIds.NextConnection();
+
+    /// <summary>Why the session ended, for its log line (set where it's closed; "client" when the other end closed).</summary>
+    private string? _endedWhy;
+    private int? _closeCode;
+    private long _openedAt;
 
     public Member? CurrentMember() => AccountKey is null ? null : _world.Store.GetMember(AccountKey);
 
@@ -139,6 +152,7 @@ public sealed class Session
         using var _ = aborted.Register(() => _ws.Abort());
         using var __ = stopping.Register(() =>
         {
+            _endedWhy ??= "server-stop";
             _hub.Restart.Settle();
             Close(_hub.Restart.Code, _hub.Restart.Reason);
         });
@@ -147,14 +161,23 @@ public sealed class Session
         {
             await ReadLoopAsync();
         }
-        catch (WebSocketException) { /* client went away */ }
+        catch (Exception ex) when (ex is WebSocketException or IOException) { _endedWhy ??= "socket-lost"; /* client went away */ }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Session crashed");
+            _log.Error(ex, "SES-900", "sess", "crashed", ("conn", LogId));
+            _endedWhy ??= "error";
             Close(WebSocketCloseStatus.InternalServerError, "Internal error");
         }
         finally
         {
+            if (AccountKey is not null && _openedAt != 0)
+            {
+                var why = _endedWhy ?? (aborted.IsCancellationRequested ? "aborted" : "closed");
+                var dur = TimeSpan.FromMilliseconds(Math.Max(0, Now - _openedAt));
+                // Ends nobody asked for carry a code (the client closing, or the server stopping, don't).
+                if (why is "client" or "server-stop") _log.Info("sess", "closed", ("conn", LogId), ("acct", LogIds.Account(_world, AccountKey)), ("close", _closeCode ?? (int?)_ws.CloseStatus), ("why", why), ("dur", dur));
+                else _log.Note("SES-120", "sess", "closed", ("conn", LogId), ("acct", LogIds.Account(_world, AccountKey)), ("close", _closeCode ?? (int?)_ws.CloseStatus), ("why", why), ("dur", dur));
+            }
             // Going offline, or maybe idle (when the sessions left are all idle).
             if (AccountKey is not null && (_hub.Remove(this) || !Idle))
             {
@@ -201,6 +224,7 @@ public sealed class Session
                 _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
             };
             SecurityLog.Record(_world.Store, Now, "auth.failed", _provenAccount, LoggedIp, new { reason = code }, source: RemoteIp);
+            _log.Note("SES-110", "sess", "refused", ("conn", LogId), ("why", code), ("via", Tunnelled ? "tunnel" : "direct"));
             SendNow(Frames.Error(envelope?.Id, code, message, failure == AuthFailure.KeyRotation ? _authError!.Value.Extra : null));
             Close(close, message);
             return;
@@ -221,6 +245,7 @@ public sealed class Session
         SendNow(Frames.Event("welcome", new
         {
             you = _hub.PublicMember(member),
+            logId = LogId,
             server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl, publicUrl = _world.InternetUrl,
                 profilePages = ProfileFeature.PagesEnabled(_world.Store),
                 bugInbox = _world.Settings.BugInbox.Accept,
@@ -250,7 +275,9 @@ public sealed class Session
             foreach (var frame in _early!) SendNow(frame);
             _early = null;
         }
-        _log.LogInformation("{Name} ({Key}) connected", member.Name, member.AccountKey[..8]);
+        _openedAt = Now;
+        _log.Info("sess", "opened", ("conn", LogId), ("acct", LogIds.Account(_world, member.AccountKey)), ("via", Tunnelled ? "tunnel" : "direct"),
+            ("kind", _world.Store.IsBot(member.AccountKey) ? "bot" : null));
 
         var badFrames = 0;
         while (!_closing)
@@ -263,13 +290,17 @@ public sealed class Session
             {
                 Send(Frames.Error(null, "bad_request", "Malformed frame."));
                 if (++badFrames >= _limits.MaxConsecutiveBadFrames)
+                {
+                    _endedWhy ??= "bad-frames";
                     Close(CloseCodes.BadRequests, "Too many bad requests");
+                }
                 continue;
             }
             badFrames = 0;
 
             if (!_rateLimiter.TryTake(request.Type))
             {
+                LogCounts.Rate(_world).Hit(RateLimiter.KindOf(request.Type));
                 if (Now - _rateLoggedAt >= 60_000)
                 {
                     _rateLoggedAt = Now;
@@ -283,6 +314,7 @@ public sealed class Session
             if (current is null)
             {
                 // Removed (kicked or banned) while connected.
+                _endedWhy ??= "removed";
                 Close(CloseCodes.Forbidden, "You are no longer a member of this server.");
                 return;
             }
@@ -296,12 +328,15 @@ public sealed class Session
         switch (frame.Kind)
         {
             case FrameKind.Closed:
+                _endedWhy ??= "client";
                 return false;
             case FrameKind.Timeout:
+                _endedWhy ??= "auth-timeout";
                 SendNow(Frames.Error(null, "auth_failed", "Authentication timed out."));
                 Close(CloseCodes.AuthFailed, "Authentication timed out");
                 return false;
             case FrameKind.TooLarge:
+                _endedWhy ??= "too-large";
                 Close(CloseCodes.TooLarge, "Frame too large");
                 return false;
             default:
@@ -511,7 +546,8 @@ public sealed class Session
             if (_closing) return;
             _closing = true;
         }
-        _log.LogWarning("Dropped {Key}: it stopped reading ({Chars} chars queued)", AccountKey?[..Math.Min(8, AccountKey.Length)], Interlocked.Read(ref _queuedChars));
+        _endedWhy ??= "stalled";
+        _log.Warn("SES-130", "sess", "dropped", ("conn", LogId), ("acct", LogIds.Account(_world, AccountKey)), ("why", "stalled"), ("queued", Interlocked.Read(ref _queuedChars)));
         _outbox.Writer.TryComplete();
         _ws.Abort();
     }
@@ -520,6 +556,7 @@ public sealed class Session
     public void Kick(int code, string reason, string? key = null)
     {
         Send(Frames.Event("kicked", key is null ? new { reason } : new { reason, key }));
+        _endedWhy ??= "kicked";
         Close(code, reason);
     }
 
@@ -539,7 +576,11 @@ public sealed class Session
     }
 
     /// <summary>Closes the session from outside without a kicked event (e.g. the account moved to a new key).</summary>
-    public void End(int code, string reason) => Close(code, reason);
+    public void End(int code, string reason)
+    {
+        _endedWhy ??= "ended";
+        Close(code, reason);
+    }
 
     private void Close(int code, string reason) => Close((WebSocketCloseStatus)code, reason);
 
@@ -547,6 +588,7 @@ public sealed class Session
     {
         if (_closing) return;
         _closing = true;
+        _closeCode ??= (int)status;
         _outbox.Writer.TryWrite(new Outbound(null, status, reason));
         _outbox.Writer.TryComplete();
     }

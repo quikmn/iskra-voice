@@ -2824,3 +2824,9 @@ export interface Message {
   /** Sent with /tts: read aloud for people who turned on "Play /tts messages" (PROTOCOL.md "Text to speech"). */
   tts?: boolean | null
 }
+
+// ── logging: the connection's id in the server's log ──
+export interface Welcome {
+  /** This connection's id in the server's log (`conn=`), 1-8 chars [0-9a-z]; absent on older servers (PROTOCOL.md "Log ids"). */
+  logId?: string
+}

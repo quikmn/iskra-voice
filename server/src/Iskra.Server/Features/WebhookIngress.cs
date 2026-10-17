@@ -121,7 +121,8 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
         var message = world.Store.AddWebhookMessage(hook, WebhookFeature.AuthorPrefix + hook.Id, text, name, embeds, now);
         var view = MessageViews.Public(world.Store, message);
         hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = view }));
-        log.LogInformation("Webhook {Name} posted in #{Channel}", hook.Name, channel.Name);
+        LogCounts.Hooks(world).Hit("in");
+        log.Write(LogLevel.Debug, "hook", null, "http", "received", null, ("id", hook.Id), ("chan", channel.Id));
 
         if (!string.Equals(context.Request.Query["wait"], "true", StringComparison.OrdinalIgnoreCase)) return Results.NoContent();
         return Results.Json(new
