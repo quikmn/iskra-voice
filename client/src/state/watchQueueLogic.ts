@@ -41,3 +41,6 @@ export function moveTarget(queue: readonly Pick<WatchItem, 'id'>[], itemId: stri
   if (at >= queue.length - 1) return null
   return { before: queue[at + 2]?.id ?? null }
 }
+
+/** After an add goes through, a field empties only if it still holds what was sent (not what was typed meanwhile). */
+export const clearIfSent = (sent: string) => (current: string) => (current === sent ? '' : current)

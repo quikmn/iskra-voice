@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isAudioish, itemTitle, moveTarget, sourceKey, youTubeThumb } from './watchQueueLogic'
+import { clearIfSent, isAudioish, itemTitle, moveTarget, sourceKey, youTubeThumb } from './watchQueueLogic'
 
 const names = { youtube: 'YouTube video', video: 'Video' }
 const queue = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
@@ -32,5 +32,11 @@ describe('listen together queue', () => {
     expect(sourceKey({ kind: 'youtube', url: null, videoId: 'dQw4w9WgXcQ' })).toBe('youtube:dQw4w9WgXcQ')
     expect(sourceKey({ kind: 'url', url: 'https://x.example/a.mp3', videoId: null })).toBe('url:https://x.example/a.mp3')
     expect(youTubeThumb('dQw4w9WgXcQ')).toBe('https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg')
+  })
+
+  it('keeps what was typed while an add was on its way', () => {
+    expect(clearIfSent('https://a.example/1.mp3')('https://a.example/1.mp3')).toBe('')
+    expect(clearIfSent('https://a.example/1.mp3')('https://a.example/2.mp3')).toBe('https://a.example/2.mp3')
+    expect(clearIfSent('Song D')('Song E')).toBe('Song E')
   })
 })
