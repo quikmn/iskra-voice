@@ -72,8 +72,9 @@ export function connectionLine(key: string, status: ConnectionStatus, series: Co
     case 'offline': {
       run ??= begin()
       run.n++
-      log(status.stopped ? 'INFO' : 'WARN', 'conn', 'offline', status.stopped ? 'CON-140' : 'CON-110', [
-        ...srv, path, ['close', status.closeCode], ['why', closeWhy(status.closeCode, status.stopped)], ['retry', duration(status.retryInMs)], ['n', run.n],
+      log(status.stopped ? 'INFO' : 'WARN', 'conn', 'offline', status.stopped ? 'CON-140' : status.timedOut ? 'CON-120' : 'CON-110', [
+        ...srv, path, ['close', status.timedOut ? undefined : status.closeCode], ['why', status.timedOut ? 'handshake-timeout' : closeWhy(status.closeCode, status.stopped)],
+        ['retry', duration(status.retryInMs)], ['n', run.n],
       ])
       break
     }

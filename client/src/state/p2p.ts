@@ -72,16 +72,27 @@ async function syncHostedTunnel(key: string): Promise<void> {
 const RETRY_DIRECT_MS = 10 * 60_000
 const PROBE_MS = 2_500
 const preferTunnel = new Map<string, number>()
+/** Servers whose direct address was tried at least once (its first answer is logged, later ones only after a tunnel). */
+const probed = new Set<string>()
+
+export interface Probe {
+  ok: boolean
+  /** Why not, as a log word: timeout, unreachable (refused, no route, DNS), http-<status>, not-iskra. */
+  why?: string
+  took: number
+}
 
 /** Does the server answer at its direct address? (Any Iskra server answers GET / to any origin.) */
-async function reachable(url: string): Promise<boolean> {
+export async function probeDirect(url: string, fetcher: typeof fetch = fetch, now: () => number = () => performance.now()): Promise<Probe> {
+  const started = now()
+  const done = (why?: string): Probe => ({ ok: !why, ...(why ? { why } : {}), took: Math.max(0, now() - started) })
   try {
-    const response = await fetch(`${url}/`, { signal: AbortSignal.timeout(PROBE_MS), cache: 'no-store' })
-    if (!response.ok) return false
-    const body = (await response.json()) as { iskra?: number }
-    return body.iskra === 1
-  } catch {
-    return false
+    const response = await fetcher(`${url}/`, { signal: AbortSignal.timeout(PROBE_MS), cache: 'no-store' })
+    if (!response.ok) return done(`http-${response.status}`)
+    const body = (await response.json().catch(() => null)) as { iskra?: number } | null
+    return done(body?.iskra === 1 ? undefined : 'not-iskra')
+  } catch (e) {
+    return done((e as Error)?.name === 'TimeoutError' || (e as Error)?.name === 'AbortError' ? 'timeout' : 'unreachable')
   }
 }
 
@@ -103,14 +114,18 @@ export async function resolveServerUrl(key: string): Promise<string | null> {
   }
   const since = preferTunnel.get(key)
   const tryDirect = !(since !== undefined && Date.now() - since < RETRY_DIRECT_MS)
-  if (tryDirect && (await reachable(server.directUrl))) {
+  // Only ids, outcomes and durations in the log: never the address, the secret or the tunnel's error text.
+  const srv = serverLogFields(key)
+  const probe = tryDirect ? await probeDirect(server.directUrl) : null
+  if (probe?.ok) {
+    if (useP2p.getState().via[key] || !probed.has(key)) log('INFO', 'tunnel', 'direct', null, [...srv, ['path', 'direct'], ['took', duration(probe.took)]])
+    probed.add(key)
     preferTunnel.delete(key)
     useTunnel(key, null)
     return server.directUrl
   }
-  // Only ids and outcomes in the log: never the address, the secret or the tunnel's error text.
-  const srv = serverLogFields(key)
-  if (tryDirect) log('INFO', 'tunnel', 'fallback', 'TUN-120', srv)
+  probed.add(key)
+  if (probe) log('INFO', 'tunnel', 'fallback', 'TUN-120', [...srv, ['why', probe.why], ['took', duration(probe.took)]])
   const opening = Date.now()
   const endpoint = await desktop.p2p.open(key, server.p2p).catch(() => null)
   if (!endpoint || 'error' in endpoint) {

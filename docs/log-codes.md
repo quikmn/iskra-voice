@@ -14,7 +14,7 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | BAK-160 | ERROR | srv | backup | A channel export failed for an unexpected reason (the admin sees "The export couldn't be made"). | Check free disk space and the world folder's exports/ folder; try the export again. Report a bug if it keeps failing. |
 | BOT-110 | WARN | bot, srv | sched | A built-in bot's scheduled work failed (what= names the bot). | Report it with the log line; the bot tries again on its next tick. |
 | CON-110 | WARN | app | conn | The connection to a server closed or failed; the app retries. | Look at close= and why= and the server's SES lines for the same conn=. |
-| CON-120 | WARN | app | conn | The handshake with a server timed out. | Check the server is up and reachable. |
+| CON-120 | WARN | app | conn | The handshake with a server timed out: the socket opened but no welcome came within 30 s (path= says direct or tunnel). | Check the server is up; through a tunnel, look at the TUN lines around it. |
 | CON-130 | INFO | app | conn | The server is restarting. | Nothing: the app reconnects. |
 | CON-140 | INFO | app | conn | The server stopped (close 1001). | Nothing: the app reconnects when it's back. |
 | CON-150 | WARN | app | conn | The server refused the connection (code= is the protocol error code). | Depends on the code: an expired invite, a ban, a revoked device. |
@@ -38,7 +38,7 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | LK-150 | ERROR | srv | voice | Starting or running LiveKit failed. | Check that livekit-server can run on this machine; report it with the log line. |
 | LK-160 | ERROR | lk | voice | LiveKit reported an error (msg= is its own wording, scrubbed). | Report it with the log line if voice misbehaves. |
 | LOG-110 | WARN | srv | sweep | Trimming the log files failed. | Check that the world folder's logs/ is writable. |
-| MED-110 | WARN | app | media | The microphone's noise suppression fell back (why= says why). | Nothing; report it if the microphone sounds wrong. |
+| MED-110 | WARN | app | media | The microphone's noise suppression fell back to RNNoise (why=: start-failed, slow; kind=cpu with count= the realtime load in percent, or kind=late when its frames kept coming back late). | Nothing; report it if the microphone sounds wrong. |
 | MED-120 | WARN | app | media | An audio or video device was lost or changed during a call. | Pick the device again in Settings → Voice. |
 | MED-130 | WARN | app | media | Voice activity detection couldn't start; the microphone uses the volume threshold instead. | Nothing; report it if voice activity misbehaves. |
 | MED-140 | WARN | app | media | Cleaning incoming voices isn't available here (or fell back, why= says why). | Nothing; others' voices play as they come. |
@@ -69,19 +69,23 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | TLS-140 | WARN | srv | tls | The stored certificate couldn't be read and is ignored. | Delete the certs/ folder's files to get a new one, or fix their permissions. |
 | TLS-150 | WARN | srv | http | A connection on a PROXY protocol listener was dropped (at most once a minute). | Check the proxy's proxy_protocol setting and Https.ProxyTrustedFrom. |
 | TUN-110 | WARN | app | tunnel | Opening a peer-to-peer tunnel to a server failed. | Check the host's p2p status; very strict networks block it. |
-| TUN-120 | INFO | app | tunnel | The direct address didn't answer; using the tunnel. | Nothing. |
+| TUN-120 | INFO | app | tunnel | The direct address didn't answer (why=: timeout, refused, http-<status>, not-iskra; took=); using the tunnel. | Nothing. |
 | TUN-130 | WARN | srv | tunnel | The peer-to-peer tunnel stopped; it's started again after a pause (exit= is its exit code). | If it keeps happening, report it with the p2p lines around it. |
 | TUN-140 | WARN | srv | tunnel | iskra-p2p wasn't found, so friends can't connect without port forwarding. | Put iskra-p2p next to iskra-server, or set P2p.SidecarPath. |
-| TUN-150 | ERROR | srv, p2p, desk | tunnel | The peer-to-peer tunnel failed (to start, or it reported failed). | Report it with the p2p lines around it. |
+| TUN-150 | ERROR | srv, p2p, desk | tunnel | The peer-to-peer tunnel failed (to start, or it reported failed; nat= the NAT type it last saw: open, consistent, randomized). | Report it with the p2p lines around it. |
+| TUN-160 | WARN | desk | tunnel | A connection through the peer-to-peer tunnel couldn't be made (why= is the DHT's reason: peer-not-found, holepunch-aborted, holepunch-double-randomized-nats...; nat= ours). At most once a minute per reason. | peer-not-found: the host is offline or its tunnel isn't announced. Holepunch reasons: both networks are strict (randomized NAT); try another network on one side. |
+| TUN-170 | INFO | desk | tunnel | The tunnel's voice link (TURN carried over the tunnel) closed; it's made again with the next voice packet (dur= how long it lasted). | Nothing unless it repeats; then look for TUN-160 and VOI-140 around it. |
 | UPD-110 | WARN | upd | update | The desktop app couldn't check for updates. | Nothing: it checks again later. |
 | UPD-120 | WARN | upd | update | Installing a desktop app update failed. | Download the app again from iskra.foo. |
 | UPS-110 | WARN | srv | update | Checking GitHub for server updates failed. | Nothing: it checks again in an hour. |
 | UPS-120 | WARN | srv | update | Installing a server update failed; the server keeps running its current version. | Try again from Settings → Updates; report it if it repeats. |
 | UPS-130 | WARN | srv | update | A server update didn't start and was undone (rolled back). | Report it with the version (to=). |
 | VOI-120 | WARN | app | voice | Joining voice failed (token, connect, timeout). | Check the server's LK lines around the same time. |
-| VOI-130 | WARN | app | voice | No network route for voice (ICE failed). | Check the voice ports (UDP) or the TURN relay. |
+| VOI-130 | INFO | app | voice | Voice's network route (ICE), on connect and whenever it changes: ice= our candidate type (host, srflx, prflx, relay), peer= the server's, proto= udp or tcp, via=turn when it goes through a TURN relay (turn= its protocol). As a WARN (why=no-route): no route was found. | Nothing for host/srflx over udp. via=turn or proto=tcp works but adds delay; no-route: check the voice ports (UDP and TCP) or the TURN relay. |
 | VOI-140 | INFO | app | voice | Voice is reconnecting (signal lost). | Nothing unless it repeats. |
 | VOI-150 | INFO | srv | voice | Someone was removed from a voice room they may not be in (permissions, timeout, rules, limit). | Nothing: this is the server enforcing the channel's rules. |
+| VOI-160 | WARN | app | voice | Voice is losing packets: incoming loss stayed over 5% for 20 s (loss= percent, the worst sample; at most once in 5 minutes). | Usually the network (Wi-Fi, a busy uplink, a mobile hotspot). Compare with the voice route (VOI-130) and the other people's logs. |
+| VOI-170 | WARN | app | voice | Voice is slow: the round trip to the voice server stayed over 300 ms for 20 s (rtt=; at most once in 5 minutes). | Usually distance or a relayed route (via=turn in VOI-130); a wired connection helps. |
 | VOI-201 | INFO | app | voice | Left voice: the same account joined from another device. | Nothing. |
 | VOI-202 | INFO | app | voice | Left voice: removed or moved by a moderator. | Nothing. |
 | VOI-203 | INFO | app | voice | Left voice: the room closed or the server is restarting. | Nothing. |

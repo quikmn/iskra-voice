@@ -44,6 +44,8 @@ public static partial class LogLine
         "world", "local", "https", "voice", "rtc", "turn", "p2p", "plain", "keep", "maxmb", "debug", "gz", "deleted",
         "bytes", "from", "to", "id", "exit", "delay", "kinds", "frame", "inner", "cgnat", "ext", "what", "state",
         "files", "msgs", "envelopes", "dir", "level", "ok", "failed", "queued", "mode", "expires", "how",
+        // the tunnel's own lines (p2p): its route and counters
+        "peer", "in", "out",
     ];
 
     private const int CodeWidth = 7;

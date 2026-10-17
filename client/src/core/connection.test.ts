@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Connection, RESTART_WINDOW_MS, restartHint, type ConnectionStatus } from './connection'
+import { Connection, HANDSHAKE_TIMEOUT_MS, RESTART_WINDOW_MS, restartHint, type ConnectionStatus } from './connection'
 import type { Identity } from './identity'
 
 /** A socket the test drives: it never connects by itself. */
@@ -292,6 +292,21 @@ describe('connection: reconnecting', () => {
     } finally {
       globalThis.reportError = original
     }
+  })
+
+  it('gives up on a handshake that never finishes, says so, and tries again', async () => {
+    const { last, socket } = connect()
+    const first = socket()
+    await vi.advanceTimersByTimeAsync(HANDSHAKE_TIMEOUT_MS - 100)
+    expect(last().state).toBe('connecting')
+    await vi.advanceTimersByTimeAsync(200)
+    expect(last()).toMatchObject({ state: 'offline', closeCode: 1006, timedOut: true })
+    first.drop(1006) // the old socket's own close comes later: it doesn't count again
+    expect(last()).toMatchObject({ state: 'offline', timedOut: true })
+    const next = await nextAttempt()
+    next.welcome()
+    await vi.advanceTimersByTimeAsync(HANDSHAKE_TIMEOUT_MS * 2)
+    expect(last().state).toBe('online')
   })
 
   it('retries at once when asked, but never stacks a second attempt on one under way', () => {

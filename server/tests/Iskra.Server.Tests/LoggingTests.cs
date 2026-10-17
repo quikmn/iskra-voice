@@ -203,6 +203,10 @@ public class LoggingTests
         Assert.Equal(HttpStatusCode.OK, await LiveKitWebhook(server, new { @event = "participant_joined", room = new { name = $"voice-{voice}" }, participant = new { identity = "CANARYSTRANGER" } }));
         LiveKitLines.Relay(server.Services.GetRequiredService<ILogger<LiveKitHost>>(),
             $"2026-10-17T13:41:30.112Z\tWARN\tlivekit\trtc/x.go:1\tparticipant CANARYNAME at 198.51.100.4 failed {Guid.NewGuid():N}\t{{\"participant\": \"{alice.Key}\", \"remote\": \"198.51.100.4:6100\"}}");
+        // ICE candidates in LiveKit's wording and fields: addresses, ports-with-addresses and ufrags never get through
+        LiveKitLines.Relay(server.Services.GetRequiredService<ILogger<LiveKitHost>>(),
+            $"2026-10-17T13:41:31.112Z\tWARN\tlivekit\trtc/x.go:2\tadd candidate candidate:842163049 1 udp 1677729535 198.51.100.23 51234 typ srflx raddr 10.1.2.3 rport 51234 ufrag CANARYUFRAG {Guid.NewGuid():N}\t" +
+            "{\"candidate\": \"candidate:1 1 tcp 2105524479 [2001:db8::7] 9 typ host tcptype active\", \"selected\": \"10.1.2.3:51234 <-> 198.51.100.23:7882\"}");
 
         // an incoming webhook
         var hook = (await owner.RequestAsync("webhook.create", new { channelId = channel, name = "CANARYHOOK" })).Body();
@@ -249,6 +253,8 @@ public class LoggingTests
         var all = string.Join('\n', lines.Concat(files));
         Assert.Contains(" sess   opened ", all);
         Assert.Contains(" voice  joined ", all);
+        Assert.Matches(@" voice  joined      -       chan=\d+ acct=[0-9a-f]{6} count=1", all);
+        Assert.Matches(@" voice  closed      -       chan=\d+ why=empty", all);
         Assert.Contains(" VOI-150 ", all);
         Assert.Contains(" sess   refused     SES-110 ", all);
         Assert.Contains("kinds=chat.typing:", all);
@@ -262,6 +268,7 @@ public class LoggingTests
         [
             "CANARY", "canary", "Canary", outSecret, signing, receiver.Url, alice.Key, alice.Key[..8], owner.Key[..8], carol.Key[..8], sha, sha[..12], invite, hookSecret,
             hookPath, p2pSecret, ticket.GetProperty("url").GetString(), "198.51.100", "127.0.0.1", "::1", server.WorldPath, "example.com",
+            "10.1.2", "2001:db8", "UFRAG", "raddr 1", "tcptype",
         ];
         foreach (var canary in canaries.Where(c => !string.IsNullOrEmpty(c)))
             Assert.False(all.Contains(canary!, StringComparison.Ordinal), $"the log contains \"{canary}\":\n{all}");

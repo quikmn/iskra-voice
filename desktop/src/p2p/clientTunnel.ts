@@ -3,6 +3,7 @@
 import { friendKeyPair, hostKeyPair, parseSecret } from './keys'
 import type { P2pNode } from './node'
 import { openTunnel, type FriendTunnel } from './tunnel'
+import { noLog, serverLogId, type TunnelLogger } from './tunnelLog'
 
 export interface TunnelEndpoint {
   /** Where the app talks to the server instead of its direct address. */
@@ -23,7 +24,7 @@ export class ClientTunnels {
   /** Ports a server key got before, so its local address stays the same within this run. */
   private readonly ports = new Map<string, { web: number; turn: number }>()
 
-  constructor(private readonly node: P2pNode) {}
+  constructor(private readonly node: P2pNode, private readonly log: TunnelLogger = noLog) {}
 
   /** Opens (or reuses) the tunnel to the server whose invite carried `secret` (b64u). */
   get(serverKey: string, secret: string): Promise<TunnelEndpoint> {
@@ -42,12 +43,14 @@ export class ClientTunnels {
     if (!secret) throw new Error('Not a p2p secret.')
     const dht = await this.node.get()
     const ports = this.ports.get(serverKey) ?? { web: 0, turn: 0 }
+    // Lines name the server as the app and the server do (srv=), never by its key or address.
+    const options = { keyPair: friendKeyPair(secret), log: this.log, logFields: [['srv', serverLogId(serverKey)]] as [string, string | null][] }
     let tunnel: FriendTunnel
     try {
-      tunnel = await openTunnel(dht, hostKeyPair(secret).publicKey, ports, { keyPair: friendKeyPair(secret) })
+      tunnel = await openTunnel(dht, hostKeyPair(secret).publicKey, ports, options)
     } catch {
       // The remembered ports were taken meanwhile: any free ones.
-      tunnel = await openTunnel(dht, hostKeyPair(secret).publicKey, { web: 0, turn: 0 }, { keyPair: friendKeyPair(secret) })
+      tunnel = await openTunnel(dht, hostKeyPair(secret).publicKey, { web: 0, turn: 0 }, options)
     }
     this.ports.set(serverKey, { web: tunnel.ports.web, turn: tunnel.ports.turn ?? 0 })
     const endpoint = { url: `http://127.0.0.1:${tunnel.ports.web}`, turnPort: tunnel.ports.turn ?? 0 }

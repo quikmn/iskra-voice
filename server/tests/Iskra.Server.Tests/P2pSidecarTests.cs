@@ -4,6 +4,8 @@ using System.Net.Sockets;
 using System.Text.Json;
 using Iskra.Server.Hosting;
 using Iskra.Server.Storage;
+using Iskra.Server.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Iskra.Server.Tests;
@@ -220,6 +222,43 @@ public class P2pSidecarTests : IDisposable
         Assert.Equal(3, sidecar.Current.Connections);
         sidecar.OnLine("""{"status":{"state":"failed","nat":{"publicAddress":42},"connections":-5,"error":"boom"}}""");
         Assert.Equal(new P2pSidecar.Status("failed", "boom", new P2pSidecar.Nat(false, false, null), 0), sidecar.Current);
+    }
+
+    [Fact]
+    public void Tunnel_log_lines_pass_as_p2p_lines_with_types_and_numbers_only()
+    {
+        using var world = NewWorld("loglines", p => p);
+        var lines = new List<string>();
+        var sink = new LogSink(null, console: false);
+        sink.Tap += lines.Add;
+        using var provider = new IskraLoggerProvider(sink);
+        using var factory = new LoggerFactory([provider]);
+        using var sidecar = new P2pSidecar(world, factory.CreateLogger<P2pSidecar>(), null, hostedByApp: false);
+
+        sidecar.OnLine("""{"log":{"level":"INFO","event":"announced","fields":[["took","840ms"],["nat","consistent"]]}}""");
+        sidecar.OnLine("""{"log":{"level":"INFO","event":"turn","fields":[["count",2],["in",1520],["out",1498]]}}""");
+        sidecar.OnLine("""{"log":{"level":"INFO","event":"peers","fields":[["count",3],["n",7]]}}""");
+        // Hostile or unknown parts: an address, an ICE candidate, a key, an unknown event, key or code, text.
+        sidecar.OnLine("""{"log":{"level":"WARN","code":"TUN-160","event":"failed","fields":[["why","198.51.100.7:4567"],["nat","candidate:1 1 udp 2122260223 192.168.1.20 61000 typ srflx raddr 10.0.0.2 rport 5000"],["path","fe80::1%eth0"],["host","198.51.100.7"],["took","9.0s"]]}}""");
+        sidecar.OnLine("""{"log":{"level":"ERROR","code":"SRV-999","event":"announced","fields":[["msg","Alice joined from 203.0.113.9"],["count",-4],["n",1e30]]}}""");
+        sidecar.OnLine("""{"log":{"level":"INFO","event":"exploded","fields":[]}}""");
+        sidecar.OnLine("""{"status":{"state":"ready","nat":{"firewalled":true,"randomized":false,"publicAddress":"198.51.100.7:1234"},"connections":1}}""");
+        sidecar.OnLine("""{"status":{"state":"failed","connections":0,"error":"boom"}}""");
+
+        var p2p = lines.Where(l => l.Contains(" p2p ")).Select(l => l[25..]).ToList();
+        Assert.Equal(
+        [
+            "INFO  p2p   tunnel announced   -       took=840ms nat=consistent",
+            "INFO  p2p   tunnel turn        -       count=2 in=1520 out=1498",
+            "INFO  p2p   tunnel peers       -       count=3 n=7",
+            "WARN  p2p   tunnel failed      TUN-160 took=9.0s",
+            "INFO  p2p   tunnel announced   -",
+            "INFO  p2p   tunnel changed     -       state=ready nat=consistent",
+            "WARN  p2p   tunnel changed     TUN-150 state=failed nat=consistent",
+        ], p2p);
+        var all = string.Join('\n', lines);
+        foreach (var bad in new[] { "198.51", "192.168", "10.0.0", "203.0.113", "candidate", "typ", "fe80", "Alice", "SRV-999", "exploded" })
+            Assert.DoesNotContain(bad, all);
     }
 
     [Fact]

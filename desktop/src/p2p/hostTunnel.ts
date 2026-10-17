@@ -4,6 +4,7 @@ import path from 'node:path'
 import { hostKeyHex, hostKeyPair, onlyFriends, parseSecret } from './keys'
 import { P2pNode, P2pUnavailableError, type NatInfo } from './node'
 import { serveTunnel, type HostTunnel } from './tunnel'
+import { noLog, type TunnelLogger } from './tunnelLog'
 
 /** What the app shows in Server settings → Internet access for a server it hosts. */
 export interface P2pHostStatus {
@@ -56,7 +57,11 @@ interface Running {
 export class HostTunnels {
   private readonly running = new Map<string, Running>()
 
-  constructor(private readonly node: P2pNode, private readonly onChange: (id: string, status: P2pHostStatus) => void = () => undefined) {}
+  constructor(
+    private readonly node: P2pNode,
+    private readonly onChange: (id: string, status: P2pHostStatus) => void = () => undefined,
+    private readonly log: TunnelLogger = noLog,
+  ) {}
 
   status(id: string): P2pHostStatus {
     return this.running.get(id)?.status ?? { state: 'off', hostKey: null, nat: null, connections: 0 }
@@ -85,7 +90,7 @@ export class HostTunnels {
     try {
       const dht = await this.node.get()
       if (run.stopped) return this.status(id)
-      run.tunnel = await serveTunnel(dht, hostKeyPair(world.secret), { web: world.tunnelPort, ...(world.turnPort ? { turn: world.turnPort } : {}) }, { allow: onlyFriends(world.secret) })
+      run.tunnel = await serveTunnel(dht, hostKeyPair(world.secret), { web: world.tunnelPort, ...(world.turnPort ? { turn: world.turnPort } : {}) }, { allow: onlyFriends(world.secret), log: this.log })
       if (run.stopped) {
         await run.tunnel.close()
         return this.status(id)
