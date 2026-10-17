@@ -80,7 +80,7 @@ public sealed class Certificates(World world, IConfiguration config, ILogger<Cer
             }
             catch (Exception ex) when (Settings.Mode == "off" && ex is IOException or System.Security.Cryptography.CryptographicException)
             {
-                log.LogWarning(ex, "Ignoring the unreadable certificate in {Dir}", CertDir);
+                log.Warn(ex, "TLS-140", "tls", "skipped", ("what", "unreadable-cert"));
             }
         }
     }
@@ -170,7 +170,7 @@ public sealed class Certificates(World world, IConfiguration config, ILogger<Cer
             catch (Exception ex) when (!stopping.IsCancellationRequested)
             {
                 failures++;
-                log.LogError(ex, "Getting a certificate for {Domain} failed. Is port 80 reachable from the internet and does the domain point here?", domain);
+                log.Error(ex, "TLS-110", "tls", "failed", ("what", "acme"), ("n", failures));
                 SetStatus(Fits(Current, domain, TimeSpan.Zero) ? "valid" : "failed", domain, Friendly(ex));
                 // Let's Encrypt allows 5 failed validations per name per hour: back off 5, 10, 20, 40, then 60 minutes.
                 await SleepAsync(wake, TimeSpan.FromMinutes(Math.Min(60, 5 * Math.Pow(2, failures - 1))), stopping);
@@ -210,7 +210,7 @@ public sealed class Certificates(World world, IConfiguration config, ILogger<Cer
             AtomicFile.WriteAllText(accountPath, acme.AccountKey.ToPem());
         }
 
-        log.LogInformation("Requesting a certificate for {Domain}", domain);
+        log.Info("tls", "requested", ("what", "acme"));
         var order = await acme.NewOrder([domain]);
         foreach (var authorization in await order.Authorizations())
         {
@@ -246,7 +246,7 @@ public sealed class Certificates(World world, IConfiguration config, ILogger<Cer
             .Select(c => new string(System.Security.Cryptography.PemEncoding.Write("CERTIFICATE", c.ToDer())));
         AtomicFile.WriteAllText(ChainPath, string.Join('\n', pems) + '\n');
         _context = Load(ChainPath, KeyPath);
-        log.LogInformation("Certificate for {Domain} is valid until {Expiry:u}", domain, Current!.NotAfter);
+        log.Info("tls", "done", ("what", "acme"), ("expires", Current!.NotAfter.ToUniversalTime().ToString("yyyy-MM-dd")));
     }
 }
 

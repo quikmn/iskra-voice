@@ -29,9 +29,12 @@ catch (Exception ex) when (WorldProblem.Describe(worldPath, ex) is { } problem)
 {
     // One clear line (and an exit code the desktop app knows) instead of a stack trace; retrying won't help.
     Console.Error.WriteLine(problem);
+    LogProblem.Write(worldPath, ex);
     Environment.ExitCode = ex is IOException or UnauthorizedAccessException ? 1 : WorldProblem.ExitCode;
     return;
 }
+// One line per entry, to the console and logs/YYYY-MM-DD.log (Logging/; docs/development.md "Logs").
+builder.Logging.AddIskraLog(LogMaintenance.Dir(world), world.Settings.Logs.Debug);
 MoveFeature.Load(world);
 // A restart marker from before this start was for the server that stopped (see RestartMarker).
 RestartMarker.Discard(world.Path);
@@ -58,6 +61,7 @@ if ((builder.Configuration["Template"] ?? world.Settings.Template) is { Length: 
 }
 
 builder.Services.AddSingleton(world);
+builder.Services.AddHostedService<LogMaintenance>();
 builder.Services.AddSingleton<Hub>();
 builder.Services.AddSingleton<Router>();
 builder.Services.AddSingleton<LiveKitHost>();
@@ -369,6 +373,7 @@ MoveFeature.MapEndpoints(app);
 ImportFeature.MapEndpoints(app);
 // "Download my data" links.
 ComplianceFeature.MapEndpoints(app);
+ChannelExportFeature.MapEndpoints(app);
 app.Services.GetRequiredService<Iskra.Server.Import.ImportService>().CleanUp();
 
 app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice, Uploads uploads, LinkPreviews previews, Router router,
@@ -393,27 +398,34 @@ app.Map("/ws", async (HttpContext context, World w, Hub hub, VoiceRegistry voice
 // Voice signaling (LiveKit's WebSocket and HTTP) on the same port as everything else.
 app.MapReverseProxy();
 
+// Sentences for whoever reads the console (paths, links: never in the log files); the log gets a coded line.
 if (!https.Enabled && (https.ProxyProtocol || https.HttpProxyProtocol || https.BindAddress is { Length: > 0 }))
-    app.Logger.LogWarning("Https.BindAddress, Https.ProxyProtocol and Https.HttpProxyProtocol only apply with Https.Mode \"acme\" or \"files\"; ignoring them.");
+{
+    app.Logger.Warn("TLS-120", "tls", "ignored", ("what", "proxy-settings"), ("https", https.Mode));
+    Console.WriteLine("Https.BindAddress, Https.ProxyProtocol and Https.HttpProxyProtocol only apply with Https.Mode \"acme\" or \"files\"; ignoring them.");
+}
 if (https.ClientsLookLocal)
-    app.Logger.LogWarning("Https.BindAddress is {Address} and Https.ProxyProtocol is off: every client looks like this machine (one shared rate limit, no addresses in the security log). Behind a proxy, turn on Https.ProxyProtocol (docs/hosting.md, Two servers on one machine).", https.BindAddress);
-app.Logger.LogInformation("World '{Name}' at {Path}, reachable at {Url}", world.Settings.Name, world.Path, world.Settings.EffectivePublicUrl);
+{
+    app.Logger.Warn("TLS-130", "tls", "look-local", ("why", "no-proxy-protocol"));
+    Console.WriteLine($"Https.BindAddress is {https.BindAddress} and Https.ProxyProtocol is off: every client looks like this machine (one shared rate limit, no addresses in the security log). Behind a proxy, turn on Https.ProxyProtocol (docs/hosting.md, Two servers on one machine).");
+}
+Console.WriteLine($"World '{world.Settings.Name}' at {world.Path}, reachable at {world.Settings.EffectivePublicUrl}");
 var ownerLink = OwnerSetup.EnsureOwnerInvite(world, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), out var claimed);
+if (ownerLink is not null)
+    app.Logger.Info("life", "no-owner", ("how", !claimed ? "link" : world.Settings.OwnerClaim == OwnerSetup.Generate ? "claim-code" : "app-claim"));
 if (ownerLink is not null && claimed && world.Settings.OwnerClaim == OwnerSetup.Generate)
 {
-    // A server image: the code is for whoever can open this machine's console, never for the log.
-    app.Logger.LogWarning("This server has no owner yet. Its claim code is in {File} (single use, 24 hours): enter it in the Iskra app under Claim a server.",
-        Path.Combine(world.Path, OwnerSetup.CodeFile));
+    // A server image: the code is for whoever can open this machine's console.
+    Console.WriteLine($"This server has no owner yet. Its claim code is in {Path.Combine(world.Path, OwnerSetup.CodeFile)} (single use, 24 hours): enter it in the Iskra app under Claim a server.");
 }
 else if (ownerLink is not null && claimed)
 {
     // Set up by the app with a one-time owner claim: the link is a secret between this server and that app.
-    app.Logger.LogWarning("This server has no owner yet. It's waiting for the Iskra app that set it up to claim it.");
+    Console.WriteLine("This server has no owner yet. It's waiting for the Iskra app that set it up to claim it.");
 }
 else if (ownerLink is not null)
 {
-    app.Logger.LogWarning("This server has no owner yet. Open this link to become the owner (single use, also saved in {File}):\n\n    {Link}\n",
-        OwnerSetup.FileName, ownerLink);
+    Console.WriteLine($"This server has no owner yet. Open this link to become the owner (single use, also saved in {OwnerSetup.FileName}):\n\n    {ownerLink}\n");
 }
 app.Run();
 

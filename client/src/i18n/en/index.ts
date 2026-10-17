@@ -60,6 +60,7 @@ import { sounds } from './sounds'
 import { voiceStatus } from './voiceStatus'
 import { invitetrack } from './invitetrack'
 import { mediaChannels } from './mediaChannels'
+import { channelExport } from './channelExport'
 import { feeds } from './feeds'
 
 export const en = {
@@ -124,5 +125,6 @@ export const en = {
   sounds,
   voiceStatus,
   invitetrack,
+  channelExport,
   feeds,
 } as const

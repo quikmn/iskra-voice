@@ -136,7 +136,7 @@ public sealed class InternetHost : BackgroundService
             }
             catch (Exception ex) when (!stopping.IsCancellationRequested)
             {
-                _log.LogWarning(ex, "Internet hosting check failed");
+                _log.Warn(ex, "NAT-140", "nat", "failed", ("what", "hosting-check"));
                 _router = null;
                 next = RetrySoon;
             }
@@ -175,7 +175,7 @@ public sealed class InternetHost : BackgroundService
                 catch (Exception ex) when (ex is PortMappingException or SocketException or HttpRequestException or TaskCanceledException && !cancel.IsCancellationRequested)
                 {
                     // The router restarted or went away: look for it again soon.
-                    _log.LogInformation("The router stopped answering ({Message})", ex.Message);
+                    _log.Note("NAT-130", "nat", "lost", ("what", "router"), ("name", ex.GetType().Name));
                     _router = null;
                 }
             }
@@ -189,7 +189,8 @@ public sealed class InternetHost : BackgroundService
         var cgnat = IsCgnat(ip);
         if (ip is not null && !ip.Equals(_publicIp))
         {
-            _log.LogInformation("Public address: {Ip}{Cgnat}", ip, cgnat ? " (shared with other customers: carrier-grade NAT)" : "");
+            if (cgnat) _log.Note("NAT-120", "nat", "changed", ("what", "public-address"), ("cgnat", true));
+            else _log.Info("nat", "changed", ("what", "public-address"), ("cgnat", false));
             _hairpin = false;
         }
         var voiceBefore = VoiceIp;
@@ -218,6 +219,9 @@ public sealed class InternetHost : BackgroundService
         await ProbeAsync(cancel);
         return next;
     }
+
+    /// <summary>Which protocol the router speaks, for the log.</summary>
+    private static string RouterKind(INatRouter router) => router switch { NatPmp => "nat-pmp", Upnp => "upnp", _ => "other" };
 
     private static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;
 
@@ -295,6 +299,9 @@ public sealed class InternetHost : BackgroundService
             _active.AddRange(wanted);
         }
         foreach (var old in stale) await TryUnmapAsync(router, old, cancel);
+        var failed = result.Where(p => p.State == "failed").ToList();
+        if (failed.Count > 0) _log.Warn("NAT-110", "nat", "mapped", ("kind", RouterKind(router)), ("ok", result.Count - failed.Count), ("failed", failed.Count), ("what", string.Join(',', failed.Select(p => p.Name))));
+        else _log.Info("nat", "mapped", ("kind", RouterKind(router)), ("ok", result.Count));
         return (result, shortest);
     }
 
@@ -306,7 +313,7 @@ public sealed class InternetHost : BackgroundService
         }
         catch (Exception ex) when (ex is PortMappingException or SocketException or HttpRequestException or TaskCanceledException && !cancel.IsCancellationRequested)
         {
-            _log.LogInformation("Removing port {Port} from the router failed: {Message}", mapping.ExternalPort, ex.Message);
+            _log.Note("NAT-150", "nat", "failed", ("what", "unmap"), ("ext", mapping.ExternalPort), ("name", ex.GetType().Name));
         }
     }
 

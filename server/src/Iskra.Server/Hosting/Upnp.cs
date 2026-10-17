@@ -127,7 +127,7 @@ public sealed class Upnp : INatRouter
             catch (Exception ex) when (ex is HttpRequestException or XmlException or PortMappingException or TaskCanceledException or InvalidOperationException)
             {
                 if (cancel.IsCancellationRequested) throw;
-                log.LogDebug(ex, "UPnP device at {Location} isn't usable", location);
+                log.Debug("nat", "skipped", ("what", "upnp-device"), ("name", ex.GetType().Name));
                 return null;
             }
         }

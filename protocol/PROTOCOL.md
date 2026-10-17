@@ -1173,7 +1173,7 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 - `hoist`: shown as its own group in the member list. Name colour: the highest role with a colour. Both are client-side choices.
 - `Member` gains `roles: [roleId]` (highest first); members can hold several. `Channel` gains `overrides: [{ roleId, allow: [ChannelPerm], deny: [ChannelPerm] }]`.
 
-**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`, `manageAutoMod` ([AutoMod](#automod) settings), `prioritySpeaker` ([priority speaker](#whisper-and-priority-speakers)), `sendTts` ([/tts messages](#text-to-speech-tts)). Clients offer a "Moderator" preset with all of them. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
+**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`, `manageAutoMod` ([AutoMod](#automod) settings), `prioritySpeaker` ([priority speaker](#whisper-and-priority-speakers)), `sendTts` ([/tts messages](#text-to-speech-tts)), `exportChannels` ([channel export](#channel-export)). Clients offer a "Moderator" preset with all of them but `exportChannels`. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
 
 **Hierarchy**: the owner, then admins, then members with custom roles by their highest role's position, then trusted, member, guest. Kicking, banning, timing out, deleting someone's message, managing someone's roles, muting and moving work only on people strictly below you. Members holding the same highest role are equal.
 
@@ -4413,6 +4413,121 @@ Post { …, "media": [File],          // the first message's pictures and videos
   until clicked.
 - **Templates:** `kind: "media"` (with `tags`, like a forum) in [starter templates](#starter-templates) and exports.
 - Migration `media-1`: `forum_posts.untitled`.
+
+## Log ids
+
+Each connection gets a short id that the server uses in its own log, so a member's bug report and the host's log can
+be matched up without either one naming anyone.
+
+- `welcome.logId`: string, 1–8 characters `[0-9a-z]` (a per-process counter in base 36; it starts again when the server
+  restarts). Absent on older servers. Clients keep it per server for their own diagnostics and never send it back.
+- The server logs it as `conn=<logId>` on the session's lines (`sess opened`, `sess closed`, request failures). Accounts
+  appear there only as `acct=` (6 hex of a keyed BLAKE2b of the account key, keyed per server), never by name or key.
+- The server's id in logs, `srv=`, is the first 4 hex of BLAKE2b-256(`"iskra-log-v1"` ‖ 0x00 ‖ server public key),
+  the same context framing as signed payloads. Clients can compute it from `hello.serverKey`. It reveals nothing an
+  invite link doesn't.
+- No new requests or events. Log line format and codes: [docs/development.md, Logs](../docs/development.md#logs) and
+  [docs/log-codes.md](../docs/log-codes.md) (from `protocol/log-codes.json`).
+
+## Channel export
+
+Admins can export channels as a zip that opens offline: one readable HTML page and one JSON file per channel, plus the
+attachments (like DiscordChatExporter). The server builds it in the background and hands out a short-lived download link,
+like [Download my data](#download-my-data).
+
+| type | body | result | who |
+|---|---|---|---|
+| `channel.export` | `channelIds` (1–25 channel ids, no duplicates), `from?`, `to?` (ms, inclusive; `from` ≤ `to`), `attachments?` (default true), `threads?` (default true), `timeZone?` (IANA name ≤ 64 chars, for the times in the HTML; unknown: UTC), `lang?` (`en` \| `sv`, the HTML's own words; default `en`) | `{ job: ExportJob }` (running) | `exportChannels` permission (admins and the owner by default; `forbidden`, key `export_forbidden`), never bots (key `export_bot`) |
+| `channel.export.status` | | `{ jobs: [ExportJob] }` (yours, newest first, until their link expires) | `exportChannels` |
+| `channel.export.cancel` | `id` (a running job of yours) | `{ job }` | `exportChannels` |
+
+| event | body | sent to |
+|---|---|---|
+| `channel.export.progress` | `{ job: ExportJob }` (about every 2%, and once when it ends) | the requester's sessions |
+
+```jsonc
+ExportJob { "id": "<b64u 12>", "state": "running" | "done" | "failed" | "cancelled", "channelIds": [1, 7], "from": null, "to": null,
+            "attachments": true, "threads": true, "done": 120, "total": 400,   // items (messages, posts, pages) written so far
+            "createdAt": 1760000000000,
+            "url": "/channel-export/<token>" | null, "name": "iskra-export-gaming-2026-10-17.zip" | null, "size": 123456 | null,
+            "expiresAt": 1760003600000 | null,                                  // when done: the link and file go then
+            "error": { "code", "message", "key", "args" } | null }              // when failed
+```
+
+- **What can be exported:** text, voice and stage channels (their chat), forum channels (posts with their first message
+  and comments) and docs channels (every page as it is now; the range doesn't apply). Threads come with their channel
+  when `threads` is on (a thread's messages are filtered by the range too). Whiteboards can't be exported (`bad_request`,
+  key `export_kind`). Every channel must be one you can read now (`not_found` otherwise, as for every channel).
+- **Never exported:** end-to-end encrypted channels (`bad_request`, key `export_encrypted`: the server only has
+  ciphertext, so they can only be exported from a member's device), DMs and group DMs (they aren't channels), deleted
+  messages (they're gone), and disappearing messages (anything with an expiry is left out, so an export never outlives
+  a timer). Account keys are never in the export: authors are numbered (`a1`, `a2`, …) with their display name (server
+  nickname, else name) at export time; `<@accountKey>` mentions become `@Name`, `<@&roleId>` `@Role`, in every text
+  (messages, topics, titles, thread and post names, polls, embeds, file names, GIF titles). Names, titles and file
+  names lose invisible format characters (Unicode Cf such as bidi overrides; the emoji joiner stays).
+- **Job:** one at a time per server (`rate_limited`, key `channel_export_busy`); 3 per account, then one every 10
+  minutes (`rate_limited`, key `channel_export_slow`). The requester's sessions get `channel.export.progress`;
+  `channel.export.status` brings back the jobs after a reconnect (a server restart forgets them and deletes the files).
+- **Size cap:** 1 GB per zip. Attachments are counted before anything is written; over the cap, the job fails at once
+  with key `export_too_big` (`args: { maxMb }`): turn off attachments or pick a shorter range. Without attachments a
+  zip that still grows over the cap fails the same way (checked while it's written). A job also fails at once with key
+  `export_disk` when the server's disk has less free space than its estimated size plus 1 GB.
+- **Rights are checked again** before each channel is written and when the link is used: if the requester is no
+  longer a member, lost `exportChannels` or can no longer read one of the channels, the job fails
+  (`export_forbidden`), or the link answers `404` and the file is deleted.
+- **Download:** `GET /channel-export/<token>` (24 random bytes) returns the zip (`Content-Disposition: attachment`,
+  `no-store`, `nosniff`, a sandbox CSP) for 1 hour; then the link is gone and the file deleted. Files are written to
+  `exports/` in the world folder, which backups leave out; leftovers are deleted when the server starts, and the hourly
+  retention sweep deletes any `channels-*.zip` older than an hour that no job holds.
+- **Records:** each export adds an audit log entry `channel.export` and a security log entry `channel.export`, both
+  with `{ channelIds, channelNames, from, to, attachments, threads }` (never any content). Cancelled and failed jobs are recorded too
+  (they were asked for).
+
+**The zip:**
+
+```
+README.txt
+<channelId>-<name>/channel.html      readable offline
+<channelId>-<name>/channel.json      the same content, for programs
+<channelId>-<name>/attachments/<n>-<file name>   (with attachments on)
+```
+
+**`channel.json`** (`format: "iskra-channel-export"`, `version: 1`; new fields may be added in a version, a field never
+changes meaning without a new version):
+
+```jsonc
+{ "format": "iskra-channel-export", "version": 1, "exportedAt": 1760000000000, "exportedBy": "Viktor",
+  "server": { "name": "Gaming" },
+  "channel": { "id": 1, "name": "general", "kind": "text", "topic": "" },
+  "range": { "from": null, "to": null }, "includes": { "attachments": true, "threads": true },
+  "authors": { "a1": { "name": "Viktor", "type": "member" | "bot" | "webhook" | "imported" | "former" } },
+  "messages": [ExportMessage],                                   // text, voice, stage and forum (forum: none, see posts)
+  "threads": [{ "id", "name", "rootId", "author", "createdAt", "messages": [ExportMessage] }],
+  "posts": [{ "id", "title", "author", "createdAt", "tags": ["name"], "pinned", "closed", "locked",
+              "message": ExportMessage | null, "comments": [ExportMessage] }],   // forum channels
+  "pages": [{ "id", "parentId", "title", "text", "createdAt", "updatedAt", "updatedBy" }] }   // docs channels
+
+ExportMessage { "id", "author": "a1", "createdAt", "editedAt": null, "text": "hi @Sam",
+  "replyTo": { "id", "author": "a2" | null, "excerpt" } | { "id", "deleted": true } | null,
+  "attachments": [{ "name", "type", "size", "width", "height", "file": "attachments/1-cat.png" | null }],
+  "reactions": [{ "emoji", "count" }], "pinned": false,
+  "poll": { "question", "multi", "closed", "options": [{ "text", "votes" }] } | null,
+  "embeds": [{ "title", "description", "url", "fields": [{ "name", "value" }], "footer" }],   // webhook embeds
+  "sticker": "name" | null, "gif": { "title", "url" } | null, "voiceMessage": { "durationMs" } | null,
+  "forwarded": true | false, "thread": threadId | null }
+```
+
+Lists are oldest first; times are ms. `author` keys only point into `authors`.
+
+**`channel.html`** is rendered on the server and has no script at all. Every piece of user text (names, messages,
+titles, file names, embeds) is HTML-escaped; message formatting (bold, italic, strike, spoilers, code, quotes, headings,
+lists, links) is turned into a fixed set of tags, and only `http:` and `https:` links become links
+(`rel="noopener noreferrer nofollow"`). A strict CSP sits in a `<meta>` tag: `default-src 'none'; img-src 'self' file:; media-src 'self' file:; style-src 'sha256-…'` (the page's own stylesheet only), `base-uri 'none'; form-action 'none'`.
+Nothing is loaded from the network: no fonts, scripts or remote images (GIFs and remote embeds are links). Images
+among the attachments are shown inline from `attachments/` (SVG only as a file); other files are links. Only passive
+extensions are kept in the zip (`png jpg jpeg gif webp avif bmp mp4 webm mov mp3 ogg opus wav flac m4a txt md csv zip
+7z`); any other attachment, and one without an extension, gets `.bin` added (`report.pdf.bin`, `page.html.bin`).
+A failed job's `error.key` is `export_too_big`, `export_disk`, `export_forbidden` or `export_failed` (a bug; the server logs it).
 
 ## Feeds
 

@@ -67,7 +67,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         {
             if (made.Expires > now || !_made.TryRemove(token, out _)) continue;
             try { File.Delete(made.Path); }
-            catch (IOException ex) { log.LogInformation("Couldn't delete an expired export yet: {Message}", ex.Message); }
+            catch (IOException ex) { log.Note("SWP-120", "sweep", "skipped", ("what", "export"), ("name", ex.GetType().Name)); }
         }
     }
 

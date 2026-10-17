@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { ascApi, loadMetadata, main, pickGroups, reviewNotes, run, storeConfig, whatsNew } from './appstore.mjs'
+import { appleText, ascApi, loadMetadata, main, pickGroups, reviewNotes, run, storeConfig, whatsNew } from './appstore.mjs'
 
 /**
  * A fake App Store Connect: resources by type and id, relationships kept as ids, and JSON:API answers like Apple's
@@ -311,4 +311,12 @@ test('API tokens: ES256 JWTs for App Store Connect from a .p8 key (a throwaway k
     t += 16 * 60_000
     assert.notEqual(await token(), jwt, 'renewed')
   } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+// Apple refused alpha.31's What to test over one emoji ("CS2 ranked 🔫"); text and punctuation stay.
+test('appleText: emoji, flags, skin tones and joiners go; the words and punctuation stay tidy', () => {
+  assert.equal(appleText('give a voice channel a line like "CS2 ranked 🔫" so everyone sees it'), 'give a voice channel a line like "CS2 ranked" so everyone sees it')
+  assert.equal(appleText('Birthdays 🎂, Starboard ⭐️ and 👩🏽‍💻 devs 🇸🇪!'), 'Birthdays, Starboard and devs!')
+  assert.equal(appleText('Plain text: å ä ö, “quotes” — and 100% fine.'), 'Plain text: å ä ö, “quotes” — and 100% fine.')
+  assert.equal(appleText('line one 🎉\nline two'), 'line one\nline two')
 })

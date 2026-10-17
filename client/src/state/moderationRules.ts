@@ -113,6 +113,7 @@ export const AUDIT_ACTIONS = [
   'member.join', 'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers', 'landing.update',
   'message.delete.bulk', 'member.warn', 'member.note.add', 'member.note.delete', 'member.avatar',
   'act.add', 'act.update', 'act.remove', 'act.configure',
+  'channel.export',
 ] as const
 
 export type AuditFilter = (typeof AUDIT_ACTIONS)[number]
@@ -190,6 +191,7 @@ export function auditText(e: AuditEntry): string {
     case 'voice.move': return t('moderation.audit.voiceMove', { actor, target, channel: channel(d.to) })
     case 'voice.disconnect': return t('moderation.audit.voiceDisconnect', { actor, target, channel: channel(d.channelName) })
     case 'voice.status.clear': return t('moderation.audit.voiceStatusClear', { actor, target, channel: channel(d.channelName) })
+    case 'channel.export': return t('moderation.audit.channelExport', { actor, channels: (Array.isArray(d.channelNames) ? d.channelNames : []).map(channel).join(', ') || t('moderation.audit.aChannel') })
     case 'bot.voice': return t(d.voice ? 'moderation.audit.botVoiceOn' : 'moderation.audit.botVoiceOff', { actor, target })
     case 'channel.create': return t('moderation.audit.channelCreate', { actor, channel: channel(d.name) })
     case 'channel.delete': return t('moderation.audit.channelDelete', { actor, channel: channel(d.name) })

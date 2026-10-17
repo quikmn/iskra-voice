@@ -277,18 +277,21 @@ public sealed partial class OutgoingWebhooks : BackgroundService
                 if (Encoding.UTF8.GetByteCount(body) > MaxBodyBytes)
                 {
                     Log(hook.Id, delivery, type, 1, null, "too_large", 0);
+                    LogCounts.Hooks(_world).Hit("out-dropped");
                     continue;
                 }
                 var bucket = _buckets.GetOrAdd(hook.Id, _ => new WebhookIngress.TokenBucket(Burst, PerSecond, _time));
                 if (!bucket.TryTake(out _))
                 {
                     Log(hook.Id, delivery, type, 1, null, "rate_limited", 0);
+                    LogCounts.Hooks(_world).Hit("out-dropped");
                     continue;
                 }
                 if (_pending.AddOrUpdate(hook.Id, 1, (_, n) => n + 1) > MaxPending)
                 {
                     Release(hook.Id);
                     Log(hook.Id, delivery, type, 1, null, "queue_full", 0);
+                    LogCounts.Hooks(_world).Hit("out-dropped");
                     continue;
                 }
                 _queue.Writer.TryWrite(new Job(hook.Id, delivery, type, body, 1));
@@ -296,7 +299,7 @@ public sealed partial class OutgoingWebhooks : BackgroundService
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _log.LogWarning(ex, "Outgoing webhook event {Type} failed", type);
+            _log.Write(LogLevel.Warning, "hook", "HOK-130", "http", "failed", ex, ("what", "queue"));
         }
     }
 
@@ -339,7 +342,11 @@ public sealed partial class OutgoingWebhooks : BackgroundService
             var hook = _world.Store.GetOutgoingWebhook(job.HookId);
             if (hook is null || !hook.Enabled) return;
             var (ok, retry, outcome, retryAfter) = await AttemptAsync(hook, job.Delivery, job.Event, job.Body, job.Attempt);
-            if (ok) _world.Store.FinishOutgoingDelivery(hook.Id, true, outcome, Now, _disableAfter);
+            if (ok)
+            {
+                _world.Store.FinishOutgoingDelivery(hook.Id, true, outcome, Now, _disableAfter);
+                LogCounts.Hooks(_world).Hit("out-ok");
+            }
             else if (retry && job.Attempt <= _retryDelaysMs.Length && !_stopping.IsCancellationRequested)
             {
                 var delay = TimeSpan.FromMilliseconds(_retryDelaysMs[job.Attempt - 1]);
@@ -353,13 +360,19 @@ public sealed partial class OutgoingWebhooks : BackgroundService
             }
             else if (_world.Store.FinishOutgoingDelivery(hook.Id, false, outcome, Now, _disableAfter))
             {
+                _log.Write(LogLevel.Warning, "hook", "HOK-120", "http", "disabled", null, ("id", hook.Id), ("why", outcome), ("n", job.Attempt));
                 Changed();
                 TellAdmins(hook.Id);
+            }
+            else
+            {
+                LogCounts.Hooks(_world).Hit("out-failed");
+                _log.Write(LogLevel.Warning, "hook", "HOK-110", "http", "failed", null, ("id", hook.Id), ("why", outcome), ("n", job.Attempt));
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _log.LogWarning(ex, "Outgoing webhook delivery failed");
+            _log.Write(LogLevel.Warning, "hook", "HOK-130", "http", "failed", ex, ("what", "delivery"));
         }
         finally
         {

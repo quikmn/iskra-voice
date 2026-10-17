@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Iskra.Server.Logging;
 using Iskra.Server.Protocol;
 using Iskra.Server.Push;
 using Iskra.Server.Sessions;
@@ -87,7 +88,7 @@ public sealed partial class FeedService : BackgroundService
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not ObjectDisposedException)
         {
-            _log.LogWarning(ex, "Feeds check failed");
+            _log.Warn(ex, "BOT-110", "sched", "tick-failed", ("what", "feeds"));
         }
     }
 

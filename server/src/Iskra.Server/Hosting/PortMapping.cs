@@ -61,11 +61,13 @@ public sealed class PortMapper(ILogger<PortMapper> log) : IPortMapper
         {
             var found = await upnp;
             // The gateway's own UPnP answer needs no wait for NAT-PMP.
-            return found is Upnp { AtGateway: true } ? found : Choose(found, await pmp);
+            var router = found is Upnp { AtGateway: true } ? found : Choose(found, await pmp);
+            log.Info("nat", "found", ("kind", router switch { NatPmp => "nat-pmp", Upnp => "upnp", null => "none", _ => "other" }));
+            return router;
         }
         catch (Exception ex) when (ex is SocketException or HttpRequestException or IOException)
         {
-            log.LogInformation(ex, "Looking for the router failed");
+            log.Warn(ex, "NAT-110", "nat", "failed", ("what", "router-search"));
             return null;
         }
     }

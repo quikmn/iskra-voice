@@ -45,9 +45,9 @@ Nothing starts right away (stop the copy in your terminal first, then use the "s
 
 | System | What | When it starts |
 |---|---|---|
-| Windows | A scheduled task, *Iskra server &lt;folder&gt;-&lt;hash&gt;*, running without a window (`conhost --headless`), output appended to `server.log`, restarted if it crashes, no time limit | When you log in. Run from an **administrator** terminal and it starts with the computer instead, before anyone logs in (as you, without storing your password: "S4U"; never with administrator rights) |
+| Windows | A scheduled task, *Iskra server &lt;folder&gt;-&lt;hash&gt;*, running without a window (`conhost --headless`), its log in `logs/` (errors also in `server.log`), restarted if it crashes, no time limit | When you log in. Run from an **administrator** terminal and it starts with the computer instead, before anyone logs in (as you, without storing your password: "S4U"; never with administrator rights) |
 | Linux | A systemd **user** service, `~/.config/systemd/user/iskra-<folder>-<hash>.service`, enabled | When you log in. `loginctl enable-linger $USER` makes it start at boot. As root it refuses: use the system unit below |
-| macOS | A launchd agent, `~/Library/LaunchAgents/foo.iskra.server.<folder>-<hash>.plist`, output to `server.log`, restarted if it crashes | When you log in |
+| macOS | A launchd agent, `~/Library/LaunchAgents/foo.iskra.server.<folder>-<hash>.plist`, its log in `logs/` (errors also in `server.log`), restarted if it crashes | When you log in |
 
 Installing and removing are written to the server's security log.
 
@@ -566,6 +566,29 @@ From the command line, best with the server stopped:
 iskra-server import-discord my-server export.zip              # add --read-only for an archive
 ```
 
+### Exporting channels
+
+Admins (and anyone whose role has **Export channels**) can download channels to keep or share outside Iskra, like
+DiscordChatExporter does for Discord. Open **Server settings → Export channels**, tick the channels, optionally pick a
+date range, and choose whether to include files and images and threads. The server builds a zip in the background
+(you'll see its progress, and you can keep chatting); then **Download** it. The link works for an hour, then the
+file is deleted from the server.
+
+In the zip, each channel has its own folder with:
+
+- `channel.html`: open it in any browser to read the channel as it looked: names, times, replies, reactions, pins,
+  polls, threads, forum posts and docs pages, with images shown inline. It works offline and loads nothing from the
+  internet (it has no scripts at all, and a strict content security policy).
+- `channel.json`: the same content for programs, in a documented, versioned format (see "Channel export" in
+  [the protocol reference](../protocol/PROTOCOL.md#channel-export)).
+- `attachments/`: the files and images posted there (if you included them).
+
+What's never exported: end-to-end encrypted channels (the server can't read them; they can only be exported from a
+member's device), direct messages and group chats, deleted messages and disappearing messages. People appear under
+their display name at export time; account keys aren't included. Each export is noted in the activity log and the
+security log (which channels and dates, never what was in them). A zip can be at most 1 GB: leave out files or pick a
+shorter range for bigger channels. One export runs at a time per server.
+
 ## `server.json` reference
 
 ```jsonc
@@ -654,6 +677,12 @@ iskra-server import-discord my-server export.zip              # add --read-only 
   },
   "BugInbox": {
     "Accept": false                    // only for the server that receives Iskra's bug reports; leave it off
+  },
+  "Logs": {                            // the server's own log files in logs/ (see Logs)
+    "PlainDays": 60,                   // days a file stays plain text (1–365)
+    "KeepDays": 180,                   // days a file is kept at all, gzipped after PlainDays (1–365)
+    "MaxMb": 200,                      // all log files together (10–2000); over it, the oldest go first
+    "Debug": false                     // also write debug lines (for developers)
   }
 }
 ```
@@ -676,7 +705,8 @@ iskra-server import-discord my-server export.zip              # add --read-only 
 | `backups/` | Daily backups (`auto-YYYY-MM-DD.zip`, not encrypted), briefly a backup being downloaded, and the encrypted copy for backup buddies (`buddy-*.iskrabackup`) |
 | `buddy-held/` | Encrypted backups this server keeps for friends' servers (backup buddies); never in this server's own backups |
 | `moved.json` | The signed "this server moved" notice, after **Move this server** |
-| `server.log` | Output, when started from the desktop app |
+| `logs/` | The server's log: one file per day (`YYYY-MM-DD.log`, UTC), gzipped after 60 days, deleted after 180 (see Logs) |
+| `server.log` | Only error output (why it couldn't start, a crash), when the desktop app or autostart runs the server; emptied at start once it's over 5 MB |
 | `exports/` | "Download my data" files while their 10-minute link lasts (never in backups) |
 | `models/` | The live-captions speech model, once someone has used captions (about 78 MB; never in backups, fetched again when needed) |
 
@@ -689,6 +719,28 @@ Uploads that nothing uses (no message, DM, avatar, emoji, sticker, sound, webhoo
 **Security log and retention:** the owner reads the server's security log in **Server settings → Sign-ins & security** (failed sign-ins, new members and devices, key changes, account deletions, backups, moves, data downloads; IP addresses only if you turn that on) and sets how long messages, files, the audit log and the security log are kept. Deleting happens every hour and can't be undone. Members download what the server keeps about them in **Settings → Privacy & data**; if someone asks you instead, use **Someone's data** in Server settings → Sign-ins & security.
 
 **Backups and moving:** see [Backups, moving and importing](#backups-moving-and-importing). Copying the stopped server's folder works too; it holds secrets (`server.key`, `vapid.json`, `livekit.key`, `certs/`, `backups/`), so keep copies private. **Updating:** see [Updating](#updating). Automatic updates keep their state in `.update/` next to `iskra-server`, not in the world folder.
+
+## Logs
+
+The server writes its log itself, into `logs/` in its folder: one file per day (`2026-10-17.log`, UTC days), the same
+lines it prints on its console (or to `journalctl` under systemd). Each line is one event:
+
+```
+2026-10-17T13:41:30.112Z INFO  srv   sess   closed      SES-120 conn=k3f acct=4be1d9 close=1000 why=kicked dur=6.9s
+```
+
+time (UTC), level, who wrote it (`srv` the server, `lk` voice, `p2p` the tunnel, `hook` webhooks), area, event, a code
+for problems, then details. Codes and what to do about each: [log-codes.md](log-codes.md). The line format in full:
+[development.md, Logs](development.md#logs).
+
+**What's never in it:** names (people's, channels', webhooks', files'), message text, keys, tokens, invite or p2p
+secrets, claim codes, IP addresses and file paths. People appear as `acct=` (a short code that only matches up inside
+this server's log) and each connection as `conn=`, an id the member's app is told too. So you can share a log with
+someone helping you.
+
+**How long it's kept:** files stay plain for 60 days, are gzipped (`.log.gz`) until 180 days, then deleted; and all of
+`logs/` together stays under 200 MB, the oldest files going first. Set `Logs` in `server.json` to change that. Trimming
+runs at start and once a day. The startup lines list the version, ports, voice, p2p and these settings.
 
 ## Public page
 

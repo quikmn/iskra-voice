@@ -80,7 +80,7 @@ public sealed class BuiltinBotRuntime : BackgroundService
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not ObjectDisposedException)
         {
-            _log.LogWarning(ex, "Built-in bot {What} failed", what);
+            _log.Write(LogLevel.Warning, LogLine.BotIds.Contains(what) ? $"bot:{what}" : "srv", "BOT-110", "sched", "failed", ex, ("what", what));
         }
     }
 

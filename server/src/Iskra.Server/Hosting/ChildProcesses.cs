@@ -57,7 +57,7 @@ public static class ChildProcesses
         {
             await parent.WaitForExitAsync(lifetime.ApplicationStopping);
             if (lifetime.ApplicationStopping.IsCancellationRequested) return;
-            log.LogInformation("The app that started this server has closed; shutting down.");
+            log.Info("life", "stopping", ("why", "parent-exited"));
             lifetime.StopApplication();
         });
     }
@@ -101,9 +101,7 @@ public static class ChildProcesses
             if (lifetime.ApplicationStopping.IsCancellationRequested) return;
             var restart = System.Text.Encoding.ASCII.GetString(said.ToArray()).Split('\n').Any(l => l.Trim() == "restart");
             if (restart) onRestart?.Invoke();
-            log.LogInformation(restart
-                ? "The app that started this server is restarting; shutting down until it starts us again."
-                : "The app that started this server asked it to stop; shutting down.");
+            log.Info("life", "stopping", ("why", restart ? "app-restart" : "app-asked"));
             lifetime.StopApplication();
         }) { IsBackground = true, Name = "stdin watch" };
         thread.Start();

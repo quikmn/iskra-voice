@@ -202,13 +202,12 @@ public sealed class DisappearSweeper(World world, Hub hub, Files.Uploads uploads
             if (result.Messages + result.Envelopes > 0)
             {
                 world.Store.CheckpointAfterDelete();
-                log.LogDebug("Disappearing messages: deleted {Messages} messages, {Envelopes} encrypted DM and group messages and {Files} files",
-                    result.Messages, result.Envelopes, result.Files);
+                log.Info("sweep", "done", ("what", "disappearing"), ("msgs", result.Messages), ("envelopes", result.Envelopes), ("files", result.Files));
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            log.LogWarning(ex, "Disappearing messages sweep failed");
+            log.Warn(ex, "SWP-110", "sweep", "failed", ("what", "disappearing"));
         }
         return result;
     }

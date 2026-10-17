@@ -141,7 +141,7 @@ public sealed class ImportService(World world, Hub hub, Uploads uploads, TimePro
         }
         catch (Exception ex) when (ex is IOException or OperationCanceledException)
         {
-            log.LogInformation("Import upload aborted: {Message}", ex.Message);
+            log.Info("http", "aborted", ("what", "import-upload"), ("name", ex.GetType().Name));
             if (!context.Response.HasStarted) context.Response.StatusCode = StatusCodes.Status400BadRequest;
         }
         finally
@@ -181,11 +181,11 @@ public sealed class ImportService(World world, Hub hub, Uploads uploads, TimePro
                 _lastChannels = [.. importer.Channels];
                 final = importer.Progress;
                 RefreshChannels();
-                log.LogInformation("Imported {Messages} messages into {Channels} channels from Discord", importer.Progress.MessagesDone, importer.Channels.Count);
+                log.Info("store", "done", ("what", "import"), ("msgs", importer.Progress.MessagesDone), ("count", importer.Channels.Count));
             }
             catch (Exception ex)
             {
-                if (ex is not (InvalidDataException or OperationCanceledException or IOException)) log.LogError(ex, "Import failed");
+                if (ex is not (InvalidDataException or OperationCanceledException or IOException)) log.Error(ex, "STO-120", "store", "failed", ("what", "import"));
                 final = importer?.Progress ?? new ImportProgress
                 {
                     Phase = ex is OperationCanceledException ? "cancelled" : "failed",
