@@ -1,0 +1,129 @@
+{
+  "note": "Made by gen_dm_fixture.ts with the app's dm.ts. The bot is vectors.json v1 (seeds 1 and 2); the person has seeds 9 and 10.",
+  "bot": {
+    "accountSeed": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+    "deviceSeed": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+    "created": 1760000000000,
+    "prekeys": [
+      {
+        "publicKey": "T_-BosyIMOnWT1JJUqnPLF88VsN2LPcs2jzEYuu243Q",
+        "secretKey": "Stt7d7ii-B2Ed5jj3IvcKvf9Nen9Q_qQtVG6b9CAYuE",
+        "created": 1792252810775
+      }
+    ]
+  },
+  "person": {
+    "accountKey": "_RckOFqgx1tk-3jNYC-h2ZH96_drE8WO1wLqyDXp9hg",
+    "cert": {
+      "accountKey": "_RckOFqgx1tk-3jNYC-h2ZH96_drE8WO1wLqyDXp9hg",
+      "deviceKey": "Q6cucUQBdi32a2jCbfvfJoKq7J8kdOykYT5CSg-6_Tw",
+      "created": 1760000000000,
+      "sig": "Gx7Zy6InqcnFWCR5qmOvxnNva2J1ZQqZRRmoE2jHTgkzhftkgZBT3Cjf7T8n9QTdyn1PJKHy9tL0e4kz4w-OCg"
+    }
+  },
+  "messages": [
+    {
+      "from": "_RckOFqgx1tk-3jNYC-h2ZH96_drE8WO1wLqyDXp9hg",
+      "to": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+      "text": "hello bot 👋",
+      "envelope": {
+        "v": 1,
+        "header": {
+          "from": "_RckOFqgx1tk-3jNYC-h2ZH96_drE8WO1wLqyDXp9hg",
+          "to": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+          "sentAt": 1792252810776,
+          "id": "9YS39jaVG19VQR2G"
+        },
+        "sender": {
+          "accountKey": "_RckOFqgx1tk-3jNYC-h2ZH96_drE8WO1wLqyDXp9hg",
+          "deviceKey": "Q6cucUQBdi32a2jCbfvfJoKq7J8kdOykYT5CSg-6_Tw",
+          "created": 1760000000000,
+          "sig": "Gx7Zy6InqcnFWCR5qmOvxnNva2J1ZQqZRRmoE2jHTgkzhftkgZBT3Cjf7T8n9QTdyn1PJKHy9tL0e4kz4w-OCg"
+        },
+        "nonce": "40t5W8qZXbl_K_LVHt25xpITSWjh5_tI",
+        "ct": "k0BWjy30n36opCchrJVV4shqLXNbjPTCDMhDO-_b6n_rMgDyuxAb8zE",
+        "keys": [
+          {
+            "device": "gTl3Dqh9F19Wo1Rmw0x-zMuNipG07jeiXfYPW4_Js5Q",
+            "nonce": "AKkHxrXu1CX4PyPNN9lLqpP8FYHHkVM6",
+            "box": "YJYDrJK_5-g28d2WZqiXQpwwfp3mpDpHVh3Jt3mE4Iu8RUk76Y5Wirvx5eU2sQPi"
+          },
+          {
+            "device": "Q6cucUQBdi32a2jCbfvfJoKq7J8kdOykYT5CSg-6_Tw",
+            "nonce": "zw9YIDy0JRjWPNyKXTTwH_lJcFYeu8y9",
+            "box": "_1pYPRscW15wcFHTe2Nb8TbZlSg7TZbHAQLiIB6-DP8PPnsWs_kWlwnhhs4y1Ygn"
+          }
+        ]
+      }
+    },
+    {
+      "from": "_RckOFqgx1tk-3jNYC-h2ZH96_drE8WO1wLqyDXp9hg",
+      "to": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+      "text": "/roll 2d6",
+      "envelope": {
+        "v": 2,
+        "header": {
+          "from": "_RckOFqgx1tk-3jNYC-h2ZH96_drE8WO1wLqyDXp9hg",
+          "to": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+          "sentAt": 1792252810776,
+          "id": "l7Xq2udp-9IGHgcd"
+        },
+        "sender": {
+          "accountKey": "_RckOFqgx1tk-3jNYC-h2ZH96_drE8WO1wLqyDXp9hg",
+          "deviceKey": "Q6cucUQBdi32a2jCbfvfJoKq7J8kdOykYT5CSg-6_Tw",
+          "created": 1760000000000,
+          "sig": "Gx7Zy6InqcnFWCR5qmOvxnNva2J1ZQqZRRmoE2jHTgkzhftkgZBT3Cjf7T8n9QTdyn1PJKHy9tL0e4kz4w-OCg"
+        },
+        "nonce": "WZa1NVQwEjjhHhkiB-AbHhtV_RORc8Gh",
+        "ct": "nqj87Bgg4w8HYzktUgj8EzwArVaFOfBir44Q3u33pu_Gbr0y",
+        "keys": [
+          {
+            "device": "gTl3Dqh9F19Wo1Rmw0x-zMuNipG07jeiXfYPW4_Js5Q",
+            "prekey": "T_-BosyIMOnWT1JJUqnPLF88VsN2LPcs2jzEYuu243Q",
+            "seal": "ItNXbDvv3kyqk4V5yJuiiDYnaTOUZw3XjwZHbcfH-y_g0RFxP1Ey6RyI1aFqLcsSnqzyUQIr8GRg-3J_MhGCqJlyH4524KU-XXj-NkOPr0avlHTsX-VdkAIWDYQXgdVmlqQRHRRvknvSS0GjFSTJQCdnkJeI9YGS"
+          },
+          {
+            "device": "Q6cucUQBdi32a2jCbfvfJoKq7J8kdOykYT5CSg-6_Tw",
+            "nonce": "94WMnV86YqyNIek8dgO62mLzwclKbqjA",
+            "box": "QnjHm5tskYKfh0qHcaRT3p8krFAeH3yi6IInrr7pz_28ArMwQ5xBWMT-IcTScYV6"
+          }
+        ]
+      }
+    },
+    {
+      "from": "_RckOFqgx1tk-3jNYC-h2ZH96_drE8WO1wLqyDXp9hg",
+      "to": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+      "text": "gone soon",
+      "envelope": {
+        "v": 3,
+        "header": {
+          "from": "_RckOFqgx1tk-3jNYC-h2ZH96_drE8WO1wLqyDXp9hg",
+          "to": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+          "sentAt": 1792252810776,
+          "id": "Kgd4PpceFizE9Tt4",
+          "expires": 3600
+        },
+        "sender": {
+          "accountKey": "_RckOFqgx1tk-3jNYC-h2ZH96_drE8WO1wLqyDXp9hg",
+          "deviceKey": "Q6cucUQBdi32a2jCbfvfJoKq7J8kdOykYT5CSg-6_Tw",
+          "created": 1760000000000,
+          "sig": "Gx7Zy6InqcnFWCR5qmOvxnNva2J1ZQqZRRmoE2jHTgkzhftkgZBT3Cjf7T8n9QTdyn1PJKHy9tL0e4kz4w-OCg"
+        },
+        "nonce": "OB8s5ZkM8My-ZUptrOhjhp8LA7o4E7sI",
+        "ct": "xIz_YinkM_9YtjoMWPpuL16EYTCbsUD7SZyUSZSKvBWqpvxk",
+        "keys": [
+          {
+            "device": "gTl3Dqh9F19Wo1Rmw0x-zMuNipG07jeiXfYPW4_Js5Q",
+            "prekey": "T_-BosyIMOnWT1JJUqnPLF88VsN2LPcs2jzEYuu243Q",
+            "seal": "UQqyE0jijTd2YZHWF7IZVFiFH_tXO6xwTgLMoDR7EBH8J_KoyParGh_Lm4nBuK63myEdjfb5Up-4b_A1JjogMSErHdOc0R_8wVH6LZosxRjX8nVRA2vsTYkCzSQ29Sd_MGflosOyV34I5tTWwBLSyQGsUwX2nn74"
+          },
+          {
+            "device": "Q6cucUQBdi32a2jCbfvfJoKq7J8kdOykYT5CSg-6_Tw",
+            "nonce": "JWnkiC55rlBInSCyGiUEuFVdMHXcWa9g",
+            "box": "SfpgnpBC-pC6HMsPM0qSawamtnIONyBuKI-VGv_B0GjGdyS-cf0RqEkdt6N7Nl1J"
+          }
+        ]
+      }
+    }
+  ]
+}

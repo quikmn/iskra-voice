@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iskra-bots"
+version = "0.1.0"
+description = "Write bots for Iskra, the self-hosted voice and text app for friend groups: commands, buttons, cards and end-to-end encrypted DMs."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "LicenseRef-PolyForm-Noncommercial-1.0.0"
+authors = [{ name = "Viktor Lundgren" }]
+keywords = ["iskra", "bot", "bots", "chat", "sdk", "self-hosted"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Framework :: AsyncIO",
+  "Typing :: Typed",
+]
+# Only libsodium (through PyNaCl) and a WebSocket client.
+dependencies = ["pynacl>=1.5", "websockets>=13"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/quikmn/iskra-voice/blob/main/docs/bots.md"
+Issues = "https://github.com/quikmn/iskra-voice/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+iskra = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

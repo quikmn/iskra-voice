@@ -6,3 +6,7 @@ useDefault = true
 [[allowlists]]
 description = "Shared crypto test vectors: keys and signatures derived from fixed public seeds (scripts/gen-vectors.mjs)"
 paths = ['''^(v2/)?protocol/vectors\.json$''']
+
+[[allowlists]]
+description = "Python bot SDK test fixture: DM envelopes for a test identity from fixed public seeds (gen_dm_fixture.ts)"
+paths = ['''^bots/python/tests/fixtures/dm-from-app\.json$''']
