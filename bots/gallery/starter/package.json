@@ -1,0 +1,22 @@
+{
+  "name": "iskra-starter-bot",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A starter template for your own Iskra bot",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node bot.ts",
+    "test": "node --test \"*.test.ts\"",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "iskra-bots": "0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "typescript": "5.9.3"
+  }
+}

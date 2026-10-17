@@ -1,0 +1,7 @@
+# The bot's keys and server address: keep them private, never commit them.
+*.bot.json
+# What it remembers while running.
+*.scores.json
+feeds.json
+stats.json
+node_modules/

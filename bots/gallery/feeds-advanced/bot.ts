@@ -23,7 +23,7 @@ const minutes = Math.max(5, Number(setting('minutes', 'FEEDS_MINUTES', '10')) ||
 const allowPrivate = process.env.FEEDS_ALLOW_PRIVATE === '1'
 const twitch = process.env.TWITCH_CLIENT_ID && process.env.TWITCH_CLIENT_SECRET ? new Twitch(process.env.TWITCH_CLIENT_ID, process.env.TWITCH_CLIENT_SECRET) : null
 
-const bot = new Bot({ name: setting('name', 'BOT_NAME', 'Feeds+'), invite: process.env.ISKRA_INVITE, stateFile: process.env.ISKRA_BOT_STATE })
+const bot = new Bot({ name: setting('name', 'BOT_NAME', 'Feeds Plus'), invite: process.env.ISKRA_INVITE, stateFile: process.env.ISKRA_BOT_STATE })
 const isStaff = (user: string) => ['admin', 'owner'].includes(bot.members.get(user)?.role ?? '')
 const COLOR = 0xff8a3d
 
@@ -224,7 +224,7 @@ bot.start().then(
     }
   },
   (e: Error) => {
-    console.error(`Feeds+ couldn't start: ${e.message}`)
+    console.error(`Feeds Plus couldn't start: ${e.message}`)
     process.exit(1)
   },
 )
