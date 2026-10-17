@@ -63,7 +63,7 @@
       <div class="side-group">Build</div>
       <ul>
         <li class="here"><a href="/docs/bots" aria-current="page">Bots and webhooks</a>
-<ul class="side-toc"><li class="l2"><a href="#webhooks">Webhooks</a></li><li class="l3"><a href="#make-one">Make one</a></li><li class="l3"><a href="#post-a-message">Post a message</a></li><li class="l3"><a href="#github-gitea-gitlab-and-slack">GitHub, Gitea, GitLab and Slack</a></li><li class="l3"><a href="#limits-and-safety">Limits and safety</a></li><li class="l2"><a href="#outgoing-webhooks">Outgoing webhooks</a></li><li class="l3"><a href="#check-the-signature">Check the signature</a></li><li class="l3"><a href="#delivery-and-safety">Delivery and safety</a></li><li class="l2"><a href="#built-in-bots">Built-in bots</a></li><li class="l2"><a href="#bots">Bots</a></li><li class="l3"><a href="#your-first-bot-in-5-minutes">Your first bot in 5 minutes</a></li><li class="l3"><a href="#the-example-bots">The example bots</a></li><li class="l3"><a href="#the-sdk">The SDK</a></li><li class="l3"><a href="#commands">Commands</a></li><li class="l3"><a href="#direct-messages">Direct messages</a></li><li class="l3"><a href="#buttons-menus-and-forms">Buttons, menus and forms</a></li><li class="l3"><a href="#cards">Cards</a></li><li class="l3"><a href="#voice-bots">Voice bots</a></li><li class="l3"><a href="#what-bots-cant-do-yet">What bots can't do (yet)</a></li><li class="l3"><a href="#when-it-wont-start">When it won't start</a></li><li class="l3"><a href="#the-sdk-on-npm">The SDK on npm</a></li><li class="l3"><a href="#other-languages">Other languages</a></li></ul>
+<ul class="side-toc"><li class="l2"><a href="#webhooks">Webhooks</a></li><li class="l3"><a href="#make-one">Make one</a></li><li class="l3"><a href="#post-a-message">Post a message</a></li><li class="l3"><a href="#github-gitea-gitlab-and-slack">GitHub, Gitea, GitLab and Slack</a></li><li class="l3"><a href="#limits-and-safety">Limits and safety</a></li><li class="l2"><a href="#outgoing-webhooks">Outgoing webhooks</a></li><li class="l3"><a href="#check-the-signature">Check the signature</a></li><li class="l3"><a href="#delivery-and-safety">Delivery and safety</a></li><li class="l2"><a href="#built-in-bots">Built-in bots</a></li><li class="l2"><a href="#bots">Bots</a></li><li class="l3"><a href="#your-first-bot-in-5-minutes">Your first bot in 5 minutes</a></li><li class="l3"><a href="#the-example-bots">The example bots</a></li><li class="l3"><a href="#the-sdk">The SDK</a></li><li class="l3"><a href="#commands">Commands</a></li><li class="l3"><a href="#direct-messages">Direct messages</a></li><li class="l3"><a href="#buttons-menus-and-forms">Buttons, menus and forms</a></li><li class="l3"><a href="#cards">Cards</a></li><li class="l3"><a href="#voice-bots">Voice bots</a></li><li class="l3"><a href="#what-bots-cant-do-yet">What bots can't do (yet)</a></li><li class="l3"><a href="#when-it-wont-start">When it won't start</a></li><li class="l3"><a href="#the-sdk-on-npm">The SDK on npm</a></li><li class="l3"><a href="#python">Python</a></li><li class="l3"><a href="#other-languages">Other languages</a></li></ul>
         </li>
       </ul>
     </div>
@@ -422,7 +422,7 @@ translator). Bots that joined before this choice existed keep reading everything
 <p>A bot can be given <a href="https://github.com/quikmn/iskra-voice/blob/main/protocol/PROTOCOL.md#roles-and-permissions" target="_blank" rel="noopener">roles</a> like anyone else, so a moderation bot can get <em>Manage messages</em> or <em>Kick members</em>. As for people, it can only act on members ranked below it, and a bot is never ranked above trusted.</p>
 <p>Bots and webhooks stay out of <strong>end-to-end encrypted channels</strong>: a bot holds no channel keys and never counts as a reader there, so it can't read or post in them (the SDK skips their messages), and webhooks can't post into them. Commands still work there, privately: see <a href="#commands-in-encrypted-channels">Commands in encrypted channels</a>. A bot can read and post in a voice channel's text chat like in any channel it can see.</p>
 <h3 id="your-first-bot-in-5-minutes">Your first bot in 5 minutes<a class="anchor" href="#your-first-bot-in-5-minutes" aria-hidden="true" tabindex="-1">#</a></h3>
-<p>You need <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 22 or newer, <a href="https://git-scm.com" target="_blank" rel="noopener">Git</a>, and a server where you're an admin. Any server works, including one you run on your own computer.</p>
+<p>You need <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 22 or newer, <a href="https://git-scm.com" target="_blank" rel="noopener">Git</a>, and a server where you're an admin. Any server works, including one you run on your own computer. Prefer Python? See <a href="#python">Python</a>; any other language works through <a href="#other-languages">the bridge</a>.</p>
 <ol>
 <li>
 <p><strong>Get the SDK.</strong> It lives in the Iskra repository, next to the app code it reuses (it's also packaged for npm as
@@ -508,6 +508,16 @@ answer). Mention <code>@Greeter</code> with the word pizza and it reacts.</p>
 <td><strong>Planner</strong> (<a href="https://github.com/quikmn/iskra-voice/blob/main/bots/examples/planner.ts" target="_blank" rel="noopener"><code>examples/planner.ts</code></a>)</td>
 <td><code>npm run planner</code></td>
 <td><code>/poll Pizza or tacos? | Pizza | Tacos</code> (posts the result and a CSV file when it closes), <code>/remind 10m stretch</code>, <code>/event 2h Game night</code>, <code>/events</code> (a card); usage hints, edits, files, polls, events, an activity, and keeping state across restarts</td>
+</tr>
+<tr>
+<td><strong>Dice in Python</strong> (<a href="https://github.com/quikmn/iskra-voice/blob/main/bots/python/examples/dice.py" target="_blank" rel="noopener"><code>python/examples/dice.py</code></a>)</td>
+<td><code>python examples/dice.py</code> (in <code>bots/python</code>)</td>
+<td>The Dice bot with the <a href="#python">Python SDK</a></td>
+</tr>
+<tr>
+<td><strong>Roll, any language</strong> (<a href="https://github.com/quikmn/iskra-voice/blob/main/bots/examples/bridge/roll.py" target="_blank" rel="noopener"><code>roll.py</code></a>, <a href="https://github.com/quikmn/iskra-voice/blob/main/bots/examples/bridge/Roll.cs" target="_blank" rel="noopener"><code>Roll.cs</code></a>)</td>
+<td><code>npm run bridge -- --name Roll -- python examples/bridge/roll.py</code></td>
+<td>A bot without any SDK, through <a href="#other-languages">the bridge</a></td>
 </tr>
 </tbody>
 </table></div>
@@ -930,8 +940,262 @@ for bots that live outside the repository:</p>
 GitHub Actions with a provenance statement, so <code>npm audit signatures</code> can check it came from this repository.
 Maintainers build it with <code>npm run build:sdk</code> in <code>bots/</code> (<code>npm run pack:sdk</code> lists what would be
 published); <a href="https://github.com/quikmn/iskra-voice/blob/main/docs/ci-cd.md#npm-bot-sdk" target="_blank" rel="noopener">docs/ci-cd.md</a> has the release steps.</p>
+<h3 id="python">Python<a class="anchor" href="#python" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The Python SDK (package <code>iskra-bots</code>, <code>import iskra</code>, in <a href="https://github.com/quikmn/iskra-voice/tree/main/bots/python" target="_blank" rel="noopener"><code>bots/python</code></a>) does what the Node SDK does,
+except voice: commands with <code>/help</code>, buttons, menus, forms and cards, files, polls, threads, end-to-end encrypted DMs,
+reconnecting, and the same <code>&lt;name&gt;.bot.json</code>, so a bot can move between Node and Python and keep its identity. It's
+asyncio, typed, and needs only <a href="https://pypi.org/project/PyNaCl/" target="_blank" rel="noopener">PyNaCl</a> (libsodium) and
+<a href="https://pypi.org/project/websockets/" target="_blank" rel="noopener">websockets</a>. Python 3.11 or newer.</p>
+<div class="code"><div class="code-lang">shell</div><pre><code class="language-sh">git clone https://github.com/quikmn/iskra-voice.git
+pip install ./iskra-voice/bots/python
+</code></pre></div>
+<div class="code"><div class="code-lang">Python</div><pre><code class="language-python">import os
+from iskra import Bot
+
+bot = Bot(&quot;Greeter&quot;, invite=os.environ.get(&quot;ISKRA_INVITE&quot;))
+
+@bot.command(&quot;hello&quot;, &quot;Says hello&quot;)
+async def hello(ctx):
+    await ctx.reply(f&quot;Hi {ctx.user_name}!&quot;)
+
+@bot.command(&quot;score&quot;, &quot;Shows a score card&quot;, options=[{&quot;name&quot;: &quot;team&quot;, &quot;description&quot;: &quot;Which team&quot;, &quot;type&quot;: &quot;string&quot;, &quot;required&quot;: True}])
+async def score(ctx):
+    await ctx.reply({
+        &quot;cards&quot;: [{&quot;title&quot;: f&quot;Team {ctx.options['team']}&quot;, &quot;color&quot;: 0x57F287, &quot;fields&quot;: [{&quot;name&quot;: &quot;Points&quot;, &quot;value&quot;: &quot;12&quot;, &quot;inline&quot;: True}]}],
+        &quot;components&quot;: [{&quot;type&quot;: &quot;row&quot;, &quot;items&quot;: [{&quot;type&quot;: &quot;button&quot;, &quot;customId&quot;: &quot;cheer&quot;, &quot;label&quot;: &quot;Cheer 🎉&quot;}]}],
+    })
+
+@bot.on_component(&quot;cheer&quot;)
+async def cheer(ctx):
+    await ctx.reply(f&quot;{ctx.user_name} cheers!&quot;, private=True)
+
+@bot.on(&quot;message&quot;)                                # messages that mention the bot
+async def pizza(message):
+    if &quot;pizza&quot; in message.text:
+        await message.react(&quot;🍕&quot;)
+
+@bot.on(&quot;dm&quot;)                                     # end-to-end encrypted DMs; commands work there too
+async def dm(dm):
+    if not dm.text.startswith(&quot;/&quot;):
+        await dm.reply(&quot;Hi! Try /hello&quot;)
+
+bot.run()                                         # until Ctrl+C; or: await bot.start() in your own asyncio code
+</code></pre></div>
+<p>Start it once with the invite (<code>ISKRA_INVITE='&lt;bot invite link&gt;' python greeter.py</code>; PowerShell:
+<code>$env:ISKRA_INVITE='&lt;link&gt;'; python greeter.py</code>); after that it finds the server in <code>greeter.bot.json</code>. The example
+Dice bot is <a href="https://github.com/quikmn/iskra-voice/blob/main/bots/python/examples/dice.py" target="_blank" rel="noopener"><code>bots/python/examples/dice.py</code></a>.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Node</th>
+<th>Python</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>new Bot({ name, invite, stateFile, hearBots, log })</code></td>
+<td><code>Bot(name, invite=None, *, state_file=None, hear_bots=False, log=None)</code></td>
+</tr>
+<tr>
+<td><code>bot.command(name, description, handler, details)</code>, <code>bot.commands([...])</code></td>
+<td>the same, or <code>@bot.command(name, description, options=..., usage=..., role=..., permission=...)</code></td>
+</tr>
+<tr>
+<td><code>bot.onComponent(id or /re/, ...)</code>, <code>bot.onModalSubmit(...)</code></td>
+<td><code>@bot.on_component(&quot;id&quot; or re.compile(...))</code>, <code>@bot.on_modal_submit(...)</code></td>
+</tr>
+<tr>
+<td><code>bot.on('message' | 'dm' | 'memberJoined' | 'messageEdited' | ...)</code></td>
+<td><code>@bot.on(&quot;message&quot; | &quot;dm&quot; | &quot;member_joined&quot; | &quot;message_edited&quot; | ...)</code> (the camelCase names work too)</td>
+</tr>
+<tr>
+<td>Context: <code>userName</code>, <code>channelId</code>, <code>options</code>, <code>args</code>, <code>reply</code>, <code>defer</code>, <code>showModal</code>, <code>update</code>, <code>customId</code>, <code>values</code>, <code>fields</code></td>
+<td><code>ctx.user_name</code>, <code>ctx.channel_id</code>, <code>ctx.options</code>, <code>ctx.args</code>, <code>await ctx.reply(content, private=True)</code>, <code>ctx.defer()</code>, <code>ctx.show_modal(modal)</code>, <code>ctx.update(...)</code>, <code>ctx.custom_id</code>, <code>ctx.values</code>, <code>ctx.fields</code></td>
+</tr>
+<tr>
+<td><code>m.text</code>, <code>m.authorName</code>, <code>m.reply()</code>, <code>m.react()</code>; <code>dm.from</code>, <code>dm.reply()</code></td>
+<td><code>m.text</code>, <code>m.author_name</code>, <code>m.data</code> (the whole message), <code>await m.reply()</code>, <code>await m.react()</code>; <code>dm.author</code>, <code>await dm.reply()</code></td>
+</tr>
+<tr>
+<td><code>send</code>, <code>edit</code>, <code>delete</code>, <code>react</code>, <code>upload</code>, <code>sendFile</code>, <code>poll</code>, <code>thread</code>, <code>setActivity</code>, <code>sendDm</code>, <code>downloadDmFile</code>, <code>request</code></td>
+<td><code>send(channel_id, content, reply_to=, attachments=, cards=, components=)</code>, <code>edit</code>, <code>delete</code>, <code>react</code>, <code>upload(name, data)</code>, <code>send_file(channel_id, name, data, text=)</code>, <code>poll(channel_id, question, answers, multi=, duration_ms=)</code>, <code>thread</code>, <code>set_activity</code>, <code>send_dm</code>, <code>download_dm_file</code>, <code>request(type, body)</code> (all <code>async</code>)</td>
+</tr>
+<tr>
+<td><code>bot.channels</code>, <code>bot.members</code>, <code>bot.me</code>, <code>channelByName</code>, <code>mention</code>, <code>fileUrl</code></td>
+<td><code>bot.channels</code>, <code>bot.members</code> (a dict), <code>bot.me</code>, <code>channel_by_name</code>, <code>mention</code>, <code>file_url</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Content is a string or a dict with the protocol's own field names (<code>text</code>, <code>cards</code>, <code>components</code>, <code>attachments</code>,
+<code>replyTo</code>); messages, members and channels arrive as plain dicts (typed <code>TypedDict</code>s). Failed requests raise
+<code>RequestError</code> with a <code>code</code>; a refused start raises <code>Rejected</code> (with the same explanations as in
+<a href="#when-it-wont-start">When it won't start</a>). Handlers may be plain or <code>async</code>; one that raises is logged and the bot
+carries on.</p>
+<p>The crypto is libsodium through PyNaCl, nothing hand-rolled, and its tests check it against the protocol's test vectors
+(<a href="https://github.com/quikmn/iskra-voice/blob/main/protocol/vectors.json" target="_blank" rel="noopener"><code>protocol/vectors.json</code></a>) and against DMs the app's own code encrypted. Voice bots are
+Node only for now.</p>
 <h3 id="other-languages">Other languages<a class="anchor" href="#other-languages" aria-hidden="true" tabindex="-1">#</a></h3>
-<p>Nothing about bots is specific to Node. A bot is any client that follows <a href="https://github.com/quikmn/iskra-voice/blob/main/protocol/PROTOCOL.md" target="_blank" rel="noopener">PROTOCOL.md</a>: make an Ed25519 account key and device key, certify the device, connect to <code>wss://&lt;server&gt;/ws</code>, and send <code>auth</code> with <code>profile: { name, bot: true }</code> and the bot invite code (the last part of the invite link).</p>
+<p>Any language can run a bot through the <strong>bridge</strong>: a small program in the npm package that logs in as the bot with the
+Node SDK (the normal signed handshake, keys in <code>&lt;name&gt;.bot.json</code>) and talks to your program in JSON, one object per
+line, over your program's <strong>stdin and stdout</strong>. There's no HTTP API and nothing listens on a port: your program only
+reads and writes lines.</p>
+<div class="code"><div class="code-lang">shell</div><pre><code class="language-sh"># Starts your program and connects its stdin/stdout to the bot. The invite is only needed the first time.
+npx iskra-bots bridge --name Roll --invite '&lt;bot invite link&gt;' -- python roll.py
+npx iskra-bots bridge --name Roll -- dotnet run Roll.cs
+</code></pre></div>
+<p>Without a program after <code>--</code>, the bridge uses its own stdin and stdout instead, for a program that starts the bridge
+itself. Options: <code>--name</code> (or <code>ISKRA_BOT_NAME</code>), <code>--invite</code> (or <code>ISKRA_INVITE</code>), <code>--state &lt;file&gt;</code> (or
+<code>ISKRA_BOT_STATE</code>), <code>--hear-bots</code>, <code>--raw</code>. In the repository: <code>npm run bridge -- --name Roll -- python roll.py</code> in
+<code>bots/</code>. The program is started without a shell, so on Windows name its <code>.exe</code> (<code>python</code>, <code>node</code>, <code>dotnet</code>). The
+bridge's own messages go to stderr, and so does your program's stderr.</p>
+<p>Two complete examples, each about 30 lines: <a href="https://github.com/quikmn/iskra-voice/blob/main/bots/examples/bridge/roll.py" target="_blank" rel="noopener"><code>roll.py</code></a> (Python without the SDK) and
+<a href="https://github.com/quikmn/iskra-voice/blob/main/bots/examples/bridge/Roll.cs" target="_blank" rel="noopener"><code>Roll.cs</code></a> (one C# file).</p>
+<h4 id="the-line-protocol-version-1">The line protocol (version 1)<a class="anchor" href="#the-line-protocol-version-1" aria-hidden="true" tabindex="-1">#</a></h4>
+<p><strong>From the bridge</strong> (your stdin), events:</p>
+<div class="code"><div class="code-lang">JSON</div><pre><code class="language-jsonc">{&quot;event&quot;:&quot;hello&quot;,&quot;body&quot;:{&quot;v&quot;:1,&quot;bridge&quot;:&quot;iskra-bots 0.2.0&quot;,&quot;name&quot;:&quot;Roll&quot;}}       // always the first line
+{&quot;event&quot;:&quot;ready&quot;,&quot;body&quot;:{&quot;me&quot;:Member,&quot;channels&quot;:[Channel],&quot;commands&quot;:[Command]}}  // online (again, after a reconnect)
+{&quot;event&quot;:&quot;command&quot;,&quot;ref&quot;:&quot;r1&quot;,&quot;body&quot;:{&quot;command&quot;:&quot;roll&quot;,&quot;args&quot;:&quot;2d6&quot;,&quot;options&quot;:{&quot;dice&quot;:&quot;2d6&quot;},
+  &quot;user&quot;:&quot;&lt;accountKey&gt;&quot;,&quot;userName&quot;:&quot;Viktor&quot;,&quot;channelId&quot;:1,&quot;dm&quot;:false,&quot;private&quot;:false,&quot;messageId&quot;?:42}}
+{&quot;event&quot;:&quot;component&quot;,&quot;ref&quot;:&quot;r2&quot;,&quot;body&quot;:{&quot;customId&quot;:&quot;again&quot;,&quot;values&quot;:[],&quot;user&quot;:&quot;...&quot;,&quot;userName&quot;:&quot;...&quot;,&quot;channelId&quot;:1,&quot;messageId&quot;?:43,&quot;responseId&quot;?:&quot;...&quot;,&quot;private&quot;:false}}
+{&quot;event&quot;:&quot;modal&quot;,&quot;ref&quot;:&quot;r3&quot;,&quot;body&quot;:{&quot;customId&quot;:&quot;plan&quot;,&quot;fields&quot;:{&quot;title&quot;:&quot;Game night&quot;},&quot;user&quot;:&quot;...&quot;,&quot;userName&quot;:&quot;...&quot;,&quot;channelId&quot;:1}}
+{&quot;event&quot;:&quot;message&quot;,&quot;ref&quot;:&quot;r4&quot;,&quot;body&quot;:{&quot;message&quot;:Message,&quot;authorName&quot;:&quot;Viktor&quot;}}  // messages the bot may read
+{&quot;event&quot;:&quot;dm&quot;,&quot;ref&quot;:&quot;r5&quot;,&quot;body&quot;:{&quot;id&quot;:&quot;...&quot;,&quot;from&quot;:&quot;&lt;accountKey&gt;&quot;,&quot;authorName&quot;:&quot;Viktor&quot;,&quot;text&quot;:&quot;hi&quot;,&quot;sentAt&quot;:0,&quot;files&quot;:[DmFile]}}
+{&quot;event&quot;:&quot;memberJoined&quot;,&quot;body&quot;:{&quot;member&quot;:Member}}
+{&quot;event&quot;:&quot;messageEdited&quot;,&quot;body&quot;:{&quot;message&quot;:Message}}   // also messageDeleted, reactions, pollUpdated (the server's bodies)
+{&quot;event&quot;:&quot;status&quot;,&quot;body&quot;:{&quot;state&quot;:&quot;offline&quot;,&quot;retryInMs&quot;:2000}}                  // connecting, online, offline, restarting, rejected
+{&quot;event&quot;:&quot;server&quot;,&quot;type&quot;:&quot;chat.typing&quot;,&quot;body&quot;:{...}}   // every server event, only with --raw
+{&quot;event&quot;:&quot;stopped&quot;,&quot;body&quot;:{&quot;reason&quot;:&quot;...&quot;}}            // the bot couldn't start or was turned away; the bridge ends
+</code></pre></div>
+<p>Objects (<code>Member</code>, <code>Message</code>, ...) are the protocol's (<a href="https://github.com/quikmn/iskra-voice/blob/main/protocol/PROTOCOL.md#objects" target="_blank" rel="noopener">PROTOCOL.md</a>). A <code>ref</code>
+answers what it came with for 15 minutes (the last 1000 are kept).</p>
+<p><strong>To the bridge</strong> (your stdout), requests, each with your own <code>id</code> (a string of 1–64 characters, or an integer):</p>
+<div class="code"><div class="code-lang">JSON</div><pre><code class="language-jsonc">{&quot;id&quot;:1,&quot;type&quot;:&quot;bridge.commands&quot;,&quot;body&quot;:{&quot;commands&quot;:[{&quot;name&quot;:&quot;roll&quot;,&quot;description&quot;:&quot;Rolls dice&quot;,&quot;options&quot;:[...]}]}}
+{&quot;id&quot;:2,&quot;type&quot;:&quot;bridge.reply&quot;,&quot;body&quot;:{&quot;ref&quot;:&quot;r1&quot;,&quot;text&quot;:&quot;Rolled 7&quot;,&quot;cards&quot;?:[...],&quot;components&quot;?:[...],&quot;private&quot;?:true}}
+{&quot;id&quot;:3,&quot;type&quot;:&quot;chat.history&quot;,&quot;body&quot;:{&quot;channelId&quot;:1}}     // any request in PROTOCOL.md, sent as the bot
+</code></pre></div>
+<p>and the answer to each, on one line:</p>
+<div class="code"><div class="code-lang">JSON</div><pre><code class="language-jsonc">{&quot;id&quot;:2,&quot;ok&quot;:true,&quot;body&quot;:{&quot;message&quot;:Message}}
+{&quot;id&quot;:3,&quot;ok&quot;:false,&quot;error&quot;:{&quot;code&quot;:&quot;forbidden&quot;,&quot;message&quot;:&quot;...&quot;,&quot;key&quot;?:&quot;bot_no_read&quot;,&quot;args&quot;?:{}}}
+</code></pre></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Body</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bridge.commands</code></td>
+<td><code>commands</code>: the command list, as <a href="#commands">above</a> (<code>name</code>, <code>description</code>, <code>usage?</code>, <code>options?</code>, <code>role?</code>, <code>permission?</code>). Replaces the list set before; <code>/help</code> is built in. Works before the bot is online.</td>
+<td><code>{ commands: [names] }</code></td>
+</tr>
+<tr>
+<td><code>bridge.reply</code></td>
+<td><code>ref</code> (a command, click, form, message or DM), and <code>text?</code>, <code>cards?</code>, <code>components?</code>, <code>private?</code></td>
+<td><code>{ message }</code> (null for private answers and DMs)</td>
+</tr>
+<tr>
+<td><code>bridge.defer</code></td>
+<td><code>ref</code> (a command, click or form): &quot;thinking…&quot;</td>
+<td></td>
+</tr>
+<tr>
+<td><code>bridge.update</code></td>
+<td><code>ref</code> (a click), and the new <code>text?</code>, <code>cards?</code>, <code>components?</code> of the message it was on</td>
+<td></td>
+</tr>
+<tr>
+<td><code>bridge.modal</code></td>
+<td><code>ref</code> (a command or click), <code>modal</code> (<a href="#buttons-menus-and-forms">a form</a>)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>bridge.react</code></td>
+<td><code>ref</code> (a message, or a command typed as text), <code>emoji</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>bridge.send</code></td>
+<td><code>channelId</code>, <code>text?</code>, <code>cards?</code>, <code>components?</code>, <code>replyTo?</code>, <code>attachments?</code> (retries when rate limited; text over 4000 characters is cut)</td>
+<td><code>{ message }</code></td>
+</tr>
+<tr>
+<td><code>bridge.dm</code></td>
+<td><code>accountKey</code>, <code>text?</code>, <code>cards?</code>: an end-to-end encrypted DM</td>
+<td></td>
+</tr>
+<tr>
+<td><code>bridge.upload</code></td>
+<td><code>name</code>, <code>data</code> (base64)</td>
+<td><code>{ file }</code>, for <code>attachments</code></td>
+</tr>
+<tr>
+<td><code>bridge.dmFile</code></td>
+<td><code>file</code> (from a <code>dm</code> event's <code>files</code>)</td>
+<td><code>{ data }</code> (base64, decrypted and checked)</td>
+</tr>
+<tr>
+<td><code>bridge.info</code></td>
+<td></td>
+<td><code>{ me, channels, members, commands }</code></td>
+</tr>
+<tr>
+<td>anything else</td>
+<td>the protocol request's body</td>
+<td>its result</td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Line length</td>
+<td>Up to 1 MiB per line from your program (longer lines are refused whole: <code>too_large</code>). Lines from the bridge have no limit of their own; they're as big as the server's events.</td>
+</tr>
+<tr>
+<td>Encoding</td>
+<td>UTF-8, one JSON object per line, <code>\n</code> (or <code>\r\n</code>) at the end. Read stdin as UTF-8.</td>
+</tr>
+<tr>
+<td>Waiting answers</td>
+<td>At most 64 requests at once (more: <code>busy</code>). Answers can come in any order: match them by <code>id</code>.</td>
+</tr>
+<tr>
+<td>Before it's online</td>
+<td>Requests wait until the bot is online (<code>bridge.commands</code> and <code>bridge.info</code> don't).</td>
+</tr>
+<tr>
+<td>Errors</td>
+<td><code>code</code> is the server's (<a href="https://github.com/quikmn/iskra-voice/blob/main/protocol/PROTOCOL.md#errors-and-close-codes" target="_blank" rel="noopener">PROTOCOL.md → Errors</a>) or the bridge's: <code>bad_request</code> (a malformed line or body; <code>id</code> is <code>null</code> when the line had no usable id), <code>unknown_ref</code>, <code>unknown_type</code>, <code>too_large</code>, <code>busy</code>, <code>disconnected</code>, <code>failed</code>.</td>
+</tr>
+<tr>
+<td>Other output</td>
+<td>A line that doesn't start with <code>{</code> (a stray <code>print</code>) is passed to the bridge's log, not treated as a request.</td>
+</tr>
+<tr>
+<td>Ending</td>
+<td>When your program exits, the bridge stops the bot and exits with your program's exit code; without <code>--</code>, it stops when its stdin closes.</td>
+</tr>
+<tr>
+<td>Versions</td>
+<td><code>hello</code> carries the protocol version (<code>v: 1</code>). New events, fields and request types can be added in version 1, so ignore what you don't know; anything incompatible would be version 2.</td>
+</tr>
+</tbody>
+</table></div>
+<p>What the bridge doesn't change: the bot is still a bot (the same <a href="#bots">limits</a>, read scope and badge), and the
+program it runs can do anything the bot can, so run programs you trust, and keep <code>&lt;name&gt;.bot.json</code> private.</p>
+<p>Writing a client from scratch is possible too: a bot is any client that follows <a href="https://github.com/quikmn/iskra-voice/blob/main/protocol/PROTOCOL.md" target="_blank" rel="noopener">PROTOCOL.md</a>:
+make an Ed25519 account key and device key, certify the device, connect to <code>wss://&lt;server&gt;/ws</code>, and send <code>auth</code> with
+<code>profile: { name, bot: true }</code> and the bot invite code (the last part of the invite link). The Python SDK is a complete
+example of that.</p>
 </div>
 
   <div class="doc-foot">
