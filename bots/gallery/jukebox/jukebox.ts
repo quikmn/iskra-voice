@@ -1,6 +1,6 @@
-// Jukebox's behaviour, apart from starting it (jukebox.ts), so tests can run the same bot.
-import type { AnswerContext, Bot, VoiceConnection } from '../sdk/src/index'
-import { find, library, listing, nowPlaying, stopped, type Song } from './jukebox-rules'
+// Jukebox's behaviour, apart from starting it (bot.ts), so tests can run the same bot.
+import type { AnswerContext, Bot, VoiceConnection } from 'iskra-bots'
+import { find, library, listing, nowPlaying, stopped, type Song } from './rules.ts'
 
 /** Gives a bot Jukebox's commands, buttons and voice handling, playing from `folder`. */
 export function jukebox(bot: Bot, folder: string): void {
