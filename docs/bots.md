@@ -166,7 +166,7 @@ Check: with the secret `whs_test`, timestamp `1760000000`, id `abc` and the body
 
 ## Built-in bots
 
-Seven small bots come with every server and run inside it, so there's nothing to install, host or keep running. An
+Eleven small bots come with every server and run inside it, so there's nothing to install, host or keep running. An
 admin turns each one on in **Server settings → Bots & webhooks → Bots**:
 
 | Bot | Command | Does |
@@ -178,12 +178,16 @@ admin turns each one on in **Server settings → Bots & webhooks → Bots**:
 | **Birthdays** | `/birthday set 14 March`, `/birthday list`, `/birthday remove` | Members who want to share their birthday (day and month, never the year; also in their profile for the server) get a greeting once a year, at the time and in the time zone you pick. |
 | **Welcome** | | Greets people when they actually get in (after approval or agreeing to the rules, if you use those) with your own text (`{name}`, `{server}`, `{memberCount}`, markdown), optionally with a private welcome too. When lots of people join at once, they get one shared greeting. |
 | **Feeds** | | Posts new posts from RSS or Atom feeds, new YouTube videos and, with the owner's own Twitch app, Twitch streams going live, each in the channel you pick, optionally mentioning a role. Only new things are posted (nothing old when you add a feed). The server fetches those sites itself (text only, never pictures), so it's off until you turn it on. |
+| **Tags** | `/tag rules`, `/tag list` | Posts saved snippets (rules, links, answers to common questions; markdown, up to 2,000 characters). Admins and a role you pick add, change and remove them under its switch or with `/tag set rules Be kind.` and `/tag remove rules`; up to 200 per server. A tag can never ping anyone. |
+| **Suggestions** | `/suggest Movie night on Fridays` | Turns an idea into a card in `#suggestions` (or the channel you pick) where everyone votes 👍 or 👎 (one vote each, changeable). Admins and a staff role mark it accepted, declined or implemented, with a reason if they like, and the author hears about it. A Suggest button card works too, and the `/suggest` message itself disappears. Optionally anonymous: cards don't show who wrote them, but staff can look it up (that's logged). Up to 3 suggestions per person every 10 minutes. |
+| **Giveaways** | `/giveaway 1h 2w Steam key` | Staff (admins and a role you pick) start a giveaway with how long it runs and how many winners (add a role mention so only members with that role can enter). People press Enter; when the time is up the server draws the winners fairly and mentions them. `/giveaway end`, `cancel` and `reroll` (for a week after it ends). Bots and people who left never win, and a restart doesn't lose a giveaway. |
+| **Counting** | (count in `#counting`) | Everyone counts up in one channel, one number each and never twice in a row (simple sums like 3+4 if you allow them). A mistake gets ❌ and the count starts over; the best streak shows on the bot's pinned card. Editing or deleting a number doesn't break the count. No points and no ranking of people. |
 
 Turned on, each is a bot member like any other: give it a role or channel overrides to choose where it answers.
-Starboard, Birthdays, Welcome and Feeds post in the channel you pick under their switch (they need to see it, not write in it). It
-reads only its own commands, answers mistakes privately to the person who typed them, and stays out of encrypted
+Starboard, Birthdays, Welcome, Feeds, Suggestions and Counting post in the channel you pick under their switch (they need to see it, not write in it); Tags and Giveaways answer where their command was typed. Each
+reads only its own commands (Counting also reads the messages in its channel), answers mistakes privately to the person who typed them, and stays out of encrypted
 channels. Turning it off removes it; turning it on again brings back the same member. Details:
-[PROTOCOL.md → Built-in bots](../protocol/PROTOCOL.md#built-in-bots).
+[PROTOCOL.md → Built-in bots](../protocol/PROTOCOL.md#built-in-bots) and [Tags, Suggestions, Giveaways and Counting](../protocol/PROTOCOL.md#tags-suggestions-giveaways-and-counting).
 
 ## Bots
 

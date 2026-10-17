@@ -154,7 +154,11 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
           ) : canWrite ? (
             <Composer server={server} channelId={channel.id} channelName={channel.name} />
           ) : (
-            <div className="composer read-only">{t('chat.view.readOnly')}</div>
+            <>
+              {/* Private answers from bots (a decision on your suggestion) show here too. */}
+              <InteractionTray server={server} channelId={channel.id} />
+              <div className="composer read-only">{t('chat.view.readOnly')}</div>
+            </>
           )}
         </>
       ) : (
