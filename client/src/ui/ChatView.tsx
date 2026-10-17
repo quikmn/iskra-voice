@@ -46,6 +46,7 @@ import { LfgCard } from './lfg/Lfg'
 import { PollIcon } from './expressions/icons'
 import { useServerEmojis } from '../state/expressions'
 import { VoiceMessage, VoiceRecordButton } from './chat/voice/VoiceMessages'
+import { ComposerMenu } from './chat/ComposerMenu'
 import { voiceRecordingSupported, type Recording } from './chat/voice/recorder'
 import { BlockGate, ChannelSettingsButton, SlowmodeChip, TimedOutBar } from './moderation/Moderation'
 import { useSlowmodeWait, useTimedOut } from './moderation/hooks'
@@ -575,6 +576,8 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const canQueue = writable && uploading && slowmode.wait === 0
   // Nothing to send yet: the mic takes the send button's place on phones (styles.css), so the box has room.
   const micInstead = !text.trim() && uploads.length === 0 && voiceRecordingSupported()
+  // Bumped when the phone "+" menu asks for a voice message: the mic button starts recording.
+  const [voiceStart, setVoiceStart] = useState(0)
   const queue = useQueuedSend(uploads.map((u) => ({ done: !!u.result, failed: !!u.error })), () => submit())
 
   function startUpload(item: PendingUpload) {
@@ -722,6 +725,16 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       {queue.bar}
       {away && <div className="queued-send" role="status">{t('chat.composer.whenBack', { name: server.name })}</div>}
     <div className="composer">
+      <ComposerMenu
+        disabled={!online}
+        actions={{
+          attach: () => fileInput.current?.click(),
+          poll: isEncrypted(server.key, channelId) ? undefined : () => setPollOpen(true),
+          gifs: (anchor) => openPicker(anchor, 'gifs'),
+          emoji: (anchor) => openPicker(anchor, 'emoji'),
+          voice: micInstead ? () => setVoiceStart((n) => n + 1) : undefined,
+        }}
+      />
       <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('chat.composer.attach')} disabled={!online}>
         <Paperclip />
       </button>
@@ -817,7 +830,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       <button className="icon-button attach-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emojiTitle')}>
         <Smile />
       </button>
-      {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!online} />}
+      {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!online} startSignal={voiceStart} />}
       <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
       {later.button}
       <button className={`send-button ${micInstead ? 'idle' : ''}`} onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
