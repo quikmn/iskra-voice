@@ -23,6 +23,10 @@ const SENSITIVE = {
   email: 'alice@example.org',
   url: 'https://files.example.net/secret?token=abc',
   path: 'C:\\Users\\alice\\Documents\\notes.txt',
+  iceCandidate: 'candidate:842163049 1 udp 1677729535 198.51.100.23 51234 typ srflx raddr 10.1.2.3 rport 51234 generation 0 ufrag CaNaRy',
+  icePair: '10.1.2.3:51234 <-> 198.51.100.23:7882',
+  turnUrl: 'turn:198.51.100.9:3478?transport=udp',
+  nattedPort: '198.51.100.7:49737',
 }
 
 const env: ReportEnv = { version: '2.0.0-alpha.15', commit: 'abc1234', os: 'Windows', browser: 'Chrome 140', device: 'web', language: 'en' }
@@ -105,6 +109,30 @@ describe('the report', () => {
     expect(logs).not.toContain('ver=old')
   })
 
+  it('sums up how each server is reached: path, direct probe, tunnel route and NAT, connect times, voice route and quality', () => {
+    const entries = [
+      entry(0, 'INFO', 'tunnel', 'fallback', 'TUN-120', { srv: '1a90', why: 'timeout', took: '2.5s' }),
+      entry(10, 'INFO', 'tunnel', 'opened', null, { srv: '1a90', took: '12ms' }),
+      entry(4200, 'INFO', 'conn', 'online', null, { srv: '1a90', conn: 'q1', path: 'tunnel', took: '4.2s', n: 0 }),
+      entry(5000, 'INFO', 'conn', 'online', null, { srv: '7c2e', conn: 'k3f', path: 'direct', took: '230ms', n: 0 }),
+      entry(9000, 'INFO', 'conn', 'online', null, { srv: '1a90', conn: 'q2', path: 'tunnel', took: '900ms', n: 1 }),
+      entry(10_000, 'INFO', 'voice', 'route', 'VOI-130', { srv: '1a90', chan: 3, ice: 'relay', peer: 'host', proto: 'udp', via: 'turn', turn: 'udp', why: 'connect' }),
+      entry(40_000, 'INFO', 'voice', 'sample', null, { srv: '1a90', chan: 3, codec: 'opus', loss: 0.4, lossout: 1.2, rtt: '48ms', jitter: '6ms', kbps: 31.8, conceal: 0.3 }),
+    ]
+    const desk = [
+      '2026-10-14T12:00:01.000Z INFO  p2p   tunnel connected   -       srv=1a90 path=punched nat=consistent took=1.4s kind=cold n=1',
+      '2026-10-14T12:00:00.500Z INFO  p2p   tunnel announced   -       took=840ms nat=randomized',
+      '2026-10-14T12:00:20.000Z INFO  p2p   tunnel peers       -       count=2 n=3',
+    ]
+    const logs = renderLogs({ now: at + 60_000, env, settings: {}, voice: { state: 'none' }, entries, extra: desk })
+    expect(logs).toContain([
+      '== Connection ==',
+      'srv=1a90 path=tunnel direct=timeout(2.5s) tunnel=punched nat=consistent cold=4.2s last=900ms voice: ice=relay peer=host proto=udp via=turn turn=udp | codec=opus loss=0.4 lossout=1.2 rtt=48ms jitter=6ms kbps=31.8 conceal=0.3',
+      'srv=7c2e path=direct cold=230ms',
+      'hosting via tunnel: nat=randomized announce=840ms friends=2',
+    ].join('\n'))
+  })
+
   it('stays under the size cap, keeping the newest lines', () => {
     const many = Array.from({ length: 3000 }, (_, i) => entry(i, 'WARN', 'conn', 'offline', 'CON-110', { srv: '7c2e', path: 'direct', close: 1006, why: 'socket-error', retry: '30.0s', n: i }))
     const logs = renderLogs({ now: at + 5000, env, settings: {}, voice: { state: 'none' }, entries: many })
@@ -173,12 +201,16 @@ describe('privacy', () => {
       log('INFO', 'conn', 'request-failed', null, { type: value, code: value })
       log('INFO', 'voice', 'left', null, { chan: value, reason: value, srv: value, why: value, msg: value })
       log('WARN', value, value, value, { [value]: value, name: value, frame: value, op: value })
+      log('INFO', 'voice', 'route', 'VOI-130', { srv: value, ice: value, peer: value, proto: value, via: value, turn: value, why: value })
+      log('INFO', 'voice', 'sample', null, { codec: value, loss: value, lossout: value, rtt: value, jitter: value, kbps: value, conceal: value })
+      log('INFO', 'tunnel', 'fallback', 'TUN-120', { why: value, took: value, path: value, nat: value })
       log('ERROR', 'ui', 'error', 'ERR-900', [['kind', 'window'], ...errorFields(Object.assign(new Error(value), { name: value, stack: `${value}\n at ${value}` }))])
       log('ERROR', 'ui', 'error', 'ERR-900', errorFields(new DOMException(`failed for ${SENSITIVE.ipv4} ${SENSITIVE.email} ${SENSITIVE.url} ${SENSITIVE.accountKey} ${SENSITIVE.path}`, 'NotAllowedError')))
     }
     useLogIds.setState({ logIds: {} })
     const extra = values.flatMap((value) => [
       `2026-10-14T12:00:00.000Z INFO  desk  life   start       -       ver=${value}`,
+      `2026-10-14T12:00:00.000Z INFO  p2p   tunnel connected   -       srv=7c2e path=${value} nat=${value} took=${value}`,
       `2026-10-14T12:00:00.000Z INFO  ${value}  life   start       -`,
       value,
     ])

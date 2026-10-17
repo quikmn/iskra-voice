@@ -184,6 +184,57 @@ function serverRows(lines: ParsedLine[]): string[] {
       r.retries > 0 && `retries=${r.retries}`, r.close && `last-close=${r.close}`, r.code && `last-code=${r.code}`].filter(Boolean).join(' '))
 }
 
+/**
+ * How each server is reached (srv=): the path, the direct probe's answer, the tunnel's route and NAT type, the first
+ * (cold) and latest connect times, the voice route and the last quality sample. And, when this app hosts a server
+ * through the tunnel, its NAT type and friends connected. Built from the lines alone.
+ */
+function connectionRows(lines: ParsedLine[]): string[] {
+  interface Row { path?: string; direct?: string; tunnel?: string; nat?: string; cold?: string; last?: string; fails: number; voice?: string; sample?: string }
+  const rows = new Map<string, Row>()
+  const row = (srv: string) => rows.get(srv) ?? (rows.set(srv, { fails: 0 }), rows.get(srv)!)
+  const pick = (l: ParsedLine, keys: string[]) => keys.filter((k) => l.fields[k]).map((k) => `${k}=${l.fields[k]}`).join(' ')
+  let host: string[] = []
+  for (const l of lines) {
+    const srv = l.fields.srv
+    if (l.area === 'tunnel' && l.src === 'p2p' && !srv) {
+      if (l.event === 'announced') host = [`nat=${l.fields.nat ?? '?'}`, `announce=${l.fields.took ?? '?'}`]
+      else if (l.event === 'changed' && l.fields.nat) host[0] = `nat=${l.fields.nat}`
+      else if (l.event === 'peers') host = [...host.filter((h) => !h.startsWith('friends=')), `friends=${l.fields.count ?? 0}`]
+      continue
+    }
+    if (!srv) continue
+    if (l.area === 'conn' && l.src === 'app') {
+      if (l.fields.path) row(srv).path = l.fields.path
+      if (l.event === 'online' && l.fields.took) {
+        row(srv).cold ??= l.fields.took
+        row(srv).last = l.fields.took
+      }
+    } else if (l.area === 'tunnel') {
+      const r = row(srv)
+      if (l.event === 'direct') r.direct = `ok(${l.fields.took ?? '?'})`
+      else if (l.event === 'fallback') r.direct = `${l.fields.why ?? 'failed'}(${l.fields.took ?? '?'})`
+      else if (l.event === 'connected') {
+        r.tunnel = l.fields.path
+        if (l.fields.nat) r.nat = l.fields.nat
+      } else if (l.event === 'failed') {
+        r.fails++
+        if (l.fields.nat) r.nat = l.fields.nat
+      }
+    } else if (l.area === 'voice' && l.event === 'route') {
+      row(srv).voice = l.level === 'WARN' ? 'no-route' : pick(l, ['ice', 'peer', 'proto', 'via', 'turn'])
+    } else if (l.area === 'voice' && l.event === 'sample') {
+      row(srv).sample = pick(l, ['codec', 'loss', 'lossout', 'rtt', 'jitter', 'kbps', 'conceal'])
+    }
+  }
+  const out = [...rows].map(([srv, r]) =>
+    [`srv=${srv}`, r.path && `path=${r.path}`, r.direct && `direct=${r.direct}`, r.tunnel && `tunnel=${r.tunnel}`, r.nat && `nat=${r.nat}`,
+      r.fails > 0 && `tunnel-failures=${r.fails}`, r.cold && `cold=${r.cold}`, r.last && r.last !== r.cold && `last=${r.last}`,
+      r.voice && `voice: ${r.voice}`, r.sample && `| ${r.sample}`].filter(Boolean).join(' '))
+  if (host.length) out.push(`hosting via tunnel: ${host.join(' ')}`)
+  return out
+}
+
 /** Each voice session: when it started and ended, where, why it ended (and the code), how long it lasted. */
 function voiceRows(lines: ParsedLine[]): string[] {
   const rows: string[] = []
@@ -222,7 +273,7 @@ const stamp = (line: string) => line.slice(0, 24)
 
 /**
  * The logs as text: a header (version, platform, report time, uptime, settings, voice), then sections built from the
- * lines (Servers, Voice, Problems), then the Timeline in the log line format, with a gap marker where more than 5 s
+ * lines (Servers, Connection, Voice, Problems), then the Timeline in the log line format, with a gap marker where more than 5 s
  * passed. Over the size cap the oldest timeline lines go first. Then the final net over all of it.
  */
 export function renderLogs(input: LogsInput): string {
@@ -257,7 +308,8 @@ export function renderLogs(input: LogsInput): string {
   const parsed = timeline.map(parseLine).filter((l): l is ParsedLine => l !== null)
 
   const section = (title: string, rows: string[]) => (rows.length ? ['', `== ${title} ==`, ...rows] : [])
-  head.push(...section('Servers', serverRows(parsed)), ...section('Voice', voiceRows(parsed)), ...section('Problems', problemRows(parsed)))
+  head.push(...section('Servers', serverRows(parsed)), ...section('Connection', connectionRows(parsed)), ...section('Voice', voiceRows(parsed)),
+    ...section('Problems', problemRows(parsed)))
 
   // The timeline, the newest lines kept when it doesn't all fit.
   const withGaps: string[] = []

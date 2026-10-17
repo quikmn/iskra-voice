@@ -10,6 +10,8 @@ import { useP2p } from '../p2p'
 import { useApp } from '../store'
 import { useAudio } from '../audio'
 import { useVoice, type VoiceSession } from '../voice'
+import { useE2eeVoice } from '../e2eeVoice'
+import { startVoiceStats } from '../voiceStats'
 import type { VoiceLeftReason } from '../voiceLeft'
 import { collectEnv } from './bugReport'
 
@@ -174,6 +176,13 @@ export function startDiagnostics(): () => void {
     if (s && v.cleanEngine && v.cleanEngine !== prev.cleanEngine) log('INFO', 'media', 'changed', null, [['what', 'incoming'], ['engine', v.cleanEngine]])
   })
 
+  // Encrypted voice: the key version our media uses (a number; never the key).
+  const stopE2ee = useE2eeVoice.subscribe((e, prev) => {
+    if (e.version !== prev.version && e.version !== null) log('INFO', 'e2ee', 'changed', null, [['what', 'voice-key'], ['n', e.version]])
+  })
+  // The call's route and quality (voiceStats.ts).
+  const stopStats = startVoiceStats()
+
   // A device plugged in or out during a call: say so, and whether the one chosen in settings went away.
   const media = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined
   const onDevices = () => {
@@ -221,6 +230,8 @@ export function startDiagnostics(): () => void {
     started = false
     stopServers()
     stopVoice()
+    stopE2ee()
+    stopStats()
     stopMirror()
     clearInterval(sleepTimer)
     requestErrorListeners.delete(onRequestError)

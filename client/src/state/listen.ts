@@ -163,7 +163,7 @@ export class Listener {
     const watch = new BridgeWatch()
     node.port.onmessage = (e: MessageEvent<{ type: string; share: number }>) => {
       if (e.data?.type === 'late' && watch.report(e.data.share)) {
-        this.tooSlow(`its worker was late for more than ${MAX_BRIDGED * 100}% of each second, ${SLOW_WINDOWS} s in a row`)
+        this.tooSlow(`its worker was late for more than ${MAX_BRIDGED * 100}% of each second, ${SLOW_WINDOWS} s in a row`, 'late')
       }
     }
     // The voice passes through until it's linked.
@@ -183,7 +183,7 @@ export class Listener {
           ms: 20000,
           onLoad: (load) => {
             console.info(`[iskra] incoming AI noise removal: worker ${(load.busy * 100).toFixed(1)}% busy, realtime factor ${load.rtf.toFixed(3)} per voice, slowest frame ${load.slowest.toFixed(1)} ms`)
-            if (watch.report(load.busy)) this.tooSlow(`worker ${(load.busy * 100).toFixed(0)}% busy`)
+            if (watch.report(load.busy)) this.tooSlow(`worker ${(load.busy * 100).toFixed(0)}% busy`, 'cpu', load.busy)
           },
           onError: (message) => console.warn('[iskra] incoming AI noise removal', message),
         })
@@ -199,10 +199,11 @@ export class Listener {
     return this.workerReady
   }
 
-  private tooSlow(why: string): void {
+  /** `kind`: cpu (the worker's load, `load` a fraction of one core) or late (its frames kept coming back late). */
+  private tooSlow(why: string, kind: 'cpu' | 'late', load?: number): void {
     if (this.aiTooSlow) return
     console.warn(`[iskra] incoming AI noise removal can't keep up here (${why}); using RNNoise for incoming voices`)
-    log('WARN', 'media', 'fallback', 'MED-140', [['what', 'incoming'], ['engine', 'rnnoise'], ['why', 'slow']])
+    log('WARN', 'media', 'fallback', 'MED-140', [['what', 'incoming'], ['engine', 'rnnoise'], ['why', 'slow'], ['kind', kind], ['count', load === undefined ? undefined : Math.round(load * 100)]])
     this.aiTooSlow = true
     void this.rebuild()
   }
