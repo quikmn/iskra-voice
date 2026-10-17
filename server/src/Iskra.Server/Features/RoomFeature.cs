@@ -177,7 +177,7 @@ public sealed class RoomSweeper(World world, Hub hub, VoiceRegistry voice, TimeP
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    log.LogWarning(ex, "Cleaning up voice rooms failed");
+                    log.Warn(ex, "SCH-110", "sched", "failed", ("what", "rooms"));
                 }
             }
         }

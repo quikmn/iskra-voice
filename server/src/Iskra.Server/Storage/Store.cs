@@ -377,6 +377,8 @@ public sealed partial class Store : IDisposable
         ("invitetrack-1", InviteTrackMigration),
         // Signing secrets for the GitHub, Gitea and GitLab webhook formats.
         ("webhookformats-1", WebhookFormatsMigration),
+        // Media channels: posts made without a title (their title is a stand-in from the caption or file name).
+        ("media-1", "ALTER TABLE forum_posts ADD COLUMN untitled INTEGER NOT NULL DEFAULT 0;"),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

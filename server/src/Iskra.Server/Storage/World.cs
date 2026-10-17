@@ -88,6 +88,9 @@ public sealed record WorldSettings
 
     /// <summary>The bug inbox: only the server that receives Iskra's own bug reports turns this on (docs/hosting.md).</summary>
     public BugInboxConfig BugInbox { get; init; } = new();
+
+    /// <summary>The server's own log files in logs/: plain, then gzipped, then deleted (see Logging/LogRetention).</summary>
+    public LogsSettings Logs { get; init; } = new();
 }
 
 /// <summary>server.json "BugInbox". Leave it off: apps send bug reports to the project's own server, not to yours.</summary>

@@ -152,6 +152,7 @@ The detailed per-folder map (moved from CLAUDE.md).
   - `Files/`: uploads (typed by content, retention, imports) and `UploadSweeper`.
   - `Captions/`: the live-captions model (Whisper base), fetched once from Hugging Face at a pinned commit, checked against `client/src/state/captions/model.json` and served to members' apps at `/models/...` (`Captions.ModelDownload`).
   - `Templates/`: starter templates (`gaming`, `friends`, `tabletop`, `empty`, or a JSON file), applied once to a new server.
+  - `Logging/`: the one log line format (`LogLine`), the `log.Info/Warn/Error` helpers, daily files in `logs/` and their retention (`LogRetention`, `LogMaintenance`), log ids (see [Logs](#logs)).
   - `Updates/`: server auto-update from GitHub releases (feed, SHA-256 checks, install, rollback via `iskra-update-guard`).
   - `Backups/` (encrypted backup files, daily backups, restore), `Import/` (DiscordChatExporter imports), `Gifs/` (KLIPY, direct or proxied). `Cli.cs`: `restore`, `backup`, `move`, `import-discord`, `templates`, `install-autostart`, `remove-autostart`, `version`.
 - `client/`: TypeScript, React, Vite, zustand.
@@ -173,6 +174,45 @@ The detailed per-folder map (moved from CLAUDE.md).
 ### CI workflows
 
 CI (`.github/workflows/ci.yml`): server and client tests on Windows and Linux, desktop unit tests on Windows and Linux (macOS on PRs and nightly), interop and e2e (four shards balanced by `scripts/e2e-shards.mjs`, summed up by the `end-to-end` job) on Linux, a backup restore drill with the release-script tests, and an Android build; a newer push cancels a branch's older run (never a "Version X" commit's). `mobile-ios.yml` builds the iPhone app; `secrets.yml`, `scorecard.yml` and `uptime.yml` run too. `release-all.yml` ("Release") is the Release button: checks, version tag, CI (called), builds (release.yml called; Windows signed on the owner's home PC, a self-hosted runner with the label `iskra-windows-signing` that only its guarded jobs use), finalize (called), phones; `release.yml` builds the Linux and macOS apps (Mac x64 and arm64 in parallel) on a `v*` tag without waiting for CI; `release-finalize.yml` publishes and deploys, and refuses unless CI passed on the tagged commit; `deploy.yml` redeploys; `marketplace.yml` lints the Marketplace image (by hand, Run workflow builds it and tests it on a temporary droplet); `renewals.yml` checks daily everything that expires (`docs/renewals.json`: certificates, tokens, the domain, security.txt) and warns in the #renewals channel (`ISKRA_RENEWALS_WEBHOOK`; docs/ci-cd.md "Renewal warnings"); CodeQL and Scorecard run on PRs and weekly, Dependabot weekly.
+
+## Logs
+
+The server logs one line per event, the same on its console and in `logs/YYYY-MM-DD.log` in the world folder (UTC
+days; the server writes and trims these itself, see [hosting.md, Logs](hosting.md#logs)):
+
+```
+2026-10-17T13:41:30.112Z INFO  srv   sess   closed      SES-120 conn=k3f acct=4be1d9 close=4403 why=kicked dur=6.9s
+2026-10-17T13:41:31.020Z WARN  lk    voice  warn        LK-120  msg="could not add ICE candidate" chan=12
+```
+
+`<UTC time, ms> <LEVEL:5> <SRC:5> <AREA:6> <event:11> <CODE|-:7> <key=value...>`, never a newline inside a field.
+
+- **LEVEL**: `DEBUG INFO WARN ERROR`. Debug lines reach the files only with `Logs.Debug` in server.json; the console
+  follows `Logging:LogLevel` (appsettings.json).
+- **SRC**: `srv` the server, `lk` LiveKit (its level and fixed wording only), `p2p` the tunnel sidecar's output, `hook`
+  webhooks, `bug` the bug inbox, `bot:<id>` a built-in bot (`dice`, `polls`, `reminders`, `starboard`, `birthdays`,
+  `welcome`). The apps will add `app`, `desk` and `upd` with the same format.
+- **AREA**: `life conn sess voice call media e2ee tunnel nat tls update push backup sweep rate store ui http sched misc`.
+- **event**: a kebab-case word, past tense for outcomes (`opened closed joined left start stop failed done sent
+  skipped changed summary`).
+- **CODE**: required on every warning and error and on ends nobody asked for (a dropped session, a refused join);
+  `-` otherwise. Codes live in [protocol/log-codes.json](../protocol/log-codes.json) (code, level, sources, area,
+  meaning, what to do); [log-codes.md](log-codes.md) is generated from it. `LoggingTests` fails when a code is used in
+  the server but not listed, listed for the server but unused, or the table is stale (`ISKRA_WRITE_DOCS=1` rewrites it).
+  A code never changes meaning; retired ones stay listed.
+- **Fields**: a fixed allowlist in `LogLine.Fields`; other keys are dropped. Text values are scrubbed (IP addresses,
+  emails, URLs past the host, paths, long base64/hex runs) and quoted when not plain; exceptions add only `name=` (type),
+  `frame=` (Type.Method) and `inner=`, never their message.
+- **Ids**: `srv=` (4 hex of BLAKE2b of the server key, in the `life start` line), `conn=` (each connection, sent to the
+  app as `welcome.logId`), `acct=` (6 hex of a keyed hash of the account key, per server). Never names or keys.
+
+Writing one: `log.Info("voice", "opened", ("chan", id))`, `log.Warn("PSH-110", "push", "failed", ("status", 410))`,
+`log.Error(ex, "SRV-910", "sess", "failed", ("op", type))`, `log.Note(code, ...)` for a coded info line, and
+`log.Write(level, "hook", code, area, event, ex, fields...)` for another source ([IskraLog.cs](../server/src/Iskra.Server/Logging/IskraLog.cs)).
+Never log names, message text, keys, tokens, secrets, addresses or paths: ids and fixed words only. Console sentences
+for people (the owner link, a world that can't open) are plain `Console.WriteLine`, never in the files.
+`LoggingTests` locks the format with golden lines and runs a canary session (names, text, files, voice, webhooks, a bug
+report, p2p) that must leave nothing personal in the log.
 
 ## Quiet test output (for agents and scripts)
 

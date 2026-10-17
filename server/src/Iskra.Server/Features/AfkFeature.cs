@@ -114,7 +114,7 @@ public sealed class AfkSweeper(World world, Hub hub, VoiceRegistry voice, TimePr
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    log.LogWarning(ex, "Moving idle people to the AFK channel failed");
+                    log.Warn(ex, "SCH-110", "sched", "failed", ("what", "afk"));
                 }
             }
         }

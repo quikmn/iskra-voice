@@ -125,8 +125,8 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
         {
             world.Store.DeleteBuddySpot(spotId);
             try { if (Directory.Exists(SpotFolder(spotId))) Directory.Delete(SpotFolder(spotId), recursive: true); }
-            catch (IOException ex) { log.LogWarning(ex, "Couldn't delete a backup buddy's copies yet"); }
-            catch (UnauthorizedAccessException ex) { log.LogWarning(ex, "Couldn't delete a backup buddy's copies yet"); }
+            catch (IOException ex) { log.Warn(ex, "BAK-150", "backup", "failed", ("what", "buddy-delete")); }
+            catch (UnauthorizedAccessException ex) { log.Warn(ex, "BAK-150", "backup", "failed", ("what", "buddy-delete")); }
         }
     }
 
@@ -562,7 +562,7 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
                 try { Sweep(); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
                 {
-                    log.LogWarning(ex, "Sweeping backup buddies' copies failed");
+                    log.Warn(ex, "BAK-150", "backup", "failed", ("what", "buddy-sweep"));
                 }
                 await Task.Delay(every, time, stoppingToken);
             }

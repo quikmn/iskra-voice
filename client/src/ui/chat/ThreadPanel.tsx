@@ -20,12 +20,14 @@ import { ArrowLeft, PinIcon, ThreadIcon } from './extraIcons'
 import { openProfileCard } from '../../state/profile'
 import { useEscapeLayer } from '../layers'
 import { replyBlock } from '../../state/forums'
+import { hasPosts } from '../../state/forumLogic'
 import { PostBar } from '../forums/PostBar'
 import { useForumPost } from '../forums/useForumPost'
 import { resolveKey } from '../../state/keyMap'
 import { userMenuProps } from '../people/userMenuProps'
 
-export function ThreadPanel({ server, threadId }: { server: ServerState; threadId: number }) {
+/** `embedded`: inside the media viewer, which shows the post's pictures itself. */
+export function ThreadPanel({ server, threadId, embedded }: { server: ServerState; threadId: number; embedded?: boolean }) {
   const thread = useThreads((s) => s.threads[server.key]?.[threadId])
   const [root, setRoot] = useState<Message | null | undefined>(undefined)
   const [missing, setMissing] = useState(false)
@@ -62,7 +64,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
   const me = server.me
   const post = useForumPost(server, threadId, parent?.kind)
   const blocked = replyBlock(server, post)
-  const isPost = parent?.kind === 'forum'
+  const isPost = hasPosts(parent?.kind)
   const roles = useServerRoles(server.key)
   const canWrite = !!parent && canSendIn(me, parent, roles)
   const creator = thread ? server.members[thread.createdBy] : undefined
@@ -170,7 +172,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
             server={server}
             channelId={threadId}
             thread
-            header={<ThreadStart server={server} root={shownRoot} createdBy={thread?.createdBy} post={parent?.kind === 'forum'} />}
+            header={<ThreadStart server={server} root={shownRoot} createdBy={thread?.createdBy} post={isPost} hideFiles={embedded} />}
           />
           <TypingLine server={server} channelId={threadId} />
           {canWrite && thread && !blocked ? (
@@ -185,7 +187,7 @@ export function ThreadPanel({ server, threadId }: { server: ServerState; threadI
 }
 
 /** The message the thread started from, at the top of the thread. */
-function ThreadStart({ server, root, createdBy, post }: { server: ServerState; root: Message | null | undefined; createdBy?: string; post?: boolean }) {
+function ThreadStart({ server, root, createdBy, post, hideFiles }: { server: ServerState; root: Message | null | undefined; createdBy?: string; post?: boolean; hideFiles?: boolean }) {
   const roleOf = useRoleLookup(server.key, server.me)
   const { t } = useTranslation()
   if (root === undefined) return <div className="thread-start"><Spinner /></div>
@@ -217,7 +219,7 @@ function ThreadStart({ server, root, createdBy, post }: { server: ServerState; r
               {renderMarkdown(root.text, { nameOf: (k) => server.members[k]?.name ?? null, me: server.me?.accountKey, roleOf, serverKey: server.key, alerts: alertPatternFor(server.key) })}
             </div>
           )}
-          <Attachments server={server} files={root.attachments} />
+          {!hideFiles && <Attachments server={server} files={root.attachments} />}
         </div>
       </div>
       {starter && !post && <p className="muted thread-started-by">{t('chat.threads.startedHint', { name: starter })}</p>}

@@ -216,7 +216,7 @@ public sealed class LfgCloser(World world, Hub hub, TimeProvider time, ILogger<L
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            log.LogWarning(ex, "Closing expired LFG posts failed");
+            log.Warn(ex, "SCH-110", "sched", "failed", ("what", "lfg"));
         }
         return closed;
     }

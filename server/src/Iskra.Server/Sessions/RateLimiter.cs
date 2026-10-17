@@ -132,6 +132,9 @@ public sealed class RateLimiter(TimeProvider time)
         return Take("*", now) && (!Limits.ContainsKey(type) || Take(type, now));
     }
 
+    /// <summary>A limit's name for the log's rate summary: a known limit, or "all" (the shared bucket); never client text.</summary>
+    public static string KindOf(string type) => Limits.ContainsKey(type) && type != "*" ? type : "all";
+
     private static readonly HashSet<string> OwnBucketOnly = ["act.send", "act.snapshot"];
 
     /// <summary>Takes from one named bucket only (for limits checked inside a handler, e.g. only on real changes).</summary>

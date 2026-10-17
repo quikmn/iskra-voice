@@ -57,12 +57,11 @@ public sealed class RetentionSweeper(World world, Hub hub, Uploads uploads, Data
             if (r.SecurityLogDays > 0) result.Security = world.Store.PruneSecurityLog(Cutoff(r.SecurityLogDays));
 
             if (result.Messages + result.Envelopes + result.Files > 0)
-                log.LogInformation("Retention: deleted {Messages} messages, {Envelopes} encrypted DM and group messages and {Files} files",
-                    result.Messages, result.Envelopes, result.Files);
+                log.Info("sweep", "done", ("what", "retention"), ("msgs", result.Messages), ("envelopes", result.Envelopes), ("files", result.Files));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            log.LogWarning(ex, "Retention sweep failed");
+            log.Warn(ex, "SWP-110", "sweep", "failed", ("what", "retention"));
         }
         return result;
     }
@@ -76,7 +75,7 @@ public sealed class RetentionSweeper(World world, Hub hub, Uploads uploads, Data
             foreach (var (id, _) in group)
             {
                 if (announce) hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id, channelId = channel.Id }));
-                if (channel.Kind == "forum" && world.Store.PostForRoot(id) is { } post)
+                if (ForumFeature.HasPosts(channel.Kind) && world.Store.PostForRoot(id) is { } post)
                 {
                     world.Store.DeleteChannel(post);
                     hub.BroadcastToReaders(channel, Frames.Event("thread.deleted", new { id = post, channelId = channel.Id, rootId = id }));

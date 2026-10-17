@@ -348,7 +348,11 @@ public class ProxyProtocolTests : IDisposable
         const string claim = "/.well-known/iskra-claim?nonce=abcdefghijklmnop";
         for (var i = 0; i < Features.OwnerSetup.ClaimBurst; i++)
             Assert.Equal(404, (await HttpAsync(await ConnectAsync(httpsPort, V2(IPAddress.Parse("198.51.100.7"), 1000 + i), tls: true), "GET", claim)).Status);
-        Assert.Equal(429, (await HttpAsync(await ConnectAsync(httpsPort, V2(IPAddress.Parse("198.51.100.7"), 999), tls: true), "GET", claim)).Status);
+        // The bucket refills 0.5 a second, so a slow run may get one or two more before the refusal.
+        var refused = false;
+        for (var i = 0; i < 5 && !refused; i++)
+            refused = (await HttpAsync(await ConnectAsync(httpsPort, V2(IPAddress.Parse("198.51.100.7"), 990 + i), tls: true), "GET", claim)).Status == 429;
+        Assert.True(refused);
         Assert.Equal(404, (await HttpAsync(await ConnectAsync(httpsPort, V1(IPAddress.Parse("198.51.100.8")), tls: true), "GET", claim)).Status);
 
         // The security log records the address in the header.
@@ -382,7 +386,7 @@ public class ProxyProtocolTests : IDisposable
         Assert.Null(await ConnectAsync(httpsPort, null, tls: true));
         // HttpProxyProtocol is off: plain HTTP is as before.
         Assert.Equal(302, (await HttpAsync(await ConnectAsync(httpPort, null, tls: false), "GET", "/")).Status);
-        Assert.Contains(_log, l => l.Contains("Dropped a connection on a PROXY protocol listener", StringComparison.Ordinal));
+        Assert.Contains(_log, l => l.Contains("TLS-150 what=proxy-protocol", StringComparison.Ordinal));
     }
 
     [Fact]

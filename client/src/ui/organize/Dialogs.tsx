@@ -101,7 +101,7 @@ export function ChannelSettingsDialog({ server, channel, onClose }: { server: Se
 
   return (
     <Modal
-      title={t('organize.channelSettings.title', { name: `${channel.kind === 'text' || channel.kind === 'forum' ? '#' : ''}${channel.name}` })}
+      title={t('organize.channelSettings.title', { name: `${channel.kind === 'text' || channel.kind === 'forum' || channel.kind === 'media' ? '#' : ''}${channel.name}` })}
       onClose={onClose}
       footer={
         <>

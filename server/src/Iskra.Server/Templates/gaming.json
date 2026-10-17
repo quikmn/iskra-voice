@@ -9,6 +9,7 @@
         { "name": "general" },
         { "name": "announcements", "writeRole": "admin", "overrides": [{ "role": "Moderator", "allow": ["send"] }] },
         { "name": "clips" },
+        { "name": "screenshots", "kind": "media" },
         { "name": "looking-for-group", "slowmode": 30, "overrides": [{ "role": "Raid lead", "allow": ["send"] }] },
         { "name": "mod-chat", "readRole": "admin", "overrides": [{ "role": "Moderator", "allow": ["view", "send"] }] }
       ]
