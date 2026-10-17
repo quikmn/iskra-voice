@@ -3,5 +3,6 @@
 ### What's new
 
 ### Fixes
+- Listen together: a link you type while the previous one is still being added no longer disappears, and someone still answering "watch from another site?" no longer keeps hearing the last item or skips the party ahead for everyone.
 
 ### Good to know
