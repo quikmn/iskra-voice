@@ -483,6 +483,7 @@ export const errors: Messages['errors'] = {
     channel_export_busy: 'En export görs just nu. Försök igen när den är klar.',
     export_too_big: 'Exporten skulle bli större än {{maxMb}} MB. Ta bort bilagor eller välj ett kortare intervall.',
     export_failed: 'Exporten kunde inte göras.',
+    export_disk: 'Servern har inte tillräckligt med ledigt diskutrymme för den här exporten.',
     too_many_devices_removed: 'För många enheter borttagna på kort tid. Försök igen senare.',
     too_many_changes: 'För många ändringar på kort tid. Försök igen om en minut.',
     e2ee_readers_changed: 'Vem som kan läsa kanalen har ändrats under tiden. Försök igen.',

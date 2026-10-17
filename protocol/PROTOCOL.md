@@ -4324,16 +4324,23 @@ ExportJob { "id": "<b64u 12>", "state": "running" | "done" | "failed" | "cancell
   ciphertext, so they can only be exported from a member's device), DMs and group DMs (they aren't channels), deleted
   messages (they're gone), and disappearing messages (anything with an expiry is left out, so an export never outlives
   a timer). Account keys are never in the export: authors are numbered (`a1`, `a2`, …) with their display name (server
-  nickname, else name) at export time; `<@accountKey>` mentions become `@Name`, `<@&roleId>` `@Role`.
+  nickname, else name) at export time; `<@accountKey>` mentions become `@Name`, `<@&roleId>` `@Role`, in every text
+  (messages, topics, titles, thread and post names, polls, embeds, file names, GIF titles). Names, titles and file
+  names lose invisible format characters (Unicode Cf such as bidi overrides; the emoji joiner stays).
 - **Job:** one at a time per server (`rate_limited`, key `channel_export_busy`); 3 per account, then one every 10
   minutes (`rate_limited`, key `channel_export_slow`). The requester's sessions get `channel.export.progress`;
   `channel.export.status` brings back the jobs after a reconnect (a server restart forgets them and deletes the files).
 - **Size cap:** 1 GB per zip. Attachments are counted before anything is written; over the cap, the job fails at once
   with key `export_too_big` (`args: { maxMb }`): turn off attachments or pick a shorter range. Without attachments a
-  zip that still grows over the cap fails the same way.
+  zip that still grows over the cap fails the same way (checked while it's written). A job also fails at once with key
+  `export_disk` when the server's disk has less free space than its estimated size plus 1 GB.
+- **Rights are checked again** before each channel is written and when the link is used: if the requester is no
+  longer a member, lost `exportChannels` or can no longer read one of the channels, the job fails
+  (`export_forbidden`), or the link answers `404` and the file is deleted.
 - **Download:** `GET /channel-export/<token>` (24 random bytes) returns the zip (`Content-Disposition: attachment`,
   `no-store`, `nosniff`, a sandbox CSP) for 1 hour; then the link is gone and the file deleted. Files are written to
-  `exports/` in the world folder, which backups leave out; leftovers are deleted when the server starts.
+  `exports/` in the world folder, which backups leave out; leftovers are deleted when the server starts, and the hourly
+  retention sweep deletes any `channels-*.zip` older than an hour that no job holds.
 - **Records:** each export adds an audit log entry `channel.export` and a security log entry `channel.export`, both
   with `{ channelIds, channelNames, from, to, attachments, threads }` (never any content). Cancelled and failed jobs are recorded too
   (they were asked for).
@@ -4377,8 +4384,9 @@ Lists are oldest first; times are ms. `author` keys only point into `authors`.
 **`channel.html`** is rendered on the server and has no script at all. Every piece of user text (names, messages,
 titles, file names, embeds) is HTML-escaped; message formatting (bold, italic, strike, spoilers, code, quotes, headings,
 lists, links) is turned into a fixed set of tags, and only `http:` and `https:` links become links
-(`rel="noopener noreferrer nofollow"`). A strict CSP sits in a `<meta>` tag: `default-src 'none'; img-src 'self' file: data:; media-src 'self' file:; style-src 'sha256-…'` (the page's own stylesheet only), `base-uri 'none'; form-action 'none'`.
+(`rel="noopener noreferrer nofollow"`). A strict CSP sits in a `<meta>` tag: `default-src 'none'; img-src 'self' file:; media-src 'self' file:; style-src 'sha256-…'` (the page's own stylesheet only), `base-uri 'none'; form-action 'none'`.
 Nothing is loaded from the network: no fonts, scripts or remote images (GIFs and remote embeds are links). Images
-among the attachments are shown inline from `attachments/` (SVG only as a file); other files are links. An attachment a
-browser would run as a page (`.html`, `.svg`, `.xml`, `.js` and the like) gets `.txt` added to its name in the zip.
-A failed job's `error.key` is `export_too_big` or `export_failed` (a bug; the server logs it).
+among the attachments are shown inline from `attachments/` (SVG only as a file); other files are links. Only passive
+extensions are kept in the zip (`png jpg jpeg gif webp avif bmp mp4 webm mov mp3 ogg opus wav flac m4a txt md csv zip
+7z`); any other attachment, and one without an extension, gets `.bin` added (`report.pdf.bin`, `page.html.bin`).
+A failed job's `error.key` is `export_too_big`, `export_disk`, `export_forbidden` or `export_failed` (a bug; the server logs it).

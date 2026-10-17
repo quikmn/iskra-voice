@@ -30,6 +30,7 @@ public sealed class RetentionSweeper(World world, Hub hub, Uploads uploads, Data
         try
         {
             exports.Expire();
+            ChannelExports.For(world).SweepFiles(); // channel exports left behind
             var now = time.GetUtcNow();
             var r = world.Settings.Retention;
             long Cutoff(int days) => (now - TimeSpan.FromDays(days)).ToUnixTimeMilliseconds();

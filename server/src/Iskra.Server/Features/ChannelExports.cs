@@ -23,6 +23,13 @@ public sealed record ExportRequest(string Requester, string RequesterName, strin
 public sealed class ChannelExports
 {
     public const int MaxChannels = 25;
+
+    /// <summary>Attachment extensions kept as they are in a zip; everything else gets ".bin" added.</summary>
+    public static readonly HashSet<string> PassiveExtensions =
+        ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp", "mp4", "webm", "mov", "mp3", "ogg", "opus", "wav", "flac", "m4a", "txt", "md", "csv", "zip", "7z"];
+
+    /// <summary>Free disk space we keep on top of an export's estimated size.</summary>
+    public const long DiskMargin = 1L << 30;
     public const int Version = 1;
     public const string Format = "iskra-channel-export";
     private const int Page = 200;
@@ -45,6 +52,25 @@ public sealed class ChannelExports
     public long MaxBytes { get; set; } = 1L << 30;
     public TimeProvider Time { get; set; } = TimeProvider.System;
     public ILogger? Log { get; set; }
+    /// <summary>Free bytes on the disk that holds a folder (tests replace it).</summary>
+    public Func<string, long> FreeSpace { get; set; } = folder =>
+    {
+        try { return new DriveInfo(System.IO.Path.GetFullPath(folder)).AvailableFreeSpace; }
+        catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException) { return long.MaxValue; } // unknown: don't block
+    };
+    /// <summary>Called before each channel is written (tests use it to hold a job still).</summary>
+    public Action<Job>? BeforeChannel { get; set; }
+
+    /// <summary>
+    /// The requester may still export these channels: still a member, still with the permission, and still able to read
+    /// each one (rights can change while a job runs or before the link is used).
+    /// </summary>
+    public static bool StillAllowed(Store store, ExportRequest request, IEnumerable<Channel>? channels = null)
+    {
+        if (store.GetMember(request.Requester) is not { } me || !Sessions.Permissions.Has(me, Perm.ExportChannels)) return false;
+        return (channels ?? request.Channels).All(c => store.GetChannel(c.Id) is { } now && Sessions.Permissions.CanRead(me, now)
+            && !E2eeChannelFeature.IsEncrypted(store, now));
+    }
 
     public sealed class Job
     {
@@ -116,7 +142,11 @@ public sealed class ChannelExports
         try
         {
             AtomicFile.CreatePrivateDirectory(folder);
-            var writer = new ExportWriter(_world.Store, uploads, job, MaxBytes, changed);
+            var writer = new ExportWriter(_world.Store, uploads, job, MaxBytes, changed)
+            {
+                FreeSpace = () => FreeSpace(folder),
+                BeforeChannel = BeforeChannel,
+            };
             writer.Write(path);
             job.Path = path;
             job.Size = new FileInfo(path).Length;
@@ -153,6 +183,12 @@ public sealed class ChannelExports
         Files.Uploads.AllowCors(context);
         Expire();
         if (!_byToken.TryGetValue(token, out var job) || job.Path is null || !File.Exists(job.Path)) return Results.NotFound();
+        // Lost the right to export (or to read one of the channels) since: the link and the file go.
+        if (!StillAllowed(_world.Store, job.Request))
+        {
+            Remove(job);
+            return Results.NotFound();
+        }
         context.Response.Headers.XContentTypeOptions = "nosniff";
         context.Response.Headers.CacheControl = "no-store";
         context.Response.Headers.ContentSecurityPolicy = "default-src 'none'; sandbox";
@@ -165,6 +201,27 @@ public sealed class ChannelExports
         var now = Time.GetUtcNow().ToUnixTimeMilliseconds();
         foreach (var job in _jobs.Values)
             if (job.ExpiresAt is { } at && at <= now) Remove(job);
+    }
+
+    /// <summary>
+    /// The hourly sweep: export zips older than a link's lifetime that no job holds any more (say Windows still had one
+    /// open when its timer ran) are deleted.
+    /// </summary>
+    public int SweepFiles()
+    {
+        Expire();
+        var folder = System.IO.Path.Combine(_world.Path, DataExports.FolderName);
+        if (!Directory.Exists(folder)) return 0;
+        var held = _jobs.Values.Select(j => j.Path).OfType<string>().Select(System.IO.Path.GetFullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var cutoff = Time.GetUtcNow() - Lifetime;
+        var deleted = 0;
+        foreach (var file in Directory.EnumerateFiles(folder, "channels-*.zip"))
+        {
+            if (held.Contains(System.IO.Path.GetFullPath(file)) || File.GetLastWriteTimeUtc(file) > cutoff.UtcDateTime) continue;
+            TryDelete(file);
+            if (!File.Exists(file)) deleted++;
+        }
+        return deleted;
     }
 
     private void Remove(Job job)
@@ -203,6 +260,11 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
     private readonly ExportRequest _r = job.Request;
     private long _lastSent;
     private FileStream? _file;
+    private Utf8JsonWriter? _json;
+    private const int FlushAt = 64 * 1024;
+
+    public Func<long> FreeSpace { get; init; } = () => long.MaxValue;
+    public Action<ChannelExports.Job>? BeforeChannel { get; init; }
 
     public void Write(string path)
     {
@@ -214,6 +276,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
         long items = 0, attachmentBytes = 0;
         foreach (var plan in channels)
         {
+            job.Cancel.Token.ThrowIfCancellationRequested();
             if (plan.Channel.Kind == "docs") items += store.DocPageCount(plan.Channel.Id);
             else items += store.ExportMessageCount(plan.Channel.Id, from, to);
             items += plan.Threads.Sum(t => store.ExportMessageCount(t.Id, from, to));
@@ -221,6 +284,9 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
                 attachmentBytes += store.ExportAttachmentBytes(plan.Channel.Id, from, to) + plan.Threads.Sum(t => store.ExportAttachmentBytes(t.Id, from, to));
         }
         if (attachmentBytes > maxBytes) throw TooBig();
+        // Roughly what the zip needs (attachments, plus a few KB per message in two files), and a margin on top.
+        if (FreeSpace() < attachmentBytes + items * 4096 + ChannelExports.DiskMargin)
+            throw new RequestException("bad_request", "The server doesn't have enough free disk space for this export.", "export_disk");
         Interlocked.Exchange(ref job.Total, items * 2);
 
         using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
@@ -232,6 +298,10 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
             {
                 var folder = $"{plan.Channel.Id}-{ChannelExports.Slug(plan.Channel.Name, 40)}";
                 if (!folders.Add(folder)) continue;
+                BeforeChannel?.Invoke(job);
+                job.Cancel.Token.ThrowIfCancellationRequested();
+                if (!ChannelExports.StillAllowed(store, _r, [plan.Channel]))
+                    throw RequestException.Forbidden("You can't export channels on this server.", "export_forbidden");
                 var ctx = new Context(store, _r, plan.Channel);
                 using (var entry = zip.CreateEntry($"{folder}/channel.json", CompressionLevel.Optimal).Open())
                     WriteJson(entry, ctx, plan, from, to);
@@ -245,7 +315,17 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
                         || stored.Type.StartsWith("audio/", StringComparison.Ordinal) ? CompressionLevel.NoCompression : CompressionLevel.Optimal;
                     using (var target = zip.CreateEntry($"{folder}/{name}", level).Open())
                     using (var source = File.OpenRead(uploads.PathFor(stored.Sha256)))
-                        source.CopyTo(target);
+                    {
+                        // In chunks, so cancelling (and the size cap) stop a big file part way.
+                        var buffer = new byte[81920];
+                        int read;
+                        while ((read = source.Read(buffer)) > 0)
+                        {
+                            job.Cancel.Token.ThrowIfCancellationRequested();
+                            target.Write(buffer, 0, read);
+                            CheckSize();
+                        }
+                    }
                     CheckSize();
                 }
             }
@@ -270,6 +350,8 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
     private void Step()
     {
         job.Cancel.Token.ThrowIfCancellationRequested();
+        // channel.json goes to the zip as it's written, so it never piles up in memory and the size cap sees it grow.
+        if (_json is { BytesPending: > FlushAt } json) json.Flush();
         var done = Interlocked.Increment(ref job.Done);
         var total = Interlocked.Read(ref job.Total);
         // About every 2%, so a big export doesn't flood the socket.
@@ -373,10 +455,15 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
             if (Ids.TryGetValue(key, out var id)) return id;
             id = $"a{Authors.Count + 1}";
             Ids[key] = id;
+            name = ExportMarkdown.Label(name);
             Authors.Add((id, name, type));
             _byId[id] = (name, type);
             return id;
         }
+
+        /// <summary>Any text shown as a name or title: mentions as names (no account keys), no bidi or other format characters.</summary>
+        public string P(string? text) => ExportMarkdown.Label(ExportMarkdown.PlainMentions(text ?? "", this));
+        public string? PN(string? text) => text is null ? null : P(text);
 
         public string NameOfId(string id) => _byId[id].Name;
         public string TypeOfId(string id) => _byId[id].Type;
@@ -387,10 +474,11 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
             if (Files.TryGetValue(f.Id, out var known)) return known;
             if (!File.Exists(uploads.PathFor(f.Sha256))) return null;
             var name = ChannelExports.Slug(System.IO.Path.GetFileNameWithoutExtension(f.Name), 60);
-            var ext = ChannelExports.Slug(System.IO.Path.GetExtension(f.Name).TrimStart('.'), 10);
-            // Never a file a browser would run as a page next to channel.html.
-            if (ext is "html" or "htm" or "xhtml" or "xht" or "svg" or "svgz" or "xml" or "mht" or "mhtml" or "shtml" or "js" or "mjs") ext += ".txt";
-            var path = $"attachments/{Files.Count + 1}-{name}{(ext == "export" ? "" : "." + ext)}";
+            var ext = System.IO.Path.GetExtension(f.Name).TrimStart('.').ToLowerInvariant();
+            // Only passive kinds keep their extension: anything a browser or the system might run or render as a page
+            // (html, svg, pdf, js, exe…, or no extension at all) gets ".bin" next to channel.html.
+            var suffix = ChannelExports.PassiveExtensions.Contains(ext) ? "." + ext : ext.Length > 0 ? $".{ChannelExports.Slug(ext, 10)}.bin" : ".bin";
+            var path = $"attachments/{Files.Count + 1}-{name}{suffix}";
             return Files[f.Id] = path;
         }
     }
@@ -407,14 +495,14 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
                 : (replyId, ctx.AuthorOf(original), Excerpt(ExportMarkdown.PlainMentions(original.Text, ctx)), false);
         }
         var files = m.Attachments.Select(store.GetFile).OfType<StoredFile>()
-            .Select(f => new XFile(f.Name, f.Type, f.Size, f.Width, f.Height, ctx.FilePath(f, uploads))).ToList();
-        var reactions = store.Reactions(m.Id).Select(x => (x.Emoji, x.Accounts.Count)).ToList();
+            .Select(f => new XFile(ctx.P(f.Name), f.Type, f.Size, f.Width, f.Height, ctx.FilePath(f, uploads))).ToList();
+        var reactions = store.Reactions(m.Id).Select(x => (ctx.P(x.Emoji), x.Accounts.Count)).ToList();
         XPoll? poll = null;
         if (store.GetPoll(m.Id) is { } p)
         {
             var votes = store.PollVotes(m.Id, p.Options.Length);
-            poll = new XPoll(p.Question, p.Multi, p.ClosedAt is not null || p.ExpiresAt is { } e && e <= job.CreatedAt,
-                p.Options.Select((text, i) => (text, votes[i].Count)).ToList());
+            poll = new XPoll(ctx.P(p.Question), p.Multi, p.ClosedAt is not null || p.ExpiresAt is { } e && e <= job.CreatedAt,
+                p.Options.Select((text, i) => (ctx.P(text), votes[i].Count)).ToList());
         }
         var embeds = new List<XEmbed>();
         if (m.AuthorKey.StartsWith(WebhookFeature.AuthorPrefix, StringComparison.Ordinal) && store.GetWebhookPost(m.Id)?.Embeds is { } json)
@@ -426,16 +514,17 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
                 {
                     static string? S(JsonElement o, string name) => o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
                     var fields = e.TryGetProperty("fields", out var fs) && fs.ValueKind == JsonValueKind.Array
-                        ? fs.EnumerateArray().Where(f => f.ValueKind == JsonValueKind.Object).Select(f => (S(f, "name") ?? "", S(f, "value") ?? "")).ToList()
+                        ? fs.EnumerateArray().Where(f => f.ValueKind == JsonValueKind.Object).Select(f => (ctx.P(S(f, "name")), ExportMarkdown.PlainMentions(S(f, "value") ?? "", ctx))).ToList()
                         : [];
                     var footer = e.TryGetProperty("footer", out var ft) && ft.ValueKind == JsonValueKind.Object ? S(ft, "text") : null;
-                    embeds.Add(new XEmbed(S(e, "title"), S(e, "description"), S(e, "url"), fields, footer));
+                    var description = S(e, "description") is { } d ? ExportMarkdown.PlainMentions(d, ctx) : null;
+                    embeds.Add(new XEmbed(ctx.PN(S(e, "title")), description, S(e, "url"), fields, ctx.PN(footer)));
                 }
             }
             catch (JsonException) { }
         }
-        var sticker = store.GetMessageSticker(m.Id)?.Name;
-        var gif = store.GetMessageGif(m.Id) is { } g ? (g.Title, g.Url) : ((string?, string)?)null;
+        var sticker = ctx.PN(store.GetMessageSticker(m.Id)?.Name);
+        var gif = store.GetMessageGif(m.Id) is { } g ? (ctx.PN(g.Title), g.Url) : ((string?, string)?)null;
         var voice = store.GetVoiceMessage(m.Id)?.DurationMs;
         var thread = store.ThreadForRoot(m.Id)?.Id;
         return new XMessage(m, ctx.AuthorOf(m), ExportMarkdown.PlainMentions(m.Text, ctx), reply, files, reactions, store.IsPinned(m.Id), poll,
@@ -449,6 +538,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
     private void WriteJson(Stream stream, Context ctx, ChannelPlan plan, long from, long to)
     {
         using var w = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+        _json = w;
         var c = plan.Channel;
         w.WriteStartObject();
         w.WriteString("format", ChannelExports.Format);
@@ -456,13 +546,13 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
         w.WriteNumber("exportedAt", job.CreatedAt);
         w.WriteString("exportedBy", _r.RequesterName);
         w.WriteStartObject("server");
-        w.WriteString("name", _r.ServerName);
+        w.WriteString("name", ctx.P(_r.ServerName));
         w.WriteEndObject();
         w.WriteStartObject("channel");
         w.WriteNumber("id", c.Id);
         w.WriteString("name", c.Name);
         w.WriteString("kind", c.Kind);
-        w.WriteString("topic", store.Topic(c.Id));
+        w.WriteString("topic", ExportMarkdown.PlainMentions(store.Topic(c.Id), ctx));
         w.WriteEndObject();
         w.WriteStartObject("range");
         if (_r.From is { } f) w.WriteNumber("from", f); else w.WriteNull("from");
@@ -484,7 +574,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
             {
                 w.WriteStartObject();
                 w.WriteNumber("id", thread.Id);
-                w.WriteString("name", thread.Name);
+                w.WriteString("name", ctx.P(thread.Name));
                 w.WriteNumber("rootId", thread.RootId);
                 w.WriteString("author", ctx.AuthorOf(thread.CreatedBy));
                 w.WriteNumber("createdAt", thread.CreatedAt);
@@ -498,13 +588,13 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
         w.WriteStartArray("posts");
         if (c.Kind == "forum")
         {
-            var tags = store.ForumTags(c.Id).ToDictionary(x => x.Id, x => x.Name);
+            var tags = store.ForumTags(c.Id).ToDictionary(x => x.Id, x => ctx.P(x.Name));
             foreach (var thread in plan.Threads)
             {
                 var post = store.GetForumPost(thread.Id);
                 w.WriteStartObject();
                 w.WriteNumber("id", thread.Id);
-                w.WriteString("title", thread.Name);
+                w.WriteString("title", ctx.P(thread.Name));
                 w.WriteString("author", ctx.AuthorOf(thread.CreatedBy));
                 w.WriteNumber("createdAt", thread.CreatedAt);
                 w.WriteStartArray("tags");
@@ -531,7 +621,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
                 w.WriteStartObject();
                 w.WriteNumber("id", page.Id);
                 if (page.ParentId is { } parent) w.WriteNumber("parentId", parent); else w.WriteNull("parentId");
-                w.WriteString("title", page.Title);
+                w.WriteString("title", ctx.P(page.Title));
                 w.WriteString("text", ExportMarkdown.PlainMentions(page.Text ?? "", ctx));
                 w.WriteNumber("createdAt", page.CreatedAt);
                 w.WriteNumber("updatedAt", page.UpdatedAt);
@@ -551,6 +641,8 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
         }
         w.WriteEndObject();
         w.WriteEndObject();
+        w.Flush();
+        _json = null;
     }
 
     private bool Expiring(Message m) => store.MessageExpiry(m.Id).ExpiresAt is not null;
@@ -670,7 +762,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
         using var w = new StreamWriter(stream, new UTF8Encoding(false), 64 * 1024);
         var c = plan.Channel;
         static string E(string s) => ExportMarkdown.Escape(s);
-        var serverName = _r.ServerName;
+        var serverName = ctx.P(_r.ServerName);
         var prefix = c.Kind is "docs" or "forum" ? "" : "#";
         w.Write(ExportPage.Head(_r.Lang, $"{prefix}{c.Name} · {serverName}"));
         w.Write("<header class=\"top\"><div class=\"wrap\"><div class=\"server\">");
@@ -688,12 +780,12 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
         var shown = new HashSet<long>();
         if (c.Kind == "forum")
         {
-            var tags = store.ForumTags(c.Id).ToDictionary(x => x.Id, x => x.Name);
+            var tags = store.ForumTags(c.Id).ToDictionary(x => x.Id, x => ctx.P(x.Name));
             if (plan.Threads.Count == 0) w.Write($"<p class=\"empty\">{E(ctx.Word("noPosts"))}</p>");
             foreach (var thread in plan.Threads)
             {
                 var post = store.GetForumPost(thread.Id);
-                w.Write($"<section class=\"post\" id=\"t{thread.Id}\"><h2>{E(thread.Name)}</h2><p class=\"head\">");
+                w.Write($"<section class=\"post\" id=\"t{thread.Id}\"><h2>{E(ctx.P(thread.Name))}</h2><p class=\"head\">");
                 foreach (var tag in post?.Tags ?? []) if (tags.TryGetValue(tag, out var name)) w.Write($"<span class=\"tag\">{E(name)}</span> ");
                 if (post?.PinnedAt is not null) w.Write($"<span class=\"pin\">📌 {E(ctx.Word("pinned"))}</span> ");
                 if (post?.Closed == true) w.Write($"<span class=\"tag\">{E(ctx.Word("closed"))}</span> ");
@@ -712,7 +804,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
             if (pages.Count == 0) w.Write($"<p class=\"empty\">{E(ctx.Word("noPages"))}</p>");
             foreach (var page in pages)
             {
-                w.Write($"<section class=\"page\" id=\"p{page.Id}\"><h2>{E(page.Title)}</h2>");
+                w.Write($"<section class=\"page\" id=\"p{page.Id}\"><h2>{E(ctx.P(page.Title))}</h2>");
                 w.Write($"<p class=\"muted\">{E(string.Format(ctx.Word("updated"), ctx.NameOfId(ctx.AuthorOf(page.UpdatedBy)), ctx.FormatTime(page.UpdatedAt)))}</p>");
                 w.Write($"<div class=\"text\">{ExportMarkdown.ToHtml(page.Text ?? "", ctx)}</div></section>\n");
                 Step();
@@ -740,7 +832,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
 
     private void WriteHtmlThread(StreamWriter w, Context ctx, ThreadInfo thread, long from, long to)
     {
-        w.Write($"<section class=\"thread\" id=\"t{thread.Id}\"><h3>🧵 {ExportMarkdown.Escape(thread.Name)}</h3>");
+        w.Write($"<section class=\"thread\" id=\"t{thread.Id}\"><h3>🧵 {ExportMarkdown.Escape(ctx.P(thread.Name))}</h3>");
         foreach (var m in Messages(thread.Id, from, to)) { WriteHtmlMessage(w, ctx, View(ctx, m), null); Step(); }
         w.Write("</section>");
     }

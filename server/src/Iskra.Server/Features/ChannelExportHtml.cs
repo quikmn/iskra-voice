@@ -24,6 +24,17 @@ public static partial class ExportMarkdown
 
     public static string Escape(string text) => WebUtility.HtmlEncode(text);
 
+    /// <summary>
+    /// Text used as a name or label, without bidi controls and other invisible format characters (Unicode Cf, e.g.
+    /// U+202E that makes "gnp.exe" look like "exe.png"). The emoji joiner (U+200D) stays.
+    /// </summary>
+    public static string Label(string text)
+    {
+        static bool Hidden(char c) => c != '‍' && char.GetUnicodeCategory(c) == UnicodeCategory.Format;
+        if (!text.Any(Hidden)) return text;
+        return new string(text.Where(c => !Hidden(c)).ToArray());
+    }
+
     [GeneratedRegex(@"\Ghttps?://[^\s<>""']+[^\s<>""'.,;:!?)\]]")]
     private static partial Regex UrlAt();
     [GeneratedRegex(@"\G\[([^\]\n]{1,200})\]\((https?://[^\s<>""')]+)\)")]
@@ -321,7 +332,7 @@ public static class ExportPage
     public static readonly string CssHash = "sha256-" + Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(Css)));
 
     public static string Csp =>
-        $"default-src 'none'; img-src 'self' file: data:; media-src 'self' file:; style-src '{CssHash}'; base-uri 'none'; form-action 'none'";
+        $"default-src 'none'; img-src 'self' file:; media-src 'self' file:; style-src '{CssHash}'; base-uri 'none'; form-action 'none'";
 
     public static string Head(string lang, string title) => $"""
         <!doctype html>

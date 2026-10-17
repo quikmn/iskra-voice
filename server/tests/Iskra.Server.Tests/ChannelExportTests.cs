@@ -281,7 +281,7 @@ public class ChannelExportTests
         Assert.DoesNotContain("http-equiv=\"refresh\"", html);
         Assert.DoesNotMatch("(src|href)=\"(https?:)?//", html.Replace("<a href=\"https://example.com", "<a x=\""));
         // An attached page never lands next to channel.html as something a browser would run.
-        Assert.Contains(files.Keys, k => k.EndsWith(".html.txt"));
+        Assert.Contains(files.Keys, k => k.EndsWith(".html.bin"));
         Assert.DoesNotContain(files.Keys, k => k.Contains('"') || k.Contains('<'));
     }
 
@@ -380,5 +380,181 @@ public class ChannelExportTests
     private sealed class ShiftedTime(TimeSpan by) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => System.GetUtcNow() + by;
+    }
+
+    private static string ExportsFolder(IskraServer server) => Path.Combine(server.WorldPath, DataExports.FolderName);
+
+    private static string[] Zips(IskraServer server) =>
+        Directory.Exists(ExportsFolder(server)) ? Directory.GetFiles(ExportsFolder(server), "channels-*.zip") : [];
+
+    [Fact]
+    public async Task Json_is_written_through_so_the_cap_applies_while_it_grows()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var store = server.World.Store;
+        for (var i = 0; i < 1000; i++)
+            store.AddMessage(server.General, owner.Key, Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(300)), 1_000 + i);
+        ChannelExports.For(server.World).MaxBytes = 60_000;
+        var failed = await Export(owner, new { channelIds = new[] { server.General }, attachments = false });
+        Assert.Equal("failed", failed.GetProperty("state").GetString());
+        Assert.Equal("export_too_big", failed.GetProperty("error").GetProperty("key").GetString());
+        // Stopped in the JSON pass (the first half), not only when the whole zip was done.
+        Assert.True(failed.GetProperty("done").GetInt64() < failed.GetProperty("total").GetInt64() / 2);
+        Assert.Empty(Zips(server));
+    }
+
+    [Fact]
+    public async Task Rights_are_checked_again_while_writing_and_when_downloading()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var exports = ChannelExports.For(server.World);
+
+        var done = await Export(admin, new { channelIds = new[] { server.General } });
+        Assert.Single(Zips(server));
+        await owner.RequestAsync("member.setRole", new { accountKey = admin.Key, role = "member" });
+        Assert.Equal(HttpStatusCode.NotFound, (await server.CreateClient().GetAsync(done.GetProperty("url").GetString())).StatusCode);
+        Assert.Empty(Zips(server));
+
+        // Losing the right while a job runs stops it.
+        await owner.RequestAsync("member.setRole", new { accountKey = admin.Key, role = "admin" });
+        exports.BeforeChannel = _ => server.World.Store.SetMemberRole(admin.Key, "member");
+        try
+        {
+            // (The admin can't ask for the status any more either, so look at the job on the server.)
+            Assert.Equal("result", (await admin.RequestAsync("channel.export", new { channelIds = new[] { server.General } })).Type());
+            var until = DateTime.UtcNow.AddSeconds(10);
+            while (exports.JobsOf(admin.Key)[0].State == "running" && DateTime.UtcNow < until) await Task.Delay(20);
+            var stopped = exports.JobsOf(admin.Key)[0];
+            Assert.Equal("failed", stopped.State);
+            Assert.Equal("export_forbidden", stopped.Error?.Key);
+        }
+        finally { exports.BeforeChannel = null; }
+        Assert.Empty(Zips(server));
+    }
+
+    [Fact]
+    public async Task Mentions_never_leak_account_keys_in_any_text()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var sam = await server.JoinAsync("Sam");
+        var store = server.World.Store;
+        var general = server.General;
+        var m = $"<@{sam.Key}>";
+        store.SetTopic(general, $"topic {m}");
+        await owner.RequestAsync("poll.create", new { channelId = general, question = $"Q {m}", options = new[] { $"A {m}", "B" } });
+        var root = (await owner.RequestAsync("chat.send", new { channelId = general, text = "root" })).Body().GetProperty("message").GetProperty("id").GetInt64();
+        await owner.RequestAsync("thread.create", new { messageId = root, name = $"thread {m}" });
+        var gifMessage = store.AddMessage(general, owner.Key, "", Now);
+        store.SetMessageGif(gifMessage.Id, new SentGif("klipy", "1", $"gif {m}", "https://gifs.example/a.gif", "https://gifs.example/p.gif", 1, 1));
+        // (File names can't hold a mention: uploads drop "<" and ">".)
+        var hookId = (await owner.RequestAsync("webhook.create", new { channelId = general, name = "Hook" })).Body().GetProperty("webhook").GetProperty("id").GetString()!;
+        var embeds = JsonSerializer.Serialize(new[] { new { title = $"T {m}", description = $"D {m}", fields = new[] { new { name = $"N {m}", value = $"V {m}" } }, footer = new { text = $"F {m}" } } });
+        store.AddWebhookMessage(store.GetWebhook(hookId)!, WebhookFeature.AuthorPrefix + hookId, "hook", "Hook", embeds, Now);
+        var forum = (await owner.RequestAsync("channel.create", new { name = "ideas", kind = "forum" })).Body().GetProperty("channel").GetProperty("id").GetInt64();
+        await owner.RequestAsync("forum.post.create", new { channelId = forum, title = $"post {m}", text = "x" });
+        var docs = (await owner.RequestAsync("channel.create", new { name = "wiki", kind = "docs" })).Body().GetProperty("channel").GetProperty("id").GetInt64();
+        store.CreateDocPage(docs, null, $"page {m}", $"text {m}", [], owner.Key, Now);
+
+        var files = await Download(server, await Export(owner, new { channelIds = new[] { general, forum, docs } }));
+        foreach (var (_, data) in files.Where(f => f.Key.EndsWith(".json") || f.Key.EndsWith(".html")))
+        {
+            var text = Encoding.UTF8.GetString(data);
+            Assert.DoesNotContain(sam.Key, text);
+            Assert.DoesNotContain(owner.Key, text);
+        }
+        var json = Text(files, $"{general}-general/channel.json");
+        foreach (var expected in new[] { "topic @Sam", "Q @Sam", "A @Sam", "thread @Sam", "gif @Sam", "T @Sam", "D @Sam", "N @Sam", "V @Sam", "F @Sam" })
+            Assert.Contains(expected, json);
+        Assert.Contains("post @Sam", Text(files, $"{forum}-ideas/channel.json"));
+        Assert.Contains("page @Sam", Text(files, $"{docs}-wiki/channel.json"));
+    }
+
+    [Fact]
+    public async Task Attachments_keep_only_passive_extensions_and_names_lose_bidi_controls()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var names = new[] { "cat.png", "report.pdf", "README", "evil‮gnp.exe", "page.html" };
+        var ids = new List<string>();
+        foreach (var name in names) ids.Add(await Upload(server, owner, Encoding.UTF8.GetBytes("data " + name), name));
+        await owner.RequestAsync("chat.send", new { channelId = server.General, text = "files", attachments = ids.ToArray() });
+
+        var files = await Download(server, await Export(owner, new { channelIds = new[] { server.General } }));
+        var attached = files.Keys.Where(k => k.Contains("/attachments/")).Select(k => k[(k.IndexOf("/attachments/") + 13)..]).Order().ToList();
+        Assert.Equal(["1-cat.png", "2-report.pdf.bin", "3-readme.bin", "4-evil-gnp.exe.bin", "5-page.html.bin"], attached);
+        var html = Text(files, "channel.html");
+        var json = Text(files, "channel.json");
+        Assert.False(html.Contains('‮', StringComparison.Ordinal));
+        Assert.False(json.Contains('‮', StringComparison.Ordinal));
+        Assert.Contains("evilgnp.exe", html);
+    }
+
+    [Fact]
+    public async Task Low_disk_space_refuses_the_job_and_the_sweep_clears_old_zips()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var exports = ChannelExports.For(server.World);
+        exports.FreeSpace = _ => 10 * 1024 * 1024;
+        var refused = await Export(owner, new { channelIds = new[] { server.General } });
+        Assert.Equal("failed", refused.GetProperty("state").GetString());
+        Assert.Equal("export_disk", refused.GetProperty("error").GetProperty("key").GetString());
+        Assert.Empty(Zips(server));
+
+        Directory.CreateDirectory(ExportsFolder(server));
+        var old = Path.Combine(ExportsFolder(server), "channels-old.zip");
+        var fresh = Path.Combine(ExportsFolder(server), "channels-fresh.zip");
+        File.WriteAllText(old, "x");
+        File.WriteAllText(fresh, "x");
+        File.SetLastWriteTimeUtc(old, DateTime.UtcNow.AddHours(-2));
+        Assert.Equal(1, exports.SweepFiles());
+        Assert.False(File.Exists(old));
+        Assert.True(File.Exists(fresh));
+    }
+
+    [Fact]
+    public async Task Cancelling_stops_the_job_and_deletes_the_partial_zip()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var exports = ChannelExports.For(server.World);
+        exports.BeforeChannel = job => job.Cancel.Token.WaitHandle.WaitOne(10_000);
+        try
+        {
+            var job = (await owner.RequestAsync("channel.export", new { channelIds = new[] { server.General } })).Body().GetProperty("job");
+            var id = job.GetProperty("id").GetString();
+            var until = DateTime.UtcNow.AddSeconds(10);
+            while (Zips(server).Length == 0 && DateTime.UtcNow < until) await Task.Delay(20);
+            Assert.Single(Zips(server)); // being written
+            Assert.Equal("result", (await owner.RequestAsync("channel.export.cancel", new { id })).Type());
+            string? state = null;
+            while (DateTime.UtcNow < until)
+            {
+                state = (await owner.RequestAsync("channel.export.status")).Body().GetProperty("jobs")[0].GetProperty("state").GetString();
+                if (state != "running") break;
+                await Task.Delay(20);
+            }
+            Assert.Equal("cancelled", state);
+            Assert.Empty(Zips(server));
+        }
+        finally { exports.BeforeChannel = null; }
+    }
+
+    [Fact]
+    public async Task The_csp_hash_matches_the_page_stylesheet()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var html = Text(await Download(server, await Export(owner, new { channelIds = new[] { server.General } })), "channel.html");
+        var style = System.Text.RegularExpressions.Regex.Match(html, "<style>(.*?)</style>", System.Text.RegularExpressions.RegexOptions.Singleline).Groups[1].Value;
+        var hash = "sha256-" + Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(style)));
+        var csp = System.Text.RegularExpressions.Regex.Match(html, "http-equiv=\"Content-Security-Policy\" content=\"([^\"]*)\"").Groups[1].Value;
+        Assert.Contains($"style-src '{hash}'", csp);
+        Assert.DoesNotContain("data:", csp);
+        Assert.Contains("default-src 'none'", csp);
     }
 }

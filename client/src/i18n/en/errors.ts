@@ -485,6 +485,7 @@ export const errors = {
     channel_export_busy: "An export is being made right now. Try again when it's done.",
     export_too_big: 'This export would be bigger than {{maxMb}} MB. Leave out attachments or pick a shorter range.',
     export_failed: "The export couldn't be made.",
+    export_disk: "The server doesn't have enough free disk space for this export.",
     too_many_devices_removed: 'Too many devices removed in a short time. Try again later.',
     too_many_changes: 'Too many changes in a short time. Try again in a minute.',
     e2ee_readers_changed: 'Who can read this channel changed in the meantime. Try again.',
