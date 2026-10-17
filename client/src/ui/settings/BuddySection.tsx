@@ -237,7 +237,7 @@ function SpotRow({ server, spot }: { server: ServerState; spot: BuddySpot }) {
   )
 }
 
-const KEEP_CHOICES = [1, 2, 3, 5, 7]
+const KEEP_CHOICES = [3, 5, 7, 14]
 const GRACE_CHOICES = [0, 1, 7, 14, 30]
 
 /** Spots on this server for friends' servers. */

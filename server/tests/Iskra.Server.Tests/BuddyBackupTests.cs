@@ -149,7 +149,7 @@ public class BuddyBackupTests
         using var sourceOwner = await pair.SourceOwnerAsync();
         await sourceOwner.RequestAsync("chat.send", new { channelId = pair.SourceWorld.Store.AllChannels().Single(c => c.Name == "general").Id, text = "a secret only the source knows" });
 
-        var (spotId, code) = await CreateSpot(holderOwner, new { label = "Anna's server", quotaMb = 500, keep = 2, graceDays = 3, url = Url });
+        var (spotId, code) = await CreateSpot(holderOwner, new { label = "Anna's server", quotaMb = 500, keep = 4, graceDays = 3, url = Url });
         Assert.StartsWith("iskra-buddy:", code);
         var waiting = (await holderOwner.RequestAsync("buddy.spots")).Body().GetProperty("spots")[0];
         Assert.Equal("waiting", waiting.GetProperty("state").GetString());
@@ -160,7 +160,7 @@ public class BuddyBackupTests
         var buddy = added.GetProperty("buddies")[0];
         Assert.Equal("My Iskra server", buddy.GetProperty("name").GetString());
         Assert.Equal(500L * 1024 * 1024, buddy.GetProperty("quotaBytes").GetInt64());
-        Assert.Equal(2, buddy.GetProperty("keep").GetInt32());
+        Assert.Equal(4, buddy.GetProperty("keep").GetInt32());
         // Shown once; asking again gives the same code (and is logged), the next buddy doesn't make a new one.
         Assert.Equal(recovery, (await sourceOwner.RequestAsync("buddy.recoveryCode")).Body().GetProperty("recoveryCode").GetString());
 
@@ -315,7 +315,9 @@ public class BuddyBackupTests
     {
         using var holder = new IskraServer { Settings = Quick };
         using var holderOwner = await holder.JoinAsync("Holder owner", "owner");
-        var (spotId, code) = await CreateSpot(holderOwner, new { label = "Bo", quotaMb = 100, keep = 2, url = Url });
+        // Fewer than 3 copies isn't allowed: daily copies would never get old enough to be the protected one.
+        Assert.Equal("bad_request", (await holderOwner.RequestAsync("buddy.spot.create", new { label = "Bo", keep = 2, url = Url })).ErrorCode());
+        var (spotId, code) = await CreateSpot(holderOwner, new { label = "Bo", quotaMb = 100, keep = 3, url = Url });
         using var http = new BuddyHttp(holder.Server.CreateHandler(), localOnly: true);
         using var source = Ed25519.KeyFromSeed(Ed25519.NewSeed());
         using var restore = Ed25519.KeyFromSeed(Ed25519.NewSeed());
@@ -362,14 +364,13 @@ public class BuddyBackupTests
         Assert.Equal(422, (await Assert.ThrowsAsync<BuddyHttpException>(() => http.FinishAsync(url, holderKey, source, uploadId, new string('0', 64), Now(), default))).Status);
         Assert.Null(await http.UploadReceivedAsync(url, holderKey, source, uploadId, Now(), default));
 
-        // Keep 2: the third upload pushes out the first.
+        // Keep 3: all three stay.
         var first = await Upload(RandomNumberGenerator.GetBytes(3000));
         var second = await Upload(RandomNumberGenerator.GetBytes(4000));
         var third = await Upload(RandomNumberGenerator.GetBytes(5000));
         var spot = await http.SpotAsync(url, holderKey, source, Now(), default);
-        Assert.Equal([third.Id, second.Id], spot.Versions.Select(v => v.Id));
-        Assert.Equal(9000, spot.Used);
-        Assert.False(File.Exists(Path.Combine(holder.WorldPath, "buddy-held", spotId, first.Id + ".blob")));
+        Assert.Equal([third.Id, second.Id, first.Id], spot.Versions.Select(v => v.Id));
+        Assert.Equal(12000, spot.Used);
         // What comes back is exactly what went in.
         using (var got = new MemoryStream())
         {
@@ -520,19 +521,22 @@ public class BuddyBackupTests
     public async Task Regression_a_source_taken_over_cannot_flush_the_last_good_copy()
     {
         using var held = new Held();
-        using var owner = await held.PairAsync(new { label = "Bo", quotaMb = 100, keep = 1, graceDays = 0, url = Url });
+        using var owner = await held.PairAsync(new { label = "Bo", quotaMb = 100, keep = 3, graceDays = 0, url = Url });
         var good = await held.UploadAsync(RandomNumberGenerator.GetBytes(3000));
         // Two days later the source starts sending junk.
         held.Holder.World.Store.SetBuddyVersionAt(good.Id, Held.Now() - 49 * 60 * 60 * 1000L);
         // A copy as big as the whole quota would push the good one out: refused.
         Assert.Equal(413, (await Assert.ThrowsAsync<BuddyHttpException>(() =>
             held.Http.BeginUploadAsync(Held.At, held.HolderKey, held.Source, 100L * 1024 * 1024, Held.Now(), default))).Status);
-        // With keep = 1, junk replaces junk, never the protected copy.
-        var junk1 = await held.UploadAsync(RandomNumberGenerator.GetBytes(1000));
-        var junk2 = await held.UploadAsync(RandomNumberGenerator.GetBytes(1000));
+        // Junk replaces junk (over several days: the daily limit is reset here), never the protected copy.
+        var junk = new List<BuddyVersion>();
+        for (var i = 0; i < 4; i++)
+        {
+            held.Holder.World.Store.BuddySpotUploaded(held.SpotId, Held.Now(), "[]");
+            junk.Add(await held.UploadAsync(RandomNumberGenerator.GetBytes(1000)));
+        }
         var ids = (await held.Http.SpotAsync(Held.At, held.HolderKey, held.Restore, Held.Now(), default)).Versions.Select(v => v.Id).ToList();
-        Assert.Equal([junk2.Id, good.Id], ids);
-        Assert.DoesNotContain(junk1.Id, ids);
+        Assert.Equal([junk[3].Id, junk[2].Id, junk[1].Id, good.Id], ids);
 
         // The source removing itself can't skip the grace period, even when the spot's is 0 days.
         using var request = new HttpRequestMessage(HttpMethod.Delete, "/buddy/v1/spot");
@@ -542,10 +546,31 @@ public class BuddyBackupTests
         Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
         var spot = held.Holder.World.Store.GetBuddySpot(held.SpotId)!;
         Assert.InRange(spot.DeleteAt!.Value - Held.Now(), BuddyHolder.DayMs - 60_000, BuddyHolder.DayMs);
-        Assert.Equal(2, held.Holder.World.Store.BuddyVersions(held.SpotId).Count);
+        Assert.Equal(4, held.Holder.World.Store.BuddyVersions(held.SpotId).Count);
         // The holder's own owner may still delete at once.
         await owner.RequestAsync("buddy.spot.remove", new { id = held.SpotId, now = true });
         Assert.Null(held.Holder.World.Store.GetBuddySpot(held.SpotId));
+    }
+
+    [Fact]
+    public async Task Regression_with_no_copy_two_days_old_the_oldest_one_is_protected()
+    {
+        using var held = new Held();
+        using var owner = await held.PairAsync(new { label = "Bo", quotaMb = 100, keep = 3, url = Url });
+        // A flood right after the last good copy (nothing is 48 hours old yet): the good one still stays.
+        var good = await held.UploadAsync(RandomNumberGenerator.GetBytes(3000));
+        var junk = new List<BuddyVersion>();
+        for (var i = 0; i < 5; i++)
+        {
+            held.Holder.World.Store.BuddySpotUploaded(held.SpotId, Held.Now(), "[]");
+            junk.Add(await held.UploadAsync(RandomNumberGenerator.GetBytes(1000)));
+        }
+        var ids = held.Holder.World.Store.BuddyVersions(held.SpotId).Select(v => v.Id).ToList();
+        Assert.Equal([junk[4].Id, junk[3].Id, junk[2].Id, good.Id], ids);
+        // And an upload must fit beside it.
+        held.Holder.World.Store.BuddySpotUploaded(held.SpotId, Held.Now(), "[]");
+        Assert.Equal(413, (await Assert.ThrowsAsync<BuddyHttpException>(() =>
+            held.Http.BeginUploadAsync(Held.At, held.HolderKey, held.Source, 100L * 1024 * 1024 - 2000, Held.Now(), default))).Status);
     }
 
     [Fact]
@@ -604,13 +629,20 @@ public class BuddyBackupTests
     [Theory]
     [InlineData("rewind")]
     [InlineData("overclaim")]
+    [InlineData("creep")]
     public async Task Regression_a_holder_that_lies_about_parts_fails_the_sync(string lie)
     {
         var puts = 0;
         using var pair = new Pair(inner => new PartsAnswer(inner, (offset, length) =>
         {
             puts++;
-            return lie == "rewind" ? Json(HttpStatusCode.Conflict, new { received = 0 }) : Json(HttpStatusCode.OK, new { received = offset + length + 1 });
+            return lie switch
+            {
+                "rewind" => Json(HttpStatusCode.Conflict, new { received = 0 }),
+                // One byte further each time: would resend a part per byte forever.
+                "creep" => Json(HttpStatusCode.Conflict, new { received = offset + 1 }),
+                _ => Json(HttpStatusCode.OK, new { received = offset + length + 1 }),
+            };
         }));
         using var holderOwner = await pair.Holder.JoinAsync("Holder owner", "owner");
         using var sourceOwner = await pair.SourceOwnerAsync();

@@ -19,6 +19,8 @@ public static class BuddyBackupFeature
 
     public const int MaxLabel = 64;
     public const long MinQuotaMb = 100, MaxQuotaMb = 1024 * 1024, DefaultQuotaMb = 2048;
+    /// <summary>At least 3 copies: with fewer, daily copies never get old enough to be the protected one.</summary>
+    public const int MinKeep = 3;
     public const int DefaultKeep = 3, DefaultGraceDays = 7, MaxGraceDays = 90;
 
     public static void Register(Router router)
@@ -108,7 +110,7 @@ public static class BuddyBackupFeature
         var holder = Owner(s, me).Holder;
         var label = Label(body);
         var quotaMb = body.OptionalLong("quotaMb", MinQuotaMb, MaxQuotaMb) ?? DefaultQuotaMb;
-        var keep = (int)(body.OptionalLong("keep", 1, 30) ?? DefaultKeep);
+        var keep = (int)(body.OptionalLong("keep", MinKeep, 30) ?? DefaultKeep);
         var grace = (int)(body.OptionalLong("graceDays", 0, MaxGraceDays) ?? DefaultGraceDays);
         string? address;
         if (body.OptionalString("url", 512) is { } given)
@@ -136,7 +138,7 @@ public static class BuddyBackupFeature
         var spot = Spot(s, body);
         var label = body.Has("label") ? Label(body) : spot.Label;
         var quota = body.OptionalLong("quotaMb", MinQuotaMb, MaxQuotaMb) is { } mb ? mb * 1024 * 1024 : spot.QuotaBytes;
-        var keep = (int)(body.OptionalLong("keep", 1, 30) ?? spot.Keep);
+        var keep = (int)(body.OptionalLong("keep", MinKeep, 30) ?? spot.Keep);
         var grace = (int)(body.OptionalLong("graceDays", 0, MaxGraceDays) ?? spot.GraceDays);
         s.World.Store.UpdateBuddySpot(spot.Id, label, quota, keep, grace);
         holder.Changed();

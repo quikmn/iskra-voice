@@ -280,8 +280,9 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
             var pace = _unpaced ? 0 : (long)world.Settings.BuddyBackups.UploadKbPerSecond * 1024;
             var clock = Stopwatch.StartNew();
             long sent = 0;
-            long furthest = received;
             var rewinds = 0;
+            // However the holder answers, never more than twice the copy plus a part in one go.
+            var maxSent = 2 * copy.Size + partBytes;
             await using (var file = File.OpenRead(copy.Path))
             {
                 var buffer = new byte[partBytes];
@@ -297,24 +298,22 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
                     var length = await file.ReadAtLeastAsync(buffer.AsMemory(0, (int)Math.Min(partBytes, copy.Size - received)), (int)Math.Min(partBytes, copy.Size - received), throwOnEndOfStream: true, cancel);
                     var part = length == buffer.Length ? buffer : buffer[..length];
                     sent += length;
+                    if (sent > maxSent) throw new BuddyHttpException(502, "The holder keeps asking for parts again.");
                     try
                     {
                         var got = await http.PutPartAsync(buddy.Url, holderKey, world.ServerKey, id, received, part, Now, cancel);
                         // The holder took exactly this part, or something is wrong with it.
                         if (got != received + length) throw new BuddyHttpException(502, "The holder's answer doesn't match what was sent.");
                         received = got;
+                        rewinds = 0;
                     }
                     catch (BuddyHttpException ex) when (ex.Status == 409 && ex.Received is { } at && at >= 0 && at <= copy.Size)
                     {
-                        // The holder has a different amount (a part went through but the answer didn't): carry on from
-                        // there, but not forever: a holder that keeps sending us back gets the sync failed.
+                        // Only "that part landed already" counts as progress (the answer got lost). Anything else sends us
+                        // to another offset: allowed a few times in a row, then the sync fails.
+                        if (at == received + length) rewinds = 0;
+                        else if (++rewinds > MaxRewinds) throw new BuddyHttpException(502, "The holder keeps asking for parts again.");
                         received = at;
-                        if (at <= furthest && ++rewinds > MaxRewinds) throw new BuddyHttpException(502, "The holder keeps asking for parts again.");
-                    }
-                    if (received > furthest)
-                    {
-                        furthest = received;
-                        rewinds = 0;
                     }
                     Progress(buddy.Id, received, copy.Size, force: false);
                 }

@@ -3909,9 +3909,10 @@ key is looked up before the body is read; refused requests count against the cli
 - The bytes go to `buddy-held/<spotId>/` in the holder's world folder (owner-only permissions on Linux and macOS),
   never into its database, and never into the holder's own backups. The database has the spot (label, quota, keep,
   grace, the source's key, name and restore key) and each version's id, size, time and SHA-256.
-- **The protected copy:** the newest version that is at least 48 hours old is never deleted by pruning, whatever `keep`
-  and the quota say, and a new upload must fit beside it (`413`). So a source taken over by someone else can't flush out
-  every good copy: the last copy from before the takeover (once it's 2 days old) stays until a newer one is 2 days old.
+- **The protected copy:** among the copies older than the one arriving, the newest one that is at least 48 hours old,
+  or, when none is that old yet, the oldest one. It's never deleted by pruning, whatever `keep` and the quota say, and a
+  new upload must fit beside it (`413`). So once a spot has two copies there's always an older one that a source taken
+  over by someone else can't flush out with junk. `keep` is at least 3, so daily copies live long enough to become it.
 - After each finished upload the holder keeps the newest `keep` versions plus the protected copy, then deletes the
   oldest until the spot fits its quota (never the newest or the protected copy). While an upload runs the spot can
   briefly hold its quota plus that upload.
@@ -3967,16 +3968,17 @@ Buddy {
 - Connections: only to the pairing code's address, which must be just a server (`http(s)://host[:port]`, no path), no
   redirects, plain http only to private networks, never link-local, and loopback only from a LocalOnly server (which
   connects to nothing else). 60 s per request; answers are buffered up to 1 MiB (downloads stream).
-- Uploading: each `PUT` answer must say exactly `offset` + the part's length; after a `409` the source carries on from
-  the holder's `received`, but 3 rewinds in a row without getting further fail the sync (`buddy_failed`). The pace limit
-  counts every part sent, rewinds included.
+- Uploading: each `PUT` answer must say exactly `offset` + the part's length. A `409` whose `received` is exactly that
+  too counts as the part having landed; any other `409` moves the source to the holder's `received`, and more than 3 of
+  those in a row fail the sync (`buddy_failed`), as does sending more than twice the copy plus one part in one go. The
+  pace limit counts every part sent.
 
 On the holder:
 
 | type | body | result |
 |---|---|---|
 | `buddy.spots` | | `{ spots: [Spot], address }` (`address`: what a new pairing code would carry, or null) |
-| `buddy.spot.create` | `label` (1–64), `quotaMb?` (100–1048576, default 2048), `keep?` (1–30, default 3), `graceDays?` (0–90, default 7), `url?` (http(s) ≤ 512) | `{ spot, code }` |
+| `buddy.spot.create` | `label` (1–64), `quotaMb?` (100–1048576, default 2048), `keep?` (3–30, default 3), `graceDays?` (0–90, default 7), `url?` (http(s) ≤ 512) | `{ spot, code }` |
 | `buddy.spot.update` | `id`, any of `label`, `quotaMb`, `keep`, `graceDays` | `{ spot }` |
 | `buddy.spot.remove` | `id`, `now?` | `{ spots, address }` |
 

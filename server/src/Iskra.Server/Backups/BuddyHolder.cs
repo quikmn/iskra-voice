@@ -355,7 +355,7 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
         }
         if (size < 1) return Status(400);
         var now = Now;
-        // The protected copy (the newest one at least 48 hours old) stays, so the new one has to fit beside it.
+        // The protected copy (see Protected) stays, so the new one has to fit beside it.
         var guarded = Protected(world.Store.BuddyVersions(spot.Id), now);
         if (size + (guarded?.Size ?? 0) > spot.QuotaBytes) return Status(413, new { quotaBytes = spot.QuotaBytes, protectedBytes = guarded?.Size ?? 0 });
         if (RecentUploads(spot, now).Count >= UploadsPerDay) return Status(429);
@@ -449,9 +449,13 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
     [GeneratedRegex("^[0-9a-f]{64}$")]
     private static partial Regex Sha256Hex();
 
-    /// <summary>The newest version that is at least 48 hours old: never pruned, whatever keep and the quota say.</summary>
-    internal static BuddyVersionRow? Protected(List<BuddyVersionRow> newestFirst, long now) =>
-        newestFirst.FirstOrDefault(v => v.At <= now - ProtectAfterMs);
+    /// <summary>
+    /// The protected copy among the copies older than the one arriving: the newest one at least 48 hours old, or, when
+    /// none is that old yet, the oldest one. Never pruned, whatever keep and the quota say, so once there are two copies
+    /// there is always an older one a flood of junk can't push out.
+    /// </summary>
+    internal static BuddyVersionRow? Protected(List<BuddyVersionRow> olderNewestFirst, long now) =>
+        olderNewestFirst.FirstOrDefault(v => v.At <= now - ProtectAfterMs) ?? olderNewestFirst.LastOrDefault();
 
     /// <summary>
     /// The newest <c>keep</c> versions, then the oldest go until the spot fits its quota. Never the newest, and never the
@@ -460,7 +464,7 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
     private void Prune(BuddySpotRow spot, string newest, long now)
     {
         var versions = world.Store.BuddyVersions(spot.Id);
-        var guarded = Protected(versions, now);
+        var guarded = Protected(versions.Where(v => v.Id != newest).ToList(), now);
         var kept = new List<BuddyVersionRow>();
         var counted = 0;
         foreach (var v in versions)
