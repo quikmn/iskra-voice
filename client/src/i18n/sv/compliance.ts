@@ -95,6 +95,11 @@ export const compliance: Messages['compliance'] = {
       when: 'Bara om en admin har lagt till en: din server skickar valda händelser (som nya meddelanden i vissa kanaler, eller folk som går med) till en annan app eller webbplats. Aldrig krypterade kanaler, direktmeddelanden eller gruppchattar.',
       off: 'Den webbplatsen får det händelsen innehåller (meddelandetext, folks namn), från serverns adress, inte din. Admins hanterar dem i Serverinställningar → Bottar och webhooks.',
     },
+    feeds: {
+      who: 'Flöden (RSS, YouTube, Twitch)',
+      when: 'Bara om en admin har slagit på Feeds-botten: din server kollar flödena de valt (bloggar, YouTube-kanaler, och Twitch om ägaren har lagt till en egen Twitch-app) med några minuters mellanrum och lägger upp det som är nytt.',
+      off: 'De sajterna ser serverns adress, aldrig din. Bara text hämtas, aldrig bilder. Admins sköter det i Serverinställningar → Bottar och webhooks → Bottar.',
+    },
     outgoingNone: 'Ingen av dina servrar skickar något till andra webbplatser.',
     outgoingServer: '{{server}} skickar till',
     outgoingHook: '{{host}} ({{name}}): {{events}}',

@@ -210,6 +210,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("inbox", $"SELECT account_key, message_id, channel_id, kind, created_at FROM inbox_items WHERE account_key {Mine} ORDER BY message_id;");
         Section("invitesCreated", $"SELECT created_by, created_at, expires_at, max_uses, uses, role, revoked FROM invites WHERE created_by {Mine};");
         Section("outgoingWebhooksCreated", $"SELECT id, name, url, events, created_by, created_at FROM outgoing_webhooks WHERE created_by {Mine};");
+        Section("feedsAdded", $"SELECT id, kind, source, name, channel_id, created_by, created_at FROM feed_subscriptions WHERE created_by {Mine};");
         Section("serverImagesSet", $"SELECT kind, file_id, set_by, set_at FROM server_images WHERE set_by {Mine};");
         Section("activitiesAdded", $"SELECT id, name, version, size, files, enabled, added_by, added_at FROM activities WHERE added_by {Mine} ORDER BY added_at;");
         Section("timeouts", $"SELECT account_key, until, reason, at FROM timeouts WHERE account_key {Mine};");
@@ -262,6 +263,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         - builtinBotAnswers: what the built-in bots answered to your commands (Dice, Polls, Reminders, Birthdays), Starboard
           cards about your messages, and Welcome and Birthdays greetings that name you first.
         - birthday: the day and month you shared with the Birthdays bot (never a year), and the year it was last announced.
+        - feedsAdded: feeds you set the Feeds bot to follow (RSS, YouTube or Twitch, where it posts, when).
         - activitiesAdded: activities you added to this server (name, version, size, when). What activities send while
           people play is never stored.
         - timeouts, bans, reportsMade, reportsAboutYou, auditLog, securityLog: moderation and security records about you.

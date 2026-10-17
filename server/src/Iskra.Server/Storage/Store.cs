@@ -371,6 +371,8 @@ public sealed partial class Store : IDisposable
         ("tts-1", TtsMigration),
         // Starboard, Birthdays and Welcome: their settings, cards, opted-in birthdays and welcomes waiting for the rules.
         ("builtinbots2-1", BuiltinBots2Migration),
+        // Feeds bot: RSS/Atom, YouTube and Twitch subscriptions, the items they have seen, the Twitch app credentials.
+        ("feeds-1", FeedsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

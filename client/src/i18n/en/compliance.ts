@@ -93,6 +93,11 @@ export const compliance = {
       when: 'Only if an admin set one up: your server sends chosen events (like new messages in some channels, or people joining) to another app or site. Never encrypted channels, direct messages or group chats.',
       off: "That site gets what the event says (message text, people's names), from the server's address, not yours. Admins manage them in Server settings → Bots & webhooks.",
     },
+    feeds: {
+      who: 'Feeds (RSS, YouTube, Twitch)',
+      when: "Only if an admin turned on the Feeds bot: your server checks the feeds they picked (blogs, YouTube channels, and Twitch if the owner added their own Twitch app) every few minutes and posts what's new.",
+      off: "Those sites see the server's address, never yours. Only text is fetched, never pictures. Admins manage it in Server settings → Bots & webhooks → Bots.",
+    },
     outgoingNone: 'None of your servers send anything to other sites.',
     outgoingServer: '{{server}} sends to',
     outgoingHook: '{{host}} ({{name}}): {{events}}',

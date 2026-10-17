@@ -4290,3 +4290,82 @@ It belongs to the call, not the channel: it goes away by itself when the last pe
   see the channel can read it. Apps say so where it's set.
 - **Rate limit:** 5 changes, then one every 10 s, per account (all its connections together): `rate_limited`, key
   `voice_status_slow`.
+
+## Feeds
+
+**Feeds** is another [built-in bot](#built-in-bots) (`builtin.bots.set`, `bot: "feeds"`): it posts new posts from RSS
+or Atom feeds, new videos from YouTube channels and "went live" from Twitch channels, each in the text channel an admin
+picks. It's the one built-in bot that makes the **server contact other sites**, so it's off until an admin turns it on,
+and while it's off nothing is fetched (subscriptions are kept). It's a bot member like the others (role, channel
+overrides, `builtin: "feeds"`), listed after Welcome in `welcome.builtinBots`; it has no command and never posts in
+[encrypted channels](#end-to-end-encrypted-channels).
+
+| type | body | result | who |
+|---|---|---|---|
+| `feeds.get` | | `{ subscriptions: [FeedSubscription], twitch: { configured, clientId \| null }, max: 25 }` | admins (`forbidden`, key `feeds_admin`) |
+| `feeds.add` | `kind: "rss" \| "youtube" \| "twitch"`, `source` (≤ 512), `channelId`, optional `mention`, `mentionRoleId`, `template`, `intervalMinutes` | `{ subscription }` | admins, while Feeds is on (`bad_request`, key `feeds_off`); audit `feed.add` |
+| `feeds.update` | `id`, any of `channelId`, `mention`, `mentionRoleId`, `template`, `intervalMinutes`, `paused` | `{ subscription }` | admins; audit `feed.update` (`{ id, changed: [field] }`) |
+| `feeds.remove` | `id` | `{}` | admins; audit `feed.remove` |
+| `feeds.check` | `id` | `{ subscription }` (after checking now) | admins; once a minute per subscription (`feeds_check_wait`, args `{ seconds }`) |
+| `feeds.twitch.set` | `clientId`, `clientSecret` (both `""` removes them) | `{ twitch: { configured, clientId } }` | the owner (`forbidden`, key `feeds_twitch_owner`); audit `feed.twitch` (never the secret) |
+
+```jsonc
+FeedSubscription {
+  "id": 3, "kind": "rss" | "youtube" | "twitch",
+  "source": "https://blog.example/feed.xml" | "UC…(24)" | "twitch_login",
+  "name": "Example blog",                 // the feed's title, the YouTube channel's or the Twitch channel's name (≤ 100)
+  "url": "https://…",                     // where people can see it: the feed's address, youtube.com/channel/…, twitch.tv/…
+  "channelId": 12, "mention": "everyone" | "here" | "role" | null, "mentionRoleId": 4 | null,
+  "template": "",                         // empty: the default post
+  "intervalMinutes": 15, "paused": false,
+  "createdBy": "<accountKey>", "createdAt": 0,
+  "lastCheckAt": 0 | null, "lastOkAt": 0 | null, "lastPostAt": 0 | null, "nextCheckAt": 0,
+  "failures": 0, "lastError": null | "unreachable" | "blocked" | "http" | "not_feed" | "too_large" | "rate_limited" | "twitch_setup" | "twitch_auth",
+  "canPing": true                         // whether the mention will notify, given the Feeds bot's own permissions
+}
+```
+
+- **Sources.** `rss`: an `http(s)` address of an RSS (0.9x, 1.0, 2.0) or Atom feed; a web page that names its feed
+  (`<link rel="alternate" type="application/rss+xml|atom+xml">`) is replaced by that feed's address when added. `youtube`:
+  a channel id (`UC` + 22 characters), a `youtube.com/channel/UC…` address, a channel feed address, or a handle
+  (`@name` or `youtube.com/@name`), which the server looks up once on YouTube's public channel page (no API key);
+  when that fails: `feeds_youtube_channel` (apps say where to find the channel id). The server reads YouTube's public
+  feed `https://www.youtube.com/feeds/videos.xml?channel_id=…`. `twitch`: a login or `twitch.tv/<login>` (1–25 letters,
+  digits or `_`, `feeds_twitch_login`), only when the owner has given the server a Twitch app's client id and secret
+  (`feeds_twitch_setup` otherwise; made at dev.twitch.tv, free). The server uses Twitch's Helix API with an app token
+  (client credentials): `GET /helix/users?login=` when added (unknown: `feeds_twitch_unknown`), then `GET
+  /helix/streams?user_login=`. The secret is stored in `iskra.db` and never sent to any app; credentials Twitch refuses
+  are `feeds_twitch_credentials`.
+- **Adding** fetches the source once: unreachable `feeds_unreachable`, not allowed `feeds_address`, not a feed
+  `feeds_not_feed`, too big `feeds_too_large`, a bad address `feeds_url`. Everything already in it is marked as seen,
+  so nothing old is posted (a Twitch channel that's live right now is posted the next time it goes live). The same
+  source twice in one channel: `feeds_duplicate`. At most 25 per server (`feeds_max`, args `{ max }`).
+- **Fields.** `channelId`: as for the other built-in bots (`builtin_bot_channel`, unknown or unreadable `not_found`);
+  the Feeds bot must be able to see it to post. `intervalMinutes`: RSS and YouTube 5–1440 (default 15), Twitch 2–60
+  (default 3) (`feeds_interval`, args `{ min, max }`). `template` ≤ 500 characters, newlines allowed (`feeds_template`,
+  args `{ max }`), with `{title}`, `{url}`, `{name}` (the feed's or channel's name); values from the feed are escaped
+  for markdown and can't mention anyone. `mention`: `null`, `"role"` (with `mentionRoleId`), `"everyone"` or `"here"`.
+  An admin may only pick `everyone`/`here`, or a role that isn't mentionable, if they may mention everyone themselves
+  (`forbidden`, key `feeds_mention_denied`); an unknown role is `not_found`. Whether it notifies then follows the
+  usual rules for the Feeds bot as author ([role mentions](#roles-and-permissions), `@everyone`): `canPing` says
+  whether it will. The mention goes on at most one post per subscription every 10 minutes.
+- **Posting.** Each new item is a message from the Feeds bot (oldest first, at most 5 per check; more are marked as
+  seen), plain English `text` with the mention, the title and the link (apps show a link preview by their own rules),
+  and `builtin`: `{ "bot": "feeds", "kind": "feed.item", "for": "<the bot's key>", "source": "rss" | "youtube" |
+  "twitch", "subscriptionId", "name", "title" (≤ 300, one line), "url" (http(s), ≤ 2048) | null, "mention": "everyone"
+  | "here" | "role" | null, "mentionRoleId", "text": "<filled template>" | null }` (`null`: the default post, worded by
+  the app). Posts push like any message from the bot. Paused subscriptions, a channel the bot can't see, an encrypted
+  channel or a timed-out bot: nothing is posted (items are still marked as seen).
+- **Fetching.** `GET` with `If-None-Match`/`If-Modified-Since` from the last answer (304: nothing new), user agent
+  `Iskra-Feeds/1`, connect timeout 5 s, 15 s in all, at most 3 redirects. Like [link previews](#link-previews), only
+  public addresses are reached, checked after DNS on every connection (redirects and DNS rebinding included); a
+  LocalOnly server reaches only loopback addresses (for tests). Answers: an XML content type (or `text/plain`), at
+  most 2 MiB; XML is read without DTDs, entities from them or any external resource. Images are never fetched (not
+  even thumbnails). Checks happen every `intervalMinutes` plus up to 10% random delay; after a failure the wait doubles
+  each time (at most 6 hours; `Retry-After` is respected). Seen items are kept per subscription (the last 500, by a
+  hash of their id or link).
+- **Rate limits:** adds that get as far as fetching 10 then one per 5 s (`rate_limited`, key `feeds_slow`), `feeds.update`/`feeds.remove` 20 then 2/s, `feeds.check` 5 then
+  one per 5 s, `feeds.twitch.set` 5 then one per 10 s, `feeds.get` 10 then 2/s.
+
+Migration `feeds-1`: `feed_subscriptions` (deleted with their channel), `feed_seen` (deleted with the subscription)
+and `feed_settings` (the Twitch credentials).

@@ -2015,7 +2015,7 @@ export interface Requests {
 
 // ── built-in bots ──
 
-export type BuiltinBotId = 'dice' | 'polls' | 'reminders' | MoreBuiltinBotId
+export type BuiltinBotId = 'dice' | 'polls' | 'reminders' | MoreBuiltinBotId | 'feeds'
 
 export interface BuiltinBot {
   id: BuiltinBotId
@@ -2033,6 +2033,7 @@ export type BuiltinReply = { bot: BuiltinBotId; for: string } & (
   | { kind: 'remind.usage' }
   | { kind: 'error'; error: { code: string; message: string; key?: string | null; args?: Record<string, unknown> | null } }
   | MoreBuiltinReply
+  | FeedReply
 )
 
 export interface Member {
@@ -2088,6 +2089,71 @@ export interface Requests {
   'birthday.get': [Record<string, never>, { birthday: Birthday | null }]
   'birthday.set': [Birthday, { birthday: Birthday }]
   'birthday.remove': [Record<string, never>, { birthday: null }]
+}
+
+// ── feeds ──
+
+export type FeedKind = 'rss' | 'youtube' | 'twitch'
+export type FeedMention = 'role' | 'everyone' | 'here'
+export type FeedError = 'unreachable' | 'blocked' | 'http' | 'not_feed' | 'too_large' | 'rate_limited' | 'twitch_setup' | 'twitch_auth'
+
+export interface FeedSubscription {
+  id: number
+  kind: FeedKind
+  /** The feed's address, a YouTube channel id or a Twitch login. */
+  source: string
+  name: string
+  /** Where people can see it (the feed, the YouTube or Twitch channel). */
+  url: string
+  channelId: number
+  mention: FeedMention | null
+  mentionRoleId: number | null
+  /** Empty: the default post. */
+  template: string
+  intervalMinutes: number
+  paused: boolean
+  createdBy: string
+  createdAt: number
+  lastCheckAt: number | null
+  lastOkAt: number | null
+  lastPostAt: number | null
+  nextCheckAt: number
+  failures: number
+  lastError: FeedError | null
+  /** Whether the mention will notify, given the Feeds bot's own permissions. */
+  canPing: boolean
+}
+
+export interface FeedTwitch { configured: boolean; clientId: string | null }
+
+/** A Feeds post: worded by the app unless an admin's template made `text`. */
+export interface FeedReply {
+  kind: 'feed.item'
+  source: FeedKind
+  subscriptionId: number
+  name: string
+  title: string
+  url: string | null
+  mention: FeedMention | null
+  mentionRoleId: number | null
+  text: string | null
+}
+
+export interface FeedFields {
+  channelId: number
+  mention: FeedMention | null
+  mentionRoleId: number | null
+  template: string
+  intervalMinutes: number
+}
+
+export interface Requests {
+  'feeds.get': [Record<string, never>, { subscriptions: FeedSubscription[]; twitch: FeedTwitch; max: number }]
+  'feeds.add': [{ kind: FeedKind; source: string } & Partial<FeedFields>, { subscription: FeedSubscription }]
+  'feeds.update': [{ id: number } & Partial<FeedFields & { paused: boolean }>, { subscription: FeedSubscription }]
+  'feeds.remove': [{ id: number }, Record<string, never>]
+  'feeds.check': [{ id: number }, { subscription: FeedSubscription }]
+  'feeds.twitch.set': [{ clientId: string; clientSecret: string }, { twitch: FeedTwitch }]
 }
 
 // ── bot interactions ──
