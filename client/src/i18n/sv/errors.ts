@@ -332,6 +332,8 @@ export const errors: Messages['errors'] = {
     event_started: 'Evenemanget har redan börjat.',
     event_over: 'Evenemanget är slut.',
     forum_full: 'Forumet har för många inlägg. Radera några gamla först.',
+    media_post_needs_media: 'Lägg till minst en bild eller video.',
+    media_post_only_media: 'Här går det bara att publicera bilder och videor.',
     reactions_full: 'Meddelandet har för många olika reaktioner.',
     poll_one_answer: 'Den här omröstningen tillåter bara ett svar.',
     poll_ended: 'Omröstningen är avslutad.',

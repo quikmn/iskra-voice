@@ -59,6 +59,7 @@ import { speech } from './speech'
 import { sounds } from './sounds'
 import { voiceStatus } from './voiceStatus'
 import { invitetrack } from './invitetrack'
+import { mediaChannels } from './mediaChannels'
 
 export const en = {
   common,
@@ -117,6 +118,7 @@ export const en = {
   landing,
   activities,
   speech,
+  mediaChannels,
   moreBots,
   sounds,
   voiceStatus,

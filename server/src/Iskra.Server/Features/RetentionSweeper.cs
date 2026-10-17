@@ -75,7 +75,7 @@ public sealed class RetentionSweeper(World world, Hub hub, Uploads uploads, Data
             foreach (var (id, _) in group)
             {
                 if (announce) hub.BroadcastToReaders(channel, Frames.Event("chat.deleted", new { id, channelId = channel.Id }));
-                if (channel.Kind == "forum" && world.Store.PostForRoot(id) is { } post)
+                if (ForumFeature.HasPosts(channel.Kind) && world.Store.PostForRoot(id) is { } post)
                 {
                     world.Store.DeleteChannel(post);
                     hub.BroadcastToReaders(channel, Frames.Event("thread.deleted", new { id = post, channelId = channel.Id, rootId = id }));

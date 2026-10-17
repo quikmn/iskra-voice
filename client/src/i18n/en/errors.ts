@@ -334,6 +334,8 @@ export const errors = {
     event_started: 'This event has already started.',
     event_over: 'This event is over.',
     forum_full: 'This forum has too many posts. Delete some old ones first.',
+    media_post_needs_media: 'Add at least one picture or video.',
+    media_post_only_media: 'Only pictures and videos can be posted here.',
     reactions_full: 'This message has too many different reactions.',
     poll_one_answer: 'This poll allows only one answer.',
     poll_ended: 'This poll has ended.',

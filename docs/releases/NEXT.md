@@ -1,6 +1,7 @@
 <!-- Release notes for the next version. Each change is its own line; the release step merges them. -->
 
 ### What's new
+- Media channels: a channel that's a gallery. Share screenshots, art and memes as posts of pictures and videos with captions, tags and comments, browse them as a grid, sort by newest or most reactions, and open any post full screen with its comments beside it. Sensitive posts stay blurred until someone chooses to look.
 - On your phone, back always does what you expect: it closes what's open, then shows your channels, then takes you back to the channel; press it twice quickly to leave the app. Swipe right for your channels and left for the member list; the drawers follow your finger.
 - Voice channel status: give a voice channel a line like "CS2 ranked 🔫" so everyone sees what's going on; it clears itself when the call ends. And pick your own notification sounds for messages, mentions and DMs, per server or per channel, or use your own short sound (it stays on your device).
 - Three more built-in bots: Starboard shows your server's best messages in #starboard, Birthdays wishes members a happy birthday (day and month only, and only if they share it), and Welcome greets newcomers in your own words.

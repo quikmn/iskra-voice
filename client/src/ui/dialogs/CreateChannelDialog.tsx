@@ -10,6 +10,7 @@ import { StageIcon } from '../stage/stageIcons'
 import { ForumIcon } from '../forums/icons'
 import { DocsIcon } from '../docs/icons'
 import { BoardIcon } from '../whiteboard/icons'
+import { MediaIcon } from '../mediaChannels/icons'
 import { createEncryptedChannel, readersFor } from '../../state/e2eeChannels'
 import { MAX_CHANNEL_MEMBERS } from '../../core/channelChain'
 import { EncryptedCreateNote, e2eeText } from '../e2ee/E2ee'
@@ -20,7 +21,7 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
   const categories = useCategories(server.key)
   const [categoryId, setCategoryId] = useState<number | null>(initialCategory)
   const [name, setName] = useState('')
-  const [kind, setKind] = useState<'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard'>('text')
+  const [kind, setKind] = useState<'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media'>('text')
   const [readRole, setReadRole] = useState<Role>('member')
   const [writeRole, setWriteRole] = useState<Role>('member')
   const [encrypted, setEncrypted] = useState(false)
@@ -41,7 +42,7 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
       const channel = encrypted && (kind === 'text' || kind === 'voice' || kind === 'whiteboard')
         ? await createEncryptedChannel(server.key, { ...spec, kind })
         : (await connectionFor(server.key)!.request('channel.create', spec)).channel
-      if (channel.kind === 'text' || channel.kind === 'forum' || channel.kind === 'docs' || channel.kind === 'whiteboard') selectChannel(server.key, channel.id)
+      if (channel.kind === 'text' || channel.kind === 'forum' || channel.kind === 'docs' || channel.kind === 'whiteboard' || channel.kind === 'media') selectChannel(server.key, channel.id)
       onClose()
     } catch (e) {
       setError(e2eeText(errorMessage(e)))
@@ -60,10 +61,11 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
         </>
       }
     >
-      <div className="segmented" role="radiogroup" aria-label={t('settings.channel.type')}>
+      <div className="segmented wrap" role="radiogroup" aria-label={t('settings.channel.type')}>
         <button role="radio" aria-checked={kind === 'text'} className={kind === 'text' ? 'on' : ''} onClick={() => setKind('text')}><Hash size={16} /> {t('settings.channel.text')}</button>
         <button role="radio" aria-checked={kind === 'voice'} className={kind === 'voice' ? 'on' : ''} onClick={() => setKind('voice')}><Volume size={16} /> {t('settings.channel.voice')}</button>
         <button role="radio" aria-checked={kind === 'forum'} className={kind === 'forum' ? 'on' : ''} onClick={() => setKind('forum')}><ForumIcon size={16} /> {t('settings.channel.forum')}</button>
+        <button role="radio" aria-checked={kind === 'media'} className={kind === 'media' ? 'on' : ''} onClick={() => setKind('media')}><MediaIcon size={16} /> {t('mediaChannels.kind')}</button>
         <button role="radio" aria-checked={kind === 'stage'} className={kind === 'stage' ? 'on' : ''} onClick={() => setKind('stage')}><StageIcon size={16} /> {t('settings.channel.stage')}</button>
         <button role="radio" aria-checked={kind === 'docs'} className={kind === 'docs' ? 'on' : ''} onClick={() => {
           setKind('docs')
@@ -76,8 +78,9 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
         <span>{t('settings.overview.name')}</span>
         <input value={name} maxLength={32} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void create()} placeholder={t('settings.channel.namePlaceholder')} />
       </label>
-      {slug && <p className="muted"><Trans i18nKey="settings.channel.appearsAs" values={{ name: `${kind === 'text' || kind === 'forum' ? '#' : ''}${slug}` }} components={{ b: <strong /> }} /></p>}
+      {slug && <p className="muted"><Trans i18nKey="settings.channel.appearsAs" values={{ name: `${kind === 'text' || kind === 'forum' || kind === 'media' ? '#' : ''}${slug}` }} components={{ b: <strong /> }} /></p>}
       {kind === 'forum' && <p className="muted">{t('settings.channel.forumHint')}</p>}
+      {kind === 'media' && <p className="muted">{t('mediaChannels.hint')}</p>}
       {kind === 'stage' && <p className="muted">{t('settings.channel.stageHint')}</p>}
       {kind === 'docs' && <p className="muted">{t('docs.channel.hint')}</p>}
       {kind === 'whiteboard' && <p className="muted">{t('whiteboard.channelHint')}</p>}

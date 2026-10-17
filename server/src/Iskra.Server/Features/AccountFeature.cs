@@ -60,7 +60,7 @@ public static class AccountFeature
         // Threads and forums whose messages went: forum posts lose their first message, threads their counts.
         foreach (var channel in channels)
         {
-            if (channel.Kind == "forum")
+            if (ForumFeature.HasPosts(channel.Kind))
                 foreach (var (id, _) in messages.Where(m => m.ChannelId == channel.Id)) ForumFeature.RootDeleted(s, channel, id);
             else ThreadFeature.Touched(s, channel);
         }
