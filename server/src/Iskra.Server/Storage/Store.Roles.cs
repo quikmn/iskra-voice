@@ -49,10 +49,21 @@ public sealed record CustomRole(long Id, string Name, string? Color, string? Ico
 public sealed record ChannelOverride(long RoleId, ChannelPerm Allow, ChannelPerm Deny);
 
 /// <summary>
-/// A question new members answer by picking self-assignable roles ("Platform: PC / PlayStation / Xbox"). <paramref name="Multi"/>:
-/// several answers at once; otherwise picking one drops the others. <paramref name="RoleIds"/> in the order shown.
+/// A join question ("Platform: PC / PlayStation / Xbox"). <paramref name="Multi"/>: several answers at once; otherwise one.
+/// <paramref name="RoleIds"/>: every role its answers give, in the order shown (Store.Onboarding.cs).
 /// </summary>
-public sealed record RoleGroup(long Id, string Title, string Question, bool Multi, int Position, long[] RoleIds);
+public sealed record RoleGroup(long Id, string Title, string Question, bool Multi, int Position, long[] RoleIds)
+{
+    /// <summary>New members' apps keep asking until it's answered.</summary>
+    public bool Required { get; init; }
+    public JoinAnswer[] Answers { get; init; } = [];
+}
+
+/// <summary>
+/// One answer to a join question: self-assignable roles it gives and channels it suggests. An empty
+/// <paramref name="Label"/> means "the role's name" (answers made from a list of roles).
+/// </summary>
+public sealed record JoinAnswer(long Id, string Label, string? Emoji, long[] RoleIds, long[] ChannelIds);
 
 public sealed partial class Store
 {
@@ -201,59 +212,7 @@ public sealed partial class Store
         return members.Select(m => byKey.TryGetValue(m.AccountKey, out var roles) ? WithRoles(m, roles) : m).ToList();
     }
 
-    // ── Pick groups (onboarding) ─────────────────────────────────────────────
-
-    /// <summary>In the order shown, each with its roles in order.</summary>
-    public List<RoleGroup> AllRoleGroups()
-    {
-        lock (_gate)
-        {
-            var roles = Query("SELECT group_id, role_id FROM role_group_roles ORDER BY position;", r => (Group: r.GetInt64(0), Role: r.GetInt64(1)))
-                .GroupBy(x => x.Group).ToDictionary(g => g.Key, g => g.Select(x => x.Role).ToArray());
-            return Query("SELECT id, title, question, multi, position FROM role_groups ORDER BY position, id;",
-                r => new RoleGroup(r.GetInt64(0), r.GetString(1), r.GetString(2), r.GetInt64(3) != 0, r.GetInt32(4), roles.GetValueOrDefault(r.GetInt64(0)) ?? []));
-        }
-    }
-
-    public RoleGroup? GetRoleGroup(long id) => AllRoleGroups().FirstOrDefault(g => g.Id == id);
-
-    public int RoleGroupCount() => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM role_groups;"));
-
-    /// <summary>New groups go last.</summary>
-    public RoleGroup CreateRoleGroup(string title, string question, bool multi, IReadOnlyList<long> roleIds, long now)
-    {
-        lock (_gate)
-        {
-            var position = Convert.ToInt32(Scalar("SELECT COALESCE(MAX(position), 0) + 1 FROM role_groups;"));
-            var id = Convert.ToInt64(Scalar("""
-                INSERT INTO role_groups (title, question, multi, position, created_at) VALUES ($t, $q, $m, $p, $now) RETURNING id;
-                """, ("$t", title), ("$q", question), ("$m", multi ? 1 : 0), ("$p", position), ("$now", now)));
-            SetRoleGroupRoles(id, roleIds);
-            return GetRoleGroup(id)!;
-        }
-    }
-
-    public void UpdateRoleGroup(RoleGroup group)
-    {
-        lock (_gate)
-        {
-            Exec("UPDATE role_groups SET title = $t, question = $q, multi = $m WHERE id = $id;",
-                ("$id", group.Id), ("$t", group.Title), ("$q", group.Question), ("$m", group.Multi ? 1 : 0));
-            SetRoleGroupRoles(group.Id, group.RoleIds);
-        }
-    }
-
-    private void SetRoleGroupRoles(long groupId, IReadOnlyList<long> roleIds)
-    {
-        Exec("DELETE FROM role_group_roles WHERE group_id = $g;", ("$g", groupId));
-        for (var i = 0; i < roleIds.Count; i++)
-            Exec("INSERT OR IGNORE INTO role_group_roles (group_id, role_id, position) VALUES ($g, $r, $p);", ("$g", groupId), ("$r", roleIds[i]), ("$p", i));
-    }
-
-    public void DeleteRoleGroup(long id) => Exec("DELETE FROM role_groups WHERE id = $id;", ("$id", id));
-
-    /// <summary>When a role stops being self-assignable, no group offers it any more.</summary>
-    public void RemoveRoleFromGroups(long roleId) => Exec("DELETE FROM role_group_roles WHERE role_id = $r;", ("$r", roleId));
+    // Pick groups (join questions): Store.Onboarding.cs.
 
     // ── Channel overrides ────────────────────────────────────────────────────
 

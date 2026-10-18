@@ -220,6 +220,11 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("inbox", $"SELECT account_key, message_id, channel_id, kind, created_at FROM inbox_items WHERE account_key {Mine} ORDER BY message_id;");
         Section("invitesCreated", $"SELECT created_by, created_at, expires_at, max_uses, uses, role, revoked, label FROM invites WHERE created_by {Mine};");
         Section("joinedVia", $"SELECT account_key, invite_id, label, created_by, role, approved_by, joined_at FROM member_invites WHERE account_key {Mine};");
+        Section("joinAnswers", $"""
+            SELECT g.title AS question, a.label AS answer, a.id AS answer_id FROM onboarding_answers o
+            JOIN role_group_answers a ON a.id = o.answer_id JOIN role_groups g ON g.id = a.group_id WHERE o.account_key {Mine} ORDER BY g.position, a.position;
+            """);
+        Section("joinAnswerRoles", $"SELECT role_id FROM onboarding_grants WHERE account_key {Mine};");
         Section("outgoingWebhooksCreated", $"SELECT id, name, url, events, created_by, created_at FROM outgoing_webhooks WHERE created_by {Mine};");
         Section("feedsAdded", $"SELECT id, kind, source, name, channel_id, created_by, created_at FROM feed_subscriptions WHERE created_by {Mine};");
         Section("serverImagesSet", $"SELECT kind, file_id, set_by, set_at FROM server_images WHERE set_by {Mine};");
@@ -248,6 +253,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
           (or turned you away in the last day): your name, the last characters of the invite, its role, when you asked.
         - joinedVia: the invite you joined with, as moderators see it: its id (not the link), label, who made it, its
           role, who let you in if it needed approval, and when.
+        - joinAnswers, joinAnswerRoles: your answers to the server's join questions (an empty answer label means the
+          answer is named after its role), and the roles your answers gave you (the ones changing an answer takes back).
         - syncedSettings, notificationSettings, rulesAccepted, blockList: your settings as the server keeps them.
         - alertSettings: alert words and follows (people and roles, per channel) you asked this server to watch for while
           Iskra is closed (only if you turned that on), and your quiet hours (days, times and time zone; only where your

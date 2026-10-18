@@ -73,6 +73,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["data.export"] = (2, 1 / 600.0), // "Download my data": two, then one every 10 minutes
         ["role.base.update"] = (30, 2), // ticking powers one by one
         ["roles.self"] = (10, 1), // picking your own roles, one tap each
+        ["onboarding.answer"] = (10, 1), // join questions, one step each
         ["join.settings.update"] = (10, 1),
         ["chat.delete.bulk"] = (5, 0.2), // up to 100 messages each
         ["member.warn"] = (10, 0.5),

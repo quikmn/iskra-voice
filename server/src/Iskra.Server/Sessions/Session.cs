@@ -493,7 +493,7 @@ public sealed class Session
         }
 
         if (isBot) BotFeature.Joined(_world.Store, cert.AccountKey, invite!, Now);
-        var member = _world.Store.AddMember(cert.AccountKey, name, role, Now);
+        var member = Features.OnboardingFeature.Joined(_world.Store, _world.Store.AddMember(cert.AccountKey, name, role, Now));
         _world.Store.SaveDevice(cert, Now);
         ProfileFeature.AcceptStamp(_world.Store, member.AccountKey, new Body(profile), Now);
         ProfileFeature.ApplyFromAuth(_world.Store, member.AccountKey, profile);

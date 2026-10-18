@@ -72,7 +72,7 @@ public static class JoinFeature
         var request = Pending(s, body);
         if (store.IsBanned(request.AccountKey)) throw RequestException.BadRequest("They were banned meanwhile.", "join_banned");
         store.RemoveJoinRequest(request.AccountKey);
-        var member = store.AddMember(request.AccountKey, request.Name, request.Role, s.Now);
+        var member = OnboardingFeature.Joined(store, store.AddMember(request.AccountKey, request.Name, request.Role, s.Now));
         var via = InviteTrackFeature.Joined(store, member, request.InviteCode, me.AccountKey, s.Now);
         SecurityLog.Record(s, "join.approved", request.AccountKey, new { role = request.Role });
         Audit.Record(s, "join.approve", request.AccountKey, details: new { role = request.Role, invite = via });

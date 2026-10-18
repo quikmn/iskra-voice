@@ -57,6 +57,7 @@ public sealed class Router
         ImportFeature.Register(this, imports);
         KeyFeature.Register(this);
         RoleFeature.Register(this);
+        OnboardingFeature.Register(this);
         ActivityFeature.Register(this);
         DmFileFeature.Register(this);
         StickerFeature.Register(this);

@@ -383,6 +383,8 @@ public sealed partial class Store : IDisposable
         ("feeds-1", FeedsMigration),
         // Tags, Suggestions, Giveaways and Counting bots: snippets, suggestion cards and votes, giveaways and entries, counts.
         ("builtinbots3-1", BuiltinBots3Migration),
+        // Join questions: answers that give roles and suggest channels, members' answers and what they gave, roles on join.
+        ("onboarding-1", OnboardingMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

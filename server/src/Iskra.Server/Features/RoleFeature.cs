@@ -74,7 +74,7 @@ public static partial class RoleFeature
 
     /// <summary>`role.list` and the `roles` event: custom roles, built-in roles and the pick groups.</summary>
     private static object RoleList(Store store) =>
-        new { roles = store.AllRoles().Select(Public), baseRoles = PublicBaseRoles(store), groups = PublicGroups(store) };
+        new { roles = store.AllRoles().Select(Public), baseRoles = PublicBaseRoles(store), groups = PublicGroups(store), autoRoles = store.AutoRoles() };
 
     // ── Validation ───────────────────────────────────────────────────────────
 
@@ -121,22 +121,22 @@ public static partial class RoleFeature
     }
 
     /// <summary>An emoji (≤ 16 characters, no spaces); "" clears.</summary>
-    private static string? Icon(Body body, string? fallback)
+    private static string? Icon(Body body, string? fallback, string field = "icon")
     {
-        if (!body.Has("icon")) return fallback;
-        var raw = body.OptionalString("icon", MaxIconLength * 2);
+        if (!body.Has(field)) return fallback;
+        var raw = body.OptionalString(field, MaxIconLength * 2);
         if (string.IsNullOrWhiteSpace(raw)) return null;
         var icon = Text.Normalize(raw, MaxIconLength, allowNewlines: false);
-        return icon is null || icon.Any(char.IsWhiteSpace) ? throw RequestException.BadRequest("'icon' must be one emoji.") : icon;
+        return icon is null || icon.Any(char.IsWhiteSpace) ? throw RequestException.BadRequest($"'{field}' must be one emoji.") : icon;
     }
 
-    private static void RolesChanged(Session s)
+    internal static void RolesChanged(Session s)
     {
         s.Hub.Broadcast(Frames.Event("roles", RoleList(s.World.Store)));
     }
 
     /// <summary>After role membership, deletion or overrides change: members, channel lists and voice follow.</summary>
-    private static void AccessChanged(Session s, IEnumerable<string> accountKeys)
+    internal static void AccessChanged(Session s, IEnumerable<string> accountKeys)
     {
         foreach (var key in accountKeys.Distinct())
             if (s.World.Store.GetMember(key) is { } member)
@@ -265,6 +265,7 @@ public static partial class RoleFeature
         if (added.Count + removed.Count > 0)
         {
             s.World.Store.SetMemberRoles(target.AccountKey, wanted);
+            s.World.Store.ForgetOnboardingGrants(target.AccountKey, added.Concat(removed)); // given or taken by hand now
             Audit.Record(s, "member.roles", target.AccountKey, details: new
             {
                 added = added.Select(id => all[id].Name), removed = removed.Select(id => all[id].Name),
