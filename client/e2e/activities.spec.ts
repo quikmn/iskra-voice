@@ -140,6 +140,11 @@ test('two play Four in a row, a late joiner sees the board, and added activities
   const word = (await choice.textContent())!
   await choice.click()
   await expect(frame(host).getByRole('status')).toHaveText(`Draw: ${word}`)
+  // The colours sit beside the board, not under it: the whole game fits without scrolling.
+  const toolbar = (await frame(host).getByRole('toolbar').boundingBox())!
+  const board = (await frame(host).locator('canvas').boundingBox())!
+  expect(toolbar.x + toolbar.width).toBeLessThanOrEqual(board.x)
+  expect(await frame(host).locator('html').evaluate((el) => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(0)
   const canvas = (await frame(host).locator('canvas').boundingBox())!
   await host.mouse.move(canvas.x + 40, canvas.y + 40)
   await host.mouse.down()

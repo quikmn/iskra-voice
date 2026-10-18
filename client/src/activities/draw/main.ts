@@ -10,28 +10,41 @@ import { WORDS, threeWords } from './words'
 const COLOR_NAMES = ['black', 'red', 'orange', 'green', 'blue', 'purple', 'pink', 'eraser'] as const
 
 const CSS = `
-#app { gap: 6px; padding: 8px; }
+#app { gap: 6px; padding: 8px; height: 100%; }
 .status { margin: 0; }
-.top { display: flex; gap: 8px; align-items: center; justify-content: space-between; width: 100%; max-width: 760px; flex-wrap: wrap; }
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 12px; width: 100%; max-width: 960px; }
-@media (max-width: 700px) { .layout { grid-template-columns: 1fr; } }
-.board { position: relative; width: 100%; }
-/* As big as fits the frame: wide on a computer, short in a call. */
-canvas { width: min(100%, calc((100vh - 120px) * 4 / 3)); min-width: 240px; aspect-ratio: 4 / 3; background: #fff; border-radius: 12px; touch-action: none; display: block; margin: 0 auto; }
+.top { display: flex; gap: 8px; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; }
+/* Tools on the left, the board in the middle, guesses and scores on the right: the board takes the height that's left,
+   so nothing sits under it and the frame never scrolls. */
+.layout { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) min(220px, 28vw); grid-template-rows: minmax(0, 1fr); gap: 12px; width: 100%; }
+.main { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; }
+.board { flex: 1; min-height: 160px; container-type: size; display: grid; place-items: start center; }
+canvas { width: min(100cqw, calc(100cqh * 4 / 3)); aspect-ratio: 4 / 3; background: #fff; border-radius: 12px; touch-action: none; display: block; }
 canvas.mine { cursor: crosshair; }
-.mask { font: 600 1.4rem/1.2 ui-monospace, monospace; letter-spacing: .35em; text-align: center; overflow-wrap: anywhere; }
-.tools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.mask { margin: 0; font: 600 1.4rem/1.2 ui-monospace, monospace; letter-spacing: .35em; text-align: center; overflow-wrap: anywhere; }
+.tools { display: grid; grid-template-columns: repeat(3, 36px); gap: 6px; align-content: start; overflow: auto; padding: 4px; }
+.tools > :not(.swatch, .size) { grid-column: 1 / -1; padding: 6px 4px; min-height: 36px; }
+.size { min-height: 36px; padding: 0; } .swatch + .size { grid-column-start: 1; }
 .swatch { width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; border: 2px solid var(--border); }
 .swatch[aria-pressed="true"], .size[aria-pressed="true"] { outline: 3px solid var(--accent); outline-offset: 2px; }
-.size { min-width: 44px; }
-.side { display: grid; gap: 10px; align-content: start; }
+.side { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: auto; }
+.timer { margin: 0; font-variant-numeric: tabular-nums; }
 .guesses { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 220px; overflow: auto; }
 .guesses li { overflow-wrap: anywhere; }
 .guesses .ok { color: var(--green); font-weight: 600; }
 .words { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .words button { font-size: 1.1rem; min-width: 120px; }
-.timer { font-variant-numeric: tabular-nums; }
 .guess { display: flex; gap: 6px; } .guess input { flex: 1; min-width: 0; }
+/* Taller than wide (a phone): one column that scrolls, the tools in a row under the board. */
+@media (max-width: 480px), (max-aspect-ratio: 1/1) {
+  #app { height: auto; }
+  .layout { grid-template-columns: 1fr; grid-template-rows: none; }
+  .tools { order: 1; display: flex; flex-wrap: wrap; align-items: center; overflow: visible; }
+  .tools > :not(.swatch, .size) { padding: 8px 14px; }
+  .size { min-width: 44px; } .swatch + .size { grid-column-start: auto; }
+  .side { order: 2; overflow: visible; }
+  .board { flex: none; container-type: normal; }
+  canvas { width: 100%; min-width: 240px; }
+}
 `
 
 interface Local {
@@ -58,9 +71,10 @@ function mount(ctx: Ctx<DrawState>) {
   const status = h('p', { className: 'status', role: 'status', 'aria-live': 'polite' })
   const canvas = h('canvas', { width: WIDTH, height: HEIGHT, role: 'img' })
   const g = canvas.getContext('2d')!
-  const mainCol = h('div', {})
+  const mainCol = h('div', { className: 'main' })
   const side = h('div', { className: 'side' })
-  fill(ctx.root, h('h1', { className: 'sr-only' }, s.title), top, status, h('div', { className: 'layout' }, mainCol, side))
+  const layout = h('div', { className: 'layout' })
+  fill(ctx.root, h('h1', { className: 'sr-only' }, s.title), top, status, layout)
   const present = (id: string | null) => !!id && ctx.players().some((p) => p.id === id)
 
   // ── Drawing ──────────────────────────────────────────────────────────────
@@ -194,14 +208,15 @@ function mount(ctx: Ctx<DrawState>) {
     h('button', { onclick: () => ctx.send({ t: 'clear' }) }, s.clear))
   const timer = h('p', { className: 'muted timer' })
   const actions = h('div', { className: 'row' })
-  fill(mainCol, words, mask, h('div', { className: 'board' }, canvas), tools, timer, actions)
+  fill(mainCol, words, mask, h('div', { className: 'board' }, canvas))
   const guessInput = h('input', { maxlength: MAX_GUESS, 'aria-label': s.guessHere, placeholder: s.guessHere, autocomplete: 'off',
     onkeydown: (e: Event) => { if ((e as KeyboardEvent).key === 'Enter') guess() } })
   const guessForm = h('div', { className: 'guess' }, guessInput, h('button', { className: 'primary', onclick: () => guess() }, s.guess))
   const guessList = h('ul', { className: 'guesses', 'aria-live': 'polite' })
   const guessBox = h('div', {}, h('h2', {}, s.guesses), guessList)
   const playerList = h('ul', { className: 'scores' })
-  fill(side, guessForm, guessBox, h('div', {}, h('h2', {}, s.players), playerList))
+  fill(layout, tools, mainCol, side)
+  fill(side, timer, actions, guessForm, guessBox, h('div', {}, h('h2', {}, s.players), playerList))
   const show = (el: HTMLElement, on: boolean) => (el.hidden = !on)
 
   function update(state: DrawState) {
