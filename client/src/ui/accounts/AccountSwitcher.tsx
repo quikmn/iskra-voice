@@ -71,7 +71,7 @@ export function AccountSwitcher({ onNavigate }: { onNavigate?: () => void }) {
           setAnchor({ x: rect.right + 8, y: rect.bottom })
         }}
       >
-        <AccountAvatar account={me} size={40} />
+        <AccountAvatar account={me} size={48} />
         {otherUnread > 0 && <span className="badge" aria-hidden>{otherUnread > 99 ? '99+' : otherUnread}</span>}
       </button>
       {anchor && (

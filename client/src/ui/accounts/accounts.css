@@ -16,12 +16,13 @@
 .account-chooser-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* The switcher at the bottom of the server rail. */
+/* The picture fills the button, which takes the server icons' shape (a circle, rounded on hover); no browser padding. */
 .server-icon.account-switch {
-  margin-top: auto; position: sticky; bottom: 0; display: grid; place-items: center; background: var(--surface-2);
-  box-shadow: 0 -8px 8px var(--rail);
+  margin-top: auto; position: sticky; bottom: 0; padding: 0; display: block; background: var(--surface-2);
+  box-shadow: 0 -8px 8px var(--rail); /* servers scrolling under it fade out */
 }
 .server-icon.account-switch:hover { background: var(--surface-3); }
-.server-icon.account-switch .avatar { border-radius: 50%; }
+.server-icon.account-switch .avatar { display: grid; place-items: center; width: 100% !important; height: 100% !important; border-radius: inherit; transition: border-radius 0.2s; }
 .server-icon.account-switch.ringing { animation: account-ring 1s ease-in-out infinite; }
 @keyframes account-ring { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 60%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .server-icon.account-switch.ringing { animation: none; box-shadow: 0 0 0 3px var(--green); } }
