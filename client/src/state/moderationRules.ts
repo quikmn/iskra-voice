@@ -113,7 +113,7 @@ export const AUDIT_ACTIONS = [
   'member.join', 'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers', 'landing.update',
   'message.delete.bulk', 'member.warn', 'member.note.add', 'member.note.delete', 'member.avatar',
   'act.add', 'act.update', 'act.remove', 'act.configure',
-  'channel.export',
+  'channel.export', 'voice.record.start', 'voice.record.stop',
 ] as const
 
 export type AuditFilter = (typeof AUDIT_ACTIONS)[number]
@@ -126,6 +126,7 @@ export const auditActionLabel = (action: AuditFilter): string =>
 const AUTOMOD_WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch', 'page', 'voicestatus'] as const
 
 const START_ROLES = ['guest', 'member', 'trusted', 'admin'] as const
+const RECORD_ENDS = ['left', 'permission', 'max', 'declined', 'timeout', 'encrypted', 'channel', 'unavailable'] as const
 const BUILTINS = ['draw', 'trivia', 'four'] as const
 
 /** An activity in an audit entry: a built-in by its name in your language, else the name it was added with. */
@@ -191,6 +192,13 @@ export function auditText(e: AuditEntry): string {
     case 'voice.move': return t('moderation.audit.voiceMove', { actor, target, channel: channel(d.to) })
     case 'voice.disconnect': return t('moderation.audit.voiceDisconnect', { actor, target, channel: channel(d.channelName) })
     case 'voice.status.clear': return t('moderation.audit.voiceStatusClear', { actor, target, channel: channel(d.channelName) })
+    case 'voice.record.start': return t(d.encrypted ? 'moderation.audit.recordStartEncrypted' : 'moderation.audit.recordStart', { actor, channel: channel(d.channelName) })
+    case 'voice.record.stop': {
+      const vars = { actor, target, channel: channel(d.channelName), duration: durationLabel(Number(d.durationMs)) }
+      if (d.why === 'stopped') return t(e.target ? 'moderation.audit.recordStopOther' : 'moderation.audit.recordStop', vars)
+      const why = RECORD_ENDS.find((w) => w === d.why) ?? 'other'
+      return t('moderation.audit.recordEnded', { ...vars, why: t(`moderation.audit.recordWhy.${why}`) })
+    }
     case 'channel.export': return t('moderation.audit.channelExport', { actor, channels: (Array.isArray(d.channelNames) ? d.channelNames : []).map(channel).join(', ') || t('moderation.audit.aChannel') })
     case 'bot.voice': return t(d.voice ? 'moderation.audit.botVoiceOn' : 'moderation.audit.botVoiceOff', { actor, target })
     case 'channel.create': return t('moderation.audit.channelCreate', { actor, channel: channel(d.name) })

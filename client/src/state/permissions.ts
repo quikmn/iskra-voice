@@ -8,7 +8,7 @@ import { t } from '../i18n'
 export const PERMISSIONS: Permission[] = [
   'manageMessages', 'timeoutMembers', 'kickMembers', 'banMembers', 'manageChannels', 'manageRoles', 'viewAuditLog',
   'manageExpressions', 'manageWebhooks', 'mentionEveryone', 'moveMembers', 'muteMembers', 'manageAutoMod', 'prioritySpeaker', 'sendTts',
-  'exportChannels',
+  'exportChannels', 'recordVoice',
 ]
 
 export const permissionLabel = (p: Permission) => t(`roles.permissions.${p}.label`)
@@ -20,7 +20,7 @@ const LEVELS: readonly string[] = ['guest', 'member', 'trusted', 'admin', 'owner
 export const levelName = (role: string): string => (LEVELS.includes(role) ? t(`common.roles.${role as Role}`) : role)
 
 /** The "Moderator" preset: every permission a moderator needs, without being an admin. */
-export const MODERATOR_PRESET: Permission[] = PERMISSIONS.filter((p) => p !== 'exportChannels')
+export const MODERATOR_PRESET: Permission[] = PERMISSIONS.filter((p) => p !== 'exportChannels' && p !== 'recordVoice')
 
 export const isAdmin = (member: Member | null | undefined) => !!member && roleRank(member.role) >= roleRank('admin')
 

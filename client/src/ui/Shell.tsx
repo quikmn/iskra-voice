@@ -44,6 +44,7 @@ import { RestartBanner } from './RestartBanner'
 import { ProductivityLayer } from './productivity/InboxButton'
 import { VoiceRoom } from './clips/VoiceRoom'
 import { ClipLayer } from './clips/ClipControls'
+import { RecordingLayer } from './recording/Recording'
 import { PopoutLayer } from './popout/PopoutLayer'
 import { QuietDigestCard } from './quietDigest/QuietDigestCard'
 import { usePhoneNav } from './nav/PhoneNav'
@@ -134,6 +135,7 @@ export function Shell() {
       <RolePickerLayer />
       <ProductivityLayer />
       <ClipLayer />
+      <RecordingLayer />
       <PopoutLayer />
       <QuietDigestCard />
       <AssistantLayer />

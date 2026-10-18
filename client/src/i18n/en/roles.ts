@@ -17,6 +17,7 @@ export const roles = {
     prioritySpeaker: { label: 'Priority speaker', hint: 'Turn everyone else down for listeners while they talk with priority' },
     sendTts: { label: 'Send /tts messages', hint: 'Send messages that are read aloud for people who turned that on' },
     exportChannels: { label: 'Export channels', hint: 'Download channels they can read as a readable page and JSON, with their files' },
+    recordVoice: { label: 'Record voice', hint: 'Record calls in voice channels with the desktop app. Everyone in the call sees it and can ask not to be recorded' },
   },
   base: {
     title: 'Built-in roles',

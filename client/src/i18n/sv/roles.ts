@@ -18,6 +18,7 @@ export const roles: Messages['roles'] = {
     prioritySpeaker: { label: 'Prioriterad talare', hint: 'Sänker alla andra för lyssnarna medan de pratar med prioritet' },
     sendTts: { label: 'Skicka /tts-meddelanden', hint: 'Skicka meddelanden som läses upp för dem som har slagit på det' },
     exportChannels: { label: 'Exportera kanaler', hint: 'Ladda ner kanaler de kan läsa som en läsbar sida och JSON, med filerna' },
+    recordVoice: { label: 'Spela in röst', hint: 'Spela in samtal i röstkanaler med skrivbordsappen. Alla i samtalet ser det och kan be om att inte spelas in' },
   },
   base: {
     title: 'Inbyggda roller',

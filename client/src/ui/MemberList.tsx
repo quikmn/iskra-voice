@@ -18,6 +18,7 @@ import { useReadableColor } from '../theme/useReadable'
 import { useApp } from '../state/store'
 import { channelHere, setFollowing, useFollowing } from '../state/alerts'
 import { MenuItem, MenuTitle, OrgMenu } from './organize/OrgMenu'
+import { MemberRecordingMark } from './recording/Recording'
 import { useState, type MouseEvent as ReactMouseEvent } from 'react'
 
 export function MemberList({ server }: { server: ServerState }) {
@@ -130,6 +131,7 @@ function MemberRow({ serverKey, member, color, icon, onClick }: {
       </span>
       {icon && <span className="member-role-icon" aria-hidden>{icon}</span>}
       <TimeoutBadge member={member} />
+      <MemberRecordingMark serverKey={serverKey} accountKey={member.accountKey} />
       {member.bot && <BotBadge builtin={!!member.builtin} />}
     </button>
   )

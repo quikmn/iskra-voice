@@ -1121,7 +1121,7 @@ export interface Requests {
 export type Permission =
   | 'manageMessages' | 'timeoutMembers' | 'kickMembers' | 'banMembers' | 'manageChannels' | 'manageRoles'
   | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers' | 'manageAutoMod'
-  | 'prioritySpeaker' | 'sendTts' | 'exportChannels'
+  | 'prioritySpeaker' | 'sendTts' | 'exportChannels' | 'recordVoice'
 
 export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak' | 'setVoiceStatus'
 
@@ -3049,4 +3049,36 @@ export interface Requests {
 
 export interface Events {
   'channel.export.progress': { job: ExportJob }
+}
+
+// ── call recording ──
+
+/** A voice channel being recorded on someone's desktop app (PROTOCOL.md "Recording a voice channel"). */
+export interface CallRecording {
+  by: string
+  startedAt: number
+  /** False while an encrypted channel's people are still being asked. */
+  live: boolean
+  liveAt?: number | null
+  encrypted: boolean
+  askUntil?: number | null
+}
+
+export interface VoiceChannelState {
+  /** Missing from older servers. */
+  recording?: CallRecording | null
+}
+
+export interface VoiceParticipant {
+  /** They said "don't record me". */
+  noRecord?: boolean
+  /** Encrypted channels: their answer to being recorded (null: not answered yet). */
+  recordConsent?: boolean | null
+}
+
+export interface Requests {
+  'voice.record.start': [{ channelId: number }, { recording: CallRecording }]
+  'voice.record.stop': [{ channelId: number }, Record<string, never>]
+  'voice.record.optout': [{ optOut: boolean }, { optOut: boolean }]
+  'voice.record.consent': [{ channelId: number; agree: boolean }, Record<string, never>]
 }
