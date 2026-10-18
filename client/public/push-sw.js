@@ -13,7 +13,8 @@ self.addEventListener('install', () => self.skipWaiting())
 
 /** The server this registration belongs to, from its scope. */
 function scopeServer() {
-  const match = /\/push\/([A-Za-z0-9_-]{43})\/$/.exec(new URL(self.registration.scope).pathname)
+  // /push/<key>/ for account 1, /push/a<n>/<key>/ for the other accounts on the device.
+  const match = /\/push\/(?:a[1-9][0-9]?\/)?([A-Za-z0-9_-]{43})\/$/.exec(new URL(self.registration.scope).pathname)
   return match ? match[1] : null
 }
 

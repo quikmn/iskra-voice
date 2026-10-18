@@ -51,6 +51,10 @@ describe('names and keys', () => {
     expect(targetKey({ kind: 'chat', serverKey: 'k', channelId: 7 })).toBe('chat:k:7')
     expect(targetKey({ kind: 'report' })).toBe('report')
     expect(popoutName('report', 2)).toBe('iskra-popout-report-2')
+    // Each account on the device has names of its own (security review L4), still ones the desktop app takes.
+    expect(popoutName('voice', 1, 2)).toBe('iskra-popout-voice-a2x1')
+    expect(popoutName('voice', 1, 3)).not.toBe(popoutName('voice', 1, 2))
+    expect(popoutName('chat', 123456, 5)).toMatch(/^iskra-popout-chat-[a-z0-9]{1,24}$/)
   })
 })
 

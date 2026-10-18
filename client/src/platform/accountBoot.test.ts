@@ -91,13 +91,21 @@ describe('starting a page', () => {
   it("a frame the host doesn't vouch for (or another site's parent) is no account frame", async () => {
     window.history.replaceState(null, '', '/?account=2')
     Object.defineProperty(window, 'parent', { configurable: true, get: () => ({ __iskraHost: { version: 1, link: () => null } }) })
-    expect((await boot()).bootMode).toBe('solo')
+    // Security review L3: it doesn't fall back to running as the device's active account either.
+    localStorage.setItem('iskra.drafts', 'account one')
+    const refused = await boot()
+    expect(refused.bootMode).toBe('refused')
+    expect(refused.accountLink).toBeNull()
+    expect(localStorage.getItem('iskra.drafts')).toBeNull() // memory only
     Object.defineProperty(window, 'parent', {
       configurable: true,
       get: () => new Proxy({}, { get: () => { throw new DOMException('Blocked a frame', 'SecurityError') } }),
     })
     const b = await boot()
-    expect(b.bootMode).toBe('solo')
+    expect(b.bootMode).toBe('refused')
     expect(b.accountLink).toBeNull()
+    // Framed by another site without ?account=: an ordinary page.
+    window.history.replaceState(null, '', '/')
+    expect((await boot()).bootMode).toBe('solo')
   })
 })

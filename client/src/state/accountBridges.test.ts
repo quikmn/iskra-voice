@@ -28,7 +28,13 @@ function fakeShells() {
     keychain: { status: vi.fn(async () => 'keyring'), encrypt: vi.fn(async (s: string) => `enc:${s}`), decrypt: vi.fn(async () => null) },
     notices: { onNotice: on('notice'), act: vi.fn(async () => undefined) },
     updates: { status: vi.fn(async () => ({})), onStatus: on('status'), restart: vi.fn(async () => true) },
-    host: { available: vi.fn(async () => true) },
+    host: {
+      available: vi.fn(async () => true),
+      list: vi.fn(async () => [{ id: 'w1', ownerInvite: 'http://x/#/join/owner' }, { id: 'w0', ownerInvite: 'http://y/#/join/old' }]),
+      create: vi.fn(async () => ({ id: 'w1', ownerInvite: 'http://x/#/join/owner' })),
+      start: vi.fn(async () => ({ id: 'w1', ownerInvite: 'http://x/#/join/owner' })),
+      stop: vi.fn(async () => null),
+    },
     p2p: { open: vi.fn(async () => ({ url: 'http://127.0.0.1:1', turnPort: 2 })), close: vi.fn(async () => undefined) },
     assistant: {
       fetch: vi.fn(async () => ({ ok: true as const, status: 200, body: '' })),
@@ -139,14 +145,44 @@ describe("each account's copy of the shell", () => {
     expect(desktop.setPushToTalkKey).toHaveBeenLastCalledWith(null) // account 3 has no push-to-talk key
   })
 
-  it('serves the MCP bridge for the account on screen only', async () => {
+  it('serves the MCP bridge for the account on screen only, and drops its client when that account changes', async () => {
     const { bridges, state, desktop } = setUp()
+    const setMcp = desktop.assistant!.setMcp as ReturnType<typeof vi.fn>
     expect(await bridges.desktopFor(2)!.assistant!.setMcp(true)).toEqual({ on: false, command: null })
-    expect(desktop.assistant!.setMcp).not.toHaveBeenCalled()
+    expect(setMcp).not.toHaveBeenCalled()
     state.active = 2
     bridges.ownerChanged()
-    await vi.waitFor(() => expect(desktop.assistant!.setMcp).toHaveBeenLastCalledWith(true))
+    await vi.waitFor(() => expect(setMcp).toHaveBeenLastCalledWith(true))
     expect(await bridges.desktopFor(1)!.assistant!.setMcp(false)).toEqual({ on: false, command: null })
+    // Security review L9: account 3 (MCP on too) comes on screen: the bridge stops (clients drop) and starts again.
+    await bridges.desktopFor(3)!.assistant!.setMcp(true)
+    setMcp.mockClear()
+    state.active = 3
+    bridges.ownerChanged()
+    await vi.waitFor(() => expect(setMcp.mock.calls).toEqual([[false], [true]]))
+  })
+
+  it("never sends one account's assistant request under another account's provider address", async () => {
+    const { bridges, desktop } = setUp()
+    const log: string[] = []
+    let release!: () => void
+    ;(desktop.assistant!.setBase as ReturnType<typeof vi.fn>).mockImplementation(async (base: string | null) => {
+      log.push(`base ${base}`)
+      return { ok: true }
+    })
+    ;(desktop.assistant!.fetch as ReturnType<typeof vi.fn>).mockImplementation(async (r: { url: string }) => {
+      log.push(`fetch ${r.url}`)
+      if (r.url === 'a') await new Promise<void>((done) => (release = done))
+      return { ok: true, status: 200, body: '' }
+    })
+    await bridges.desktopFor(1)!.assistant!.setBase!('https://one')
+    await bridges.desktopFor(2)!.assistant!.setBase!('https://two')
+    const a = bridges.desktopFor(1)!.assistant!.fetch({ url: 'a', method: 'GET', headers: {} })
+    const b = bridges.desktopFor(2)!.assistant!.fetch({ url: 'b', method: 'GET', headers: {} })
+    await vi.waitFor(() => expect(log.at(-1)).toBe('fetch a'))
+    release()
+    await Promise.all([a, b])
+    expect(log).toEqual(['base https://one', 'base https://two', 'base https://one', 'fetch a', 'base https://two', 'fetch b'])
   })
 
   it('keeps a shared tunnel open while any account on that server uses it', async () => {
@@ -177,6 +213,14 @@ describe("each account's copy of the shell", () => {
     expect(native.setStatusBar).not.toHaveBeenCalled()
     void bridges.nativeFor(2)!.setStatusBar('light')
     expect(native.setStatusBar).toHaveBeenCalledWith('light')
+  })
+
+  it("keeps a hosted server's owner invite to the account that made it", async () => {
+    const { bridges } = setUp()
+    expect((await bridges.desktopFor(1)!.host.create('W', 'http://app'))?.ownerInvite).toBe('http://x/#/join/owner')
+    expect((await bridges.desktopFor(2)!.host.start('w1'))?.ownerInvite).toBeNull()
+    expect((await bridges.desktopFor(2)!.host.list()).map((s) => s.ownerInvite)).toEqual([null, 'http://y/#/join/old'])
+    expect((await bridges.desktopFor(1)!.host.list())[0].ownerInvite).toBe('http://x/#/join/owner')
   })
 
   it("forgets an account's listeners when it leaves", () => {

@@ -10,7 +10,8 @@ import { setAccountSlot } from '../core/accountSlot'
 import type { AccountLink, HostApi } from './accountLink'
 import { hostStorage, namespacedStorage, parseRegistry, REGISTRY_KEY, type Registry } from './accountSlots'
 
-export type BootMode = 'solo' | 'frame' | 'host'
+/** `refused`: a frame asking to be an account (`?account=`) that the host page doesn't vouch for: it runs nothing. */
+export type BootMode = 'solo' | 'frame' | 'host' | 'refused'
 
 function read(name: 'localStorage' | 'sessionStorage'): Storage | null {
   try {
@@ -64,12 +65,15 @@ export const accountLink: AccountLink | null = frameLink()
 const registry = loadRegistry()
 const topLevel = typeof window !== 'undefined' && window.parent === window
 
-export const bootMode: BootMode = accountLink ? 'frame' : topLevel && registry.order.length > 1 ? 'host' : 'solo'
+/** A frame that names an account but got no link for it must never run as some account (a hidden second copy). */
+const unvouched = !accountLink && !topLevel && typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('account')
 
-/** This page's account slot (0 for the host, which has none). */
-export const bootSlot: number = accountLink ? accountLink.slot : bootMode === 'host' ? 0 : registry.active
+export const bootMode: BootMode = accountLink ? 'frame' : unvouched ? 'refused' : topLevel && registry.order.length > 1 ? 'host' : 'solo'
 
-if (bootMode !== 'host') {
+/** This page's account slot (0 for the host or a refused frame, which have none). */
+export const bootSlot: number = accountLink ? accountLink.slot : bootMode === 'host' || bootMode === 'refused' ? 0 : registry.active
+
+if (bootMode === 'solo' || bootMode === 'frame') {
   setAccountSlot(bootSlot)
   // Account 1 on its own uses storage exactly as before; any other slot, or account 1 next to others, gets its view.
   if (bootMode === 'frame' || bootSlot !== 1) {
@@ -77,7 +81,7 @@ if (bootMode !== 'host') {
     install('sessionStorage', rawSessionStorage, bootSlot)
   }
 } else {
-  // The host page has no account: the app's modules (loaded, never started) keep nothing real.
+  // The host page (or a refused frame) has no account: the app's modules (loaded, never started) keep nothing real.
   install('localStorage', rawLocalStorage, 0)
   install('sessionStorage', rawSessionStorage, 0)
 }

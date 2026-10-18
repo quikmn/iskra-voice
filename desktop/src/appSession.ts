@@ -3,7 +3,7 @@
 import { net, protocol, type Session } from 'electron'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { embedderHeaders, pageOrigin, TWITCH_EMBED_URLS, youTubeReferrer } from './platform'
+import { appResponseHeaders, embedderHeaders, pageOrigin, TWITCH_EMBED_URLS, youTubeReferrer } from './platform'
 
 export const APP_ORIGIN = 'app://iskra'
 
@@ -16,12 +16,13 @@ export function registerAppScheme(): void {
 
 export function configureAppSession(appSession: Session, clientDir: string, isAppUrl: (url: string) => boolean): void {
   // Serve the built web app from app://iskra/ (a secure, stable origin for IndexedDB and getUserMedia).
-  appSession.protocol.handle('app', (request) => {
+  appSession.protocol.handle('app', async (request) => {
     const { pathname } = new URL(request.url)
     const relative = decodeURIComponent(pathname) === '/' ? '/index.html' : decodeURIComponent(pathname)
     const file = path.normalize(path.join(clientDir, relative))
     if (!file.startsWith(clientDir + path.sep)) return new Response('Not found', { status: 404 })
-    return net.fetch(pathToFileURL(file).toString())
+    const response = await net.fetch(pathToFileURL(file).toString())
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers: appResponseHeaders(response.headers) })
   })
 
   // YouTube's embeds (watch parties) refuse to play without an http(s) referrer ("Error 153"), and app:// isn't one.

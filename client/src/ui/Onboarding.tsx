@@ -11,7 +11,7 @@ import { LinkJoin } from './LinkJoin'
 import { acceptTerms, needsAcceptance, useTerms, useTermsAccepted } from '../state/terms'
 import { takeDeletedNotice } from '../state/accountDeletion'
 import { TermsAgreement, TermsFirst } from './safety/Terms'
-import { addingMode } from '../state/accounts'
+import { addingMode, inHost } from '../state/accounts'
 
 // First the choice: new here, or already on another device (so people link instead of making a second account).
 type Mode = 'choose' | 'new' | 'existing' | 'recovery' | 'link'
@@ -67,7 +67,8 @@ export function Onboarding() {
         <div className="onboarding-card">
           {brand}
           <TermsFirst>
-            <LinkJoin initialCode={pendingLink} onBack={() => { usePendingLink.setState({ code: null }); setMode('existing') }} />
+            {/* Next to other accounts, a link from outside never links by itself: the person presses "Link this device". */}
+            <LinkJoin initialCode={pendingLink} autoStart={!inHost} onBack={() => { usePendingLink.setState({ code: null }); setMode('existing') }} />
           </TermsFirst>
         </div>
       </div>

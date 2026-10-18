@@ -2,7 +2,7 @@
 // "Which account?" question for links opened from outside (state/accountHost.ts).
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { choose, registerFrame, useHost, views } from '../../state/accountHost'
+import { choose, confirmLinking, registerFrame, roomForAccount, useHost, views } from '../../state/accountHost'
 import { hueFor, initials } from '../format'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import './accounts.css'
@@ -16,12 +16,14 @@ export function AccountHost() {
   const order = useHost((s) => s.registry.order)
   const active = useHost((s) => s.registry.active)
   const choosing = useHost((s) => !!s.choosing)
+  const linking = useHost((s) => !!s.linking)
   // Frames stay in slot order whatever the switcher's order: moving an iframe in the page would reload it.
   const slots = [...order].sort((a, b) => a - b)
   return (
     <div className="account-host">
       {slots.map((slot) => <AccountFrame key={slot} slot={slot} active={slot === active} />)}
       {choosing && <Chooser />}
+      {linking && <LinkConfirm />}
     </div>
   )
 }
@@ -44,6 +46,32 @@ function AccountFrame({ slot, active }: { slot: number; active: boolean }) {
       inert={!active}
       aria-hidden={!active}
     />
+  )
+}
+
+/** A device link from outside: it would add someone's account here, so the person says so first (Cancel is the default). */
+function LinkConfirm() {
+  const { t } = useTranslation()
+  const ref = useRef<HTMLDivElement>(null)
+  useEscapeLayer(() => confirmLinking(false), true)
+  useFocusTrap(ref)
+  const room = roomForAccount()
+  return (
+    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && confirmLinking(false)}>
+      <div className="modal account-chooser" role="alertdialog" aria-modal="true" aria-label={t('accounts.linking.title')} ref={ref} tabIndex={-1}>
+        <div className="modal-header">
+          <h2>{t('accounts.linking.title')}</h2>
+        </div>
+        <div className="modal-body">
+          <p>{t('accounts.linking.body')}</p>
+          {!room && <p className="muted">{t('accounts.switcher.full', { count: views().length })}</p>}
+        </div>
+        <footer className="modal-footer">
+          <button className="button" autoFocus onClick={() => confirmLinking(false)}>{t('accounts.linking.cancel')}</button>
+          <button className="button primary" disabled={!room} onClick={() => confirmLinking(true)}>{t('accounts.linking.add')}</button>
+        </footer>
+      </div>
+    </div>
   )
 }
 

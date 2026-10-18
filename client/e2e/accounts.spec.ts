@@ -119,6 +119,16 @@ test('two accounts in one app, each with its own servers, unread, links and voic
   await expect(account(page, 2).locator('.server-rail')).toContainText('', { timeout: 20_000 })
   await expect(account(page, 2).getByTestId('account-switcher')).toBeVisible()
 
+  // A device link opened from outside never adds an account by itself: it asks, and Cancel is the default.
+  await page.goto('/#/link/somebody-elses-code')
+  const linking = page.getByRole('alertdialog', { name: 'Link this device to another account?' })
+  await expect(linking).toBeVisible({ timeout: 20_000 })
+  await expect(linking.getByRole('button', { name: 'Cancel' })).toBeFocused()
+  await linking.getByRole('button', { name: 'Cancel' }).click()
+  await expect(linking).toHaveCount(0)
+  await expect(page.locator('iframe[data-account]')).toHaveCount(2)
+  await expect(account(page, 2).getByTestId('account-switcher')).toBeVisible()
+
   if (hasLiveKit()) {
     // One device, one microphone: Bea joining voice takes Ada out of it, calmly, with a way back.
     await switchTo(page, 2, 'Ada')

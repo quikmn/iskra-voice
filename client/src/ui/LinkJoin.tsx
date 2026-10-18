@@ -8,7 +8,8 @@ import { QrScanner } from './QrScanner'
 
 let autoStarted: string | null = null
 
-export function LinkJoin({ initialCode, onBack }: { initialCode?: string | null; onBack: () => void }) {
+/** `autoStart`: start with the code from an opened link right away (a device's first run); otherwise the person presses the button. */
+export function LinkJoin({ initialCode, onBack, autoStart = true }: { initialCode?: string | null; onBack: () => void; autoStart?: boolean }) {
   const { t } = useTranslation()
   const state = useLinkJoin()
   const [code, setCode] = useState(initialCode ?? '')
@@ -17,11 +18,11 @@ export function LinkJoin({ initialCode, onBack }: { initialCode?: string | null;
 
   useEffect(() => {
     // Opened from the QR code's link: start right away (once, even under StrictMode).
-    if (initialCode && autoStarted !== initialCode) {
+    if (autoStart && initialCode && autoStarted !== initialCode) {
       autoStarted = initialCode
       void joinWithCode(initialCode)
     }
-  }, [initialCode])
+  }, [initialCode, autoStart])
 
   function back() {
     cancelLinkJoin()

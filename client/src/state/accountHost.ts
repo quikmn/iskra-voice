@@ -28,9 +28,11 @@ interface HostState {
   summaries: Record<number, AccountSummary>
   /** A link waiting for the person to pick an account. */
   choosing: IncomingLink | null
+  /** A device link ("#/link/…") from outside, waiting for the person to say it's theirs (it would add an account). */
+  linking: string | null
 }
 
-export const useHost = create<HostState>(() => ({ registry: parseRegistry(null), summaries: {}, choosing: null }))
+export const useHost = create<HostState>(() => ({ registry: parseRegistry(null), summaries: {}, choosing: null, linking: null }))
 
 export const hostMax = shellNative ? MAX_ACCOUNTS_PHONE : MAX_ACCOUNTS
 
@@ -246,17 +248,30 @@ function otherWithKey(key: string, slot: number): number | null {
 /** An app route the host was opened with or given ("#/join/…", "#/link/…", "#/open/…"); `account`: who it's for, if known. */
 export function incoming(link: IncomingLink, account?: number | null): void {
   const reg = registry()
-  if (account && reg.order.includes(account)) return deliver(account, link)
   if (link.kind === 'hash' && link.route.startsWith('#/link/')) {
-    // Linking this device to an account: that's an account being added here (or a new one, if there's room).
-    const waiting = reg.order.find((s) => reg.accounts[s]?.adding && !summaryOf(s).ready)
-    const slot = waiting ?? addAccountSlot('link')
-    return deliver(slot ?? reg.active, link)
+    // A device link would put someone's account on this device: never without the person saying so first (whatever
+    // account the link names), and the account's page then waits for them to press "Link this device" too.
+    useHost.setState({ linking: link.route })
+    return
   }
+  if (account && reg.order.includes(account)) return deliver(account, link)
   const ready = reg.order.filter((s) => !reg.accounts[s]?.adding)
   if (ready.length <= 1) return deliver(ready[0] ?? reg.active, link)
   useHost.setState({ choosing: link })
 }
+
+/** The answer to "Link this device to another account?": yes goes to an account being added (or a new one). */
+export function confirmLinking(yes: boolean): void {
+  const route = useHost.getState().linking
+  useHost.setState({ linking: null })
+  if (!route || !yes) return
+  const reg = registry()
+  const slot = reg.order.find((s) => reg.accounts[s]?.adding && !summaryOf(s).ready) ?? addAccountSlot('link')
+  if (slot !== null) deliver(slot, { kind: 'hash', route })
+}
+
+/** Room for one more account here. */
+export const roomForAccount = (): boolean => registry().order.length < hostMax
 
 export function choose(slot: number | null): void {
   const link = useHost.getState().choosing
@@ -466,7 +481,7 @@ export function resetHostForTests(): void {
   duplicates.clear()
   voiceSlot = null
   bridges = null
-  useHost.setState({ registry: parseRegistry(null), summaries: {}, choosing: null })
+  useHost.setState({ registry: parseRegistry(null), summaries: {}, choosing: null, linking: null })
 }
 
 export const hostApiForTests = api

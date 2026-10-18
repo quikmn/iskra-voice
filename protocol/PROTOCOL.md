@@ -4766,3 +4766,13 @@ connections, exactly like a second device; servers can't tell that two accounts 
   (it shows why, with "Join here"). The same account on two devices is LiveKit's `DUPLICATE_IDENTITY`: the device that was in
   voice shows "Moved to your other device" with "Join here", never an error.
 - **Signing out** one account revokes that device on its servers and deletes its slot's databases and keys; the others stay.
+- **Links from outside.** An invite or a notification link asks which account it's for (unless it names one). A device
+  link (`#/link/…`) never adds an account by itself: the person first confirms "Link this device to another account?"
+  (Cancel is the default), and the new account's page waits for them to press "Link this device". A frame that names an
+  account (`?account=`) without the top page's link for it runs nothing.
+- **What belongs to the device, not an account.** The desktop app's own state is shared by every account on it: servers
+  hosted on this computer (only the account that made one sees its one-time owner invite), bots on this PC and the invite
+  links given to them, a DigitalOcean token while renting a server, the desktop settings (start with the computer, close
+  to tray, hotkeys' key hook, game activity), the assistant's provider address (set again before each account's request)
+  and the local MCP bridge, which serves the account on screen: when another account comes on screen, connected MCP
+  clients are dropped and must connect again. Pop-out window names carry the slot, so accounts never share a pop-out.

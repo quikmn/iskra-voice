@@ -34,6 +34,12 @@ export const accounts = {
     open: 'Vilket konto ska öppna länken?',
     cancel: 'Avbryt',
   },
+  linking: {
+    title: 'Länka den här enheten till ett annat konto?',
+    body: 'En länk för att länka en enhet öppnade Iskra. Fortsätt bara om du själv började länka ett konto till den här enheten: det lägger till kontot här, bredvid ditt.',
+    add: 'Lägg till kontot',
+    cancel: 'Avbryt',
+  },
   duplicate: {
     title: 'Redan inloggad här',
     body: 'Det här kontot är redan inloggat på den här enheten. Iskra har bara en kopia av varje konto.',

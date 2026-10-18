@@ -150,22 +150,40 @@ describe('keeping accounts apart', () => {
 const SOURCES = Object.entries(import.meta.glob(['../**/*.ts', '../**/*.tsx', '!../**/*.test.ts', '!../**/*.test.tsx', '!../vendor/**'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>)
   .map(([file, text]) => [file.replace(/^\.\//, 'state/').replace(/^\.\.\//, ''), text] as const)
 
+/** The scripts served as they are (service workers): they run in no account's page. */
+const PUBLIC = Object.entries(import.meta.glob(['../../public/*.js'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>)
+  .map(([file, text]) => [file.replace(/^\.\.\/\.\.\//, ''), text] as const)
+
+/** Every call on IndexedDB, with the start of its argument (a literal or template string is never allowed). */
+const idbCalls = (text: string) => [...text.matchAll(/indexedDB\s*\??\.\s*(open|deleteDatabase|databases)\s*\(\s*([^\n]{0,24})/g)].map((m) => `${m[1]}(${m[2]}`)
+
 describe('every place the app keeps data', () => {
   it("names its databases per account, except the device's shared model downloads", () => {
-    const opened = SOURCES.flatMap(([file, text]) => [...text.matchAll(/indexedDB\.(?:open|deleteDatabase)\((\w+)/g)].map((m) => `${file}: ${m[1]}`))
-    // core/storage.ts and the transcript cache go through slotDbName (core/accountSlot.ts); speech and translation
-    // models (state/models.ts) are the same public files for every account.
-    expect(opened.sort()).toEqual([
-      'core/storage.ts: DB_NAME',
-      'core/storage.ts: DB_NAME',
-      'state/models.ts: name',
-      'state/transcripts/transcriptCache.ts: dbName',
-      'state/transcripts/transcriptCache.ts: dbName',
-    ])
-    expect(SOURCES.find(([f]) => f.endsWith('core/storage.ts'))![1]).toContain("const DB_NAME = () => slotDbName('iskra')")
-    expect(SOURCES.find(([f]) => f.endsWith('transcriptCache.ts'))![1]).toContain('const dbName = () => slotDbName(DB_NAME)')
-    const cached = SOURCES.filter(([, text]) => /caches\.(open|delete)\(/.test(text)).map(([f]) => f)
+    const allowed = ['open(DB_NAME()', 'deleteDatabase(DB_NAME()', 'open(dbName()', 'deleteDatabase(dbName()', 'open(name, 1)']
+    const calls = SOURCES.flatMap(([file, text]) => idbCalls(text).map((call) => ({ file, call })))
+    const stray = calls.filter(({ call }) => !allowed.some((a) => call.startsWith(a)))
+    expect(stray).toEqual([])
+    // Only these files touch IndexedDB at all (the host page deletes a signed-out slot's databases by their names).
+    const touching = SOURCES.filter(([, text]) => /\bindexedDB\b/.test(text.replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, ''))).map(([f]) => f).sort()
+    expect(touching).toEqual(['core/storage.ts', 'state/accountHost.ts', 'state/models.ts', 'state/transcripts.ts', 'state/transcripts/transcriptCache.ts'])
+    expect(SOURCES.find(([f]) => f === 'state/models.ts')![1]).toMatch(/async function idbStore\(name: string\)/)
+    expect(SOURCES.find(([f]) => f === 'core/storage.ts')![1]).toContain("const DB_NAME = () => slotDbName('iskra')")
+    expect(SOURCES.find(([f]) => f === 'state/transcripts/transcriptCache.ts')![1]).toContain('const dbName = () => slotDbName(DB_NAME)')
+  })
+
+  it('keeps nothing of an account in the Cache API (only the public model downloads)', () => {
+    const cached = SOURCES.filter(([, text]) => /\bcaches\s*\??\.\s*(open|match|keys|has|delete)\b/.test(text)).map(([f]) => f)
     expect(cached).toEqual(['state/models.ts'])
+  })
+
+  it('serves no worker that keeps account data: only the old cache remover clears caches', () => {
+    expect(PUBLIC.map(([f]) => f).sort()).toEqual(['public/push-sw.js', 'public/service-worker.js'])
+    for (const [file, text] of PUBLIC) {
+      expect(idbCalls(text), file).toEqual([])
+      expect(/\b(localStorage|sessionStorage)\b/.test(text), file).toBe(false)
+      const caches = /\bcaches\s*\.\s*(open|match|keys|has|delete|put)\b/.test(text)
+      expect(caches, file).toBe(file === 'public/service-worker.js')
+    }
   })
 
   it('reads the real Web Storage only where it must: the list of accounts, never an account page', () => {

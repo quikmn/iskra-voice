@@ -8,5 +8,5 @@ import { startApp } from './appMain'
 import { showUnsupported, startHostPage } from './hostMain'
 
 if (bootMode === 'host') startHostPage()
-else if (!storageIsolated) showUnsupported()
+else if (bootMode === 'refused' || !storageIsolated) showUnsupported()
 else startApp()

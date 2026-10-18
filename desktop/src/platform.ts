@@ -213,6 +213,17 @@ export function pageOrigin(url: string): string | null {
 }
 
 /**
+ * The app's own responses (app://iskra/): only the app may frame its pages (with several accounts signed in, the top
+ * page holds one frame per account). Never anyone else.
+ */
+export function appResponseHeaders(headers: Headers): Headers {
+  const out = new Headers(headers)
+  out.set('Content-Security-Policy', "frame-ancestors 'self'")
+  out.set('X-Frame-Options', 'SAMEORIGIN')
+  return out
+}
+
+/**
  * Response headers for an embed framed by `embedder`: every CSP frame-ancestors directive (Twitch sends
  * `frame-ancestors https://<parent>`) allows just the embedder instead. Other headers and directives are kept.
  */

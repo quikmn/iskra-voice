@@ -126,6 +126,12 @@ describe('push service worker', () => {
     expect(top.postMessage).toHaveBeenCalledWith({ type: 'iskra.open', route: `/open/${SERVER}/c/7`, account: 2 })
     expect(frame.postMessage).not.toHaveBeenCalled()
 
+    // Security review M2: a push naming another server than the scope's is never shown as that server's (account 2+ too).
+    const other = worker([], 'push-sw.js', `${ORIGIN}/push/a2/${SERVER}/`)
+    await other.push({ ...mention, server: 'X'.repeat(43), title: 'Spoofed', body: 'from elsewhere' })
+    expect(other.shown[0].title).toBe('Iskra')
+    expect(other.shown[0].options.data).toEqual({ route: '/' })
+
     const closed = worker([], 'push-sw.js', `${ORIGIN}/push/a2/${SERVER}/`)
     await closed.click(`/open/${SERVER}/c/7`)
     expect(closed.self.clients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/?account=2#/open/${SERVER}/c/7`)

@@ -34,6 +34,12 @@ export const accounts = {
     open: 'Which account should open this link?',
     cancel: 'Cancel',
   },
+  linking: {
+    title: 'Link this device to another account?',
+    body: 'A device link opened Iskra. Continue only if you started linking an account to this device yourself: it adds that account here, next to yours.',
+    add: 'Add the account',
+    cancel: 'Cancel',
+  },
   duplicate: {
     title: 'Already signed in here',
     body: 'This account is already signed in on this device. Iskra keeps one copy of each account.',

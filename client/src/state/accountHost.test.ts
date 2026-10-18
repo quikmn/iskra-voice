@@ -4,7 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { emptySummary } from '../platform/accountLink'
 import { addAccount, REGISTRY_KEY, singleRegistry, updateEntry } from '../platform/accountSlots'
-import { choose, hostApiForTests, incoming, resetHostForTests, registerFrame, useHost, views } from './accountHost'
+import { choose, confirmLinking, hostApiForTests, incoming, resetHostForTests, registerFrame, useHost, views } from './accountHost'
 
 const KEY_A = 'A'.repeat(43)
 const KEY_B = 'B'.repeat(43)
@@ -100,9 +100,22 @@ describe('the host page', () => {
     expect(two.win.location.replace).toHaveBeenCalledTimes(1)
   })
 
-  it('sends a device link to an account being added, or adds one for it', () => {
-    host([1, 2])
+  it('never adds an account from a device link by itself: the person says yes first, and Cancel leaves everything', () => {
+    // Security review M1: a #/link/ opened from outside (or "?account=N#/link/") silently added a slot and linked it.
+    const frames = host([1, 2])
     incoming({ kind: 'hash', route: '#/link/code' })
+    expect(useHost.getState().linking).toBe('#/link/code')
+    expect(useHost.getState().registry.order).toEqual([1, 2])
+    confirmLinking(false)
+    expect(useHost.getState().linking).toBeNull()
+    expect(useHost.getState().registry.order).toEqual([1, 2])
+    // Naming an account doesn't skip the question, and nothing reaches any page meanwhile.
+    incoming({ kind: 'hash', route: '#/link/again' }, 2)
+    expect(useHost.getState().linking).toBe('#/link/again')
+    expect(frames[2].win.location.replace).not.toHaveBeenCalled()
+    expect(frames[1].win.location.replace).not.toHaveBeenCalled()
+    // Yes: an account to link goes on the list, and its page gets the code (it still waits for "Link this device").
+    confirmLinking(true)
     const reg = useHost.getState().registry
     expect(reg.order).toEqual([1, 2, 3])
     expect(reg.accounts[3].adding).toBe('link')

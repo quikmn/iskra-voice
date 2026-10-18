@@ -6,7 +6,7 @@
 // - opened links (iskra:// invites, the phone's links): the account the person picks (state/accountHost.ts);
 // - updates, game activity, hosted servers, bots: every account.
 // The taskbar badge is the host's (every account's unread added up), so frames' own badge calls do nothing.
-import type { DesktopBridge } from '../platform/desktop'
+import type { DesktopBridge, HostedServer } from '../platform/desktop'
 import type { NativeBridge } from '../platform/native'
 
 export interface BridgeRouter {
@@ -160,18 +160,32 @@ export function createBridges(
   }
 
   // The MCP bridge serves the account on screen; the assistant's provider address is each account's own.
+  // When another account comes on screen, a connected MCP client is dropped (the bridge stops) and has to connect
+  // again: it never carries on as a different account without the person approving its calls there.
   const mcp = new Map<number, boolean>()
   let mcpApplied: boolean | null = null
+  let mcpOwner: number | null = null
   const applyMcp = async (): Promise<{ on: boolean; command: string[] | null } | null> => {
     const assistant = desktop?.assistant
     if (!assistant) return null
-    const on = mcp.get(router.active()) ?? false
-    if (mcpApplied === on) return null
+    const owner = router.active()
+    const on = mcp.get(owner) ?? false
+    if (mcpApplied === on && (mcpOwner === owner || !on)) return null
+    if (mcpApplied && mcpOwner !== owner) await assistant.setMcp(false).catch(() => null)
     mcpApplied = on
+    mcpOwner = owner
     return assistant.setMcp(on).catch(() => null)
   }
   const bases = new Map<number, string | null>()
   let baseApplied: string | null | undefined
+  // The provider address is the shell's one setting: setting it and sending under it go one at a time, so one
+  // account's request never goes out under another account's address.
+  let assistantQueue: Promise<unknown> = Promise.resolve()
+  const inTurn = <T>(work: () => Promise<T>): Promise<T> => {
+    const next = assistantQueue.then(work, work)
+    assistantQueue = next.catch(() => undefined)
+    return next
+  }
   const applyBase = async (slot: number): Promise<{ ok: true } | { ok: false; error: 'refused' | 'invalid' }> => {
     const base = bases.get(slot) ?? null
     if (baseApplied === base) return { ok: true }
@@ -182,6 +196,42 @@ export function createBridges(
 
   // A tunnel to a server is the device's: two accounts on the same server share it, so it closes when neither uses it.
   const tunnels = new Map<string, Set<number>>()
+
+  // Servers hosted on this computer belong to the device; the owner invite of one made by an account here is only
+  // that account's (another account on the device sees the server, not its one-time owner link).
+  const createdBy = new Map<string, number>()
+  function hostFor(slot: number): DesktopBridge['host'] {
+    const real = desktop!.host
+    const mine = (server: HostedServer | null): HostedServer | null => {
+      if (!server) return server
+      const owner = createdBy.get(server.id)
+      return owner !== undefined && owner !== slot ? { ...server, ownerInvite: null } : server
+    }
+    const made = (server: HostedServer | null): HostedServer | null => {
+      if (server) createdBy.set(server.id, slot)
+      return server
+    }
+    return {
+      ...real,
+      list: async () => (await real.list()).map((s) => mine(s)!),
+      create: async (name, appUrl, template) => made(await real.create(name, appUrl, template)),
+      start: async (id) => mine(await real.start(id)),
+      stop: async (id) => mine(await real.stop(id)),
+      ...(real.keepRunning ? { keepRunning: async (id: string, on: boolean) => mine(await real.keepRunning!(id, on)) } : {}),
+      ...(real.p2pSync ? { p2pSync: async (id: string) => mine(await real.p2pSync!(id)) } : {}),
+      ...(real.restore ? { restore: async (path: string, passphrase: string) => {
+        const restored = await real.restore!(path, passphrase)
+        made(restored.server)
+        return restored
+      } } : {}),
+      ...(real.restoreBuddy ? { restoreBuddy: async (address: string, code: string) => {
+        const restored = await real.restoreBuddy!(address, code)
+        made(restored.server)
+        return restored
+      } } : {}),
+      ...(real.onP2p ? { onP2p: (callback: Parameters<NonNullable<DesktopBridge['host']['onP2p']>>[0]) => hubs.p2p.subscribe(slot, callback) } : {}),
+    }
+  }
 
   const desktops = new Map<number, DesktopBridge>()
   function desktopFor(slot: number): DesktopBridge | undefined {
@@ -221,7 +271,7 @@ export function createBridges(
       },
       onActivity: on(hubs.activity),
       ...(desktop.onStreamerProgram ? { onStreamerProgram: on(hubs.streamer) } : {}),
-      host: { ...desktop.host, ...(desktop.host.onP2p ? { onP2p: on(hubs.p2p) } : {}) },
+      host: hostFor(slot),
       ...(desktop.p2p ? {
         p2p: {
           ...desktop.p2p,
@@ -249,17 +299,17 @@ export function createBridges(
           setMcp: async (value: boolean) => {
             mcp.set(slot, value)
             if (slot !== router.active()) return { on: false, command: null }
-            mcpApplied = null
+            if (mcpOwner === slot) mcpApplied = null
             return (await applyMcp()) ?? { on: false, command: null }
           },
-          setBase: async (base: string | null) => {
+          setBase: (base: string | null) => {
             bases.set(slot, base)
-            return applyBase(slot)
+            return inTurn(() => applyBase(slot))
           },
-          fetch: async (request: Parameters<NonNullable<DesktopBridge['assistant']>['fetch']>[0]) => {
+          fetch: (request: Parameters<NonNullable<DesktopBridge['assistant']>['fetch']>[0]) => inTurn(async () => {
             await applyBase(slot)
             return desktop.assistant!.fetch(request)
-          },
+          }),
         },
       } : {}),
     }
