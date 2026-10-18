@@ -262,6 +262,8 @@ AI noise removal, voice detection, evening out voices, cleaning up others' audio
 
 **Clips** are recorded on the device of the person who saves one, from what their app already plays. Turning clips on is shown to everyone in the call and saving one posts a notice, but that's a courtesy between honest apps: nothing can stop a modified app from recording what it receives, in any call.
 
+**Recording a voice channel** needs the "Record voice" permission (admins and the owner by default) and the desktop app, which saves one file per person (plus an optional mix) to a folder on that computer; nothing is uploaded, and the server never receives the audio. The server enforces who may start and stop, and shows a red "Recording" mark to everyone who can see the channel; people joining a recorded call join muted and are told first. Anyone can say "Don't record me", and in encrypted voice channels recording only starts once everyone in the call agrees (people joining later are left out until they say yes). Leaving people out is done by the recorder's app, so it's the same courtesy between honest apps as clips, not a cryptographic guarantee. Starting and stopping go in the audit log (never any audio or file names).
+
 ### Hosting help and rented servers
 
 - **What Iskra found out** about your connection comes from your own router's answers and your computer; no outside service is asked. The prompt for an AI assistant holds your local network details and the ports, never your public address, keys or invite links, and you see and can edit it before copying.

@@ -181,7 +181,7 @@ export function ChannelRecordingMark({ serverKey, channelId }: { serverKey: stri
 export function MemberRecordingMark({ serverKey, accountKey }: { serverKey: string; accountKey: string }) {
   const { t } = useTranslation()
   if (!useRecordingBy(serverKey, accountKey)) return null
-  return <span className="recording-dot member" role="img" aria-label={t('recording.memberMark')} title={t('recording.memberMark')} />
+  return <span className="recording-dot member-rec" role="img" aria-label={t('recording.memberMark')} title={t('recording.memberMark')} />
 }
 
 /** In the voice bar under the channel list: "REC" while the call you're in is recorded. */

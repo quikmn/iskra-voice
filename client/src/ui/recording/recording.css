@@ -1,6 +1,6 @@
 /* ── Recording a call ─────────────────────────────────────────────────────── */
-.record-button.on { color: #fff; background: var(--red); }
-.record-button.on:hover { background: color-mix(in srgb, var(--red) 85%, #000); }
+.call-button.record-button.on { color: #fff; background: var(--red); }
+.call-button.record-button.on:hover { background: color-mix(in srgb, var(--red) 85%, #000); }
 .record-start { display: inline-flex; align-items: center; gap: 6px; }
 
 .recording-dot {
@@ -8,7 +8,7 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 25%, transparent);
 }
 .recording-strip.live .recording-dot, .recording-card .recording-dot { animation: recording-pulse 1.6s ease-in-out infinite; }
-.recording-dot.member { width: 7px; height: 7px; margin-left: 6px; }
+.recording-dot.member-rec { width: 7px; height: 7px; margin: 0 4px 0 6px; padding: 0; }
 @keyframes recording-pulse { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) { .recording-dot { animation: none !important; } }
 
@@ -18,7 +18,7 @@
   font-size: 10px; font-weight: 800; letter-spacing: 0.04em; line-height: 1; color: #fff; background: var(--red);
 }
 .recording-mark { margin-left: 6px; }
-.voice-status .recording-pill { margin-left: 6px; vertical-align: middle; }
+.voice-status .recording-pill { justify-self: start; width: fit-content; color: #fff; overflow: visible; margin-top: 2px; }
 /* Left out of the recording: a hollow dot with a line through it. */
 .recording-off {
   position: relative; display: inline-block; width: 9px; height: 9px; margin-left: 6px; border-radius: 50%;
@@ -44,7 +44,7 @@
 
 /* The notices sit above the call controls (and the composer), like clip toasts; dialogs cover them. */
 .recording-layer {
-  position: fixed; bottom: calc(150px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
+  position: fixed; bottom: calc(200px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
   display: grid; gap: 8px; width: min(440px, calc(100vw - 24px)); pointer-events: none;
 }
 .recording-layer > * { pointer-events: auto; }

@@ -330,7 +330,14 @@ async function fail(why: RecordErrorKey, session: VoiceSession): Promise<void> {
   void connectionFor(session.serverKey)?.request('voice.record.stop', { channelId: session.channelId }).catch(() => undefined)
 }
 
-async function finish(): Promise<void> {
+/** Ends recording here (once, however many things ask at the same time). */
+let finishing: Promise<void> | null = null
+function finish(): Promise<void> {
+  finishing ??= wrapUp().finally(() => (finishing = null))
+  return finishing
+}
+
+async function wrapUp(): Promise<void> {
   const rec = recorder
   const local = useRecording.getState().local
   recorder = null
@@ -343,7 +350,7 @@ async function finish(): Promise<void> {
     return
   }
   const files = await rec.stop()
-  await writeInfo(rec, files, Date.now())
+  await writeInfo(rec, local, files, Date.now())
   await desktop?.recordings?.end(local.id).catch(() => undefined)
   log('INFO', 'voice', 'record-end', null, [['chan', local.channelId], ['n', files.length], ['dur', `${Math.round((Date.now() - rec.startedAt) / 1000)}s`]])
   about = null
@@ -401,13 +408,21 @@ function syncTracks(): void {
   void rec.setTracks(wanted)
 }
 
+let infoChain: Promise<unknown> = Promise.resolve()
 /** info.txt: who, when, which files (written as it goes, so a crash still leaves it). */
-async function writeInfo(rec: CallRecorder | null = recorder, files?: RecordedFile[], endedAt?: number): Promise<void> {
-  const local = useRecording.getState().local
-  if (!rec || !local || !about) return
-  const list = files ?? rec.recorded
+function writeInfo(rec: CallRecorder | null = recorder, local = useRecording.getState().local, files?: RecordedFile[], endedAt?: number): Promise<void> {
+  const text = rec && local && about ? infoFor(rec, files ?? rec.recorded, endedAt) : null
+  if (!text || !local) return Promise.resolve()
+  // In order: a write from the ticker never lands after the final one.
+  const next = infoChain.then(() => desktop?.recordings?.info(local.id, text)).catch(() => false)
+  infoChain = next
+  return next.then(() => undefined)
+}
+
+function infoFor(rec: CallRecorder, list: RecordedFile[], endedAt?: number): string {
+  if (!about) return ''
   const length = (endedAt ?? Date.now()) - rec.startedAt
-  const text = infoText({
+  return infoText({
     title: t('recording.info.title'),
     server: t('recording.info.server', { name: about.server }),
     channel: t('recording.info.channel', { name: about.channel }),
@@ -422,7 +437,6 @@ async function writeInfo(rec: CallRecorder | null = recorder, files?: RecordedFi
       : t('recording.info.file', { file: f.file, from: offsetLabel(f.from), to: offsetLabel(f.to) }),
     notes: [t('recording.info.offsets'), t('recording.info.consent'), t('recording.info.local')],
   }, list)
-  await desktop?.recordings?.info(local.id, text).catch(() => false)
 }
 
 // The server's voice state or the members changed (someone opted out, joined, answered): follow it.

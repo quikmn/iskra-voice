@@ -71,7 +71,8 @@ goes through:
    for someone who just joined never stalls the rest of the call; it uses the same queue as the mic (24 ms on top of the
    model's look-ahead, crossfading to the voice as it is when the worker falls behind).
    It runs at the Normal strength.
-   Clips record the cleaned voices while this is on.
+   Clips record the cleaned voices while this is on. Call recordings (desktop app) keep each person's voice as it
+   arrives, without this clean-up, so they can be edited later; your own track is your mic after its processing.
 2. **Even out voices** (on by default): a slow gain that brings each person towards the same loudness (only while they
    talk, at most ±12 dB, at most 3 dB per second, gliding sample by sample), then a gentle compressor (2:1 above
    -16 dBFS RMS, 10 ms attack, 200 ms release: only syllables well above the target) and a look-ahead limiter at
