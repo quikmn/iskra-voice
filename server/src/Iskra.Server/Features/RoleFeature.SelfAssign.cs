@@ -21,13 +21,24 @@ public static partial class RoleFeature
     public const int MaxAnswerRoles = 5;
     public const int MaxAnswerChannels = 5;
 
-    public static object PublicGroup(RoleGroup g) => new
+    /// <summary>A question as <paramref name="viewer"/> sees it: suggested channels only when they can see them.</summary>
+    public static object PublicGroup(RoleGroup g, Member viewer, IReadOnlyDictionary<long, Channel> channels) => new
     {
         id = g.Id, title = g.Title, question = g.Question, multi = g.Multi, required = g.Required, roles = g.RoleIds,
-        answers = g.Answers.Select(a => new { id = a.Id, label = a.Label, emoji = a.Emoji, roles = a.RoleIds, channels = a.ChannelIds }),
+        answers = g.Answers.Select(a => new
+        {
+            id = a.Id, label = a.Label, emoji = a.Emoji, roles = a.RoleIds,
+            channels = a.ChannelIds.Where(id => channels.TryGetValue(id, out var c) && Permissions.CanRead(viewer, c)),
+        }),
     };
 
-    public static List<object> PublicGroups(Store store) => store.AllRoleGroups().Select(PublicGroup).ToList();
+    public static List<object> PublicGroups(Store store, Member viewer)
+    {
+        var channels = store.AllChannels().ToDictionary(c => c.Id);
+        return store.AllRoleGroups().Select(g => PublicGroup(g, viewer, channels)).ToList();
+    }
+
+    private static object PublicGroup(Store store, RoleGroup g, Member viewer) => PublicGroup(g, viewer, store.AllChannels().ToDictionary(c => c.Id));
 
     // ── Pick groups ──────────────────────────────────────────────────────────
 
@@ -113,6 +124,15 @@ public static partial class RoleFeature
                 throw RequestException.BadRequest($"An answer can suggest up to {MaxAnswerChannels} channels.", "role_answer_channels_max", new { max = MaxAnswerChannels });
             foreach (var c in channelIds)
                 if (!channels.TryGetValue(c, out var channel) || !Permissions.CanRead(me, channel)) throw RequestException.NotFound("Channel");
+            // Channels you can't see aren't shown to you, so keeping an answer keeps them (another admin picked them).
+            if (id != 0)
+            {
+                var hidden = group!.Answers.First(x => x.Id == id).ChannelIds
+                    .Where(c => channels.TryGetValue(c, out var channel) && !Permissions.CanRead(me, channel) && !channelIds.Contains(c));
+                channelIds = [.. channelIds, .. hidden];
+                if (channelIds.Length > MaxAnswerChannels)
+                    throw RequestException.BadRequest($"An answer can suggest up to {MaxAnswerChannels} channels.", "role_answer_channels_max", new { max = MaxAnswerChannels });
+            }
             var raw = a.OptionalString("label", MaxAnswerLabelLength * 2) ?? "";
             var label = raw.Trim().Length == 0 ? "" : Text.Normalize(raw, MaxAnswerLabelLength, allowNewlines: false)
                 ?? throw RequestException.BadRequest($"Answers can be up to {MaxAnswerLabelLength} characters.", "role_answer_label", new { max = MaxAnswerLabelLength });
@@ -143,7 +163,7 @@ public static partial class RoleFeature
             body.OptionalBool("required") ?? false, Answers(s, me, body, null), s.Now);
         Audit.Record(s, "role.group.create", details: new { id = group.Id, title = group.Title, roles = RoleNames(store, group.RoleIds) });
         RolesChanged(s);
-        return new { group = PublicGroup(group) };
+        return new { group = PublicGroup(store, group, me) };
     }
 
     private static object UpdateGroup(Session s, Member me, Body body)
@@ -163,7 +183,7 @@ public static partial class RoleFeature
         var saved = store.GetRoleGroup(group.Id)!;
         Audit.Record(s, "role.group.update", details: new { id = group.Id, title = saved.Title, roles = RoleNames(store, saved.RoleIds) });
         RolesChanged(s);
-        return new { group = PublicGroup(saved) };
+        return new { group = PublicGroup(store, saved, me) };
     }
 
     private static object? DeleteGroup(Session s, Member me, Body body)

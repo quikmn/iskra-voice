@@ -43,38 +43,12 @@ public static class OnboardingFeature
         if (!group.Multi && ids.Count > 1) throw RequestException.BadRequest("Pick one answer.", "onboarding_single");
         if (group.Required && ids.Count == 0) throw RequestException.BadRequest("This question needs an answer.", "onboarding_required");
 
-        store.SetOnboardingAnswers(me.AccountKey, group.Id, ids);
-        var member = Reconcile(s, me.AccountKey);
-        return new { member = s.Hub.PublicMember(member), answers = store.OnboardingAnswers(me.AccountKey) };
-    }
-
-    /// <summary>
-    /// Gives the roles the member's answers call for that they don't hold, and takes back roles an earlier answer gave
-    /// that no answer calls for any more. Roles they held already, or got by hand, are left alone.
-    /// </summary>
-    private static Member Reconcile(Session s, string accountKey)
-    {
-        var store = s.World.Store;
-        var me = store.GetMember(accountKey)!;
-        var roles = store.AllRoles().ToDictionary(r => r.Id);
-        var chosen = store.OnboardingAnswers(accountKey).ToHashSet();
-        var wanted = store.AllRoleGroups().SelectMany(g => g.Answers).Where(a => chosen.Contains(a.Id)).SelectMany(a => a.RoleIds)
-            .Where(id => roles.TryGetValue(id, out var r) && RoleFeature.Pickable(r)).ToHashSet();
-        var held = me.RoleIds.ToHashSet();
-        var grants = store.OnboardingGrants(accountKey);
-        grants.IntersectWith(held);
-        var remove = grants.Except(wanted).ToList();
-        var add = wanted.Except(held).ToList();
-        grants.ExceptWith(remove);
-        grants.UnionWith(add);
-        store.SetOnboardingGrants(accountKey, grants);
-        if (remove.Count + add.Count == 0) return me;
-        held.ExceptWith(remove);
-        held.UnionWith(add);
-        store.SetMemberRoles(accountKey, held);
-        RoleFeature.AccessChanged(s, [accountKey]); // opt-in channels appear or go
-        s.Hub.Outhooks?.MemberUpdated(accountKey, "roles");
-        return store.GetMember(accountKey)!;
+        if (store.AnswerOnboarding(me.AccountKey, group.Id, ids))
+        {
+            RoleFeature.AccessChanged(s, [me.AccountKey]); // opt-in channels appear or go
+            s.Hub.Outhooks?.MemberUpdated(me.AccountKey, "roles");
+        }
+        return new { member = s.Hub.PublicMember(store.GetMember(me.AccountKey)!), answers = store.OnboardingAnswers(me.AccountKey) };
     }
 
     // ── Roles on join ────────────────────────────────────────────────────────
@@ -84,22 +58,9 @@ public static class OnboardingFeature
         if (!Permissions.Has(me, Perm.ManageRoles)) throw RequestException.Forbidden("You can't manage roles on this server.", "manage_roles");
     }
 
-    /// <summary>The roles on join that are still safe to give (a role can't gain permissions while self-assignable, but check anyway).</summary>
-    private static long[] SafeAutoRoles(Store store)
-    {
-        var roles = store.AllRoles().ToDictionary(r => r.Id);
-        return store.AutoRoles().Where(id => roles.TryGetValue(id, out var r) && RoleFeature.Pickable(r)).ToArray();
-    }
-
     /// <summary>A person just became a member (any invite, approved or not, the p2p tunnel too): they get the roles on join. Bots don't.</summary>
-    public static Member Joined(Store store, Member member)
-    {
-        if (store.IsBot(member.AccountKey)) return member;
-        var auto = SafeAutoRoles(store);
-        if (auto.Length == 0) return member;
-        store.SetMemberRoles(member.AccountKey, member.RoleIds.Concat(auto));
-        return store.GetMember(member.AccountKey) ?? member;
-    }
+    public static Member Joined(Store store, Member member) =>
+        store.GiveAutoRoles([member.AccountKey]).Count == 0 ? member : store.GetMember(member.AccountKey) ?? member;
 
     private static object SetAutoRoles(Session s, Member me, Body body)
     {
@@ -128,19 +89,7 @@ public static class OnboardingFeature
     {
         RequireManager(me);
         var store = s.World.Store;
-        var auto = SafeAutoRoles(store);
-        var changed = new List<string>();
-        if (auto.Length > 0)
-        {
-            foreach (var member in store.AllMembers())
-            {
-                if (store.IsBot(member.AccountKey)) continue;
-                store.ForgetOnboardingGrants(member.AccountKey, auto); // given to everyone now, not by an answer
-                if (auto.All(member.RoleIds.Contains)) continue;
-                store.SetMemberRoles(member.AccountKey, member.RoleIds.Concat(auto));
-                changed.Add(member.AccountKey);
-            }
-        }
+        var changed = store.GiveAutoRoles(null);
         if (changed.Count > 0)
         {
             Audit.Record(s, "onboarding.autoroles.apply", details: new { members = changed.Count });

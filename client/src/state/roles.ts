@@ -73,6 +73,12 @@ export async function updateRoleGroup(serverKey: string, id: number, patch: Omit
   return (await connection(serverKey).request('role.group.update', { id, ...patch })).group
 }
 
+/** Fetches the roles and join questions again (suggested channels follow what you can see now). */
+export async function refreshRoles(serverKey: string) {
+  const list = await connectionFor(serverKey)?.request('role.list', {}).catch(() => undefined)
+  if (list) put(serverKey, list.roles, list.groups, list.autoRoles)
+}
+
 export async function deleteRoleGroup(serverKey: string, id: number) {
   await connection(serverKey).request('role.group.delete', { id })
 }

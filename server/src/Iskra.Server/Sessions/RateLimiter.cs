@@ -74,6 +74,7 @@ public sealed class RateLimiter(TimeProvider time)
         ["role.base.update"] = (30, 2), // ticking powers one by one
         ["roles.self"] = (10, 1), // picking your own roles, one tap each
         ["onboarding.answer"] = (10, 1), // join questions, one step each
+        ["onboarding.autoroles.apply"] = (3, 0.1), // touches every member
         ["join.settings.update"] = (10, 1),
         ["chat.delete.bulk"] = (5, 0.2), // up to 100 messages each
         ["member.warn"] = (10, 0.5),

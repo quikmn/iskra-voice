@@ -4786,8 +4786,14 @@ RoleGroup {
 - Roles on join are given at the moment someone becomes a member: any invite, an approved join request, the p2p tunnel.
   Not retroactive: `onboarding.autoroles.apply` gives them to every current member who isn't a bot. Bots get no roles on
   join and can't answer.
-- `role.list` and the `roles` event gain `autoRoles: [roleId]` (in order).
-- Admin edits never take roles from anyone: deleting an answer or a question forgets who picked it, not what it gave.
+- `role.list` and the `roles` event gain `autoRoles: [roleId]` (in order). Each person gets their own `roles` event:
+  an answer's `channels` lists only the channels that person can see. Saving an answer listed with its `id` keeps the
+  channels the saver can't see.
+- Admin edits never take roles from anyone: deleting or changing an answer or a question forgets who picked it and
+  which roles it gave (a role stays the answers' to take back only while one of the member's answers still gives it).
+- Giving and taking roles (answers, roles on join) adds or deletes single role rows in one transaction, checking that
+  each role is still one members may pick, so it never undoes another change to someone's roles made meanwhile.
+  `onboarding.autoroles.apply` is rate limited (3, then one every 10 s).
 - Audit: `onboarding.autoroles` `{ roles }` (names), `onboarding.autoroles.apply` `{ members }`. Answering isn't audited.
 - `data.export` gains `joinAnswers` (question, answer label, answer id) and `joinAnswerRoles` (roles your answers gave).
 - Templates keep `roleGroups` as before (answers that are one role each); labels, channels and `required` aren't in
@@ -4795,4 +4801,5 @@ RoleGroup {
 
 Migration `onboarding-1`: `role_groups.required`, `role_group_answers` (+ `_roles`, `_channels`; existing groups become
 one answer per role), `onboarding_answers` and `onboarding_grants` (per member, deleted when they leave),
-`onboarding_auto_roles`; drops `role_group_roles`.
+`onboarding_auto_roles`. `role_group_roles` stays and is kept in step (every role a question's answers give, in order),
+so an older server after a rollback or downgrade still shows the questions as pick groups.

@@ -47,7 +47,7 @@ public static partial class RoleFeature
 
     public static void Register(Router router)
     {
-        router.Add("role.list", (s, _, _) => RoleList(s.World.Store));
+        router.Add("role.list", (s, me, _) => RoleList(s.World.Store, me));
         router.Add("role.base.update", UpdateBase);
         router.Add("role.create", Create);
         router.Add("role.update", Update);
@@ -73,8 +73,8 @@ public static partial class RoleFeature
     };
 
     /// <summary>`role.list` and the `roles` event: custom roles, built-in roles and the pick groups.</summary>
-    private static object RoleList(Store store) =>
-        new { roles = store.AllRoles().Select(Public), baseRoles = PublicBaseRoles(store), groups = PublicGroups(store), autoRoles = store.AutoRoles() };
+    private static object RoleList(Store store, Member viewer) =>
+        new { roles = store.AllRoles().Select(Public), baseRoles = PublicBaseRoles(store), groups = PublicGroups(store, viewer), autoRoles = store.AutoRoles() };
 
     // ── Validation ───────────────────────────────────────────────────────────
 
@@ -132,7 +132,13 @@ public static partial class RoleFeature
 
     internal static void RolesChanged(Session s)
     {
-        s.Hub.Broadcast(Frames.Event("roles", RoleList(s.World.Store)));
+        // Per person: join questions show only the suggested channels each one can see.
+        var store = s.World.Store;
+        var (roles, baseRoles, autoRoles) = (store.AllRoles().Select(Public).ToList(), PublicBaseRoles(store), store.AutoRoles());
+        var (groups, channels) = (store.AllRoleGroups(), store.AllChannels().ToDictionary(c => c.Id));
+        foreach (var session in s.Hub.Sessions)
+            if (session.CurrentMember() is { } member)
+                session.Send(Frames.Event("roles", new { roles, baseRoles, groups = groups.Select(g => PublicGroup(g, member, channels)), autoRoles }));
     }
 
     /// <summary>After role membership, deletion or overrides change: members, channel lists and voice follow.</summary>

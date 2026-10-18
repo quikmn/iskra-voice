@@ -384,4 +384,120 @@ public class JoinQuestionTests
         Assert.Empty(server.World.Store.OnboardingAnswers(other.Key));
         Assert.Contains(pc, RolesOf(server, other)); // deleting a question doesn't take roles from anyone
     }
+
+    [Fact]
+    public async Task The_older_pick_group_table_stays_in_step_for_a_rollback()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var pc = await CreateRole(owner, "PC");
+        var ps = await CreateRole(owner, "PS");
+        var news = await CreateRole(owner, "News");
+        var store = server.World.Store;
+        void Mirrors() => Assert.Equal(
+            store.AllRoleGroups().SelectMany(g => g.RoleIds.Select(r => (g.Id, r))).OrderBy(x => x.Id).ToList(),
+            store.LegacyRoleGroupRoles());
+
+        var group = await CreateQuestion(owner, new { title = "Q", answers = new object[] { new { label = "A", roles = new[] { pc, news } }, new { label = "B", roles = new[] { ps, pc } }, new { label = "C" } } });
+        var id = group.GetProperty("id").GetInt64();
+        Assert.Equal([(id, pc), (id, news), (id, ps)], store.LegacyRoleGroupRoles());
+        await CreateQuestion(owner, new { title = "Legacy", roles = new[] { ps } });
+        Mirrors();
+        await owner.RequestAsync("role.group.update", new { id, answers = new object[] { new { label = "B", roles = new[] { ps } } } });
+        Mirrors();
+        await owner.RequestAsync("role.update", new { id = ps, selfAssign = false });
+        Mirrors();
+        await owner.RequestAsync("role.delete", new { id = news });
+        Mirrors();
+        await owner.RequestAsync("role.group.delete", new { id });
+        Mirrors();
+    }
+
+    [Fact]
+    public async Task Answering_and_roles_on_join_only_add_or_take_single_roles_and_check_them_at_the_write()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var member = await server.JoinAsync("Member");
+        var pc = await CreateRole(owner, "PC");
+        var muted = await CreateRole(owner, "Restricted", selfAssign: false);
+        var store = server.World.Store;
+        var group = await CreateQuestion(owner, new { title = "Q", multi = true, answers = new object[] { new { label = "PC", roles = new[] { pc } } } });
+        var q = group.GetProperty("id").GetInt64();
+
+        // A moderator's restriction role given meanwhile is never lost by answering.
+        await owner.RequestAsync("member.roles.set", new { accountKey = member.Key, roles = new[] { muted } });
+        Assert.True(store.AnswerOnboarding(member.Key, q, AnswerIds(group)));
+        Assert.Equal(new[] { pc, muted }.Order(), RolesOf(server, member));
+
+        // A role that stopped being pickable (even without the cleanup) isn't given at the write.
+        store.AnswerOnboarding(member.Key, q, []);
+        store.UpdateRole(store.GetRole(pc)! with { SelfAssign = false });
+        Assert.False(store.AnswerOnboarding(member.Key, q, AnswerIds(group)));
+        Assert.Equal([muted], RolesOf(server, member));
+        store.SetAutoRoles([pc]);
+        Assert.Empty(store.GiveAutoRoles(null));
+
+        // Roles on join add only what's missing and keep everything else.
+        store.UpdateRole(store.GetRole(pc)! with { SelfAssign = true });
+        Assert.Equal(2, store.GiveAutoRoles(null).Count); // the owner and the member
+        Assert.Equal(new[] { pc, muted }.Order(), RolesOf(server, member));
+        Assert.Empty(store.GiveAutoRoles(null));
+
+        // "Give to everyone now" is rate limited.
+        var codes = new List<string?>();
+        for (var i = 0; i < 5; i++) codes.Add((await owner.RequestAsync("onboarding.autoroles.apply")).ErrorCode());
+        Assert.Contains("rate_limited", codes);
+    }
+
+    [Fact]
+    public async Task Suggested_channels_are_shown_only_to_people_who_can_see_them()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var member = await server.JoinAsync("Member");
+        var secret = (await owner.RequestAsync("channel.create", new { name = "secret", kind = "text", readRole = "owner" })).Body().GetProperty("channel").GetProperty("id").GetInt64();
+        var group = await CreateQuestion(owner, new { title = "Q", answers = new object[] { new { label = "A", channels = new[] { server.General, secret } } } });
+        Assert.Equal([server.General, secret], Ids(group.GetProperty("answers")[0].GetProperty("channels")));
+
+        long[] Seen(JsonElement list) => Ids(list.GetProperty("groups")[0].GetProperty("answers")[0].GetProperty("channels"));
+        Assert.Equal([server.General], Seen((await member.RequestAsync("role.list")).Body()));
+        Assert.Equal([server.General, secret], Seen((await owner.RequestAsync("role.list")).Body()));
+        JsonElement roles;
+        do roles = (await member.EventAsync("roles")).Body();
+        while (roles.GetProperty("groups").GetArrayLength() == 0);
+        Assert.Equal([server.General], Seen(roles));
+
+        // An admin who can't see #secret edits the answer: #secret stays (they never saw it to remove it).
+        var answer = AnswerIds(group)[0];
+        var edited = await admin.RequestAsync("role.group.update", new { id = group.GetProperty("id").GetInt64(), answers = new object[] { new { id = answer, label = "A2", channels = new[] { server.General } } } });
+        Assert.Equal([server.General], Ids(edited.Body().GetProperty("group").GetProperty("answers")[0].GetProperty("channels")));
+        Assert.Equal([server.General, secret], server.World.Store.GetRoleGroup(group.GetProperty("id").GetInt64())!.Answers[0].ChannelIds);
+    }
+
+    [Fact]
+    public async Task An_admin_edit_never_lets_a_later_answer_take_a_role_back()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var member = await server.JoinAsync("Member");
+        var pc = await CreateRole(owner, "PC");
+        var group = await CreateQuestion(owner, new
+        {
+            title = "Q", answers = new object[] { new { label = "PC", roles = new[] { pc } }, new { label = "Other", roles = new[] { pc } }, new { label = "None" } },
+        });
+        var (q, ids) = (group.GetProperty("id").GetInt64(), AnswerIds(group));
+        await member.RequestAsync("onboarding.answer", new { question = q, answers = new[] { ids[0] } });
+        Assert.Contains(pc, server.World.Store.OnboardingGrants(member.Key));
+
+        // The admin removes the answer Member picked; another answer still gives PC.
+        await owner.RequestAsync("role.group.update", new
+        {
+            id = q, answers = new object[] { new { id = ids[1], label = "Other", roles = new[] { pc } }, new { id = ids[2], label = "None" } },
+        });
+        Assert.Empty(server.World.Store.OnboardingGrants(member.Key));
+        await member.RequestAsync("onboarding.answer", new { question = q, answers = new[] { ids[2] } });
+        Assert.Contains(pc, RolesOf(server, member));
+    }
 }

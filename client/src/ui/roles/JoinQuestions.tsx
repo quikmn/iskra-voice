@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { JoinAnswer, RoleGroup, ServerRole } from '../../core/protocol'
 import { errorMessage } from '../../i18n/errors'
-import { useServerRoleGroups, useServerRoles } from '../../state/roles'
+import { refreshRoles, useServerRoleGroups, useServerRoles } from '../../state/roles'
 import { answerQuestion, loadMyAnswers, useMyAnswers } from '../../state/joinQuestions'
 import {
   answerName, askableQuestions, canContinue, chosenFor, shownAnswers, suggestedChannels, toggleAnswer,
@@ -51,6 +51,7 @@ export function JoinQuestionsFlow({ server, welcome, onClose }: { server: Server
 
   useEffect(() => {
     void loadMyAnswers(server.key)
+    void refreshRoles(server.key)
   }, [server.key])
 
   if (questions.length === 0) {
