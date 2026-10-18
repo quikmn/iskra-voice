@@ -1,17 +1,18 @@
 // Several accounts in the real desktop app: each account's frame reaches the shell through the host page (the OS
 // keychain protects each account's keys), the taskbar badge adds every account up, and both come back after a restart.
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
 import { agreeToTerms, appWindow, SHOTS } from './helpers'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html'))
+const built = desktopBuilt()
 
-test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+test.skip(!built, DESKTOP_SKIP)
 
 function launch(userData: string): Promise<ElectronApplication> {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
