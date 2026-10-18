@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { CallRecording, VoiceParticipant } from '../../core/protocol'
-import { answers, infoText, isRecorded, needsAnswer, offsetLabel, safeFileName, trackFileName } from '../recordingLogic'
+import { answers, infoText, isRecorded, needsAnswer, offsetLabel, olderApp, recordedNow, safeFileName, trackFileName } from '../recordingLogic'
 import { CallRecorder, type RecorderLike, type RecordSink, type WantedTrack } from './recorder'
 
-const p = (accountKey: string, extra: Partial<VoiceParticipant> = {}): VoiceParticipant => ({ accountKey, muted: false, deafened: false, ...extra })
+const p = (accountKey: string, extra: Partial<VoiceParticipant> = {}): VoiceParticipant => ({ accountKey, muted: false, deafened: false, recordingAware: true, ...extra })
 const plain: CallRecording = { by: 'rec', startedAt: 1, live: true, encrypted: false }
 const encrypted: CallRecording = { by: 'rec', startedAt: 1, live: true, encrypted: true }
 
@@ -17,6 +17,20 @@ describe('who is recorded', () => {
     expect(isRecorded(p('a', { recordConsent: false }), encrypted)).toBe(false)
     expect(isRecorded(p('a', { recordConsent: true }), encrypted)).toBe(true)
     expect(isRecorded(p('a', { recordConsent: true, noRecord: true }), encrypted)).toBe(false)
+  })
+
+  it('never includes apps that do not show the mark (older apps, bots)', () => {
+    expect(isRecorded(p('old', { recordingAware: false }), plain)).toBe(false)
+    expect(isRecorded({ accountKey: 'old', muted: false, deafened: false }, plain)).toBe(false)
+    expect(isRecorded(p('old', { recordingAware: undefined, recordConsent: true }), encrypted)).toBe(false)
+    expect(olderApp(p('old', { recordingAware: false }), plain)).toBe(true)
+    expect(olderApp(p('new'), plain)).toBe(false)
+  })
+
+  it('records nobody while the recorder is offline from the server', () => {
+    const people = [p('a'), p('b', { noRecord: true }), p('c', { recordingAware: false })]
+    expect([...recordedNow(people, plain, true)]).toEqual(['a'])
+    expect([...recordedNow(people, plain, false)]).toEqual([])
   })
 
   it('asks people in an encrypted call who have not answered (never the recorder)', () => {
@@ -141,6 +155,25 @@ describe('the recorder', () => {
     expect(byName['Bea (2).webm'].closed).toBe(true)
     expect(failures).toEqual([])
     expect(rec.bytes).toBeGreaterThan(0)
+  })
+
+  it('pauses while offline from the server (no file open) and resumes in new files', async () => {
+    let now = 0
+    const { sink, files } = fakeSink()
+    const rec = new CallRecorder(sink, {
+      mixed: false, now: () => now, onFail: () => undefined, makeStream: () => ({} as MediaStream), makeRecorder: () => new FakeRecorder('x'),
+    })
+    await rec.begin()
+    const people = [p('a'), p('b')]
+    const tracks = (keys: Set<string>) => [...keys].map((k) => ({ accountKey: k, who: k.toUpperCase(), track: track(`t${k}`) }))
+    await rec.setTracks(tracks(recordedNow(people, plain, true)))
+    now = 5000
+    await rec.setTracks(tracks(recordedNow(people, plain, false))) // the connection dropped
+    expect([...files.values()].every((f) => f.closed)).toBe(true)
+    now = 9000
+    await rec.setTracks(tracks(recordedNow([p('a'), p('b', { noRecord: true })], plain, true))) // back: B opted out meanwhile
+    const done = await rec.stop()
+    expect(done.map((f) => [f.file, f.from, f.to])).toEqual([['A.webm', 0, 5000], ['B.webm', 0, 5000], ['A (2).webm', 9000, 9000]])
   })
 
   it('mixes everyone into mixed.webm when asked, and stops on a full disk', async () => {

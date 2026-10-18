@@ -3074,11 +3074,19 @@ export interface VoiceParticipant {
   noRecord?: boolean
   /** Encrypted channels: their answer to being recorded (null: not answered yet). */
   recordConsent?: boolean | null
+  /** Their app shows recording marks (older apps and bots are never recorded). */
+  recordingAware?: boolean
+}
+
+export interface Message {
+  /** A "started/stopped recording this call" line (the author is the recorder). */
+  recordNotice?: { kind: 'start' | 'stop' } | null
 }
 
 export interface Requests {
   'voice.record.start': [{ channelId: number }, { recording: CallRecording }]
   'voice.record.stop': [{ channelId: number }, Record<string, never>]
-  'voice.record.optout': [{ optOut: boolean }, { optOut: boolean }]
+  /** Without optOut: just what the server has. */
+  'voice.record.optout': [{ optOut?: boolean }, { optOut: boolean }]
   'voice.record.consent': [{ channelId: number; agree: boolean }, Record<string, never>]
 }

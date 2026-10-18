@@ -15,7 +15,7 @@ import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { activeRoom, rawMicTrack, toggleMute, useVoice, type VoiceSession } from './voice'
 import { playTone } from './notify'
 import { CallRecorder, recordingSupported, type RecordSink, type WantedTrack } from './recording/recorder'
-import { infoText, isRecorded, localStamp, offsetLabel, RECORD_MAX_MS, type RecordedFile } from './recordingLogic'
+import { infoText, localStamp, recordedNow, offsetLabel, RECORD_MAX_MS, type RecordedFile } from './recordingLogic'
 
 const KEY = 'iskra.recording'
 
@@ -36,8 +36,8 @@ export interface RecordNotice {
 interface RecordingState {
   /** Each server's recorded channels, from voice.state. */
   marks: Marks
-  /** "Don't record me", on every server (remembered on this device). */
-  optOut: boolean
+  /** "Don't record me", per server, as each server has it (stored there for your account). */
+  optOut: Record<string, boolean>
   /** Also save everyone mixed into one file. */
   mixed: boolean
   /** Desktop: where recordings go. */
@@ -51,19 +51,19 @@ interface RecordingState {
   saved: { id: string; folder: string } | null
 }
 
-function loadPrefs(): { optOut: boolean; mixed: boolean } {
+function loadPrefs(): { mixed: boolean } {
   try {
-    const data = JSON.parse(localStorage.getItem(KEY) ?? '{}') as { optOut?: unknown; mixed?: unknown }
-    return { optOut: data.optOut === true, mixed: data.mixed !== false }
+    const data = JSON.parse(localStorage.getItem(KEY) ?? '{}') as { mixed?: unknown }
+    return { mixed: data.mixed !== false }
   } catch {
-    return { optOut: false, mixed: true }
+    return { mixed: true }
   }
 }
 
 function savePrefs(): void {
-  const { optOut, mixed } = useRecording.getState()
+  const { mixed } = useRecording.getState()
   try {
-    localStorage.setItem(KEY, JSON.stringify({ optOut, mixed }))
+    localStorage.setItem(KEY, JSON.stringify({ mixed }))
   } catch {
     /* private mode: this session only */
   }
@@ -71,6 +71,7 @@ function savePrefs(): void {
 
 export const useRecording = create<RecordingState>(() => ({
   ...loadPrefs(),
+  optOut: {},
   marks: {},
   folder: null,
   notice: null,
@@ -126,10 +127,9 @@ onWelcomeHook((serverKey, welcome: Welcome) => {
   const marks: Record<number, CallRecording> = {}
   for (const v of welcome.voice ?? []) if (v.recording) marks[v.channelId] = v.recording
   useRecording.setState((s) => ({ marks: { ...s.marks, [serverKey]: marks } }))
-  // "Don't record me" lives on the server only while it runs: say it again on every connect.
-  if (useRecording.getState().optOut) {
-    setTimeout(() => void connectionFor(serverKey)?.request('voice.record.optout', { optOut: true }).catch(() => undefined), 0)
-  }
+  // "Don't record me" is stored on the server for your account (in force from the handshake): show what it has.
+  setTimeout(() => void connectionFor(serverKey)?.request('voice.record.optout', {})
+    .then(({ optOut }) => keepOptOut(serverKey, optOut)).catch(() => undefined), 0)
   follow()
 })
 
@@ -177,14 +177,21 @@ export async function unmuteAfterNotice(): Promise<void> {
   if (notice?.mutedByUs && useVoice.getState().muted) await toggleMute()
 }
 
-/** "Don't record me" (or back in), on every server you're connected to. */
-export function setOptOut(optOut: boolean): void {
-  useRecording.setState({ optOut })
-  savePrefs()
-  for (const serverKey of Object.keys(useApp.getState().servers)) {
-    void connectionFor(serverKey)?.request('voice.record.optout', { optOut }).catch(() => undefined)
+const keepOptOut = (serverKey: string, optOut: boolean): void =>
+  useRecording.setState((s) => (s.optOut[serverKey] === optOut ? s : { optOut: { ...s.optOut, [serverKey]: optOut } }))
+
+/** "Don't record me" (or back in) on a server: stored there for your account, on every device. */
+export async function setOptOut(serverKey: string, optOut: boolean): Promise<void> {
+  try {
+    const reply = await connectionFor(serverKey)?.request('voice.record.optout', { optOut })
+    if (reply) keepOptOut(serverKey, reply.optOut)
+  } catch (e) {
+    useRecording.setState({ error: errorMessage(e) })
   }
 }
+
+/** Whether you said "don't record me" on this server. */
+export const useOptOut = (serverKey: string | undefined): boolean => useRecording((s) => !!serverKey && s.optOut[serverKey] === true)
 
 export function setMixed(mixed: boolean): void {
   useRecording.setState({ mixed })
@@ -390,7 +397,8 @@ function syncTracks(): void {
   const server = useApp.getState().servers[session.serverKey]
   const mark = useRecording.getState().marks[session.serverKey]?.[session.channelId]
   if (!server) return
-  const recorded = new Set((server.voice[session.channelId] ?? []).filter((p) => isRecorded(p, mark)).map((p) => p.accountKey))
+  // Offline from the server: nobody (it can't see opt-outs meanwhile); new files start when it's back.
+  const recorded = recordedNow(server.voice[session.channelId] ?? [], mark, server.status.state === 'online')
   const name = (key: string) => server.members[key]?.name ?? t('common.someone')
   const { Track } = lk()
   const wanted: WantedTrack[] = []
@@ -442,5 +450,7 @@ function infoFor(rec: CallRecorder, list: RecordedFile[], endedAt?: number): str
 // The server's voice state or the members changed (someone opted out, joined, answered): follow it.
 useApp.subscribe((state, prev) => {
   const local = useRecording.getState().local
-  if (local && state.servers[local.serverKey]?.voice !== prev.servers[local.serverKey]?.voice) syncTracks()
+  const now = state.servers[local?.serverKey ?? '']
+  const before = prev.servers[local?.serverKey ?? '']
+  if (local && (now?.voice !== before?.voice || now?.status !== before?.status)) syncTracks()
 })

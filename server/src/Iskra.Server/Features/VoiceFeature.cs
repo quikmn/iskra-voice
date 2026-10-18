@@ -35,6 +35,7 @@ public static class VoiceFeature
         var backend = s.Voice.Backend;
         if (!backend.Available) throw new RequestException("voice_unavailable", "Voice isn't available on this server right now.");
         if (lobby) channel = RoomFeature.Create(s, me, channel);
+        s.Voice.Recordings.SetAware(me.AccountKey, s.RecordingAware && !bot); // only apps that show the mark are ever recorded
 
         var room = VoiceRegistry.RoomName(channel.Id);
         // Everyone joins a stage listening; speaking is granted later through LiveKit's API (StageRegistry).

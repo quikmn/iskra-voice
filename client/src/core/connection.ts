@@ -36,6 +36,8 @@ export interface ConnectionOptions {
   bot?: boolean
   /** Account key rotations that led to this identity, for servers that missed them (see "Account key rotation"). */
   rotations?: () => unknown[]
+  /** What this app supports beyond the basics, sent on every connect (auth `features`, PROTOCOL.md). */
+  features?: string[]
   /**
    * Asked before every attempt for the address to use this time: `serverUrl`, or another way to the same server (the
    * desktop app's peer-to-peer tunnel when the address can't be reached). Null means try `serverUrl`.
@@ -333,6 +335,7 @@ export class Connection {
     if (presence) body.presence = presence
     const rotations = this.options.rotations?.() ?? []
     if (rotations.length) body.rotations = rotations
+    if (this.options.features?.length) body.features = this.options.features
     this.send({ type: 'auth', id: 'auth', body })
   }
 

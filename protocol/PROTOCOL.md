@@ -70,6 +70,7 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
    Because the signature covers the server's key and a fresh nonce, it can't be replayed, either against this server or against a different one.
    `profile` may also carry `bio`, `pronouns` and `accent` ([Profiles](#profiles)) and `bot: true` ([Bots](#bot-accounts)).
    `rotations` (optional, ≤ 4 `Rotation`s) brings an account key rotation to a server that missed it ([Account key rotation](#account-key-rotation)).
+   `features` (optional, ≤ 16 strings of ≤ 32 characters) lists what this app supports beyond the basics; unknown ones are ignored. Today: `"recording"`, the app shows [recording marks](#recording-a-voice-channel).
 3. **Server checks:**
    - the certificate signature
    - the auth signature
@@ -4754,21 +4755,34 @@ encrypted channels asks everyone first. Web and phone apps show the mark and the
 | type | body | result | who |
 |---|---|---|---|
 | `voice.record.start` | `channelId` (a voice or stage channel you're in) | `{ recording: Recording }` | `recordVoice` (`forbidden`, key `record_forbidden`); in the call (`bad_request`, key `voice_join_first`); not bots (`record_bot`); one recording per channel (`record_already`, args `{ by }`) |
-| `voice.record.stop` | `channelId` | `{}` (also when nothing is recorded) | the recorder, or anyone with `recordVoice` who can read the channel (`forbidden`, key `record_stop_forbidden`) |
-| `voice.record.optout` | `optOut` (bool) | `{ optOut }` | anyone: "don't record me", for every call on this server |
+| `voice.record.stop` | `channelId` | `{}` (also when nothing is recorded) | the recorder, or anyone with `recordVoice` who can read the channel, whatever their rank (intended: anyone trusted to record may end a recording; `forbidden`, key `record_stop_forbidden`) |
+| `voice.record.optout` | `optOut?` (bool; left out: just read it) | `{ optOut }` | anyone: "don't record me", for every call on this server |
 | `voice.record.consent` | `channelId`, `agree` (bool) | `{}` | someone in an encrypted channel's call while it's being recorded or asked about (`voice_join_first`; nothing asked: `record_none`) |
 
 `Recording = { by (account key), startedAt (ms), live (bool), liveAt (ms or null), encrypted (bool), askUntil (ms or null) }`.
 
 - **Where it shows:** `voice.state` events and `welcome.voice` gain `recording: Recording | null`, and each participant
-  gains `noRecord` (bool: they said "don't record me") and `recordConsent` (`true`, `false` or `null`: their answer
-  in an encrypted channel's recording; `null` elsewhere or not answered yet). Every change is a new `voice.state` for
-  the channel's readers, so people see it before they join and anyone who joins later sees it at once. Kept in memory
-  only, like voice state.
+  gains `noRecord` (bool: they said "don't record me"), `recordConsent` (`true`, `false` or `null`: their answer in an
+  encrypted channel's recording; `null` elsewhere or not answered yet) and `recordingAware` (bool: the app they joined
+  voice with sent the auth feature `"recording"`, so it shows the mark; set on each `voice.join`, never for bots). Every
+  change is a new `voice.state` for the channel's readers, so people see it before they join and anyone who joins later
+  sees it at once. The mark and answers are kept in memory only, like voice state.
+- **"Don't record me"** is stored for the account (table `record_optouts`, migration `recording-1`), so it holds from
+  the handshake on and across restarts, on every device; apps read it with `voice.record.optout {}`. It goes with the
+  account and is in `data.export` (`recordingOptOut`).
+- **In the chat:** starting and stopping a recording in a channel that isn't encrypted posts a line in the channel's
+  chat by the recorder (`chat.message`), text `🔴 Started recording this call.` / `⏹️ Stopped recording this call.`, with
+  `recordNotice: { kind: "start" | "stop" }` (null on other messages), so even apps that don't know recording see it.
+  An end nobody asked for posts the stop line too. The recorder can't edit (`bad_request`) or delete it (`forbidden`,
+  key `record_notice_delete`); moderators who may delete messages can. Encrypted channels get no lines (the server
+  can't write their chat; nobody there is recorded without answering yes in an app that shows the mark).
 - **Joining a recorded call:** apps join muted and say who is recording before the mic can open ("OK, unmute" or
   "Don't record me"); a recording that starts while you're in plays a sound and shows the same notice.
-- **Who is recorded** (the recorder's app decides, from `voice.state`): everyone in the call except people with
-  `noRecord: true`; in an encrypted channel only people with `recordConsent: true`. Someone who changes their mind
+- **Who is recorded** (the recorder's app decides, from `voice.state`): people with `recordingAware: true` and not
+  `noRecord: true`; in an encrypted channel only those who also have `recordConsent: true`. Apps that don't show the
+  mark (older apps, third-party clients, bots) are never recorded; apps list them as "not in the recording (older
+  app)". While the recorder's own connection to the server is down, it records nobody (it can't see opt-outs), and
+  picks up again with new files once it's back. Someone who changes their mind
   mid-call drops out of (or comes back into) the recording from then on; their track gets a new file with its start
   time. This is a courtesy between honest apps, not a cryptographic guarantee: like any call, a modified app could
   record what it receives.

@@ -10,10 +10,10 @@ import { useServerBaseRoles } from '../../state/baseRoles'
 import { useServerRoles } from '../../state/roles'
 import {
   answerRecording, canRecordHere, clearRecordingError, dismissRecordingNotice, dismissSaved, loadRecordingFolder, pickRecordingFolder,
-  setMixed, setOptOut, showRecordingFolder, startRecording, stopRecording, unmuteAfterNotice, useChannelRecording, useRecording,
+  setMixed, setOptOut, showRecordingFolder, startRecording, stopRecording, unmuteAfterNotice, useChannelRecording, useOptOut, useRecording,
   useRecordingBy,
 } from '../../state/recording'
-import { answers, isRecorded, needsAnswer, offsetLabel } from '../../state/recordingLogic'
+import { answers, isRecorded, needsAnswer, offsetLabel, olderApp } from '../../state/recordingLogic'
 import { Modal } from '../bits'
 import { Close } from '../icons'
 import './recording.css'
@@ -132,8 +132,8 @@ function RecordDialog({ encrypted, onClose }: { encrypted: boolean; onClose: () 
 /** Above the call controls while the call is recorded (or being asked about): who, how long, and "Don't record me". */
 export function RecordingStrip() {
   const { t } = useTranslation()
-  const { server, mark, participants, me } = useHere()
-  const optOut = useRecording((s) => s.optOut)
+  const { session, server, mark, participants, me } = useHere()
+  const optOut = useOptOut(session?.serverKey)
   const time = useElapsed(mark?.live ? (mark.liveAt ?? mark.startedAt) : null)
   if (!mark) return null
   const mine = mark.by === me
@@ -150,7 +150,7 @@ export function RecordingStrip() {
       <span className="recording-text">{text}</span>
       {mark.live && !mine && !inIt && <span className="recording-left">{t('recording.strip.left')}</span>}
       {!mine && (
-        <button className="link-like" onClick={() => setOptOut(!optOut)} aria-pressed={optOut}>
+        <button className="link-like" onClick={() => void setOptOut(session!.serverKey, !optOut)} aria-pressed={optOut}>
           {optOut ? t('recording.strip.recordMe') : t('recording.strip.dontRecord')}
         </button>
       )}
@@ -164,7 +164,8 @@ export function RecordingMark({ participant, mark }: { participant: VoicePartici
   if (!mark) return null
   if (mark.by === participant.accountKey) return <span className="recording-mark" role="img" aria-label={t('recording.mark')} title={t('recording.mark')}>{t('recording.channelMark')}</span>
   if (mark.live && !isRecorded(participant, mark)) {
-    return <span className="recording-off" role="img" aria-label={t('recording.notRecorded')} title={t('recording.notRecorded')} />
+    const label = olderApp(participant, mark) ? t('recording.notRecordedOlder') : t('recording.notRecorded')
+    return <span className="recording-off" role="img" aria-label={label} title={label} />
   }
   return null
 }
@@ -201,7 +202,7 @@ export function RecordingLayer() {
   const { t } = useTranslation()
   const { session, server, mark, participants, me } = useHere()
   const notice = useRecording((s) => s.notice)
-  const optOut = useRecording((s) => s.optOut)
+  const optOut = useOptOut(session?.serverKey)
   const error = useRecording((s) => s.error)
   const saved = useRecording((s) => s.saved)
   const muted = useVoice((s) => s.muted)
@@ -248,7 +249,7 @@ export function RecordingLayer() {
             {optOut && <p className="muted">{t('recording.notice.leftOut')}</p>}
             <p className="muted small-print">{t('recording.notice.honest')}</p>
             <div className="recording-card-actions">
-              {!optOut && <button className="button small" onClick={() => setOptOut(true)}>{t('recording.notice.dontRecord')}</button>}
+              {!optOut && <button className="button small" onClick={() => void setOptOut(session!.serverKey, true)}>{t('recording.notice.dontRecord')}</button>}
               {notice!.mutedByUs && canSpeak && muted
                 ? <button className="button small primary" onClick={() => void unmuteAfterNotice()}>{t('recording.notice.unmute')}</button>
                 : <button className="button small primary" onClick={dismissRecordingNotice}>{t('recording.notice.ok')}</button>}

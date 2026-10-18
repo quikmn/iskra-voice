@@ -649,6 +649,7 @@ export const errors = {
     record_slow: "You're doing that too often. Try again in a few seconds.",
     record_stop_forbidden: 'Only the person recording can stop it.',
     record_none: 'Nobody is asking to record this call.',
+    record_notice_delete: "You can't delete the notice that you recorded this call.",
   },
   automodTimedOut: "You're timed out for {{duration}}.",
   generic: 'Something went wrong.',

@@ -383,6 +383,8 @@ public sealed partial class Store : IDisposable
         ("feeds-1", FeedsMigration),
         // Tags, Suggestions, Giveaways and Counting bots: snippets, suggestion cards and votes, giveaways and entries, counts.
         ("builtinbots3-1", BuiltinBots3Migration),
+        // Call recording: "don't record me" per account, and the start/stop lines in a voice channel's chat.
+        ("recording-1", RecordingMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

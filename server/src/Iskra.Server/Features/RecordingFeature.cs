@@ -50,6 +50,9 @@ public static class RecordingFeature
         if (recordings.Start(channel.Id, me.AccountKey, encrypted) is null)
             throw RequestException.BadRequest("This call is already being recorded.", "record_already");
         Audit.Record(s, "voice.record.start", details: new { channelId = channel.Id, channelName = channel.Name, encrypted });
+        // A line in the channel's chat, so apps that don't show the mark still see it in text (not in encrypted
+        // channels, whose chat the server can't write; there nobody is recorded without saying yes in the app).
+        if (!encrypted) PostNotice(s.World.Store, s.Hub, channel, me.AccountKey, "start", s.Now);
         s.Voice.Republish(channel.Id); // everyone alone in the call is "everyone agreed" at once
         return new { recording = recordings.Public(channel.Id) };
     }
@@ -68,6 +71,7 @@ public static class RecordingFeature
         {
             channelId = channel.Id, channelName = channel.Name, why = "stopped", durationMs = Math.Max(0, s.Now - stopped.StartedAt), encrypted = stopped.Encrypted,
         });
+        if (stopped.Live && !stopped.Encrypted) PostNotice(s.World.Store, s.Hub, channel, stopped.By, "stop", s.Now);
         s.Voice.Republish(channel.Id);
         return new { };
     }
@@ -75,7 +79,8 @@ public static class RecordingFeature
     /// <summary>"Don't record me" on or off, for every call on this server. Shown next to your name in the call.</summary>
     private static object OptOut(Session s, Member me, Body body)
     {
-        var optOut = body.OptionalBool("optOut") ?? throw RequestException.BadRequest("optOut is required.");
+        // Without optOut: what the server has (apps show it; it's stored for the account, so it holds from the handshake).
+        if (body.OptionalBool("optOut") is not { } optOut) return new { optOut = s.Voice.Recordings.OptedOut(me.AccountKey) };
         if (s.Voice.Recordings.OptedOut(me.AccountKey) == optOut) return new { optOut };
         Limit(s, me, "voice.record.flag");
         s.Voice.Recordings.SetOptOut(me.AccountKey, optOut);
@@ -95,5 +100,29 @@ public static class RecordingFeature
         s.Voice.Recordings.Answer(channel.Id, me.AccountKey, agree);
         s.Voice.Republish(channel.Id);
         return new { };
+    }
+    /// <summary>The start and stop lines' text, for apps that don't know them (newer apps show their own words).</summary>
+    private static string NoticeText(string kind) => kind == "start" ? "🔴 Started recording this call." : "⏹️ Stopped recording this call.";
+
+    /// <summary>Posts "started/stopped recording this call" in the channel's chat, by the recorder.</summary>
+    public static void PostNotice(Store store, Hub hub, Channel channel, string by, string kind, long now)
+    {
+        var message = store.AddRecordNotice(channel.Id, by, kind, NoticeText(kind), now);
+        hub.BroadcastToReaders(channel, Frames.Event("chat.message", new { message = MessageViews.Public(store, message) }));
+    }
+
+    /// <summary>On a recording line: <c>{ kind: "start" | "stop" }</c> (the author is the recorder).</summary>
+    public static object? View(Store store, long messageId) => store.RecordNoticeKind(messageId) is { } kind ? new { kind } : null;
+
+    public static void CheckEdit(Store store, Message message)
+    {
+        if (store.RecordNoticeKind(message.Id) is not null) throw RequestException.BadRequest("Recording notices can't be edited.");
+    }
+
+    /// <summary>The line is how everyone knows: the recorder can't take it down (other moderators can).</summary>
+    public static void CheckDelete(Store store, Member me, Message message)
+    {
+        if (message.AuthorKey == me.AccountKey && store.RecordNoticeKind(message.Id) is not null)
+            throw RequestException.Forbidden("You can't delete the notice that you recorded this call.", "record_notice_delete");
     }
 }

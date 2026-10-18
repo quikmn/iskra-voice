@@ -75,6 +75,9 @@ public sealed class Session
     /// <summary>The device key from the handshake's certificate (one browser or app install).</summary>
     public string? DeviceKey { get; private set; }
 
+    /// <summary>The app said in its handshake that it shows recording marks (auth <c>features</c>; RecordingFeature).</summary>
+    public bool RecordingAware { get; private set; }
+
     public required Push.PushService Push { get; init; }
 
     public required Gifs.GifService Gifs { get; init; }
@@ -431,6 +434,7 @@ public sealed class Session
             var fields = new Body(body);
             signature = fields.OptionalString("sig", 128);
             invite = fields.OptionalString("invite", 64);
+            RecordingAware = fields.OptionalStringArray("features", 16, 32).Contains("recording");
             if (body.TryGetProperty("profile", out profile))
             {
                 nameOmitted = profile.ValueKind == JsonValueKind.Object && !profile.TryGetProperty("name", out _);

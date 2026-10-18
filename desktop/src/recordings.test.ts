@@ -47,6 +47,12 @@ test('file names are plain .webm names in the folder; nothing is overwritten', a
   assert.equal(trackName('Alex (2).webm'), 'Alex (2).webm')
   assert.equal(folderPart('  ..  ', 'Voice'), 'Voice')
   assert.equal(folderPart('NUL', 'Voice'), 'Voice')
+  // Device names count whatever follows the first dot, and with superscript digits.
+  for (const name of ['CON.x', 'con .txt', 'COM¹', 'lpt³.backup', 'Aux.', 'CONOUT$']) assert.equal(folderPart(name, 'Voice'), 'Voice', name)
+  assert.equal(trackName('CON.x.webm'), null)
+  assert.equal(trackName('COM¹.webm'), null)
+  assert.equal(folderPart('Console', 'Voice'), 'Console')
+  assert.equal(trackName('Connor.webm'), 'Connor.webm')
   assert.equal(stampName(at), '2026-10-18 21-05-09')
 
   const dir = base()

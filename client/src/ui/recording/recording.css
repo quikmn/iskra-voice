@@ -71,3 +71,5 @@
   flex: 1 1 200px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 8px;
   border-radius: 6px; background: var(--surface-2);
 }
+.record-notice .recording-dot { animation: none; }
+.record-notice .recording-dot.stopped { background: var(--muted); box-shadow: none; }

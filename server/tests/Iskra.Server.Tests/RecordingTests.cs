@@ -184,9 +184,80 @@ public class RecordingTests
 
         Assert.Equal("result", (await bob.RequestAsync("voice.record.optout", new { optOut = false })).Type());
         state = await Until(admin, lounge, s => !Participant(s, bob.Key).GetProperty("noRecord").GetBoolean());
-        Assert.Equal("bad_request", (await bob.RequestAsync("voice.record.optout", new { })).ErrorCode());
+        // Without optOut: what the server has. It's stored for the account (from the handshake on, across restarts).
+        Assert.False((await bob.RequestAsync("voice.record.optout", new { })).Body().GetProperty("optOut").GetBoolean());
+        Assert.Equal("result", (await bob.RequestAsync("voice.record.optout", new { optOut = true })).Type());
+        Assert.Contains(bob.Key, server.World.Store.RecordOptOuts());
+        Assert.True((await bob.RequestAsync("voice.record.optout", new { })).Body().GetProperty("optOut").GetBoolean());
         // Answers are for encrypted channels only.
         Assert.Equal("record_none", Key(await bob.RequestAsync("voice.record.consent", new { channelId = lounge, agree = true })));
+    }
+
+    /// <summary>Joins with an app that says it shows recording marks (auth features: ["recording"]).</summary>
+    private static async Task<User> JoinAware(IskraServer server, string name, string role = "member")
+    {
+        var identity = new TestIdentity();
+        var client = await server.ConnectAsync();
+        var hello = await client.ReceiveAsync();
+        var frame = identity.AuthFrame(hello, name, invite: server.Invite(role));
+        ((System.Text.Json.Nodes.JsonObject)frame["body"]!)["features"] = new System.Text.Json.Nodes.JsonArray("recording");
+        await client.SendAsync(frame);
+        return new User(identity, client, await client.ReceiveAsync());
+    }
+
+    [Fact]
+    public async Task Only_apps_that_show_the_mark_are_recorded_and_the_chat_says_so_in_text()
+    {
+        using var server = new IskraServer();
+        var lounge = VoiceChannel(server);
+        using var admin = await JoinAware(server, "Admin", "admin");
+        using var newer = await JoinAware(server, "Newer");
+        using var older = await server.JoinAsync("Older"); // an app from before recording: no features
+        foreach (var u in new[] { admin, newer, older })
+        {
+            Assert.Equal("result", (await u.RequestAsync("voice.join", new { channelId = lounge })).Type());
+            Joined(server, lounge, u);
+        }
+        var state = await Until(admin, lounge, s => s.GetProperty("participants").GetArrayLength() == 3);
+        Assert.True(Participant(state, admin.Key).GetProperty("recordingAware").GetBoolean());
+        Assert.True(Participant(state, newer.Key).GetProperty("recordingAware").GetBoolean());
+        Assert.False(Participant(state, older.Key).GetProperty("recordingAware").GetBoolean());
+
+        // Starting posts a line in the channel's chat, by the recorder, that every app shows as text.
+        Assert.Equal("result", (await admin.RequestAsync("voice.record.start", new { channelId = lounge })).Type());
+        var start = (await older.EventAsync("chat.message")).Body().GetProperty("message");
+        Assert.Equal(admin.Key, start.GetProperty("author").GetString());
+        Assert.Equal(lounge, start.GetProperty("channelId").GetInt64());
+        Assert.Contains("Started recording", start.GetProperty("text").GetString());
+        Assert.Equal("start", start.GetProperty("recordNotice").GetProperty("kind").GetString());
+        // The recorder can't edit or take it down.
+        var id = start.GetProperty("id").GetInt64();
+        Assert.Equal("record_notice_delete", Key(await admin.RequestAsync("chat.delete", new { id })));
+        Assert.Equal("bad_request", (await admin.RequestAsync("chat.edit", new { id, text = "nothing to see" })).ErrorCode());
+
+        // Ending it, even by itself (the recorder leaves), posts the stop line.
+        Left(server, lounge, admin);
+        var stop = (await older.EventAsync("chat.message")).Body().GetProperty("message");
+        Assert.Equal("stop", stop.GetProperty("recordNotice").GetProperty("kind").GetString());
+        Assert.Contains("Stopped recording", stop.GetProperty("text").GetString());
+    }
+
+    [Fact]
+    public async Task Taking_the_permission_off_a_role_ends_the_recording_at_once()
+    {
+        using var server = new IskraServer();
+        var lounge = VoiceChannel(server);
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var bob = await server.JoinAsync("Bob");
+        var roleId = (await owner.RequestAsync("role.create", new { name = "Recorder", permissions = new[] { "recordVoice" } })).Body().GetProperty("role").GetProperty("id").GetInt64();
+        await owner.RequestAsync("member.roles.set", new { accountKey = bob.Key, roles = new[] { roleId } });
+        Joined(server, lounge, bob);
+        Assert.Equal("result", (await bob.RequestAsync("voice.record.start", new { channelId = lounge })).Type());
+        Assert.NotNull(Voice(server).Recordings.Get(lounge));
+
+        Assert.Equal("result", (await owner.RequestAsync("role.update", new { id = roleId, permissions = Array.Empty<string>() })).Type());
+        Assert.Null(Voice(server).Recordings.Get(lounge));
+        await Until(owner, lounge, NotRecording);
     }
 
     [Fact]

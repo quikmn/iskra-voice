@@ -7,10 +7,25 @@ export const RECORD_MAX_MS = 4 * 60 * 60 * 1000
 /** Each person's file and the mix: Opus in WebM, what MediaRecorder makes. */
 export const RECORD_MIME = 'audio/webm;codecs=opus'
 
-/** This person's voice goes into the recording right now. */
+/**
+ * This person's voice goes into the recording right now. Only people whose app shows the mark (`recordingAware`): older
+ * apps, third-party clients and bots never are.
+ */
 export function isRecorded(p: VoiceParticipant, rec: CallRecording | null | undefined): boolean {
-  if (!rec?.live || p.noRecord) return false
+  if (!rec?.live || p.noRecord || p.recordingAware !== true) return false
   return !rec.encrypted || p.recordConsent === true
+}
+
+/** Left out only because their app doesn't show recording marks. */
+export const olderApp = (p: VoiceParticipant, rec: CallRecording | null | undefined): boolean =>
+  !!rec?.live && !p.noRecord && p.recordingAware !== true
+
+/**
+ * Whose voices the recorder's app records now. Nobody while its own connection to the server is down: it can't see
+ * who opted out or said no meanwhile, so it pauses and starts new files once it's back.
+ */
+export function recordedNow(participants: VoiceParticipant[], rec: CallRecording | null | undefined, online: boolean): Set<string> {
+  return online ? new Set(participants.filter((p) => isRecorded(p, rec)).map((p) => p.accountKey)) : new Set()
 }
 
 /** Encrypted channels: you're in the call, not the recorder, and haven't answered yet. */

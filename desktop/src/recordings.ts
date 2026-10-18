@@ -29,7 +29,13 @@ export function folderPart(name: unknown, fallback: string): string {
   if (typeof name !== 'string') return fallback
   // eslint-disable-next-line no-control-regex
   const cleaned = name.replace(/[\u0000-\u001f\u007f"*:<>?|/\\]/g, '').replace(/\s+/g, ' ').trim().replace(/^\.+/, '').replace(/[. ]+$/, '').slice(0, 60)
-  return cleaned && !/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(cleaned) ? cleaned : fallback
+  return cleaned && !reserved(cleaned) ? cleaned : fallback
+}
+
+/** Windows' device names, which it treats as such with any extension ("CON.txt", "COM¹.webm"). */
+function reserved(name: string): boolean {
+  const stem = name.split('.')[0].trim()
+  return /^(con|prn|aux|nul|conin\$|conout\$|com[0-9¹²³]|lpt[0-9¹²³])$/i.test(stem)
 }
 
 /** The recording's own folder: its local start time, 2026-10-18 21-05-09. */

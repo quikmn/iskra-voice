@@ -26,7 +26,7 @@ public sealed class Recording(string by, long startedAt, bool encrypted, long as
 /// only, like the rest of voice state: a restart (or LiveKit stopping) ends every call and every recording mark.
 /// The state rides on <c>voice.state</c>, so everyone who can see the channel (and anyone who joins later) sees it.
 /// </summary>
-public sealed class RecordingRegistry(World world, VoiceRegistry voice, ILogger log, TimeProvider time)
+public sealed class RecordingRegistry(World world, VoiceRegistry voice, Hub hub, ILogger log, TimeProvider time)
 {
     /// <summary>The longest recording; the recorder's app stops at the same point.</summary>
     public const long MaxMs = 4 * 60 * 60 * 1000L;
@@ -34,19 +34,34 @@ public sealed class RecordingRegistry(World world, VoiceRegistry voice, ILogger 
     public const long AskMs = 60_000;
 
     private readonly ConcurrentDictionary<long, Recording> _recordings = new();
-    private readonly ConcurrentDictionary<string, byte> _optedOut = new();
+    /// <summary>"Don't record me", stored per account (record_optouts) and kept here for voice.state.</summary>
+    private readonly ConcurrentDictionary<string, byte> _optedOut = new(world.Store.RecordOptOuts().Select(k => KeyValuePair.Create(k, (byte)0)));
+    /// <summary>Whether the app each person last joined voice with shows recording marks (auth <c>features</c>).</summary>
+    private readonly ConcurrentDictionary<string, bool> _aware = new();
     private readonly object _gate = new();
 
     private long Now => time.GetUtcNow().ToUnixTimeMilliseconds();
 
     public Recording? Get(long channelId) => _recordings.TryGetValue(channelId, out var r) ? r : null;
 
-    /// <summary>They asked not to be recorded (kept for the account until they change it or the server restarts).</summary>
+    /// <summary>They asked not to be recorded (stored for the account until they change it).</summary>
     public bool OptedOut(string accountKey) => _optedOut.ContainsKey(accountKey);
 
     /// <summary>True if it changed.</summary>
-    public bool SetOptOut(string accountKey, bool optOut) =>
-        optOut ? _optedOut.TryAdd(accountKey, 0) : _optedOut.TryRemove(accountKey, out _);
+    public bool SetOptOut(string accountKey, bool optOut)
+    {
+        lock (_gate)
+        {
+            var changed = optOut ? _optedOut.TryAdd(accountKey, 0) : _optedOut.TryRemove(accountKey, out _);
+            if (changed) world.Store.SetRecordOptOut(accountKey, optOut, Now);
+            return changed;
+        }
+    }
+
+    /// <summary>On voice.join: the app they're joining with shows recording marks (older apps and bots are never recorded).</summary>
+    public void SetAware(string accountKey, bool aware) => _aware[accountKey] = aware;
+
+    public bool Aware(string accountKey) => _aware.TryGetValue(accountKey, out var aware) && aware;
 
     /// <summary>Encrypted recordings only: their answer (null: none yet, or the channel isn't encrypted).</summary>
     public bool? Consent(long channelId, string accountKey) =>
@@ -169,6 +184,7 @@ public sealed class RecordingRegistry(World world, VoiceRegistry voice, ILogger 
         log.Note("VOI-180", "voice", "record-end", ("chan", channelId), ("why", why), ("dur", TimeSpan.FromMilliseconds(Math.Max(0, now - r.StartedAt))));
         var store = world.Store;
         var channel = store.GetChannel(channelId);
+        if (channel is not null && r.Live && !r.Encrypted) Features.RecordingFeature.PostNotice(store, hub, channel, r.By, "stop", now);
         store.AddAudit(now, "voice.record.stop", r.By, store.GetMember(r.By)?.Name ?? "", null, null, null,
             System.Text.Json.JsonSerializer.Serialize(new { channelId, channelName = channel?.Name, why, durationMs = Math.Max(0, now - r.StartedAt), encrypted = r.Encrypted }, Protocol.Json.Options));
     }

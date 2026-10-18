@@ -169,6 +169,19 @@ test('recording a call: per-person files on the recorder, a mark for everyone, m
   expect(done.info).toMatch(/Friend \(2\)\.webm: from 0:\d\d:\d\d to 0:\d\d:\d\d/)
   expect(done.info).toContain('mixed.webm: everyone together')
 
-  // Opting out is remembered for the next recording too (and shows next to their name meanwhile).
-  await expect(friend.getByTestId('recording-strip')).toHaveCount(0)
+  // The channel's chat says it too (older apps see the same line as text).
+  await friend.getByRole('button', { name: /Open chat/ }).click()
+  const chat = friend.getByRole('region', { name: 'Chat in studio' })
+  await expect(chat.locator('.record-notice', { hasText: 'Host started recording this call' })).toBeVisible()
+  await expect(chat.locator('.record-notice', { hasText: 'Host stopped recording this call' })).toBeVisible()
+
+  // "Don't record me" is kept by the server for the account: a fresh page shows it.
+  await friend.reload()
+  await studio(friend).getByRole('button').first().click()
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 20_000 })
+  await expect(studio(host).locator('li', { hasText: 'Friend' }).getByRole('img', { name: 'Not in the recording' })).toHaveCount(0) // nothing recorded now
+  await host.locator('.call-controls').getByRole('button', { name: 'Record this call' }).click()
+  await host.getByRole('dialog', { name: 'Record this call' }).getByRole('button', { name: 'Start recording' }).click()
+  await expect(studio(host).locator('li', { hasText: 'Friend' }).getByRole('img', { name: 'Not in the recording' })).toBeVisible()
+  await expect(friend.getByTestId('recording-strip').getByRole('button', { name: 'Record me again' })).toBeVisible()
 })

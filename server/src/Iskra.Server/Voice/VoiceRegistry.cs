@@ -33,7 +33,7 @@ public sealed class VoiceRegistry
         Stages = new StageRegistry(world, hub, backend, this);
         Watch = new WatchRegistry(world, hub, this, time);
         Whisper = new WhisperRegistry(world, hub, backend, this, time);
-        Recordings = new RecordingRegistry(world, this, log, time);
+        Recordings = new RecordingRegistry(world, this, hub, log, time);
         _time = time;
         backend.AvailabilityChanged += available =>
         {
@@ -239,7 +239,7 @@ public sealed class VoiceRegistry
             accountKey = m.AccountKey, muted = m.Muted, deafened = m.Deafened, serverMuted = _serverMuted.ContainsKey(m.AccountKey), clips = m.Clips,
             afk = _afkForced.ContainsKey(m.AccountKey),
             priority = m.Priority && !m.Muted && !_serverMuted.ContainsKey(m.AccountKey) && !_afkForced.ContainsKey(m.AccountKey),
-            noRecord = Recordings.OptedOut(m.AccountKey), recordConsent = Recordings.Consent(channelId, m.AccountKey),
+            noRecord = Recordings.OptedOut(m.AccountKey), recordConsent = Recordings.Consent(channelId, m.AccountKey), recordingAware = Recordings.Aware(m.AccountKey),
         }),
         status = VoiceStatusBoard.Public(Statuses.Get(channelId)),
         recording = Recordings.Public(channelId),

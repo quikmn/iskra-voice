@@ -647,6 +647,7 @@ export const errors: Messages['errors'] = {
     record_slow: 'Du gör det lite för ofta. Försök igen om några sekunder.',
     record_stop_forbidden: 'Bara den som spelar in kan stoppa inspelningen.',
     record_none: 'Ingen ber om att spela in det här samtalet.',
+    record_notice_delete: 'Du kan inte ta bort notisen om att du spelade in samtalet.',
   },
   automodTimedOut: 'Du har fått timeout i {{duration}}.',
   generic: 'Något gick fel.',

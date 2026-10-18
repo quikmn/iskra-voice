@@ -60,6 +60,7 @@ public sealed partial class Store
                 DELETE FROM event_interest WHERE account_key = $k;
                 DELETE FROM lfg_members WHERE account_key = $k;
                 DELETE FROM lfg_notify WHERE account_key = $k;
+                DELETE FROM record_optouts WHERE account_key = $k;
                 DELETE FROM stage_moderators WHERE account_key = $k;
                 DELETE FROM push_subscriptions WHERE account_key = $k;
                 DELETE FROM prekeys WHERE device_key IN (SELECT device_key FROM devices WHERE account_key = $k);

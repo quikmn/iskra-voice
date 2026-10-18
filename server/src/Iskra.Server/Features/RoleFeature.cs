@@ -201,6 +201,7 @@ public static partial class RoleFeature
         RolesChanged(s);
         s.Hub.Outhooks?.RoleChanged("role.updated", updated);
         if (role.SelfAssign != updated.SelfAssign) AccessChanged(s, s.World.Store.MembersWithRole(role.Id)); // their rank follows
+        else if (role.Perms != updated.Perms) s.Voice.Recordings.SyncAll(); // a recorder who lost recordVoice stops now
         return new { role = Public(updated) };
     }
 
