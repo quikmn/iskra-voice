@@ -1,0 +1,36 @@
+/* "Share to…" (SharePicker.tsx): what came in from another app, and where it goes. */
+.share-picker .modal-body { display: grid; gap: 4px; }
+.share-preview { display: grid; gap: 8px; }
+.share-preview .field { margin-bottom: 4px; }
+.share-preview textarea { resize: vertical; min-height: 44px; }
+
+.share-files { list-style: none; margin: 0; padding: 0; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.share-file {
+  flex: 0 0 auto; width: 96px; display: grid; gap: 2px; justify-items: center; padding: 6px; border-radius: 8px;
+  background: var(--surface-2); border: 1px solid var(--border); font-size: 12px;
+}
+.share-file img, .share-file-icon { width: 84px; height: 64px; border-radius: 6px; object-fit: cover; }
+.share-file-icon { display: grid; place-items: center; color: var(--muted); background: var(--hover); }
+.share-file-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-file-size { font-size: 11px; }
+.share-skipped { margin: 0; font-size: 13px; }
+
+.share-search { margin: 8px 0 0; }
+.share-targets { display: grid; gap: 2px; max-height: min(42dvh, 340px); overflow-y: auto; margin-top: 6px; }
+.share-group { margin: 8px 8px 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.share-target {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 8px; text-align: left;
+  border: 1px solid transparent; border-radius: calc(var(--radius) * 0.6); background: none; color: inherit; font: inherit; cursor: pointer;
+}
+.share-target:hover:not(:disabled) { background: var(--hover); }
+.share-target.chosen { background: var(--hover); border-color: var(--accent); }
+.share-target:disabled { cursor: default; opacity: 0.7; }
+.share-target-icon { display: inline-grid; place-items: center; width: 28px; color: var(--muted); }
+.share-target-text { flex: 1; min-width: 0; display: grid; }
+.share-target-name, .share-target-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-target-sub { font-size: 12px; }
+.share-target-check { width: 18px; height: 18px; flex: 0 0 auto; border-radius: 50%; border: 2px solid var(--muted); }
+.share-target.chosen .share-target-check { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 50%); }
+
+.share-progress { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; margin-top: 8px; }
+.share-progress span { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
