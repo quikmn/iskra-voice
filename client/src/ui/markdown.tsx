@@ -1,6 +1,6 @@
 // Chat formatting, Discord-style, rendered straight to React elements (never to an HTML string).
 // Supported: ```code blocks``` (highlighted, with copy), $math$ and $$math$$ (LaTeX), `code`, **bold**, *italic* / _italic_, ~~strike~~, ||spoiler||,
-// > quotes, # headings, -# subtext, - and 1. lists, links, [masked](https://…) links (they ask before opening),
+// > quotes, # headings, -# subtext, | tables |, - and 1. lists, links, [masked](https://…) links (they ask before opening),
 // <t:unix:style> timestamps, mentions written as <@accountKey> (shown as @name) or <@&roleId> (@Role), and server emoji written as <:name:id>.
 import { Fragment, type MouseEvent, type ReactNode } from 'react'
 import { parseOpenRoute } from '../core/pushRoute'
@@ -11,6 +11,7 @@ import { resolveKey } from '../state/keyMap'
 import { userMenuProps } from './people/userMenuProps'
 import { CUSTOM_EMOJI_SOURCE, isEmojiOnly } from './expressions/emoji'
 import { CodeBlock, MaskedLink, MathTex, Timestamp } from './chat/RichText'
+import { parseTable } from './chat/mdTable'
 import { inlineMathAt, splitDisplayMath } from './chat/mathRules'
 import { TIMESTAMP_SOURCE, formatTimestamp, parseTimestamp, type TimestampStyle } from './chat/richTextRules'
 import { alertRanges } from '../state/alertsLogic'
@@ -231,8 +232,31 @@ export function renderMarkdown(text: string, ctx: MarkdownContext): ReactNode {
         }
         list = null
       }
+      let skipTo = 0
       lines.forEach((line, n) => {
+        if (n < skipTo) return
         const k = `${index}-${si}-${n}`
+        const table = /^>/.test(line) ? null : parseTable(lines, n)
+        if (table) {
+          flushQuote(`q${k}`)
+          flushList(`l${k}`)
+          skipTo = table.end
+          blocks.push(
+            <div key={k} className="md-table-wrap" tabIndex={0} role="region" aria-label={t('chat.markdown.table')}>
+              <table className="md-table">
+                <thead>
+                  <tr>{table.head.map((cell, c) => <th key={c} style={{ textAlign: table.align[c] }}>{inline(cell, ctx)}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {table.rows.map((row, r) => (
+                    <tr key={r}>{row.map((cell, c) => <td key={c} style={{ textAlign: table.align[c] }}>{inline(cell, ctx)}</td>)}</tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>,
+          )
+          return
+        }
         const isQuote = /^> ?/.test(line)
         const content = isQuote ? line.replace(/^> ?/, '') : line
         const block = blockOf(content)

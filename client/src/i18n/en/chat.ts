@@ -68,6 +68,7 @@ export const chat = {
     unknown: 'unknown',
     deletedRole: 'deleted role',
     role: 'role',
+    table: 'table',
   },
   richText: {
     copyCode: 'Copy code',
