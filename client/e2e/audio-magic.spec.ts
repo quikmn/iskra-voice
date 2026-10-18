@@ -5,7 +5,7 @@
 import { expect, test, type Browser, type Page } from '@playwright/test'
 import { join } from 'node:path'
 import { CSP } from '../src/csp'
-import { createInviteLink, FAKE_SPEECH_ARGS, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, FAKE_SPEECH_ARGS, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 // The pages get their CSP header from a route, which Chromium's local network checks would then treat as a public site.
@@ -123,9 +123,9 @@ test('AI noise removal, Silero voice activity, cleaning up and leveling what you
   await joinVia(friend, friendLink, 'Friend')
   const music = (p: Page) => p.locator('.voice-channel', { hasText: 'music' })
   await music(host).getByRole('button').first().click()
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await music(friend).getByRole('button').first().click()
-  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
 
   // The host talks through AI noise removal; Silero opens the mic and lights the ring; the friend hears them.
   await expect(host.locator('.me-avatar.speaking')).toBeVisible({ timeout: 20_000 })
@@ -158,7 +158,7 @@ test('AI noise removal, Silero voice activity, cleaning up and leveling what you
   await expect(settings.getByText('Hi-fi is on in this channel: your mic is sent in stereo, unprocessed.')).toBeVisible({ timeout: 15_000 })
   await host.screenshot({ path: join(SHOTS, 'audio-magic-hifi.png') })
   await host.keyboard.press('Escape')
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await expect.poll(() => receivedLevel(friend), { timeout: 20_000 }).toBeGreaterThan(-60)
 
   // The admin turns hi-fi off for the channel: the host goes back to AI noise removal by itself.

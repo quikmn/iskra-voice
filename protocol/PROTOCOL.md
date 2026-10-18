@@ -3084,7 +3084,8 @@ Afk { "channelId": 7 | null,               // a voice channel (never a stage); n
 - **Moving.** About every 15 s the server moves people in a `voice` channel (not a stage, not the AFK channel itself,
   never bots) who have been idle for `idleMinutes` and may join the AFK channel. A move is the same as a moderator's
   `voice.move` (the move pass for full channels included): their sessions get `voice.moved { channelId, reason: "afk" }`
-  (apps show a notice and join it) and they leave the old room. At most 20 moves per sweep and one per person a minute.
+  (apps show a notice and join it) and they leave the old room (LiveKit removes them from it 3 s later, like a team
+  split, so the removal can't end the app's session before `voice.moved` arrives). At most 20 moves per sweep and one per person a minute.
   Coming back is a normal `voice.join`.
 - Rate limits: `voice.idle` 1 every 2 s (burst 10); `afk.update` the general bucket.
 - Storage: `afk_settings` (one row) and `afk_talk_roles` (migration `afk-1`). Templates can set it up (`afk` in the

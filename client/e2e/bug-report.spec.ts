@@ -5,7 +5,7 @@
 // Safari) it's a dialog that can step aside into a chip.
 import { join } from 'node:path'
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { createInviteLink, joinVia, openServerSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { clickToClose, createInviteLink, joinVia, openServerSettings, send, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -64,7 +64,7 @@ test('a bug report goes to the bug inbox channel, with only what the preview sho
 
   // Closing the window keeps the draft; opening it again brings it back.
   await first.getByLabel('What happened?').fill('The mute button')
-  await pip.getByRole('button', { name: 'Close' }).click()
+  await clickToClose(pip, pip.getByRole('button', { name: 'Close' }))
   await expect.poll(pages).toBe(1)
   const reopened = owner.context().waitForEvent('page')
   await owner.keyboard.press('Control+Shift+B')
@@ -162,5 +162,5 @@ async function reportFlow(page: Page, dialog: Locator, invite: string) {
   await expect(dialog.getByText('Thanks! Your report is in.')).toBeVisible()
   await expect(dialog.getByText(/Report [A-Z0-9]{4}-[A-Z0-9]{4}\./)).toBeVisible()
   await page.screenshot({ path: join(SHOTS, 'bug-report-sent.png') })
-  await dialog.getByRole('button', { name: 'Done' }).click()
+  await clickToClose(page, dialog.getByRole('button', { name: 'Done' }))
 }

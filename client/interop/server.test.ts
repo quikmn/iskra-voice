@@ -2,7 +2,6 @@
 // Run with `npm run test:interop` (builds the server first).
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -29,6 +28,7 @@ import { authProfile } from '../src/core/profile'
 import { compareStamps, nextStamp, parseSynced, PROFILE_PREF, toSynced, wireStamp } from '../src/core/profileSync'
 import type { Profile } from '../src/core/storage'
 import type { Events, Message, Welcome } from '../src/core/protocol'
+import { freePort } from './ports'
 
 const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 
@@ -36,15 +36,6 @@ interface RunningServer {
   url: string
   world: string
   stop: () => Promise<void>
-}
-
-async function freePort(): Promise<number> {
-  return new Promise((done) => {
-    const probe = createServer().listen(0, () => {
-      const port = (probe.address() as { port: number }).port
-      probe.close(() => done(port))
-    })
-  })
 }
 
 async function waitFor<T>(check: () => T | undefined | null | false, what: string, timeoutMs = 15_000): Promise<T> {

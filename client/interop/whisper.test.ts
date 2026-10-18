@@ -3,7 +3,6 @@
 // even with a token they still hold. Run with `npm run test:interop` (LiveKit from .tools: scripts/get-livekit.*).
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -13,16 +12,10 @@ import { ready } from '../src/core/crypto'
 import { createIdentity } from '../src/core/identity'
 import { buildInviteLink, parseInvite } from '../src/core/invite'
 import type { Events, Welcome } from '../src/core/protocol'
+import { freePort, freeUdpPort } from './ports'
 
 const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 const LIVEKIT = resolve(__dirname, '../../.tools', process.platform === 'win32' ? 'livekit-server.exe' : 'livekit-server')
-
-const freePort = () => new Promise<number>((done) => {
-  const probe = createServer().listen(0, '127.0.0.1', () => {
-    const port = (probe.address() as { port: number }).port
-    probe.close(() => done(port))
-  })
-})
 
 async function waitFor<T>(check: () => T | undefined | null | false, what: string, timeoutMs = 15_000): Promise<T> {
   const deadline = Date.now() + timeoutMs
@@ -109,7 +102,7 @@ describe.skipIf(!existsSync(LIVEKIT))('whisper ↔ server ↔ LiveKit', () => {
     const voicePort = await freePort()
     writeFileSync(join(world, 'server.json'), JSON.stringify({
       Name: 'Whisper', Port: port, LocalOnly: true,
-      Voice: { Enabled: true, Port: voicePort, RtcTcpPort: await freePort(), RtcUdpPort: 40000 + Math.floor(Math.random() * 20000), LiveKitPath: LIVEKIT },
+      Voice: { Enabled: true, Port: voicePort, RtcTcpPort: await freePort(), RtcUdpPort: await freeUdpPort(), LiveKitPath: LIVEKIT },
     }))
     const proc = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
     url = `http://localhost:${port}`

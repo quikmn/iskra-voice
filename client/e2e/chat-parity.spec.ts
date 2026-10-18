@@ -41,8 +41,9 @@ test('chat parity: rich text, images, spoilers, drafts, links, unread, reactions
 
   await send(host, '```ts\nconst answer: number = 42 // yes\n```')
   const code = last(friend).locator('.code-wrap')
-  await expect(code.locator('.tok-keyword').first()).toHaveText('const')
-  await expect(code.locator('.tok-comment')).toHaveText('// yes')
+  // The small built-in highlighter shows first, then the full one (lowlight) once it has loaded: wait for that.
+  await expect(code.locator('code.hljs .hljs-keyword').first()).toHaveText('const')
+  await expect(code.locator('code.hljs .hljs-comment')).toHaveText('// yes')
   await code.hover()
   await code.getByRole('button', { name: 'Copy code' }).click()
   expect(await friend.evaluate(() => navigator.clipboard.readText())).toBe('const answer: number = 42 // yes')

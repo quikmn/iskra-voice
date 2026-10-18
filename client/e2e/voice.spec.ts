@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { clickToClose, createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -29,9 +29,9 @@ test('friends talk in a voice channel', async ({ browser }) => {
 
   // Both join; the server learns about it from LiveKit and tells everyone.
   await lounge(host).getByRole('button').first().click()
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await lounge(friend).getByRole('button').first().click()
-  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
 
   for (const page of [host, friend]) {
     await expect(lounge(page).locator('.voice-participants li')).toHaveCount(2)
@@ -60,7 +60,7 @@ test('friends talk in a voice channel', async ({ browser }) => {
   const shown = (await preview.textContent()) ?? ''
   expect(shown).toContain('== Connection ==')
   expect(shown).not.toMatch(/candidate:|typ (host|srflx)|ufrag|127\.0\.0\.1/)
-  await pip.getByRole('button', { name: 'Close' }).click()
+  await clickToClose(pip, pip.getByRole('button', { name: 'Close' }))
 
   // Joining opens the call screen with everyone on it.
   await expect(friend.locator('.stage')).toBeVisible()

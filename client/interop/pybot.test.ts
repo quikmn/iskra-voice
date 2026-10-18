@@ -5,7 +5,6 @@
 // Needs Python with the SDK installed: bots/python/.venv (see docs/bots.md → Python), or ISKRA_PYTHON. Skipped without.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -17,20 +16,12 @@ import { decryptDm, encryptDm } from '../src/core/dm'
 import { createIdentity } from '../src/core/identity'
 import { buildInviteLink, parseInvite } from '../src/core/invite'
 import type { Events, Message, Welcome } from '../src/core/protocol'
+import { freePort } from './ports'
 
 const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 const PYTHON_DIR = resolve(__dirname, '../../bots/python')
 const PYTHON = process.env.ISKRA_PYTHON
   ?? [join(PYTHON_DIR, '.venv/Scripts/python.exe'), join(PYTHON_DIR, '.venv/bin/python')].find((p) => existsSync(p))
-
-async function freePort(): Promise<number> {
-  return new Promise((done) => {
-    const probe = createServer().listen(0, '127.0.0.1', () => {
-      const port = (probe.address() as { port: number }).port
-      probe.close(() => done(port))
-    })
-  })
-}
 
 async function waitFor<T>(check: () => T | undefined | null | false, what: string, timeoutMs = 15_000): Promise<T> {
   const deadline = Date.now() + timeoutMs

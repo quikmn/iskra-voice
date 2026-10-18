@@ -7,7 +7,6 @@
 // Never prints the claim code or anything derived from it.
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -17,17 +16,11 @@ import { ready } from '../src/core/crypto'
 import { createIdentity } from '../src/core/identity'
 import type { Events, Welcome } from '../src/core/protocol'
 import { claimAddress, ClaimFailed, claimServer } from '../src/state/claimServer'
+import { freePort, freeUdpPort } from './ports'
 
 const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 const LIVEKIT = process.env.ISKRA_LIVEKIT ?? resolve(__dirname, '../../.tools', process.platform === 'win32' ? 'livekit-server.exe' : 'livekit-server')
 const DROPLET = process.env.ISKRA_DROPLET_URL
-
-const freePort = () => new Promise<number>((done) => {
-  const probe = createServer().listen(0, '127.0.0.1', () => {
-    const port = (probe.address() as { port: number }).port
-    probe.close(() => done(port))
-  })
-})
 
 async function waitFor<T>(check: () => T | undefined | null | false, what: string, timeoutMs = 15_000): Promise<T> {
   const deadline = Date.now() + timeoutMs
@@ -57,7 +50,7 @@ async function localServer(): Promise<Target> {
   writeFileSync(join(world, 'server.json'), JSON.stringify({
     Name: 'Claim me', Port: port, LocalOnly: true, Template: 'gaming', OwnerClaim: 'generate',
     Voice: voice
-      ? { Enabled: true, Port: await freePort(), RtcTcpPort: await freePort(), RtcUdpPort: 40000 + Math.floor(Math.random() * 20000), LiveKitPath: LIVEKIT }
+      ? { Enabled: true, Port: await freePort(), RtcTcpPort: await freePort(), RtcUdpPort: await freeUdpPort(), LiveKitPath: LIVEKIT }
       : { Enabled: false },
   }))
   const proc = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })

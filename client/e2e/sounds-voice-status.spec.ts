@@ -3,7 +3,7 @@
 // channel from its menu, and upload your own (it stays on the device) and preview that.
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -68,7 +68,7 @@ test('voice status: set in the call, seen by others, cleared when everyone leave
 
   // The host joins and sets a status from the call.
   await lounge(host).getByRole('button').first().click()
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   const bar = host.getByTestId('voice-status-bar')
   await expect(bar).toContainText('No status yet')
   await bar.getByRole('button', { name: 'Set a status' }).click()
@@ -87,7 +87,7 @@ test('voice status: set in the call, seen by others, cleared when everyone leave
   await expect(lounge(friend).getByTestId('voice-status-line')).toHaveText('CS2 ranked 🔫')
   await expect(lounge(friend).getByTestId('voice-status-line')).toHaveAttribute('title', 'Status set by Host')
   await lounge(friend).getByRole('button').first().click()
-  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await expect(friend.getByTestId('voice-status-bar')).toContainText('CS2 ranked 🔫')
   await friend.screenshot({ path: join(SHOTS, 'voice-status-call.png') })
 

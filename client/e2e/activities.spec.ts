@@ -103,6 +103,7 @@ test('two play Four in a row, a late joiner sees the board, and added activities
   // In a browser it's listed but doesn't run: it says it runs in the desktop app.
   await host.getByTestId('activity-panel').getByRole('button', { name: 'End for everyone' }).click()
   await expect(friend.getByTestId('activity-panel')).toHaveCount(0)
+  await expect(host.getByTestId('activity-button')).toHaveAccessibleName('Start an activity')
   await host.getByTestId('activity-button').click()
   const again = host.getByRole('dialog', { name: 'Start an activity' })
   const tiny = again.getByTestId('activity-choice').filter({ hasText: 'Tiny test' })
@@ -125,6 +126,8 @@ test('two play Four in a row, a late joiner sees the board, and added activities
   await expect(frame(host).getByRole('button', { name: 'Next question' })).toBeVisible()
   await friend.screenshot({ path: join(SHOTS, 'activities-quiz.png') })
   await host.getByTestId('activity-panel').getByRole('button', { name: 'End for everyone' }).click()
+  // Ended once the server says so: until then the button still leaves the running quiz instead of starting one.
+  await expect(host.getByTestId('activity-button')).toHaveAccessibleName('Start an activity')
 
   // Draw & guess: the host draws, the friend guesses wrong, then right.
   await host.getByTestId('activity-button').click()

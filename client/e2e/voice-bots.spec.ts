@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
 import { Bot, encodeWav } from '../../bots/sdk/src/index'
 import { jukebox } from '../../bots/gallery/jukebox/jukebox'
-import { hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -100,7 +100,7 @@ test('a member plays music with Jukebox in a voice channel and hears it', async 
 
   // In voice, /play: the bot joins the same channel and plays; the member hears it.
   await lounge(host).getByRole('button').first().click()
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await host.getByRole('button', { name: 'general', exact: true }).click() // back to the chat; voice stays on
   await box.fill('/play ')
   await box.press('Enter')

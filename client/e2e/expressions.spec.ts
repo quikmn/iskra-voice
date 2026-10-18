@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, longPress, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, longPress, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -141,7 +141,7 @@ test('polls, server emoji, reactions and the soundboard', async ({ browser }) =>
   await host.getByRole('button', { name: 'Create', exact: true }).click()
   const lounge = (page: Page) => page.locator('.voice-channel', { hasText: 'lounge' })
   await lounge(host).getByRole('button').first().click()
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await friend.getByRole('button', { name: 'Open channels' }).first().click()
   await lounge(friend).getByRole('button').first().click()
   await expect(friend.locator('.call-controls')).toBeVisible()

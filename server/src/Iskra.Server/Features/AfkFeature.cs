@@ -142,7 +142,9 @@ public sealed class AfkSweeper(World world, Hub hub, VoiceRegistry voice, TimePr
                     if (_lastMoved.ContainsKey(person.AccountKey) || !IdleFor(sessions[person.AccountKey], now, after)) continue;
                     if (store.IsBot(person.AccountKey) || store.GetMember(person.AccountKey) is not { } member || !Permissions.CanConnect(member, target)
                         || !E2eeVoiceFeature.MayBeIn(store, member, target)) continue;
-                    voice.Move(person.AccountKey, target.Id, now, reason: "afk");
+                    // LiveKit's removal from the old room waits a moment: it travels on another socket than voice.moved,
+                    // and arriving first it would end the app's voice session before the app could follow (e2e afk).
+                    voice.Move(person.AccountKey, target.Id, now, reason: "afk", removeAfterMs: TeamsFeature.RemoveAfterMs);
                     _lastMoved[person.AccountKey] = now;
                     moved++;
                 }

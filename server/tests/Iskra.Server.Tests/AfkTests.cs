@@ -166,8 +166,14 @@ public class AfkTests
         var moved = (await idler.EventAsync("voice.moved")).Body();
         Assert.Equal(afkRoom, moved.GetProperty("channelId").GetInt64());
         Assert.Equal("afk", moved.GetProperty("reason").GetString());
-        Assert.Contains(($"voice-{lounge}", idler.Key), server.Voice.Removed);
         Assert.Null(voice.ChannelOfMember(idler.Key));
+        // LiveKit's removal from the old room follows a moment later, so it can't end the app's session before
+        // voice.moved (another socket) reaches it; regression for the e2e afk flake.
+        bool Gone() { lock (server.Voice.Removed) return server.Voice.Removed.Contains(($"voice-{lounge}", idler.Key)); }
+        Assert.False(Gone());
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (!Gone() && DateTime.UtcNow < deadline) await Task.Delay(100);
+        Assert.True(Gone());
         Assert.Equal(lounge, voice.ChannelOfMember(talker.Key));
         Assert.Equal(lounge, voice.ChannelOfMember(silent.Key));
 

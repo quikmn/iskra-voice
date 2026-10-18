@@ -2,7 +2,7 @@
 // hears the fake mic talking: it plays e2e/fixtures/speech.wav), per-person volume.
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, FAKE_SPEECH_ARGS, hasLiveKit, joinVia, longPress, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, FAKE_SPEECH_ARGS, hasLiveKit, joinVia, longPress, openSettings, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 test.use({ launchOptions: { args: FAKE_SPEECH_ARGS } })
@@ -86,9 +86,9 @@ test('mic test, noise suppression in a call, your own speaking ring and per-pers
   await joinVia(friend, friendLink, 'Friend')
 
   await lounge(host).getByRole('button').first().click()
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await lounge(friend).getByRole('button').first().click()
-  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await expect(lounge(friend).locator('.voice-participants li')).toHaveCount(2)
 
   // Your own speaking shows on your avatar and the mic button, measured locally from the processed mic.
@@ -106,7 +106,7 @@ test('mic test, noise suppression in a call, your own speaking ring and per-pers
   await settings.getByRole('radio', { name: 'Standard' }).click()
   await settings.getByRole('radio', { name: 'Strong' }).click()
   await settings.getByLabel('Echo cancellation').uncheck()
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await host.keyboard.press('Escape')
   await expect(host.locator('.me-avatar.speaking')).toBeVisible({ timeout: 15_000 })
   await expect.poll(() => receivedLevel(friend), { timeout: 15_000 }).toBeGreaterThan(-60)
