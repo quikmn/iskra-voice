@@ -51,7 +51,17 @@ async function waitFor<T>(check: () => T | undefined | null | false, what: strin
 async function startServer(world: string, port: number): Promise<RunningServer> {
   if (!existsSync(join(world, 'server.json')))
     writeFileSync(join(world, 'server.json'), JSON.stringify({ Name: 'Interop', Port: port, LocalOnly: true }))
-  const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
+  const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: ['ignore', 'pipe', 'pipe'] })
+  // The server's own output, so a start that fails says why (the last 40 lines go into the error).
+  const output: string[] = []
+  const keep = (chunk: Buffer) => {
+    output.push(...chunk.toString().split('\n').map((line) => line.trimEnd()).filter(Boolean))
+    output.splice(0, Math.max(0, output.length - 40))
+  }
+  proc.stdout?.on('data', keep)
+  proc.stderr?.on('data', keep)
+  let exited: number | null | undefined
+  proc.once('exit', (code) => (exited = code))
   const url = `http://localhost:${port}`
   const deadline = Date.now() + 30_000
   for (;;) {
@@ -60,7 +70,11 @@ async function startServer(world: string, port: number): Promise<RunningServer> 
     } catch {
       /* not up yet */
     }
-    if (Date.now() > deadline) throw new Error('Server did not start')
+    if (exited !== undefined || Date.now() > deadline) {
+      if (exited === undefined) proc.kill()
+      const why = exited !== undefined ? `exited with code ${exited}` : `not answering on port ${port} after 30 s`
+      throw new Error(`Server did not start (${why}). Its last lines:\n${output.join('\n')}`)
+    }
     await new Promise((r) => setTimeout(r, 100))
   }
   return {
