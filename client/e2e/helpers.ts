@@ -1,5 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs'
+import { createSocket } from 'node:dgram'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -22,6 +23,14 @@ export const FAKE_SPEECH_ARGS = [
   '--auto-select-desktop-capture-source=Entire screen', `--use-file-for-fake-audio-capture=${resolve(HERE, 'fixtures/speech.wav')}`,
 ]
 
+/**
+ * How long joining voice may take. A first join to a test server's own LiveKit takes ~0.2 s on a quiet machine, but
+ * under 4 workers (each with LiveKit, two Chromiums and a server) next to other work it was measured at up to 7 s, its
+ * WebSocket handshake alone 3.7 s (whiteboard-call 4/20 and voice 1/20 at the 5 s default). Most voice specs already
+ * waited 20 s; every "Voice connected" check uses this now.
+ */
+export const VOICE_JOIN = { timeout: 20_000 }
+
 /** Ports already handed out in this test process. */
 const handedOut = new Set<number>()
 /** Each parallel worker has its own range (below the OSes' ephemeral ports), so two workers never pick the same port. */
@@ -39,6 +48,27 @@ export async function freePort(): Promise<number> {
   for (let i = 0; i < RANGE * 2; i++) {
     const port = rangeStart + Math.floor(Math.random() * RANGE)
     if (handedOut.has(port) || !(await isFree(port))) continue
+    handedOut.add(port)
+    return port
+  }
+  throw new Error('no free port')
+}
+
+const isFreeUdp = (port: number) =>
+  new Promise<boolean>((done) => {
+    const probe = createSocket('udp4')
+    probe.once('error', () => {
+      probe.close()
+      done(false)
+    })
+    probe.bind(port, () => probe.close(() => done(true)))
+  })
+
+/** LiveKit's media port: from the worker's range too, not 40000+ where the OS hands out ports to outgoing traffic. */
+async function freeUdpPort(): Promise<number> {
+  for (let i = 0; i < RANGE * 2; i++) {
+    const port = rangeStart + Math.floor(Math.random() * RANGE)
+    if (handedOut.has(port) || !(await isFreeUdp(port))) continue
     handedOut.add(port)
     return port
   }
@@ -105,7 +135,7 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
   const port = await freePort()
   const voicePort = await freePort()
   const rtcTcp = await freePort()
-  const rtcUdp = 40000 + Math.floor(Math.random() * 20000)
+  const rtcUdp = await freeUdpPort()
   writeFileSync(
     join(world, 'server.json'),
     JSON.stringify({
@@ -285,6 +315,21 @@ export async function agreeToTerms(page: Page) {
   await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible({ timeout: 15_000 })
   const box = page.getByRole('checkbox', { name: /I agree to the Terms of Use/ })
   if (await box.isVisible()) await box.check()
+}
+
+/**
+ * Clicks a button that closes its own window (a picture-in-picture's Close or Done) and waits until it has closed.
+ * The window can go before Chromium answers the click's mouse-up, and Playwright then reports "Target page, context
+ * or browser has been closed" for a click that worked; only that error is expected, and only if the window did close.
+ */
+export async function clickToClose(page: Page, button: Locator) {
+  const closed = page.waitForEvent('close')
+  try {
+    await button.click()
+  } catch (error) {
+    if (!/Target page, context or browser has been closed/.test(String(error))) throw error
+  }
+  await closed
 }
 
 export async function send(page: Page, text: string) {

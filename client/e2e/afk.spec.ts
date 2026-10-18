@@ -2,7 +2,7 @@
 // where LiveKit mutes and deafens them; the owner (a role that can talk there) can still talk.
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, openServerSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, openServerSettings, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -50,7 +50,7 @@ test('AFK channel: set it up, idle people are moved there muted and deafened, th
 
   // ── The friend joins the lounge, mutes, then does nothing for six minutes (the page's clock jumps ahead).
   await voiceChannel(friend, 'lounge').getByRole('button').first().click()
-  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await friend.locator('.voice-bar').getByRole('button', { name: 'Mute', exact: true }).click()
   await friend.clock.install()
   await friend.clock.fastForward('06:00')
@@ -68,7 +68,7 @@ test('AFK channel: set it up, idle people are moved there muted and deafened, th
 
   // ── The owner (a role that can talk there) joins and talks; the friend hears nothing, LiveKit sends them no audio.
   await voiceChannel(host, 'AFK').getByRole('button').first().click()
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await expect(host.getByTestId('afk-forced')).toHaveCount(0)
   await expect(host.locator('.voice-bar').getByRole('button', { name: 'Mute', exact: true })).toBeVisible()
   await expect.poll(() => friend.locator('audio').count(), { timeout: 5_000 }).toBe(0)
@@ -79,6 +79,6 @@ test('AFK channel: set it up, idle people are moved there muted and deafened, th
   // Coming back is a normal join: the friend can talk again in the lounge.
   await voiceChannel(friend, 'lounge').getByRole('button').first().click()
   await expect(friend.getByTestId('afk-forced')).toHaveCount(0, { timeout: 15_000 })
-  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await expect(friend.locator('.voice-bar').getByRole('button', { name: /^(Mute|Unmute)$/ })).toBeVisible()
 })

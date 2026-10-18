@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -34,7 +34,7 @@ async function drift(a: Page, b: Page): Promise<number> {
 
 async function joinCinema(page: Page) {
   await cinema(page).getByRole('button').first().click()
-  await expect(page.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(page.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
 }
 
 test('a watch party stays in step for everyone, late joiners included', async ({ browser }) => {

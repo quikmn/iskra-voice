@@ -86,6 +86,13 @@ test('forwarding, unread navigation and shortcuts', async ({ browser }) => {
   await channelRow(host, 'memes').locator('.channel').click()
   for (const n of [1, 2, 3]) await say(host, 'memes', tall(n))
   await expect(channelRow(friend, 'memes').locator('.channel')).toHaveClass(/unread/)
+  // The notes reach the friend in the order the server stored them: once a line said after all three shows up in
+  // #general (which the friend is reading), all three are in, so the jump finds 3 new and not the first one or two.
+  await expect(host.locator('.message', { hasText: 'line 14 of note 3' })).toBeVisible()
+  await expect(host.locator('.message.sending')).toHaveCount(0)
+  await channelRow(host, 'general').locator('.channel').click()
+  await say(host, 'general', 'notes are up in memes')
+  await expect(friend.locator('.message', { hasText: 'notes are up in memes' })).toBeVisible()
   await friend.locator('.chat-header').click() // focus the page, not the message box
   await friend.keyboard.press('Alt+ArrowDown')
   await expect(friend.getByRole('heading', { name: 'memes' })).toBeVisible()

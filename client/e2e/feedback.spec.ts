@@ -2,7 +2,7 @@ import { closeSync, ftruncateSync, mkdtempSync, openSync, rmSync } from 'node:fs
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -41,7 +41,7 @@ test('the profile card from a voice tile stays inside the window', async ({ brow
   await joinVia(friend, await createInviteLink(host), 'Friend')
 
   await lounge(host).getByRole('button').first().click()
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await lounge(friend).getByRole('button').first().click()
   await expect(friend.locator('.person-tile')).toHaveCount(2)
 

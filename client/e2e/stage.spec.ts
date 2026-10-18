@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -32,7 +32,7 @@ test('a stage: listeners ask to speak, LiveKit lets them only once a moderator s
 
   // The host joins and goes live with a topic.
   await entry(host).getByRole('button').first().click()
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await expect(host.getByText('Start the stage')).toBeVisible()
   await host.getByLabel('Topic').fill('Friday game night')
   await host.getByRole('button', { name: 'Go live' }).click()
@@ -48,7 +48,7 @@ test('a stage: listeners ask to speak, LiveKit lets them only once a moderator s
 
   // The friend joins listen-only and hears the host.
   await entry(friend).getByRole('button').first().click()
-  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await expect(friend.locator('.voice-status')).toContainText('Listening only')
   await expect(friend.locator('.stage-speakers .person-tile')).toHaveCount(1)
   await expect(friend.locator('.stage-audience li')).toHaveCount(1)

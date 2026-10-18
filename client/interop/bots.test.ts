@@ -1,7 +1,6 @@
 // The bot SDK (bots/sdk) and webhooks against the real .NET server. Run with `npm run test:interop`.
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -13,17 +12,9 @@ import { ready } from '../src/core/crypto'
 import { createIdentity } from '../src/core/identity'
 import { buildInviteLink, parseInvite } from '../src/core/invite'
 import type { Events, Message, Welcome } from '../src/core/protocol'
+import { freePort } from './ports'
 
 const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
-
-async function freePort(): Promise<number> {
-  return new Promise((done) => {
-    const probe = createServer().listen(0, () => {
-      const port = (probe.address() as { port: number }).port
-      probe.close(() => done(port))
-    })
-  })
-}
 
 async function waitFor<T>(check: () => T | undefined | null | false, what: string, timeoutMs = 15_000): Promise<T> {
   const deadline = Date.now() + timeoutMs

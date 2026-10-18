@@ -2,7 +2,7 @@
 // was offline at the time; a server nickname wins on its own server and "Use my name" goes back.
 import { join } from 'node:path'
 import { expect, test, type Page, type WebSocketRoute } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, openSettings, send, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -52,7 +52,7 @@ test('a new name shows everywhere at once, for you and everyone else', async ({ 
   await expect(b.getByText('hello from ana')).toBeVisible()
   for (const page of [a, b]) {
     await lounge(page).getByRole('button').first().click()
-    await expect(page.locator('.voice-status strong')).toHaveText('Voice connected')
+    await expect(page.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   }
   for (const page of [a, b]) await expect(lounge(page).locator('.voice-participants li')).toHaveCount(2)
   await expectNameEverywhere(b, 'Ana', 'Nineleven')

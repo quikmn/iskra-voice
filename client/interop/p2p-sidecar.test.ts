@@ -6,7 +6,6 @@
 /// <reference path="../../desktop/src/p2p/modules.d.ts" />
 import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
@@ -21,20 +20,13 @@ import { ready } from '../src/core/crypto'
 import { createIdentity } from '../src/core/identity'
 import { parseInvite, type InviteLink } from '../src/core/invite'
 import type { Events, P2pStatus, Welcome } from '../src/core/protocol'
+import { freePort } from './ports'
 
 const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 const LOCAL = '127.0.0.1'
 const desktopRequire = createRequire(resolve(__dirname, '../../desktop/package.json'))
 const HyperDHT = desktopRequire('hyperdht') as typeof DHT
 const createTestnet = desktopRequire('hyperdht/testnet.js') as (size: number, opts: { host: string }) => Promise<Testnet>
-
-const freePort = () =>
-  new Promise<number>((done) => {
-    const probe = createServer().listen(0, LOCAL, () => {
-      const port = (probe.address() as { port: number }).port
-      probe.close(() => done(port))
-    })
-  })
 
 async function waitFor<T>(check: () => T | undefined | null | false | Promise<T | undefined | null | false>, what: string, ms = 30_000): Promise<T> {
   const deadline = Date.now() + ms

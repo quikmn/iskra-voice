@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -24,7 +24,7 @@ test('when a screen share stops, viewers lose its tile and can go back to chat',
 
   await lounge(host).getByRole('button').first().click()
   await lounge(friend).getByRole('button').first().click()
-  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
 
   // Share with sound, the way people usually do.
   await host.locator('.call-controls').getByRole('button', { name: 'Share your screen' }).click()
@@ -43,5 +43,5 @@ test('when a screen share stops, viewers lose its tile and can go back to chat',
   await friend.locator('.channel', { hasText: 'general' }).click()
   await expect(friend.locator('.stage')).toHaveCount(0)
   await expect(friend.getByPlaceholder('Message #general')).toBeVisible()
-  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
 })

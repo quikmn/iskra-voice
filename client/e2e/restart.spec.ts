@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, recordStatusBanners, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, recordStatusBanners, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -29,7 +29,7 @@ test('a server restart: "hold on", then everyone is back in voice and nothing is
   // Both in voice; the host muted and the friend deafened, both reading #general.
   for (const page of [host, friend]) {
     await lounge(page).getByRole('button').first().click()
-    await expect(page.locator('.voice-status strong')).toHaveText('Voice connected')
+    await expect(page.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   }
   await host.locator('.call-controls').getByRole('button', { name: 'Mute', exact: true }).click()
   await friend.locator('.call-controls').getByRole('button', { name: 'Deafen', exact: true }).click()

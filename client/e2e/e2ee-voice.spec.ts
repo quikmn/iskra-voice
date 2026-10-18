@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -97,7 +97,7 @@ test('an encrypted voice channel: media is end-to-end encrypted, and removing so
   for (const page of [host, bob]) {
     await expect(badge(page)).toHaveAttribute('data-version', '2', { timeout: 30_000 })
     await expect(badge(page)).toHaveAttribute('data-active', 'true')
-    await expect(page.locator('.voice-status strong')).toHaveText('Voice connected')
+    await expect(page.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
     await expect(page.locator('.stage').getByTestId('e2ee-peer-encrypted')).toHaveCount(1, { timeout: 20_000 })
   }
   // Media still flows under the new key: Bob's camera keeps decoding at Host's end, and audio keeps playing.

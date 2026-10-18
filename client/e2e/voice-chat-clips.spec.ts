@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -12,6 +12,9 @@ test.beforeAll(async () => {
 test.afterAll(async () => server?.stop())
 
 const lounge = (page: Page) => page.locator('.voice-channel', { hasText: 'lounge' })
+
+/** Seconds of other people's audio played here so far (the longest-playing element). */
+const heard = (page: Page) => page.evaluate(() => Math.max(0, ...[...document.querySelectorAll('audio')].filter((a) => !a.paused).map((a) => a.currentTime)))
 
 test('voice channels have their own chat, and clips save the last seconds with a notice', async ({ browser }) => {
   test.setTimeout(120_000)
@@ -39,7 +42,7 @@ test('voice channels have their own chat, and clips save the last seconds with a
 
   // The host joins the call: the call screen's chat button counts the new message, and opens the chat beside it.
   await lounge(host).getByRole('button').first().click()
-  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   const toggle = host.getByRole('button', { name: 'Open chat (1 new)' })
   await expect(toggle).toBeVisible()
   await toggle.click()
@@ -68,15 +71,14 @@ test('voice channels have their own chat, and clips save the last seconds with a
 
   // The friend joins too (their fake mic is what the host hears) and sees that the host has clips on.
   await lounge(friend).getByRole('button').first().click()
-  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await expect(friend.locator('.clips-strip')).toHaveText('Clips on: Host')
   await expect(lounge(friend).locator('li', { hasText: 'Host' }).getByRole('img', { name: 'Clips on' })).toBeVisible()
   await friend.getByRole('button', { name: /Open chat/ }).click()
   const friendPanel = friend.getByRole('region', { name: 'Chat in lounge' })
-  await expect
-    .poll(() => host.evaluate(() => [...document.querySelectorAll('audio')].some((a) => !a.paused && a.currentTime > 0)), { timeout: 15_000 })
-    .toBe(true)
-  await host.waitForTimeout(4000) // a few seconds in the buffer
+  // A few seconds of the friend's voice in the clip buffer: heard here for 4 s (the recorder mixes what's played; a
+  // fixed wait under load sometimes left under a second, a 928-byte clip).
+  await expect.poll(() => heard(host), { timeout: 20_000 }).toBeGreaterThanOrEqual(4)
 
   await host.locator('.call-controls').getByRole('button', { name: 'Save the last 15 seconds' }).click()
   const dialog = host.getByRole('dialog', { name: 'Your clip' })
@@ -132,9 +134,9 @@ test('voice channels have their own chat, and clips save the last seconds with a
   const call = (page: Page) => page.locator('.call-panel')
   for (const page of [host, friend]) await expect(call(page).locator('.call-status')).toHaveText(/^\d+:\d\d$/, { timeout: 20_000 })
   await expect(friend.locator('.clips-strip')).toHaveText('Clips on: Host', { timeout: 10_000 })
-  await expect
-    .poll(() => host.evaluate(() => [...document.querySelectorAll('audio')].some((a) => !a.paused && a.currentTime > 0)), { timeout: 15_000 })
-    .toBe(true)
+  // Something to save: the call's recorder starts with the call, so a second of the friend heard is in it (clicking
+  // at the first sound under load got "Nothing to save yet.").
+  await expect.poll(() => heard(host), { timeout: 20_000 }).toBeGreaterThanOrEqual(1)
   await expect(friend.locator('.clip-toast')).toHaveCount(0, { timeout: 10_000 }) // the channel's toast has gone
   await call(host).getByRole('button', { name: 'Save the last 15 seconds' }).click()
   await expect(host.getByRole('dialog', { name: 'Your clip' })).toBeVisible()

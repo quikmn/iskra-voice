@@ -5,7 +5,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import http from 'node:http'
-import { createServer, type AddressInfo } from 'node:net'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
@@ -19,6 +19,7 @@ import { ready } from '../src/core/crypto'
 import { createIdentity } from '../src/core/identity'
 import { buildInviteLink, parseInvite, type InviteLink } from '../src/core/invite'
 import type { Events, Welcome } from '../src/core/protocol'
+import { freePort, freeUdpPort } from './ports'
 
 const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 const LIVEKIT = resolve(__dirname, '../../.tools', process.platform === 'win32' ? 'livekit-server.exe' : 'livekit-server')
@@ -30,14 +31,6 @@ const HyperDHT = desktopRequire('hyperdht') as typeof DHT
 const createTestnet = desktopRequire('hyperdht/testnet.js') as (size: number, opts: { host: string }) => Promise<Testnet>
 const { chromium, _electron } = createRequire(resolve(__dirname, '../package.json'))('playwright') as typeof import('playwright')
 type Page = import('playwright').Page
-
-const freePort = () =>
-  new Promise<number>((done) => {
-    const probe = createServer().listen(0, LOCAL, () => {
-      const port = (probe.address() as { port: number }).port
-      probe.close(() => done(port))
-    })
-  })
 
 async function waitFor<T>(check: () => T | undefined | null | false, what: string, ms = 20_000): Promise<T> {
   const deadline = Date.now() + ms
@@ -98,7 +91,7 @@ describe('Iskra through the peer-to-peer tunnel', () => {
     const port = await freePort()
     voicePort = await freePort()
     const rtcTcp = await freePort()
-    const rtcUdp = 40000 + Math.floor(Math.random() * 20000)
+    const rtcUdp = await freeUdpPort()
     turnPort = rtcUdp + 1
     // Started with P2p on: the server makes p2p.key and writes the tunnel listener's port to p2p.port. With LiveKit
     // (when .tools has it, localhost API), its embedded TURN comes up for the tunnel.

@@ -1,7 +1,7 @@
 // Privacy pass: nothing loads from another site until you say so, and the app says who it talks to.
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, openSettings, send, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -117,7 +117,7 @@ test("voice asks no STUN server of anyone's, and a YouTube watch party says so b
   await page.getByRole('button', { name: 'Create', exact: true }).click()
   const lounge = (p: Page) => p.locator('.voice-channel', { hasText: 'lounge' })
   await lounge(page).getByRole('button').first().click()
-  await expect(page.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(page.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
 
   // Voice: no STUN servers at all (LiveKit's default list is Google's), and no requests outside the server.
   const configs = await page.evaluate(() => (window as unknown as { __peerConfigs: { iceServers?: { urls: string | string[] }[] }[] }).__peerConfigs)
@@ -132,7 +132,7 @@ test("voice asks no STUN server of anyone's, and a YouTube watch party says so b
   const friend = await friendContext.newPage()
   await joinVia(friend, await createInviteLink(page), 'Friend')
   await lounge(friend).getByRole('button').first().click()
-  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected')
+  await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   await page.locator('.call-controls').getByRole('button', { name: 'Watch together' }).click()
   const dialog = page.getByRole('dialog', { name: 'Watch together' })
   await dialog.getByLabel('Link').fill('https://www.youtube.com/watch?v=aqz-KE-bpKQ')
