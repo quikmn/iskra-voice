@@ -15,7 +15,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
-        SceneDelegateProxy.shared.scene(scene, openURLContexts: URLContexts)
+        // iskra://share (the Share Extension): the share waits in the App Group; the plugin hands it to the page.
+        let shares = URLContexts.filter { $0.url.scheme == "iskra" && $0.url.host == "share" }
+        if !shares.isEmpty { NotificationCenter.default.post(name: IskraNative.shareArrived, object: nil) }
+        let rest = URLContexts.subtracting(shares)
+        if !rest.isEmpty { SceneDelegateProxy.shared.scene(scene, openURLContexts: rest) }
     }
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {

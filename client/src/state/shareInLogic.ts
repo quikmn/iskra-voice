@@ -42,6 +42,22 @@ export function cleanShareName(name: string): string {
 }
 
 /**
+ * A URL the page may fetch a shared file from: on the page's own origin. The iPhone app's page is on
+ * capacitor://localhost, a scheme URL() gives no origin to ("null"), so there only the app's own file server counts
+ * (capacitor://localhost/_capacitor_file_/…, the App Group copies) and only when the page itself is on that origin.
+ */
+export function isOwnFile(url: string, origin: string): boolean {
+  try {
+    const u = new URL(url, origin)
+    if (u.origin !== 'null') return u.origin === origin
+    return /^capacitor:\/\/[^/]+$/.test(origin) && `${u.protocol}//${u.host}` === origin && !u.username && !u.password &&
+      u.pathname.startsWith('/_capacitor_file_/')
+  } catch {
+    return false
+  }
+}
+
+/**
  * Checks a share from the native side (or a test). Files must be on the page's own origin (the app's copies), so a
  * share can never make the page fetch something elsewhere. Null when there's nothing to share.
  */
@@ -55,13 +71,7 @@ export function parseShare(raw: unknown, origin: string): IncomingShare | null {
     const file = f as Record<string, unknown> | null
     const url = str(file?.url)
     const size = file?.size
-    let sameOrigin = false
-    try {
-      sameOrigin = !!url && (new URL(url, origin).origin === origin)
-    } catch {
-      sameOrigin = false
-    }
-    if (!file || !url || !sameOrigin || typeof size !== 'number' || !Number.isFinite(size) || size < 0 || files.length >= MAX_SHARE_FILES) {
+    if (!file || !url || !isOwnFile(url, origin) || typeof size !== 'number' || !Number.isFinite(size) || size < 0 || files.length >= MAX_SHARE_FILES) {
       skipped++
       continue
     }

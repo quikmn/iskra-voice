@@ -1,4 +1,4 @@
-// "Share to…": text, links and files shared from another app (the Android app's share sheet).
+// "Share to…": text, links and files shared from another app (the phone apps' share sheet).
 export const share = {
   title: 'Share to…',
   preview: 'What you’re sharing',

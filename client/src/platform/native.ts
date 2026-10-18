@@ -30,7 +30,8 @@ export interface NativeBridge {
   leave(): void
   voice: NativeVoice
   /**
-   * "Share to Iskra" from other apps (Android's share sheet), including the share that started the app. The callback
+   * "Share to Iskra" from other apps (the share sheet: Android's intents, the iOS Share Extension), including the share
+   * that started the app. The callback
    * gets the raw share (state/shareIn.ts checks it); `shareDone` lets the app delete its copies of the files.
    */
   onShare(callback: (share: unknown) => void): () => void
@@ -92,7 +93,7 @@ interface IskraNativePlugin {
   voiceStop(): Promise<void>
   addListener(event: 'voiceEnded', callback: () => void): Promise<Listener>
   addListener(event: 'voiceMuted', callback: (data: { muted?: unknown }) => void): Promise<Listener>
-  /** Android only: the newest share from another app, once (null when there's none). */
+  /** The newest share from another app, once (none when there's none). */
   takeShare(): Promise<{ share?: unknown }>
   shareDone(options: { id: string }): Promise<void>
 }
@@ -179,7 +180,6 @@ function bridge(platform: NativePlatform): NativeBridge {
       await StatusBar.setStyle({ style: scheme === 'light' ? Style.Light : Style.Dark })
     },
     onShare(callback) {
-      if (platform !== 'android') return () => {}
       let stopped = false
       const take = () => void plugin()
         .then((p) => p.takeShare())
@@ -194,7 +194,7 @@ function bridge(platform: NativePlatform): NativeBridge {
       }
     },
     shareDone(id) {
-      if (platform === 'android') void plugin().then((p) => p.shareDone({ id })).catch(() => undefined)
+      void plugin().then((p) => p.shareDone({ id })).catch(() => undefined)
     },
     voice: {
       start: async (options) => (await plugin()).voiceStart(options),
