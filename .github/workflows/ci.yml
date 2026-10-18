@@ -264,7 +264,7 @@ jobs:
   # The check to require for end-to-end (branch protection): green only when every shard and interop passed.
   end-to-end:
     needs: [e2e-shard, interop]
-    if: ${{ always() }}
+    if: ${{ !cancelled() }} # a superseded (cancelled) run reports nothing, not a failure
     runs-on: ubuntu-latest
     # The tests that only passed on their retry (and those that failed twice), for the summary and the #ci message.
     outputs:
