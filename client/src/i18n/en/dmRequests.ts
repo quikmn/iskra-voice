@@ -15,6 +15,7 @@ export const dmRequests = {
   filesHidden_one: '{{count}} file, hidden until you accept',
   filesHidden_other: '{{count}} files, hidden until you accept',
   settingTitle: 'Who can message me',
+  refused: "{{server}} didn't take this choice and keeps the one before: {{reason}}",
   settingHint: "Applies on every server you're on. People you've already talked to can always write to you, and you can still start a conversation with anyone.",
   who: {
     anyone: 'Anyone on my servers',

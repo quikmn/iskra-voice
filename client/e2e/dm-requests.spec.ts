@@ -101,4 +101,25 @@ test('new DMs wait as message requests, and the sender is never told', async ({ 
   await cal.getByPlaceholder('Message Bea').press('Enter')
   await bea.locator('.dm-row:not(.dm-request-row)', { hasText: 'Cal' }).click()
   await expect(bea.locator('.message-text', { hasText: 'still here' })).toBeVisible()
+
+  // A device whose clock runs an hour ahead still changes the setting: it's stamped by the server's clock.
+  const ahead = await browser.newContext()
+  await ahead.addInitScript(() => {
+    const real = Date.now.bind(Date)
+    Date.now = () => real() + 3_600_000
+  })
+  const fay = await ahead.newPage()
+  await joinVia(fay, link, 'Fay')
+  const gus = await (await browser.newContext()).newPage()
+  await joinVia(gus, link, 'Gus')
+
+  await openSettings(fay, 'Privacy & data')
+  const faySettings = fay.getByTestId('dm-privacy-settings')
+  await faySettings.getByRole('radio', { name: /Only people I've talked to/ }).check()
+  await fay.waitForTimeout(1000) // the choice goes to the server in the background
+  await expect(faySettings.getByTestId('dm-privacy-refused')).toHaveCount(0)
+  await fay.keyboard.press('Escape')
+
+  await dmFromMemberList(gus, 'Fay', 'hi Fay')
+  await expect(gus.locator('.message-failed')).toContainText("This person isn't taking new direct messages right now.")
 })

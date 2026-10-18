@@ -3061,6 +3061,8 @@ export interface DmPrivacySetting {
   who: DmWho
   /** When it was chosen (0: never; the default is anyone). */
   at: number
+  /** In answers and events: the server's clock (ms), so apps stamp changes by it. */
+  now?: number
 }
 
 /** How you treat someone's DMs on one server. */

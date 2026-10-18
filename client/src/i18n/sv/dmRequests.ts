@@ -16,6 +16,7 @@ export const dmRequests: Messages['dmRequests'] = {
   filesHidden_one: '{{count}} fil, dold tills du godkänner',
   filesHidden_other: '{{count}} filer, dolda tills du godkänner',
   settingTitle: 'Vem kan skriva till mig',
+  refused: '{{server}} tog inte emot valet och behåller det förra: {{reason}}',
   settingHint: 'Gäller på alla servrar du är med i. Personer du redan har pratat med kan alltid skriva till dig, och du kan fortfarande själv starta en konversation med vem som helst.',
   who: {
     anyone: 'Alla på mina servrar',

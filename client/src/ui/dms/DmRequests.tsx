@@ -6,6 +6,7 @@ import type { DmWho } from '../../core/protocol'
 import { acceptRequest, blockRequest, ignoreRequest, setDmWho, useDmRequests, useDmStatus, useRequestPeers } from '../../state/dmRequests'
 import { nameOf, openConversation, useDms, type Dm } from '../../state/dms'
 import { errorMessage } from '../../i18n/errors'
+import { useApp } from '../../state/store'
 import { AccountAvatar } from '../presence/Presence'
 import { ChevronDown, ChevronRight, UserPlus } from '../icons'
 import './dm-requests.css'
@@ -96,6 +97,8 @@ const LEVELS: DmWho[] = ['anyone', 'requests', 'known', 'nobody']
 export function DmPrivacySettings() {
   const { t } = useTranslation()
   const who = useDmRequests((s) => s.who)
+  const refused = useDmRequests((s) => s.refused)
+  const servers = useApp((s) => s.servers)
   return (
     <section className="settings-section" data-testid="dm-privacy-settings">
       <h2>{t('dmRequests.settingTitle')}</h2>
@@ -110,6 +113,11 @@ export function DmPrivacySettings() {
           </label>
         ))}
       </div>
+      {Object.entries(refused).map(([key, reason]) => (
+        <p key={key} className="error-text" role="alert" data-testid="dm-privacy-refused">
+          {t('dmRequests.refused', { server: servers[key]?.name ?? t('common.someone'), reason })}
+        </p>
+      ))}
       <p className="muted">{t('dmRequests.settingHint')}</p>
     </section>
   )

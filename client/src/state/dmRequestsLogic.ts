@@ -84,3 +84,23 @@ export function checkDecisions(raw: unknown): Record<string, { state: 'accepted'
   }
   return out
 }
+
+// ── Stamping the setting ("who can message me") ──
+
+/** How far past the servers' clock a stamp may be before it counts as made by a clock that ran ahead. */
+export const MAX_AHEAD_MS = 5 * 60_000
+
+/** The servers' clock as best we know it: ours plus the median of the offsets they showed us (theirs − ours). */
+export function serverClock(now: number, offsets: number[]): number {
+  if (offsets.length === 0) return now
+  const sorted = [...offsets].sort((a, b) => a - b)
+  return now + sorted[Math.floor(sorted.length / 2)]
+}
+
+/** A stamp made by a clock that ran ahead can't be ordered against real ones: it counts as never set (0). */
+export const saneStamp = (at: number, clock: number): number => (at > clock + MAX_AHEAD_MS ? 0 : at)
+
+/** The stamp for a new choice: the servers' time, and after the current choice (unless that one is from a clock that ran ahead). */
+export function stampAfter(current: number, clock: number): number {
+  return Math.max(Math.round(clock), saneStamp(current, clock) + 1)
+}

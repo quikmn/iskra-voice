@@ -73,7 +73,7 @@
 <main class="doc docs-main" id="top">
   <div class="doc-kicker">Docs</div>
   <h1>Bots and webhooks</h1>
-  <p class="updated">Last updated <time datetime="2026-10-17">17 October 2026</time></p>
+  <p class="updated">Last updated <time datetime="2026-10-18">18 October 2026</time></p>
   <details class="mobile-toc">
     <summary>On this page</summary>
     <ul class="toc-list"><li class="l2"><a href="#webhooks">Webhooks</a></li><li class="l2"><a href="#outgoing-webhooks">Outgoing webhooks</a></li><li class="l2"><a href="#built-in-bots">Built-in bots</a></li><li class="l2"><a href="#bots">Bots</a></li></ul>
@@ -771,7 +771,10 @@ are DMs: <code>private</code> makes no difference there, cards become text, and 
 channel message). The bot checks a command's <code>role</code> itself, from the member list; commands that need a <code>permission</code>
 answer that they only work in a channel.</li>
 <li><strong>Who a bot can write to:</strong> members of its server who haven't blocked it. People choose in <strong>My settings → Privacy &amp;
-data → DMs from bots</strong> (on by default). With it off, a bot can only answer someone who wrote to it first.</li>
+data → DMs from bots</strong> (on by default). With it off, a bot can only answer someone who wrote to it first. A bot's
+DM also follows the person's <strong>Who can message me</strong>: it can arrive as a message request, or be refused (<code>dm_closed</code>)
+for people who only take DMs from people they've talked to. Writing to the bot counts; so does using one of its
+commands or buttons, for 15 minutes (enough to answer by DM).</li>
 <li><strong>Limits:</strong> on top of the usual 2 messages a second, a bot sends at most 1 DM a second over all its connections (bursts
 of 30), and starts at most 20 new conversations at once, then 20 an hour. Bots never message other bots, and
 <a href="#built-in-bots">built-in bots</a> don't take DMs (they run inside the server and have no keys).</li>
@@ -979,6 +982,10 @@ The audio goes from the bot's computer straight to the server's voice service, l
 <tr>
 <td><code>forbidden</code> with <code>bot_dms_off</code> from <code>sendDm</code></td>
 <td>That person turned off DMs from bots; the bot can answer once they write to it.</td>
+</tr>
+<tr>
+<td><code>forbidden</code> with <code>dm_closed</code> from <code>sendDm</code></td>
+<td>That person only takes DMs from people they've talked to. The bot can answer once they write to it, or within 15 minutes of them using one of its commands.</td>
 </tr>
 <tr>
 <td><code>rate_limited</code> with <code>bot_dm_new_limit</code></td>

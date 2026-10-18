@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyServerList, applyServerState, checkDecisions, decide, serversToSync, statusOf, storedDecisions, type PeerRequests } from './dmRequestsLogic'
+import { applyServerList, applyServerState, checkDecisions, decide, MAX_AHEAD_MS, saneStamp, serverClock, serversToSync, stampAfter, statusOf, storedDecisions, type PeerRequests } from './dmRequestsLogic'
 
 describe('message request status', () => {
   it('is accepted unless a server holds the DMs as a request', () => {
@@ -60,5 +60,24 @@ describe('keeping track of servers', () => {
     expect(checkDecisions(storedDecisions(peers))).toEqual({ a: { state: 'accepted', at: 1 }, b: { state: 'ignored', at: 3 } })
     expect(checkDecisions({ a: { state: 'maybe', at: 1 }, b: null, c: { state: 'ignored', at: '1' } })).toEqual({})
     expect(checkDecisions('nope')).toEqual({})
+  })
+})
+
+describe('stamping the setting', () => {
+  it("uses the servers' clock, not only this device's", () => {
+    expect(serverClock(1000, [])).toBe(1000)
+    // This device runs an hour ahead: the servers say so, and a new choice is stamped by their time.
+    const hour = 3_600_000
+    const clock = serverClock(10 * hour, [-hour, -hour + 5, -hour - 5])
+    expect(clock).toBe(9 * hour)
+    expect(stampAfter(0, clock)).toBe(9 * hour)
+  })
+
+  it('comes after the current choice, unless that one came from a clock that ran ahead', () => {
+    expect(stampAfter(5000, 4000)).toBe(5001)
+    const ahead = 4000 + MAX_AHEAD_MS + 1
+    expect(saneStamp(ahead, 4000)).toBe(0)
+    expect(saneStamp(4000 + MAX_AHEAD_MS, 4000)).toBe(4000 + MAX_AHEAD_MS)
+    expect(stampAfter(ahead, 4000)).toBe(4000) // never a stamp the servers would refuse
   })
 })

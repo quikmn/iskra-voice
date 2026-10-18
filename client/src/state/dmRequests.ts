@@ -4,10 +4,11 @@
 // only once you accept. Accept, ignore and block go to every server you share with the person; the sender is never told.
 import { create } from 'zustand'
 import { b64u } from '../core/crypto'
-import type { DmPrivacySetting, DmRequestFlag, DmWho, Events } from '../core/protocol'
+import type { DmPrivacySetting, DmRequestFlag, DmWho, Events, RequestError } from '../core/protocol'
 import * as storage from '../core/storage'
 import { setDmRequestCheck, sharedServers, useDms, type Dm } from './dms'
-import { applyServerList, applyServerState, checkDecisions, decide, serversToSync, statusOf, storedDecisions, type DmStatus, type PeerRequests } from './dmRequestsLogic'
+import { applyServerList, applyServerState, checkDecisions, decide, saneStamp, serverClock, serversToSync, stampAfter, statusOf, storedDecisions, type DmStatus, type PeerRequests } from './dmRequestsLogic'
+import { errorMessage } from '../i18n/errors'
 import { setBlocked } from './moderation'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 
@@ -15,9 +16,18 @@ interface DmRequestsState {
   who: DmWho
   at: number
   peers: Record<string, PeerRequests>
+  /** Servers that refused the setting (the reason, shown in My settings), by server key. */
+  refused: Record<string, string>
 }
 
-export const useDmRequests = create<DmRequestsState>(() => ({ who: 'anyone', at: 0, peers: {} }))
+export const useDmRequests = create<DmRequestsState>(() => ({ who: 'anyone', at: 0, peers: {}, refused: {} }))
+
+/** Each server's clock against ours (theirs − ours), from the `now` it sends with the setting. */
+const offsets = new Map<string, number>()
+const noteClock = (serverKey: string, now: unknown) => {
+  if (typeof now === 'number' && Number.isFinite(now)) offsets.set(serverKey, now - Date.now())
+}
+const clock = () => serverClock(Date.now(), [...offsets.values()])
 
 const me = () => {
   const identity = useApp.getState().identity
@@ -136,7 +146,14 @@ async function syncServer(serverKey: string): Promise<void> {
   }
   try {
     const remote = await connection.request('dm.privacy.get', {})
+    noteClock(serverKey, remote.now)
     const local = useDmRequests.getState()
+    // A choice stamped by a clock that ran ahead can't be ordered: a server's choice wins over it, or it's re-stamped.
+    if (local.at > 0 && saneStamp(local.at, clock()) === 0) {
+      if (remote.at > 0) return void (await adoptSetting(remote, serverKey, true))
+      await setDmWho(local.who)
+      return
+    }
     if (remote.at > local.at) await adoptSetting(remote, serverKey)
     else if (remote.at < local.at) await pushSetting(serverKey)
   } catch {
@@ -148,8 +165,8 @@ async function syncServer(serverKey: string): Promise<void> {
 
 const online = () => Object.keys(useApp.getState().servers).filter((key) => connectionFor(key)?.isOnline)
 
-async function adoptSetting(next: DmPrivacySetting, from?: string): Promise<void> {
-  if (!isWho(next.who) || next.at <= useDmRequests.getState().at) return
+async function adoptSetting(next: DmPrivacySetting, from?: string, replace = false): Promise<void> {
+  if (!isWho(next.who) || (!replace && next.at <= useDmRequests.getState().at)) return
   useDmRequests.setState({ who: next.who, at: next.at })
   await storage.savePrivate('dmPrivacy', { who: next.who, at: next.at }).catch(() => undefined)
   for (const key of online()) if (key !== from) void pushSetting(key)
@@ -160,16 +177,28 @@ async function pushSetting(serverKey: string): Promise<void> {
   const connection = connectionFor(serverKey)
   if (at === 0 || !connection?.isOnline) return
   try {
-    await adoptSetting(await connection.request('dm.privacy.set', { who, at }), serverKey)
-  } catch {
-    /* an older server, or offline again: retried on the next connect */
+    const stored = await connection.request('dm.privacy.set', { who, at })
+    noteClock(serverKey, stored.now)
+    setRefused(serverKey, null)
+    await adoptSetting(stored, serverKey)
+  } catch (e) {
+    // Never silently: a server that refuses the choice (a clock that's off, say) keeps the old one, so say so.
+    const code = (e as RequestError | null)?.code
+    if (code !== 'unknown_type' && code !== 'disconnected' && code !== 'timeout') setRefused(serverKey, errorMessage(e))
   }
 }
 
-/** Changes who can start a DM with you, on every server. */
+function setRefused(serverKey: string, reason: string | null): void {
+  const { refused } = useDmRequests.getState()
+  if ((refused[serverKey] ?? null) === reason) return
+  const { [serverKey]: _gone, ...rest } = refused
+  useDmRequests.setState({ refused: reason === null ? rest : { ...rest, [serverKey]: reason } })
+}
+
+/** Changes who can start a DM with you, on every server (stamped by the servers' clock, not only this device's). */
 export async function setDmWho(who: DmWho): Promise<void> {
   await ensureLoaded()
-  await adoptSetting({ who, at: Math.max(Date.now(), useDmRequests.getState().at + 1) })
+  await adoptSetting({ who, at: stampAfter(useDmRequests.getState().at, clock()) }, undefined, true)
 }
 
 // ── Accept, ignore, block ───────────────────────────────────────────────────
@@ -206,7 +235,10 @@ setDmRequestCheck((peer: string, request: DmRequestFlag | undefined, serverKey: 
 
 onWelcomeHook((serverKey) => void syncServer(serverKey))
 onServerEvent((serverKey, type, body) => {
-  if (type === 'dm.privacy') void adoptSetting(body as Events['dm.privacy'], serverKey)
+  if (type === 'dm.privacy') {
+    noteClock(serverKey, (body as Events['dm.privacy']).now)
+    void adoptSetting(body as Events['dm.privacy'], serverKey)
+  }
   if (type === 'dm.requests.changed') {
     const { accountKey, state } = body as Events['dm.requests.changed']
     if (typeof accountKey !== 'string') return

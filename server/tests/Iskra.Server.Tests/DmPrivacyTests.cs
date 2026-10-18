@@ -184,14 +184,16 @@ public class DmPrivacyTests
         using var alice = await server.JoinAsync("Alice");
         using var bob = await server.JoinAsync("Bob");
         using var carol = await server.JoinAsync("Carol");
-        // Bob and Carol already talk (while Bob took DMs from anyone).
+        // Bob and Carol already talk: Bob wrote back. Alice wrote to him too, but he never answered.
         await Send(carol, bob, "hi");
+        await Send(bob, carol, "hi carol");
+        await Send(alice, bob, "hi bob");
         await SetWho(bob, "known");
 
         var refused = await Send(alice, bob, "hello");
         Assert.Equal("forbidden", refused.ErrorCode());
         Assert.Equal("dm_closed", ErrorKey(refused));
-        Assert.Empty((await bob.RequestAsync("dm.history", new { accountKey = alice.Key })).Body().GetProperty("messages").EnumerateArray());
+        Assert.Single((await bob.RequestAsync("dm.history", new { accountKey = alice.Key })).Body().GetProperty("messages").EnumerateArray());
         Assert.Equal("result", (await Send(carol, bob, "still me")).Type());
         Assert.Equal("result", (await Send(admin, bob, "a word from the staff")).Type());
         Assert.Null(RequestFlag(await WaitFrom(bob, admin.Key)));
@@ -200,7 +202,8 @@ public class DmPrivacyTests
         using var admin2 = await server.JoinAsync("Admin2", "admin");
         Assert.Equal("dm_closed", ErrorKey(await Send(admin2, bob, "hello")));
         Assert.Equal("result", (await Send(carol, bob, "and again")).Type());
-        Assert.Equal("result", (await Send(admin, bob, "already talked")).Type());
+        // The staff exemption was never "talked to": at nobody, the admin can't write either.
+        Assert.Equal("dm_closed", ErrorKey(await Send(admin, bob, "a word from the staff, again")));
         // Bob can still start conversations himself, and that lets the other person answer.
         Assert.Equal("result", (await Send(bob, alice, "hi alice")).Type());
         Assert.Equal("result", (await Send(alice, bob, "hi bob")).Type());
@@ -279,6 +282,8 @@ public class DmPrivacyTests
         }
         for (var i = 0; i < 20; i++)
             Assert.Equal("result", (await sessions[i % 3].RequestAsync("dm.send", new { accountKey = people[i], envelope = Envelope("hi") })).Type());
+        // A decision the recipient made ahead of time (ignored, here) doesn't make it any less new for the sender.
+        store.SetDmContact(people[20], alice.Key, Iskra.Server.Storage.DmContactState.Ignored, Now);
         var limited = await alice.RequestAsync("dm.send", new { accountKey = people[20], envelope = Envelope("hi") });
         Assert.Equal("rate_limited", limited.ErrorCode());
         Assert.Equal("dm_new_limit", ErrorKey(limited));
@@ -311,6 +316,8 @@ public class DmPrivacyTests
         hub.Interactions.Start(bot.Key, bob.Key, server.General, "command", "help", null, null, isPrivate: false);
         Assert.Equal("result", (await bot.RequestAsync("dm.send", new { accountKey = bob.Key, envelope = Envelope("help") })).Type());
         Assert.Null(RequestFlag(await bob.EventAsync("dm.message")));
+        // Only for now: it never makes the bot someone Bob talked to.
+        Assert.NotEqual(Iskra.Server.Storage.DmContactState.Accepted, server.World.Store.DmContact(bob.Key, bot.Key));
 
         // Writing to a bot is always allowed, and accepts its DMs.
         Assert.Equal("result", (await alice.RequestAsync("dm.send", new { accountKey = bot.Key, envelope = Envelope("/help") })).Type());
@@ -330,7 +337,11 @@ public class DmPrivacyTests
         Assert.Equal("known", stale.GetProperty("who").GetString());
         Assert.Equal(now, stale.GetProperty("at").GetInt64());
         Assert.Equal("bad_request", (await alice.RequestAsync("dm.privacy.set", new { who = "friends", at = now + 1 })).ErrorCode());
-        Assert.Equal("bad_request", (await alice.RequestAsync("dm.privacy.set", new { who = "anyone", at = now + 3_600_000 })).ErrorCode());
+        var future = await alice.RequestAsync("dm.privacy.set", new { who = "anyone", at = now + 3_600_000 });
+        Assert.Equal("bad_request", future.ErrorCode());
+        Assert.Equal("clock_off", ErrorKey(future));
+        // The server tells apps its clock, so they can stamp changes it takes.
+        Assert.InRange((await alice.RequestAsync("dm.privacy.get")).Body().GetProperty("now").GetInt64(), now - 60_000, now + 60_000);
         Assert.Equal("bad_request", (await alice.RequestAsync("dm.privacy.set", new { who = "anyone" })).ErrorCode());
         // Accept and ignore take members other than yourself.
         Assert.Equal("bad_request", (await alice.RequestAsync("dm.requests.accept", new { accountKey = alice.Key })).ErrorCode());
@@ -354,5 +365,64 @@ public class DmPrivacyTests
         Assert.Equal("requests", data.GetProperty("dmPrivacy")[0].GetProperty("who").GetString());
         var row = data.GetProperty("dmRequests").EnumerateArray().Single(r => r.GetProperty("peer_key").GetString() == alice.Key);
         Assert.Equal(0, row.GetProperty("state").GetInt64());
+    }
+
+    [Fact]
+    public async Task A_waiting_request_or_an_ignored_one_is_refused_once_the_setting_closes()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        using var carol = await server.JoinAsync("Carol");
+        await SetWho(bob, "requests");
+        Assert.Equal("result", (await Send(alice, bob, "hello")).Type()); // a request
+        await bob.RequestAsync("dm.requests.ignore", new { accountKey = carol.Key }); // ignored ahead of time
+
+        await SetWho(bob, "nobody");
+        Assert.Equal("dm_closed", ErrorKey(await Send(alice, bob, "still there?")));
+        Assert.Equal("dm_closed", ErrorKey(await Send(carol, bob, "hi")));
+        await SetWho(bob, "known");
+        Assert.Equal("dm_closed", ErrorKey(await Send(alice, bob, "and now?")));
+        Assert.Equal("dm_closed", ErrorKey(await Send(carol, bob, "hi")));
+        // Accepting lets Alice in at any level.
+        await bob.RequestAsync("dm.requests.accept", new { accountKey = alice.Key });
+        Assert.Equal("result", (await Send(alice, bob, "thanks")).Type());
+    }
+
+    [Fact]
+    public async Task Going_straight_in_by_default_or_as_staff_never_counts_as_talked_to()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        // Before Bob's setting reached this server (default: anyone), Alice's DM went straight in.
+        Assert.Equal("result", (await Send(alice, bob, "hi")).Type());
+        await SetWho(bob, "known");
+        Assert.Equal("dm_closed", ErrorKey(await Send(alice, bob, "hi again")));
+
+        // Staff go straight through at "requests" only while they are staff.
+        await SetWho(bob, "requests", Now + 1);
+        Assert.Equal("result", (await Send(admin, bob, "welcome")).Type());
+        server.World.Store.SetMemberRole(admin.Key, "member");
+        Assert.Equal("result", (await Send(admin, bob, "me again")).Type());
+        Assert.Null(RequestFlag(await WaitFrom(bob, admin.Key)));
+        Assert.Equal("request", RequestFlag(await WaitFrom(bob, admin.Key)));
+    }
+
+    [Fact]
+    public void The_quiet_hours_digest_leaves_out_requests_and_ignored_dms()
+    {
+        using var server = new IskraServer();
+        _ = server.Services; // start it
+        var store = server.World.Store;
+        string Key() => Iskra.Server.Crypto.Ed25519.ToB64u(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        var (bob, alice, carol, dan) = (Key(), Key(), Key(), Key());
+        var now = Now;
+        foreach (var from in new[] { alice, carol, dan }) store.AddDm(from, bob, "{}", now);
+        store.NoteDmWritten(alice, bob, request: true, now);
+        store.NoteDmWritten(carol, bob, request: false, now);
+        store.SetDmContact(bob, dan, Iskra.Server.Storage.DmContactState.Ignored, now);
+        Assert.Equal([carol], store.DmsBetween(bob, now - 1, now + 1).Select(d => d.From).ToArray());
     }
 }

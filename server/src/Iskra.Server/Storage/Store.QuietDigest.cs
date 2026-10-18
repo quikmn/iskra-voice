@@ -34,7 +34,9 @@ public sealed partial class Store
     public List<(string From, int Count)> DmsBetween(string accountKey, long from, long to) =>
         Query("""
             SELECT from_key, COUNT(*) FROM dms
-            WHERE to_key = $a AND from_key <> $a AND created_at >= $from AND created_at < $to GROUP BY from_key;
+            WHERE to_key = $a AND from_key <> $a AND created_at >= $from AND created_at < $to
+              AND from_key NOT IN (SELECT peer_key FROM dm_contacts WHERE account_key = $a AND state IN (0, 2)) -- requests and ignored: never pushed
+            GROUP BY from_key;
             """, r => (r.GetString(0), r.GetInt32(1)), ("$a", accountKey), ("$from", from), ("$to", to));
 
     /// <summary>Group messages from others in [from, to), per sender, in groups the account is in now.</summary>

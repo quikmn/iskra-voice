@@ -1,14 +1,15 @@
 namespace Iskra.Server.Storage;
 
-/// <summary>How one person treats DMs from another on this server (see DmPrivacyFeature).</summary>
-public enum DmContactState { Request = 0, Accepted = 1, Ignored = 2 }
+/// <summary>How one person treats DMs from another on this server (see DmPrivacyFeature). None: no decision yet.</summary>
+public enum DmContactState { Request = 0, Accepted = 1, Ignored = 2, None = 3 }
 
 public sealed partial class Store
 {
     // dm_privacy: who may start a new DM with this account (no row: anyone). Last writer wins by the client's time.
-    // dm_contacts: how account_key treats DMs from peer_key: a request waiting for an answer, accepted (they talked, or
-    // the request was accepted) or ignored. Kept apart from the envelopes, which retention may delete. Conversations
-    // that existed before this feature count as accepted on both sides.
+    // dm_contacts: how account_key treats DMs from peer_key. Accepted only by account_key's own acts (they wrote to
+    // peer_key, or accepted them); a request waiting for an answer; ignored; or none (no decision yet). peer_wrote:
+    // peer_key has written to account_key here (so a later DM isn't a new conversation). Kept apart from the
+    // envelopes, which retention may delete. From conversations before this feature: whoever wrote accepted the other.
     private const string DmPrivacyMigration = """
         CREATE TABLE dm_privacy (
             account_key TEXT PRIMARY KEY,
@@ -19,13 +20,15 @@ public sealed partial class Store
             account_key TEXT NOT NULL,
             peer_key TEXT NOT NULL,
             state INTEGER NOT NULL,
+            peer_wrote INTEGER NOT NULL DEFAULT 0,
             at INTEGER NOT NULL,
             PRIMARY KEY (account_key, peer_key)
         );
-        INSERT OR IGNORE INTO dm_contacts (account_key, peer_key, state, at)
-            SELECT from_key, to_key, 1, MIN(created_at) FROM dms WHERE from_key <> to_key GROUP BY from_key, to_key;
-        INSERT OR IGNORE INTO dm_contacts (account_key, peer_key, state, at)
-            SELECT to_key, from_key, 1, MIN(created_at) FROM dms WHERE from_key <> to_key GROUP BY to_key, from_key;
+        INSERT INTO dm_contacts (account_key, peer_key, state, peer_wrote, at)
+            SELECT from_key, to_key, 1, 0, MIN(created_at) FROM dms WHERE from_key <> to_key GROUP BY from_key, to_key;
+        INSERT INTO dm_contacts (account_key, peer_key, state, peer_wrote, at)
+            SELECT to_key, from_key, 3, 1, MIN(created_at) FROM dms WHERE from_key <> to_key GROUP BY to_key, from_key
+            ON CONFLICT(account_key, peer_key) DO UPDATE SET peer_wrote = 1;
         """;
 
     /// <summary>The person's choice and when it was made; ("anyone", 0) when they never chose.</summary>
@@ -46,17 +49,26 @@ public sealed partial class Store
         }
     }
 
-    /// <summary>How <paramref name="owner"/> treats DMs from <paramref name="peer"/>: null if nothing is recorded.</summary>
-    public DmContactState? DmContact(string owner, string peer) =>
+    /// <summary>How <paramref name="owner"/> treats DMs from <paramref name="peer"/>: None if nothing is recorded.</summary>
+    public DmContactState DmContact(string owner, string peer) =>
         Query("SELECT state FROM dm_contacts WHERE account_key = $o AND peer_key = $p;",
-            r => (DmContactState?)(DmContactState)r.GetInt64(0), ("$o", owner), ("$p", peer)).FirstOrDefault();
+            r => (DmContactState)r.GetInt64(0), ("$o", owner), ("$p", peer)).DefaultIfEmpty(DmContactState.None).First();
 
-    /// <summary>Records a first contact; an existing row stays as it is. Returns true if this call added it.</summary>
-    public bool AddDmContact(string owner, string peer, DmContactState state, long now) =>
-        Convert.ToInt64(Scalar("""
-            INSERT INTO dm_contacts (account_key, peer_key, state, at) VALUES ($o, $p, $s, $now)
-            ON CONFLICT(account_key, peer_key) DO NOTHING RETURNING 1;
-            """, ("$o", owner), ("$p", peer), ("$s", (int)state), ("$now", now)) ?? 0L) == 1;
+    /// <summary>Has <paramref name="from"/> ever written to <paramref name="to"/> here?</summary>
+    public bool DmWrote(string from, string to) =>
+        Scalar("SELECT peer_wrote FROM dm_contacts WHERE account_key = $to AND peer_key = $from;", ("$to", to), ("$from", from)) is long w && w == 1;
+
+    /// <summary>
+    /// <paramref name="from"/> wrote to <paramref name="to"/>: notes it, and with <paramref name="request"/> makes a
+    /// conversation without a decision a request. A decision (accepted, ignored) stays as it is.
+    /// </summary>
+    public void NoteDmWritten(string from, string to, bool request, long now) =>
+        Exec("""
+            INSERT INTO dm_contacts (account_key, peer_key, state, peer_wrote, at) VALUES ($to, $from, $state, 1, $now)
+            ON CONFLICT(account_key, peer_key) DO UPDATE SET peer_wrote = 1,
+                state = CASE WHEN dm_contacts.state = 3 AND $req = 1 THEN 0 ELSE dm_contacts.state END,
+                at = CASE WHEN dm_contacts.state = 3 AND $req = 1 THEN $now ELSE dm_contacts.at END;
+            """, ("$to", to), ("$from", from), ("$state", request ? 0 : 3), ("$req", request ? 1 : 0), ("$now", now));
 
     /// <summary>Sets the state (accept, ignore, or "they wrote back"). Returns true if it changed.</summary>
     public bool SetDmContact(string owner, string peer, DmContactState state, long now) =>
@@ -75,12 +87,12 @@ public sealed partial class Store
             SELECT c.peer_key, c.state, c.at,
                    COALESCE((SELECT MAX(id) FROM dms WHERE from_key = c.peer_key AND to_key = c.account_key), 0) AS last_id,
                    COALESCE((SELECT MAX(created_at) FROM dms WHERE from_key = c.peer_key AND to_key = c.account_key), 0)
-            FROM dm_contacts c WHERE c.account_key = $o AND c.state <> 1
+            FROM dm_contacts c WHERE c.account_key = $o AND c.state IN (0, 2)
             ORDER BY last_id DESC, c.at DESC LIMIT $limit;
             """, r => (r.GetString(0), (DmContactState)r.GetInt64(1), r.GetInt64(2), r.GetInt64(3), r.GetInt64(4)),
             ("$o", owner), ("$limit", limit));
 
-    /// <summary>The people whose DMs <paramref name="owner"/> hasn't accepted (requests and ignored).</summary>
+    /// <summary>The people whose DMs <paramref name="owner"/> holds as requests or ignored.</summary>
     public HashSet<string> DmUnaccepted(string owner) =>
-        Query("SELECT peer_key FROM dm_contacts WHERE account_key = $o AND state <> 1;", r => r.GetString(0), ("$o", owner)).ToHashSet();
+        Query("SELECT peer_key FROM dm_contacts WHERE account_key = $o AND state IN (0, 2);", r => r.GetString(0), ("$o", owner)).ToHashSet();
 }

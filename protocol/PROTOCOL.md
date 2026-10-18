@@ -4745,58 +4745,66 @@ counter are set to null when they leave; a counting row goes with its channel).
 
 ## Who can message me and message requests
 
-Each person chooses who may write to them first. The server enforces it on `dm.send` (and calls, DM disappearing
-timers and group adds); it never takes the sender's word for anything but their signed identity.
+Each person chooses who may write to them. The server enforces it on every `dm.send` (and calls, DM disappearing
+timers and group adds), deciding afresh each time; it never takes the sender's word for anything but their signed
+identity.
 
-| `who` | A first DM from someone you haven't talked to |
+| `who` | A DM from someone you haven't accepted |
 |---|---|
-| `anyone` (default) | goes straight to your DMs, as before |
+| `anyone` (default) | goes straight to your DMs, as before (a request still waiting stays one) |
 | `requests` | arrives as a **message request**; from server staff it goes straight to your DMs |
 | `known` | is refused, except from server staff |
 | `nobody` | is refused, staff included |
 
-**Talked to** means, per server: you wrote to them (anything but a quiet `silent` DM), you accepted their request, or
-they wrote to you while their DM went straight in (any of the levels above, or before this existed: conversations that
-existed then count on both sides). **Staff** are members who can moderate (manage messages, time out, kick or ban:
-moderators, admins, the owner), never bots. Staff who can't DM someone can still moderate them as usual.
+**Accepted** ("people I've talked to") comes only from your own acts, per server: you wrote to them (anything but a
+quiet `silent` DM) or accepted their request. A DM that went straight in because of your setting, or a staff or bot
+exemption, never makes its sender accepted. Conversations from before this feature: whoever wrote accepted the other.
+**Staff** are members who can moderate now (manage messages, time out, kick or ban: moderators, admins, the owner),
+never bots; it's checked on each DM, so it ends with the role. Staff who can't DM someone can still moderate them.
+**Ignored** people: at `known` and `nobody` refused like anyone not accepted; otherwise their DMs arrive marked ignored.
 
 | type | body | result | who |
 |---|---|---|---|
-| `dm.privacy.get` | | `{ who, at }` (`at`: 0 if never set) | yourself |
-| `dm.privacy.set` | `who` (`anyone`, `requests`, `known` or `nobody`), `at` (ms; ≥ 1, at most 10 minutes ahead of the server) | `{ who, at }` (what is stored afterwards) | yourself |
+| `dm.privacy.get` | | `{ who, at, now }` (`at`: 0 if never set; `now`: the server's clock, ms) | yourself |
+| `dm.privacy.set` | `who` (`anyone`, `requests`, `known` or `nobody`), `at` (ms; ≥ 1; more than 10 minutes ahead of the server is `bad_request`, key `clock_off`) | `{ who, at, now }` (what is stored afterwards) | yourself |
 | `dm.requests.list` | | `{ requests: [{ accountKey, state, at, lastId, lastAt }] }` (≤ 200, newest first; `state`: `request` or `ignored`; `lastId`/`lastAt`: their newest DM to you, 0 if gone) | yourself |
 | `dm.requests.accept` | `accountKey` (a member here, not yourself) | `{ accountKey, state: "accepted" }` | yourself |
 | `dm.requests.ignore` | `accountKey` (a member here, not yourself) | `{ accountKey, state: "ignored" }` | yourself |
 
 - **The setting** is last-writer-wins by `at`, like ["DMs from bots"](#bot-dms): apps keep it on the device and hand it
-  to every server they're on. It's account-wide, not per server: a conversation is with a person across every server you
-  share, so a per-server choice would only be as strict as the most open server. Event `dm.privacy { who, at }` goes to
-  the account's other sessions here after a change.
+  to every server they're on. Apps stamp a change by the servers' clock (`now`), so a device whose clock runs ahead
+  still gets its choice taken, and they say so when a server refuses one. It's account-wide, not per server: a
+  conversation is with a person across every server you share, so a per-server choice would only be as strict as the
+  most open server. Event `dm.privacy { who, at, now }` goes to the account's other sessions here after a change.
 - **Requests:** a DM that is a request (or from someone you ignored) is stored and relayed like any DM, but your copy of
-  the event is `dm.message { message, request: "request" | "ignored" }`, it is never [pushed](#push-notifications-web-push),
-  and `dm.conversations` leaves the person out (`dm.requests.list` has them; `dm.history` works as usual). Apps keep
-  it out of the DM list, play no sound, and show only the sender's name in the list; opened, the text shows as plain
-  text, without links, previews or files, until you accept.
-- **Accept** moves them to your DMs (also done by writing to them). **Ignore** keeps their DMs out of sight; more of
-  them arrive marked `ignored`. Either may be set for any member, ahead of time too. Event `dm.requests.changed
-  { accountKey, state }` goes to your other sessions here (and to all of them when writing to someone accepts them).
-  Apps send accept and ignore to every server they share with the person. Blocking ([Blocking](#blocking)) works as
-  always; apps also ignore the request.
+  the event is `dm.message { message, request: "request" | "ignored" }`, it is never [pushed](#push-notifications-web-push)
+  (nor counted in the [quiet hours digest](#quiet-hours-digest)), and `dm.conversations` leaves the person out
+  (`dm.requests.list` has them; `dm.history` works as usual). Apps keep it out of the DM list, play no sound, and show
+  only the sender's name in the list; opened, the text shows as plain text, without links, previews or files, until
+  you accept.
+- **Accept** moves them to your DMs (also done by writing to them). **Ignore** keeps their DMs out of sight. Either may
+  be set for any member, ahead of time too. Event `dm.requests.changed { accountKey, state }` goes to your other
+  sessions here (and to all of them when writing to someone accepts them). Apps send accept and ignore to every server
+  they share with the person. Blocking ([Blocking](#blocking)) works as always; apps also ignore the request.
 - **The sender is never told.** Their result, their own copy of the event, `dm.history` and `dm.conversations` are the
-  same for a DM that went straight in, a request, an ignored one or an accepted one. What a sender can learn: a refused
-  first DM (`forbidden`, key `dm_closed`, the same for `known` and `nobody`), and that calls and group adds are refused
-  until the recipient accepts (see below); never whether a request was seen or ignored.
-- **Calls, disappearing timers and group adds** need the other person to have accepted you, or to take a first DM from
-  you straight in: else `call.start` is `forbidden` (key `call_closed`), `disappear.set` for a DM `forbidden`
-  (`dm_closed`), and `group.create`/`group.change` adding them `forbidden` (`group_closed`, `args: { name }`).
-- **Bots:** a bot's first DM follows the person's setting like anyone's (on top of ["DMs from bots"](#bot-dms)), except
-  when the person used one of the bot's commands or buttons in the last 15 minutes ([interactions](#bot-interactions));
-  then it goes straight in. Writing to a bot is always allowed and accepts its DMs.
-- **Limits:** starting a new conversation (a first DM someone takes, as a request or not) is limited per account to 20,
-  then 20 an hour (`rate_limited`, key `dm_new_limit`; staff aren't limited, bots have `bot_dm_new_limit`). Messages in
-  conversations already started only have `dm.send`'s own limits. `dm.requests.accept`/`ignore`: 20 at once, 2 a second
-  per session; `dm.privacy.set`: 10, then 1 a second.
+  same for a DM that went straight in, a request, an ignored one or an accepted one. A refused DM is `forbidden`
+  (`dm_closed`), the same for `known` and `nobody` and for a waiting request or an ignored one. Calls and group adds
+  are refused until the recipient accepts, the same for a request and an ignored one; whether a request was seen,
+  waits or was ignored never shows.
+- **Calls, disappearing timers and group adds** need the other person to take your DM straight in (accepted, or allowed
+  by their setting or a staff exemption): else `call.start` is `forbidden` (key `call_closed`), `disappear.set` for a
+  DM `forbidden` (`dm_closed`), and `group.create`/`group.change` adding them `forbidden` (`group_closed`, `args: { name }`).
+- **Bots:** a bot's DM follows the person's setting like anyone's (on top of ["DMs from bots"](#bot-dms)), except
+  while the person used one of the bot's commands or buttons in the last 15 minutes ([interactions](#bot-interactions)):
+  then it goes straight in at any level, `nobody` included, and that never makes the bot accepted. Writing to a bot
+  is always allowed and accepts its DMs.
+- **Limits:** a new conversation (neither of the two has written to the other on this server) is limited per account
+  to 20, then 20 an hour (`rate_limited`, key `dm_new_limit`; staff aren't limited, bots have `bot_dm_new_limit`). It
+  depends only on what the two of them wrote, never on the recipient's accept or ignore. Messages in conversations
+  already started only have `dm.send`'s own limits. `dm.requests.accept`/`ignore`: 20 at once, 2 a second per
+  session; `dm.privacy.set`: 10, then 1 a second.
 - Storage (migration `dmprivacy-1`): `dm_privacy` (account, who, at) and `dm_contacts` (account, the other person,
-  state: request, accepted or ignored, since when). Both are in "Download my data" (`dmPrivacy`, `dmRequests`), follow
-  an [account key rotation](#account-key-rotation) and are deleted with the account (rows about you in other people's
+  state: request, accepted, ignored or none, whether the other person wrote here, since when). Both are in "Download
+  my data" (`dmPrivacy`, `dmRequests`: your own rows only, never other people's decisions about you), follow an
+  [account key rotation](#account-key-rotation) and are deleted with the account (rows about you in other people's
   lists too).
