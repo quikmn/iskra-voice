@@ -16,7 +16,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports) · [Backup buddies](#backup-buddies)
 - **Safety:** [Blocking, timeouts, slowmode and the audit log](#safety-and-moderation) · [Roles and permissions](#roles-and-permissions) · [Built-in roles](#built-in-roles) · [Reliable sends](#reliable-sends) · [AutoMod](#automod) · [Security log, retention and your data](#security-log-retention-and-your-data)
-- **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server) · [Passkeys and key transparency](#passkeys-and-key-transparency)
+- **Keys:** [Account key rotation](#account-key-rotation) · [Keys on the device](#keys-on-the-device) · [Leaving a server and signing out](#leaving-a-server-and-signing-out) · [Reports, deleting an account and handing over a server](#reports-deleting-an-account-and-handing-over-a-server) · [Passkeys and key transparency](#passkeys-and-key-transparency) · [Several accounts on one device](#several-accounts-on-one-device)
 
 ---
 
@@ -4930,3 +4930,37 @@ encrypted channels asks everyone first. Web and phone apps show the mark and the
 - **Rate limits:** `voice.record.start`/`stop` 6, then one every 20 s; `voice.record.optout`/`consent` 10, then one
   every 2 s (`rate_limited`, key `record_slow`). Changing nothing (`optOut` already set) isn't counted.
 - **DM and group calls** can't be recorded (they don't go through voice channels).
+
+## Several accounts on one device
+
+Local only: nothing new goes over the wire. Each signed-in account is the same app with its own identity and its own
+connections, exactly like a second device; servers can't tell that two accounts share a device.
+
+- **Slots.** Each account on a device has a slot number (1 to 5; 1 to 3 in the phone apps). Its IndexedDB databases are
+  `iskra@<n>` and `iskra-transcripts@<n>`, and its localStorage and sessionStorage keys are `iskra@<n>:<key>`. Slot 1 keeps
+  the names from before there were several accounts (`iskra`, plain keys), so an existing install is account 1 with nothing
+  moved. Each slot has its own vault and data key ([Keys on the device](#keys-on-the-device)), so each account's app lock,
+  passkeys and keychain wrap are its own. Only the language and theme (`iskra.language`, `iskra.theme`) belong to the device.
+- **The list** (`localStorage["iskra-accounts"]`, never sealed: no secrets): `{ v: 1, active, order: [slot…], accounts:
+  { [slot]: { slot, name?, key?, adding?: "new" | "link" } } }`, with each account's display name (≤ 64) and public account
+  key, for the switcher before an account's page has loaded. A device without it has account 1 alone.
+- **Pages.** With one account, the page is that account's app. With several, the top page holds one same-origin frame per
+  account (`?account=<n>`) and keeps no account data itself. Before anything else runs, a frame's localStorage and
+  sessionStorage are replaced by views that only reach its own keys (device keys pass through; the list and other slots'
+  keys can't be read or written). A frame only gets its link to the top page if it is the frame that page made for that slot.
+- **Push.** A slot's push registrations use the scope `/push/a<n>/<serverKey>/` (`/push/<serverKey>/` for slot 1), so two
+  accounts on one server each have their own subscription. A notification click tells the top page which slot it's for.
+- **Voice.** One account per device in voice at a time: joining voice as one account makes the account in voice leave first
+  (it shows why, with "Join here"). The same account on two devices is LiveKit's `DUPLICATE_IDENTITY`: the device that was in
+  voice shows "Moved to your other device" with "Join here", never an error.
+- **Signing out** one account revokes that device on its servers and deletes its slot's databases and keys; the others stay.
+- **Links from outside.** An invite or a notification link asks which account it's for (unless it names one). A device
+  link (`#/link/…`) never adds an account by itself: the person first confirms "Link this device to another account?"
+  (Cancel is the default), and the new account's page waits for them to press "Link this device". A frame that names an
+  account (`?account=`) without the top page's link for it runs nothing.
+- **What belongs to the device, not an account.** The desktop app's own state is shared by every account on it: servers
+  hosted on this computer (only the account that made one sees its one-time owner invite), bots on this PC and the invite
+  links given to them, a DigitalOcean token while renting a server, the desktop settings (start with the computer, close
+  to tray, hotkeys' key hook, game activity), the assistant's provider address (set again before each account's request)
+  and the local MCP bridge, which serves the account on screen: when another account comes on screen, connected MCP
+  clients are dropped and must connect again. Pop-out window names carry the slot, so accounts never share a pop-out.

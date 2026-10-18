@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { autostartEntry, badgeText, compareVersions, macCanReplaceItself, macSigning, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
+import { appResponseHeaders, autostartEntry, badgeText, compareVersions, macCanReplaceItself, macSigning, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -265,4 +265,11 @@ test('update checks are on unless turned off', () => {
   assert.equal(parseDesktopSettings({}).updateChecks, true)
   assert.equal(parseDesktopSettings({ updateChecks: false }).updateChecks, false)
   assert.equal(parseDesktopSettings({ updateChecks: 'no' }).updateChecks, true)
+})
+
+test("only the app frames its own pages (a frame per account), never another site", () => {
+  const out = appResponseHeaders(new Headers({ 'Content-Type': 'text/html', 'Content-Security-Policy': "frame-ancestors *" }))
+  assert.equal(out.get('content-security-policy'), "frame-ancestors 'self'")
+  assert.equal(out.get('x-frame-options'), 'SAMEORIGIN')
+  assert.equal(out.get('content-type'), 'text/html')
 })

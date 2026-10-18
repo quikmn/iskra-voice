@@ -23,6 +23,7 @@ import { watch } from './watch'
 import { expressions } from './expressions'
 import { friends } from './friends'
 import { account } from './account'
+import { accounts } from './accounts'
 import { safety } from './safety'
 import { productivity } from './productivity'
 import { docs } from './docs'
@@ -96,6 +97,7 @@ export const en = {
   expressions,
   friends,
   account,
+  accounts,
   safety,
   productivity,
   docs,

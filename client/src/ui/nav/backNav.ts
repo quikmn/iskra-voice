@@ -3,6 +3,7 @@
 // the channels drawer, and on the drawer it goes back to the channel; a second back within two seconds leaves.
 import { create } from 'zustand'
 import { native } from '../../platform/native'
+import { accountLink } from '../../platform/accountBoot'
 import { topLayer } from '../layers'
 import { backAction, EXIT_WINDOW_MS, type BackAction } from './navLogic'
 
@@ -119,6 +120,14 @@ export function installBackNav(): void {
     ;(window as unknown as { __iskraNativeBack?: () => void }).__iskraNativeBack = () => {
       if (pressBack() === 'exit') leaveApp()
     }
+  }
+  if (accountLink && !native) {
+    // Next to other accounts on this device the host page keeps the history entry and asks the account on screen.
+    accountLink.setBack(() => {
+      const wide = !drawer || !phoneWidth()
+      return (wide && !topLayer()) || pressBack() === 'exit' ? 'exit' : 'handled'
+    })
+    return
   }
   if (native) {
     // A listener replaces Capacitor's default (go back in the web view, or quit).

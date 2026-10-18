@@ -9,6 +9,7 @@ import { desktop } from '../platform/desktop'
 import { callLog, callLogText, checkInvite, isBusy, reduce, type CallEvent, type CallInfo, type EndReason } from './callMachine'
 import { encryptFor, nameOf, openConversation, sendDm, sharedServers } from './dms'
 import { useNotify } from './notify'
+import { focusThisAccount, notificationTitle } from './accountFocus'
 import { isDoNotDisturb } from './presence'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { joinCall, leaveVoice, useVoice } from './voice'
@@ -269,7 +270,7 @@ useCalls.subscribe((state, prev) => {
     if (!quiet) void desktop?.callAlert?.(true)
     const call = state.call!
     if (!quiet && !document.hasFocus() && useNotify.getState().desktop && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      notification = new Notification(t('calls.isCalling', { name: nameOf(call.peer) }), {
+      notification = new Notification(notificationTitle(t('calls.isCalling', { name: nameOf(call.peer) })), {
         body: call.video ? t('calls.notifyVideo') : t('calls.notifyVoice'),
         tag: 'iskra-call',
         requireInteraction: true,
@@ -277,6 +278,7 @@ useCalls.subscribe((state, prev) => {
       })
       notification.onclick = () => {
         window.focus()
+        focusThisAccount()
         notification?.close()
       }
     }

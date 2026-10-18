@@ -89,8 +89,13 @@ interface VoiceState {
   resumeOffer: { camera: boolean; screen: boolean } | null
   /** Why the last voice session ended (null: none yet). */
   leftReason: VoiceLeftReason | null
-  /** A calm note after a session that ended without you leaving: you joined on another device. */
-  notice: 'other_device' | null
+  /**
+   * A calm note after a session that ended without you leaving: you joined on another device, or another account on
+   * this device joined voice (`noticeName`: its name). `noticeWhere`: the voice channel it was, for "Join here".
+   */
+  notice: 'other_device' | 'other_account' | null
+  noticeName: string | null
+  noticeWhere: { serverKey: string; channelId: number } | null
 }
 
 /** A voice or stage channel to get back into after the connection dropped (state/resume.ts acts on it). */
@@ -144,6 +149,8 @@ export const useVoice = create<VoiceState>(() => ({
   resumeOffer: null,
   leftReason: null,
   notice: null,
+  noticeName: null,
+  noticeWhere: null,
 }))
 
 let pendingResume: VoiceResume | null = null
@@ -502,13 +509,23 @@ export async function setCallKey(key: Uint8Array, index: number): Promise<boolea
   return true
 }
 
+/**
+ * Several accounts on this device (state/accounts.ts): one microphone, so joining voice here makes any other account
+ * here leave voice first.
+ */
+let voiceGate: () => void = () => {}
+export function setVoiceGate(gate: () => void): void {
+  voiceGate = gate
+}
+
 async function connect(
   session: VoiceSession,
   target: () => Promise<{ url: string; token: string; channelId?: number; canSpeak: boolean; afk?: boolean; whisper?: boolean; priority?: boolean }>,
   options: { e2eeKey?: Uint8Array; groupKey?: VoiceKeys | 'later'; camera?: boolean; stageOpen?: boolean } = {},
 ): Promise<boolean> {
+  voiceGate()
   useVoice.setState({
-    session, error: null, speaking: {}, tiles: [], stageOpen: options.stageOpen ?? (!session.call && !session.group), camera: false, screen: false,
+    notice: null, noticeName: null, noticeWhere: null, session, error: null, speaking: {}, tiles: [], stageOpen: options.stageOpen ?? (!session.call && !session.group), camera: false, screen: false,
   })
 
   try {
@@ -827,9 +844,13 @@ async function permissionsChanged(current: Room): Promise<void> {
   reportFlags()
 }
 
-async function cleanup(reason: VoiceLeftReason = 'user'): Promise<void> {
+async function cleanup(reason: VoiceLeftReason = 'user', noticeName: string | null = null): Promise<void> {
   const old = room
-  const ending = !!useVoice.getState().session
+  const was = useVoice.getState().session
+  const ending = !!was
+  // Voice moved elsewhere (another device, another account here): where it was, for "Join here" (channels only).
+  const where = was && !was.call && !was.group ? { serverKey: was.serverKey, channelId: was.channelId } : null
+  const moved = reason === 'other_device' || reason === 'other_account'
   const worker = e2eeWorker
   room = null
   void desktop?.p2p?.voice?.(false).catch(() => undefined) // back to a socket per adapter (a no-op unless voice was through a tunnel)
@@ -845,7 +866,7 @@ async function cleanup(reason: VoiceLeftReason = 'user'): Promise<void> {
   useVoice.setState({
     session: null, speaking: {}, tiles: [], stageOpen: false, camera: false, screen: false, localSpeaking: false,
     micEngine: null, aiLoad: null, cleanEngine: null, processingIncoming: false, hifi: false, resumeOffer: null,
-    ...(ending ? { leftReason: reason, notice: reason === 'other_device' ? 'other_device' as const : null } : {}),
+    ...(ending ? { leftReason: reason, notice: moved ? reason : null, noticeName: moved ? noticeName : null, noticeWhere: moved ? where : null } : {}),
   })
   if (old && old.state !== lk().ConnectionState.Disconnected) await old.disconnect()
   worker?.terminate()
@@ -856,6 +877,21 @@ export async function leaveVoice(reason: VoiceLeftReason = 'user'): Promise<void
   pendingResume = null // left (or went somewhere else) on purpose
   for (const listener of leftListeners) listener()
   await cleanup(reason)
+}
+
+/** Another account on this device joined voice (`joinedAs`: its name): leave, and say so calmly. */
+export async function leaveVoiceForAccount(joinedAs: string): Promise<void> {
+  if (!useVoice.getState().session) return
+  pendingResume = null
+  for (const listener of leftListeners) listener()
+  await cleanup('other_account', joinedAs)
+}
+
+/** "Join here" on the note after voice moved away: back into that channel (and voice moves here again). */
+export async function joinHere(): Promise<void> {
+  const where = useVoice.getState().noticeWhere
+  useVoice.setState({ notice: null, noticeName: null, noticeWhere: null })
+  if (where) await joinVoice(where.serverKey, where.channelId)
 }
 
 export function setStageOpen(open: boolean): void {
@@ -1029,5 +1065,5 @@ export function clearVoiceError(): void {
 }
 
 export function clearVoiceNotice(): void {
-  useVoice.setState({ notice: null })
+  useVoice.setState({ notice: null, noticeName: null, noticeWhere: null })
 }

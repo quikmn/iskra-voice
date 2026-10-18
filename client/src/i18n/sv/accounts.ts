@@ -1,0 +1,58 @@
+// accounts-text (svenska): flera konton i en app (kontoväljaren, lägga till konton, länkar). Samma nycklar som ../en/accounts.ts.
+export const accounts = {
+  switcher: {
+    label: 'Konton. Inloggad som {{name}}',
+    title: 'Konton',
+    current: 'Visas nu',
+    unread_one: '{{count}} oläst',
+    unread_other: '{{count}} olästa',
+    otherUnread_one: '{{count}} oläst på dina andra konton',
+    otherUnread_other: '{{count}} olästa på dina andra konton',
+    inVoice: 'I röstkanal',
+    locked: 'Låst',
+    settingUp: 'Läggs till',
+    switchTo: 'Byt till {{name}}',
+    moveUp: 'Flytta upp {{name}}',
+    moveDown: 'Flytta ner {{name}}',
+    add: 'Lägg till konto',
+    addNew: 'Skapa ett nytt konto',
+    addNewHint: 'Ett separat konto med eget namn, egna servrar och meddelanden.',
+    addExisting: 'Använd ett konto jag redan har',
+    addExistingHint: 'Länka det från en annan enhet, eller använd dess återställningsnyckel.',
+    full: 'Den här enheten har {{count}} inloggade konton, det är max.',
+    restartNote: 'Iskra startar om en gång för att lägga till kontot.',
+    restartVoiceNote: 'Iskra startar om en gång för att lägga till kontot, så du lämnar röstkanalen.',
+    signOut: 'Logga ut från {{name}}…',
+    unnamed: 'Nytt konto',
+  },
+  adding: {
+    cancelPlain: 'Avbryt',
+  },
+  chooser: {
+    title: 'Vilket konto?',
+    invite: 'Du öppnade en inbjudan. Vilket konto ska gå med?',
+    open: 'Vilket konto ska öppna länken?',
+    cancel: 'Avbryt',
+  },
+  linking: {
+    title: 'Länka den här enheten till ett annat konto?',
+    body: 'En länk för att länka en enhet öppnade Iskra. Fortsätt bara om du själv började länka ett konto till den här enheten: det lägger till kontot här, bredvid ditt.',
+    add: 'Lägg till kontot',
+    cancel: 'Avbryt',
+  },
+  duplicate: {
+    title: 'Redan inloggad här',
+    body: 'Det här kontot är redan inloggat på den här enheten. Iskra har bara en kopia av varje konto.',
+    switch: 'Gå till det',
+  },
+  voice: {
+    leftAs: 'Lämnade röstkanalen som {{name}}: bara ett konto i taget kan vara i en röstkanal.',
+  },
+  ringing: {
+    title: '{{caller}} ringer {{account}}',
+    switch: 'Byt',
+  },
+  notifyTitle: '{{title}} · {{account}}',
+  frameTitle: 'Iskra: {{name}}',
+  unsupported: 'Den här webbläsaren kan inte hålla isär dina konton. Använd skrivbordsappen, eller ha ett konto i den här webbläsaren.',
+} as const

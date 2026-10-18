@@ -8,17 +8,18 @@ const ORIGIN = 'https://app.iskra.foo'
 
 interface FakeClient {
   url: string
+  frameType?: string
   postMessage: ReturnType<typeof vi.fn>
   focus: ReturnType<typeof vi.fn>
 }
 
-function worker(windows: FakeClient[] = [], script = 'push-sw.js') {
+function worker(windows: FakeClient[] = [], script = 'push-sw.js', scope = `${ORIGIN}/push/${SERVER}/`) {
   const listeners: Record<string, (event: unknown) => void> = {}
   const shown: { title: string; options: Record<string, unknown> }[] = []
   const self = {
     location: new URL(`${ORIGIN}/${script}`),
     registration: {
-      scope: `${ORIGIN}/push/${SERVER}/`,
+      scope,
       showNotification: vi.fn(async (title: string, options: Record<string, unknown>) => void shown.push({ title, options })),
       pushManager: { subscribe: vi.fn(async () => ({})) },
     },
@@ -104,7 +105,7 @@ describe('push service worker', () => {
     const app = { url: `${ORIGIN}/`, postMessage: vi.fn(), focus: vi.fn(async () => undefined) }
     const w = worker([app])
     await w.click(`/open/${SERVER}/c/7`)
-    expect(app.postMessage).toHaveBeenCalledWith({ type: 'iskra.open', route: `/open/${SERVER}/c/7` })
+    expect(app.postMessage).toHaveBeenCalledWith({ type: 'iskra.open', route: `/open/${SERVER}/c/7`, account: 1 })
     expect(app.focus).toHaveBeenCalled()
     expect(w.self.clients.openWindow).not.toHaveBeenCalled()
   })
@@ -113,6 +114,27 @@ describe('push service worker', () => {
     const w = worker()
     await w.click(`/open/${SERVER}/dm/${PEER}`)
     expect(w.self.clients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/#/open/${SERVER}/dm/${PEER}`)
+  })
+
+  it("names the account a push is for (several accounts on one device), and tells the top page, not an account's frame", async () => {
+    const frame = { url: `${ORIGIN}/?account=2`, frameType: 'nested', postMessage: vi.fn(), focus: vi.fn(async () => undefined) }
+    const top = { url: `${ORIGIN}/`, frameType: 'top-level', postMessage: vi.fn(), focus: vi.fn(async () => undefined) }
+    const w = worker([frame, top], 'push-sw.js', `${ORIGIN}/push/a2/${SERVER}/`)
+    await w.push(mention)
+    expect(w.shown[0].options.tag).toBe(`${SERVER}:c:7`)
+    await w.click(`/open/${SERVER}/c/7`)
+    expect(top.postMessage).toHaveBeenCalledWith({ type: 'iskra.open', route: `/open/${SERVER}/c/7`, account: 2 })
+    expect(frame.postMessage).not.toHaveBeenCalled()
+
+    // Security review M2: a push naming another server than the scope's is never shown as that server's (account 2+ too).
+    const other = worker([], 'push-sw.js', `${ORIGIN}/push/a2/${SERVER}/`)
+    await other.push({ ...mention, server: 'X'.repeat(43), title: 'Spoofed', body: 'from elsewhere' })
+    expect(other.shown[0].title).toBe('Iskra')
+    expect(other.shown[0].options.data).toEqual({ route: '/' })
+
+    const closed = worker([], 'push-sw.js', `${ORIGIN}/push/a2/${SERVER}/`)
+    await closed.click(`/open/${SERVER}/c/7`)
+    expect(closed.self.clients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/?account=2#/open/${SERVER}/c/7`)
   })
 
   it('shows pushes in Swedish when the app is in Swedish, from the names the server gives its texts', async () => {

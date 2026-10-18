@@ -21,6 +21,7 @@ import { InboxButton } from './productivity/InboxButton'
 import { AssistantButton } from './assistant/AssistantPanel'
 import { UpdateRailButton } from './UpdateToast'
 import { isMenuKey, treeKeys, useRoving } from './roving'
+import { AccountSwitcher } from './accounts/AccountSwitcher'
 import './organize/organize.css'
 
 type Drag = { kind: 'server' | 'folder'; id: string }
@@ -198,6 +199,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
       <button className="server-icon add" title={t('app.rail.join')} onClick={onJoin} aria-label={t('app.rail.join')}>
         <Plus size={22} />
       </button>
+      <AccountSwitcher onNavigate={onNavigate} />
 
       {menuServer && <ServerMenu server={menuServer} anchor={menu!.anchor} onClose={close} />}
       {menuFolder && (

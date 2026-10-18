@@ -3,6 +3,8 @@
 // ones (DMs, group DMs, encrypted channels): memory only, gone when the app closes, never written to disk in the clear.
 // Transcripts are never uploaded anywhere.
 
+import { slotDbName } from '../../core/accountSlot'
+
 export interface KeptTranscript {
   text: string
   /** When it was made (ms). */
@@ -37,7 +39,9 @@ export function memoryCache(max = MAX_KEPT): TranscriptCache {
   }
 }
 
+/** Per account on this device (core/accountSlot.ts). */
 export const DB_NAME = 'iskra-transcripts'
+const dbName = () => slotDbName(DB_NAME)
 
 function request<T>(r: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -49,7 +53,7 @@ function request<T>(r: IDBRequest<T>): Promise<T> {
 let db: Promise<IDBDatabase> | null = null
 function open(): Promise<IDBDatabase> {
   db ??= (async () => {
-    const req = indexedDB.open(DB_NAME, 1)
+    const req = indexedDB.open(dbName(), 1)
     req.onupgradeneeded = () => req.result.createObjectStore('texts').createIndex('at', 'at')
     return request(req)
   })()
@@ -101,7 +105,7 @@ export async function forgetTranscripts(): Promise<void> {
     open?.close()
     db = null
     await new Promise<void>((resolve) => {
-      const r = indexedDB.deleteDatabase(DB_NAME)
+      const r = indexedDB.deleteDatabase(dbName())
       r.onsuccess = r.onerror = r.onblocked = () => resolve()
     })
   } catch {

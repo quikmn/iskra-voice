@@ -2,6 +2,7 @@
 // Keys only leave this device inside an end-to-end encrypted device link (see core/link.ts).
 // Secrets (keys, prekeys, decrypted DMs) are encrypted at rest with the vault's data key (core/vault.ts).
 import sodium from 'libsodium-wrappers-sumo'
+import { slotDbName } from './accountSlot'
 import { b64u, fromB64u } from './crypto'
 import type { PrekeyPair, Revocation } from './devices'
 import type { DeviceCert, Identity } from './identity'
@@ -11,12 +12,13 @@ import {
   unlockDataKey, withPassphrase, type KeyWrapper, type PasskeySlot, type VaultRecord, type WrapKind,
 } from './vault'
 
-const DB_NAME = 'iskra'
+// One database per account on this device: "iskra" for account 1 (as before several accounts), "iskra@<n>" for others.
+const DB_NAME = () => slotDbName('iskra')
 const STORE = 'kv'
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1)
+    const request = indexedDB.open(DB_NAME(), 1)
     request.onupgradeneeded = () => request.result.createObjectStore(STORE)
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
@@ -484,10 +486,10 @@ export interface RotationOutbox {
 export const loadRotationOutbox = async () => (await get<RotationOutbox[]>('rotation-outbox')) ?? []
 export const saveRotationOutbox = (outbox: RotationOutbox[]) => set('rotation-outbox', outbox)
 
-/** Forgets everything on this device (after it was removed from its account). */
+/** Forgets everything this account kept on this device (after it was removed from its account, or signed out). */
 export function wipeAll(): Promise<void> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(DB_NAME)
+    const request = indexedDB.deleteDatabase(DB_NAME())
     request.onsuccess = () => resolve()
     request.onerror = () => reject(request.error)
     request.onblocked = () => resolve()

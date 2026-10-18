@@ -7,6 +7,7 @@ import type { ChosenStatus, CustomStatus, Member, Presence } from '../core/proto
 import { activeCustom, bestStatus, isNewer, statusOf, type ShownStatus } from './presenceRules'
 import { connectionFor, onServerEvent, onWelcomeHook, setAuthPresence, setInvisibleCheck, useApp } from './store'
 import { senderRules } from './senderRules'
+import { ACCOUNT_INPUT_EVENT } from '../platform/accountLink'
 
 const KEY = 'iskra.presence'
 export const IDLE_AFTER_MS = 10 * 60_000
@@ -134,7 +135,8 @@ export function startPresenceWatch(): () => void {
     last = Date.now()
     if (usePresence.getState().idle) setIdle(false)
   }
-  const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'focus'] as const
+  // Input on another account's page on this device counts too (state/accounts.ts).
+  const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'focus', ACCOUNT_INPUT_EVENT] as const
   for (const e of events) window.addEventListener(e, active, { passive: true })
   const timer = setInterval(() => {
     if (Date.now() - last >= IDLE_AFTER_MS) setIdle(true)

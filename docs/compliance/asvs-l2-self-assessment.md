@@ -170,7 +170,7 @@ Gap: write a short STRIDE-style threat model per component (server, client, desk
 | 14.2 Dependencies | Lock files, Dependabot with cooldown, SBOMs, Scorecard | met |
 | 14.3 Unintended disclosure | No stack traces to clients; server returns only `{"iskra":1,"name":…}` at `/` | met |
 | 14.4 HTTP security headers (server) | `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `frame-ancestors 'none'` / `X-Frame-Options: DENY` except framed profile pages, HSTS on HTTPS; the public page (`GET /` in a browser) has no scripts and a CSP that allows only its own hashed stylesheet and this server's pictures | met |
-| 14.4 HTTP security headers (app.iskra.foo) | `_headers`: `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, COOP ([client/public/_headers](../../client/public/_headers)). **No `Content-Security-Policy`** for the app itself yet | partial |
+| 14.4 HTTP security headers (app.iskra.foo) | `_headers`: `X-Frame-Options: SAMEORIGIN` and `frame-ancestors 'self'` (only the app frames itself: one frame per account when several are signed in), `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, COOP ([client/public/_headers](../../client/public/_headers)). **No `Content-Security-Policy`** for the app itself yet | partial |
 | 14.5 HTTP request header validation | Kestrel defaults; Host-based redirects use the configured public URL | met |
 
 Gaps: add a Content-Security-Policy to app.iskra.foo (and the desktop app's `app://` origin) restricting

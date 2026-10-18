@@ -19,7 +19,7 @@ export function SignOutSection() {
   )
 }
 
-function SignOutDialog({ onClose }: { onClose: () => void }) {
+export function SignOutDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const others = useDevices((s) => s.devices.filter((d) => !d.current).length)
   const loaded = useDevices((s) => s.loaded)

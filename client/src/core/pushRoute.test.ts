@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { messageLink, parseOpenRoute, pushScope, pushSupport, serverOfScope } from './pushRoute'
+import { messageLink, parseOpenRoute, pushScope, pushSupport, serverOfScope, slotOfScope } from './pushRoute'
 
 const S = 'A'.repeat(43)
 const P = 'b'.repeat(42) + '_'
@@ -36,6 +36,14 @@ describe('push routes', () => {
     expect(pushScope(S)).toBe(`/push/${S}/`)
     expect(serverOfScope(`https://app.iskra.foo/push/${S}/`)).toBe(S)
     expect(serverOfScope('https://app.iskra.foo/')).toBeNull()
+    // Each account on the device has its own scopes; account 1 keeps the ones from before several accounts.
+    expect(pushScope(S, 3)).toBe(`/push/a3/${S}/`)
+    expect(serverOfScope(`https://app.iskra.foo/push/a3/${S}/`, 3)).toBe(S)
+    expect(serverOfScope(`https://app.iskra.foo/push/a3/${S}/`, 1)).toBeNull()
+    expect(serverOfScope(`https://app.iskra.foo/push/${S}/`, 3)).toBeNull()
+    expect(slotOfScope(`https://app.iskra.foo/push/a3/${S}/`)).toBe(3)
+    expect(slotOfScope(`https://app.iskra.foo/push/${S}/`)).toBe(1)
+    expect(slotOfScope('https://app.iskra.foo/push/nope/')).toBeNull()
   })
 })
 

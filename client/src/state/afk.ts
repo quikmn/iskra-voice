@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import type { AfkSettings, Events } from '../core/protocol'
 import { desktop } from '../platform/desktop'
+import { ACCOUNT_INPUT_EVENT } from '../platform/accountLink'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { idleFor, nextReport, type IdleReport } from './voiceIdleLogic'
 import { joinVoice, useVoice } from './voice'
@@ -92,7 +93,8 @@ export function startVoiceIdleWatch(): () => void {
     if (reported) check()
   }
   const visible = () => document.visibilityState === 'visible' && active()
-  const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'focus'] as const
+  // Input on another account's page on this device counts too (state/accounts.ts).
+  const events = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'focus', ACCOUNT_INPUT_EVENT] as const
   for (const e of events) window.addEventListener(e, active, { passive: true })
   document.addEventListener('visibilitychange', visible)
   const stopSpeaking = useVoice.subscribe((s, prev) => {

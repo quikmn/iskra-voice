@@ -13,6 +13,8 @@ test('only named pop-outs of the four kinds', () => {
   assert.deepEqual(parsePopoutName('iskra-popout-stream-a1b2'), { kind: 'stream', name: 'iskra-popout-stream-a1b2' })
   assert.equal(parsePopoutName('iskra-popout-chat-x')?.kind, 'chat')
   assert.equal(parsePopoutName('iskra-popout-report-1')?.kind, 'report')
+  // Another account on the device names its pop-outs a<slot>x<n> (client/src/state/popoutLogic.ts).
+  assert.deepEqual(parsePopoutName('iskra-popout-voice-a2x1'), { kind: 'voice', name: 'iskra-popout-voice-a2x1' })
   for (const bad of ['', '_blank', 'iskra-popout-voice', 'iskra-popout-admin-1', 'iskra-popout-voice-A', 'iskra-popout-voice-1 ', `iskra-popout-voice-${'a'.repeat(25)}`, 42, null]) {
     assert.equal(parsePopoutName(bad), null, String(bad))
   }

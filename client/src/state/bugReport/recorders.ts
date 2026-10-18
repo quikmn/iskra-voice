@@ -32,6 +32,7 @@ export function closeWhy(code: number | undefined, stopped?: boolean): string {
 export function voiceLeftCode(reason: VoiceLeftReason | null): { level: LogLevel; code: string | null } {
   switch (reason) {
     case 'other_device': return { level: 'INFO', code: 'VOI-201' }
+    case 'other_account': return { level: 'INFO', code: 'VOI-205' }
     case 'kicked':
     case 'removed': return { level: 'INFO', code: 'VOI-202' }
     case 'server': return { level: 'INFO', code: 'VOI-203' }

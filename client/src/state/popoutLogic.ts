@@ -1,5 +1,6 @@
 // Pop-outs and picture-in-picture, the parts without a DOM: which kind of window a pop-out gets here, and which
 // pop-outs have to close because what they show is gone (left the call, the stream stopped, the channel went).
+import { accountSlot } from '../core/accountSlot'
 
 /**
  * What a pop-out shows: the voice/call panel, one stream (a camera or screen share tile), a text channel, or the bug
@@ -42,8 +43,13 @@ export function popoutMode(kind: PopoutKind, env: PopoutEnv): PopoutMode | null 
 export const targetKey = (t: PopoutTarget): string =>
   t.kind === 'voice' || t.kind === 'report' ? t.kind : t.kind === 'stream' ? `stream:${t.tileId}` : `chat:${t.serverKey}:${t.channelId}`
 
-/** window.open's name for it; the desktop app only makes windows for names like this (desktop/src/popouts.ts). */
-export const popoutName = (kind: PopoutKind, n: number): string => `iskra-popout-${kind}-${n.toString(36)}`
+/**
+ * window.open's name for it; the desktop app only makes windows for names like this (desktop/src/popouts.ts). Another
+ * account on this device (slot 2+, core/accountSlot.ts) has names of its own ("a<slot>x<n>"), so its pop-outs never
+ * take over another account's window.
+ */
+export const popoutName = (kind: PopoutKind, n: number, slot: number = accountSlot()): string =>
+  `iskra-popout-${kind}-${slot === 1 ? '' : `a${slot}x`}${n.toString(36)}`
 
 /** Sizes asked of the browser's picture-in-picture window. */
 export const PIP_SIZE: Record<PopoutKind, { width: number; height: number }> = {

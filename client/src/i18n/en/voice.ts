@@ -27,7 +27,9 @@ export const voice = {
     group: 'Group',
     voice: 'voice',
     listeningOnly: 'Listening only',
-    otherDevice: 'You joined voice on your other device.',
+    otherDevice: 'Moved to your other device.',
+    otherAccount: 'You left voice because you joined as {{name}}.',
+    joinHere: 'Join here',
   },
   stage: {
     openChannels: 'Open channels',
