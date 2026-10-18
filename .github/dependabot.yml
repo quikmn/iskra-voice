@@ -10,11 +10,20 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
-    # zxing-wasm moves with barcode-detector (it ships the .wasm the ponyfill's glue loads; client/package.json
-    # overrides keep them on one version). 3.1.5 on its own broke the QR reader in e2e/link.spec.ts.
+    # The QR reader is updated by hand, both packages at once: barcode-detector pins the exact zxing-wasm its glue
+    # loads, and the client ships that zxing-wasm's .wasm (client/package.json overrides keep them on one version).
+    # zxing-wasm 3.1.5 on its own broke e2e/link.spec.ts; a barcode-detector bump alone would leave zxing-wasm behind.
+    # src/ui/qrDetector.test.ts checks they match.
     ignore:
       - dependency-name: zxing-wasm
+      - dependency-name: barcode-detector
     groups:
+      # Every @capacitor/* package in one PR across /client and /mobile, majors too: the client and the phone shell
+      # must run the same versions (client/src/platform/native.test.ts). Listed first, so the group below never
+      # takes them; a new group name also starts a fresh PR that covers /mobile (the older group's PRs kept the
+      # directories they started with, from before /mobile was added, and left the shell behind).
+      capacitor:
+        patterns: ['@capacitor/*']
       npm-minor-patch:
         update-types: [minor, patch]
 
