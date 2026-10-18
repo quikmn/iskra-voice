@@ -60,6 +60,7 @@ public static class DisappearFeature
             var key = body.String("accountKey", 64);
             var peer = (key == me.AccountKey ? me : store.GetMember(key)) ?? throw RequestException.NotFound("Member");
             ModerationFeature.CheckNotBlocked(s, me, peer, "message");
+            DmPrivacyFeature.CheckContact(s, me, peer, "message");
             store.SetDmTimer(me.AccountKey, peer.AccountKey, seconds, me.AccountKey, s.Now);
             var timer = store.DmTimer(me.AccountKey, peer.AccountKey)!;
             // Each side sees the other person as the conversation.

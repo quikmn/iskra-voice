@@ -9,7 +9,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Servers and channels:** [Requests and events](#requests-and-events) · [Invite links](#invite-links) · [Server icon and banner](#server-icon-and-banner) · [Organizing a server](#organizing-a-server)
 - **Messages:** [Files, replies and reactions](#files-replies-and-reactions) · [Link previews](#link-previews) · [Pins, search and threads](#pins-search-and-threads) · [Polls](#polls) · [Custom emoji](#custom-emoji) · [Stickers](#stickers) · [GIFs](#gifs) · [Saved messages, reminders, scheduled messages and the inbox](#saved-messages-reminders-scheduled-messages-and-the-inbox) · [Disappearing messages](#disappearing-messages) · [Text to speech](#text-to-speech-tts)
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers) · [Encrypted voice channels](#encrypted-voice-channels) · [Activities](#activities)
-- **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends)
+- **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends) · [Who can message me and message requests](#who-can-message-me-and-message-requests)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages) · [Quiet hours digest](#quiet-hours-digest)
 - **Community:** [Forum channels](#forum-channels) · [Media channels](#media-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group) · [Whiteboards](#whiteboards)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Public page](#public-page) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
@@ -4742,3 +4742,69 @@ ignored. The bot must see the channel (else it stays quiet).
 Migration `builtinbots3-1`: `tags`, `suggestions` and `suggestion_votes`, `giveaways` and `giveaway_entries`, `counting`
 (cards and their votes and entries go with their message; votes and entries with the member; authors, hosts and the last
 counter are set to null when they leave; a counting row goes with its channel).
+
+## Who can message me and message requests
+
+Each person chooses who may write to them. The server enforces it on every `dm.send` (and calls, DM disappearing
+timers and group adds), deciding afresh each time; it never takes the sender's word for anything but their signed
+identity.
+
+| `who` | A DM from someone you haven't accepted |
+|---|---|
+| `anyone` (default) | goes straight to your DMs, as before (a request still waiting stays one) |
+| `requests` | arrives as a **message request**; from server staff it goes straight to your DMs |
+| `known` | is refused, except from server staff |
+| `nobody` | is refused, staff included |
+
+**Accepted** ("people I've talked to") comes only from your own acts, per server: you wrote to them (anything but a
+quiet `silent` DM) or accepted their request. A DM that went straight in because of your setting, or a staff or bot
+exemption, never makes its sender accepted. Conversations from before this feature: whoever wrote accepted the other.
+**Staff** are members who can moderate now (manage messages, time out, kick or ban: moderators, admins, the owner),
+never bots; it's checked on each DM, so it ends with the role. Staff who can't DM someone can still moderate them.
+**Ignored** people: at `known` and `nobody` refused like anyone not accepted; otherwise their DMs arrive marked ignored.
+
+| type | body | result | who |
+|---|---|---|---|
+| `dm.privacy.get` | | `{ who, at, now }` (`at`: 0 if never set; `now`: the server's clock, ms) | yourself |
+| `dm.privacy.set` | `who` (`anyone`, `requests`, `known` or `nobody`), `at` (ms; ≥ 1; more than 10 minutes ahead of the server is `bad_request`, key `clock_off`) | `{ who, at, now }` (what is stored afterwards) | yourself |
+| `dm.requests.list` | | `{ requests: [{ accountKey, state, at, lastId, lastAt }] }` (≤ 200, newest first; `state`: `request` or `ignored`; `lastId`/`lastAt`: their newest DM to you, 0 if gone) | yourself |
+| `dm.requests.accept` | `accountKey` (a member here, not yourself) | `{ accountKey, state: "accepted" }` | yourself |
+| `dm.requests.ignore` | `accountKey` (a member here, not yourself) | `{ accountKey, state: "ignored" }` | yourself |
+
+- **The setting** is last-writer-wins by `at`, like ["DMs from bots"](#bot-dms): apps keep it on the device and hand it
+  to every server they're on. Apps stamp a change by the servers' clock (`now`), so a device whose clock runs ahead
+  still gets its choice taken, and they say so when a server refuses one. It's account-wide, not per server: a
+  conversation is with a person across every server you share, so a per-server choice would only be as strict as the
+  most open server. Event `dm.privacy { who, at, now }` goes to the account's other sessions here after a change.
+- **Requests:** a DM that is a request (or from someone you ignored) is stored and relayed like any DM, but your copy of
+  the event is `dm.message { message, request: "request" | "ignored" }`, it is never [pushed](#push-notifications-web-push)
+  (nor counted in the [quiet hours digest](#quiet-hours-digest)), and `dm.conversations` leaves the person out
+  (`dm.requests.list` has them; `dm.history` works as usual). Apps keep it out of the DM list, play no sound, and show
+  only the sender's name in the list; opened, the text shows as plain text, without links, previews or files, until
+  you accept.
+- **Accept** moves them to your DMs (also done by writing to them). **Ignore** keeps their DMs out of sight. Either may
+  be set for any member, ahead of time too. Event `dm.requests.changed { accountKey, state }` goes to your other
+  sessions here (and to all of them when writing to someone accepts them). Apps send accept and ignore to every server
+  they share with the person. Blocking ([Blocking](#blocking)) works as always; apps also ignore the request.
+- **The sender is never told.** Their result, their own copy of the event, `dm.history` and `dm.conversations` are the
+  same for a DM that went straight in, a request, an ignored one or an accepted one. A refused DM is `forbidden`
+  (`dm_closed`), the same for `known` and `nobody` and for a waiting request or an ignored one. Calls and group adds
+  are refused until the recipient accepts, the same for a request and an ignored one; whether a request was seen,
+  waits or was ignored never shows.
+- **Calls, disappearing timers and group adds** need the other person to take your DM straight in (accepted, or allowed
+  by their setting or a staff exemption): else `call.start` is `forbidden` (key `call_closed`), `disappear.set` for a
+  DM `forbidden` (`dm_closed`), and `group.create`/`group.change` adding them `forbidden` (`group_closed`, `args: { name }`).
+- **Bots:** a bot's DM follows the person's setting like anyone's (on top of ["DMs from bots"](#bot-dms)), except
+  while the person used one of the bot's commands or buttons in the last 15 minutes ([interactions](#bot-interactions)):
+  then it goes straight in at any level, `nobody` included, and that never makes the bot accepted. Writing to a bot
+  is always allowed and accepts its DMs.
+- **Limits:** a new conversation (neither of the two has written to the other on this server) is limited per account
+  to 20, then 20 an hour (`rate_limited`, key `dm_new_limit`; staff aren't limited, bots have `bot_dm_new_limit`). It
+  depends only on what the two of them wrote, never on the recipient's accept or ignore. Messages in conversations
+  already started only have `dm.send`'s own limits. `dm.requests.accept`/`ignore`: 20 at once, 2 a second per
+  session; `dm.privacy.set`: 10, then 1 a second.
+- Storage (migration `dmprivacy-1`): `dm_privacy` (account, who, at) and `dm_contacts` (account, the other person,
+  state: request, accepted, ignored or none, whether the other person wrote here, since when). Both are in "Download
+  my data" (`dmPrivacy`, `dmRequests`: your own rows only, never other people's decisions about you), follow an
+  [account key rotation](#account-key-rotation) and are deleted with the account (rows about you in other people's
+  lists too).

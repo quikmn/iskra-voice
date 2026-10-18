@@ -483,6 +483,13 @@ public sealed class InteractionRegistry(TimeProvider time)
     public Pending? Get(string id, string bot) =>
         _pending.TryGetValue(id, out var p) && p.Bot == bot && p.ExpiresAt > Now ? p : null;
 
+    /// <summary>Did this person use one of this bot's commands (or buttons) in the last 15 minutes? (DM requests)</summary>
+    public bool Invoked(string bot, string user)
+    {
+        var now = Now;
+        return _pending.Values.Any(p => p.Bot == bot && p.User == user && p.ExpiresAt > now);
+    }
+
     public PrivateAnswer AddAnswer(Pending pending, JsonObject content, long now)
     {
         Prune(_answers, a => a.ExpiresAt);

@@ -34,6 +34,7 @@ import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expre
 import { StickerSection } from '../chat/Stickers'
 import { GifSettings, GifViewerSettings } from '../chat/GifSettings'
 import { BotDmSettings } from './BotDmSettings'
+import { DmPrivacySettings } from '../dms/DmRequests'
 import { HiddenServersSection } from './HiddenServers'
 import { DevicesSection } from '../dialogs/DevicesSection'
 import { IntegrationsSection } from '../dialogs/Integrations'
@@ -248,7 +249,7 @@ function MySection({ id }: { id: MySectionId }) {
     case 'pcBots': return <PcBotsSection />
     case 'account': return <AccountSection />
     case 'assistant': return <AssistantSettingsSection />
-    case 'privacy': return <><PrivacySection /><GifViewerSettings /><BotDmSettings /></>
+    case 'privacy': return <><PrivacySection /><GifViewerSettings /><DmPrivacySettings /><BotDmSettings /></>
     case 'about': return <AboutSection />
   }
 }

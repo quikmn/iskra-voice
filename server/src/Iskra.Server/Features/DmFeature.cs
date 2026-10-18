@@ -60,6 +60,7 @@ public static class DmFeature
         var nonce = ChatFeature.Nonce(body);
         if (nonce is not null && s.World.Store.EnvelopeForNonce(me.AccountKey, "dm", nonce) is (true, var earlier))
             return Repeat(earlier as DirectMessage);
+        var delivery = DmPrivacyFeature.CheckSend(s, me, peer); // who may write first; a request or not
         var files = DmFileFeature.CheckAttachments(s, me, peer, body);
         DirectMessage message;
         if (nonce is null) message = s.World.Store.AddDm(me.AccountKey, peer.AccountKey, raw, s.Now);
@@ -72,11 +73,14 @@ public static class DmFeature
         s.World.Store.LinkDmFiles(message.Id, files);
         message = DisappearFeature.Stamp(s.World.Store, message, files);
         BotDmFeature.Sent(s, me, peer);
+        DmPrivacyFeature.Sent(s, me, peer, delivery, silent);
         var frame = Frames.Event("dm.message", new { message = PublicDm(message) });
-        s.Hub.SendToAccount(peer.AccountKey, frame);
+        // Only the recipient's copy says it's a request (or ignored); the sender's is the same either way.
+        s.Hub.SendToAccount(peer.AccountKey, delivery == DmPrivacyFeature.Delivery.Normal ? frame
+            : Frames.Event("dm.message", new { message = PublicDm(message), request = delivery == DmPrivacyFeature.Delivery.Request ? "request" : "ignored" }));
         if (peer.AccountKey != me.AccountKey) s.Hub.SendToAccount(me.AccountKey, frame); // your other devices
-        // Quiet sends (a cancelled friend request and the like) don't push a "new message" notification.
-        if (!silent) s.Push.DirectMessage(me, peer);
+        // Quiet sends (a cancelled friend request and the like) and message requests don't push a "new message" notification.
+        if (!silent && delivery == DmPrivacyFeature.Delivery.Normal) s.Push.DirectMessage(me, peer);
         return new { message = PublicDm(message) };
     }
 
@@ -91,10 +95,14 @@ public static class DmFeature
         return new { messages = messages.Select(PublicDm), hasMore = messages.Count == limit };
     }
 
-    private static object Conversations(Session s, Member me, Body body) =>
-        new
+    /// <summary>Your conversations, without message requests and ignored ones (<c>dm.requests.list</c> has those).</summary>
+    private static object Conversations(Session s, Member me, Body body)
+    {
+        var unaccepted = s.World.Store.DmUnaccepted(me.AccountKey);
+        return new
         {
-            conversations = s.World.Store.DmConversations(me.AccountKey)
+            conversations = s.World.Store.DmConversations(me.AccountKey).Where(c => !unaccepted.Contains(c.With))
                 .Select(c => new { accountKey = c.With, lastId = c.LastId, lastAt = c.LastAt }),
         };
+    }
 }

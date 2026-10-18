@@ -432,7 +432,10 @@ await bot.sendDm(accountKey, 'Your turn in the game 🎲')   // e.g. bot.members
   channel message). The bot checks a command's `role` itself, from the member list; commands that need a `permission`
   answer that they only work in a channel.
 - **Who a bot can write to:** members of its server who haven't blocked it. People choose in **My settings → Privacy &
-  data → DMs from bots** (on by default). With it off, a bot can only answer someone who wrote to it first.
+  data → DMs from bots** (on by default). With it off, a bot can only answer someone who wrote to it first. A bot's
+  DM also follows the person's **Who can message me**: it can arrive as a message request, or be refused (`dm_closed`)
+  for people who only take DMs from people they've talked to. Writing to the bot counts; so does using one of its
+  commands or buttons, for 15 minutes (enough to answer by DM).
 - **Limits:** on top of the usual 2 messages a second, a bot sends at most 1 DM a second over all its connections (bursts
   of 30), and starts at most 20 new conversations at once, then 20 an hour. Bots never message other bots, and
   [built-in bots](#built-in-bots) don't take DMs (they run inside the server and have no keys).
@@ -570,6 +573,7 @@ The audio goes from the bot's computer straight to the server's voice service, l
 | `forbidden` with `bot_no_voice` | An admin hasn't let the bot join voice: **Bots & webhooks → Bots → Voice**. |
 | `Voice needs @livekit/rtc-node: run "npm install" …` | As it says: voice uses packages the rest of the SDK doesn't (with the npm package they're optional dependencies; install them in your bot's folder). |
 | `forbidden` with `bot_dms_off` from `sendDm` | That person turned off DMs from bots; the bot can answer once they write to it. |
+| `forbidden` with `dm_closed` from `sendDm` | That person only takes DMs from people they've talked to. The bot can answer once they write to it, or within 15 minutes of them using one of its commands. |
 | `rate_limited` with `bot_dm_new_limit` | The bot started 20 new conversations in a short time; it can start more later (answering people who wrote to it still works). |
 | `Couldn't read a DM from …` in the log | That message wasn't encrypted for this bot's keys (for example it was sent before the bot's `.bot.json` was replaced). New messages are. |
 | `Can't play AAC …` / `… is a web page, not an audio file or stream` | Use MP3, Ogg, FLAC or WAV; for a radio, use its direct stream address (often ending in `.mp3`), not its web page. |

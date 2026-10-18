@@ -57,6 +57,8 @@ public sealed partial class Store
                 UPDATE departures SET name = '' WHERE account_key = $k;
                 DELETE FROM bot_dm_prefs WHERE account_key = $k;
                 DELETE FROM bot_dm_peers WHERE account_key = $k OR bot_key = $k;
+                DELETE FROM dm_privacy WHERE account_key = $k;
+                DELETE FROM dm_contacts WHERE account_key = $k OR peer_key = $k;
                 DELETE FROM event_interest WHERE account_key = $k;
                 DELETE FROM lfg_members WHERE account_key = $k;
                 DELETE FROM lfg_notify WHERE account_key = $k;

@@ -67,6 +67,7 @@ import { feeds } from './feeds'
 import { bots3 } from './bots3'
 import { assistant } from './assistant'
 import { pcBots } from './pcBots'
+import { dmRequests } from './dmRequests'
 
 export const sv: Messages = {
   common,
@@ -136,4 +137,5 @@ export const sv: Messages = {
   bots3,
   assistant,
   pcBots,
+  dmRequests,
 }

@@ -29,6 +29,7 @@ public sealed class AccountLimits(TimeProvider time)
         ["scheduled.deliver"] = (10, 2),           // scheduled messages going out: chat.send's burst, so 50 at one time trickle out
         ["bot.dm.send"] = (30, 1),                 // a bot's DMs, over all of its connections
         ["bot.dm.new"] = (20, 20 / 3600.0),        // conversations a bot starts: 20, then 20 an hour
+        ["dm.new"] = (20, 20 / 3600.0),            // new conversations (and message requests) a person starts: 20, then 20 an hour
         ["buddy.add"] = (5, 5 / 600.0),            // pairing with a backup buddy (each one calls another server)
         ["voice.status"] = (5, 0.1),               // voice channel statuses: 5, then one every 10 s
     };

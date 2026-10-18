@@ -3050,3 +3050,44 @@ export interface Requests {
 export interface Events {
   'channel.export.progress': { job: ExportJob }
 }
+
+// ── dm privacy ──
+// See "Who can message me and message requests" in PROTOCOL.md.
+
+/** Who may start a DM with you: anyone; anyone, new people as requests; people you've talked to and staff; only people you've talked to. */
+export type DmWho = 'anyone' | 'requests' | 'known' | 'nobody'
+
+export interface DmPrivacySetting {
+  who: DmWho
+  /** When it was chosen (0: never; the default is anyone). */
+  at: number
+  /** In answers and events: the server's clock (ms), so apps stamp changes by it. */
+  now?: number
+}
+
+/** How you treat someone's DMs on one server. */
+export type DmRequestState = 'request' | 'ignored' | 'accepted'
+
+export interface DmRequestEntry {
+  accountKey: string
+  state: 'request' | 'ignored'
+  at: number
+  lastId: number
+  lastAt: number
+}
+
+/** `dm.message` carries `request` next to `message`, on the recipient's copy only: a message request, or from someone they ignored. */
+export type DmRequestFlag = 'request' | 'ignored'
+
+export interface Events {
+  'dm.privacy': DmPrivacySetting
+  'dm.requests.changed': { accountKey: string; state: DmRequestState }
+}
+
+export interface Requests {
+  'dm.privacy.get': [Record<string, never>, DmPrivacySetting]
+  'dm.privacy.set': [DmPrivacySetting, DmPrivacySetting]
+  'dm.requests.list': [Record<string, never>, { requests: DmRequestEntry[] }]
+  'dm.requests.accept': [{ accountKey: string }, { accountKey: string; state: DmRequestState }]
+  'dm.requests.ignore': [{ accountKey: string }, { accountKey: string; state: DmRequestState }]
+}

@@ -1,0 +1,24 @@
+/* ── Message requests (ui/dms/DmRequests.tsx) ── */
+
+.dm-requests .channel-group > span:first-child { display: inline-flex; align-items: center; gap: 4px; }
+.dm-requests .channel-group .badge { margin-left: auto; }
+.dm-requests-ignored-toggle { display: flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 12px; color: var(--muted); }
+
+.dm-request-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; color: var(--text); }
+.dm-request-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 240px; min-width: 0; }
+.dm-request-text .muted { font-size: 13px; }
+.dm-request-text .error { color: var(--red); font-size: 13px; }
+.dm-request-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.held-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.held-files { font-size: 13px; }
+
+.dm-privacy-options { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
+.dm-privacy-option { align-items: flex-start; }
+.dm-privacy-option > span { display: flex; flex-direction: column; gap: 2px; }
+.dm-privacy-option .muted { font-size: 13px; }
+
+@media (max-width: 600px) {
+  .dm-request-actions { width: 100%; }
+  .dm-request-actions .button { flex: 1 1 0; }
+}

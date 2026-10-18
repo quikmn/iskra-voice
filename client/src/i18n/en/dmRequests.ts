@@ -1,0 +1,32 @@
+// Who can message me, and message requests (English). Keep in step with ../sv/dmRequests.ts.
+export const dmRequests = {
+  title: 'Message requests',
+  badge_one: '{{count}} message request',
+  badge_other: '{{count}} message requests',
+  empty: 'No new requests.',
+  ignoredCount_one: 'Ignored ({{count}})',
+  ignoredCount_other: 'Ignored ({{count}})',
+  bar: '{{name}} wants to message you.',
+  ignoredBar: 'You ignored the request from {{name}}.',
+  barHint: "They don't know whether you've seen it. Links and files stay hidden until you accept.",
+  accept: 'Accept',
+  ignore: 'Ignore',
+  block: 'Block',
+  filesHidden_one: '{{count}} file, hidden until you accept',
+  filesHidden_other: '{{count}} files, hidden until you accept',
+  settingTitle: 'Who can message me',
+  refused: "{{server}} didn't take this choice and keeps the one before: {{reason}}",
+  settingHint: "Applies on every server you're on. People you've already talked to can always write to you, and you can still start a conversation with anyone.",
+  who: {
+    anyone: 'Anyone on my servers',
+    requests: 'Anyone, as a message request',
+    known: "People I've talked to, and server staff",
+    nobody: "Only people I've talked to",
+  },
+  whoHint: {
+    anyone: 'New messages go straight to your direct messages.',
+    requests: "New people land in Message requests, without notifications, until you accept. Moderators and admins go straight through.",
+    known: "Others can't start a conversation with you. Moderators and admins can.",
+    nobody: 'Nobody new can start a conversation with you, staff included.',
+  },
+} as const
