@@ -132,6 +132,7 @@ public static class ChatFeature
         if (LfgFeature.IsLfg(s.World.Store, message.Id)) throw RequestException.BadRequest("Looking-for-group posts can't be edited.", "lfg_no_edit");
         if (VoiceMessageFeature.IsVoice(s.World.Store, message.Id)) throw RequestException.BadRequest("Voice messages can't be edited.");
         ClipFeature.CheckEdit(s.World.Store, message);
+        RecordingFeature.CheckEdit(s.World.Store, message);
         if (s.World.Store.GetMessageSticker(message.Id) is not null) throw RequestException.BadRequest("Stickers can't be edited.", "sticker_no_edit");
         if (s.World.Store.GetMessageGif(message.Id) is not null) throw RequestException.BadRequest("GIFs can't be edited.", "gif_no_edit");
 
@@ -162,6 +163,7 @@ public static class ChatFeature
         var author = s.World.Store.GetMember(message.AuthorKey);
         if (!Permissions.CanDeleteMessage(me, message, author)) throw RequestException.Forbidden();
         ClipFeature.CheckDelete(s.World.Store, me, message);
+        RecordingFeature.CheckDelete(s.World.Store, me, message);
         if (message.AuthorKey != me.AccountKey)
             Audit.Record(s, "message.delete", author?.AccountKey,
                 details: new { channelId = channel.Id, channelName = channel.Name, messageId = message.Id, author = message.AuthorKey });

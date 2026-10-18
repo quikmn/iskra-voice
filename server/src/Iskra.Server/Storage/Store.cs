@@ -387,6 +387,8 @@ public sealed partial class Store : IDisposable
         ("dmprivacy-1", DmPrivacyMigration),
         // Join questions: answers that give roles and suggest channels, members' answers and what they gave, roles on join.
         ("onboarding-1", OnboardingMigration),
+        // Call recording: "don't record me" per account, and the start/stop lines in a voice channel's chat.
+        ("recording-1", RecordingMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

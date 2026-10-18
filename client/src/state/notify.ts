@@ -64,7 +64,7 @@ export async function enableDesktopNotifications(): Promise<boolean> {
 
 // ── Sounds: tiny synthesized tones, no audio files to load (message sounds: state/sounds) ─────────────────
 
-export type Tone = 'message' | 'join' | 'leave' | 'mute' | 'unmute' | 'deafen' | 'undeafen' | 'whisper'
+export type Tone = 'message' | 'join' | 'leave' | 'mute' | 'unmute' | 'deafen' | 'undeafen' | 'whisper' | 'record'
 
 const TONES: Record<Tone, number[]> = {
   message: [880, 1320],
@@ -75,6 +75,8 @@ const TONES: Record<Tone, number[]> = {
   deafen: [587, 392, 294],
   undeafen: [294, 392, 587],
   whisper: [1175, 1568],
+  /** A call you're in is being recorded (state/recording.ts). */
+  record: [784, 784, 1046],
 }
 
 /** Message sounds follow Notifications; voice sounds (join, leave, mute, deafen) follow Voice & audio. */

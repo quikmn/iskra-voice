@@ -34,6 +34,7 @@ public static partial class RoleFeature
         ["prioritySpeaker"] = Perm.PrioritySpeaker,
         ["sendTts"] = Perm.SendTts,
         ["exportChannels"] = Perm.ExportChannels,
+        ["recordVoice"] = Perm.RecordVoice,
     };
 
     private static readonly IReadOnlyDictionary<string, ChannelPerm> ChannelNames = new Dictionary<string, ChannelPerm>
@@ -206,6 +207,7 @@ public static partial class RoleFeature
         RolesChanged(s);
         s.Hub.Outhooks?.RoleChanged("role.updated", updated);
         if (role.SelfAssign != updated.SelfAssign) AccessChanged(s, s.World.Store.MembersWithRole(role.Id)); // their rank follows
+        else if (role.Perms != updated.Perms) s.Voice.Recordings.SyncAll(); // a recorder who lost recordVoice stops now
         return new { role = Public(updated) };
     }
 

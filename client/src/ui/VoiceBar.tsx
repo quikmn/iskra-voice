@@ -12,6 +12,7 @@ import './afk/afk.css'
 import { WhisperControls } from './whisper/WhisperControls'
 import { RoomButton } from './rooms/RoomBits'
 import { EncryptedVoiceBadge } from './e2ee/E2eeVoice'
+import { VoiceBarRecordingMark } from './recording/Recording'
 
 /** Shown above your name while you're in voice (or when joining failed). */
 export function VoiceBar() {
@@ -69,6 +70,7 @@ export function VoiceBar() {
             : peer ? t('voice.bar.encrypted', { name: nameOf(peer) }) : `${channel?.name ?? t('voice.bar.voice')} · ${server?.name}`}
         </button>
         <EncryptedVoiceBadge variant="bar" />
+        <VoiceBarRecordingMark />
         {session.afk && session.state === 'connected' && <span className="afk-forced" data-testid="afk-forced">{t('afk.forced')}</span>}
         {!session.canSpeak && !session.afk && session.state === 'connected' && <span className="muted">{t('voice.bar.listeningOnly')}</span>}
         {error && <span className="error-text">{error}</span>}

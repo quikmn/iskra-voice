@@ -69,6 +69,7 @@ import { assistant } from './assistant'
 import { pcBots } from './pcBots'
 import { dmRequests } from './dmRequests'
 import { share } from './share'
+import { recording } from './recording'
 
 export const en = {
   common,
@@ -141,4 +142,5 @@ export const en = {
   pcBots,
   dmRequests,
   share,
+  recording,
 } as const

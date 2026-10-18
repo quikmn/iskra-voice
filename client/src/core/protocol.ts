@@ -1121,7 +1121,7 @@ export interface Requests {
 export type Permission =
   | 'manageMessages' | 'timeoutMembers' | 'kickMembers' | 'banMembers' | 'manageChannels' | 'manageRoles'
   | 'viewAuditLog' | 'manageExpressions' | 'manageWebhooks' | 'mentionEveryone' | 'moveMembers' | 'muteMembers' | 'manageAutoMod'
-  | 'prioritySpeaker' | 'sendTts' | 'exportChannels'
+  | 'prioritySpeaker' | 'sendTts' | 'exportChannels' | 'recordVoice'
 
 export type ChannelPermission = 'view' | 'send' | 'connect' | 'speak' | 'setVoiceStatus'
 
@@ -3126,4 +3126,44 @@ export interface Requests {
   'onboarding.answer': [{ question: number; answers: number[] }, { member: Member; answers: number[] }]
   'onboarding.autoroles.set': [{ roles: number[] }, { autoRoles: number[] }]
   'onboarding.autoroles.apply': [Record<string, never>, { members: number }]
+}
+
+// ── call recording ──
+
+/** A voice channel being recorded on someone's desktop app (PROTOCOL.md "Recording a voice channel"). */
+export interface CallRecording {
+  by: string
+  startedAt: number
+  /** False while an encrypted channel's people are still being asked. */
+  live: boolean
+  liveAt?: number | null
+  encrypted: boolean
+  askUntil?: number | null
+}
+
+export interface VoiceChannelState {
+  /** Missing from older servers. */
+  recording?: CallRecording | null
+}
+
+export interface VoiceParticipant {
+  /** They said "don't record me". */
+  noRecord?: boolean
+  /** Encrypted channels: their answer to being recorded (null: not answered yet). */
+  recordConsent?: boolean | null
+  /** Their app shows recording marks (older apps and bots are never recorded). */
+  recordingAware?: boolean
+}
+
+export interface Message {
+  /** A "started/stopped recording this call" line (the author is the recorder). */
+  recordNotice?: { kind: 'start' | 'stop' } | null
+}
+
+export interface Requests {
+  'voice.record.start': [{ channelId: number }, { recording: CallRecording }]
+  'voice.record.stop': [{ channelId: number }, Record<string, never>]
+  /** Without optOut: just what the server has. */
+  'voice.record.optout': [{ optOut?: boolean }, { optOut: boolean }]
+  'voice.record.consent': [{ channelId: number; agree: boolean }, Record<string, never>]
 }

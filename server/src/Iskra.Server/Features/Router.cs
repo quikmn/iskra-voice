@@ -107,6 +107,7 @@ public sealed class Router
         InviteTrackFeature.Register(this);
         ChannelExportFeature.Register(this);
         DmPrivacyFeature.Register(this);
+        RecordingFeature.Register(this);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

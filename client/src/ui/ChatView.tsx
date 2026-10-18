@@ -72,6 +72,7 @@ import { userMenuProps } from './people/userMenuProps'
 import { EditedMark } from './productivity/EditHistory'
 import { useSendLater } from './productivity/SendLater'
 import { ClipNoticeRow } from './clips/ClipNotice'
+import { RecordNoticeRow } from './recording/RecordNotice'
 import { conversationLabel } from '../state/threads'
 import { messageListKeys, useAnnounceNew } from './a11y'
 import { useQueuedSend } from './chat/QueuedSend'
@@ -301,7 +302,7 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
       ) : (
         <Fragment key={message.tempId ?? message.id}>
           {message.id === firstUnread && !message.tempId && <UnreadDivider main={!thread} />}
-          {message.clip && !message.tempId ? <ClipNoticeRow server={server} message={message} /> : message.disappear && !message.tempId ? (
+          {message.recordNotice && !message.tempId ? <RecordNoticeRow server={server} message={message} /> : message.clip && !message.tempId ? <ClipNoticeRow server={server} message={message} /> : message.disappear && !message.tempId ? (
             <DisappearLine seconds={message.disappear.seconds} name={server.members[message.author]?.name ?? t('common.someone')} mine={message.author === server.me?.accountKey} at={message.createdAt} />
           ) : <BlockGate author={message.author}>
             <MessageRow

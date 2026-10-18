@@ -40,6 +40,7 @@ public static class MessageViews
             gif = GifFeature.View(store, m.Id),
             automod = AutoModFeature.MessageView(store, m),
             clip = ClipFeature.View(store, m.Id),
+            recordNotice = RecordingFeature.View(store, m.Id),
             e2ee = E2eeChannelFeature.MessageView(store, m.Id),
             cards = BotCommandFeature.View(store, m.Id),
             builtin = BuiltinBotFeature.MessageView(store, m),

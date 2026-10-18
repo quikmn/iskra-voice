@@ -419,6 +419,8 @@ function connectServer(url: string, key: string, name: string, invite?: string, 
     profile: () => authProfile(useApp.getState().profile),
     presence: () => authPresence(),
     rotations: () => authRotations(),
+    // This app shows recording marks, so it may be recorded (state/recording.ts).
+    features: ['recording'],
     onStatus: (status) => patchServer(key, () => ({ status })),
     onWelcome: (welcome) => onWelcome(key, welcome),
     onEvent: (type, body) => onEvent(key, type, body),

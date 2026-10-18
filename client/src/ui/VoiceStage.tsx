@@ -22,6 +22,8 @@ import { useWhiteboard, voiceBoardFor } from '../state/whiteboard'
 import { userMenuProps } from './people/userMenuProps'
 import { VoiceChatButton } from './clips/VoiceRoom'
 import { ClipButton, ClipsMark, ClipsStrip } from './clips/ClipControls'
+import { RecordButton, RecordingMark, RecordingStrip } from './recording/Recording'
+import { useChannelRecording } from '../state/recording'
 import { setWatchedTile } from '../state/clips'
 import { BackgroundNotice, CaptionsButton, CaptionsOverlay } from './media/CallMedia'
 import { ResumeOffer } from './ResumeOffer'
@@ -48,6 +50,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
   const board = useWhiteboard(voiceBoardFor(server.key, session.channelId))
   const boardShown = useBoardShown((s) => !!s[`${server.key}:${session.channelId}`]) && !!board
   const activity = useActivities(sessionFor(server.key, session.channelId))
+  const recording = useChannelRecording(server.key, session.channelId)
   // A watch party takes the big spot; screen shares then sit with the other tiles.
   const focused = party ? null : (tiles.find((t) => t.id === focusId) ?? tiles.find((t) => t.source === 'screen') ?? null)
   const others = tiles.filter((t) => t !== focused)
@@ -105,6 +108,7 @@ export function VoiceStage({ server, onToggle }: { server: ServerState; onToggle
                   {name}
                   <PeerEncryptionMark accountKey={p.accountKey} name={name} />
                   <ClipsMark on={p.clips} />
+                  <RecordingMark participant={p} mark={recording} />
                   {p.deafened ? <HeadphonesOff size={14} /> : p.muted ? <MicOff size={14} /> : null}
                 </span>
               </div>
@@ -180,6 +184,7 @@ export function CallControls({ onLeave, extra, nameOf }: { onLeave?: () => void;
     <BackgroundNotice />
     <CaptionsOverlay nameOf={nameOf ?? (() => translate('common.someone'))} />
     <ClipsStrip />
+    <RecordingStrip />
     <ResumeOffer />
     {session.afk && (
       <p className="afk-forced-banner" role="status" data-testid="afk-forced-banner"><HeadphonesOff size={16} /><strong>{t('afk.forced')}</strong> <span>{t('afk.forcedHint')}</span></p>
@@ -214,6 +219,7 @@ export function CallControls({ onLeave, extra, nameOf }: { onLeave?: () => void;
       {shareMenu && <ScreenShareMenu anchor={shareMenu} onClose={() => setShareMenu(null)} />}
       <SoundboardButton variant="call" />
       <ClipButton />
+      <RecordButton />
       <CaptionsButton />
       <button className="call-button hang-up" onClick={() => (onLeave ? onLeave() : void leaveVoice())} aria-label={onLeave ? t('voice.hangUp') : t('voice.leaveCall')} title={onLeave ? t('voice.hangUp') : t('voice.leaveCall')}>
         <PhoneOff />

@@ -21,6 +21,9 @@ const en = {
     titleAvailable: 'Update available',
   },
   menu: { view: 'View' },
+  recordings: {
+    pickTitle: 'Where should call recordings go?',
+  },
   backup: {
     pickTitle: 'Restore a server from a backup',
     filter: 'Iskra backups',
@@ -104,6 +107,9 @@ const sv: DesktopText = {
     titleAvailable: 'Uppdatering finns',
   },
   menu: { view: 'Visa' },
+  recordings: {
+    pickTitle: 'Var ska samtalsinspelningar sparas?',
+  },
   backup: {
     pickTitle: 'Återställ en server från en säkerhetskopia',
     filter: 'Säkerhetskopior från Iskra',

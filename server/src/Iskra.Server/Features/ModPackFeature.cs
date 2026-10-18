@@ -68,6 +68,7 @@ public static class ModPackFeature
             if (!Permissions.CanDeleteMessage(me, message, author))
                 throw RequestException.Forbidden("Some of these messages are from people you don't outrank.", "bulk_delete_rank");
             ClipFeature.CheckDelete(store, me, message);
+            RecordingFeature.CheckDelete(store, me, message);
         }
         if (messages.Count == 0) return new { deleted = 0 };
 

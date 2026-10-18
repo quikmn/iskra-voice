@@ -316,6 +316,21 @@ export interface DesktopBridge {
     finish(id: string): Promise<boolean>
     abort(id: string): Promise<void>
   }
+  /** Recording a call (desktop/src/recordings.ts): ids only; the shell makes the folder. */
+  recordings?: RecordingsBridge
+}
+
+export interface RecordingsBridge {
+  /** The recordings folder (Documents/Iskra recordings until one is picked). */
+  folder(): Promise<string | null>
+  pickFolder(): Promise<string | null>
+  begin(server: string, channel: string): Promise<{ id: string; folder: string } | { error: 'folder' | 'disk' } | null>
+  open(id: string, name: string): Promise<string | null>
+  write(file: string, data: Uint8Array): Promise<'ok' | 'disk' | 'failed'>
+  close(file: string): Promise<boolean>
+  info(id: string, text: string): Promise<boolean>
+  end(id: string): Promise<void>
+  show(id: string): Promise<void>
 }
 
 // ── Rent a server on DigitalOcean (desktop/src/digitalocean.ts) ──

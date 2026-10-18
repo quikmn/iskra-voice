@@ -32,6 +32,8 @@ import { useAfkChannel } from '../../state/afk'
 import '../afk/afk.css'
 import { VoiceChatRowButton } from '../clips/VoiceChatRowButton'
 import { ClipsMark } from '../clips/ClipControls'
+import { ChannelRecordingMark, RecordingMark } from '../recording/Recording'
+import { useChannelRecording } from '../../state/recording'
 import { BotBadge } from '../chat/BotBits'
 import { RoomMarks } from '../rooms/RoomBits'
 import { canEnterRoom, isLobby } from '../../state/roomsLogic'
@@ -309,6 +311,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
   // A locked room (join-to-create): the row stays, so you see it's there, but joining needs an invite.
   const lockedOut = !here && !canEnterRoom(channel, server.me, bypass)
   const afk = useAfkChannel(server.key) === channel.id
+  const recording = useChannelRecording(server.key, channel.id)
   const title = !server.voiceAvailable ? t('organize.list.voiceUnavailable')
     : lockedOut ? t('rooms.room.lockedHint', { name: channel.name })
     : isLobby(channel) ? t('rooms.lobby.join', { name: channel.name })
@@ -330,6 +333,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
           <span className="channel-name">{channel.name}</span>
           <LockBadge channel={channel} />
           <RoomMarks channel={channel} />
+          <ChannelRecordingMark serverKey={server.key} channelId={channel.id} />
           {afk && <span className="afk-badge" title={t('afk.channelHint')}>{t('afk.badge')}</span>}
           {here && voiceSession.state !== 'connected' && <span className="pill">…</span>}
           {limit && (
@@ -359,6 +363,7 @@ function VoiceRow({ server, channel, rowProps, onMenu, onNavigate }: {
                   {member?.bot && <BotBadge />}
                   {channel.room?.host === p.accountKey && <span className="host-badge" title={t('rooms.room.hostOf', { name: member?.name ?? t('common.someone') })}>{t('rooms.room.host')}</span>}
                   <ClipsMark on={p.clips} />
+                  <RecordingMark participant={p} mark={recording} />
                   {p.priority && <span className="priority-badge" title={t('whisper.priority.badge')}>{t('whisper.priority.badge')}</span>}
                 </button>
                 {p.afk ? <span className="voice-flag server-muted" title={t('afk.participantForced')}><HeadphonesOff size={14} /></span> : p.serverMuted ? <span className="voice-flag server-muted" title={t('organize.list.serverMuted')}><MicOff size={14} /></span> : p.deafened ? <span className="voice-flag" title={t('organize.list.deafened')}><HeadphonesOff size={14} /></span> : p.muted ? <span className="voice-flag" title={t('organize.list.muted')}><MicOff size={14} /></span> : null}

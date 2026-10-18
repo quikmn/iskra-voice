@@ -770,6 +770,8 @@ async function publishMic(current: Room): Promise<boolean> {
         if (noiseSuppression !== options.noiseSuppression) await track.restartTrack({ ...options, noiseSuppression }).catch(() => undefined)
       }
     }
+    // Joining muted (you were, or the call is being recorded): nothing goes out until you unmute.
+    if (useVoice.getState().muted) await track.mute().catch(() => undefined)
     await current.localParticipant.publishTrack(track, publish)
     await applyMic()
   } catch (e) {

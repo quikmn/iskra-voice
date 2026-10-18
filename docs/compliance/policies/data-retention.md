@@ -60,6 +60,8 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Activities added to a server (the zip's files, name, who added it and when) and activity settings | Until an admin removes the activity (they're in `iskra.db`, so backups have them); deleting an account clears who added it | `act.remove`, account deletion | No |
 | Running activities (who's playing, the messages since the last snapshot, the snapshot) | In memory while the activity runs: gone when it ends (the call empties, its last player leaves, or someone ends it) | Process memory | No |
 | Voice channel status (its text, who set it and when) | In memory while the call lasts: cleared when the call empties, someone clears it, or the server restarts | Process memory | No |
+| Call recording marks (who is recording which voice channel, encrypted channels' answers, whether someone's app shows the mark) | In memory: the mark until the recording ends (at most 4 hours) or the server restarts; answers until the person leaves the call. Start and stop are audit log entries (no audio, no file names) and, outside encrypted channels, lines in the channel's chat (kept like messages) | Process memory; audit log; messages | Audit: `Retention.AuditDays`; lines: `Retention.MessagesDays` |
+| "Don't record me" (account, when set) | Until turned off or the account is deleted; in "Download my data" | `record_optouts`; account deletion | No |
 | Daily backups (`backups/auto-*.zip`) | Last 7 (disappearing messages and their files are never in them) | `BackupService` | `Backups.Keep` (1–30) |
 | Encrypted copies of daily backups on another disk (`Backups.CopyTo`, off by default; `.iskrabackup` with the owner's copy passphrase) | Same as daily backups: the newest `Keep` there | `BackupService` | `Backups.CopyTo`, `Backups.Keep` |
 | Encrypted copies of daily backups at backup buddies (friends' servers the owner paired with; encrypted with the recovery code, which only the source server and its owner have) | The newest copies that fit the space the friend gave (`keep` 1–30, default 3), plus always one older protected copy (the newest at least 48 hours old, or else the oldest); after either side stops, the friend's grace period (0–90 days, default 7; at least 1 day when the source stops), then deleted | The holder's `BuddyHolder` sweep (hourly) | Holder: Settings → Backup & move → Keep backups for a friend; source: Backup buddies |
@@ -102,7 +104,8 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 ## Apps and websites
 
 - Clips are recorded on the device and kept only if the person saves or shares them; Catch up summaries are worked out
-  on the device and not stored.
+  on the device and not stored. Call recordings are files the recorder's desktop app writes to a folder on their
+  computer (one per person, an optional mix and an info.txt); they're never uploaded, and stay until that person deletes them.
 - Streamer mode is a synced setting; the desktop app's "Turn on by itself" looks at the programs running on that
   computer for the ones the person listed and keeps nothing but the switch. "Search everywhere" keeps no index: direct
   messages and groups are searched in what the device already holds.

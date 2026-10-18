@@ -2,7 +2,7 @@
 // It adds what browsers can't do: push-to-talk while a game has focus, a screen/window picker,
 // the tray, and a stable app:// origin for local storage.
 import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, Menu, nativeImage, powerMonitor, safeStorage, screen, session, shell, systemPreferences, Tray } from 'electron'
-import { closeSync, existsSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { APP_ORIGIN, configureAppSession, registerAppScheme } from './appSession'
@@ -19,6 +19,7 @@ import { isBackupDownload, isBuddyAddress, readBackupInfo } from './restore'
 import { DoRental, errorReply, testOverrides } from './digitalocean'
 import { DO_OAUTH_CLIENT_ID, oauthConfigured, oauthTestOverrides, oauthToken } from './doOAuth'
 import { SaveStreams, suggestedName } from './saveStreams'
+import { Recordings } from './recordings'
 import {
   badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isKey43, isServerId, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
   keychainKind, serversToStart, setKeepRunning, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
@@ -886,6 +887,59 @@ ipcMain.handle('iskra:save-begin', async (event, name: unknown) => {
 ipcMain.handle('iskra:save-write', (event, id: unknown, data: unknown) => fromApp(event) && saves.write(id, data, event.sender.id))
 ipcMain.handle('iskra:save-finish', (event, id: unknown) => fromApp(event) && saves.finish(id, event.sender.id))
 ipcMain.handle('iskra:save-abort', (event, id: unknown) => (fromApp(event) ? saves.abort(id, event.sender.id) : undefined))
+
+// Recording a call: files go into a folder of their own under the recordings folder (Documents/Iskra recordings,
+// or one the person picked with our own dialog). The page names no paths; it gets ids back.
+const recordings = new Recordings()
+const recordingPages = new Set<number>()
+const recordingsSetting = () => path.join(app.getPath('userData'), 'recordings.json')
+function recordingsBase(): string {
+  try {
+    const saved = JSON.parse(readFileSync(recordingsSetting(), 'utf8')) as { folder?: unknown }
+    if (typeof saved.folder === 'string' && path.isAbsolute(saved.folder)) return saved.folder
+  } catch {
+    /* not picked yet */
+  }
+  return path.join(app.getPath('documents'), 'Iskra recordings')
+}
+function watchRecordingPage(page: Electron.WebContents): void {
+  if (recordingPages.has(page.id)) return
+  recordingPages.add(page.id)
+  const owner = page.id
+  const drop = () => void recordings.endAll(owner)
+  page.on('did-start-navigation', (details) => details.isMainFrame && !details.isSameDocument && drop())
+  page.once('destroyed', () => {
+    recordingPages.delete(owner)
+    drop()
+  })
+}
+ipcMain.handle('iskra:rec-folder', (event) => (fromApp(event) ? recordingsBase() : null))
+ipcMain.handle('iskra:rec-pick', async (event) => {
+  if (!fromApp(event) || !window) return null
+  const picked = await dialog.showOpenDialog(window, { title: text().recordings.pickTitle, defaultPath: recordingsBase(), properties: ['openDirectory', 'createDirectory'] })
+  const folder = picked.filePaths[0]
+  if (picked.canceled || !folder) return null
+  try {
+    writeFileSync(recordingsSetting(), JSON.stringify({ folder }))
+  } catch (error) {
+    deskLog.warn('DSK-140', 'store', 'failed', [['what', 'recordings'], ...errorFields(error)])
+  }
+  return folder
+})
+ipcMain.handle('iskra:rec-begin', async (event, server: unknown, channel: unknown) => {
+  if (!fromApp(event)) return null
+  watchRecordingPage(event.sender)
+  return recordings.begin(recordingsBase(), server, channel, event.sender.id)
+})
+ipcMain.handle('iskra:rec-open', (event, id: unknown, name: unknown) => (fromApp(event) ? recordings.open(id, name, event.sender.id) : null))
+ipcMain.handle('iskra:rec-write', (event, file: unknown, data: unknown) => (fromApp(event) ? recordings.write(file, data, event.sender.id) : 'failed'))
+ipcMain.handle('iskra:rec-close', (event, file: unknown) => (fromApp(event) ? recordings.close(file, event.sender.id) : false))
+ipcMain.handle('iskra:rec-info', (event, id: unknown, text: unknown) => (fromApp(event) ? recordings.info(id, text, event.sender.id) : false))
+ipcMain.handle('iskra:rec-end', (event, id: unknown) => (fromApp(event) ? recordings.end(id, event.sender.id) : undefined))
+ipcMain.handle('iskra:rec-show', async (event, id: unknown) => {
+  const folder = fromApp(event) ? recordings.folderOf(id, event.sender.id) : null
+  if (folder) await shell.openPath(folder)
+})
 
 // Rent a server on DigitalOcean: the token stays in this process (desktop/src/digitalocean.ts), forgotten when the page goes.
 const rental = new DoRental(testOverrides(process.env, app.isPackaged))
