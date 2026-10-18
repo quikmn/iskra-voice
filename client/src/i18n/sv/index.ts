@@ -28,6 +28,7 @@ import { safety } from './safety'
 import { productivity } from './productivity'
 import { docs } from './docs'
 import { catchup } from './catchup'
+import { favorites } from './favorites'
 import { compliance } from './compliance'
 import { updates } from './updates'
 import { clips } from './clips'
@@ -96,6 +97,7 @@ export const sv: Messages = {
   productivity,
   docs,
   catchup,
+  favorites,
   compliance,
   updates,
   clips,

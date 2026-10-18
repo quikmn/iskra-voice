@@ -33,6 +33,7 @@ import { GroupChat, GroupRows } from './groups/Groups'
 import { DmKeyNotice, DmKeyWarning } from './keys/DmKeyNotice'
 import { DM_ATTACH_EVENT, DmAttachments, DmComposer } from './dms/DmFiles'
 import { SavedRow } from './productivity/InboxButton'
+import { FavoritesSection } from './organize/Favorites'
 import { usePrivateMessageTools } from './productivity/MessageTools'
 import { dmTarget, privateRowId } from '../state/messageRefs'
 import { KeyHistory } from './keys/KeyTransparency'
@@ -90,6 +91,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
           <span className="channel-name">{t('app.home.friends')}</span>
           {incoming > 0 && <span className="badge" aria-label={t('friends.pendingBadge', { count: incoming })}>{incoming}</span>}
         </button>
+        <FavoritesSection onNavigate={onNavigate} />
         <SavedRow onNavigate={onNavigate} />
         <GroupRows onNavigate={onNavigate} />
         <div className="channel-group"><span>{t('app.home.conversations')}</span></div>

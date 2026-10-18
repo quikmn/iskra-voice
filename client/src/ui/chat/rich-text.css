@@ -43,7 +43,7 @@
 .md-timestamp { background: var(--surface-3); border-radius: 4px; padding: 0 3px; white-space: nowrap; }
 
 /* Tables in messages: scroll sideways inside the message, never widen the page. */
-.md-table-wrap { max-width: 100%; overflow-x: auto; margin: 4px 0; border: 1px solid var(--border); border-radius: 6px; white-space: normal; }
+.md-table-wrap { width: fit-content; max-width: 100%; overflow-x: auto; margin: 4px 0; border: 1px solid var(--border); border-radius: 6px; white-space: normal; }
 .md-table { border-collapse: collapse; font-size: 0.95em; line-height: 1.4; }
 .md-table th, .md-table td { padding: 4px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 .md-table th { background: var(--surface-2); color: var(--text-strong); font-weight: 700; white-space: nowrap; }

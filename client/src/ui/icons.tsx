@@ -314,3 +314,15 @@ export const Captions = (p: P) => (
     <path d="M7 15h4M15 15h2M7 11h2M13 11h4" />
   </Svg>
 )
+
+export const Star = (p: P & { filled?: boolean }) => (
+  <svg width={p.size ?? 18} height={p.size ?? 18} viewBox="0 0 24 24" fill={p.filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" />
+  </svg>
+)
+
+export const ChevronUp = (p: P) => (
+  <Svg {...p}>
+    <path d="m18 15-6-6-6 6" />
+  </Svg>
+)

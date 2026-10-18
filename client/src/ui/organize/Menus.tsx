@@ -17,6 +17,8 @@ import { RoomMenuItem } from '../rooms/RoomBits'
 import { ReadAloudChannelItem } from '../speech/ReadAloud'
 import { ClearVoiceStatusItem } from '../voiceStatus/VoiceStatus'
 import { SoundMenuRow, SoundMenuView } from '../sounds/SoundSettings'
+import { MAX_FAVORITES } from '../../state/favoritesLogic'
+import { setFavorite, useIsFavorite } from '../../state/favorites'
 
 export type Run = (action: () => Promise<unknown> | void) => () => void
 
@@ -99,6 +101,24 @@ export function NotifyRows({ server, channelId, setView, run }: { server: Server
   )
 }
 
+/** Star or unstar the channel (Home lists your favorites from every server). */
+function FavoriteItem({ server, channel, run }: { server: ServerState; channel: Channel; run: Run }) {
+  const { t } = useTranslation()
+  const on = useIsFavorite(server.key, channel.id)
+  const [full, setFull] = useState(false)
+  return (
+    <>
+      <MenuItem onClick={on ? run(() => { setFavorite({ server: server.key, channel: channel.id }, false) }) : () => {
+        if (setFavorite({ server: server.key, channel: channel.id }, true)) run(() => undefined)()
+        else setFull(true)
+      }}>
+        {on ? t('favorites.remove') : t('favorites.add')}
+      </MenuItem>
+      {full && <p className="muted sheet-error" role="alert">{t('favorites.full', { count: MAX_FAVORITES })}</p>}
+    </>
+  )
+}
+
 export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose }: {
   server: ServerState
   channel: Channel
@@ -143,6 +163,7 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
                 {t('organize.menu.markRead')}
               </MenuItem>
             )}
+            <FavoriteItem server={server} channel={channel} run={run} />
             {channel.kind !== 'forum' && channel.kind !== 'media' && channel.kind !== 'whiteboard' && <NotifyRows server={server} channelId={channel.id} setView={setView} run={run} />}
             <GameNightItems server={server} channel={channel} onClose={onClose} />
             <RoomMenuItem server={server} channel={channel} onClose={onClose} />
