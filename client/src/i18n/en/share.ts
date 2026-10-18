@@ -1,0 +1,27 @@
+// "Share to…": text, links and files shared from another app (the Android app's share sheet).
+export const share = {
+  title: 'Share to…',
+  preview: 'What you’re sharing',
+  message: 'Message',
+  messagePlaceholder: 'Add a message (optional)',
+  skipped_one: '{{count}} file couldn’t be added (too big, or more than 10).',
+  skipped_other: '{{count}} files couldn’t be added (too big, or more than 10).',
+  sendToLabel: 'Send to',
+  search: 'Search channels, people and groups',
+  places: 'Places to share to',
+  recent: 'Recent',
+  everywhere: 'Everywhere',
+  nothing: 'Nothing matches.',
+  loading: 'Connecting to your servers…',
+  noServers: 'Join a server first, then you can share here.',
+  dm: 'Direct message',
+  group: 'Group · {{server}}',
+  sendTo: 'Send to {{target}}',
+  sending: 'Sending… {{percent}}',
+  errors: {
+    empty: 'There’s nothing to send.',
+    offline: 'That server isn’t connected right now. Try again in a moment.',
+    tooBig: '{{name}} is bigger than this server allows ({{max}}).',
+    fileGone: '{{name}} isn’t available any more. Share it again.',
+  },
+}

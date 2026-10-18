@@ -25,6 +25,8 @@ import './state/whisper'
 import './state/disappearing'
 import { startDesktopLinks } from './state/desktopShell'
 import { startNativeShell } from './state/nativeShell'
+import { startShareIn } from './state/shareIn'
+import { ShareInLayer } from './ui/share/SharePicker'
 import { ScreenPicker } from './ui/ScreenPicker'
 import { Spinner } from './ui/bits'
 import { JoinPrompt } from './ui/dialogs/JoinDialog'
@@ -91,6 +93,7 @@ export function App() {
     const stopVoiceIdle = startVoiceIdleWatch()
     const stopLinks = startDesktopLinks()
     const stopNative = startNativeShell()
+    const stopShare = startShareIn()
     const stopDiagnostics = startDiagnostics()
     const stopWhatsNew = startWhatsNew()
     const stopStreamer = startStreamerWatch()
@@ -99,6 +102,7 @@ export function App() {
       stopWhatsNew()
       stopLinks()
       stopNative()
+      stopShare()
       stopDiagnostics()
       stopPtt()
       stopHotkeys()
@@ -146,6 +150,7 @@ export function App() {
       <ReportLayer />
       <BugReportLayer />
       <TermsUpdateDialog />
+      <ShareInLayer />
     </>
   )
 }

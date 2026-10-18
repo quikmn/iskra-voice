@@ -43,6 +43,19 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="iskra" android:host="join" />
             </intent-filter>
+
+            <!-- "Share to Iskra": text, links, photos, videos and other files from other apps (IskraNativePlugin, ShareIntake).
+                 The app shows a picker; nothing is sent until you choose where. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
         </activity>
 
         <!-- Voice with the app in the background or the screen off. -->

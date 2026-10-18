@@ -27,6 +27,12 @@ export interface NativeBridge {
   /** Leaves the app the way Android's back does on a home screen: to the background, voice keeps going. */
   leave(): void
   voice: NativeVoice
+  /**
+   * "Share to Iskra" from other apps (Android's share sheet), including the share that started the app. The callback
+   * gets the raw share (state/shareIn.ts checks it); `shareDone` lets the app delete its copies of the files.
+   */
+  onShare(callback: (share: unknown) => void): () => void
+  shareDone(id: string): void
 }
 
 interface CapacitorGlobal {
@@ -84,6 +90,9 @@ interface IskraNativePlugin {
   voiceStop(): Promise<void>
   addListener(event: 'voiceEnded', callback: () => void): Promise<Listener>
   addListener(event: 'voiceMuted', callback: (data: { muted?: unknown }) => void): Promise<Listener>
+  /** Android only: the newest share from another app, once (null when there's none). */
+  takeShare(): Promise<{ share?: unknown }>
+  shareDone(options: { id: string }): Promise<void>
 }
 
 let pluginPromise: Promise<IskraNativePlugin> | null = null
@@ -166,6 +175,24 @@ function bridge(platform: NativePlatform): NativeBridge {
       const { StatusBar, Style } = await import('@capacitor/status-bar')
       // Style.Dark is light text, for dark backgrounds.
       await StatusBar.setStyle({ style: scheme === 'light' ? Style.Light : Style.Dark })
+    },
+    onShare(callback) {
+      if (platform !== 'android') return () => {}
+      let stopped = false
+      const take = () => void plugin()
+        .then((p) => p.takeShare())
+        .then((result) => { if (!stopped && result?.share) callback(result.share) })
+        .catch(() => undefined)
+      // The listener first, then whatever is already waiting (a cold start by a share).
+      const stop = listen('shareReceived', take)
+      take()
+      return () => {
+        stopped = true
+        stop()
+      }
+    },
+    shareDone(id) {
+      if (platform === 'android') void plugin().then((p) => p.shareDone({ id })).catch(() => undefined)
     },
     voice: {
       start: async (options) => (await plugin()).voiceStart(options),
