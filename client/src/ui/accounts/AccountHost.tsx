@@ -21,14 +21,14 @@ export function AccountHost() {
   const slots = [...order].sort((a, b) => a - b)
   return (
     <div className="account-host">
-      {slots.map((slot) => <AccountFrame key={slot} slot={slot} active={slot === active} />)}
+      {slots.map((slot) => <AccountFrame key={slot} slot={slot} active={slot === active} asking={choosing || linking} />)}
       {choosing && <Chooser />}
       {linking && <LinkConfirm />}
     </div>
   )
 }
 
-function AccountFrame({ slot, active }: { slot: number; active: boolean }) {
+function AccountFrame({ slot, active, asking }: { slot: number; active: boolean; asking: boolean }) {
   const { t } = useTranslation()
   const name = useHost((s) => s.summaries[slot]?.name || s.registry.accounts[slot]?.name || '')
   useEffect(() => () => registerFrame(slot, null), [slot])
@@ -42,8 +42,9 @@ function AccountFrame({ slot, active }: { slot: number; active: boolean }) {
       src={frameUrl(slot)}
       title={t('accounts.frameTitle', { name: name || t('accounts.switcher.unnamed') })}
       allow={ALLOW}
-      // Hidden accounts keep running (connected, notifying) but can't take focus or clicks.
-      inert={!active}
+      // Hidden accounts keep running (connected, notifying) but can't take focus or clicks; while the host asks
+      // something, the account on screen can't either (a page still loading would take the focus from the question).
+      inert={!active || asking}
       aria-hidden={!active}
     />
   )
@@ -67,7 +68,7 @@ function LinkConfirm() {
           {!room && <p className="muted">{t('accounts.switcher.full', { count: views().length })}</p>}
         </div>
         <footer className="modal-footer">
-          <button className="button" autoFocus onClick={() => confirmLinking(false)}>{t('accounts.linking.cancel')}</button>
+          <button className="button" data-autofocus onClick={() => confirmLinking(false)}>{t('accounts.linking.cancel')}</button>
           <button className="button primary" disabled={!room} onClick={() => confirmLinking(true)}>{t('accounts.linking.add')}</button>
         </footer>
       </div>
