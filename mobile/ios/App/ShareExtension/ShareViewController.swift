@@ -221,7 +221,7 @@ final class ShareViewController: UIViewController {
             // A file the system hands over for the length of the callback: copy it there, on disk.
             let done = DispatchSemaphore(value: 0)
             _ = provider.loadFileRepresentation(forTypeIdentifier: type.identifier) { url, _ in
-                if let url { copied = copy(url, name: provider.suggestedName, type: type, index: index, dir: dir) }
+                if let url { copied = Self.copy(url, name: provider.suggestedName, type: type, index: index, dir: dir) }
                 done.signal()
             }
             done.wait()
