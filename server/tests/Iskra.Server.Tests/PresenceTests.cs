@@ -209,11 +209,13 @@ public class PresenceTests
         using var server = new IskraServer();
         using var alice = await server.JoinAsync("Alice");
         using var bob = await server.JoinAsync("Bob");
-        await bob.RequestAsync("presence.set", Presence("online", new { text = "brb", expiresAt = Now + 400 }));
+        // A minute, then the server's clock moves past it. (It used to be 400 ms of real time: a slow runner was past it
+        // before the server even read the request, so nothing was broadcast and the wait below timed out.)
+        await bob.RequestAsync("presence.set", Presence("online", new { text = "brb", expiresAt = Now + 60_000 }));
         var update = await UpdateAbout(alice, bob, "online");
         if (update.GetProperty("customStatus").ValueKind == JsonValueKind.Null) update = await UpdateAbout(alice, bob, "online"); // skip "came online"
         Assert.Equal("brb", update.GetProperty("customStatus").GetProperty("text").GetString());
-        await Task.Delay(600);
+        server.Clock.Advance(TimeSpan.FromMinutes(2));
         using var carol = await server.JoinAsync("Carol");
         var seen = carol.Welcome.Body().GetProperty("members").EnumerateArray().Single(m => m.GetProperty("accountKey").GetString() == bob.Key);
         Assert.Equal(JsonValueKind.Null, seen.GetProperty("customStatus").ValueKind);

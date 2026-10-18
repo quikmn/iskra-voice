@@ -58,6 +58,9 @@ public sealed class IskraServer : WebApplicationFactory<Program>
     /// <summary>Stands in for GitHub's releases (server updates).</summary>
     public FakeReleaseFeed Releases { get; } = new();
 
+    /// <summary>The server's clock (its TimeProvider): real time, which a test can move forward instead of waiting.</summary>
+    public TestClock Clock { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         if (AcceptBugReports)
@@ -73,6 +76,7 @@ public sealed class IskraServer : WebApplicationFactory<Program>
         builder.UseSetting("Calls:RingTimeoutMs", RingTimeoutMs.ToString());
         builder.ConfigureTestServices(services =>
         {
+            services.AddSingleton<TimeProvider>(Clock);
             services.AddSingleton<IVoiceBackend>(Voice);
             services.AddSingleton<Iskra.Server.Push.IPushSender>(Push);
             services.AddSingleton<Iskra.Server.Gifs.IGifUpstream>(Gifs);
@@ -105,7 +109,8 @@ public sealed class IskraServer : WebApplicationFactory<Program>
         var identity = new TestIdentity();
         var client = await ConnectAsync();
         var welcome = await client.LoginAsync(identity, name, Invite(role));
-        Assert.Equal("welcome", welcome.GetProperty("type").GetString());
+        // The error frame itself when it isn't a welcome: which error it was is the clue.
+        Assert.True(welcome.GetProperty("type").GetString() == "welcome", $"{name} didn't get in: {welcome}");
         return new User(identity, client, welcome);
     }
 
@@ -117,6 +122,16 @@ public sealed class IskraServer : WebApplicationFactory<Program>
         base.Dispose(disposing);
         if (!KeepWorld) try { Directory.Delete(WorldPath, recursive: true); } catch (IOException) { }
     }
+}
+
+/// <summary>The system clock plus an offset a test moves forward ("time passes") instead of sleeping. Timers and timestamps stay real.</summary>
+public sealed class TestClock : TimeProvider
+{
+    private long _offsetTicks;
+
+    public void Advance(TimeSpan by) => Interlocked.Add(ref _offsetTicks, by.Ticks);
+
+    public override DateTimeOffset GetUtcNow() => System.GetUtcNow() + TimeSpan.FromTicks(Interlocked.Read(ref _offsetTicks));
 }
 
 public sealed class FakeVoiceBackend : IVoiceBackend

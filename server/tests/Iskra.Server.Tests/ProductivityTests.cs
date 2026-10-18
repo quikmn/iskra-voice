@@ -168,12 +168,16 @@ public class ProductivityTests
     {
         using var server = new IskraServer();
         using var alice = await server.JoinAsync("Alice");
-        server.World.Store.AddReminder("x" + alice.Key[1..], Now - 1, Sealed(), null, null, Now);
+        // Someone who isn't a member: a fresh key that never joined. (Alice's key with its first letter changed to 'x'
+        // was Alice herself whenever her key started with 'x', 1 run in 64: she got the reminder and it stayed.)
+        using var formerIdentity = new TestIdentity();
+        var gone = formerIdentity.AccountKey;
+        server.World.Store.AddReminder(gone, Now - 1, Sealed(), null, null, Now);
         // A scheduler pass run here, not a fixed 1.5 s wait for the once-a-second timer (a busy Windows runner missed
         // it). The timer may be firing it at this very moment (marked fired, not yet deleted), so allow it to finish.
         server.Services.GetServices<IHostedService>().OfType<ProductivityScheduler>().Single().Tick();
-        for (var i = 0; i < 100 && server.World.Store.Reminders("x" + alice.Key[1..]).Count > 0; i++) await Task.Delay(50);
-        Assert.Empty(server.World.Store.Reminders("x" + alice.Key[1..]));
+        for (var i = 0; i < 100 && server.World.Store.Reminders(gone).Count > 0; i++) await Task.Delay(50);
+        Assert.Empty(server.World.Store.Reminders(gone));
     }
 
     // ── Scheduled messages ───────────────────────────────────────────────────
@@ -244,12 +248,14 @@ public class ProductivityTests
             server.World.Store.AddScheduled(new(0, alice.Key, "channel", server.General, null, null, null, $"burst {i}", null, null, at, Now, "pending", null));
         int Sent() => server.World.Store.MessagesBy(alice.Key).Count;
 
-        await alice.EventAsync("scheduled.deleted");
-        await Task.Delay(400); // the rest of that tick
-        Assert.InRange(Sent(), 1, 12); // the burst (plus at most a tick's refill), not all 16
-        // None are lost: the rest follow on the next ticks.
-        for (var waited = 0; Sent() < 16 && waited < 10_000; waited += 100) await Task.Delay(100);
+        // Each goes out as posted, deleted, then "scheduled.deleted": wait for all 16 of those (counting posted messages
+        // could look between a post and its delete). The allowance is a burst of 10 refilling 2 a second, so the other 6
+        // need about 3 seconds more (the server's own send times, so a slow test thread can't squeeze them together).
+        for (var i = 0; i < 16; i++) await alice.EventAsync("scheduled.deleted");
+        // None are lost.
         Assert.Equal(16, Sent());
+        var times = server.World.Store.MessagesBy(alice.Key).Select(m => server.World.Store.GetMessage(m.Id)!.CreatedAt).ToList();
+        Assert.True(times.Max() - times.Min() >= 2_500, $"All 16 went out within {times.Max() - times.Min()} ms.");
         Assert.Equal(0, server.World.Store.CountScheduled(alice.Key));
 
         // "Send now" shares the allowance.

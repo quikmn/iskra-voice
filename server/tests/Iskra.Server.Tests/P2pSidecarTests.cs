@@ -73,7 +73,10 @@ public class P2pSidecarTests : IDisposable
         try
         {
             using var node = Process.Start(new ProcessStartInfo("node", "--version") { RedirectStandardOutput = true, UseShellExecute = false });
-            node!.WaitForExit(10_000);
+            // Until it has exited: a cold start on a busy Windows runner took over the 10 s this used to allow, and
+            // ExitCode then threw "Process must exit before requested information can be determined".
+            node!.StandardOutput.ReadToEnd();
+            node.WaitForExit();
             return node.ExitCode == 0;
         }
         catch (System.ComponentModel.Win32Exception)
