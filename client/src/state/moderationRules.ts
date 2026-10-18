@@ -113,7 +113,7 @@ export const AUDIT_ACTIONS = [
   'member.join', 'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers', 'landing.update',
   'message.delete.bulk', 'member.warn', 'member.note.add', 'member.note.delete', 'member.avatar',
   'act.add', 'act.update', 'act.remove', 'act.configure',
-  'channel.export',
+  'channel.export', 'onboarding.autoroles', 'onboarding.autoroles.apply',
 ] as const
 
 export type AuditFilter = (typeof AUDIT_ACTIONS)[number]
@@ -167,6 +167,8 @@ export function auditText(e: AuditEntry): string {
     case 'role.group.create': return t('moderation.audit.roleGroupCreate', { actor, title: str(d.title) })
     case 'role.group.update': return t('moderation.audit.roleGroupUpdate', { actor, title: str(d.title) })
     case 'role.group.delete': return t('moderation.audit.roleGroupDelete', { actor, title: str(d.title) })
+    case 'onboarding.autoroles': return t('moderation.audit.autoRoles', { actor, roles: (Array.isArray(d.roles) ? d.roles.map(String) : []).join(', ') || '—' })
+    case 'onboarding.autoroles.apply': return t('moderation.audit.autoRolesApply', { actor, count: Number(d.members) || 0 })
     case 'message.delete.bulk': return t('moderation.audit.messageDeleteBulk', { actor, count: Number(d.count) || 0, channel: channel(d.channelName) })
     case 'member.warn': return t('moderation.audit.warn', { actor, target })
     case 'member.avatar': return t(d.removed ? 'moderation.audit.avatarRemoved' : 'moderation.audit.avatarSet', { actor, target })

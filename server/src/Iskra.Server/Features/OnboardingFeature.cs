@@ -107,7 +107,7 @@ public static class OnboardingFeature
         var store = s.World.Store;
         var element = body.Element("roles");
         if (element.ValueKind != JsonValueKind.Array || element.GetArrayLength() > MaxAutoRoles)
-            throw RequestException.BadRequest($"Up to {MaxAutoRoles} roles.", "onboarding_auto_roles_max", new { max = MaxAutoRoles });
+            throw RequestException.BadRequest($"New members can get up to {MaxAutoRoles} roles on join.", "onboarding_auto_roles_max", new { max = MaxAutoRoles });
         var ids = element.EnumerateArray()
             .Select(e => e.ValueKind == JsonValueKind.Number && e.TryGetInt64(out var id) ? id : throw RequestException.BadRequest("'roles' must be a list of ids."))
             .Distinct().ToList();

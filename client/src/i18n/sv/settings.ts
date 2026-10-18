@@ -33,7 +33,7 @@ export const settings: Messages['settings'] = {
     rules: 'Serverregler',
     limits: 'Gränser',
     serverVoice: 'Röst',
-    onboarding: 'Introduktion',
+    onboarding: 'Välkomstfrågor',
     backup: 'Säkerhetskopia och flytt',
     export: 'Exportera kanaler',
     import: 'Importera från Discord',

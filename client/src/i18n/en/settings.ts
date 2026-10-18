@@ -30,7 +30,7 @@ export const settings = {
     internet: 'Internet access',
     audit: 'Activity log',
     rules: 'Server rules',
-    onboarding: 'Onboarding',
+    onboarding: 'Join questions',
     limits: 'Limits',
     serverVoice: 'Voice',
     backup: 'Backup & move',

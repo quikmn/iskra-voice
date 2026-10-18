@@ -1,0 +1,76 @@
+/* ── Join questions: the member's step cards and the admin's editor ─────── */
+
+.jq-modal .modal-body { display: grid; gap: 14px; }
+.jq-intro { margin: 0; }
+.jq-footer { display: flex; align-items: center; gap: 8px; width: 100%; flex-wrap: wrap; }
+.jq-footer .spacer { flex: 1; }
+
+.jq-progress { display: flex; gap: 6px; }
+.jq-progress span { flex: 1; height: 4px; border-radius: 2px; background: var(--border); transition: background 0.2s; }
+.jq-progress span.past { background: var(--accent); opacity: 0.55; }
+.jq-progress span.now { background: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .jq-progress span { transition: none; } }
+
+.jq-card { display: grid; gap: 6px; min-width: 0; }
+.jq-card h3 { margin: 0; font-size: 18px; line-height: 1.3; overflow-wrap: anywhere; }
+.jq-card p { margin: 0; }
+.jq-step { display: flex; align-items: center; gap: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+.badge.jq-required { background: var(--accent-subtle); color: var(--accent); border: 1px solid var(--accent); text-transform: none; letter-spacing: 0; font-weight: 600; margin-left: 6px; }
+.jq-how { font-size: 13px; }
+
+.jq-answers { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 6px; }
+.jq-answer {
+  display: flex; align-items: center; gap: 10px; text-align: left; min-height: 52px; padding: 10px 12px; min-width: 0;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); cursor: pointer;
+}
+.jq-answer:hover:not(:disabled) { border-color: var(--accent); }
+.jq-answer.on { border-color: var(--accent); background: var(--accent-subtle); }
+.jq-answer:disabled { opacity: 0.7; cursor: default; }
+.jq-check {
+  flex: none; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; color: #fff;
+}
+.jq-answer[role='checkbox'] .jq-check { border-radius: 5px; }
+.jq-answer.on .jq-check { background: var(--accent); border-color: var(--accent); }
+.jq-emoji { font-size: 22px; flex: none; line-height: 1; }
+.jq-answer-text { display: grid; gap: 2px; min-width: 0; }
+.jq-answer-name { font-weight: 600; overflow-wrap: anywhere; }
+.jq-gives { font-size: 12px; overflow-wrap: anywhere; }
+
+.jq-done { display: grid; gap: 8px; justify-items: center; text-align: center; padding: 8px 0; }
+.jq-done h3 { margin: 0; font-size: 18px; }
+.jq-done p { margin: 0; max-width: 46ch; }
+.jq-done-mark {
+  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; font-weight: 700;
+  background: var(--accent-subtle); color: var(--accent); border: 2px solid var(--accent);
+}
+.jq-suggested { width: 100%; display: grid; gap: 6px; margin-top: 8px; text-align: left; }
+.jq-suggested h4 { margin: 0; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.jq-suggested ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.jq-channel {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; min-height: 44px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 500; cursor: pointer; text-align: left;
+}
+.jq-channel:hover { border-color: var(--accent); }
+.jq-channel .hash { color: var(--muted); font-weight: 700; }
+
+/* Settings */
+.jq-safety { align-items: flex-start; }
+.jq-safety p { margin: 0; flex: 1 1 260px; font-size: 13px; }
+.jq-answer-editors { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.jq-answer-editor { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.jq-answer-head { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.jq-emoji-input { width: 52px; flex: none; text-align: center; }
+.jq-label-input { flex: 1; min-width: 0; }
+.jq-picks { display: flex; flex-wrap: wrap; gap: 6px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.jq-picks legend { font-size: 12px; color: var(--muted); padding: 0; margin-bottom: 4px; width: 100%; }
+.role-option.small { min-height: 30px; padding: 4px 10px; font-size: 13px; }
+.jq-auto { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); display: grid; gap: 8px; }
+.jq-auto h3 { margin: 0; font-size: 15px; }
+.jq-auto p { margin: 0; }
+
+@media (max-width: 760px) {
+  .jq-answers { grid-template-columns: 1fr; }
+  .jq-modal .jq-footer .button { flex: 1 1 auto; justify-content: center; }
+  .jq-modal .jq-footer .spacer { display: none; }
+}

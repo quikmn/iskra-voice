@@ -52,16 +52,19 @@ public static partial class RoleFeature
     /// <summary>`roles`: 1–25 distinct ids of self-assignable roles, in the order shown.</summary>
     private static long[] GroupRoles(Store store, Body body)
     {
-        var ids = Ids(body.Element("roles"), "roles", MaxGroupRoles, "role_group_roles_max");
+        var ids = Ids(body.Element("roles"), "roles");
+        if (ids.Length > MaxGroupRoles)
+            throw RequestException.BadRequest($"'roles' must be a list of up to {MaxGroupRoles} ids.", "role_group_roles_max", new { max = MaxGroupRoles });
         if (ids.Length == 0) throw RequestException.BadRequest("A group needs at least one role.", "role_group_empty");
         CheckPickable(store, ids);
         return ids;
     }
 
-    private static long[] Ids(JsonElement element, string name, int max, string? key = null)
+    /// <summary>A list of distinct ids (at most 100 sent; callers check their own limit).</summary>
+    private static long[] Ids(JsonElement element, string name)
     {
-        if (element.ValueKind != JsonValueKind.Array || element.GetArrayLength() > max)
-            throw RequestException.BadRequest($"'{name}' must be a list of up to {max} ids.", key, key is null ? null : new { max });
+        if (element.ValueKind != JsonValueKind.Array || element.GetArrayLength() > MaxRoles)
+            throw RequestException.BadRequest($"'{name}' must be a list of ids.");
         return element.EnumerateArray()
             .Select(e => e.ValueKind == JsonValueKind.Number && e.TryGetInt64(out var id) ? id : throw RequestException.BadRequest($"'{name}' must be a list of ids."))
             .Distinct().ToArray();
@@ -89,7 +92,7 @@ public static partial class RoleFeature
     {
         var element = body.Element("answers");
         if (element.ValueKind != JsonValueKind.Array || element.GetArrayLength() > MaxAnswers)
-            throw RequestException.BadRequest($"'answers' must be a list of up to {MaxAnswers} answers.", "role_group_answers_max", new { max = MaxAnswers });
+            throw RequestException.BadRequest($"A question can have up to {MaxAnswers} answers.", "role_group_answers_max", new { max = MaxAnswers });
         if (element.GetArrayLength() == 0) throw RequestException.BadRequest("A question needs at least one answer.", "role_group_no_answers");
         var store = s.World.Store;
         var own = group?.Answers.Select(a => a.Id).ToHashSet() ?? [];
@@ -100,10 +103,14 @@ public static partial class RoleFeature
             if (item.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("Each answer must be an object.");
             var a = new Body(item);
             var id = a.OptionalLong("id") ?? 0;
-            if (id != 0 && (!own.Contains(id) || answers.Any(x => x.Id == id))) throw RequestException.BadRequest("Unknown answer.", "onboarding_unknown_answer");
-            var roles = a.Has("roles") ? Ids(a.Element("roles"), "roles", MaxAnswerRoles, "role_answer_roles_max") : [];
+            if (id != 0 && (!own.Contains(id) || answers.Any(x => x.Id == id))) throw RequestException.BadRequest("That isn't an answer to this question.", "onboarding_unknown_answer");
+            var roles = a.Has("roles") ? Ids(a.Element("roles"), "roles") : [];
+            if (roles.Length > MaxAnswerRoles)
+                throw RequestException.BadRequest($"An answer can give up to {MaxAnswerRoles} roles.", "role_answer_roles_max", new { max = MaxAnswerRoles });
             CheckPickable(store, roles);
-            var channelIds = a.Has("channels") ? Ids(a.Element("channels"), "channels", MaxAnswerChannels, "role_answer_channels_max") : [];
+            var channelIds = a.Has("channels") ? Ids(a.Element("channels"), "channels") : [];
+            if (channelIds.Length > MaxAnswerChannels)
+                throw RequestException.BadRequest($"An answer can suggest up to {MaxAnswerChannels} channels.", "role_answer_channels_max", new { max = MaxAnswerChannels });
             foreach (var c in channelIds)
                 if (!channels.TryGetValue(c, out var channel) || !Permissions.CanRead(me, channel)) throw RequestException.NotFound("Channel");
             var raw = a.OptionalString("label", MaxAnswerLabelLength * 2) ?? "";

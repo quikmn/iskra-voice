@@ -1172,18 +1172,18 @@ export interface VoiceParticipant {
 }
 
 export interface Events {
-  roles: { roles: ServerRole[]; baseRoles?: BaseRoleInfo[]; groups?: RoleGroup[] }
+  roles: { roles: ServerRole[]; baseRoles?: BaseRoleInfo[]; groups?: RoleGroup[]; autoRoles?: number[] }
   'voice.moved': { channelId: number; reason?: 'afk' | 'teams' }
 }
 
 export interface Requests {
-  'role.list': [Record<string, never>, { roles: ServerRole[]; baseRoles?: BaseRoleInfo[]; groups?: RoleGroup[] }]
+  'role.list': [Record<string, never>, { roles: ServerRole[]; baseRoles?: BaseRoleInfo[]; groups?: RoleGroup[]; autoRoles?: number[] }]
   'role.create': [{ name: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[]; selfAssign?: boolean }, { role: ServerRole }]
   'role.update': [{ id: number; name?: string; color?: string; icon?: string; hoist?: boolean; mentionable?: boolean; permissions?: Permission[]; selfAssign?: boolean }, { role: ServerRole }]
   'role.delete': [{ id: number }, Record<string, never>]
   'role.reorder': [{ ids: number[] }, { roles: ServerRole[] }]
-  'role.group.create': [{ title: string; question?: string; multi?: boolean; roles: number[] }, { group: RoleGroup }]
-  'role.group.update': [{ id: number; title?: string; question?: string; multi?: boolean; roles?: number[] }, { group: RoleGroup }]
+  'role.group.create': [{ title: string; question?: string; multi?: boolean; required?: boolean; roles?: number[]; answers?: JoinAnswerDraft[] }, { group: RoleGroup }]
+  'role.group.update': [{ id: number; title?: string; question?: string; multi?: boolean; required?: boolean; roles?: number[]; answers?: JoinAnswerDraft[] }, { group: RoleGroup }]
   'role.group.delete': [{ id: number }, Record<string, never>]
   /** Your own self-assignable roles: `add` and/or `remove`. */
   'roles.self': [{ add?: number[]; remove?: number[] }, { member: Member }]
@@ -3049,4 +3049,40 @@ export interface Requests {
 
 export interface Events {
   'channel.export.progress': { job: ExportJob }
+}
+
+// ── join questions ──
+
+/** One answer to a join question (PROTOCOL.md "Join questions and roles on join"). `label` "": named after its role. */
+export interface JoinAnswer {
+  id: number
+  label: string
+  emoji: string | null
+  /** Self-assignable roles it gives. */
+  roles: number[]
+  /** Channels it suggests (access still comes from roles). */
+  channels: number[]
+}
+
+/** An answer as an admin saves it: with `id` it keeps the answer (and who picked it). */
+export interface JoinAnswerDraft {
+  id?: number
+  label: string
+  emoji?: string
+  roles: number[]
+  channels: number[]
+}
+
+export interface RoleGroup {
+  /** The app keeps asking until it's answered. Older servers: absent. */
+  required?: boolean
+  /** Older servers: absent (each role is an answer). */
+  answers?: JoinAnswer[]
+}
+
+export interface Requests {
+  'onboarding.mine': [Record<string, never>, { answers: number[] }]
+  'onboarding.answer': [{ question: number; answers: number[] }, { member: Member; answers: number[] }]
+  'onboarding.autoroles.set': [{ roles: number[] }, { autoRoles: number[] }]
+  'onboarding.autoroles.apply': [Record<string, never>, { members: number }]
 }
