@@ -61,6 +61,7 @@ import { speech } from './speech'
 import { sounds } from './sounds'
 import { voiceStatus } from './voiceStatus'
 import { invitetrack } from './invitetrack'
+import { joinQuestions } from './joinQuestions'
 import { mediaChannels } from './mediaChannels'
 import { channelExport } from './channelExport'
 import { feeds } from './feeds'
@@ -132,6 +133,7 @@ export const sv: Messages = {
   sounds,
   voiceStatus,
   invitetrack,
+  joinQuestions,
   channelExport,
   feeds,
   bots3,

@@ -1230,8 +1230,9 @@ RoleGroup { "id": 1, "title": "Platform", "question": "What do you play on?", "m
   `member.updated` and a fresh `channels` list like `member.roles.set`.
 - Audit: `role.create`/`role.update` details gain `selfAssign`; `role.group.create` / `role.group.update`
   `{ id, title, roles }` (names), `role.group.delete` `{ id, title }`. Picking your own roles isn't audited.
-- Clients show the groups on the welcome screen after agreeing to the rules, from "Pick your roles" in the server menu,
-  and for `/roles`. Templates: `roles[].selfAssign` and `roleGroups` (format 4, see [Starter templates](#starter-templates)).
+- Groups are the server's [join questions](#join-questions-and-roles-on-join): each has answers that give roles and
+  suggest channels. Clients show them step by step after agreeing to the rules, from "Change my answers" in the server
+  menu, and for `/roles`. Templates: `roles[].selfAssign` and `roleGroups` (format 4, see [Starter templates](#starter-templates)).
 
 ## Reliable sends
 
@@ -4808,3 +4809,63 @@ never bots; it's checked on each DM, so it ends with the role. Staff who can't D
   my data" (`dmPrivacy`, `dmRequests`: your own rows only, never other people's decisions about you), follow an
   [account key rotation](#account-key-rotation) and are deleted with the account (rows about you in other people's
   lists too).
+
+## Join questions and roles on join
+
+[Pick groups](#self-assignable-roles-and-pick-groups) are the server's **join questions** (Server settings → Join
+questions, like onboarding elsewhere): each has **answers**, and each answer gives self-assignable roles and suggests
+channels. New members' apps ask them step by step after the rules (if any), and from "Change my answers" in the server
+menu or `/roles`. Admins can also pick **roles on join** that every new member gets.
+
+**The one safety rule.** Every role an answer gives, and every role on join, is a role members could pick themselves:
+`selfAssign` and no permissions (so no rank either). It is checked when the question or the roles on join are saved
+(`bad_request`, key `role_group_not_self_assign` / `onboarding_auto_role`) and again every time a role is actually given.
+A role that stops being `selfAssign` leaves every answer (an answer that was only that role goes), stops being given on
+join, and whoever holds it keeps it as if given by hand. Channel access still comes only from roles: a suggested
+channel the member can't see is just not shown.
+
+```jsonc
+RoleGroup {
+  "id": 1, "title": "Platform", "question": "What do you play on?", "multi": false,
+  "required": false,          // the app keeps asking until it's answered (the server refuses clearing it)
+  "answers": [ { "id": 7, "label": "Computer", "emoji": "💻", "roles": [4, 9], "channels": [12] },
+               { "id": 8, "label": "", "emoji": null, "roles": [5], "channels": [] } ],   // label "": named after its role
+  "roles": [4, 9, 5]          // every role its answers give, in order (older apps)
+}
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `role.group.create` / `role.group.update` | as before, plus `required?` and `answers?`: 1–25 of `{ id?, label? (≤ 60, one line), emoji? (one emoji, ≤ 16), roles? (≤ 5 ids), channels? (≤ 5 ids of channels you can see, not threads) }`; a label or a role is needed (`role_answer_empty`). On update, an answer listed with its `id` (of this question; else `onboarding_unknown_answer`) is kept with everyone's picks of it, others are new, and answers left out go. The older `roles` form still works (one answer per role). | `{ group }` | `manageRoles` |
+| `onboarding.mine` | | `{ answers: [answerId] }` | any member (bots: always empty) |
+| `onboarding.answer` | `question` (id), `answers: [answerId]` (≤ 25) | `{ member, answers }` | any member who isn't a bot (`forbidden`, key `bots_no_roles`). Answers must belong to the question (`onboarding_unknown_answer`), at most one for a single-choice question (`onboarding_single`), at least one for a required one (`onboarding_required`). Rate limited (10, then 1 a second) |
+| `onboarding.autoroles.set` | `roles: [roleId]` (≤ 10, `onboarding_auto_roles_max`) | `{ autoRoles }` | `manageRoles` |
+| `onboarding.autoroles.apply` | | `{ members }` (how many got roles) | `manageRoles` |
+
+- `onboarding.answer` replaces your answers to that one question, then gives the roles your answers (all questions)
+  call for that you don't hold, and takes back roles an earlier answer gave that no answer calls for any more. Only
+  roles an answer actually gave are ever taken back: roles you held already, got on join, were given or taken by a
+  moderator (`member.roles.set`), or picked or dropped yourself (`roles.self`) since, stay as they are. Changes send
+  `member.updated` and a fresh `channels` list like `member.roles.set`.
+- `roles.self` in a single-choice question drops the other answers that are one role each (answers with several roles
+  change only through `onboarding.answer`).
+- Roles on join are given at the moment someone becomes a member: any invite, an approved join request, the p2p tunnel.
+  Not retroactive: `onboarding.autoroles.apply` gives them to every current member who isn't a bot. Bots get no roles on
+  join and can't answer.
+- `role.list` and the `roles` event gain `autoRoles: [roleId]` (in order). Each person gets their own `roles` event:
+  an answer's `channels` lists only the channels that person can see. Saving an answer listed with its `id` keeps the
+  channels the saver can't see.
+- Admin edits never take roles from anyone: deleting or changing an answer or a question forgets who picked it and
+  which roles it gave (a role stays the answers' to take back only while one of the member's answers still gives it).
+- Giving and taking roles (answers, roles on join) adds or deletes single role rows in one transaction, checking that
+  each role is still one members may pick, so it never undoes another change to someone's roles made meanwhile.
+  `onboarding.autoroles.apply` is rate limited (3, then one every 10 s).
+- Audit: `onboarding.autoroles` `{ roles }` (names), `onboarding.autoroles.apply` `{ members }`. Answering isn't audited.
+- `data.export` gains `joinAnswers` (question, answer label, answer id) and `joinAnswerRoles` (roles your answers gave).
+- Templates keep `roleGroups` as before (answers that are one role each); labels, channels and `required` aren't in
+  templates yet.
+
+Migration `onboarding-1`: `role_groups.required`, `role_group_answers` (+ `_roles`, `_channels`; existing groups become
+one answer per role), `onboarding_answers` and `onboarding_grants` (per member, deleted when they leave),
+`onboarding_auto_roles`. `role_group_roles` stays and is kept in step (every role a question's answers give, in order),
+so an older server after a rollback or downgrade still shows the questions as pick groups.

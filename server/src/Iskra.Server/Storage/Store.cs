@@ -385,6 +385,8 @@ public sealed partial class Store : IDisposable
         ("builtinbots3-1", BuiltinBots3Migration),
         // Who may start a DM with you, and message requests (accepted, waiting or ignored) per person.
         ("dmprivacy-1", DmPrivacyMigration),
+        // Join questions: answers that give roles and suggest channels, members' answers and what they gave, roles on join.
+        ("onboarding-1", OnboardingMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

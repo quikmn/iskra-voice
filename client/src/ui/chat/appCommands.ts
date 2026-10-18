@@ -52,9 +52,9 @@ function commands(): AppCommand[] {
       run: (serverKey, _channelId, args) => ttsBlocked(serverKey, args.trim()),
     },
     {
-      command: { name: 'roles', description: t('roles.picker.command') },
+      command: { name: 'roles', description: t('joinQuestions.flow.command') },
       run: (serverKey) => {
-        if (askableGroups(roleGroupsFor(serverKey), rolesFor(serverKey)).length === 0) return t('roles.picker.none')
+        if (askableGroups(roleGroupsFor(serverKey), rolesFor(serverKey)).length === 0) return t('joinQuestions.flow.none')
         openRolePicker(serverKey)
         return null
       },
