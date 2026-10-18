@@ -21,6 +21,10 @@
   margin-top: auto; position: sticky; bottom: 0; padding: 0; display: block; background: var(--surface-2);
   box-shadow: 0 -8px 8px var(--rail); /* servers scrolling under it fade out */
 }
+/* Level with the profile bar beside it: that bar is --bottom-bar tall and 16px (8px on phones) above the panel's
+   bottom, the rail ends there too with 12px padding, and this button is 48px. */
+.server-icon.account-switch { margin-bottom: calc(16px + var(--bottom-bar) / 2 - 12px - 24px); }
+@media (max-width: 760px) { .server-icon.account-switch { margin-bottom: calc(8px + var(--bottom-bar) / 2 - 12px - 24px); } }
 .server-icon.account-switch:hover { background: var(--surface-3); }
 .server-icon.account-switch .avatar { display: grid; place-items: center; width: 100% !important; height: 100% !important; border-radius: inherit; transition: border-radius 0.2s; }
 .server-icon.account-switch.ringing { animation: account-ring 1s ease-in-out infinite; }

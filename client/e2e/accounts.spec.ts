@@ -107,6 +107,12 @@ test('two accounts in one app, each with its own servers, unread, links and voic
   await cy.getByPlaceholder('Message Bea').press('Enter')
   await expect(ada.getByTestId('account-switcher').locator('.badge')).toHaveText('1', { timeout: 20_000 })
   await expect(page).toHaveTitle(/^\(1\) Iskra/)
+  // The switcher's picture sits level with the profile bar next to it (same middle).
+  const middle = async (selector: string) => {
+    const box = await ada.locator(selector).first().boundingBox()
+    return box!.y + box!.height / 2
+  }
+  expect(Math.abs((await middle('[data-testid="account-switcher"]')) - (await middle('.me-bar')))).toBeLessThanOrEqual(1)
   await openSwitcher(ada)
   await expect(ada.getByRole('menuitemradio', { name: 'Switch to Bea' })).toContainText('1 unread')
   await page.screenshot({ path: join(SHOTS, 'accounts-switcher.png') })
