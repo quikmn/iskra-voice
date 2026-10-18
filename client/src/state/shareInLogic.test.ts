@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  channelTargetId, cleanShareName, dmTargetId, groupTargetId, MAX_SHARE_FILES, matchesQuery, orderTargets, overLimit, parseShare,
+  channelTargetId, cleanShareName, dmTargetId, groupTargetId, isOwnFile, MAX_SHARE_FILES, matchesQuery, orderTargets, overLimit, parseShare,
   rememberTarget, shareText, type ShareTarget,
 } from './shareInLogic'
 
@@ -26,6 +26,25 @@ describe('parseShare', () => {
     }, ORIGIN)
     expect(share?.files.map((f) => f.name)).toEqual(['f1.jpg'])
     expect(share?.skipped).toBe(3)
+  })
+
+  it('takes the iPhone app’s copies only from its own file server on its own origin', () => {
+    const IOS = 'capacitor://localhost'
+    const copy = `${IOS}/_capacitor_file_/private/var/mobile/Containers/Shared/AppGroup/X/Shares/Y/1.jpg`
+    expect(parseShare({ files: [file(1, { url: copy })] }, IOS)?.files[0].url).toBe(copy)
+    expect(isOwnFile(copy, IOS)).toBe(true)
+    // Elsewhere on the app's origin, another host, another scheme, credentials, a way out of the folder.
+    expect(isOwnFile(`${IOS}/index.html`, IOS)).toBe(false)
+    expect(isOwnFile('capacitor://evil/_capacitor_file_/x', IOS)).toBe(false)
+    expect(isOwnFile('ionic://localhost/_capacitor_file_/x', IOS)).toBe(false)
+    expect(isOwnFile('capacitor://a:b@localhost/_capacitor_file_/x', IOS)).toBe(false)
+    expect(isOwnFile(`${IOS}/_capacitor_file_/../keys`, IOS)).toBe(false)
+    expect(isOwnFile('https://evil.example/_capacitor_file_/x', IOS)).toBe(false)
+    expect(isOwnFile('blob:capacitor://localhost/abc', IOS)).toBe(false)
+    // Not on any other page: a web page never takes capacitor:// URLs, and an opaque origin matches nothing.
+    expect(isOwnFile(copy, ORIGIN)).toBe(false)
+    expect(isOwnFile(copy, 'null')).toBe(false)
+    expect(isOwnFile('capacitor://localhost/_capacitor_file_/x', 'capacitor://localhost/')).toBe(false)
   })
 
   it('accepts blob URLs of the page (the tests’ stand-in for the app’s copies)', () => {

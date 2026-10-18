@@ -63,6 +63,8 @@ concurrency:
 env:
   TEAM_ID: BWX2M8XSNZ
   BUNDLE_ID: foo.iskra.app
+  # Share to Iskra: the app and its Share Extension (foo.iskra.app.ShareExtension) both have it.
+  APP_GROUP: group.foo.iskra.app
 
 jobs:
   # Build, cloud-sign and check (about 5 minutes); the signed .ipa and its version numbers become the artifact
@@ -207,11 +209,28 @@ jobs:
           plutil -p entitlements.plist
           grep -q 'applinks:app.iskra.foo' entitlements.plist || { echo "::error::associated-domains entitlement missing"; exit 1; }
           grep -q "$TEAM_ID.$BUNDLE_ID" entitlements.plist
-          # Voice in the background: the audio mode only (no push, no VoIP, no extensions).
+          grep -q "<string>$APP_GROUP</string>" entitlements.plist || { echo "::error::App Groups entitlement missing (Share to Iskra)"; exit 1; }
+          # Voice in the background: the audio mode only (no push, no VoIP).
           /usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes' "$plist" | grep -qx '    audio'
           if /usr/libexec/PlistBuddy -c 'Print :UIBackgroundModes' "$plist" | grep -qx '    voip'; then echo "::error::voip background mode is back"; exit 1; fi
           if /usr/libexec/PlistBuddy -c 'Print :aps-environment' entitlements.plist >/dev/null 2>&1; then echo "::error::aps-environment is back"; exit 1; fi
-          test ! -d "$app/PlugIns" || { echo "::error::unexpected app extensions"; ls "$app/PlugIns"; exit 1; }
+          # One extension only: Share to Iskra (mobile/ios/App/ShareExtension), signed by the same team, same versions,
+          # with the App Group the app reads shares from.
+          test "$(ls "$app/PlugIns" 2>/dev/null)" = "ShareExtension.appex" || { echo "::error::app extensions must be exactly ShareExtension.appex"; ls -la "$app/PlugIns" 2>/dev/null; exit 1; }
+          appex="$app/PlugIns/ShareExtension.appex"
+          xplist="$appex/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$xplist")" = "$BUNDLE_ID.ShareExtension"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :NSExtension:NSExtensionPointIdentifier' "$xplist")" = "com.apple.share-services"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$xplist")" = "$MARKETING_VERSION"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$xplist")" = "$BUILD_NUMBER"
+          codesign --verify --strict "$appex"
+          test "$(codesign -dvv "$appex" 2>&1 | grep '^TeamIdentifier=')" = "TeamIdentifier=$TEAM_ID"
+          codesign -d --entitlements - --xml "$appex" > appex-entitlements.plist
+          plutil -p appex-entitlements.plist
+          grep -q "<string>$APP_GROUP</string>" appex-entitlements.plist || { echo "::error::the share extension lacks the App Group"; exit 1; }
+          grep -q "$TEAM_ID.$BUNDLE_ID.ShareExtension" appex-entitlements.plist
+          if grep -q 'aps-environment' appex-entitlements.plist; then echo "::error::aps-environment in the share extension"; exit 1; fi
+          test ! -d "$appex/PlugIns" || { echo "::error::nested extensions"; exit 1; }
           echo "Iskra $APP_VERSION ($MARKETING_VERSION build $BUILD_NUMBER) is signed for the App Store"
 
       # The .ipa with its numbers (ios-build.env), for the upload (.github/actions/testflight-upload) and appstore.mjs.

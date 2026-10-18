@@ -1,4 +1,4 @@
-// "Share to Iskra": text, links and files another app shared (the Android app's share sheet, platform/native.ts) wait
+// "Share to Iskra": text, links and files another app shared (the phone apps' share sheet, platform/native.ts) wait
 // here until you pick where they go (ui/share/SharePicker.tsx). Sending uses the normal paths, so encrypted channels,
 // DMs and groups encrypt the files on this device and the server checks permissions and limits as for any message.
 import { create } from 'zustand'

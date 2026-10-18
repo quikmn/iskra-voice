@@ -9,5 +9,10 @@
 		<string>applinks:app.iskra.foo</string>
 		<string>webcredentials:app.iskra.foo</string>
 	</array>
+	<!-- Share to Iskra: the Share Extension leaves what was shared in this group's folder (ShareInbox.swift). -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.foo.iskra.app</string>
+	</array>
 </dict>
 </plist>
