@@ -1,6 +1,6 @@
 // What the desktop app (Electron preload) adds. Undefined in a normal browser.
 import { onLanguage } from '../i18n'
-import { accountLink } from './accountBoot'
+import { accountLink, bootMode } from './accountBoot'
 
 export interface ScreenSource {
   id: string
@@ -352,9 +352,12 @@ export interface DoRented {
   size: string
 }
 
+const shell = (globalThis as { iskraDesktop?: DesktopBridge }).iskraDesktop
+/** The shell for the host page itself (several accounts signed in), which lends each account a routed copy. */
+export const hostDesktop: DesktopBridge | undefined = bootMode === 'host' ? shell : undefined
 // An account's page next to other accounts reaches the shell through the host page, which routes its events to the
-// right account (platform/accountBoot.ts, state/accountBridges.ts).
-export const desktop: DesktopBridge | undefined = accountLink ? accountLink.desktop : (globalThis as { iskraDesktop?: DesktopBridge }).iskraDesktop
+// right account (platform/accountBoot.ts, state/accountBridges.ts). The app's modules in the host page see none.
+export const desktop: DesktopBridge | undefined = accountLink ? accountLink.desktop : bootMode === 'host' ? undefined : shell
 
 /** The OS's name for About & legal, from the shell's process.platform. */
 export const osName = (platform: string): string => (platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'macOS' : platform === 'linux' ? 'Linux' : platform)

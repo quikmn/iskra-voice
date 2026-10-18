@@ -42,11 +42,16 @@ describe('starting a page', () => {
 
   it('becomes the host with several accounts, and keeps no account storage of its own', async () => {
     localStorage.setItem(REGISTRY_KEY, serializeRegistry(addAccount(singleRegistry(), 'new')!.registry))
-    const raw = window.localStorage
+    localStorage.setItem('iskra.drafts', 'account one')
+    localStorage.setItem('iskra.theme', '{"id":"x"}')
     const b = await boot()
     expect(b.bootMode).toBe('host')
     expect(b.bootSlot).toBe(0)
-    expect(window.localStorage).toBe(raw)
+    // The app's modules load there but never start: what they'd keep stays in memory, and no account's keys show.
+    expect(localStorage.getItem('iskra.drafts')).toBeNull()
+    localStorage.setItem('iskra.drafts', 'host')
+    expect(b.rawLocalStorage!.getItem('iskra.drafts')).toBe('account one')
+    expect(localStorage.getItem('iskra.theme')).toBe('{"id":"x"}') // the device's theme is the real one
   })
 
   it('a single account in another slot gets its own view of storage', async () => {

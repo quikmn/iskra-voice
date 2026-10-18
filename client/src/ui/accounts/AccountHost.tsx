@@ -56,7 +56,8 @@ function Chooser() {
   useEscapeLayer(() => choose(null), true)
   useFocusTrap(ref)
   const accounts = views().filter((a) => !a.adding)
-  const question = link?.kind === 'token' || (link?.kind === 'hash' && link.route.startsWith('#/join/')) ? t('accounts.chooser.invite') : t('accounts.chooser.open')
+  const invite = link?.kind === 'token' || (link?.kind === 'hash' && link.route.startsWith('#/join/')) || (link?.kind === 'url' && link.value.includes('/join/'))
+  const question = invite ? t('accounts.chooser.invite') : t('accounts.chooser.open')
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && choose(null)}>
       <div className="modal account-chooser" role="dialog" aria-modal="true" aria-label={t('accounts.chooser.title')} ref={ref} tabIndex={-1}>

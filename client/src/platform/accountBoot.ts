@@ -8,7 +8,7 @@
 //   databases are its own (core/accountSlot.ts).
 import { setAccountSlot } from '../core/accountSlot'
 import type { AccountLink, HostApi } from './accountLink'
-import { namespacedStorage, parseRegistry, REGISTRY_KEY, type Registry } from './accountSlots'
+import { hostStorage, namespacedStorage, parseRegistry, REGISTRY_KEY, type Registry } from './accountSlots'
 
 export type BootMode = 'solo' | 'frame' | 'host'
 
@@ -51,7 +51,7 @@ export let storageIsolated = true
 
 function install(name: 'localStorage' | 'sessionStorage', raw: Storage | null, slot: number): void {
   if (!raw) return
-  const view = namespacedStorage(raw, slot)
+  const view = slot === 0 ? hostStorage(raw) : namespacedStorage(raw, slot)
   try {
     Object.defineProperty(window, name, { configurable: true, enumerable: true, get: () => view })
   } catch {
@@ -76,4 +76,8 @@ if (bootMode !== 'host') {
     install('localStorage', rawLocalStorage, bootSlot)
     install('sessionStorage', rawSessionStorage, bootSlot)
   }
+} else {
+  // The host page has no account: the app's modules (loaded, never started) keep nothing real.
+  install('localStorage', rawLocalStorage, 0)
+  install('sessionStorage', rawSessionStorage, 0)
 }

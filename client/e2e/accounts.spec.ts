@@ -11,6 +11,17 @@ test.beforeAll(async () => {
 })
 test.afterAll(async () => Promise.all([one?.stop(), two?.stop()]))
 
+/** The device's storage as it really is: a page of the same origin with no scripts (the host page itself only sees memory). */
+async function onDevice<T>(page: Page, read: () => Promise<T> | T): Promise<T> {
+  const probe = await page.context().newPage()
+  try {
+    await probe.goto('/popout.html')
+    return await probe.evaluate(read)
+  } finally {
+    await probe.close()
+  }
+}
+
 const account = (page: Page, slot: number): FrameLocator => page.frameLocator(`iframe[data-account="${slot}"]`)
 const frameOf = (page: Page, slot: number): Frame => page.frames().find((f) => new URL(f.url()).searchParams.get('account') === String(slot))!
 
@@ -79,7 +90,7 @@ test('two accounts in one app, each with its own servers, unread, links and voic
   expect(await frameOf(page, 1).evaluate(() => localStorage.getItem('iskra.drafts') ?? '')).not.toContain('5150')
   expect(await frameOf(page, 1).evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('iskra@')))).toEqual([])
   expect(await frameOf(page, 2).evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('iskra@')))).toEqual([])
-  const stored = await page.evaluate(async () => ({
+  const stored = await onDevice(page, async () => ({
     keys: Object.keys(localStorage),
     dbs: ((await indexedDB.databases?.()) ?? []).map((d) => d.name),
   }))
@@ -139,7 +150,7 @@ test('two accounts in one app, each with its own servers, unread, links and voic
   await dialog.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect(page.locator('iframe[data-account="2"]')).toHaveCount(0, { timeout: 20_000 })
   await expect(account(page, 1).getByRole('heading', { name: 'general', exact: true })).toBeVisible()
-  await expect.poll(() => page.evaluate(async () => ({
+  await expect.poll(() => onDevice(page, async () => ({
     keys: Object.keys(localStorage).filter((k) => k.startsWith('iskra@2:')),
     dbs: ((await indexedDB.databases?.()) ?? []).map((d) => d.name).filter((n) => n?.endsWith('@2')),
     list: JSON.parse(localStorage.getItem('iskra-accounts') ?? '{}').order,
@@ -164,7 +175,7 @@ test('an existing install becomes account 1 as it is, and adding an account can 
   await added.getByRole('button', { name: 'Cancel' }).click()
   await expect(page.locator('iframe[data-account="2"]')).toHaveCount(0)
   await expect(account(page, 1).getByRole('heading', { name: 'general', exact: true })).toBeVisible()
-  await expect.poll(() => page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('iskra@2:')))).toEqual([])
+  await expect.poll(() => onDevice(page, () => Object.keys(localStorage).filter((k) => k.startsWith('iskra@2:')))).toEqual([])
   await solo.stop()
 })
 

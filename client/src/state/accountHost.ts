@@ -15,8 +15,8 @@ import {
   updateEntry, wipeSlot, type AddMode, type Registry,
 } from '../platform/accountSlots'
 import { overlayIcon } from '../platform/badge'
-import { desktop as shellDesktop } from '../platform/desktop'
-import { native as shellNative } from '../platform/native'
+import { hostDesktop as shellDesktop } from '../platform/desktop'
+import { hostNative as shellNative } from '../platform/native'
 import { slotOfScope } from '../core/pushRoute'
 import { createBridges, type Bridges } from './accountBridges'
 
@@ -206,6 +206,9 @@ function claimVoice(slot: number): string | null {
 function reported(slot: number, patch: Partial<AccountSummary>): void {
   const before = summaryOf(slot)
   const summary = { ...before, ...patch }
+  // Every page gets the list: a copy of the picture's bytes, never a reference into the reporting page.
+  if (patch.avatar && patch.avatar.hash !== before.avatar?.hash) summary.avatar = { ...patch.avatar, bytes: patch.avatar.bytes.slice(0) }
+  else if (patch.avatar) summary.avatar = before.avatar
   useHost.setState((s) => ({ summaries: { ...s.summaries, [slot]: summary } }))
   if (summary.inVoice && voiceSlot !== slot) {
     voiceSlot = slot

@@ -212,6 +212,31 @@ export function namespacedStorage(raw: Storage, slot: number): Storage {
   })
 }
 
+/**
+ * The host page's storage: it has no account, so anything the app's (idle) modules there keep stays in memory and goes
+ * with the page. Only the device settings (language, theme) are the real ones.
+ */
+export function hostStorage(raw: Storage): Storage {
+  const kept = new Map<string, string>()
+  const api: Storage = {
+    get length() {
+      return kept.size
+    },
+    key: (index: number) => [...kept.keys()][index] ?? null,
+    getItem: (key: string) => (DEVICE_KEYS.includes(key) ? raw.getItem(key) : kept.get(String(key)) ?? null),
+    setItem(key: string, value: string) {
+      if (DEVICE_KEYS.includes(key)) raw.setItem(key, String(value))
+      else kept.set(String(key), String(value))
+    },
+    removeItem(key: string) {
+      if (DEVICE_KEYS.includes(key)) raw.removeItem(key)
+      else kept.delete(String(key))
+    },
+    clear: () => kept.clear(),
+  }
+  return api
+}
+
 /** Copies the settings a new account starts with from one slot to another (only ones the new slot doesn't have). */
 export function seedSettings(raw: Storage, from: number, to: number): void {
   for (const key of SEED_KEYS) {

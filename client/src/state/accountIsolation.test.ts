@@ -143,5 +143,33 @@ describe('keeping accounts apart', () => {
     expect(raw.getItem('iskra@2:iskra.audio')).toBe('{"input":"usb-mic"}')
     expect(raw.getItem('iskra@2:iskra.drafts')).toBeNull()
     expect(raw.getItem('iskra.drafts')).toBe('{"private":1}')
+  }, 60_000)
+})
+
+/** The app's own source files (not tests, not vendored code). */
+const SOURCES = Object.entries(import.meta.glob(['../**/*.ts', '../**/*.tsx', '!../**/*.test.ts', '!../**/*.test.tsx', '!../vendor/**'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>)
+  .map(([file, text]) => [file.replace(/^\.\//, 'state/').replace(/^\.\.\//, ''), text] as const)
+
+describe('every place the app keeps data', () => {
+  it("names its databases per account, except the device's shared model downloads", () => {
+    const opened = SOURCES.flatMap(([file, text]) => [...text.matchAll(/indexedDB\.(?:open|deleteDatabase)\((\w+)/g)].map((m) => `${file}: ${m[1]}`))
+    // core/storage.ts and the transcript cache go through slotDbName (core/accountSlot.ts); speech and translation
+    // models (state/models.ts) are the same public files for every account.
+    expect(opened.sort()).toEqual([
+      'core/storage.ts: DB_NAME',
+      'core/storage.ts: DB_NAME',
+      'state/models.ts: name',
+      'state/transcripts/transcriptCache.ts: dbName',
+      'state/transcripts/transcriptCache.ts: dbName',
+    ])
+    expect(SOURCES.find(([f]) => f.endsWith('core/storage.ts'))![1]).toContain("const DB_NAME = () => slotDbName('iskra')")
+    expect(SOURCES.find(([f]) => f.endsWith('transcriptCache.ts'))![1]).toContain('const dbName = () => slotDbName(DB_NAME)')
+    const cached = SOURCES.filter(([, text]) => /caches\.(open|delete)\(/.test(text)).map(([f]) => f)
+    expect(cached).toEqual(['state/models.ts'])
+  })
+
+  it('reads the real Web Storage only where it must: the list of accounts, never an account page', () => {
+    const raw = SOURCES.filter(([, text]) => /rawLocalStorage|rawSessionStorage/.test(text)).map(([f]) => f)
+    expect(raw.sort()).toEqual(['platform/accountBoot.ts', 'state/accountHost.ts', 'state/accounts.ts'])
   })
 })

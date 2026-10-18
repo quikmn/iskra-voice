@@ -1,7 +1,7 @@
 // What the phone app (mobile/, a Capacitor shell around this client) adds. Undefined in a browser and in the desktop app.
 // The Capacitor packages are only imported inside the app, so the web build doesn't load them.
 
-import { accountLink } from './accountBoot'
+import { accountLink, bootMode } from './accountBoot'
 
 export type NativePlatform = 'ios' | 'android'
 
@@ -184,7 +184,12 @@ function bridge(platform: NativePlatform): NativeBridge {
 
 // An account's page next to other accounts has no Capacitor of its own (the native bridge is the top page's): the
 // host page lends it one that routes events to the right account (state/accountBridges.ts).
-const platform = accountLink ? (accountLink.native?.platform ?? null) : nativePlatform()
-export const native: NativeBridge | undefined = accountLink ? accountLink.native : platform ? bridge(platform) : undefined
+const own = accountLink ? null : nativePlatform()
+const shell = own ? bridge(own) : undefined
+/** The phone shell for the host page itself (several accounts signed in), which lends each account a routed copy. */
+export const hostNative: NativeBridge | undefined = bootMode === 'host' ? shell : undefined
+// The app's modules in the host page see none.
+const platform = accountLink ? (accountLink.native?.platform ?? null) : bootMode === 'host' ? null : own
+export const native: NativeBridge | undefined = accountLink ? accountLink.native : bootMode === 'host' ? undefined : shell
 /** The iPhone/iPad app: no screen sharing, no "Add to Home Screen" hints. */
 export const iosApp = platform === 'ios'
