@@ -14,9 +14,23 @@ public class DmPrivacyTests
 
     private static long Now => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
+    private static long lastStamp;
+
+    /// <summary>A change time after the last one sent: two changes in the same millisecond would tie, and the server
+    /// keeps a change only when it's strictly later.</summary>
+    private static long Later()
+    {
+        while (true)
+        {
+            var last = Interlocked.Read(ref lastStamp);
+            var next = Math.Max(Now, last + 1);
+            if (Interlocked.CompareExchange(ref lastStamp, next, last) == last) return next;
+        }
+    }
+
     private static async Task SetWho(User user, string who, long? at = null)
     {
-        var reply = await user.RequestAsync("dm.privacy.set", new { who, at = at ?? Now });
+        var reply = await user.RequestAsync("dm.privacy.set", new { who, at = at ?? Later() });
         Assert.Equal(who, reply.Body().GetProperty("who").GetString());
     }
 
@@ -402,7 +416,7 @@ public class DmPrivacyTests
         Assert.Equal("dm_closed", ErrorKey(await Send(alice, bob, "hi again")));
 
         // Staff go straight through at "requests" only while they are staff.
-        await SetWho(bob, "requests", Now + 1);
+        await SetWho(bob, "requests");
         Assert.Equal("result", (await Send(admin, bob, "welcome")).Type());
         server.World.Store.SetMemberRole(admin.Key, "member");
         Assert.Equal("result", (await Send(admin, bob, "me again")).Type());
