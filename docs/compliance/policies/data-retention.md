@@ -107,6 +107,8 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
   messages and groups are searched in what the device already holds.
 - Notification sound choices are a synced setting (sealed like the others); an uploaded notification sound is decoded
   and kept only on that device (as short mono audio, not the original file) until removed, and never sent anywhere.
+- Favorite channels are a synced setting (sealed like the others, so servers can't see which channels a person
+  starred), with a copy on the device until removed.
 - Apps keep keys, decrypted DMs, settings and the server list on the device until the user signs out, deletes the
   account or removes the app. Disappearing messages are deleted from the device (screen, storage, notifications) when
   their time is up, also if the app was closed then (on its next start). "Download data on this device" (Settings → Privacy & data) exports it.
