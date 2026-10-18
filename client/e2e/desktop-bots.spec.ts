@@ -1,17 +1,18 @@
 // Bots on this PC: the real Electron app runs the gallery's Starter bot (bundled, with the app's own Node) against a
 // local server, with a bot invite the app makes itself, and the bot answers a /command. Localhost only.
-import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { agreeToTerms, appWindow, SHOTS, startServer, type TestServer } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(join(DESKTOP, 'dist', 'gallery', 'starter.cjs')) && existsSync(resolve(HERE, '../dist/index.html'))
+const built = desktopBuilt(join(DESKTOP, 'dist', 'gallery', 'starter.cjs'))
 
-test.skip(!built, 'build desktop/ (npm run build, which bundles the gallery bots) and the client (npm run build) first')
+test.skip(!built, DESKTOP_SKIP)
 
 let server: TestServer
 test.beforeAll(async () => {

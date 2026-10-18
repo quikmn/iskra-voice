@@ -1,11 +1,12 @@
 // The desktop app's splash window on start, "Updated to X" after an update, none when started hidden in the tray,
 // and the "Updating Iskra to X…" overlay before restarting into an update (nothing is really installed here).
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { appWindow, SHOTS } from './helpers'
 /** The bits of Electron's BrowserWindow these checks use (Electron's types aren't part of the client project). */type AppWin = { webContents: { getURL(): string; send(channel: string, ...args: unknown[]): void }; isVisible(): boolean }
 
@@ -13,10 +14,10 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
 const ELECTRON = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
 const SPLASH = join(DESKTOP, 'assets', 'splash.html')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html'))
+const built = desktopBuilt()
 const VERSION = (JSON.parse(readFileSync(join(DESKTOP, 'package.json'), 'utf8')) as { version: string }).version
 
-test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+test.skip(!built, DESKTOP_SKIP)
 
 async function launch(userData: string, extra: string[] = [], more: Record<string, string> = {}): Promise<ElectronApplication> {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_OPTIONS')) as Record<string, string>
@@ -45,6 +46,10 @@ const alive = (pid: number) => {
 }
 
 const launchLog = (app: ElectronApplication) => app.evaluate(() => (globalThis as { iskraLaunchLog?: string[] }).iskraLaunchLog ?? [])
+// The splash windows still open, asked of the main process, which logged 'splash closed'. Not app.windows(): Playwright
+// drops a closed page only when its own close event arrives, a moment after (once: 'expected 0, got 1').
+const splashWindows = (app: ElectronApplication) =>
+  app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter((w: AppWin) => w.webContents.getURL().startsWith('file:')).length)
 const mainVisible = (app: ElectronApplication) =>
   app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w: AppWin) => w.webContents.getURL().startsWith('app://') && w.isVisible()))
 
@@ -61,7 +66,7 @@ test('the splash shows first, then fades into the app', async () => {
     expect(log[0]).toBe('splash view Iskra | Starting Iskra…')
     expect(log.filter((e) => e.startsWith('splash view')).at(-1)).toBe('splash view Iskra | Ready')
     expect(log.some((e) => e.includes('Updated to'))).toBe(false)
-    expect(app.windows().filter((w) => w.url().startsWith('file:'))).toHaveLength(0)
+    expect(await splashWindows(app)).toBe(0)
     await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible()
     // This version is remembered, for "Updated to X" next time.
     expect(JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8')).lastRunVersion).toBe(VERSION)
@@ -122,7 +127,7 @@ test('started with the computer (hidden in the tray): no splash', async () => {
     await page.waitForTimeout(1500)
     expect(await launchLog(app)).toEqual([])
     expect(await mainVisible(app)).toBe(false)
-    expect(app.windows().filter((w) => w.url().startsWith('file:'))).toHaveLength(0)
+    expect(await splashWindows(app)).toBe(0)
   } finally {
     await app.close()
     rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
@@ -153,9 +158,15 @@ test('quitting with a hosted server still stopping finishes, even past a late er
     expect(alive(pid)).toBe(true)
     // Thrown while the app waits for the server, after its windows are gone.
     await app.evaluate(() => void setTimeout(() => { throw new Error('a late callback failed') }, 500))
-    const started = Date.now()
     await app.close()
-    expect(Date.now() - started).toBeLessThan(15_000)
+    // The app's part, from 'before-quit' to the process's 'exit' event (its log's quit-done line): bounded by the wait
+    // for hosted servers (desktop/src/main.ts QUIT_WAIT_MS). Electron's own teardown comes after it: under CPU load
+    // app.close() took 17 to 46 s while quit-done said 6 to 8 s, so the wall clock was the flake. A quit that hangs
+    // (the modal error box) never writes quit-done and runs into the test's timeout.
+    const logs = join(userData, 'logs')
+    const quit = readdirSync(logs).map((f) => readFileSync(join(logs, f), 'utf8')).join('').match(/ quit-done +- +dur=(\d+(?:\.\d)?)(ms|s)\b/)
+    expect(quit, 'the log has a quit-done line').not.toBeNull()
+    expect(Number(quit![1]) * (quit![2] === 's' ? 1000 : 1)).toBeLessThan(15_000)
     expect(alive(pid)).toBe(false) // force-stopped, not left running
   } finally {
     await app.close().catch(() => undefined)

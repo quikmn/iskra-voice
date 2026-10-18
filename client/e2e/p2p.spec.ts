@@ -10,14 +10,15 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { SignalResponse } from '@livekit/protocol'
 import { appWindow, agreeToTerms, hasLiveKit, SHOTS } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html'))
+const built = desktopBuilt()
 
-test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+test.skip(!built, DESKTOP_SKIP)
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
 type Testnet = { bootstrap: { host: string; port: number }[]; destroy(): Promise<void> }

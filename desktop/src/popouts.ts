@@ -141,6 +141,16 @@ export function snapBounds(bounds: Rect, area: Rect, distance = SNAP_DISTANCE): 
 }
 
 /** A change the page asks for: always on top, click-through, the pointer over the click-through handle, or focus. */
+/**
+ * The always-on-top level. Electron's default, "floating", goes just below the taskbar on Windows, and a window put
+ * below a taskbar that isn't topmost at that moment (a full-screen game or video in front of it) isn't on top at all:
+ * the e2e check saw isAlwaysOnTop() false on this PC now and then. "pop-up-menu" is above the taskbar and stays on top.
+ * Elsewhere "floating" (macOS: below the Dock; Linux has no levels).
+ */
+export function onTopLevel(platform: NodeJS.Platform): 'pop-up-menu' | 'floating' {
+  return platform === 'win32' ? 'pop-up-menu' : 'floating'
+}
+
 export interface PopoutPatch {
   alwaysOnTop?: boolean
   clickThrough?: boolean

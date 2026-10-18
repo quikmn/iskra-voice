@@ -4,19 +4,20 @@
 // document. Then the token fallback, a failure, and deleting what was created.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { agreeToTerms, appWindow, freePort, openServerSettings, SHOTS } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
 const SERVER_DLL = resolve(HERE, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html')) && existsSync(SERVER_DLL)
-test.skip(!built, 'build desktop/ and the client (npm run build), and the server (dotnet build) first')
+const built = desktopBuilt(SERVER_DLL)
+test.skip(!built, DESKTOP_SKIP)
 
 const CLIENT_ID = 'f'.repeat(64)
 const OAUTH_TOKEN = 'doo_v1_' + 'c'.repeat(64)

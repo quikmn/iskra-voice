@@ -1,19 +1,20 @@
 // Pop-outs in the desktop app: the voice panel, a video and a text channel in small windows of their own, rendered by
 // the main page (one connection, one call). Always on top and click-through, remembered size, pop back in, and they
 // close with the call.
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { agreeToTerms, appWindow, hasLiveKit, SHOTS, startServer, type TestServer } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
 const ELECTRON = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/popout.html'))
+const built = desktopBuilt(resolve(HERE, '../dist/popout.html'))
 
-test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+test.skip(!built, DESKTOP_SKIP)
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
 type Info = { name: string; kind: string; alwaysOnTop: boolean; clickThrough: boolean; bounds: { width: number; height: number } }

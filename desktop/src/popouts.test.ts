@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  areaFor, DEFAULT_SIZE, isPopoutPage, MIN_SIZE, openBounds, parsePopoutName, parsePopoutPatch, parsePopoutState, popoutWindowOptions, snapBounds,
+  areaFor, DEFAULT_SIZE, isPopoutPage, MIN_SIZE, onTopLevel, openBounds, parsePopoutName, parsePopoutPatch, parsePopoutState, popoutWindowOptions, snapBounds,
 } from './popouts'
 import { isAppPage } from './platform'
 
@@ -115,4 +115,10 @@ test('pop-out windows are frameless, sandboxed and get nothing the main window l
   assert.equal(popoutWindowOptions('stream', { bounds: null, alwaysOnTop: true }, { x: 0, y: 0, width: 1, height: 1 }, base).fullscreenable, true)
   const report = popoutWindowOptions('report', { bounds: null, alwaysOnTop: true }, { x: 0, y: 0, width: 440, height: 680 }, base)
   assert.deepEqual([report.minWidth, report.minHeight, report.minimizable, report.fullscreenable], [420, 560, true, false])
+})
+
+test('always on top above the Windows taskbar, so a full-screen window in front never takes it away', () => {
+  assert.equal(onTopLevel('win32'), 'pop-up-menu')
+  assert.equal(onTopLevel('darwin'), 'floating')
+  assert.equal(onTopLevel('linux'), 'floating')
 })

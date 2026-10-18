@@ -1,18 +1,19 @@
 // Streamer mode in the desktop app: "turn on by itself while a program from my list runs". The list is the user's own
 // program list (activity settings); the test adds the program it is itself running under, so the detector finds it.
-import { existsSync, mkdtempSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { agreeToTerms, appWindow, openSettings, SHOTS, startServer, type TestServer } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
 const ELECTRON = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html'))
+const built = desktopBuilt()
 
-test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+test.skip(!built, DESKTOP_SKIP)
 
 let server: TestServer
 test.beforeAll(async () => {

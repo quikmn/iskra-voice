@@ -25,7 +25,7 @@ import {
 } from './platform'
 import { parseNoticeAction, updateCheckNotice, type DesktopNotice } from './notices'
 import { allowPageViews } from './pages'
-import { PushToTalk } from './ptt'
+import { pushToTalk } from './ptt'
 import { ActivityDetector, runningPrograms } from './activity'
 import { applyOpenAtLogin, loadDesktopSettings, saveDesktopSettings, startedHidden } from './settings'
 import { Updates, type UpdateStatus } from './updates'
@@ -36,7 +36,7 @@ import { Splash } from './splash'
 import { logUncaughtErrors, settleWithin } from './quit'
 import { captureAppPage, captureTarget } from './capture'
 import { readBuildCommit, windowTitle } from './title'
-import { pickerChoices, placeTestWindow, realScreenThumbnails, testWindowArea, thumbnailSize } from './testMode'
+import { isTestRun, pickerChoices, placeTestWindow, realScreenThumbnails, testWindowArea, thumbnailSize } from './testMode'
 import { PopoutWindows } from './popoutWindows'
 import { deskLog, duration, errorFields, type LogFields } from './log'
 import { AssistantBase, sendAssistantRequest } from './assistantNet'
@@ -93,7 +93,9 @@ let quitting = false
 let serverStop: StopKind = 'stop'
 // Mute/deafen hotkeys: only the action's name reaches the page, never which keys were pressed. Whisper and priority
 // keys are held: the page hears when they go down and up.
-const ptt = new PushToTalk(
+// e2e runs get a key hook the suite drives (ptt.ts), never the OS-wide one.
+const ptt = pushToTalk(
+  isTestRun(process.env, app.isPackaged),
   (down) => window?.webContents.send('iskra:ptt', down),
   (action) => window?.webContents.send('iskra:hotkey', action),
   (action, down) => window?.webContents.send('iskra:hold', { action, down }),
@@ -1104,11 +1106,17 @@ app.on('activate', () => {
 
 let serversStopped: Promise<void> | null = null
 let stopLogged = false
+let quitStartedAt = 0
+// How long quitting took the app (hosted servers, the p2p node); the process's own teardown comes after.
+process.once('exit', () => {
+  if (quitStartedAt) deskLog.info('life', 'quit-done', [['dur', duration(Date.now() - quitStartedAt)]])
+})
 /** How long quitting waits for hosted servers (and the p2p node) at most: they're force-stopped well before. */
 const QUIT_WAIT_MS = GRACEFUL_STOP_MS + 3000
 app.on('before-quit', () => {
   if (!stopLogged) deskLog.info('life', 'stop', [['why', serverStop], ['dur', duration(Date.now() - startedAt)]])
   stopLogged = true
+  quitStartedAt ||= Date.now()
   quitting = true
   // Nothing may hold the quit up: Electron's error box for a late callback's error would block it for good.
   logUncaughtErrors(process, (error) => {

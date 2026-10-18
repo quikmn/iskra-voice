@@ -1,19 +1,20 @@
 // The whole "Discord is down, let's talk" path, timed: a fresh desktop app → Create a server → the setup wizard with
 // the Gaming template → the channels are there → invite a friend (in a browser) → both talk in voice.
 // Localhost only (ISKRA_LOCAL_ONLY=1): nothing here listens on the network, and no router is ever asked.
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type Page } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { APP_PORT } from '../playwright.config'
 import { appWindow, agreeToTerms, hasLiveKit, joinVia, SHOTS } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html'))
+const built = desktopBuilt()
 
-test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+test.skip(!built, DESKTOP_SKIP)
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
 test('from a fresh install to friends talking in voice, timed', async ({ browser }) => {
