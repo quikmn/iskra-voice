@@ -205,6 +205,18 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
     mcpReply: (id: string, answer: unknown): Promise<void> => ipcRenderer.invoke('iskra:mcp-reply', id, answer),
   },
   download: (url: string): Promise<boolean> => ipcRenderer.invoke('iskra:download', url),
+  // Recording a call (desktop/src/recordings.ts): ids only, never paths from the page.
+  recordings: {
+    folder: (): Promise<string | null> => ipcRenderer.invoke('iskra:rec-folder'),
+    pickFolder: (): Promise<string | null> => ipcRenderer.invoke('iskra:rec-pick'),
+    begin: (server: string, channel: string): Promise<unknown> => ipcRenderer.invoke('iskra:rec-begin', server, channel),
+    open: (id: string, name: string): Promise<string | null> => ipcRenderer.invoke('iskra:rec-open', id, name),
+    write: (file: string, data: Uint8Array): Promise<string> => ipcRenderer.invoke('iskra:rec-write', file, data),
+    close: (file: string): Promise<boolean> => ipcRenderer.invoke('iskra:rec-close', file),
+    info: (id: string, text: string): Promise<boolean> => ipcRenderer.invoke('iskra:rec-info', id, text),
+    end: (id: string): Promise<void> => ipcRenderer.invoke('iskra:rec-end', id),
+    show: (id: string): Promise<void> => ipcRenderer.invoke('iskra:rec-show', id),
+  },
   // Big decrypted DM files: a Save dialog, then the bytes a piece at a time; finish only once they're checked.
   saveFile: {
     begin: (name: string): Promise<string | null> => ipcRenderer.invoke('iskra:save-begin', name),
