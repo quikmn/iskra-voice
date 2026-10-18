@@ -51,6 +51,7 @@ public static class CallFeature
         var peer = s.World.Store.GetMember(peerKey) ?? throw RequestException.NotFound("Member");
         if (s.World.Store.IsBot(peer.AccountKey)) throw RequestException.BadRequest("Bots can't take calls.");
         ModerationFeature.CheckNotBlocked(s, me, peer, "call");
+        DmPrivacyFeature.CheckContact(s, me, peer, "call");
         if (ModerationFeature.IsTimedOut(s.World.Store, peer.AccountKey, s.Now))
             throw RequestException.Forbidden("They can't take calls on this server right now.", "they_cant_call");
         var id = CallId(body);

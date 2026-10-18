@@ -12,7 +12,7 @@ public class BotDmTests
     private static string? ErrorKey(JsonElement frame) =>
         frame.Body().TryGetProperty("key", out var key) ? key.GetString() : null;
 
-    private sealed record Bot(TestClient Client, TestIdentity Identity) : IDisposable
+    internal sealed record Bot(TestClient Client, TestIdentity Identity) : IDisposable
     {
         public string Key => Identity.AccountKey;
         public Task<JsonElement> RequestAsync(string type, object? body = null) => Client.RequestAsync(type, body);
@@ -23,7 +23,7 @@ public class BotDmTests
         }
     }
 
-    private static async Task<Bot> JoinBot(IskraServer server, User admin, string name = "Helper")
+    internal static async Task<Bot> JoinBot(IskraServer server, User admin, string name = "Helper")
     {
         var code = (await admin.RequestAsync("bot.invite")).Body().GetProperty("invite").GetProperty("code").GetString()!;
         var identity = new TestIdentity();

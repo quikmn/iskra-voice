@@ -140,6 +140,9 @@ public sealed class RateLimiter(TimeProvider time)
         ["act.leave"] = (10, 2),
         ["act.add"] = (3, 0.1),
         ["act.list"] = (10, 2),
+        ["dm.requests.accept"] = (20, 2),
+        ["dm.requests.ignore"] = (20, 2),
+        ["dm.privacy.set"] = (10, 1),
         // Every request also takes from this one. The burst covers an app connecting: it asks for its settings, lists and
         // states feature by feature (~90 startup hooks). At 40 the first actions after joining were refused.
         ["*"] = (150, 20),

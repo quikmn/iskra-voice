@@ -42,6 +42,8 @@ import { BotBadge } from './chat/BotBits'
 import { AutoTranslateButton, TranslationBlock } from './translate/Translate'
 import { dmItem } from './translate/items'
 import { convKey } from '../state/translate'
+import { DmRequestBar, DmRequestRows, HeldDmBody } from './dms/DmRequests'
+import { dmStatus, useDmRequests, useDmStatus } from '../state/dmRequests'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
@@ -67,9 +69,11 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
   const reads = useReads((s) => s.convs)
   useApp((s) => s.servers) // re-render when names or presence change
   const incoming = useIncomingCount()
+  useDmRequests((s) => s.peers) // message requests have their own list (DmRequestRows)
   // Friend requests alone don't make a conversation (they're on the Friends page).
   const lastAt = (messages: Dm[]) => messages.findLast((m) => !m.friend)?.sentAt ?? 0
   const peers = Object.entries(conversations)
+    .filter(([peer]) => dmStatus(peer) === 'accepted')
     .filter(([peer, c]) => lastAt(c.messages) > 0 || (open.kind === 'dm' && open.peer === peer))
     .sort(([, a], [, b]) => lastAt(b.messages) - lastAt(a.messages))
 
@@ -92,6 +96,7 @@ export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
         </button>
         <SavedRow onNavigate={onNavigate} />
         <GroupRows onNavigate={onNavigate} />
+        <DmRequestRows onNavigate={onNavigate} />
         <div className="channel-group"><span>{t('app.home.conversations')}</span></div>
         {peers.length === 0 && <p className="sidebar-hint">{t('app.home.dmHint')}</p>}
         {peers.map(([peer]) => (
@@ -138,6 +143,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
   const reachable = sharedServers(peer).length > 0
   const blocked = useIsBlocked(peer)
   const peerBot = useBotPeer(peer)
+  const held = useDmStatus(peer) !== 'accepted' // a message request: no composer, links or files until accepted
   const messages = conversation?.messages ?? []
 
   useLayoutEffect(() => {
@@ -205,7 +211,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
           return (
             <Fragment key={`${dm.from}:${dm.id}`}>
               {dm === firstNew && <UnreadDivider />}
-              <DmRow dm={dm} grouped={grouped && dm !== firstNew} peer={peer} mine={dm.from === myKey} />
+              <DmRow dm={dm} grouped={grouped && dm !== firstNew} peer={peer} mine={dm.from === myKey} held={held && dm.from !== myKey} />
             </Fragment>
           )
         })}
@@ -214,6 +220,8 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
       <div className="typing-line" />
       {blocked ? (
         <BlockedDmBar accountKey={peer} name={nameOf(peer)} />
+      ) : held ? (
+        <DmRequestBar peer={peer} />
       ) : peerBot.builtin ? (
         <div className="composer read-only">{t('dms.bot.builtin')}</div>
       ) : reachable ? (
@@ -227,7 +235,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
   )
 }
 
-function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: string; mine: boolean }) {
+function DmRow({ dm, grouped, peer, mine, held }: { dm: Dm; grouped: boolean; peer: string; mine: boolean; held?: boolean }) {
   const { t } = useTranslation()
   const name = nameOf(dm.from)
   const translateItem = dm.pending || dm.error || asLog(dm.call) ? null : dmItem(peer, dm, (k) => nameOf(k))
@@ -253,6 +261,8 @@ function DmRow({ dm, grouped, peer, mine }: { dm: Dm; grouped: boolean; peer: st
           <CallLogLine call={dm.call} from={dm.from} peer={peer} />
         ) : dm.error && !dm.pending ? (
           <div className="message-notice"><Lock size={13} /> {dm.error}</div>
+        ) : held ? (
+          <HeldDmBody dm={dm} />
         ) : (
           <>
             {dm.forward && <ForwardedLine label={dm.forward.from} />}

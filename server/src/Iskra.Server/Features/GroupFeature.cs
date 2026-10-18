@@ -68,6 +68,7 @@ public static class GroupFeature
             foreach (var target in change.Targets)
                 if (s.World.Store.GetMember(target) is null || s.World.Store.IsBot(target))
                     throw RequestException.BadRequest("Everyone in a group must be a person on this server.", "group_members_here");
+                else DmPrivacyFeature.CheckContact(s, me, s.World.Store.GetMember(target)!, "group"); // their "who can DM me"
         if (!s.Hub.Limits.TryTake(me.AccountKey, "group.change"))
             throw new RequestException("rate_limited", "Too many group changes in a short time. Try again in a minute.", "too_many_group_changes");
 

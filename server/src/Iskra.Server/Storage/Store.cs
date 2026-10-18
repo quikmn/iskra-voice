@@ -383,6 +383,8 @@ public sealed partial class Store : IDisposable
         ("feeds-1", FeedsMigration),
         // Tags, Suggestions, Giveaways and Counting bots: snippets, suggestion cards and votes, giveaways and entries, counts.
         ("builtinbots3-1", BuiltinBots3Migration),
+        // Who may start a DM with you, and message requests (accepted, waiting or ignored) per person.
+        ("dmprivacy-1", DmPrivacyMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -185,6 +185,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("directMessages", $"SELECT id, from_key, to_key, created_at FROM dms WHERE from_key {Mine} OR to_key {Mine} ORDER BY id;");
         Section("botDmSetting", $"SELECT account_key, allow, at FROM bot_dm_prefs WHERE account_key {Mine};");
         Section("botConversations", $"SELECT bot_key, account_key, person_wrote, started_at FROM bot_dm_peers WHERE account_key {Mine} OR bot_key {Mine};");
+        Section("dmPrivacy", $"SELECT account_key, who, at FROM dm_privacy WHERE account_key {Mine};");
+        Section("dmRequests", $"SELECT account_key, peer_key, state, at FROM dm_contacts WHERE account_key {Mine};");
         Section("groups", $"SELECT group_id, account_key FROM group_members WHERE account_key {Mine};");
         Section("groupMessagesSent", $"SELECT id, group_id, from_key, created_at FROM group_messages WHERE from_key {Mine} ORDER BY id;");
         Section("disappearingTimers", $"""

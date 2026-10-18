@@ -30,6 +30,7 @@ then delete it automatically. Every Iskra server owner can tighten the defaults.
 | Scheduled messages | Until sent (then deleted) or deleted by the author; failed ones stay until the author edits or deletes them | `ScheduledFeature` | No |
 | Bot commands you used (who asked, on the bot's public answer) | With the answer message | `RetentionSweeper` and message deletion | `Retention.MessagesDays` |
 | DMs from bots: your setting (allowed or not, and when you changed it) and which bots you have a conversation with (who wrote first, when it started) | Until the account is deleted | Account deletion | No |
+| Who can message me: your setting (and when you changed it) and, per person, whether their DMs are a message request, accepted or ignored (and since when); on the device, your accept/ignore decisions (sealed at rest) | Until the account is deleted (rows about you in other people's lists too) | Account deletion | No |
 | Bot interactions in progress, private bot answers and open bot forms | 15 minutes, in memory only (never stored; gone with a restart) | `InteractionRegistry` | No |
 | Inbox items (mentions and replies) | 60 days, at most 500 per account | `ProductivityScheduler` (hourly) | No |
 | Key log (account keys shown, salted name hashes, key changes; key transparency) | Entries as long as the server: append-only and hash-chained by design, so members' apps can check it. The names beside them (and their salts) until the account is deleted; then only the key and an unopenable salted hash stay. Entries logged before name hashes (until 2026-10-13) keep the name inside the hashed entry | Account deletion (names) | No |
@@ -163,3 +164,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-17 | The desktop app's own log files (its data folder, `logs/`): no personal data, 180 days and 50 MB at most; the app's in-memory diagnostics (30 minutes) |
 | 2026-10-17 | Bots on this PC: the bots the desktop app runs, their settings, keys, data and logs on the user's computer |
 | 2026-10-17 | Personal assistant (bring your own AI): settings and key sealed on the device, conversation in memory, activity list on the device; nothing on servers |
+| 2026-10-18 | Who can message me and message requests: the setting and each person's request state |

@@ -13,7 +13,7 @@ import { checkFiles, type DmFile } from '../core/dmFiles'
 import { checkFriend, type FriendAction } from '../core/friend'
 import { isTimer, localExpiry } from '../core/disappear'
 import type { DeviceCert } from '../core/identity'
-import type { DeviceBundle, WireDm } from '../core/protocol'
+import type { DeviceBundle, DmRequestFlag, WireDm } from '../core/protocol'
 import * as storage from '../core/storage'
 import { mergeDm, orderTime } from './dmMerge'
 import { ensurePrekeys, ownRevokedDevices } from './devices'
@@ -271,18 +271,25 @@ export function onDmOpened(listener: DmListener): void {
   dmListeners.push(listener)
 }
 
+/** Message requests (state/dmRequests.ts): true when someone's DM is a request or ignored, so it stays quiet. */
+let isRequest: (peer: string, request: DmRequestFlag | undefined, serverKey: string) => boolean = () => false
+export function setDmRequestCheck(check: typeof isRequest): void {
+  isRequest = check
+}
+
 /** Every dm.message event from any server. */
-async function onDmEvent(wire: WireDm): Promise<void> {
+async function onDmEvent(wire: WireDm, request: DmRequestFlag | undefined, serverKey: string): Promise<void> {
   await Promise.all([ensurePrekeys(), keysReady()])
   const mine = me()
   const dm = open(wire)
   const peer = dm.from === mine ? dm.to : dm.from
   const known = useDms.getState().conversations[peer]?.messages.some((m) => m.id === dm.id && m.from === dm.from)
+  const quiet = dm.from !== mine && isRequest(peer, request, serverKey)
   patchConversation(peer, (c) => ({ messages: upsert(c.messages, dm) }))
   // Unread (state/readState.ts): someone else's message, the first time it arrives (it can come from several servers).
-  // Friend actions show in the Friends page instead.
-  if (dm.from !== mine && !known && !dm.friend) noteMessage(dmConv(peer), { id: dm.id, at: dm.sentAt }, false)
-  if (!known) for (const listener of dmListeners) listener(peer, [dm], true)
+  // Friend actions show in the Friends page instead; message requests wait in their own list, without a sound.
+  if (dm.from !== mine && !known && !dm.friend && !quiet) noteMessage(dmConv(peer), { id: dm.id, at: dm.sentAt }, false)
+  if (!known) for (const listener of dmListeners) listener(peer, [dm], !quiet)
 }
 
 export async function loadConversations(): Promise<void> {
@@ -430,8 +437,11 @@ export function discardDm(peer: string, id: string): void {
   patchConversation(peer, (c) => ({ messages: c.messages.filter((m) => !(m.id === id && m.pending)) }))
 }
 
-onServerEvent((_server, type, body) => {
-  if (type === 'dm.message') void onDmEvent((body as { message: WireDm }).message)
+onServerEvent((server, type, body) => {
+  if (type === 'dm.message') {
+    const { message, request } = body as { message: WireDm; request?: DmRequestFlag }
+    void onDmEvent(message, request === 'request' || request === 'ignored' ? request : undefined, server)
+  }
   // Someone's device list changed: fetch fresh bundles next time.
   if (type === 'device.revoked') deviceCache.clear()
 })

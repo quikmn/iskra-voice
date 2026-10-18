@@ -65,6 +65,7 @@ import { feeds } from './feeds'
 import { bots3 } from './bots3'
 import { assistant } from './assistant'
 import { pcBots } from './pcBots'
+import { dmRequests } from './dmRequests'
 
 export const en = {
   common,
@@ -133,4 +134,5 @@ export const en = {
   bots3,
   assistant,
   pcBots,
+  dmRequests,
 } as const
