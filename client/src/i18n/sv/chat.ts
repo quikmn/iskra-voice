@@ -69,6 +69,7 @@ export const chat: Messages['chat'] = {
     unknown: 'okänd',
     deletedRole: 'borttagen roll',
     role: 'roll',
+    table: 'tabell',
   },
   richText: {
     copyCode: 'Kopiera kod',
