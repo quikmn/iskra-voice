@@ -34,6 +34,7 @@ public static partial class RoleFeature
         ["prioritySpeaker"] = Perm.PrioritySpeaker,
         ["sendTts"] = Perm.SendTts,
         ["exportChannels"] = Perm.ExportChannels,
+        ["recordVoice"] = Perm.RecordVoice,
     };
 
     private static readonly IReadOnlyDictionary<string, ChannelPerm> ChannelNames = new Dictionary<string, ChannelPerm>

@@ -1173,7 +1173,7 @@ Role { "id": 3, "name": "Moderator", "color": "#3ba55c" | null, "icon": "🛡️
 - `hoist`: shown as its own group in the member list. Name colour: the highest role with a colour. Both are client-side choices.
 - `Member` gains `roles: [roleId]` (highest first); members can hold several. `Channel` gains `overrides: [{ roleId, allow: [ChannelPerm], deny: [ChannelPerm] }]`.
 
-**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`, `manageAutoMod` ([AutoMod](#automod) settings), `prioritySpeaker` ([priority speaker](#whisper-and-priority-speakers)), `sendTts` ([/tts messages](#text-to-speech-tts)), `exportChannels` ([channel export](#channel-export)). Clients offer a "Moderator" preset with all of them but `exportChannels`. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
+**Permissions** (`permissions`): `manageMessages` (delete others' messages, pin, end polls, manage threads), `timeoutMembers`, `kickMembers`, `banMembers` (also unban and the ban list), `manageChannels` (create, edit, delete channels they can see, slowmode, overrides), `manageRoles`, `viewAuditLog`, `manageExpressions` (emoji and sounds), `manageWebhooks`, `mentionEveryone` (`@everyone`/`@here` ping; trusted+ still can), `moveMembers`, `muteMembers`, `manageAutoMod` ([AutoMod](#automod) settings), `prioritySpeaker` ([priority speaker](#whisper-and-priority-speakers)), `sendTts` ([/tts messages](#text-to-speech-tts)), `exportChannels` ([channel export](#channel-export)), `recordVoice` ([recording a call](#recording-a-voice-channel)). Clients offer a "Moderator" preset with all of them but `exportChannels` and `recordVoice`. Setting levels (`member.setRole`), bot invites, profile pages and internet hosting stay admin-only. People who manage messages or channels skip slowmode.
 
 **Hierarchy**: the owner, then admins, then members with custom roles by their highest role's position, then trusted, member, guest. Kicking, banning, timing out, deleting someone's message, managing someone's roles, muting and moving work only on people strictly below you. Members holding the same highest role are equal.
 
@@ -4742,3 +4742,50 @@ ignored. The bot must see the channel (else it stays quiet).
 Migration `builtinbots3-1`: `tags`, `suggestions` and `suggestion_votes`, `giveaways` and `giveaway_entries`, `counting`
 (cards and their votes and entries go with their message; votes and entries with the member; authors, hosts and the last
 counter are set to null when they leave; a counting row goes with its channel).
+
+## Recording a voice channel
+
+Someone with the `recordVoice` permission ([roles](#roles-and-permissions); admins and the owner by default) can record
+the voice or stage channel they're in. The recording is made **on the recorder's desktop app** (one audio file per
+person, plus an optional mix, saved to a folder on their computer); nothing is recorded by or uploaded to the server.
+The server decides who may record, keeps the "Recording" mark that everyone sees, carries "don't record me", and in
+encrypted channels asks everyone first. Web and phone apps show the mark and the choices but don't record.
+
+| type | body | result | who |
+|---|---|---|---|
+| `voice.record.start` | `channelId` (a voice or stage channel you're in) | `{ recording: Recording }` | `recordVoice` (`forbidden`, key `record_forbidden`); in the call (`bad_request`, key `voice_join_first`); not bots (`record_bot`); one recording per channel (`record_already`, args `{ by }`) |
+| `voice.record.stop` | `channelId` | `{}` (also when nothing is recorded) | the recorder, or anyone with `recordVoice` who can read the channel (`forbidden`, key `record_stop_forbidden`) |
+| `voice.record.optout` | `optOut` (bool) | `{ optOut }` | anyone: "don't record me", for every call on this server |
+| `voice.record.consent` | `channelId`, `agree` (bool) | `{}` | someone in an encrypted channel's call while it's being recorded or asked about (`voice_join_first`; nothing asked: `record_none`) |
+
+`Recording = { by (account key), startedAt (ms), live (bool), liveAt (ms or null), encrypted (bool), askUntil (ms or null) }`.
+
+- **Where it shows:** `voice.state` events and `welcome.voice` gain `recording: Recording | null`, and each participant
+  gains `noRecord` (bool: they said "don't record me") and `recordConsent` (`true`, `false` or `null`: their answer
+  in an encrypted channel's recording; `null` elsewhere or not answered yet). Every change is a new `voice.state` for
+  the channel's readers, so people see it before they join and anyone who joins later sees it at once. Kept in memory
+  only, like voice state.
+- **Joining a recorded call:** apps join muted and say who is recording before the mic can open ("OK, unmute" or
+  "Don't record me"); a recording that starts while you're in plays a sound and shows the same notice.
+- **Who is recorded** (the recorder's app decides, from `voice.state`): everyone in the call except people with
+  `noRecord: true`; in an encrypted channel only people with `recordConsent: true`. Someone who changes their mind
+  mid-call drops out of (or comes back into) the recording from then on; their track gets a new file with its start
+  time. This is a courtesy between honest apps, not a cryptographic guarantee: like any call, a modified app could
+  record what it receives.
+- **Encrypted voice channels:** `voice.record.start` makes the recording `live: false` and asks everyone in the call;
+  starting counts as the recorder's yes. It becomes `live` (apps start recording) once everyone in the call has
+  answered yes. One `agree: false` before then, or no full yes within 60 s (`askUntil`), calls it off. While live,
+  people who join are asked too and are left out until they say yes; a "no" leaves them out without ending it. Leaving
+  the call forgets your answer (you're asked again when you come back). The server still never holds the media key.
+- **Ends:** the recorder stops it (or someone else with `recordVoice`); or by itself when the recorder leaves the call,
+  loses `recordVoice` or access to the channel, after 4 hours, when an encrypted channel's people don't all agree, or
+  when voice stops on the server. Unasked ends log `VOI-180` (with `why=`). The recorder's app stops when the mark
+  goes, and also by itself when the disk gets low (under 500 MB free) or a file can't be written (`VOI-190`).
+- **Audit:** `voice.record.start` (actor: the recorder; details `channelId`, `channelName`, `encrypted`) and
+  `voice.record.stop` (actor: who stopped it, target: the recorder when that was someone else; for an end nobody asked
+  for, the recorder; details `channelId`, `channelName`, `why` (`stopped`, `left`, `permission`, `max`, `declined`,
+  `timeout`, `encrypted`, `channel`, `unavailable`), `durationMs`, `encrypted`). Never any audio, names of the people
+  recorded or file names.
+- **Rate limits:** `voice.record.start`/`stop` 6, then one every 20 s; `voice.record.optout`/`consent` 10, then one
+  every 2 s (`rate_limited`, key `record_slow`). Changing nothing (`optOut` already set) isn't counted.
+- **DM and group calls** can't be recorded (they don't go through voice channels).

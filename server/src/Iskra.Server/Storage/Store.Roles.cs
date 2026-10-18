@@ -22,6 +22,8 @@ public enum Perm : long
     SendTts = 1 << 14,
     /// <summary>Export channels as a zip (Features/ChannelExports.cs).</summary>
     ExportChannels = 1 << 15,
+    /// <summary>Record a voice channel on their desktop app (Features/RecordingFeature.cs).</summary>
+    RecordVoice = 1 << 16,
 }
 
 /// <summary>What a channel override can allow or deny for a role.</summary>

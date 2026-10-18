@@ -33,9 +33,12 @@ public sealed class VoiceRegistry
         Stages = new StageRegistry(world, hub, backend, this);
         Watch = new WatchRegistry(world, hub, this, time);
         Whisper = new WhisperRegistry(world, hub, backend, this, time);
+        Recordings = new RecordingRegistry(world, this, log, time);
+        _time = time;
         backend.AvailabilityChanged += available =>
         {
             if (!available) Whisper.Clear();
+            if (!available) Recordings.Clear(); // every recording mark ends with the calls
             if (!available) _rooms.Clear(); // LiveKit restarted: everyone was dropped
             if (!available) _afkForced.Clear();
             if (!available) Statuses.ClearAll(); // ...and every call's status
@@ -56,6 +59,11 @@ public sealed class VoiceRegistry
 
     /// <summary>Whispers: talking only to chosen people or another voice channel, each in its own LiveKit room.</summary>
     public WhisperRegistry Whisper { get; }
+
+    /// <summary>Recording marks and "don't record me" (RecordingFeature).</summary>
+    public RecordingRegistry Recordings { get; }
+
+    private readonly TimeProvider _time;
 
     /// <summary>Voice channel statuses (VoiceStatusFeature): cleared when the call empties.</summary>
     public VoiceStatusBoard Statuses { get; } = new();
@@ -231,8 +239,10 @@ public sealed class VoiceRegistry
             accountKey = m.AccountKey, muted = m.Muted, deafened = m.Deafened, serverMuted = _serverMuted.ContainsKey(m.AccountKey), clips = m.Clips,
             afk = _afkForced.ContainsKey(m.AccountKey),
             priority = m.Priority && !m.Muted && !_serverMuted.ContainsKey(m.AccountKey) && !_afkForced.ContainsKey(m.AccountKey),
+            noRecord = Recordings.OptedOut(m.AccountKey), recordConsent = Recordings.Consent(channelId, m.AccountKey),
         }),
         status = VoiceStatusBoard.Public(Statuses.Get(channelId)),
+        recording = Recordings.Public(channelId),
     };
 
     /// <summary>Voice state for every voice channel this member can see.</summary>
@@ -306,6 +316,7 @@ public sealed class VoiceRegistry
         Watch.SyncAll();
         Features.ActivitiesFeature.SyncAll(hub, world.Store, this);
         Whisper.Sync();
+        Recordings.SyncAll();
     }
 
     /// <summary>After a timeout: out of every voice channel and call on this server.</summary>
@@ -327,6 +338,7 @@ public sealed class VoiceRegistry
     private void Publish(long channelId)
     {
         if (Participants(channelId).Count == 0) Statuses.Clear(channelId); // the call emptied: its status goes too
+        Recordings.Check(channelId, _time.GetUtcNow().ToUnixTimeMilliseconds()); // the recorder left, or everyone agreed
         var channel = world.Store.GetChannel(channelId);
         if (channel is not null) hub.BroadcastToReaders(channel, Frames.Event("voice.state", PublicState(channelId)));
         hub.Outhooks?.VoicePresence(channelId, channel, Participants(channelId).Select(p => p.AccountKey));
