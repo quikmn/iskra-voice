@@ -120,6 +120,8 @@ export function createBridges(
     back: hub<[]>('active', native && ((f) => native.onBackButton(f))),
     voiceEnd: hub<[]>('voice', native && ((f) => native.voice.onEnd(f))),
     voiceMute: hub<[boolean]>('voice', native && ((f) => native.voice.onMute(f))),
+    // Something shared into Iskra from another app goes to the account on screen, once.
+    share: hub<[unknown]>('active', native && ((f) => native.onShare(f))),
   }
 
   // The shells' own links come to the host first.
@@ -330,6 +332,7 @@ export function createBridges(
         return stop
       },
       onBackButton: (callback) => hubs.back.subscribe(slot, callback),
+      onShare: (callback) => hubs.share.subscribe(slot, callback),
       // Every account's theme is the device's, so any of them may set it; the one on screen is what shows.
       setStatusBar: (scheme) => (slot === router.active() ? native.setStatusBar(scheme) : Promise.resolve()),
       voice: {

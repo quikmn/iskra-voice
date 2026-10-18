@@ -48,6 +48,7 @@ function fakeShells() {
     platform: 'android',
     onOpenUrl: on('url'),
     onBackButton: on('back'),
+    onShare: on('share'),
     setStatusBar: vi.fn(async () => undefined),
     saveFile: vi.fn(async () => true),
     leave: vi.fn(),
@@ -213,6 +214,15 @@ describe("each account's copy of the shell", () => {
     expect(native.setStatusBar).not.toHaveBeenCalled()
     void bridges.nativeFor(2)!.setStatusBar('light')
     expect(native.setStatusBar).toHaveBeenCalledWith('light')
+  })
+
+  it("gives something shared from another app to the account on screen only, once", () => {
+    const { fire, state, bridges } = setUp()
+    const shares = heard()
+    for (const slot of [1, 2, 3]) bridges.nativeFor(slot)!.onShare(shares.for(slot))
+    state.active = 3
+    fire('share', { id: 's1' })
+    expect(shares.got).toEqual({ 3: [{ id: 's1' }] })
   })
 
   it("keeps a hosted server's owner invite to the account that made it", async () => {
