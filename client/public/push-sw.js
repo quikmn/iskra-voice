@@ -17,6 +17,12 @@ function scopeServer() {
   return match ? match[1] : null
 }
 
+/** Which account on this device it's for: /push/a<n>/<key>/, or /push/<key>/ for account 1. */
+function scopeAccount() {
+  const match = /\/push\/a([1-9][0-9]?)\/[A-Za-z0-9_-]{43}\/$/.exec(new URL(self.registration.scope).pathname)
+  return match ? Number(match[1]) : 1
+}
+
 /** Where a click on this push should take you, as an app route ("/open/..."). */
 function routeFor(data) {
   const base = `/open/${data.server}`
@@ -164,15 +170,20 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(openApp(route))
 })
 
-/** Focuses an open Iskra window and tells it where to go, or opens a new one there. */
+/**
+ * Focuses an open Iskra window and tells it where to go (and for which account), or opens a new one there. With
+ * several accounts signed in, the window's top page holds one frame per account and passes it on.
+ */
 async function openApp(route) {
+  const account = scopeAccount()
   const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-  const app = windows.find((c) => c.url.startsWith(APP_ROOT.href) && !c.url.startsWith(new URL('push/', APP_ROOT).href))
+  const open = windows.filter((c) => c.url.startsWith(APP_ROOT.href) && !c.url.startsWith(new URL('push/', APP_ROOT).href))
+  const app = open.find((c) => c.frameType === 'top-level') || open[0]
   if (app) {
-    app.postMessage({ type: 'iskra.open', route })
+    app.postMessage({ type: 'iskra.open', route, account })
     return app.focus()
   }
-  return self.clients.openWindow(new URL(`#${route}`, APP_ROOT).href)
+  return self.clients.openWindow(new URL(account === 1 ? `#${route}` : `?account=${account}#${route}`, APP_ROOT).href)
 }
 
 // The browser replaced the subscription: subscribe again with the same server key. The app sends the new

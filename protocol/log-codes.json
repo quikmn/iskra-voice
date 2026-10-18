@@ -68,6 +68,7 @@
     { "code": "VOI-202", "level": "INFO", "sources": ["app"], "area": "voice", "meaning": "Left voice: removed or moved by a moderator.", "action": "Nothing." },
     { "code": "VOI-203", "level": "INFO", "sources": ["app"], "area": "voice", "meaning": "Left voice: the room closed or the server is restarting.", "action": "Nothing." },
     { "code": "VOI-204", "level": "WARN", "sources": ["app"], "area": "voice", "meaning": "Left voice: the connection was lost.", "action": "Check the network; see VOI-130." },
+    { "code": "VOI-205", "level": "INFO", "sources": ["app"], "area": "voice", "meaning": "Left voice: another account signed in on this device joined voice (one account in voice at a time).", "action": "Nothing." },
     { "code": "MED-110", "level": "WARN", "sources": ["app"], "area": "media", "meaning": "The microphone's noise suppression fell back to RNNoise (why=: start-failed, slow; kind=cpu with count= the realtime load in percent, or kind=late when its frames kept coming back late).", "action": "Nothing; report it if the microphone sounds wrong." },
     { "code": "MED-120", "level": "WARN", "sources": ["app"], "area": "media", "meaning": "An audio or video device was lost or changed during a call.", "action": "Pick the device again in Settings → Voice." },
     { "code": "E2E-110", "level": "WARN", "sources": ["app"], "area": "e2ee", "meaning": "Decrypting encrypted voice failed.", "action": "Rejoin the channel; report it if it repeats." },

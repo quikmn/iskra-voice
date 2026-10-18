@@ -7,6 +7,7 @@ import { currentLanguage, onLanguage, t } from '../i18n'
 import { errorMessage } from '../i18n/errors'
 import { b64u, fromB64u } from '../core/crypto'
 import { parseOpenRoute, pushScope, pushSupport, serverOfScope, type OpenTarget, type PushSupport } from '../core/pushRoute'
+import { accountSlot } from '../core/accountSlot'
 import { desktop } from '../platform/desktop'
 import { native } from '../platform/native'
 import { pushActive, updateNotify, useNotify } from './notify'
@@ -251,8 +252,10 @@ export function startPush(): () => void {
     timer = setTimeout(() => Object.keys(usePush.getState().servers).forEach(reportFocus), 250)
   }
   const onMessage = (event: MessageEvent) => {
-    const data = event.data as { type?: unknown; route?: unknown } | null
+    const data = event.data as { type?: unknown; route?: unknown; account?: unknown } | null
     if (data?.type !== 'iskra.open' || typeof data.route !== 'string') return
+    // Another account's push (one that was signed out here): not this account's to open.
+    if (data.account !== undefined && data.account !== accountSlot()) return
     const target = parseOpenRoute(data.route)
     if (target) openWhenReady(target)
   }

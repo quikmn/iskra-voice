@@ -1,5 +1,7 @@
+# Framed only by the app itself: with several accounts signed in, each runs in a same-origin frame of the top page.
 /*
-  X-Frame-Options: DENY
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
   Permissions-Policy: microphone=(self), camera=(self), display-capture=(self), geolocation=(), payment=(), usb=()

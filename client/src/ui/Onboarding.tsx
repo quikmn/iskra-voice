@@ -8,9 +8,10 @@ import { useServerInfo } from '../state/serverName'
 import { InviteIcon } from './dialogs/JoinDialog'
 import { OpenInApp } from './OpenInApp'
 import { LinkJoin } from './LinkJoin'
-import { acceptTerms, useTermsAccepted } from '../state/terms'
+import { acceptTerms, needsAcceptance, useTerms, useTermsAccepted } from '../state/terms'
 import { takeDeletedNotice } from '../state/accountDeletion'
 import { TermsAgreement, TermsFirst } from './safety/Terms'
+import { addingMode } from '../state/accounts'
 
 // First the choice: new here, or already on another device (so people link instead of making a second account).
 type Mode = 'choose' | 'new' | 'existing' | 'recovery' | 'link'
@@ -21,7 +22,13 @@ export function Onboarding() {
   const serverInfo = useServerInfo(pendingInvite?.serverUrl)
   const serverName = serverInfo === undefined ? undefined : serverInfo?.name ?? null
   const pendingLink = usePendingLink((s) => s.code)
-  const [mode, setMode] = useState<Mode>(pendingLink ? 'link' : 'choose')
+  // An account being added from the switcher opens on the choice made there (once the terms are agreed on this device).
+  const [mode, setMode] = useState<Mode>(() => {
+    if (pendingLink) return 'link'
+    const adding = addingMode()
+    if (!adding || needsAcceptance(useTerms.getState().accepted)) return 'choose'
+    return adding === 'new' ? 'new' : 'existing'
+  })
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [recoveryKey, setRecoveryKey] = useState('')

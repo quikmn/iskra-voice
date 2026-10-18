@@ -18,6 +18,7 @@ import { channelConv, dmConv, isOnScreen, useReads } from './readState'
 import { shouldNotify } from './organizeLogic'
 import { isBlocked, useBlocks } from './moderation'
 import { useAudio } from './audio'
+import { focusThisAccount, notificationTitle } from './accountFocus'
 import { desktop } from '../platform/desktop'
 import { overlayIcon } from '../platform/badge'
 import { streamerOn } from './streamer'
@@ -114,9 +115,10 @@ export function show(serverKey: string, title: string, body: string, onClick: ()
   }
   if (!document.hasFocus()) void desktop?.attention?.().catch(() => undefined)
   if (!useNotify.getState().desktop || !notificationsSupported() || Notification.permission !== 'granted') return
-  const notification = new Notification(title, { body: body.slice(0, 200), silent: true })
+  const notification = new Notification(notificationTitle(title), { body: body.slice(0, 200), silent: true })
   notification.onclick = () => {
     window.focus()
+    focusThisAccount()
     onClick()
     notification.close()
   }

@@ -28,7 +28,9 @@ export const voice: Messages['voice'] = {
     group: 'Gruppchatt',
     voice: 'röst',
     listeningOnly: 'Lyssnar bara',
-    otherDevice: 'Du gick med i röstkanalen på din andra enhet.',
+    otherDevice: 'Flyttat till din andra enhet.',
+    otherAccount: 'Du lämnade röstkanalen eftersom du gick med som {{name}}.',
+    joinHere: 'Gå med här',
   },
   stage: {
     openChannels: 'Öppna kanaler',

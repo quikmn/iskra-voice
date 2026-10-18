@@ -1,5 +1,6 @@
 // Where a push notification click takes you. The service worker (public/push-sw.js) builds these routes and the app
 // reads them back, from a message or from the "#/open/..." address of a fresh window.
+import { accountSlot } from './accountSlot'
 
 export type OpenTarget =
   | { server: string; kind: 'server' }
@@ -39,13 +40,24 @@ export function pageLink(appBase: string, server: string, channelId: number, pag
   return `${appBase.replace(/\/+$/, '')}/#/open/${server}/c/${channelId}/p/${pageId}`
 }
 
-/** The service worker scope for a server's push registration. */
-export const pushScope = (serverKey: string) => `/push/${serverKey}/`
+/**
+ * The service worker scope for a server's push registration. Each account on this device has its own (two accounts
+ * can be on the same server): /push/<key>/ for account 1, as before several accounts, /push/a<n>/<key>/ for the others.
+ */
+export const pushScope = (serverKey: string, slot: number = accountSlot()) =>
+  slot === 1 ? `/push/${serverKey}/` : `/push/a${slot}/${serverKey}/`
 
-/** The server a push registration belongs to, from its scope URL. */
-export function serverOfScope(scope: string): string | null {
-  const match = new RegExp(`/push/(${KEY})/$`).exec(scope)
-  return match ? match[1] : null
+/** The server a push registration belongs to, from its scope URL; null if it isn't one, or is another account's. */
+export function serverOfScope(scope: string, slot: number = accountSlot()): string | null {
+  const match = new RegExp(`/push/(?:a([1-9][0-9]?)/)?(${KEY})/$`).exec(scope)
+  if (!match) return null
+  return (match[1] ? Number(match[1]) : 1) === slot ? match[2] : null
+}
+
+/** The account a push registration's scope belongs to (any server), or null if it isn't a push scope. */
+export function slotOfScope(scope: string): number | null {
+  const match = new RegExp(`/push/(?:a([1-9][0-9]?)/)?${KEY}/$`).exec(scope)
+  return match ? (match[1] ? Number(match[1]) : 1) : null
 }
 
 export type PushSupport = 'supported' | 'needs-install' | 'unsupported'

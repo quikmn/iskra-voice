@@ -1,0 +1,68 @@
+/* ── Several accounts in one app ── */
+
+/* The host page: one full-size frame per account, only the one on screen visible. */
+.account-host { position: fixed; inset: 0; background: var(--bg); }
+.account-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; visibility: hidden; background: var(--bg); }
+.account-frame.shown { visibility: visible; }
+
+/* "Which account?" for a link opened from outside. */
+.account-chooser { max-width: 380px; }
+.account-chooser-list { display: grid; gap: 6px; margin-top: 12px; }
+.account-chooser-item {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--surface-2); color: var(--text); text-align: left; font: inherit;
+}
+.account-chooser-item:hover, .account-chooser-item:focus-visible { background: var(--hover); }
+.account-chooser-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The switcher at the bottom of the server rail. */
+.server-icon.account-switch {
+  margin-top: auto; position: sticky; bottom: 0; display: grid; place-items: center; background: var(--surface-2);
+  box-shadow: 0 -8px 8px var(--rail);
+}
+.server-icon.account-switch:hover { background: var(--surface-3); }
+.server-icon.account-switch .avatar { border-radius: 50%; }
+.server-icon.account-switch.ringing { animation: account-ring 1s ease-in-out infinite; }
+@keyframes account-ring { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 60%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .server-icon.account-switch.ringing { animation: none; box-shadow: 0 0 0 3px var(--green); } }
+.account-avatar { overflow: hidden; }
+.account-avatar .avatar-image { width: 100%; height: 100%; object-fit: cover; }
+
+.account-list { min-width: 260px; }
+.account-row { display: flex; align-items: center; gap: 2px; border-radius: calc(var(--radius) * 0.6); }
+.account-row.current { background: var(--accent-subtle); }
+.account-item { flex: 1; min-width: 0; }
+.account-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.account-item-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.account-item-text small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-item-text small.unread { color: var(--text-2); font-weight: 600; }
+.account-item > svg { flex: none; color: var(--muted); }
+.account-item .badge { flex: none; }
+.account-move { display: flex; flex-direction: column; flex: none; }
+.account-move .icon-button.small { width: 24px; height: 18px; }
+.account-move .flip { display: inline-grid; transform: rotate(180deg); }
+.account-add-label { display: inline-flex; align-items: center; gap: 8px; }
+.account-add-choice { align-items: flex-start; }
+.account-add-choice small { white-space: normal; }
+.account-menu-note { font-size: 12px; margin: 6px 10px 4px; max-width: 260px; }
+.org-sheet .account-list { min-width: 0; }
+.org-sheet .account-row.current { background: var(--accent-subtle); }
+
+/* Notes about the other accounts (left voice as one, a call for one), stacked where the update toast sits. */
+.account-toasts {
+  position: fixed; right: 16px; bottom: calc(84px + var(--safe-bottom)); z-index: var(--z-toast);
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+}
+.account-toasts .update-toast { position: static; }
+.account-toast.ringing { border-color: color-mix(in srgb, var(--green) 50%, var(--border)); }
+
+/* While an account is being added: the way back to the others, above its first-run screen. */
+.account-adding-bar {
+  position: fixed; top: calc(8px + var(--safe-top)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
+  display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 14px; border-radius: 99px;
+  background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; color: var(--text-2);
+}
+
+/* Voice moved away (another device, another account here): the note with "Join here". */
+.voice-bar.notice > span { flex: 1 1 auto; min-width: 0; }
+.voice-bar.notice .button.small { flex: none; }

@@ -94,3 +94,4 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | VOI-202 | INFO | app | voice | Left voice: removed or moved by a moderator. | Nothing. |
 | VOI-203 | INFO | app | voice | Left voice: the room closed or the server is restarting. | Nothing. |
 | VOI-204 | WARN | app | voice | Left voice: the connection was lost. | Check the network; see VOI-130. |
+| VOI-205 | INFO | app | voice | Left voice: another account signed in on this device joined voice (one account in voice at a time). | Nothing. |

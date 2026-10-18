@@ -40,6 +40,8 @@ import { TermsUpdateDialog } from './ui/safety/Terms'
 import { ReportLayer } from './ui/safety/ReportDialog'
 import { BugReportLayer } from './ui/bugReport/BugReportDialog'
 import { startDiagnostics } from './state/bugReport/recorders'
+import { startAccounts } from './state/accounts'
+import { AccountNotices, AddingBar } from './ui/accounts/AccountNotices'
 
 /** Picks up "#/join/..." invite links and "#/link/..." device links, then clears them from the address bar. */
 function readInviteFromHash(): void {
@@ -94,7 +96,9 @@ export function App() {
     const stopDiagnostics = startDiagnostics()
     const stopWhatsNew = startWhatsNew()
     const stopStreamer = startStreamerWatch()
+    const stopAccounts = startAccounts()
     return () => {
+      stopAccounts()
       stopStreamer()
       stopWhatsNew()
       stopLinks()
@@ -119,13 +123,14 @@ export function App() {
       </div>
     )
   }
-  if (phase === 'locked') return <LockScreen />
+  if (phase === 'locked') return <><LockScreen /><AddingBar /></>
   if (phase === 'onboarding') {
     return (
       <>
         <main className="landmark">
           <Onboarding />
         </main>
+        <AddingBar />
         <InstallHint signedIn={false} />
         <BugReportLayer />
       </>
@@ -146,6 +151,7 @@ export function App() {
       <ReportLayer />
       <BugReportLayer />
       <TermsUpdateDialog />
+      <AccountNotices />
     </>
   )
 }

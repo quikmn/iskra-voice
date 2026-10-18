@@ -1,0 +1,52 @@
+// accounts text (English): several accounts in one app (the switcher, adding one, links). Keep in step with ../sv/accounts.ts.
+export const accounts = {
+  switcher: {
+    label: 'Accounts. Signed in as {{name}}',
+    title: 'Accounts',
+    current: 'On screen',
+    unread_one: '{{count}} unread',
+    unread_other: '{{count}} unread',
+    otherUnread_one: '{{count}} unread on your other accounts',
+    otherUnread_other: '{{count}} unread on your other accounts',
+    inVoice: 'In voice',
+    locked: 'Locked',
+    settingUp: 'Being added',
+    switchTo: 'Switch to {{name}}',
+    moveUp: 'Move {{name}} up',
+    moveDown: 'Move {{name}} down',
+    add: 'Add account',
+    addNew: 'Create a new account',
+    addNewHint: 'A separate account with its own name, servers and messages.',
+    addExisting: 'Use an account I already have',
+    addExistingHint: 'Link it from another device, or use its recovery key.',
+    full: 'This device has {{count}} accounts signed in, the most it keeps.',
+    restartNote: 'Iskra restarts once to add the account.',
+    restartVoiceNote: 'Iskra restarts once to add the account, so you’ll leave voice.',
+    signOut: 'Sign out of {{name}}…',
+    unnamed: 'New account',
+  },
+  adding: {
+    cancelPlain: 'Cancel',
+  },
+  chooser: {
+    title: 'Which account?',
+    invite: 'You opened an invite. Which account should join?',
+    open: 'Which account should open this link?',
+    cancel: 'Cancel',
+  },
+  duplicate: {
+    title: 'Already signed in here',
+    body: 'This account is already signed in on this device. Iskra keeps one copy of each account.',
+    switch: 'Go to it',
+  },
+  voice: {
+    leftAs: 'Left voice as {{name}}: one account can be in voice at a time.',
+  },
+  ringing: {
+    title: '{{caller}} is calling {{account}}',
+    switch: 'Switch',
+  },
+  notifyTitle: '{{title}} · {{account}}',
+  frameTitle: 'Iskra: {{name}}',
+  unsupported: 'This browser can’t keep your accounts apart. Use the desktop app, or keep one account in this browser.',
+} as const

@@ -13,6 +13,7 @@ import { checkGroupKey, isNewerKey, keyholder, ringNotice } from './groupLogic'
 import { groupKey, openGroup, sealForGroup, sendGroupMessage, syncGroup, titleOf, useGroups } from './groups'
 import { nameOf } from './dms'
 import { useNotify } from './notify'
+import { focusThisAccount, notificationTitle } from './accountFocus'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
 import { joinGroupCall, leaveVoice, setCallKey, useVoice } from './voice'
 import { t } from '../i18n'
@@ -306,9 +307,10 @@ useGroupCalls.subscribe((state, prev) => {
       permission: typeof Notification === 'undefined' ? 'unsupported' : Notification.permission,
     })
     if (note) {
-      notification = new Notification(note.title, { body: note.body, tag: `iskra-gcall-${ringing.callId}`, requireInteraction: true, silent: true })
+      notification = new Notification(notificationTitle(note.title), { body: note.body, tag: `iskra-gcall-${ringing.callId}`, requireInteraction: true, silent: true })
       notification.onclick = () => {
         window.focus()
+        focusThisAccount()
         openGroup(ringing.key)
         notification?.close()
       }

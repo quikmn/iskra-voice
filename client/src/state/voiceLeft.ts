@@ -7,10 +7,11 @@ import type { DisconnectReason } from 'livekit-client'
  * `removed`: the server removed you (permissions, a timeout, a full channel). `server`: the room or server went away
  * (a restart). `dropped`: the connection was lost. `failed`: joining didn't work. `switched`: you joined another channel or
  * call. `call_ended`: the call ended. `system`: the phone ended it (another call, the system's call screen).
+ * `other_account`: another account signed in on this device joined voice (one device, one microphone).
  */
-export type VoiceLeftReason = 'user' | 'other_device' | 'kicked' | 'removed' | 'server' | 'dropped' | 'failed' | 'switched' | 'call_ended' | 'system'
+export type VoiceLeftReason = 'user' | 'other_device' | 'other_account' | 'kicked' | 'removed' | 'server' | 'dropped' | 'failed' | 'switched' | 'call_ended' | 'system'
 
-export const VOICE_LEFT_REASONS: readonly VoiceLeftReason[] = ['user', 'other_device', 'kicked', 'removed', 'server', 'dropped', 'failed', 'switched', 'call_ended', 'system']
+export const VOICE_LEFT_REASONS: readonly VoiceLeftReason[] = ['user', 'other_device', 'other_account', 'kicked', 'removed', 'server', 'dropped', 'failed', 'switched', 'call_ended', 'system']
 
 /** LiveKit's reason for a room disconnect, in our words. `R` is LiveKit's `DisconnectReason` enum (loaded lazily). */
 export function leftReasonOf(reason: DisconnectReason | undefined, R: typeof DisconnectReason): VoiceLeftReason {

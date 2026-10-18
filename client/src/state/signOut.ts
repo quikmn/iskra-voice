@@ -1,11 +1,13 @@
 // Signing out of this device: optionally leave every server, tell the servers this device is gone (so DMs stop
 // being encrypted to it), then forget everything Iskra stored here and start over at the first-run screen.
 // Also what "Clear Iskra from this device" does when the keys can't be opened or the device was removed.
+// With several accounts on this device, only this account's keys, data and settings go (each has its own storage).
 import { signRevocation } from '../core/devices'
 import * as storage from '../core/storage'
 import { disablePush } from './push'
 import { forgetTranscripts } from './transcripts/transcriptCache'
 import { connectionFor, leaveServer, useApp } from './store'
+import { accountSignedOut } from './accounts'
 
 /** Settings kept after signing out: they belong to the device, not the account. */
 const KEEP = new Set(['iskra.language', 'iskra.theme', 'iskra.audio'])
@@ -39,5 +41,7 @@ export async function signOutThisDevice({ leaveServers = false, after }: { leave
     /* storage blocked: nothing to clear */
   }
   after?.()
+  // Next to other accounts on this device, the host takes this one off the list; alone, Iskra starts fresh.
+  if (accountSignedOut()) return
   window.location.reload()
 }
