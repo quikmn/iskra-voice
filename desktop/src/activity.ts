@@ -5,8 +5,12 @@ import { readdir, readFile } from 'node:fs/promises'
 import { GAMES, matchGame, parseTasklist, type KnownGame } from './games'
 
 const POLL_MS = 30_000
-/** tasklist took 17 to 42 s on a heavily loaded test machine (median 0.5 s); a slow answer still counts, up to the next poll. */
-const LIST_TIMEOUT_MS = 25_000
+/**
+ * tasklist took 17 to 42 s on a heavily loaded machine (median 0.5 s). A slow answer is waited for, and no second
+ * listing starts meanwhile: killing it at 25 s and starting over at the next poll could miss every answer under load
+ * (the e2e check saw "No game detected" for a full minute). Bounded, so a hung tasklist can't stop detection.
+ */
+const LIST_TIMEOUT_MS = 120_000
 
 /** The program's output, or null if it failed or took too long. */
 function run(file: string, args: string[]): Promise<string | null> {
@@ -43,6 +47,7 @@ export class ActivityDetector {
   private readonly onChange: (game: string | null) => void
   private readonly list: () => Promise<string[] | null>
   private readonly builtins: KnownGame[]
+  private listing: Promise<void> | null = null
 
   /** `builtins`: the bundled game list; `[]` matches only the user's own programs (streamer mode). */
   constructor(onChange: (game: string | null) => void, list: () => Promise<string[] | null> = runningPrograms, builtins: KnownGame[] = GAMES) {
@@ -68,7 +73,15 @@ export class ActivityDetector {
     void this.check()
   }
 
-  async check(): Promise<void> {
+  /** One listing at a time: while one runs, a poll (or a caller) waits for that one. */
+  check(): Promise<void> {
+    this.listing ??= this.listOnce().finally(() => {
+      this.listing = null
+    })
+    return this.listing
+  }
+
+  private async listOnce(): Promise<void> {
     const programs = await this.list()
     // Turned off meanwhile, or the programs couldn't be listed this time: keep what's shown (not "no game").
     if (!this.timer || programs === null) return

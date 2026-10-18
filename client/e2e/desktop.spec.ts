@@ -5,15 +5,16 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { _electron as electron, expect, test } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { appWindow, agreeToTerms, SHOTS, startServer, type TestServer } from './helpers'
 /** The bits of Electron's BrowserWindow these checks use (Electron's types aren't part of the client project). */type AppWin = { webContents: { getURL(): string; send(channel: string, ...args: unknown[]): void }; isVisible(): boolean }
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html'))
+const built = desktopBuilt()
 const DESKTOP_VERSION = (JSON.parse(readFileSync(join(DESKTOP, 'package.json'), 'utf8')) as { version: string }).version
 
-test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+test.skip(!built, DESKTOP_SKIP)
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -233,31 +234,28 @@ test('the desktop app runs the web app on app:// and can join a server', async (
       for (const action of ['mute', 'KeyA', 'deafen', 42]) BrowserWindow.getAllWindows().find((w: AppWin) => w.webContents.getURL().startsWith('app://'))!.webContents.send('iskra:hotkey', action)
     })
     await expect.poll(() => page.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual(['mute', 'deafen'])
-    // "Set key" listens to the global hook; Cancel ends it with nothing.
+    // "Set key" listens to the key hook; Cancel ends it with nothing. In e2e runs the app's hook is a test one
+    // (desktop/src/keyHook.ts): keys typed on this PC meanwhile never land here; the spec taps them through it.
     const muteRow = page.locator('.hotkey-row', { hasText: 'Toggle mute' })
     await page.getByRole('button', { name: 'Set toggle mute key' }).click()
     await expect(muteRow.locator('.key-chip')).toHaveText('Press a key…')
     await muteRow.getByRole('button', { name: 'Cancel' }).click()
     await expect(muteRow.locator('.key-chip')).toHaveText('Not set')
-    // Real keys through the OS hook (Windows): Ctrl+F24 as the mute key. No keyboard has F23/F24, so tapping them touches nothing else.
-    if (process.platform === 'win32') {
-      const tap = (key: 'F23' | 'F24', ctrl: boolean) => app.evaluate((_electron, { dir, key, ctrl }) => {
-        const { createRequire } = process.getBuiltinModule('node:module')
-        const { uIOhook, UiohookKey } = createRequire(`${dir}/package.json`)('uiohook-napi')
-        uIOhook.keyTap(UiohookKey[key], ctrl ? [UiohookKey.Ctrl] : [])
-      }, { dir: DESKTOP, key, ctrl })
-      await page.getByRole('button', { name: 'Set toggle mute key' }).click()
-      await expect(muteRow.locator('.key-chip')).toHaveText('Press a key…')
-      await tap('F24', true)
-      await expect(muteRow.locator('.key-chip')).toHaveText('Ctrl + F24')
-      await page.evaluate(() => ((window as unknown as { heard: string[] }).heard = []))
-      await tap('F23', true) // not a hotkey: never reported
-      await tap('F24', false) // without Ctrl: not it either
-      await tap('F24', true)
-      await expect.poll(() => page.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual(['mute'])
-      await muteRow.getByRole('button', { name: 'Clear toggle mute key' }).click()
-      await expect(muteRow.locator('.key-chip')).toHaveText('Not set')
-    }
+    // Ctrl+F24 as the mute key, through the same PushToTalk the real hook feeds (its events: desktop unit tests).
+    const tap = (key: 'F23' | 'F24', ctrl: boolean) => app.evaluate((_electron, { key, ctrl }) => {
+      (globalThis as unknown as { iskraTestKeys: { tap(key: string, mods: string[]): void } }).iskraTestKeys.tap(key, ctrl ? ['Ctrl'] : [])
+    }, { key, ctrl })
+    await page.getByRole('button', { name: 'Set toggle mute key' }).click()
+    await expect(muteRow.locator('.key-chip')).toHaveText('Press a key…')
+    await tap('F24', true)
+    await expect(muteRow.locator('.key-chip')).toHaveText('Ctrl + F24')
+    await page.evaluate(() => ((window as unknown as { heard: string[] }).heard = []))
+    await tap('F23', true) // not a hotkey: never reported
+    await tap('F24', false) // without Ctrl: not it either
+    await tap('F24', true)
+    await expect.poll(() => page.evaluate(() => (window as unknown as { heard: string[] }).heard)).toEqual(['mute'])
+    await muteRow.getByRole('button', { name: 'Clear toggle mute key' }).click()
+    await expect(muteRow.locator('.key-chip')).toHaveText('Not set')
   } finally {
     await app.close()
     rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
@@ -369,8 +367,8 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     await settings.getByLabel('Program file').fill(process.platform === 'win32' ? 'electron.exe' : 'electron')
     await settings.getByRole('button', { name: 'Add', exact: true }).click()
     await settings.getByLabel(/Show the game you're playing/).check()
-    // The app lists programs with tasklist, which took 17 to 42 s while the whole suite ran (median 0.5 s); a list
-    // that times out (25 s) is tried again at the next 30 s poll.
+    // The app lists programs with tasklist, which took 17 to 42 s while the whole suite ran (median 0.5 s); the app
+    // waits for a slow list instead of starting over (desktop/src/activity.ts).
     await expect(settings.getByText('Now: Playing Test Game')).toBeVisible({ timeout: 60_000 })
     await page.screenshot({ path: join(SHOTS, 'desktop-activity-settings.png') })
     await page.keyboard.press('Escape')

@@ -4,7 +4,7 @@ import { app, screen, shell, type BrowserWindow, type BrowserWindowConstructorOp
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
-  areaFor, isPopoutPage, MAX_POPOUTS, openBounds, parsePopoutName, parsePopoutState, popoutWindowOptions, snapBounds,
+  areaFor, isPopoutPage, MAX_POPOUTS, onTopLevel, openBounds, parsePopoutName, parsePopoutState, popoutWindowOptions, snapBounds,
   type PopoutKind, type PopoutPatch, type PopoutState,
 } from './popouts'
 
@@ -87,7 +87,7 @@ export class PopoutWindows {
     })
     // (Its first load, popout.html, is a navigation too.)
     contents.on('will-navigate', (event, url) => !isPopoutPage(url, this.isAppUrl) && event.preventDefault())
-    if (this.prefs()[parsed.kind].alwaysOnTop) win.setAlwaysOnTop(true, 'floating')
+    if (this.prefs()[parsed.kind].alwaysOnTop) win.setAlwaysOnTop(true, onTopLevel(process.platform))
     win.once('ready-to-show', () => !win.isDestroyed() && win.showInactive())
     const remember = () => {
       if (win.isDestroyed()) return
@@ -128,7 +128,7 @@ export class PopoutWindows {
     if (!entry || entry.win.isDestroyed()) return null
     const { win } = entry
     if (patch.alwaysOnTop !== undefined) {
-      win.setAlwaysOnTop(patch.alwaysOnTop, 'floating')
+      win.setAlwaysOnTop(patch.alwaysOnTop, onTopLevel(process.platform))
       this.prefs()[entry.kind].alwaysOnTop = patch.alwaysOnTop
       this.saveSoon()
     }

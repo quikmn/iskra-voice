@@ -31,7 +31,16 @@ export function lookOnce({ sha, repo, run, gh = ghJson }) {
   }
   // Runs are newest first; a run's conclusion follows its latest attempt (a rerun of failed jobs).
   const out = gh(`repos/${repo}/actions/workflows/ci.yml/runs?head_sha=${sha}&event=push&per_page=50`)
-  return ciVerdict(out.workflow_runs.filter((r) => r.head_sha === sha))
+  const verdict = ciVerdict(out.workflow_runs.filter((r) => r.head_sha === sha))
+  // A red run names its red jobs, so the log tells a flake (one job, rerun it) from a real failure at a glance.
+  if (verdict.state === 'fail' && verdict.run?.id) {
+    try {
+      const jobs = gh(`repos/${repo}/actions/runs/${verdict.run.id}/jobs?filter=latest&per_page=100`).jobs ?? []
+      const red = jobs.filter((j) => j.status === 'completed' && !['success', 'skipped'].includes(j.conclusion)).map((j) => `${j.name} ${j.conclusion}`)
+      if (red.length) return { ...verdict, message: `${verdict.message} (${red.join(', ')})` }
+    } catch { /* the verdict stands without the job names */ }
+  }
+  return verdict
 }
 
 /** Polls until pass or fail, or the wait is over. Returns { ok, timedOut, message }. */

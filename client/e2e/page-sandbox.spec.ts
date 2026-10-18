@@ -5,11 +5,12 @@
 // Screenshots: Playwright's page.screenshot of the Electron window paints a <webview> shifted by its frame's offset,
 // so pages look cut off on the right and bottom there. They aren't: Electron's own capturePage() of the same moment
 // is correct. Don't "fix" page layout from these shots.
-import { mkdtempSync, rmSync, existsSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type Page } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { appWindow, agreeToTerms, createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 import { controlScript, probePage, SCRIPT_VECTORS, startAttacker, STATIC_VECTORS, type Attacker } from './leak-probe'
 
@@ -95,10 +96,10 @@ test('browsers: other people\'s pages run without scripts, and nothing reaches t
   await attacker.close()
 })
 
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(join(DESKTOP, 'dist', 'pages.js')) && existsSync(resolve(HERE, '../dist/index.html'))
+const built = desktopBuilt(join(DESKTOP, 'dist', 'pages.js'))
 
 test('desktop: pages run their scripts behind a wall nothing gets through', async () => {
-  test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+  test.skip(!built, DESKTOP_SKIP)
   test.setTimeout(180_000)
   const server = await newServer()
   const userData = mkdtempSync(join(tmpdir(), 'iskra-pages-'))

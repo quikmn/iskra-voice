@@ -197,6 +197,15 @@ test('end-to-end flakes: one retry on CI only, flaky tests reported, the nightly
   assert.doesNotMatch(jobs(stress).report, /exit 1/)
 })
 
+test('every matrix reports on all its legs: fail-fast is off, so one OS failing never cancels the others', () => {
+  for (const f of files) {
+    for (const [id, body] of Object.entries(jobs(read(f)))) {
+      if (!/^ {4}strategy:\n/m.test(body)) continue
+      assert.match(body, /^ {4}strategy:\n {6}fail-fast: false\b/m, `${f} job ${id}: put "fail-fast: false" first under strategy`)
+    }
+  }
+})
+
 const actionlint = spawnSync('actionlint', ['-version']).status === 0
 test('actionlint passes on every workflow', { skip: actionlint ? false : 'actionlint is not installed' }, () => {
   // shellcheck off: CI's runners have it and this machine doesn't; the result must not depend on where it runs.

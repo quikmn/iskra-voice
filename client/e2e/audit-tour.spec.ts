@@ -2,11 +2,12 @@
 // with a few automatic checks per shot (sideways overflow on phones, unnamed buttons, English left in Swedish).
 // Not part of the normal run: `AUDIT=1 npx playwright test e2e/audit-tour.spec.ts --workers=1`.
 // Screenshots and findings-<time>.json land in e2e/screenshots/audit (git-ignored).
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { agreeToTerms, createInviteLink, hasLiveKit, joinVia, send, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(!process.env.AUDIT, 'UX audit tour: set AUDIT=1')
@@ -792,10 +793,11 @@ test('UX audit tour (browser)', async ({ browser }) => {
 
 // ── Desktop app (Electron): create a server, keep running, internet access help, update toast ──
 const DESKTOP_DIR = resolve(HERE, '../../desktop')
-const built = existsSync(join(DESKTOP_DIR, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html'))
+// Only when the tour runs (AUDIT=1): an incomplete desktop build stops the run before anything launches.
+const built = !!process.env.AUDIT && desktopBuilt()
 
 test('UX audit tour (desktop app)', async () => {
-  test.skip(!built, 'build desktop/ and the client first')
+  test.skip(!built, DESKTOP_SKIP)
   test.setTimeout(600_000)
   const userData = mkdtempSync(join(tmpdir(), 'iskra-audit-desktop-'))
   const hostRoot = mkdtempSync(join(tmpdir(), 'iskra-audit-hosted-'))
@@ -905,7 +907,7 @@ test('UX audit tour (desktop app)', async () => {
 
 // ── Profile pages: a normal, styled page in the desktop app's walled page view, next to the browser and the editor ──
 test('UX audit: profile pages render styled (desktop app vs browser)', async ({ browser }) => {
-  test.skip(!built, 'build desktop/ and the client first')
+  test.skip(!built, DESKTOP_SKIP)
   test.setTimeout(400_000)
   const server = await startServer('Page Gallery')
   const userData = mkdtempSync(join(tmpdir(), 'iskra-audit-pages-'))

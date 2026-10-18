@@ -1,20 +1,21 @@
 // Activities added to a server, in the desktop app: they run in the walled page view (the iskra-pages session), get
 // their own files through the app, and talk to the app over the SDK's console bridge: ready → init, send → the
 // server → back in as a message. Nothing else reaches the network from there (page-sandbox.spec.ts measures the wall).
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { agreeToTerms, appWindow, hasLiveKit, openServerSettings, SHOTS, startServer, type TestServer } from './helpers'
 import { zip } from './zipFiles'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
 const ELECTRON = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/activities/four.html'))
+const built = desktopBuilt(resolve(HERE, '../dist/activities/four.html'))
 
-test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+test.skip(!built, DESKTOP_SKIP)
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
 type Guest = { getType(): string; getURL(): string; session: unknown; executeJavaScript(code: string): Promise<unknown> }

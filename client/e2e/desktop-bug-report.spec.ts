@@ -2,19 +2,20 @@
 // Its screenshots are of one of Iskra's own windows, picked from a list (the main window, open pop-outs, never the
 // report itself), now or after a countdown that leaves the main window alone. Only one report window, and it closes
 // with the page.
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { agreeToTerms, appWindow, SHOTS, startServer, type TestServer } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
 const ELECTRON = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/popout.html'))
+const built = desktopBuilt(resolve(HERE, '../dist/popout.html'))
 
-test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+test.skip(!built, DESKTOP_SKIP)
 
 type Info = { name: string; kind: string; alwaysOnTop: boolean; clickThrough: boolean; bounds: { width: number; height: number } }
 

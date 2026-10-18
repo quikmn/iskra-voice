@@ -1,16 +1,17 @@
 // The desktop shell's own messages show inside Iskra, as its toasts and dialogs in its language, never as native
 // message boxes: the tray's "Check for updates" result, About (the app's About & legal page) and the macOS
 // screen-recording permission (desktop/src/notices.ts, client/src/state/desktopNotices.ts).
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { agreeToTerms, appWindow, SHOTS } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html'))
+const built = desktopBuilt()
 const DESKTOP_VERSION = (JSON.parse(readFileSync(join(DESKTOP, 'package.json'), 'utf8')) as { version: string }).version
 const ELECTRON_VERSION = (JSON.parse(readFileSync(join(DESKTOP, 'node_modules', 'electron', 'package.json'), 'utf8')) as { version: string }).version
 
@@ -18,7 +19,7 @@ const ELECTRON_VERSION = (JSON.parse(readFileSync(join(DESKTOP, 'node_modules', 
 type AppWin = { webContents: { getURL(): string; send(channel: string, ...args: unknown[]): void }; isVisible(): boolean; hide(): void }
 type TestGlobals = { iskraTrayAction(action: string): Promise<void>; iskraUpdates: { check(): Promise<string> }; nativeBoxes: number }
 
-test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
+test.skip(!built, DESKTOP_SKIP)
 
 test('the tray’s "Check for updates" and About show inside the app, never as native boxes', async () => {
   test.setTimeout(120_000)

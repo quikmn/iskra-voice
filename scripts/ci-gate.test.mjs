@@ -28,6 +28,26 @@ test('push mode: no run in time is a timeout, a failed run a failure', async () 
   assert.match(failed.message, /CI concluded failure/)
 })
 
+// The four refusals of 2026-10-14..17 were all real reds that had already finished (a flaky test each time), never a
+// run still going: this is the timeline of the alpha.32 one, then its rerun.
+test('push mode: a finished red run is refused and names its red jobs; a rerun in progress is waited for', async () => {
+  const run = (status, conclusion) => ({ id: 7, head_sha: SHA, event: 'push', status, conclusion, html_url: 'https://ci/7' })
+  const jobs = { jobs: [{ name: 'server (windows-latest)', status: 'completed', conclusion: 'failure' }, { name: 'client (ubuntu-latest)', status: 'completed', conclusion: 'success' }, { name: 'end-to-end', status: 'completed', conclusion: 'failure' }] }
+  const red = await waitForCi({ sha: SHA, repo: 'o/r', gh: (p) => (p.includes('/jobs') ? jobs : { workflow_runs: [run('completed', 'failure')] }), log: () => {}, ...clock() })
+  assert.equal(red.ok, false)
+  assert.equal(red.message, 'CI concluded failure on this commit: https://ci/7 (server (windows-latest) failure, end-to-end failure)')
+
+  let calls = 0
+  const rerun = (p) => { assert.ok(!p.includes('/jobs')); calls++; return { workflow_runs: [calls < 3 ? run('in_progress', null) : run('completed', 'success')] } }
+  const green = await waitForCi({ sha: SHA, repo: 'o/r', gh: rerun, log: () => {}, ...clock() })
+  assert.equal(green.ok, true)
+  assert.equal(calls, 3)
+
+  // A newer push cancelled one run, another run on the same commit still goes: wait for it, don't refuse.
+  const both = await waitForCi({ sha: SHA, repo: 'o/r', waitMinutes: 1, gh: () => ({ workflow_runs: [run('in_progress', null), { ...run('completed', 'cancelled'), id: 6 }] }), log: () => {}, ...clock() })
+  assert.equal(both.timedOut, true)
+})
+
 test('run mode: reads the Release run and its latest jobs, passes on its green ci / jobs', async () => {
   const seen = []
   const gh = (path) => {

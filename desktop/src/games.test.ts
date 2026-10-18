@@ -59,3 +59,24 @@ test("the detector keeps what it shows when the programs can't be listed (taskli
   assert.deepEqual(reports, ['Factorio'])
   detector.configure(false, [])
 })
+
+test('a slow program list is waited for, never started twice at once', async () => {
+  let calls = 0
+  let answer: (names: string[]) => void = () => undefined
+  const reports: (string | null)[] = []
+  const detector = new ActivityDetector((g) => reports.push(g), () => {
+    calls++
+    return new Promise<string[]>((resolve) => { answer = resolve })
+  })
+  detector.configure(true, [{ name: 'Test Game', process: 'electron.exe' }]) // starts one
+  const poll = detector.check() // the next poll while it's still listing: joins it
+  assert.equal(calls, 1)
+  answer(['electron.exe'])
+  await poll
+  assert.deepEqual(reports, ['Test Game'])
+  const next = detector.check()
+  assert.equal(calls, 2)
+  answer(['electron.exe'])
+  await next
+  detector.configure(false, [])
+})

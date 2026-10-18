@@ -2,23 +2,24 @@
 // Iskra plays one quiet tone (like a friend's voice), another app plays a second one; the shared system audio
 // must carry the other app's tone and not Iskra's.
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { appWindow, agreeToTerms } from './helpers'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DESKTOP = resolve(HERE, '../../desktop')
 const ELECTRON = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
-const built = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html'))
+const built = process.env.ISKRA_E2E_SPEAKERS === '1' && process.platform === 'win32' && desktopBuilt()
 
 test.skip(process.platform !== 'win32', 'system audio sharing is Windows-only')
-test.skip(!built, 'build desktop/ (npm run build) and the client (npm run build) first')
 // It plays two tones on the real speakers and measures them through system loopback, so it needs a quiet machine
 // (other sound bleeds into the measurement) and someone who expects the beeps. Opt in when that's the case.
 test.skip(process.env.ISKRA_E2E_SPEAKERS !== '1', 'plays tones on the speakers: set ISKRA_E2E_SPEAKERS=1 to run it')
+test.skip(!built, DESKTOP_SKIP)
 
 test("shared system audio leaves out Iskra's own sound", async () => {
   const userData = mkdtempSync(join(tmpdir(), 'iskra-desktop-'))

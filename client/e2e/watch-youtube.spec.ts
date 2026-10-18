@@ -1,10 +1,11 @@
 // YouTube watch parties against the real YouTube (needs the internet): run with ISKRA_E2E_NETWORK=1.
 // In the browser (http://localhost origin) and in the Electron app (app://iskra, which YouTube can't use as a referrer).
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type FrameLocator, type Page } from '@playwright/test'
+import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
 import { appWindow, agreeToTerms, createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(process.env.ISKRA_E2E_NETWORK !== '1', 'talks to YouTube: set ISKRA_E2E_NETWORK=1')
@@ -81,10 +82,10 @@ test('a YouTube watch party plays in step in the browser', async ({ browser }) =
 })
 
 const electronBin = join(DESKTOP, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
-const desktopBuilt = existsSync(join(DESKTOP, 'dist', 'main.js')) && existsSync(resolve(HERE, '../dist/index.html')) && existsSync(electronBin)
+const desktopReady = process.env.ISKRA_E2E_NETWORK === '1' && desktopBuilt()
 
 test('a YouTube watch party plays in the desktop app (app:// origin)', async () => {
-  test.skip(!desktopBuilt, 'build desktop/ (npm run build) and the client (npm run build) first')
+  test.skip(!desktopReady, DESKTOP_SKIP)
   test.setTimeout(150_000)
   const userData = mkdtempSync(join(tmpdir(), 'iskra-desktop-'))
   const app = await electron.launch({
