@@ -13,13 +13,13 @@
     "@capacitor/core": "8.5.3",
     "@capacitor/filesystem": "8.1.4",
     "@capacitor/ios": "8.5.3",
-    "@capacitor/keyboard": "8.0.5",
+    "@capacitor/keyboard": "8.0.6",
     "@capacitor/share": "8.0.3",
     "@capacitor/status-bar": "8.0.4"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.3",
-    "google-auth-library": "11.1.0",
+    "google-auth-library": "11.2.0",
     "jose": "6.2.12",
     "typescript": "6.0.3"
   }
