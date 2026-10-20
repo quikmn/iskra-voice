@@ -52,7 +52,7 @@ function fakeShells() {
     setStatusBar: vi.fn(async () => undefined),
     saveFile: vi.fn(async () => true),
     leave: vi.fn(),
-    voice: { start: vi.fn(async () => undefined), update: vi.fn(async () => undefined), stop: vi.fn(async () => undefined), onEnd: on('voiceEnd'), onMute: on('voiceMute') },
+    voice: { start: vi.fn(async () => undefined), update: vi.fn(async () => undefined), stop: vi.fn(async () => undefined), keepAwake: vi.fn(async () => undefined), onEnd: on('voiceEnd'), onMute: on('voiceMute'), speaker: vi.fn(async () => ({ headset: false })), onRoute: on('voiceRoute') },
   } as unknown as NativeBridge
   return { desktop, native, fire }
 }
@@ -214,6 +214,16 @@ describe("each account's copy of the shell", () => {
     expect(native.setStatusBar).not.toHaveBeenCalled()
     void bridges.nativeFor(2)!.setStatusBar('light')
     expect(native.setStatusBar).toHaveBeenCalledWith('light')
+  })
+
+  it('tells the account in voice when a headset comes or goes', () => {
+    const { fire, state, bridges } = setUp()
+    const routes = heard()
+    for (const slot of [1, 2]) bridges.nativeFor(slot)!.voice.onRoute!(routes.for(slot))
+    state.active = 2
+    state.voice = 1
+    fire('voiceRoute', true)
+    expect(routes.got).toEqual({ 1: [true] })
   })
 
   it("gives something shared from another app to the account on screen only, once", () => {

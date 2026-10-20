@@ -150,4 +150,18 @@ test('mic test, noise suppression in a call, your own speaking ring and per-pers
   await sheet.getByRole('button', { name: 'Mute for me' }).click()
   await expect(sheet).toContainText('0%')
   await phone.screenshot({ path: join(SHOTS, 'audio-volume-phone.png') })
+
+  // A phone switches between its front and back camera; only the selfie camera shows mirrored.
+  await phone.keyboard.press('Escape')
+  await lounge(phone).getByRole('button').first().click()
+  const controls = phone.locator('.call-controls')
+  await expect(controls.getByTestId('flip-camera')).toHaveCount(0)
+  await controls.getByRole('button', { name: 'Turn camera on' }).click()
+  const own = phone.locator('.video-tile.camera video').first()
+  await expect(own).toHaveClass(/mirror/)
+  await controls.getByRole('button', { name: 'Switch between the front and back camera' }).click()
+  await expect(own).not.toHaveClass(/mirror/)
+  await controls.getByRole('button', { name: 'Switch between the front and back camera' }).click()
+  await expect(own).toHaveClass(/mirror/)
+  await expect(phone.getByRole('alert')).toHaveCount(0)
 })

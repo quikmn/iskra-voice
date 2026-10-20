@@ -15,7 +15,7 @@ import { MicProcessor } from './micPipeline'
 import { Listener, type CleanEngine } from './listen'
 import { playTone } from './notify'
 import { screenShareOptions, useScreenShareSettings } from './screenShare'
-import { iosApp } from '../platform/native'
+import { iosApp, native } from '../platform/native'
 import { tunnelFor } from './p2p'
 import { routeVoiceThroughTunnel } from './p2pVoice'
 import { leftReasonOf, type VoiceLeftReason } from './voiceLeft'
@@ -61,6 +61,8 @@ interface VoiceState {
   muted: boolean
   deafened: boolean
   camera: boolean
+  /** Which way the camera looks on a phone: the selfie camera (shown mirrored) or the back one. */
+  facing: 'user' | 'environment'
   screen: boolean
   /** The call screen is showing instead of the text channel. */
   stageOpen: boolean
@@ -132,6 +134,7 @@ export const useVoice = create<VoiceState>(() => ({
   muted: false,
   deafened: false,
   camera: false,
+  facing: 'user',
   screen: false,
   stageOpen: false,
   tiles: [],
@@ -226,6 +229,9 @@ export function dismissResumeOffer(): void {
 }
 
 // Never in the iPhone/iPad app: iOS web views can't capture the screen.
+/** A phone (the app, or a browser on a touch screen): it has a selfie camera and a back one. */
+export const canFlipCamera = () => !!native || (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches)
+
 export const canShareScreen = () => !iosApp && typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia
 
 let room: Room | null = null
@@ -525,7 +531,7 @@ async function connect(
 ): Promise<boolean> {
   voiceGate()
   useVoice.setState({
-    notice: null, noticeName: null, noticeWhere: null, session, error: null, speaking: {}, tiles: [], stageOpen: options.stageOpen ?? (!session.call && !session.group), camera: false, screen: false,
+    notice: null, noticeName: null, noticeWhere: null, session, error: null, speaking: {}, tiles: [], stageOpen: options.stageOpen ?? (!session.call && !session.group), camera: false, facing: 'user', screen: false,
   })
 
   try {
@@ -936,6 +942,21 @@ export async function toggleCamera(): Promise<void> {
     useVoice.setState({ camera: next })
   } catch {
     useVoice.setState({ camera: false, error: t('voice.errors.camera') })
+  }
+  refreshTiles()
+}
+
+/** Between the selfie camera and the back one, on the same track (the call sees no gap, the background effect stays). */
+export async function flipCamera(): Promise<void> {
+  const track = room?.localParticipant.getTrackPublication(lk().Track.Source.Camera)?.track
+  if (!track || !(track instanceof lk().LocalVideoTrack)) return
+  const facing = useVoice.getState().facing === 'user' ? 'environment' : 'user'
+  try {
+    await track.restartTrack({ facingMode: facing })
+    useVoice.setState({ facing })
+  } catch (e) {
+    logError('voice', 'flip-camera', e)
+    useVoice.setState({ error: t('voice.errors.camera') })
   }
   refreshTiles()
 }

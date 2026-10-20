@@ -3,15 +3,16 @@ import { useTranslation } from 'react-i18next'
 import { t as translate } from '../i18n'
 import type { ServerState } from '../state/store'
 import {
-  canShareScreen, leaveVoice, toggleCamera, toggleDeafen, toggleMute, toggleScreenShare, useVoice, videoTrackFor, type Tile,
+  canFlipCamera, canShareScreen, flipCamera, leaveVoice, toggleCamera, toggleDeafen, toggleMute, toggleScreenShare, useVoice, videoTrackFor, type Tile,
 } from '../state/voice'
 import { Avatar } from './bits'
 import { openProfileCard } from '../state/profile'
 import {
-  Camera, CameraOff, Expand, Headphones, HeadphonesOff, Menu, Mic, MicOff, PhoneOff, ScreenShare, ScreenShareOff, Users, Volume,
+  Camera, CameraOff, Expand, Headphones, HeadphonesOff, Menu, Mic, MicOff, Phone, PhoneOff, SwitchCamera, ScreenShare, ScreenShareOff, Users, Volume,
 } from './icons'
 import type { Panel } from './Shell'
 import { SoundboardButton } from './expressions/Soundboard'
+import { toggleSpeaker, useSpeaker } from '../state/nativeVoice'
 import { ScreenShareMenu } from './ScreenShareMenu'
 import './audio.css'
 import { partyFor, useWatch } from '../state/watch'
@@ -129,6 +130,9 @@ export function VideoTile({ tile, name, big, speaking, onClick }: { tile: Tile; 
   const { t } = useTranslation()
   const ref = useRef<HTMLVideoElement>(null)
   const wrapper = useRef<HTMLDivElement>(null)
+  const facing = useVoice((s) => s.facing)
+  // A phone held upright sends a tall picture: shown whole, not cut down to the middle of a wide tile.
+  const [portrait, setPortrait] = useState(false)
 
   useEffect(() => {
     const element = ref.current
@@ -143,9 +147,13 @@ export function VideoTile({ tile, name, big, speaking, onClick }: { tile: Tile; 
   return (
     <div
       ref={wrapper}
-      className={`video-tile ${big ? 'big' : ''} ${speaking && tile.source === 'camera' ? 'speaking' : ''} ${tile.source}`}
+      className={`video-tile ${big ? 'big' : ''} ${speaking && tile.source === 'camera' ? 'speaking' : ''} ${tile.source} ${portrait ? 'portrait' : ''}`}
     >
-      <video ref={ref} autoPlay playsInline muted className={tile.isLocal && tile.source === 'camera' ? 'mirror' : ''} />
+      <video
+        ref={ref} autoPlay playsInline muted className={tile.isLocal && tile.source === 'camera' && facing === 'user' ? 'mirror' : ''}
+        onResize={(e) => setPortrait(e.currentTarget.videoHeight > e.currentTarget.videoWidth)}
+        onLoadedMetadata={(e) => setPortrait(e.currentTarget.videoHeight > e.currentTarget.videoWidth)}
+      />
       <span className="tile-label">
         {tile.source === 'screen' ? t('voice.stage.screenOf', { name }) : name}
         {!tile.isLocal && <PeerEncryptionMark accountKey={tile.accountKey} name={name} />}
@@ -178,6 +186,7 @@ export function CallControls({ onLeave, extra, nameOf }: { onLeave?: () => void;
   const session = useVoice((s) => s.session)!
   const { muted, deafened, camera, screen, localSpeaking } = useVoice()
   const [shareMenu, setShareMenu] = useState<HTMLElement | null>(null)
+  const speaker = useSpeaker()
   const speak = session.canSpeak
   return (
     <>
@@ -202,9 +211,19 @@ export function CallControls({ onLeave, extra, nameOf }: { onLeave?: () => void;
           {deafened ? <HeadphonesOff /> : <Headphones />}
         </button>
       )}
+      {speaker.shown && (
+        <button className={`call-button ${speaker.on ? 'on' : ''}`} onClick={toggleSpeaker} aria-pressed={speaker.on} aria-label={t('voice.speaker')} title={speaker.on ? t('voice.speakerOn') : t('voice.earpieceOn')} data-testid="speaker-button">
+          {speaker.on ? <Volume /> : <Phone />}
+        </button>
+      )}
       {speak && (
         <button className={`call-button ${camera ? 'on' : ''}`} onClick={() => void toggleCamera()} aria-pressed={camera} aria-label={camera ? t('voice.cameraOff') : t('voice.cameraOn')} title={camera ? t('voice.cameraOff') : t('voice.cameraOn')}>
           {camera ? <Camera /> : <CameraOff />}
+        </button>
+      )}
+      {speak && camera && canFlipCamera() && (
+        <button className="call-button" onClick={() => void flipCamera()} aria-label={t('voice.flipCamera')} title={t('voice.flipCamera')} data-testid="flip-camera">
+          <SwitchCamera />
         </button>
       )}
       {speak && canShareScreen() && (

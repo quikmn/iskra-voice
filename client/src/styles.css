@@ -440,7 +440,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .video-tile[role='button'] { cursor: pointer; }
 .video-tile.big { flex: 1; min-height: 0; aspect-ratio: auto; background: #000; }
 .video-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.video-tile.screen video, .video-tile.big video { object-fit: contain; background: #000; }
+.video-tile.screen video, .video-tile.big video, .video-tile.portrait video { object-fit: contain; background: #000; }
 .video-tile video.mirror { transform: scaleX(-1); }
 .video-tile.speaking, .person-tile.speaking { border-color: var(--green); box-shadow: 0 0 18px var(--speaking-glow); }
 .tile-label {

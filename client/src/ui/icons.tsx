@@ -174,6 +174,16 @@ export const Camera = (p: P) => (
   </Svg>
 )
 
+export const SwitchCamera = (p: P) => (
+  <Svg {...p}>
+    <path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" />
+    <path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5" />
+    <circle cx="12" cy="12" r="3" />
+    <path d="m18 22-3-3 3-3" />
+    <path d="m6 2 3 3-3 3" />
+  </Svg>
+)
+
 export const CameraOff = (p: P) => (
   <Svg {...p}>
     <path d="M10.66 6H14a2 2 0 0 1 2 2v2.5l5.248-3.062A.5.5 0 0 1 22 7.87v8.196" />

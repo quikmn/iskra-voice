@@ -120,6 +120,7 @@ export function createBridges(
     back: hub<[]>('active', native && ((f) => native.onBackButton(f))),
     voiceEnd: hub<[]>('voice', native && ((f) => native.voice.onEnd(f))),
     voiceMute: hub<[boolean]>('voice', native && ((f) => native.voice.onMute(f))),
+    voiceRoute: hub<[boolean]>('voice', native?.voice.onRoute && ((f) => native.voice.onRoute!(f))),
     // Something shared into Iskra from another app goes to the account on screen, once.
     share: hub<[unknown]>('active', native && ((f) => native.onShare(f))),
   }
@@ -339,6 +340,7 @@ export function createBridges(
         ...native.voice,
         onEnd: (callback) => hubs.voiceEnd.subscribe(slot, callback),
         onMute: (callback) => hubs.voiceMute.subscribe(slot, callback),
+        ...(native.voice.onRoute && { onRoute: (callback: (headset: boolean) => void) => hubs.voiceRoute.subscribe(slot, callback) }),
       },
     }
     natives.set(slot, bridge)

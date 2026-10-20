@@ -14,6 +14,12 @@ export interface NativeVoice {
   onEnd(callback: () => void): () => void
   /** Muted or unmuted from CallKit. */
   onMute(callback: (muted: boolean) => void): () => void
+  /** Android: the speaker (true) or the earpiece. Answers whether a headset is in, which then plays instead. */
+  speaker?(on: boolean): Promise<{ headset: boolean }>
+  /** Android: a headset came or went. */
+  onRoute?(callback: (headset: boolean) => void): () => void
+  /** The screen stays on (your camera is on in a call). */
+  keepAwake(on: boolean): Promise<void>
 }
 
 export interface NativeBridge {
@@ -91,6 +97,8 @@ interface IskraNativePlugin {
   voiceStart(options: { title: string; call: boolean; video: boolean }): Promise<void>
   voiceUpdate(options: { title: string }): Promise<void>
   voiceStop(): Promise<void>
+  voiceSpeaker(options: { on: boolean }): Promise<{ headset?: unknown }>
+  keepAwake(options: { on: boolean }): Promise<void>
   addListener(event: 'voiceEnded', callback: () => void): Promise<Listener>
   addListener(event: 'voiceMuted', callback: (data: { muted?: unknown }) => void): Promise<Listener>
   /** The newest share from another app, once (none when there's none). */
@@ -200,11 +208,18 @@ function bridge(platform: NativePlatform): NativeBridge {
       start: async (options) => (await plugin()).voiceStart(options),
       update: async (options) => (await plugin()).voiceUpdate(options),
       stop: async () => (await plugin()).voiceStop(),
+      keepAwake: async (on) => (await plugin()).keepAwake({ on }),
       onEnd: (callback) => listen('voiceEnded', () => callback()),
       onMute: (callback) =>
         listen<{ muted?: unknown }>('voiceMuted', (data) => {
           if (typeof data.muted === 'boolean') callback(data.muted)
         }),
+      // The iPhone app plays on the speaker by itself (and the system's route picker chooses others).
+      ...(platform === 'android' && {
+        speaker: async (on: boolean) => ({ headset: (await (await plugin()).voiceSpeaker({ on })).headset === true }),
+        onRoute: (callback: (headset: boolean) => void) =>
+          listen<{ headset?: unknown }>('voiceRoute', (data) => callback(data.headset === true)),
+      }),
     },
   }
 }

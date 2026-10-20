@@ -12,6 +12,7 @@ public class IskraNative: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "voiceStart", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "voiceUpdate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "voiceStop", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "keepAwake", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takeShare", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "shareDone", returnType: CAPPluginReturnPromise),
     ]
@@ -62,6 +63,16 @@ public class IskraNative: CAPPlugin, CAPBridgedPlugin {
     @objc func voiceStop(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             CallManager.shared.voiceStopped()
+            UIApplication.shared.isIdleTimerDisabled = false
+            call.resolve()
+        }
+    }
+
+    /// The screen stays on while your camera is on in a call (a locked phone stops the camera).
+    @objc func keepAwake(_ call: CAPPluginCall) {
+        let on = call.getBool("on") ?? false
+        DispatchQueue.main.async {
+            UIApplication.shared.isIdleTimerDisabled = on
             call.resolve()
         }
     }

@@ -4,9 +4,14 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.media.AudioAttributes;
+import android.media.AudioDeviceCallback;
+import android.media.AudioDeviceInfo;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.WindowManager;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
@@ -26,6 +31,10 @@ import java.util.concurrent.Executors;
 public class IskraNativePlugin extends Plugin {
     private static IskraNativePlugin instance;
     private AudioFocusRequest focus;
+    /** In voice, sound plays on the speaker (like the iPhone app) unless the person picked the earpiece; a headset wins. */
+    private boolean speakerWanted = true;
+    private AudioDeviceCallback deviceWatch;
+    private AudioManager.OnModeChangedListener modeWatch;
     private final ExecutorService shareReader = Executors.newSingleThreadExecutor();
     /** The newest share, ready for the page (taken once by takeShare). */
     private JSObject pendingShare;
@@ -117,6 +126,9 @@ public class IskraNativePlugin extends Plugin {
     private void startVoice(PluginCall call) {
         VoiceService.start(getContext(), call.getString("title", ""));
         requestFocus();
+        speakerWanted = true;
+        watchRoute();
+        applyRoute();
         call.resolve();
     }
 
@@ -130,14 +142,123 @@ public class IskraNativePlugin extends Plugin {
     public void voiceStop(PluginCall call) {
         VoiceService.stop(getContext());
         abandonFocus();
+        releaseRoute();
+        setKeepAwake(false);
         call.resolve();
+    }
+
+    /** The screen stays on while your camera is on in a call: a locked phone stops the camera (and a work profile's
+     * screen-lock timeout would lock it mid-call). */
+    @PluginMethod
+    public void keepAwake(PluginCall call) {
+        setKeepAwake(call.getBoolean("on", false));
+        call.resolve();
+    }
+
+    private void setKeepAwake(boolean on) {
+        if (getActivity() == null) return;
+        getActivity().runOnUiThread(() -> {
+            if (on) getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        });
+    }
+
+    /** Speaker or earpiece (the call screen's button). Answers whether a headset is in, which then plays instead. */
+    @PluginMethod
+    public void voiceSpeaker(PluginCall call) {
+        speakerWanted = call.getBoolean("on", true);
+        applyRoute();
+        JSObject result = new JSObject();
+        result.put("headset", headsetIn());
+        call.resolve(result);
     }
 
     static void voiceEnded() {
         IskraNativePlugin plugin = instance;
         if (plugin == null) return;
         plugin.abandonFocus();
+        plugin.releaseRoute();
+        plugin.setKeepAwake(false);
         plugin.notifyListeners("voiceEnded", new JSObject());
+    }
+
+    // ── Speaker or earpiece ──────────────────────────────────────────────────
+    // A call's audio plays on the earpiece by default on Android; the web view can't choose an output itself.
+
+    private AudioManager audioManager() {
+        return (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+    }
+
+    private static boolean isHeadset(int type) {
+        return type == AudioDeviceInfo.TYPE_WIRED_HEADSET || type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
+            || type == AudioDeviceInfo.TYPE_USB_HEADSET || type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+            || type == AudioDeviceInfo.TYPE_HEARING_AID
+            || type == AudioDeviceInfo.TYPE_BLE_HEADSET;
+    }
+
+    private boolean headsetIn() {
+        for (AudioDeviceInfo device : audioManager().getDevices(AudioManager.GET_DEVICES_OUTPUTS)) if (isHeadset(device.getType())) return true;
+        return false;
+    }
+
+    private void applyRoute() {
+        AudioManager audio = audioManager();
+        boolean headset = headsetIn();
+        if (Build.VERSION.SDK_INT >= 31) {
+            // A headset: Android's own choice (it picks the headset).
+            if (headset) {
+                audio.clearCommunicationDevice();
+                return;
+            }
+            int want = speakerWanted ? AudioDeviceInfo.TYPE_BUILTIN_SPEAKER : AudioDeviceInfo.TYPE_BUILTIN_EARPIECE;
+            for (AudioDeviceInfo device : audio.getAvailableCommunicationDevices()) {
+                if (device.getType() == want) {
+                    audio.setCommunicationDevice(device);
+                    return;
+                }
+            }
+        } else {
+            audio.setSpeakerphoneOn(speakerWanted && !headset);
+        }
+    }
+
+    /** A headset plugged in or out, or the web view's call audio starting: the choice is applied again. */
+    private void watchRoute() {
+        AudioManager audio = audioManager();
+        if (deviceWatch == null) {
+            deviceWatch = new AudioDeviceCallback() {
+                @Override
+                public void onAudioDevicesAdded(AudioDeviceInfo[] added) { routeChanged(); }
+
+                @Override
+                public void onAudioDevicesRemoved(AudioDeviceInfo[] removed) { routeChanged(); }
+            };
+            audio.registerAudioDeviceCallback(deviceWatch, new Handler(Looper.getMainLooper()));
+        }
+        if (Build.VERSION.SDK_INT >= 31 && modeWatch == null) {
+            modeWatch = mode -> applyRoute();
+            audio.addOnModeChangedListener(getContext().getMainExecutor(), modeWatch);
+        }
+    }
+
+    private void routeChanged() {
+        applyRoute();
+        JSObject data = new JSObject();
+        data.put("headset", headsetIn());
+        notifyListeners("voiceRoute", data);
+    }
+
+    private void releaseRoute() {
+        AudioManager audio = audioManager();
+        if (deviceWatch != null) audio.unregisterAudioDeviceCallback(deviceWatch);
+        deviceWatch = null;
+        if (Build.VERSION.SDK_INT >= 31) {
+            if (modeWatch != null) audio.removeOnModeChangedListener(modeWatch);
+            modeWatch = null;
+            audio.clearCommunicationDevice();
+        } else {
+            audio.setSpeakerphoneOn(false);
+        }
     }
 
     /** Other apps duck or pause while you talk (music, videos). */
