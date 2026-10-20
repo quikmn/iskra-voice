@@ -426,10 +426,14 @@ Voice channels, stages, DM and group calls and watch parties all use the same vo
 
 ### GIFs
 
-The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API in June 2026). It's off until an admin adds a key:
+The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API in June 2026). It's off until an admin adds a key, which takes about two minutes:
 
-1. Sign up at the KLIPY Partner Panel and create an API key for your server. Leave ads **off**.
-2. In Iskra: **Server settings → GIFs**, paste the key and click **Turn on**.
+1. Go to [partner.klipy.com](https://partner.klipy.com) and sign up (free).
+2. Click **Add Platform**. Name: your server's name. Website: any, for example iskra.foo. Describe it as "GIF picker for a chat server", agree to the terms, submit.
+3. Click **Create API Key**, give it a name, and copy the key it shows.
+4. In Iskra: **Server settings → GIFs**, paste the key and click **Turn on**. Send a GIF to check.
+
+The free key is a test key (KLIPY limits it to 100 searches an hour, shared by the whole server). For a busy server, click the **⋯** next to the key in KLIPY and choose **Request Production**.
 
 There are two modes:
 

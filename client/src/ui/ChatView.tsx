@@ -441,7 +441,7 @@ function MessageRow({
         {message.lfg && <LfgCard server={server} message={message} />}
         {message.automod && <AutoModAlertCard server={server} alert={message.automod} />}
         {message.sticker && <StickerMessage server={server} sticker={message.sticker} />}
-        {message.gif && <GifMessage server={server} gif={message.gif} />}
+        {message.gif && <GifMessage server={server} gif={message.gif} mine={message.author === server.me?.accountKey} />}
         {message.voice ? <VoiceMessage server={server} message={message} /> : <Attachments server={server} files={message.attachments} />}
         <EncryptedBits message={message} />
         {message.webhook && <Embeds server={server} embeds={message.webhook.embeds} />}
@@ -759,7 +759,8 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
         actions={{
           attach: () => fileInput.current?.click(),
           poll: isEncrypted(server.key, channelId) ? undefined : () => setPollOpen(true),
-          gifs: (anchor) => openPicker(anchor, 'gifs'),
+          // Encrypted channels can't carry GIFs or stickers yet: they aren't offered there.
+          gifs: isEncrypted(server.key, channelId) ? undefined : (anchor) => openPicker(anchor, 'gifs'),
           emoji: (anchor) => openPicker(anchor, 'emoji'),
           voice: micInstead ? () => setVoiceStart((n) => n + 1) : undefined,
         }}
@@ -853,9 +854,11 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
           }
         }}
       />
-      <button className="icon-button attach-button gif-button" onClick={(e) => openPicker(e.currentTarget, 'gifs')} aria-label={t('chat.composer.gifs')} title={t('chat.composer.gifs')} disabled={!online}>
-        GIF
-      </button>
+      {!isEncrypted(server.key, channelId) && (
+        <button className="icon-button attach-button gif-button" onClick={(e) => openPicker(e.currentTarget, 'gifs')} aria-label={t('chat.composer.gifs')} title={t('chat.composer.gifs')} disabled={!online}>
+          GIF
+        </button>
+      )}
       <button className="icon-button attach-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emojiTitle')}>
         <Smile />
       </button>
@@ -879,11 +882,11 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
             setText(next.text)
             setCaret(next.caret)
           }}
-          onGif={(gif) => {
+          onGif={isEncrypted(server.key, channelId) ? undefined : (gif) => {
             setReply(server.key, channelId, null)
             void sendGif(server.key, channelId, gif, { replyTo })
           }}
-          onSticker={(sticker) => {
+          onSticker={isEncrypted(server.key, channelId) ? undefined : (sticker) => {
             setReply(server.key, channelId, null)
             void sendSticker(server.key, channelId, sticker, { replyTo })
           }}

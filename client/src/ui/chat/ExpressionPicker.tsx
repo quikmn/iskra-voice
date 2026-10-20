@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { roleRank, type GifCategory, type GifResult, type MessageGif, type Sticker } from '../../core/protocol'
 import { serverFileUrl } from '../../state/expressions'
-import { gifCategories, isFavourite, searchGifs, toggleFavourite, trendingGifs, useGifs, useGifStatus } from '../../state/gifs'
+import { gifCategories, isFavourite, searchGifs, setGifAutoLoad, toggleFavourite, trendingGifs, useGifs, useGifStatus } from '../../state/gifs'
 import { klipyFrameDocument } from '../../core/klipy'
 import type { ServerState } from '../../state/store'
 import { LINKS } from '../../links'
@@ -27,13 +27,14 @@ export function ExpressionPicker({ server, anchor, initialTab = 'emoji', onEmoji
   anchor: HTMLElement
   initialTab?: ExpressionTab
   onEmoji: (value: string) => void
-  onGif: (gif: GifResult) => void
-  onSticker: (sticker: Sticker) => void
+  /** Left out where GIFs and stickers can't be sent (an encrypted channel): only the emoji tab shows. */
+  onGif?: (gif: GifResult) => void
+  onSticker?: (sticker: Sticker) => void
   onClose: () => void
 }) {
-  const [tab, setTab] = useState<ExpressionTab>(initialTab)
+  const [tab, setTab] = useState<ExpressionTab>(onGif && onSticker ? initialTab : 'emoji')
   const { t } = useTranslation()
-  const tabs = (
+  const tabs = onGif && onSticker && (
     <div className="expression-tabs" role="tablist" aria-label={t('chat.picker.pick')}>
       {TABS.map((tb) => (
         <button key={tb.id} role="tab" aria-selected={tab === tb.id} className={tab === tb.id ? 'active' : ''} onClick={() => setTab(tb.id)}>
@@ -43,11 +44,11 @@ export function ExpressionPicker({ server, anchor, initialTab = 'emoji', onEmoji
     </div>
   )
   const body = tab === 'gifs'
-    ? <GifPanel server={server} onPick={(gif) => { onGif(gif); onClose() }} onClose={onClose} />
+    ? <GifPanel server={server} onPick={(gif) => { onGif?.(gif); onClose() }} onClose={onClose} />
     : tab === 'stickers'
-      ? <StickerPanel server={server} onPick={(sticker) => { onSticker(sticker); onClose() }} />
+      ? <StickerPanel server={server} onPick={(sticker) => { onSticker?.(sticker); onClose() }} />
       : undefined
-  return <EmojiPicker serverKey={server.key} anchor={anchor} keepOpen onPick={onEmoji} onClose={onClose} tabs={tabs} body={body} />
+  return <EmojiPicker serverKey={server.key} anchor={anchor} keepOpen onPick={onEmoji} onClose={onClose} tabs={tabs || undefined} body={body} />
 }
 
 // ── GIFs ────────────────────────────────────────────────────────────────────
@@ -184,8 +185,11 @@ function GifImage({ server, url, direct, alt, style }: { server: ServerState; ur
   return <iframe className="klipy-frame" srcDoc={doc} sandbox="" referrerPolicy="no-referrer" title={alt || 'GIF'} loading="lazy" style={style} tabIndex={-1} />
 }
 
-/** A GIF in a message: through the server's proxy, or (direct mode) from KLIPY after a click unless auto-load is on. */
-export function GifMessage({ server, gif }: { server: ServerState; gif: MessageGif }) {
+/**
+ * A GIF in a message: through the server's proxy, or (direct mode) from KLIPY after a click unless auto-load is on.
+ * Your own show at once: your app already loaded them from KLIPY in the picker.
+ */
+export function GifMessage({ server, gif, mine }: { server: ServerState; gif: MessageGif; mine?: boolean }) {
   const [open, setOpen] = useState(false)
   const autoLoad = useGifs((s) => s.autoLoad)
   const [load, setLoad] = useState(false)
@@ -193,14 +197,17 @@ export function GifMessage({ server, gif }: { server: ServerState; gif: MessageG
   const scale = Math.min(1, 320 / (gif.width || 320), 240 / (gif.height || 240))
   const size = gif.width && gif.height ? { width: Math.round(gif.width * scale), height: Math.round(gif.height * scale) } : { width: 240, height: 180 }
   if (gif.direct) {
-    if (!autoLoad && !load) {
+    if (!autoLoad && !load && !mine) {
       return (
-        <button className="gif-click-to-load" style={size} onClick={() => setLoad(true)}>
-          <span className="chat-gif-badge" aria-hidden>GIF</span>
-          <strong>{t('chat.picker.loadGif')}</strong>
-          <span className="muted">{gif.title}</span>
-          <span className="muted gif-note">{t('chat.picker.loadGifNote')}</span>
-        </button>
+        <div className="gif-click-wrap">
+          <button className="gif-click-to-load" style={size} onClick={() => setLoad(true)}>
+            <span className="chat-gif-badge" aria-hidden>GIF</span>
+            <strong>{t('chat.picker.loadGif')}</strong>
+            <span className="muted">{gif.title}</span>
+            <span className="muted gif-note">{t('chat.picker.loadGifNote')}</span>
+          </button>
+          <button className="link gif-always" onClick={() => setGifAutoLoad(true)}>{t('chat.picker.loadGifAlways')}</button>
+        </div>
       )
     }
     return (

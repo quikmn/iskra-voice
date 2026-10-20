@@ -11,7 +11,8 @@ export interface ComposerActions {
   attach: () => void
   /** Missing where polls can't be made (encrypted channels). */
   poll?: () => void
-  gifs: (anchor: HTMLElement) => void
+  /** Missing where GIFs can't be sent (encrypted channels). */
+  gifs?: (anchor: HTMLElement) => void
   emoji: (anchor: HTMLElement) => void
   /** Missing when a voice message can't be recorded right now (something is typed, or no microphone support). */
   voice?: () => void
@@ -44,7 +45,7 @@ export function ComposerMenu({ actions, disabled }: { actions: ComposerActions; 
           <div className="org-list composer-menu" role="menu">
             <MenuItem disabled={disabled} onClick={run(actions.attach)}><Paperclip size={18} /> {t('chat.composer.attach')}</MenuItem>
             {actions.poll && <MenuItem disabled={disabled} onClick={run(actions.poll)}><PollIcon /> {t('chat.composer.poll')}</MenuItem>}
-            <MenuItem disabled={disabled} onClick={run(() => actions.gifs(button.current!))}><span className="composer-menu-gif" aria-hidden>GIF</span> {t('chat.composer.gifs')}</MenuItem>
+            {actions.gifs && <MenuItem disabled={disabled} onClick={run(() => actions.gifs!(button.current!))}><span className="composer-menu-gif" aria-hidden>GIF</span> {t('chat.composer.gifs')}</MenuItem>}
             <MenuItem onClick={run(() => actions.emoji(button.current!))}><Smile size={18} /> {t('chat.composer.emoji')}</MenuItem>
             {actions.voice && <MenuItem disabled={disabled} onClick={run(actions.voice)}><Mic size={18} /> {t('chat.voice.record')}</MenuItem>}
           </div>

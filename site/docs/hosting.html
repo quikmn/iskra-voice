@@ -73,7 +73,7 @@
 <main class="doc docs-main" id="top">
   <div class="doc-kicker">Docs</div>
   <h1>Hosting an Iskra server</h1>
-  <p class="updated">Last updated <time datetime="2026-10-17">17 October 2026</time></p>
+  <p class="updated">Last updated <time datetime="2026-10-20">20 October 2026</time></p>
   <details class="mobile-toc">
     <summary>On this page</summary>
     <ul class="toc-list"><li class="l2"><a href="#1-from-the-desktop-app">1. From the desktop app</a></li><li class="l2"><a href="#2-the-standalone-server">2. The standalone server</a></li><li class="l2"><a href="#reaching-your-server-from-the-internet">Reaching your server from the internet</a></li><li class="l2"><a href="#backups-moving-and-importing">Backups, moving and importing</a></li><li class="l2"><a href="#serverjson-reference">server.json reference</a></li><li class="l2"><a href="#whats-in-the-folder">What's in the folder</a></li><li class="l2"><a href="#logs">Logs</a></li><li class="l2"><a href="#public-page">Public page</a></li><li class="l2"><a href="#server-icon-and-banner">Server icon and banner</a></li><li class="l2"><a href="#roles-and-moderation">Roles and moderation</a></li></ul>
@@ -555,11 +555,14 @@ server {
 <p>Voice channels, stages, DM and group calls and watch parties all use the same voice service (LiveKit), which the server starts and stops by itself: nothing extra to run or open beyond the voice ports above. Stages are voice channels where the server tells LiveKit who may speak. A watch party only shares a clock through the server; everyone's app plays the video from its source (YouTube, a link, or a file uploaded to your server, which then serves it to everyone watching). A party can queue what plays next (up to 100 items; uploads in the queue count as in use) and run audio-only as a jukebox.</p>
 <p><strong>Join-to-create rooms:</strong> tick <strong>Join to create a room</strong> in a voice channel's settings to make it a lobby. Nobody stays in a lobby: whoever joins gets a voice room of their own right under it (&quot;alice's-room&quot;), with the lobby's permissions and user limit. The host can rename it, set a limit and lock it (then only people they invite, or a moderator moves in, can join); the room is removed about 30 seconds after the last person leaves. Only the lobby setting itself is in the audit log.</p>
 <h3 id="gifs">GIFs<a class="anchor" href="#gifs" aria-hidden="true" tabindex="-1">#</a></h3>
-<p>The GIF picker uses <a href="https://docs.klipy.com" target="_blank" rel="noopener">KLIPY</a> (Google closed Tenor's API in June 2026). It's off until an admin adds a key:</p>
+<p>The GIF picker uses <a href="https://docs.klipy.com" target="_blank" rel="noopener">KLIPY</a> (Google closed Tenor's API in June 2026). It's off until an admin adds a key, which takes about two minutes:</p>
 <ol>
-<li>Sign up at the KLIPY Partner Panel and create an API key for your server. Leave ads <strong>off</strong>.</li>
-<li>In Iskra: <strong>Server settings → GIFs</strong>, paste the key and click <strong>Turn on</strong>.</li>
+<li>Go to <a href="https://partner.klipy.com" target="_blank" rel="noopener">partner.klipy.com</a> and sign up (free).</li>
+<li>Click <strong>Add Platform</strong>. Name: your server's name. Website: any, for example iskra.foo. Describe it as &quot;GIF picker for a chat server&quot;, agree to the terms, submit.</li>
+<li>Click <strong>Create API Key</strong>, give it a name, and copy the key it shows.</li>
+<li>In Iskra: <strong>Server settings → GIFs</strong>, paste the key and click <strong>Turn on</strong>. Send a GIF to check.</li>
 </ol>
+<p>The free key is a test key (KLIPY limits it to 100 searches an hour, shared by the whole server). For a busy server, click the <strong>⋯</strong> next to the key in KLIPY and choose <strong>Request Production</strong>.</p>
 <p>There are two modes:</p>
 <ul>
 <li><strong>Through this server</strong> (the default): your server searches KLIPY and passes the GIFs along, so members' devices never contact KLIPY: it only sees your server, and the key never leaves it. It uses your server's bandwidth for every GIF shown. KLIPY's standard terms describe apps calling KLIPY directly; if you want their written OK for proxying, ask <a href="mailto:developers@klipy.com">developers@klipy.com</a>.</li>

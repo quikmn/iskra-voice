@@ -285,7 +285,7 @@ export const chat = {
   gifSettings: {
     title: 'GIF picker',
     intro: "The GIF picker uses KLIPY, a free GIF service. Turning it on takes a couple of minutes.",
-    step1: '<b>Get a free API key</b> from KLIPY (sign up, create a key for this server, leave ads off). A test key allows 100 searches an hour.',
+    step1: "<b>Get a free key from KLIPY:</b> sign up, click <b>Add Platform</b> (your server's name; any website, for example iskra.foo), then <b>Create API Key</b> and copy the key.",
     openKlipy: 'Open KLIPY',
     step2: '<b>Paste the key here</b> and turn GIFs on.',
     step3: '<b>Pick how apps get GIFs.</b> You can change this any time.',
@@ -343,6 +343,7 @@ export const chat = {
     proxyNote: "through {{name}}, so KLIPY doesn't see who you are",
     loadGif: 'Load GIF from KLIPY',
     loadGifNote: 'KLIPY will see your address',
+    loadGifAlways: 'Always load GIFs on this device',
     gifLabel: 'GIF: {{title}}',
   },
   stickers: {

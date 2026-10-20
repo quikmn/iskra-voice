@@ -106,6 +106,35 @@ public class GifTests
     }
 
     [Fact]
+    public async Task A_gif_with_klipys_long_addresses_sends_also_after_switching_modes()
+    {
+        using var server = new IskraServer();
+        var (admin, bob) = await Setup(server);
+        using (admin)
+        using (bob)
+        {
+            const string realistic = """
+                { "result": true, "data": { "data": [ { "id": 6083420946531231, "slug": "ron-swansons-annoyed-glare-parks-and-rec-OjHn", "title": "Ron Swanson's Annoyed Glare (Parks And Rec)", "type": "gif",
+                  "file": { "hd": { "gif": { "url": "https://static.klipy.com/ii/4e7b1f6c4b8d1b0a6e5f2b8f0b5e1d2c/9f/3a/hd.gif", "width": 498, "height": 280 } },
+                            "md": { "gif": { "url": "https://static.klipy.com/ii/4e7b1f6c4b8d1b0a6e5f2b8f0b5e1d2c/9f/3a/md.gif", "width": 320, "height": 180 },
+                                    "webp": { "url": "https://static.klipy.com/ii/4e7b1f6c4b8d1b0a6e5f2b8f0b5e1d2c/9f/3a/md.webp", "width": 320, "height": 180 } },
+                            "sm": { "gif": { "url": "https://static.klipy.com/ii/4e7b1f6c4b8d1b0a6e5f2b8f0b5e1d2c/9f/3a/sm.gif", "width": 220, "height": 124 } } } } ],
+                  "has_next": true } }
+                """;
+            server.Gifs.Json = uri => uri.AbsolutePath.EndsWith("/categories") ? FakeGifUpstream.Categories : realistic;
+            Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { mode = "direct" })).Type());
+            Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { mode = "proxy" })).Type());
+            foreach (var kind in new[] { "gif.trending", "gif.search" })
+            {
+                var page = await bob.RequestAsync(kind, kind == "gif.search" ? new { q = "annoyed" } : new { });
+                var token = page.Body().GetProperty("gifs")[0].GetProperty("token").GetString()!;
+                var sent = await bob.RequestAsync("chat.send", new { channelId = server.General, text = "", gif = token, nonce = Guid.NewGuid().ToString("N") });
+                Assert.True(sent.Type() == "result", sent.GetRawText());
+            }
+        }
+    }
+
+    [Fact]
     public async Task A_gif_message_is_shown_through_the_proxy()
     {
         using var server = new IskraServer();

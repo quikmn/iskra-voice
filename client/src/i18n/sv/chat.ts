@@ -285,7 +285,7 @@ export const chat: Messages['chat'] = {
   gifSettings: {
     title: 'GIF-väljare',
     intro: 'GIF-väljaren använder KLIPY, en gratis GIF-tjänst. Det tar ett par minuter att slå på.',
-    step1: '<b>Skaffa en gratis API-nyckel</b> från KLIPY (skapa ett konto, gör en nyckel för den här servern, låt annonser vara av). En testnyckel räcker till 100 sökningar i timmen.',
+    step1: '<b>Skaffa en gratis nyckel från KLIPY:</b> skapa ett konto, klicka på <b>Add Platform</b> (serverns namn; vilken webbplats som helst, till exempel iskra.foo), sedan <b>Create API Key</b> och kopiera nyckeln.',
     openKlipy: 'Öppna KLIPY',
     step2: '<b>Klistra in nyckeln här</b> och slå på GIF:ar.',
     step3: '<b>Välj hur apparna hämtar GIF:ar.</b> Du kan ändra det när som helst.',
@@ -343,6 +343,7 @@ export const chat: Messages['chat'] = {
     proxyNote: 'via {{name}}, så att KLIPY inte ser vem du är',
     loadGif: 'Ladda GIF från KLIPY',
     loadGifNote: 'KLIPY kommer att se din adress',
+    loadGifAlways: 'Ladda alltid GIF:ar på den här enheten',
     gifLabel: 'GIF: {{title}}',
   },
   stickers: {

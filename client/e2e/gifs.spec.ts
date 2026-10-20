@@ -12,11 +12,14 @@ let fake: Server
 const seen: string[] = []
 let server: TestServer
 
+// KLIPY's addresses are long (a hash and two folders): a GIF's token holds two of them, which once made the server
+// refuse every GIF sent through it.
+const media = (slug: string, size: string) => `https://static.klipy.com/ii/${slug}/4e7b1f6c4b8d1b0a6e5f2b8f0b5e1d2c/9f/3a/${size}.gif`
 const item = (slug: string) => ({
   slug, title: `A ${slug} GIF`, type: 'gif',
   file: {
-    md: { gif: { url: `https://static.klipy.com/ii/${slug}/md.gif`, width: 300, height: 200 } },
-    sm: { gif: { url: `https://static.klipy.com/ii/${slug}/sm.gif`, width: 150, height: 100 } },
+    md: { gif: { url: media(slug, 'md'), width: 300, height: 200 } },
+    sm: { gif: { url: media(slug, 'sm'), width: 150, height: 100 } },
   },
 })
 
@@ -109,6 +112,7 @@ test('GIFs: off until an admin adds a key, through the server by default, or dir
   await expect(picker.getByRole('button', { name: /^Send GIF:/ })).toHaveCount(1)
   await friend.screenshot({ path: join(SHOTS, 'gifs-picker.png') })
   await picker.getByRole('button', { name: 'Send GIF: A cat-2 GIF' }).click()
+  await expect(friend.locator('.message-failed')).toHaveCount(0)
 
   // Everyone sees it, through the server.
   const sent = host.locator('.chat-gif img').last()
@@ -147,6 +151,9 @@ test('GIFs: off until an admin adds a key, through the server by default, or dir
   await expect(directPicker.getByRole('button', { name: 'Send GIF: A dog-1 GIF' })).toBeVisible()
   await expect(directPicker.locator('iframe.klipy-frame').first()).toHaveAttribute('sandbox', '')
   await directPicker.getByRole('button', { name: 'Send GIF: A dog-1 GIF' }).click()
+  // The sender's own GIF shows at once (their app already loaded it from KLIPY in the picker).
+  await expect(friend.locator('.chat-gif.direct iframe.klipy-frame').last()).toBeVisible()
+  await expect(friend.locator('.message-failed')).toHaveCount(0)
   // The host's app doesn't touch KLIPY until the host asks for it.
   const load = host.getByRole('button', { name: /Load GIF from KLIPY/ }).last()
   await expect(load).toBeVisible()
@@ -155,10 +162,14 @@ test('GIFs: off until an admin adds a key, through the server by default, or dir
   await load.click()
   await expect(host.locator('.chat-gif.direct iframe.klipy-frame').last()).toBeVisible()
   await expect.poll(() => hostAsked.some((a) => a.startsWith('https://static.klipy.com/ii/dog-1/'))).toBe(true)
-  // With auto-load on, the next one shows right away.
-  await openSettings(friend, 'Privacy & data')
-  await friend.getByLabel(/Load GIFs from KLIPY without asking/).check()
-  await friend.keyboard.press('Escape')
-  await expect(friend.locator('.chat-gif.direct iframe.klipy-frame').last()).toBeVisible()
+  // "Always load GIFs on this device" from the box itself; the same switch is in My settings.
+  await directPicker.page().getByRole('button', { name: 'GIFs', exact: true }).click()
+  await friend.getByRole('dialog', { name: 'Emoji picker' }).getByRole('button', { name: 'Send GIF: A dog-2 GIF' }).click()
+  await host.getByRole('button', { name: 'Always load GIFs on this device' }).last().click()
+  await expect(host.locator('.gif-click-to-load')).toHaveCount(0)
+  await expect(host.locator('.chat-gif.direct iframe.klipy-frame')).toHaveCount(2)
+  await openSettings(host, 'Privacy & data')
+  await expect(host.getByLabel(/Load GIFs from KLIPY without asking/)).toBeChecked()
+  await host.keyboard.press('Escape')
   expect(seen.filter((s) => s.startsWith('/api/'))).toHaveLength(apiBefore) // the server didn't call KLIPY for this
 })

@@ -279,7 +279,7 @@ public sealed class GifService(World world, IGifUpstream upstream, TimeProvider 
     /// <summary>Checks a media link from <see cref="MediaPath"/>; the provider URL, or null.</summary>
     public Uri? CheckMediaLink(string? u, string? s)
     {
-        if (u is null || s is null || u.Length > 2048 || !Ed25519.TryFromB64u(u, out var bytes)) return null;
+        if (u is null || s is null || !Ed25519.TryFromB64u(u, out var bytes, MaxEncoded)) return null;
         var url = Encoding.UTF8.GetString(bytes);
         return IsMediaUrl(url) && Verify("gif-media", url, s) ? new Uri(url) : null;
     }
@@ -291,6 +291,9 @@ public sealed class GifService(World world, IGifUpstream upstream, TimeProvider 
     };
 
     /// <summary>What a client sends back to post a GIF: the item, signed, so nobody can post an arbitrary address.</summary>
+    /// <summary>A token or media link, encoded: two addresses of up to 1024 characters each, an id and a title.</summary>
+    private const int MaxEncoded = 4096;
+
     public string Token(GifItem g)
     {
         var json = JsonSerializer.Serialize(new[] { g.Id, g.Title, g.Url, g.Preview, g.Width.ToString(), g.Height.ToString() });
@@ -301,7 +304,7 @@ public sealed class GifService(World world, IGifUpstream upstream, TimeProvider 
     public GifItem? ReadToken(string token)
     {
         var dot = token.IndexOf('.');
-        if (dot <= 0 || !Verify("gif-token", token[..dot], token[(dot + 1)..]) || !Ed25519.TryFromB64u(token[..dot], out var bytes)) return null;
+        if (dot <= 0 || !Verify("gif-token", token[..dot], token[(dot + 1)..]) || !Ed25519.TryFromB64u(token[..dot], out var bytes, MaxEncoded)) return null;
         try
         {
             var parts = JsonSerializer.Deserialize<string[]>(bytes);

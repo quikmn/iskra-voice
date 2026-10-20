@@ -54,10 +54,11 @@ public static class Ed25519
 
     public static string ToB64u(ReadOnlySpan<byte> bytes) => Base64Url.EncodeToString(bytes);
 
-    public static bool TryFromB64u(string? text, out byte[] bytes)
+    /// <summary>Keys, signatures and ids: at most 256 characters unless the caller allows more (a GIF token holds two addresses).</summary>
+    public static bool TryFromB64u(string? text, out byte[] bytes, int maxLength = 256)
     {
         bytes = [];
-        if (string.IsNullOrEmpty(text) || text.Length > 256) return false;
+        if (string.IsNullOrEmpty(text) || text.Length > maxLength) return false;
         try
         {
             bytes = Base64Url.DecodeFromChars(text);
