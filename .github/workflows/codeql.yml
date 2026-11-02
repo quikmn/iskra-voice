@@ -34,6 +34,12 @@ jobs:
             build-mode: manual
           - language: actions
             build-mode: none
+          # The Android app's own Java (mobile/android) and the Python bot SDK; neither needs a build. The iPhone app's
+          # Swift isn't scanned (it needs a macOS runner and an Xcode build).
+          - language: java-kotlin
+            build-mode: none
+          - language: python
+            build-mode: none
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

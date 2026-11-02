@@ -135,7 +135,7 @@ export function releaseFindings(f) {
   else ok(`${f.current} -> ${f.version}`)
   if (f.notes.code !== 0) red('write the release notes first', `${String(f.notes.message || 'release-notes.mjs stopped').replace(/\.$/, '')}. Add the changes to docs/releases/NEXT.md (or write docs/releases/${f.version}.md).`)
   else ok('release notes are ready')
-  if (f.bump.code !== 0) red("doesn't mention the current version", `${String(f.bump.message || 'release-version.mjs stopped').replace(/\.$/, '')}. links.ts or site/index.html is out of sync with desktop/package.json.`)
+  if (f.bump.code !== 0) red("doesn't mention the current version", `${String(f.bump.message || 'release-version.mjs stopped').replace(/\.$/, '')}. links.ts, site/index.html or the Python starter's requirements.txt is out of sync with desktop/package.json.`)
   else if ((f.bump.siteCount ?? 0) < 20) red('site download section', `site/index.html has ${f.bump.siteCount ?? 0} links to ${f.current} (20 or more expected). Fix its download section.`)
   else if (!f.bump.links) red('links.ts', `client/src/links.ts doesn't carry ${f.current}.`)
   else ok(`desktop/package.json, client/src/links.ts and site/index.html all say ${f.current}`)

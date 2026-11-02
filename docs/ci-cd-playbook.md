@@ -348,7 +348,7 @@ table as always.
 | `tag vV already exists` | Stop. Ask the human for the next version. Never move tags |
 | `must be newer than the current version` | Stop. Ask for the right version |
 | `write the release notes first` | Go to A.1 |
-| `doesn't mention the current version` | Stop and report (links.ts or site/index.html is out of sync) |
+| `doesn't mention the current version` | Stop and report (links.ts, site/index.html or bots/gallery/starter-python/requirements.txt is out of sync) |
 | `git push` rejected | Stop and report. Never force |
 | release.yml failed | Report the failing job: `gh run view <id> --log-failed` (first 40 lines). Stop |
 | `isn't validly signed` / `has no timestamp` / `signed by '...'` | Stop and report. Don't upload |

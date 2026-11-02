@@ -59,15 +59,10 @@ jobs:
       - name: Check the tag matches the app version
         run: test "v$(node -p "require('./desktop/package.json').version")" = "$TAG"
       - run: sudo apt-get update && sudo apt-get install -y rpm libx11-dev libxtst-dev libxt-dev libxinerama-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libxkbfile-dev libxrandr-dev libxi-dev libxext-dev libxfixes-dev # uiohook-napi builds from source on Linux
-      # LiveKit (pinned and SHA-256 checked by get-livekit.sh), from the cache CI keeps on main (prepare-server.mjs
-      # takes .tools/livekit-server for the runner's own platform).
-      - id: livekit
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: .tools/livekit-server
-          key: livekit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
-      - if: steps.livekit.outputs.cache-hit != 'true'
-        run: bash scripts/get-livekit.sh
+      # LiveKit, downloaded and SHA-256 checked by get-livekit.sh on every release build (prepare-server.mjs takes
+      # .tools/livekit-server for the runner's own platform). Never from the Actions cache: CI jobs that run npm install
+      # scripts write that entry, and nothing would check the binary again before it ships signed.
+      - run: bash scripts/get-livekit.sh
       - run: npm ci
         working-directory: client
       - run: npm ci
@@ -206,10 +201,12 @@ jobs:
             desktop/package-lock.json
       - name: Check the tag matches the app version
         run: test "v$(node -p "require('./desktop/package.json').version")" = "$TAG"
-      # LiveKit has no official macOS builds: get-livekit.sh builds the pinned release from source. Cached on that
-      # script (it holds the pinned version and commit); CI's livekit-mac job keeps the entry on main, where tags read it.
+      # LiveKit has no official macOS builds: get-livekit.sh builds the pinned release from source (the pinned commit,
+      # go.sum). The build isn't byte-reproducible (Go patch release, Xcode's clang), so there's no hash to check a cached
+      # copy against. Only restored, never saved here: the entry is written by CI's livekit-mac job, which runs nothing but
+      # get-livekit.sh (no npm install scripts), on main, where tags read it. A miss builds it here (~3 min).
       - id: livekit
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .tools/osx-${{ matrix.arch }}/livekit-server
           key: livekit-osx-${{ matrix.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}

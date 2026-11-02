@@ -64,7 +64,8 @@ if (!existsSync(notesPath) || statSync(notesPath).size === 0) {
 
 // Files that carry the version shown to users. Every occurrence of the previous version is replaced.
 const edits = []
-for (const file of ['client/src/links.ts', 'site/index.html']) {
+// The Python starter installs the SDK from this release's tag.
+for (const file of ['client/src/links.ts', 'site/index.html', 'bots/gallery/starter-python/requirements.txt']) {
   const before = readFileSync(join(root, file), 'utf8')
   const { text, count } = replaceVersion(before, previous, version)
   if (count === 0) fail(`${file} doesn't mention the current version ${previous}; fix it by hand so it matches desktop/package.json`)

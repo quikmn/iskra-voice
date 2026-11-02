@@ -29,9 +29,10 @@ Never put a secret value in this file, a commit, an issue or a log. Names and lo
  PR / nightly on main ──► ci.yml ... the same plus desktop tests on macOS and the macOS LiveKit cache for releases
  nightly / by hand ──► e2e-stress.yml .. the e2e suite 3 times over on the 4 shards; flaky tests reported, not red
  every push / PR / weekly ──► secrets.yml .. gitleaks over the whole git history
- PR / weekly / by hand ──► codeql.yml ... code scanning: JS/TS, C#, workflows
+ PR / weekly / by hand ──► codeql.yml ... code scanning: JS/TS, C#, workflows, Java (Android), Python (bot SDK)
  PR / weekly / by hand ──► scorecard.yml ..... OpenSSF Scorecard → code scanning + scorecard.dev (the weekly run publishes)
- weekly ──► Dependabot ............ grouped PRs for npm (client, desktop, bots), NuGet (server), GitHub Actions
+ weekly ──► Dependabot ............ grouped PRs for npm (root, client, desktop, bots, mobile), pip (Python SDK and starter),
+                                     NuGet (server), GitHub Actions
  every 15 min ──► uptime.yml ....... iskra.foo, app.iskra.foo, chat.iskra.foo (+ /health), voice port, TLS expiry
                                      ──► GitHub issue labelled "outage" on a change of state (section 8)
  daily ──► renewals.yml ............ everything that expires (docs/renewals.json) ──► #renewals channel (section 5)
@@ -106,7 +107,7 @@ Everything below ships something only as a step of them (each file's header says
 | `scripts/release-preflight.mjs` | release.ps1 (check phase), release-all.yml (`release` subcommand) | The next version, `mobile/store.json` validity, the GitHub secret and variable names the release needs, environments with reviewers; on GitHub also the version, notes, links/site, file list and CI on main. Tests: `release-preflight.test.mjs` |
 | `scripts/ci-gate.mjs` | release.ps1 (check phase), release-preflight.mjs, release-finalize.yml | Exits 0 only when a push run of ci.yml concluded success on the given commit (waits up to `--wait-minutes` while one runs; a red run is refused at once and its red jobs named); `--run <id>`: the Release run's own `ci / …` jobs passed. Tests: `ci-gate.test.mjs` |
 | `scripts/release-notes.mjs` | release.ps1 ① | Writes docs/releases/X.md from docs/releases/NEXT.md (headline, sections, "Get started" from the previous notes) and empties NEXT.md; refuses lines that already shipped. `--dry-run` in the check phase |
-| `scripts/release-version.mjs` | release.ps1 ① | Version bump in desktop/package.json(+lock), links.ts, site/index.html; commit "Version X"; tag vX. `--dry-run` in the check phase |
+| `scripts/release-version.mjs` | release.ps1 ① | Version bump in desktop/package.json(+lock), links.ts, site/index.html, the Python starter's SDK pin; commit "Version X"; tag vX. `--dry-run` in the check phase |
 | `scripts/release-lib.mjs` | the .mjs steps, release-finalize.yml | Version checks, version replacement, asset list, latest.yml parsing and merging, notes from NEXT.md, the CI verdict (`release-lib.test.mjs`) |
 | `scripts/release-assets.json`, `release-assets.mjs` | release.ps1, release-windows.ps1, release.yml, release-finalize.yml | The files every release must have; `list`, `names`, `check` (files + latest*.yml sha512), `sums` (SHA256SUMS.txt), `merge-yml` |
 | `scripts/release-windows.ps1` | release.ps1 ③ | Test signature, `npm run dist`, signature checks, server zip, Android APK + AAB, upload, size check |
@@ -708,9 +709,11 @@ from app releases (first published 2026-10-14, 0.1.0).
 
 `secrets.yml` runs [gitleaks](https://github.com/gitleaks/gitleaks) (pinned release, checksum checked in the workflow) over
 every branch and tag on each push, PR and weekly. GitHub's own protections are owner settings, not files: repo → Settings →
-**Advanced Security** (Code security): turn on **Secret scanning** and **Push protection** (blocks a push that contains a known
-token format), **Private vulnerability reporting** (SECURITY.md points reporters there), Dependabot alerts and security updates,
-and CodeQL (already a workflow). Scorecard publishes its score at scorecard.dev and puts its findings under Security → Code scanning;
+**Advanced Security** (Code security). On: **Secret scanning** and **Push protection** (blocks a push that contains a known
+token format), **Private vulnerability reporting** (SECURITY.md points reporters there; on since 2026-11-03) and
+**Dependabot alerts** (on since 2026-11-03), plus CodeQL (a workflow). Settings → Actions → General → "Approval for running
+fork pull request workflows from contributors" is **Require approval for all external contributors** (since 2026-11-03;
+the self-hosted runner depends on it). Scorecard publishes its score at scorecard.dev and puts its findings under Security → Code scanning;
 many of them (branch protection, review) are owner settings too. Click-by-click steps: docs/compliance/owner-actions.md.
 
 ## 5. Refresh calendar
