@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.app.ServiceCompat;
 import androidx.core.content.ContextCompat;
 
@@ -28,9 +29,23 @@ public class VoiceService extends Service {
         ContextCompat.startForegroundService(context, intent);
     }
 
+    /** A new title (a channel renamed, a name loaded): the shown notification changes; the service isn't started again. */
+    static void update(Context context, String title) {
+        if (!running) {
+            start(context, title);
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 33
+            && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return;
+        NotificationManagerCompat.from(context).notify(Notifications.VOICE_ID, notification(context, title));
+    }
+
     static void stop(Context context) {
         context.stopService(new Intent(context, VoiceService.class));
     }
+
+    /** True while the service is in the foreground (its notification showing). */
+    private static volatile boolean running;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -41,7 +56,8 @@ public class VoiceService extends Service {
         }
         String title = intent != null ? intent.getStringExtra(EXTRA_TITLE) : null;
         try {
-            ServiceCompat.startForeground(this, Notifications.VOICE_ID, notification(title == null ? "" : title), serviceType());
+            ServiceCompat.startForeground(this, Notifications.VOICE_ID, notification(this, title), serviceType());
+            running = true;
         } catch (RuntimeException e) {
             // Not allowed right now (Android 12+ background start, or no microphone permission yet): voice still works in front.
             stopSelf();
@@ -56,22 +72,22 @@ public class VoiceService extends Service {
         return mic ? ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE : ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK;
     }
 
-    private Notification notification(String title) {
-        Notifications.ensureChannels(this);
+    private static Notification notification(Context context, String title) {
+        Notifications.ensureChannels(context);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
-        Intent open = new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        PendingIntent leave = PendingIntent.getService(this, 1, new Intent(this, VoiceService.class).setAction(ACTION_LEAVE), flags);
-        return new NotificationCompat.Builder(this, Notifications.VOICE)
+        Intent open = new Intent(context, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent leave = PendingIntent.getService(context, 1, new Intent(context, VoiceService.class).setAction(ACTION_LEAVE), flags);
+        return new NotificationCompat.Builder(context, Notifications.VOICE)
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(Notifications.COLOR)
-            .setContentTitle(getString(R.string.app_name))
-            .setContentText(title)
+            .setContentTitle(context.getString(R.string.app_name))
+            .setContentText(title == null ? "" : title)
             .setOngoing(true)
             .setSilent(true)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .setContentIntent(PendingIntent.getActivity(this, 0, open, flags))
-            .addAction(0, getString(R.string.voice_leave), leave)
+            .setContentIntent(PendingIntent.getActivity(context, 0, open, flags))
+            .addAction(0, context.getString(R.string.voice_leave), leave)
             .build();
     }
 
@@ -83,6 +99,20 @@ public class VoiceService extends Service {
     @Override
     public void onTimeout(int startId, int fgsType) {
         stopForegroundAndSelf();
+    }
+
+    /** Swiped out of Recents in a call: the call is gone with the web view, so the notification and audio state go too. */
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        IskraNativePlugin.voiceEnded();
+        stopForegroundAndSelf();
+        super.onTaskRemoved(rootIntent);
+    }
+
+    @Override
+    public void onDestroy() {
+        running = false;
+        super.onDestroy();
     }
 
     @Override

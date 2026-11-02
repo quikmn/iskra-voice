@@ -1,6 +1,7 @@
 package foo.iskra.app;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.media.AudioAttributes;
@@ -47,7 +48,14 @@ public class IskraNativePlugin extends Plugin {
         instance = this;
         Notifications.ensureChannels(getContext());
         // Started by a share (a cold start): the page asks for it with takeShare once it's up.
-        if (getActivity() != null) receiveShare(getActivity().getIntent());
+        Intent launch = getActivity() != null ? getActivity().getIntent() : null;
+        if (ShareIntake.isShare(launch)) receiveShare(launch);
+        else {
+            // Copies left by an earlier run (the app was closed with the "Share to" picker open): this page can't reach
+            // them any more, so they go now rather than waiting for the next share (iOS deletes them after a day).
+            final Context context = getContext();
+            shareReader.execute(() -> ShareIntake.clear(context));
+        }
     }
 
     @Override
@@ -57,6 +65,12 @@ public class IskraNativePlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
+        // The web view (and with it any call) goes with the activity: swiped out of Recents, or closed by the system.
+        // Nothing of the call may outlive it: the "In voice" notification, the speaker choice, other apps' ducking.
+        VoiceService.stop(getContext());
+        abandonFocus();
+        releaseRoute();
+        setKeepAwake(false);
         if (instance == this) instance = null;
         shareReader.shutdown();
     }
@@ -134,7 +148,8 @@ public class IskraNativePlugin extends Plugin {
 
     @PluginMethod
     public void voiceUpdate(PluginCall call) {
-        VoiceService.start(getContext(), call.getString("title", ""));
+        // Only the notification's text: no second service start, which Android 12+ can refuse in the background.
+        VoiceService.update(getContext(), call.getString("title", ""));
         call.resolve();
     }
 
@@ -156,10 +171,11 @@ public class IskraNativePlugin extends Plugin {
     }
 
     private void setKeepAwake(boolean on) {
-        if (getActivity() == null) return;
-        getActivity().runOnUiThread(() -> {
-            if (on) getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            else getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        final Activity activity = getActivity();
+        if (activity == null) return;
+        activity.runOnUiThread(() -> {
+            if (on) activity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         });
     }
 
@@ -189,15 +205,26 @@ public class IskraNativePlugin extends Plugin {
         return (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
     }
 
+    /**
+     * Something a call can play on instead of the phone itself, so the speaker isn't forced over it. Not Bluetooth A2DP
+     * (or an LE broadcast): call audio can't play there. A Bluetooth headset takes a call over SCO or LE Audio (both
+     * listed), and counting an A2DP-only speaker or car stereo would leave the call on the quiet earpiece instead. A
+     * USB-C dongle shows up as a USB headset or a plain USB device.
+     */
     private static boolean isHeadset(int type) {
         return type == AudioDeviceInfo.TYPE_WIRED_HEADSET || type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
-            || type == AudioDeviceInfo.TYPE_USB_HEADSET || type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-            || type == AudioDeviceInfo.TYPE_HEARING_AID
-            || type == AudioDeviceInfo.TYPE_BLE_HEADSET;
+            || type == AudioDeviceInfo.TYPE_USB_HEADSET || type == AudioDeviceInfo.TYPE_USB_DEVICE
+            || type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || type == AudioDeviceInfo.TYPE_HEARING_AID
+            || type == AudioDeviceInfo.TYPE_BLE_HEADSET || type == AudioDeviceInfo.TYPE_BLE_SPEAKER;
     }
 
     private boolean headsetIn() {
-        for (AudioDeviceInfo device : audioManager().getDevices(AudioManager.GET_DEVICES_OUTPUTS)) if (isHeadset(device.getType())) return true;
+        AudioManager audio = audioManager();
+        // Android 12+: only devices a call can actually use (the ones Android picks from once the choice is cleared).
+        AudioDeviceInfo[] devices = Build.VERSION.SDK_INT >= 31
+            ? audio.getAvailableCommunicationDevices().toArray(new AudioDeviceInfo[0])
+            : audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+        for (AudioDeviceInfo device : devices) if (isHeadset(device.getType())) return true;
         return false;
     }
 
