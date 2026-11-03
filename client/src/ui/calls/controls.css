@@ -27,7 +27,7 @@
 /* Mic and camera carry a ▴ for the device: one pill, the button and its caret. */
 .call-split { display: inline-flex; align-items: center; border-radius: var(--r-pill); background: var(--surface-2); }
 .call-caret {
-  width: 22px; height: 48px; padding: 0 4px 0 0; border: 0; background: none; color: var(--text-2);
+  width: 26px; height: 48px; padding: 0 4px 0 0; border: 0; background: none; color: var(--text-2);
   display: grid; place-items: center; border-radius: 0 var(--r-pill) var(--r-pill) 0; transition: color var(--dur-fast), background var(--dur-fast);
 }
 .call-caret:hover, .call-caret[aria-expanded='true'] { color: var(--text-strong); background: var(--hover); }

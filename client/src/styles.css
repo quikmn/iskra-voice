@@ -396,9 +396,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--focus); box-shad
 .voice-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .voice-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
 .voice-bar.connected .voice-dot { background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 22%, transparent); }
-.voice-status strong { font-size: var(--fs-md); color: var(--amber); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.voice-status strong.connected { color: var(--green); }
-.voice-status > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+/* The dot carries the colour; the words stay in the text colour, readable on the card in every theme. */
+.voice-status strong { font-size: var(--fs-md); color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.voice-status > span { padding-left: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .voice-status .link-like { padding-left: 14px; font-size: var(--fs-sm); }
 .voice-controls { display: flex; align-items: center; gap: 2px; flex: 1 1 100%; margin-left: -4px; }
 .voice-controls .icon-button { width: 32px; height: 32px; }
@@ -522,7 +522,7 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
    else is a strip of small tiles under it that scrolls sideways. */
 .stage-body.has-focus > :is(.activity-call, .wb-call, .watch-party, .video-tile.big) { flex: 1 1 auto; }
 .stage-body.has-focus .stage-grid { display: flex; flex: none; gap: var(--sp-2); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
-.stage-body.has-focus .stage-grid > * { flex: none; width: 168px; }
+.stage-body.has-focus .stage-grid > * { flex: none; width: 148px; }
 .stage-grid { display: grid; gap: var(--sp-3); grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); align-content: start; }
 /* Nothing big: the tiles share the stage at the size VoiceStage works out (--tile-w), centred both ways. */
 .stage-grid.fit { flex: 1 0 auto; display: flex; flex-wrap: wrap; justify-content: center; align-content: center; }

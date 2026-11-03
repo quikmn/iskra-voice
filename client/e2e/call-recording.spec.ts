@@ -149,7 +149,7 @@ test('recording a call: per-person files on the recorder, a mark for everyone, m
   await host.screenshot({ path: join(SHOTS, 'recording-host.png') })
 
   // The host stops: the mark goes for everyone, the files are finished, info.txt says who and when.
-  await host.locator('.call-controls').getByRole('button', { name: 'Stop recording' }).click()
+  await (await callTool(host, 'More', 'Stop recording')).click()
   await expect(friend.getByTestId('recording-strip')).toHaveCount(0)
   await expect(studio(friend).getByRole('img', { name: 'This call is being recorded' })).toHaveCount(0)
   const saved = host.getByRole('status').filter({ hasText: 'Recording saved.' })

@@ -131,7 +131,7 @@ ul.scores .pts { font-variant-numeric: tabular-nums; }
   display: flex; align-items: center; gap: 8px 12px; width: 100%; flex-wrap: wrap; padding: 6px 6px 6px 12px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px; min-height: 52px;
 }
-.strip > .status { flex: 1; min-width: 12ch; }
+.strip > .status { flex: 1; min-width: 12ch; text-align: left; }
 .narrow { width: 100%; max-width: 640px; }
 .chip { flex: none; font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 9px; border-radius: 99px; background: var(--surface2); font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

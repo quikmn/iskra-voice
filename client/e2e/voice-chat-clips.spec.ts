@@ -80,7 +80,7 @@ test('voice channels have their own chat, and clips save the last seconds with a
   // fixed wait under load sometimes left under a second, a 928-byte clip).
   await expect.poll(() => heard(host), { timeout: 20_000 }).toBeGreaterThanOrEqual(4)
 
-  await host.locator('.call-controls').getByRole('button', { name: 'Save the last 15 seconds' }).click()
+  await (await callTool(host, 'More', 'Save the last 15 seconds')).click()
   const dialog = host.getByRole('dialog', { name: 'Your clip' })
   await expect(dialog).toBeVisible()
   await expect(dialog.locator('video.clip-preview')).toBeVisible()
@@ -138,7 +138,7 @@ test('voice channels have their own chat, and clips save the last seconds with a
   // at the first sound under load got "Nothing to save yet.").
   await expect.poll(() => heard(host), { timeout: 20_000 }).toBeGreaterThanOrEqual(1)
   await expect(friend.locator('.clip-toast')).toHaveCount(0, { timeout: 10_000 }) // the channel's toast has gone
-  await call(host).getByRole('button', { name: 'Save the last 15 seconds' }).click()
+  await (await callTool(host, 'More', 'Save the last 15 seconds')).click()
   await expect(host.getByRole('dialog', { name: 'Your clip' })).toBeVisible()
   await expect(friend.locator('.clip-toast', { hasText: 'Host saved a clip' })).toBeVisible()
   await friend.screenshot({ path: join(SHOTS, 'clip-dm-call.png') })

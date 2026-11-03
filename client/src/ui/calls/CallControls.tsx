@@ -1,7 +1,7 @@
 // The call's control bar, used by voice channels, stages, DM calls and group calls. Three groups on one row:
 // you (mic, deafen, camera, screen), together (watch, whiteboard, activities, soundboard: one popover) and the call
 // (captions, more, hang up). Phones get five big buttons and a sheet for the rest.
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { t as translate } from '../../i18n'
 import {
@@ -57,7 +57,7 @@ export function CallControls({ onLeave, me, together, nameOf }: {
   const phone = usePhone()
   const bar = useRef<HTMLDivElement>(null)
   const speak = session.canSpeak
-  useNotesLane(bar)
+  useNotesLane(bar, phone)
 
   const mic = speak && (
     <button className={`call-button ${muted ? 'off' : ''} ${localSpeaking && !muted ? 'talking' : ''}`} onClick={() => void toggleMute()} aria-pressed={muted} aria-label={muted ? t('voice.unmute') : t('voice.mute')} title={muted ? t('voice.unmute') : t('voice.mute')}>
@@ -164,7 +164,7 @@ export function CallControls({ onLeave, me, together, nameOf }: {
  * The passing notes ("Alice played airhorn") sit just above the call controls when they're at the bottom of the
  * window, whatever their height (ui/kit/kit.css reads --notes-lane-bottom).
  */
-function useNotesLane(bar: React.RefObject<HTMLDivElement | null>) {
+function useNotesLane(bar: RefObject<HTMLDivElement | null>, phone: boolean) {
   useLayoutEffect(() => {
     const el = bar.current
     if (!el || typeof ResizeObserver === 'undefined') return
@@ -184,7 +184,7 @@ function useNotesLane(bar: React.RefObject<HTMLDivElement | null>) {
       window.removeEventListener('resize', place)
       root.style.removeProperty('--notes-lane-bottom')
     }
-  }, [bar])
+  }, [bar, phone])
 }
 
 /**

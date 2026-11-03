@@ -16,6 +16,8 @@ const CSS = `
 /* Tools on the left, the board in the middle, guesses and scores on the right: the board takes the height that's left,
    so nothing sits under it and the frame never scrolls. */
 .layout { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) min(220px, 28vw); grid-template-rows: minmax(0, 1fr); gap: 12px; width: 100%; }
+/* Fixed columns: the tools are hidden while you don't draw, and the board must keep the middle column. */
+.tools { grid-column: 1; } .main { grid-column: 2; } .side { grid-column: 3; }
 .main { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; }
 .board { flex: 1; min-height: 160px; container-type: size; display: grid; place-items: start center; }
 canvas { width: min(100cqw, calc(100cqh * 4 / 3)); aspect-ratio: 4 / 3; background: #fff; border-radius: 12px; touch-action: none; display: block; }
@@ -44,6 +46,7 @@ canvas.mine { cursor: crosshair; }
 @media (max-width: 480px), (max-aspect-ratio: 1/1) {
   #app { height: auto; }
   .layout { grid-template-columns: 1fr; grid-template-rows: none; }
+  .tools, .main, .side { grid-column: 1; }
   .tools { order: 1; display: flex; flex-wrap: wrap; align-items: center; overflow: visible; }
   .tools > :not(.swatch, .size) { padding: 8px 14px; }
   .size { min-width: 44px; } .swatch + .size { grid-column-start: auto; }
