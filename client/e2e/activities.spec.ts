@@ -2,7 +2,7 @@
 // it is, and the owner adds an activity of their own (which browsers list but don't run: it runs in the desktop app).
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, openServerSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { callToolById, createInviteLink, hasLiveKit, joinVia, openServerSettings, SHOTS, startServer, type TestServer } from './helpers'
 import { zip } from './zipFiles'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
@@ -37,7 +37,7 @@ test('two play Four in a row, a late joiner sees the board, and added activities
   await joinRoom(friend)
 
   // The host starts Four in a row from the call controls.
-  await host.getByTestId('activity-button').click()
+  await (await callToolById(host, 'Together', 'activity-button')).click()
   const launcher = host.getByRole('dialog', { name: 'Start an activity' })
   await expect(launcher.getByTestId('activity-choice')).toHaveCount(3)
   await host.waitForTimeout(400) // the dialog's fade-in, for the picture
@@ -103,8 +103,8 @@ test('two play Four in a row, a late joiner sees the board, and added activities
   // In a browser it's listed but doesn't run: it says it runs in the desktop app.
   await host.getByTestId('activity-panel').getByRole('button', { name: 'End for everyone' }).click()
   await expect(friend.getByTestId('activity-panel')).toHaveCount(0)
-  await expect(host.getByTestId('activity-button')).toHaveAccessibleName('Start an activity')
-  await host.getByTestId('activity-button').click()
+  await expect(host.getByTestId('activity-button')).toHaveAttribute('aria-label', 'Start an activity')
+  await (await callToolById(host, 'Together', 'activity-button')).click()
   const again = host.getByRole('dialog', { name: 'Start an activity' })
   const tiny = again.getByTestId('activity-choice').filter({ hasText: 'Tiny test' })
   await expect(tiny).toContainText('Runs in the desktop app')
@@ -127,10 +127,10 @@ test('two play Four in a row, a late joiner sees the board, and added activities
   await friend.screenshot({ path: join(SHOTS, 'activities-quiz.png') })
   await host.getByTestId('activity-panel').getByRole('button', { name: 'End for everyone' }).click()
   // Ended once the server says so: until then the button still leaves the running quiz instead of starting one.
-  await expect(host.getByTestId('activity-button')).toHaveAccessibleName('Start an activity')
+  await expect(host.getByTestId('activity-button')).toHaveAttribute('aria-label', 'Start an activity')
 
   // Draw & guess: the host draws, the friend guesses wrong, then right.
-  await host.getByTestId('activity-button').click()
+  await (await callToolById(host, 'Together', 'activity-button')).click()
   await host.getByRole('dialog', { name: 'Start an activity' }).getByRole('button', { name: 'Start Draw & guess' }).click()
   await friend.getByTestId('activity-invite').getByRole('button', { name: 'Join' }).click()
   await frame(host).getByRole('button', { name: 'Join the game' }).click()

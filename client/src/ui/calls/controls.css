@@ -1,0 +1,148 @@
+/* ── Call controls (ui/calls/CallControls.tsx): you · together · the call, on one row ──────────────────────────── */
+.call-controls {
+  flex: none; display: flex; align-items: center; justify-content: center; gap: var(--sp-5);
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+}
+.call-controls:not(.phone) { container-type: inline-size; }
+.call-group { display: flex; align-items: center; gap: var(--sp-2); }
+
+.call-button {
+  position: relative; flex: none; width: 48px; height: 48px; padding: 0; border-radius: 50%; border: 0;
+  background: var(--surface-3); color: var(--text); display: grid; place-items: center;
+  transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast);
+}
+.call-button > svg { width: 22px; height: 22px; }
+.call-button:hover:not(:disabled) { background: var(--hover); }
+.call-button:active:not(:disabled) { transform: scale(0.96); }
+.call-button:disabled { opacity: 0.5; cursor: default; }
+.call-button.off { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
+.call-button.off:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 26%, transparent); }
+.call-button.on { background: var(--accent); color: var(--on-accent); }
+.call-button.on:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, var(--text)); }
+.call-button.hang-up { background: var(--hangup); color: #fff; }
+.call-button.hang-up:hover:not(:disabled) { background: var(--hangup-hover); }
+/* Leaving is the one wide button, at the end of the row. */
+.call-controls:not(.phone) .call-button.hang-up { width: 64px; border-radius: var(--r-pill); }
+
+/* Mic and camera carry a ▴ for the device: one pill, the button and its caret. */
+.call-split { display: inline-flex; align-items: center; border-radius: var(--r-pill); background: var(--surface-2); }
+.call-caret {
+  width: 26px; height: 48px; padding: 0 4px 0 0; border: 0; background: none; color: var(--text-2);
+  display: grid; place-items: center; border-radius: 0 var(--r-pill) var(--r-pill) 0; transition: color var(--dur-fast), background var(--dur-fast);
+}
+.call-caret:hover, .call-caret[aria-expanded='true'] { color: var(--text-strong); background: var(--hover); }
+
+/* Narrow call screens (the call chat open, small windows): tighter, still one row. */
+@container (max-width: 620px) {
+  .call-group { gap: var(--sp-1); }
+  .call-button, .call-caret { height: 42px; }
+  .call-button { width: 42px; }
+  .call-controls:not(.phone) .call-button.hang-up { width: 54px; }
+  .call-button > svg { width: 20px; height: 20px; }
+}
+@container (max-width: 520px) {
+  .call-caret { display: none; }
+  .call-split { background: none; }
+}
+
+/* ── Trays: "Together" (a grid of tiles) and "More" (a list); on phones one sheet ── */
+.call-tray { position: relative; display: inline-grid; }
+.call-tray:not(:has(.call-tray-panel .call-button)) { display: none; }
+.call-tray.open > .call-tray-trigger { background: var(--surface-3); box-shadow: inset 0 0 0 2px var(--accent); }
+/* Something in the tray is on (an activity, the whiteboard), or waiting for you to join it. */
+.call-tray:has(.call-tray-panel .call-button.on) > .call-tray-trigger { color: var(--accent-2); }
+.call-tray:has(.call-tray-panel :is(.act-waiting, .wb-waiting, .record-button.on)) > .call-tray-trigger::after {
+  content: ''; position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 2px var(--stage);
+}
+.call-tray:has(.call-tray-panel .record-button.on) > .call-tray-trigger::after { background: var(--danger-solid); }
+
+.call-tray-panel {
+  position: absolute; bottom: calc(100% + var(--sp-3)); left: 50%; transform: translateX(-50%); z-index: var(--z-dropdown);
+  display: grid; gap: 2px; min-width: 220px; padding: 6px; background: var(--float); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-pop); animation: call-tray-in var(--dur) var(--ease);
+}
+.call-tray-panel[hidden] { display: none !important; }
+/* "More" sits near the end of the row: it opens leftward from its button. */
+.call-tray:not(:has(.grid)) > .call-tray-panel { left: auto; right: 0; transform: none; }
+
+/* A list row: icon, then what it does (its accessible name, so the words always match). */
+.call-tray-panel .call-button {
+  width: 100%; height: 40px; display: flex; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-3);
+  border-radius: var(--r-md); background: transparent; color: var(--text); font-size: var(--fs-ui); text-align: left;
+}
+.call-tray-panel .call-button > svg { width: 18px; height: 18px; flex: none; color: var(--text-2); }
+.call-tray-panel .call-button::after { content: attr(aria-label); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.call-tray-panel .call-button:hover:not(:disabled) { background: var(--hover); }
+.call-tray-panel .call-button.on { background: var(--accent-subtle); }
+.call-tray-panel .call-button.on > svg { color: var(--accent-2); }
+.call-tray-panel .call-button.record-button.on { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--red); }
+.call-tray-panel .call-button.record-button.on > svg { color: var(--red); }
+.call-tray-panel .call-button.off { background: transparent; color: var(--red); }
+
+/* "Together": a 2-wide grid of tiles under a small heading. */
+.call-tray-panel.grid { grid-template-columns: repeat(2, 128px); gap: var(--sp-1); padding: var(--sp-2); min-width: 0; }
+.call-tray-panel.grid::before {
+  content: attr(aria-label); grid-column: 1 / -1; padding: 2px var(--sp-1) var(--sp-1);
+  font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+}
+.call-tray-panel.grid .call-button {
+  height: auto; flex-direction: column; justify-content: flex-start; gap: var(--sp-2); padding: var(--sp-3) var(--sp-1) var(--sp-2);
+  font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--text-2); text-align: center;
+}
+.call-tray-panel.grid .call-button::after { white-space: normal; line-height: var(--lh-tight); max-width: 100%; }
+.call-tray-panel.grid .call-button > svg {
+  box-sizing: content-box; width: 22px; height: 22px; padding: 11px; border-radius: var(--r-md);
+  background: var(--surface-3); color: var(--text);
+}
+.call-tray-panel.grid .call-button:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.call-tray-panel.grid .call-button.on { background: transparent; color: var(--text); }
+.call-tray-panel.grid .call-button.on > svg { background: var(--accent); color: var(--on-accent); }
+.call-tray-panel.grid .call-button:is(.act-waiting, .wb-waiting) { box-shadow: none; }
+.call-tray-panel.grid .call-button:is(.act-waiting, .wb-waiting) > svg { box-shadow: inset 0 0 0 2px var(--accent); }
+.call-tray-panel .call-button:is(.act-off, .watch-off) { opacity: 1; color: var(--muted); }
+.call-tray-panel .call-button:is(.act-off, .watch-off) > svg { opacity: 0.5; }
+
+/* ── Phones: five big buttons, each named under it (no hover tooltips on a phone) ── */
+.call-controls.phone {
+  justify-content: space-evenly; align-items: flex-start; gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-2) calc(var(--sp-2) + 2px);
+}
+.call-controls.phone > .call-button, .call-controls.phone > .call-tray > .call-tray-trigger { width: 52px; height: 52px; margin-bottom: 22px; }
+.call-controls.phone > .call-button::after, .call-controls.phone > .call-tray > .call-tray-trigger::before {
+  content: attr(aria-label); position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%); width: 62px;
+  font-size: var(--fs-xs); line-height: var(--lh-tight); color: var(--text-2); text-align: center; pointer-events: none;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.call-controls.phone > .call-button[data-short]::after { content: attr(data-short); }
+.call-controls.phone > .call-button.talking::after { color: var(--green); }
+
+.call-tray-scrim { position: fixed; inset: 0; z-index: calc(var(--z-popover) - 1); background: var(--scrim); animation: fade var(--dur) ease-out; }
+.call-tray.sheet > .call-tray-panel {
+  position: fixed; left: 0; right: 0; bottom: 0; top: auto; transform: none; z-index: var(--z-popover); width: 100%;
+  gap: var(--sp-4); padding: var(--sp-2) var(--sp-4) calc(var(--sp-4) + var(--safe-bottom)); max-height: 85dvh; overflow-y: auto;
+  border-radius: var(--r-xl) var(--r-xl) 0 0; border-bottom: 0; box-shadow: var(--shadow-modal); animation: sheet-up var(--dur-slow) var(--ease);
+}
+.call-tray-section { display: grid; gap: var(--sp-2); }
+.call-tray-section:not(:has(.call-button)) { display: none; }
+.call-tray-label { font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.call-tray-items { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
+.call-tray.sheet .call-tray-panel .call-button {
+  height: auto; min-height: 84px; flex-direction: column; justify-content: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-1);
+  border-radius: var(--r-lg); background: var(--surface-2); font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--text-2); text-align: center;
+}
+.call-tray.sheet .call-tray-panel .call-button::after {
+  white-space: normal; line-height: var(--lh-tight); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.call-tray.sheet .call-tray-panel .call-button > svg { width: 24px; height: 24px; color: var(--text); }
+.call-tray.sheet .call-tray-panel .call-button.on { background: var(--accent-subtle); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+.call-tray.sheet .call-tray-panel .call-button.on > svg { color: var(--accent-2); }
+.call-tray.sheet .call-tray-panel .call-button.off { background: color-mix(in srgb, var(--red) 14%, transparent); color: var(--red); }
+.call-tray.sheet .call-tray-panel .call-button.off > svg { color: var(--red); }
+.call-tray.sheet .call-tray-panel .call-button:is(.act-waiting, .wb-waiting) { box-shadow: inset 0 0 0 2px var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .call-tray-panel, .call-tray-scrim { animation: none; }
+  .call-button:active:not(:disabled) { transform: none; }
+}
+@keyframes call-tray-in { from { opacity: 0; translate: 0 4px; } }

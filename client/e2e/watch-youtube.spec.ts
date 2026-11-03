@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type FrameLocator, type Page } from '@playwright/test'
 import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
-import { appWindow, agreeToTerms, createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, appWindow, callTool, createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(process.env.ISKRA_E2E_NETWORK !== '1', 'talks to YouTube: set ISKRA_E2E_NETWORK=1')
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
@@ -42,7 +42,7 @@ async function joinCinema(page: Page) {
 
 /** Starts a YouTube party and checks YouTube's player loads (no "Error 15x" screen) and plays when told to. */
 async function startYouTubeParty(page: Page) {
-  await page.locator('.call-controls').getByRole('button', { name: 'Watch together' }).click()
+  await (await callTool(page, 'Together', 'Watch together')).click()
   const dialog = page.getByRole('dialog', { name: 'Watch together' })
   await dialog.getByLabel('Link').fill(VIDEO)
   await expect(dialog.getByTestId('watch-start-note')).toContainText('Plays from YouTube')

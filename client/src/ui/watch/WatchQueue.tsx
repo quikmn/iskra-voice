@@ -10,7 +10,7 @@ import { addToQueue, moveInQueue, playNow, removeFromQueue } from '../../state/w
 import { clearIfSent, isAudioish, itemTitle, moveTarget, youTubeThumb } from '../../state/watchQueueLogic'
 import { parseWatchInput } from '../../state/watchSync'
 import { useEscapeLayer, useFocusTrap } from '../layers'
-import { Close, Trash } from '../icons'
+import { ChevronDown, ChevronUp, Close, Trash } from '../icons'
 import { MusicIcon, PlayIcon, TvIcon } from './watchIcons'
 
 const PHONE = '(max-width: 760px), (pointer: coarse)'
@@ -95,8 +95,8 @@ export function WatchQueue({ server, party, control, sheet, onClose }: {
                 {control && (
                   <span className="watch-queue-actions">
                     <button className="icon-button small" onClick={() => run(() => playNow(server.key, party, item.id))} aria-label={`${t('watch.playNow')}: ${title}`} title={t('watch.playNow')}><PlayIcon size={15} /></button>
-                    <button className="icon-button small" disabled={i === 0} onClick={() => step(item, -1)} aria-label={`${t('watch.moveUp')}: ${title}`} title={t('watch.moveUp')}>▲</button>
-                    <button className="icon-button small" disabled={i === queue.length - 1} onClick={() => step(item, 1)} aria-label={`${t('watch.moveDown')}: ${title}`} title={t('watch.moveDown')}>▼</button>
+                    <button className="icon-button small" disabled={i === 0} onClick={() => step(item, -1)} aria-label={`${t('watch.moveUp')}: ${title}`} title={t('watch.moveUp')}><ChevronUp size={16} /></button>
+                    <button className="icon-button small" disabled={i === queue.length - 1} onClick={() => step(item, 1)} aria-label={`${t('watch.moveDown')}: ${title}`} title={t('watch.moveDown')}><ChevronDown size={16} /></button>
                     <button className="icon-button small" onClick={() => run(() => removeFromQueue(server.key, party, item.id))} aria-label={`${t('watch.removeItem')}: ${title}`} title={t('watch.removeItem')}><Trash size={15} /></button>
                   </span>
                 )}

@@ -90,6 +90,16 @@ test('friends talk in a voice channel', async ({ browser }) => {
   await host.locator('.call-controls').getByRole('button', { name: 'Stop sharing' }).click()
   await expect(friend.locator('.video-tile.screen')).toHaveCount(0)
 
+  // Desktop: the controls stay on one row; "Together" opens a popover of tiles, Escape gives focus back.
+  const controlsBox = (await host.locator('.call-controls').boundingBox())!
+  expect(controlsBox.height).toBeLessThan(90)
+  const together = host.locator('.call-controls').getByRole('button', { name: 'Together', exact: true })
+  await together.click()
+  await expect(host.locator('.call-controls').getByRole('group', { name: 'Together', exact: true }).locator('.call-button:focus')).toHaveCount(1)
+  await host.screenshot({ path: join(SHOTS, 'call-together.png') })
+  await host.keyboard.press('Escape')
+  await expect(together).toBeFocused()
+
   // Muting shows up for others.
   await host.locator('.call-controls').getByRole('button', { name: 'Mute', exact: true }).click()
   await expect(lounge(friend).locator('li', { hasText: 'Host' }).getByTitle('Muted')).toBeVisible()
@@ -105,6 +115,16 @@ test('friends talk in a voice channel', async ({ browser }) => {
   expect(Math.max(...tops)).toBeLessThanOrEqual(844)
   await friend.waitForTimeout(400) // the side columns slide away
   await friend.screenshot({ path: join(SHOTS, 'call-controls-phone.png') })
+  // One row of big buttons; the rest is in the "More" sheet.
+  const row = await friend.locator('.call-controls > .call-button, .call-controls > .call-tray > .call-tray-trigger').evaluateAll((buttons) =>
+    new Set(buttons.map((b) => Math.round(b.getBoundingClientRect().top))).size)
+  expect(row).toBe(1)
+  await friend.locator('.call-controls').getByRole('button', { name: 'More', exact: true }).click()
+  await expect(friend.locator('.call-controls').getByRole('group', { name: 'More', exact: true })).toBeVisible()
+  await friend.waitForTimeout(300)
+  await friend.screenshot({ path: join(SHOTS, 'call-more-sheet-phone.png') })
+  await friend.keyboard.press('Escape')
+  await expect(friend.locator('.call-controls').getByRole('group', { name: 'More', exact: true })).toBeHidden()
   await friend.setViewportSize({ width: 1280, height: 720 })
 
   await host.locator('.channel', { hasText: 'general' }).click()

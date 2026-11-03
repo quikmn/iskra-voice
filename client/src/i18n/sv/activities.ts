@@ -12,7 +12,6 @@ export const activities: Messages['activities'] = {
   playersExact: '{{n}} spelare',
   desktopOnly: 'Körs i skrivbordsappen',
   desktopOnlyHint: 'Aktiviteter som lagts till på en server körs bara i Iskras skrivbordsapp, avskärmade från internet. Här kan du spela de inbyggda.',
-  startIt: 'Starta',
   startNamed: 'Starta {{name}}',
   running: '{{name}} pågår i samtalet',
   startedBy: '{{person}} startade {{name}}',

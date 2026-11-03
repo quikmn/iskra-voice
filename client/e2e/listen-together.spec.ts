@@ -3,7 +3,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { callTool, createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -40,7 +40,7 @@ test('a queue plays on by itself, the host can make it audio only, and phones ge
   await joinJukebox(friend)
 
   // The party starts with an uploaded track; the queue is empty.
-  await host.locator('.call-controls').getByRole('button', { name: 'Watch together' }).click()
+  await (await callTool(host, 'Together', 'Watch together')).click()
   const dialog = host.getByRole('dialog', { name: 'Watch together' })
   await dialog.getByLabel('Title (optional)').fill('Track 1')
   await dialog.locator('input[type=file]').setInputFiles(FILM)
@@ -71,8 +71,10 @@ test('a queue plays on by itself, the host can make it audio only, and phones ge
   await host.screenshot({ path: join(SHOTS, 'listen-queue.png') })
 
   // Audio only: everyone gets the now-playing bar instead of the video, with what's next.
-  await host.getByLabel('Audio only').click() // applied once the server confirms
-  await expect(host.getByLabel('Audio only')).toBeChecked()
+  await host.getByRole('button', { name: 'Watch party settings' }).click()
+  await host.getByRole('menuitemcheckbox', { name: 'Audio only' }).click() // applied once the server confirms
+  await expect(host.getByRole('menuitemcheckbox', { name: 'Audio only' })).toBeChecked()
+  await host.keyboard.press('Escape')
   for (const page of [host, friend]) {
     await expect(page.locator('.watch-main.audio-only')).toBeVisible()
     await expect(page.getByTestId('watch-now-playing')).toContainText('Up next: Track 2')
@@ -90,8 +92,10 @@ test('a queue plays on by itself, the host can make it audio only, and phones ge
   await expect(items(host)).toHaveCount(0)
 
   // Anyone can control: the friend can queue something too, and skip to it.
-  await host.getByLabel('Anyone can control').click() // applied once the server confirms
-  await expect(host.getByLabel('Anyone can control')).toBeChecked()
+  await host.getByRole('button', { name: 'Watch party settings' }).click()
+  await host.getByRole('menuitemcheckbox', { name: 'Anyone can control' }).click() // applied once the server confirms
+  await expect(host.getByRole('menuitemcheckbox', { name: 'Anyone can control' })).toBeChecked()
+  await host.keyboard.press('Escape')
   await queue(friend).getByLabel('Link').fill('https://media.example.com/song-c.mp3')
   await queue(friend).getByLabel('Title (optional)').fill('Song C')
   await queue(friend).getByRole('button', { name: 'Add', exact: true }).click()

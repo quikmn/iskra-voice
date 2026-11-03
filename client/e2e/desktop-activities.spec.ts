@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test } from '@playwright/test'
 import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
-import { agreeToTerms, appWindow, hasLiveKit, openServerSettings, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, appWindow, callToolById, hasLiveKit, openServerSettings, SHOTS, startServer, type TestServer } from './helpers'
 import { zip } from './zipFiles'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -75,7 +75,7 @@ test('an added activity runs walled off in the desktop app and talks over the br
     await page.getByRole('button', { name: 'Create', exact: true }).click()
     await page.locator('.voice-channel', { hasText: 'arcade' }).getByRole('button').first().click()
     await expect(page.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 20_000 })
-    await page.getByTestId('activity-button').click()
+    await (await callToolById(page, 'Together', 'activity-button')).click()
     const launcher = page.getByRole('dialog', { name: 'Start an activity' })
     await expect(launcher.getByTestId('activity-desktop-only')).toHaveCount(0)
     await launcher.getByRole('button', { name: 'Start Echo' }).click()

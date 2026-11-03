@@ -1,6 +1,6 @@
 // Activities in a voice call: "Activities" in the call controls opens the launcher (built-ins and the server's own),
 // others in the call see "X started Y — Join", and the activity takes the call's big spot while you're in it.
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ActivitySession, Channel, ServerActivity } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
@@ -13,6 +13,7 @@ import { t as i18t } from '../../i18n'
 import { Avatar, Modal } from '../bits'
 import { pageWall } from '../profile/PageView'
 import { ActivityIcon, BuiltinIcon } from './icons'
+import { ChevronRight } from '../icons'
 import { ActivityFrame } from './ActivityFrame'
 import './activities.css'
 
@@ -157,16 +158,18 @@ function ActivityChoice({ name, description, icon, players, disabled, busy, bloc
   name: string; description: string; icon: ReactNode; players: string; disabled: boolean; busy: boolean; blocked?: boolean; onStart: () => void
 }) {
   const { t } = useTranslation()
+  const id = useId()
+  // The whole card is the button: one tap starts it (no row of identical "Start" buttons).
   return (
-    <li className="activity-choice" data-testid="activity-choice">
-      <span className="activity-choice-icon">{icon}</span>
-      <span className="activity-choice-text">
-        <strong>{name}</strong>
-        {description && <span className="muted">{description}</span>}
-        <span className="muted small-text">{players}{blocked ? ` · ${t('activities.desktopOnly')}` : ''}</span>
-      </span>
-      <button className="button primary" disabled={disabled} onClick={onStart} aria-label={t('activities.startNamed', { name })}>
-        {busy ? '…' : t('activities.startIt')}
+    <li data-testid="activity-choice">
+      <button className="activity-choice" disabled={disabled} onClick={onStart} aria-label={t('activities.startNamed', { name })} aria-describedby={`${id}-d`} aria-busy={busy || undefined}>
+        <span className="activity-choice-icon">{icon}</span>
+        <span className="activity-choice-text">
+          <strong>{name}</strong>
+          <span className="muted" id={`${id}-d`}>{description}{description ? ' ' : ''}</span>
+          <span className="muted small-text">{players}{blocked ? ` · ${t('activities.desktopOnly')}` : ''}</span>
+        </span>
+        <span className="activity-choice-go" aria-hidden>{busy ? <span className="spinner small" /> : <ChevronRight size={18} />}</span>
       </button>
     </li>
   )
@@ -214,7 +217,7 @@ export function ActivityPanel({ server, channel }: { server: ServerState; channe
         <Players server={server} session={session} />
         <span className="activity-spacer" />
         {mayEnd(server, session, callers) && (
-          <button className="button small" onClick={() => void endActivity(server.key, channel.id, session.id).catch((e) => setError(errorMessage(e)))}>{t('activities.end')}</button>
+          <button className="button small ghost" onClick={() => void endActivity(server.key, channel.id, session.id).catch((e) => setError(errorMessage(e)))}>{t('activities.end')}</button>
         )}
         <button className="button small" onClick={() => void leaveActivity(server.key, channel.id, session.id)}>{t('activities.leave')}</button>
       </header>

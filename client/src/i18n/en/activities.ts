@@ -12,7 +12,6 @@ export const activities = {
   playersExact: '{{n}} players',
   desktopOnly: 'Runs in the desktop app',
   desktopOnlyHint: 'Activities added to a server run only in the Iskra desktop app, walled off from the internet. Here you can play the built-in ones.',
-  startIt: 'Start',
   startNamed: 'Start {{name}}',
   running: '{{name}} is on in this call',
   startedBy: '{{person}} started {{name}}',

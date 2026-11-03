@@ -1,7 +1,7 @@
 // Privacy pass: nothing loads from another site until you say so, and the app says who it talks to.
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, openSettings, send, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
+import { callTool, createInviteLink, hasLiveKit, joinVia, openSettings, send, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -133,7 +133,7 @@ test("voice asks no STUN server of anyone's, and a YouTube watch party says so b
   await joinVia(friend, await createInviteLink(page), 'Friend')
   await lounge(friend).getByRole('button').first().click()
   await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
-  await page.locator('.call-controls').getByRole('button', { name: 'Watch together' }).click()
+  await (await callTool(page, 'Together', 'Watch together')).click()
   const dialog = page.getByRole('dialog', { name: 'Watch together' })
   await dialog.getByLabel('Link').fill('https://www.youtube.com/watch?v=aqz-KE-bpKQ')
   await expect(dialog.getByTestId('watch-start-note')).toContainText('Plays from YouTube: everyone who watches loads it from there')

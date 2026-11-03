@@ -12,7 +12,9 @@ import { Avatar, Modal } from '../bits'
 import { HeadphonesOff, Menu, Mic, MicOff, Pencil, Users } from '../icons'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import type { Panel } from '../Shell'
-import { CallControls, VideoTile } from '../VoiceStage'
+import { VideoTile } from '../VoiceStage'
+import { CallControls } from '../calls/CallControls'
+import { Switch } from '../kit'
 import { CheckIcon, HandIcon, ShieldIcon, StageIcon, StepDownIcon, UserMinusIcon } from './stageIcons'
 import { WatchButton, WatchPartyPanel } from '../watch/WatchParty'
 import { VoiceChatButton } from '../clips/VoiceRoom'
@@ -187,7 +189,7 @@ export function StageView({ server, onToggle }: { server: ServerState; onToggle:
         {error && <p className="error-text stage-error" role="alert">{error}</p>}
       </div>
 
-      <CallControls extra={<>{stageButton}{live && channel && <WatchButton server={server} channel={channel} stage={state} />}</>} nameOf={(key) => nameIn(server, key)} />
+      <CallControls me={stageButton} together={live && channel && <WatchButton server={server} channel={channel} stage={state} />} nameOf={(key) => nameIn(server, key)} />
 
       {person && channel && (
         <PersonSheet server={server} channel={channel} state={state} accountKey={person} onError={setError} onClose={() => setPerson(null)} />
@@ -393,17 +395,13 @@ function ModeratorsDialog({ server, channel, state, onClose }: { server: ServerS
         {people.map((m) => {
           const on = !!state?.moderators.includes(m.accountKey)
           return (
+            // Each takes effect at once: a switch per person (the name is its label).
             <li key={m.accountKey}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={on}
-                  onChange={() => setStageModerator(server.key, channel.id, m.accountKey, !on).catch((e: Error) => setError(errorMessage(e)))}
-                />
-                <Avatar name={m.name} accountKey={m.accountKey} size={28} />
-                <span className="member-name">{m.name}</span>
-                <span className="muted role">{t(`common.roles.${m.role}`)}</span>
-              </label>
+              <Avatar name={m.name} accountKey={m.accountKey} size={28} />
+              <span className="member-name" id={`stage-mod-${m.accountKey}`}>{m.name}</span>
+              <span className="muted role">{t(`common.roles.${m.role}`)}</span>
+              <Switch checked={on} labelledBy={`stage-mod-${m.accountKey}`}
+                onChange={(next) => setStageModerator(server.key, channel.id, m.accountKey, next).catch((e: Error) => setError(errorMessage(e)))} />
             </li>
           )
         })}

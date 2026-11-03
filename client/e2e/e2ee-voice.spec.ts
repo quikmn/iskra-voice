@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
+import { callToolById, createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -75,7 +75,7 @@ test('an encrypted voice channel: media is end-to-end encrypted, and removing so
 
   // Watch parties would show the server what's played: the button is off and says why.
   await expect(host.getByTestId('watch-e2ee-off')).toHaveClass(/watch-off/)
-  await host.getByTestId('watch-e2ee-off').click()
+  await (await callToolById(host, 'Together', 'watch-e2ee-off')).click()
   await expect(host.getByTestId('watch-e2ee-note')).toContainText('the server would see')
   await host.keyboard.press('Escape')
 

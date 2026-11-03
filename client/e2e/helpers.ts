@@ -401,3 +401,22 @@ export async function appWindow(app: ElectronApplication): Promise<Page> {
   await expect.poll(() => app.windows().some(isApp), { timeout: 30_000 }).toBe(true)
   return app.windows().find(isApp)!
 }
+
+/**
+ * A call control that lives in a tray of the call controls: "Together" (watch, whiteboard, activities, soundboard)
+ * or "More" (clips, record; on phones everything past the five big buttons). Opens the tray and finds the button.
+ */
+export async function callTool(page: Page, tray: 'Together' | 'More', name: string | RegExp): Promise<Locator> {
+  const controls = page.locator('.call-controls')
+  const trigger = controls.getByRole('button', { name: tray, exact: true })
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click()
+  return controls.getByRole('group', { name: tray, exact: true }).getByRole('button', { name })
+}
+
+/** The same, by test id. */
+export async function callToolById(page: Page, tray: 'Together' | 'More', testId: string): Promise<Locator> {
+  const controls = page.locator('.call-controls')
+  const trigger = controls.getByRole('button', { name: tray, exact: true })
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click()
+  return controls.getByRole('group', { name: tray, exact: true }).getByTestId(testId)
+}

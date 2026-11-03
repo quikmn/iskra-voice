@@ -4,6 +4,7 @@
 import '../../../protocol/activity-sdk.js'
 import { activities as en } from '../i18n/en/activities'
 import { activities as sv } from '../i18n/sv/activities'
+import { fnv1a } from './util'
 export { fmt, fnv1a, isId, isInt, isObject, isText, normalizeGuess } from './util'
 
 export interface Player {
@@ -76,6 +77,17 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Props = 
   return el
 }
 
+/** A row of a scoreboard: the player's initials in a colour of their own, their name, an optional badge and points. */
+export function scoreRow(id: string, name: string, points: number, me: boolean, badge?: string | null): HTMLLIElement {
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => [...w][0]).join('').toUpperCase() || '?'
+  const hue = parseInt(fnv1a(id).slice(0, 4), 16) % 360
+  return h('li', { className: me ? 'me' : '' },
+    h('span', { className: 'av', style: `--h:${hue}`, 'aria-hidden': 'true' }, initials),
+    h('span', { className: 'nm' }, name),
+    badge ? h('span', { className: 'badge' }, badge) : null,
+    h('strong', { className: 'pts' }, String(points)))
+}
+
 /** Replaces an element's children. */
 export const fill = (el: Element, ...children: Child[]) => el.replaceChildren(...children.filter((c): c is Node | string | number => c !== null && c !== undefined && c !== false).map((c) => (c instanceof Node ? c : String(c))))
 
@@ -100,9 +112,28 @@ input, textarea, select { background: var(--surface); border: 1px solid var(--bo
 .status { font-weight: 600; text-align: center; min-height: 1.4em; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 h1, h2 { margin: 0; font-size: 1.1rem; }
-ul.scores { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-ul.scores li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 8px; border-radius: 6px; background: var(--surface2); }
-ul.scores li.me { outline: 1px solid var(--accent); }
+/* A card of its own (the scoreboard, the guesses): a small uppercase heading, then the list. */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: grid; gap: 8px; align-content: start; min-height: 0; }
+.card > h2 { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 0 2px; }
+/* The scoreboard: avatar · name · badge … score. */
+ul.scores { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+ul.scores li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; min-width: 0; }
+ul.scores li.me { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+ul.scores .av {
+  flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700;
+  color: #fff; background: hsl(var(--h, 250) 45% 38%);
+}
+ul.scores .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+ul.scores .pts { font-variant-numeric: tabular-nums; }
+.badge { flex: none; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 7px; border-radius: 99px; color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+/* The round's header strip: where we are · what's happening · the buttons. */
+.strip {
+  display: flex; align-items: center; gap: 8px 12px; width: 100%; flex-wrap: wrap; padding: 6px 6px 6px 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; min-height: 52px;
+}
+.strip > .status { flex: 1; min-width: 12ch; text-align: left; }
+.narrow { width: 100%; max-width: 640px; }
+.chip { flex: none; font-size: 12px; font-weight: 600; color: var(--muted); padding: 4px 9px; border-radius: 99px; background: var(--surface2); font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 `
 

@@ -1,7 +1,7 @@
 # Activities
 
 Activities are small apps people use together in a voice channel: a game, a quiz, a shared toy. Someone in the call
-presses **Activities** in the call controls, picks one, and everyone else in the call sees "Alex started Four in a row —
+opens **Together** in the call controls, presses **Start an activity**, picks one, and everyone else in the call sees "Alex started Four in a row —
 Join". The activity opens in the call's big spot for everyone who joins.
 
 Iskra comes with three: **Draw & guess**, **Quiz** and **Four in a row**. A server's admins can add their own in

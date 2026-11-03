@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
-import { agreeToTerms, createInviteLink, hasLiveKit, joinVia, send, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, callTool, createInviteLink, hasLiveKit, joinVia, send, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(!process.env.AUDIT, 'UX audit tour: set AUDIT=1')
 test.use({ actionTimeout: 8000 })
@@ -665,13 +665,13 @@ test('UX audit tour (browser)', async ({ browser }) => {
       await owner.locator('.call-controls').getByRole('button', { name: /Captions/ }).first().click().catch(() => undefined)
       await owner.waitForTimeout(800)
       await snap(owner, '70d-voice-captions')
-      await owner.locator('.call-controls').getByRole('button', { name: 'Soundboard' }).click()
+      await (await callTool(owner, 'Together', 'Soundboard')).click()
       await snap(owner, '71-soundboard-empty')
       await owner.keyboard.press('Escape')
       await owner.locator('.call-controls').getByRole('button', { name: /Clips/ }).first().click().catch(() => undefined)
       await snap(owner, '72-clips-off')
       await owner.keyboard.press('Escape')
-      await owner.locator('.call-controls').getByRole('button', { name: 'Watch together' }).click()
+      await (await callTool(owner, 'Together', 'Watch together')).click()
       await snap(owner, '73-watch-dialog')
       const dialog = owner.getByRole('dialog', { name: 'Watch together' })
       await dialog.getByLabel('Title (optional)').fill('Test pattern')

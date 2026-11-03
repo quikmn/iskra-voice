@@ -57,9 +57,14 @@ export function VoiceBar() {
     : session.state === 'connected' ? t('voice.bar.connected') : session.state === 'reconnecting' ? t('voice.bar.reconnecting') : t('voice.bar.connecting')
   const peer = session.call?.peer
   return (
-    <div className="voice-bar">
+    <div className={`voice-bar ${session.state}`}>
       <div className="voice-status">
-        <strong className={session.state} role="status">{status}</strong>
+        <div className="voice-line">
+          <span className="voice-dot" aria-hidden />
+          <strong className={session.state} role="status">{status}</strong>
+          <EncryptedVoiceBadge variant="bar" />
+          <VoiceBarRecordingMark />
+        </div>
         <button
           className="link-like"
           title={t('voice.bar.openCall')}
@@ -73,8 +78,6 @@ export function VoiceBar() {
           {session.group ? t('voice.bar.encrypted', { name: group ? titleOf(group) : t('voice.bar.group') })
             : peer ? t('voice.bar.encrypted', { name: nameOf(peer) }) : `${channel?.name ?? t('voice.bar.voice')} · ${server?.name}`}
         </button>
-        <EncryptedVoiceBadge variant="bar" />
-        <VoiceBarRecordingMark />
         {session.afk && session.state === 'connected' && <span className="afk-forced" data-testid="afk-forced">{t('afk.forced')}</span>}
         {!session.canSpeak && !session.afk && session.state === 'connected' && <span className="muted">{t('voice.bar.listeningOnly')}</span>}
         {error && <span className="error-text">{error}</span>}
@@ -98,6 +101,7 @@ export function VoiceBar() {
         <SoundboardButton variant="bar" />
         <RoomButton />
         <VoicePopoutButton />
+        <span className="voice-controls-gap" />
         <button
           className="icon-button hang-up"
           onClick={() => void (session.group ? leaveGroupCall() : peer ? hangUp() : leaveVoice())}

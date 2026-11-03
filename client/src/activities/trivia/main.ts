@@ -1,5 +1,5 @@
 // Quiz: the quizmaster's screen picks or writes questions and runs the round; everyone else answers with big buttons.
-import { fill, fmt, h, run, type Ctx } from '../kit'
+import { fill, fmt, h, run, scoreRow, type Ctx } from '../kit'
 import { initialQuiz, MAX_OPTION, MAX_QUESTION, MAX_QUESTIONS, parseQuiz, ranking, reduceQuiz, shuffled, shuffleOptions, type QuizState } from './logic'
 import { QUESTIONS, type BankQuestion } from './questions'
 
@@ -40,10 +40,10 @@ interface Local {
 function mount(ctx: Ctx<QuizState>) {
   const s = ctx.strings.trivia
   const local: Local = { queue: [], answers: {}, own: [], count: 5, revealed: new Set(), askedAt: {} }
-  const head = h('div', { className: 'row' })
+  const head = h('div', { className: 'strip narrow' })
   const status = h('p', { className: 'status', role: 'status', 'aria-live': 'polite' })
   const body = h('div', { className: 'panel' })
-  const scores = h('div', { className: 'panel' })
+  const scores = h('div', { className: 'card narrow' })
   fill(ctx.root, h('h1', { className: 'sr-only' }, s.title), head, status, body, scores)
   const present = (id: string | null) => !!id && ctx.players().some((p) => p.id === id)
   let timer: ReturnType<typeof setInterval> | null = null
@@ -163,7 +163,7 @@ function mount(ctx: Ctx<QuizState>) {
     if (state.phase === 'question' && local.askedAt[state.n] === undefined) local.askedAt[state.n] = Date.now()
 
     fill(head,
-      h('span', { className: 'muted' }, isMaster ? s.youMaster : state.master ? fmt(s.master, { name: ctx.nameOf(state.master) }) : s.noMaster),
+      h('span', { className: 'status' }, isMaster ? s.youMaster : state.master ? fmt(s.master, { name: ctx.nameOf(state.master) }) : s.noMaster),
       !state.master ? h('button', { className: 'primary', onclick: () => ctx.send({ t: 'host' }) }, s.beMaster) : null,
       state.master && !isMaster && !present(state.master) ? h('button', { onclick: () => ctx.send({ t: 'takeover' }) }, s.takeOver) : null,
       isMaster && (state.phase === 'lobby' || state.phase === 'over') ? h('button', { onclick: () => ctx.send({ t: 'resign' }) }, s.stepDown) : null)
@@ -183,7 +183,7 @@ function mount(ctx: Ctx<QuizState>) {
     fill(endBox, state.phase === 'over' && isMaster ? h('button', { className: 'primary', onclick: () => ctx.send({ t: 'reset' }) }, s.newQuiz) : null)
 
     fill(scores, h('h2', {}, s.scores), winners.length
-      ? h('ul', { className: 'scores' }, ...winners.map((w) => h('li', { className: w.id === ctx.me.id ? 'me' : '' }, h('span', {}, ctx.nameOf(w.id)), h('strong', {}, String(w.score)))))
+      ? h('ul', { className: 'scores' }, ...winners.map((w) => scoreRow(w.id, ctx.nameOf(w.id), w.score, w.id === ctx.me.id)))
       : h('p', { className: 'muted' }, s.noScores))
 
     // The quizmaster's app reveals once everyone answered, or when time is up.

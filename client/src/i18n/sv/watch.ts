@@ -33,6 +33,7 @@ export const watch: Messages['watch'] = {
   volume: 'Volym',
   fullScreen: 'Helskärm',
   partyChat: 'Chatt',
+  settings: 'Inställningar för Titta tillsammans',
   anyoneControls: 'Alla kan styra',
   end: 'Avsluta Titta tillsammans',
   chatEmpty: 'Säg hej. Meddelanden här sparas inte.',

@@ -9,7 +9,8 @@ import { correction, formatTime, parseWatchInput, positionAt, WATCH_RATES } from
 import { sourceKey } from '../../state/watchQueueLogic'
 import { needsGate, startedSites, withAgreedSite } from '../../state/watchConsentLogic'
 import { Avatar, Modal } from '../bits'
-import { Expand, Send } from '../icons'
+import { Expand, Send, Settings } from '../icons'
+import { Menu, MenuGroup, MenuItem, type MenuAnchor } from '../kit'
 import { videoAdapter, YouTubeBridge, youTubeEmbedUrl, YOUTUBE_FRAME, type PlayerAdapter } from './players'
 import { ChatIcon, NextIcon, PauseIcon, PlayIcon, QueueIcon, TvIcon, VolumeOffIcon, VolumeOnIcon } from './watchIcons'
 import { NowPlaying, usePhoneLike, WatchQueue } from './WatchQueue'
@@ -166,6 +167,7 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
   const [muted, setMuted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [queueOpen, setQueueOpen] = useState(false)
+  const [settings, setSettings] = useState<MenuAnchor | null>(null)
   const phone = usePhoneLike()
   const control = canControlWatch(server, channel, stage, party)
   const controlRef = useRef(control)
@@ -299,12 +301,26 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
 
       {hidden && <NowPlaying server={server} party={party} title={title} showArt={!gated} />}
       <div className="watch-bar">
-        {!hidden && (
+        <div className="watch-head">
           <div className="watch-title">
-            <strong title={title}>{title}</strong>
+            {!hidden && <strong title={title}>{title}</strong>}
             <span className="muted">{t('watch.hostedBy', { name: nameIn(server, party.host) })}{party.anyoneControls ? t('watch.anyoneControlsSuffix') : ''}</span>
           </div>
-        )}
+          {(host || moderator) && (
+            <>
+              <button
+                className="icon-button small" aria-label={t('watch.settings')} title={t('watch.settings')} aria-haspopup="dialog" aria-expanded={!!settings}
+                onClick={(e) => {
+                  const box = e.currentTarget.getBoundingClientRect()
+                  setSettings(settings ? null : { x: box.right - 240, y: box.bottom + 6 })
+                }}
+              >
+                <Settings size={16} />
+              </button>
+              <button className="button small danger-outline" onClick={() => stopWatch(server.key, party).catch((e: Error) => setError(errorMessage(e)))}>{t('watch.end')}</button>
+            </>
+          )}
+        </div>
         <div className="watch-controls" role="toolbar" aria-label={t('watch.controls')}>
           {control && (
             <button className="icon-button" onClick={() => act({ playing: !party.playing, position: position() })} aria-label={party.playing ? t('watch.pause') : t('watch.play')} title={party.playing ? t('watch.pause') : t('watch.play')}>
@@ -351,18 +367,19 @@ function WatchPlayer({ server, channel, stage, party, chatOpen, onToggleChat }: 
           </button>
           <button className={`icon-button ${chatOpen ? 'on' : ''}`} onClick={onToggleChat} aria-pressed={chatOpen} aria-label={t('watch.partyChat')} title={t('watch.partyChat')}><ChatIcon /></button>
         </div>
-        {(host || moderator) && (
-          <div className="watch-host">
-            <label className="watch-toggle">
-              <input type="checkbox" checked={party.anyoneControls} onChange={(e) => setAnyoneControls(server.key, party, e.target.checked).catch((err: Error) => setError(errorMessage(err)))} />
-              {t('watch.anyoneControls')}
-            </label>
-            <label className="watch-toggle" title={t('watch.audioOnlyHint')}>
-              <input type="checkbox" checked={audioOnly} onChange={(e) => setAudioOnly(server.key, party, e.target.checked).catch((err: Error) => setError(errorMessage(err)))} />
-              {t('watch.audioOnly')}
-            </label>
-            <button className="button small danger-outline" onClick={() => stopWatch(server.key, party).catch((e: Error) => setError(errorMessage(e)))}>{t('watch.end')}</button>
-          </div>
+        {settings && (host || moderator) && (
+          // The host's switches: each applies once the server confirms, so the menu stays open to show it.
+          <Menu anchor={settings} label={t('watch.settings')} onClose={() => setSettings(null)}>
+            <MenuGroup label={t('watch.settings')}>
+              <MenuItem toggle={party.anyoneControls} onClick={() => setAnyoneControls(server.key, party, !party.anyoneControls).catch((err: Error) => setError(errorMessage(err)))}>
+                {t('watch.anyoneControls')}
+              </MenuItem>
+              <MenuItem toggle={audioOnly} onClick={() => setAudioOnly(server.key, party, !audioOnly).catch((err: Error) => setError(errorMessage(err)))}>
+                {t('watch.audioOnly')}
+              </MenuItem>
+            </MenuGroup>
+            <p className="watch-settings-note muted">{t('watch.audioOnlyHint')}</p>
+          </Menu>
         )}
         {error && <p className="error-text" role="alert">{error}</p>}
       </div>
