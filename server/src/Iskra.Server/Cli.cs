@@ -221,12 +221,13 @@ public static class Cli
     {
         if (json)
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { ok = true, name = result.Name, serverKey = result.ServerKey, folder = result.Folder, uploads = result.Uploads, messages = result.Messages }));
+            Console.WriteLine(JsonSerializer.Serialize(new { ok = true, name = result.Name, serverKey = result.ServerKey, folder = result.Folder, uploads = result.Uploads, messages = result.Messages, createdAt = result.CreatedAt, warning = result.Warning }));
             return;
         }
         Console.WriteLine($"Restored '{result.Name}' into {result.Folder} ({result.Messages:N0} messages, {result.Uploads:N0} files).");
         Console.WriteLine($"Start it with: iskra-server \"{result.Folder}\"");
         Console.WriteLine("Check the ports and PublicUrl in server.json if this computer's address is different.");
+        if (result.Warning is not null) Console.WriteLine(result.Warning);
     }
 
     private static int Backup(string worldPath, string output, HashSet<string> flags)

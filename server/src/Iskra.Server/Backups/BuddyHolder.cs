@@ -35,11 +35,12 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
 
     private readonly long _minFreeBytes = config.GetValue("BuddyBackups:MinFreeMb", 1024L) * 1024 * 1024;
     private readonly ConcurrentDictionary<string, long> _nonces = new();
-    private readonly ConcurrentDictionary<string, WebhookIngress.TokenBucket> _addressBuckets = new();
-    private readonly ConcurrentQueue<string> _addressOrder = new();
+    private readonly Hosting.BoundedTable<string, WebhookIngress.TokenBucket> _addressBuckets = new(MaxAddressBuckets, b => b.Available);
     /// <summary>Nonces are remembered in memory only: requests signed before this start are refused, so none replays after a restart.</summary>
     private readonly long _startedAt = time.GetUtcNow().ToUnixTimeMilliseconds();
     private readonly ConcurrentDictionary<string, WebhookIngress.TokenBucket> _spotBuckets = new();
+    /// <summary>Bodies read before their signature could be checked (requests without `body=`): one at a time per spot.</summary>
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _unsignedReads = new();
     private readonly ConcurrentDictionary<string, object> _spotLocks = new();
 
     [GeneratedRegex("^[0-9a-f]{16}$")]
@@ -169,27 +170,15 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
     private static string Address(HttpContext context) => AddressKey(context.Connection.RemoteIpAddress);
 
     /// <summary>The rate-limit key for a client address: IPv4 as is, IPv6 by its /64 (one home network).</summary>
-    internal static string AddressKey(System.Net.IPAddress? ip)
-    {
-        if (ip is null) return "local";
-        if (ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
-        if (ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetworkV6) return ip.ToString();
-        return Convert.ToHexStringLower(ip.GetAddressBytes().AsSpan(0, 8)) + "::/64";
-    }
+    internal static string AddressKey(System.Net.IPAddress? ip) => Hosting.AddressLimits.Key(ip);
 
     private string? LoggedIp(HttpContext context) => world.Settings.Retention.SecurityLogIps ? context.Connection.RemoteIpAddress?.ToString() : null;
 
     /// <summary>Pairing and refused requests, per client address: a burst of 10, then one every 6 seconds.</summary>
     private bool AddressAllows(HttpContext context)
     {
-        var bucket = _addressBuckets.GetOrAdd(Address(context), key =>
-        {
-            _addressOrder.Enqueue(key);
-            return new WebhookIngress.TokenBucket(10, 1 / 6.0, time);
-        });
-        // Many addresses: forget the oldest ones, never all at once (that would reset everyone's limit).
-        while (_addressBuckets.Count > MaxAddressBuckets && _addressOrder.TryDequeue(out var oldest)) _addressBuckets.TryRemove(oldest, out _);
-        return bucket.TryTake(out _);
+        // Many addresses: the table forgets the least limited first, never all at once (that would reset everyone's limit).
+        return _addressBuckets.GetOrAdd(Address(context), _ => new WebhookIngress.TokenBucket(10, 1 / 6.0, time)).TryTake(out _);
     }
 
     private static void NoStore(HttpContext context)
@@ -281,20 +270,41 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
         NoStore(context);
         var auth = BuddyCrypto.ParseAuthorization(context.Request.Headers.Authorization.ToString());
         var now = Now;
-        // Who it claims to be is checked before the body is read (a key nobody paired never gets that far); refused requests
-        // count against the client address, so even someone using a known public key can't make us read 4 MB parts often.
+        // Who it claims to be is checked before the body is read (a key nobody paired never gets that far). With the body's
+        // hash in the header (`body=`), so is the signature: a request nobody signed never gets a byte of its body read.
+        // Without it (sources that predate it), at most one such body per spot is read at a time, so someone using a known
+        // public source key costs at most one part's buffer per spot, however many connections they open.
         var spot = auth is null ? null : world.Store.BuddySpotForKey(Ed25519.ToB64u(auth.Key));
         string? reason = auth is null ? "no_signature" : Math.Abs(now - auth.At) > ClockSkewMs ? "clock"
             : auth.At < _startedAt ? "before_start" : spot is null ? "unknown_key" : null;
         byte[]? bytes = null;
         if (reason is null)
         {
-            bytes = await ReadBody(context, HttpMethods.IsPut(context.Request.Method) ? PartBytes : MaxJsonBytes);
-            if (bytes is null) return Status(413);
+            var max = HttpMethods.IsPut(context.Request.Method) ? PartBytes : MaxJsonBytes;
             var path = $"{context.Request.PathBase}{context.Request.Path}{context.Request.QueryString}";
-            if (!Ed25519.Verify(auth!.Key, BuddyCrypto.RequestPayload(world.ServerPublicKey, auth.At, auth.Nonce, context.Request.Method, path, bytes), auth.Sig))
-                reason = "signature";
-            else if (!RememberNonce(auth, now)) reason = "replay";
+            if (auth!.BodyHash is { } claimed)
+            {
+                if (!Ed25519.Verify(auth.Key, BuddyCrypto.RequestPayloadForHash(world.ServerPublicKey, auth.At, auth.Nonce, context.Request.Method, path, claimed), auth.Sig))
+                    reason = "signature";
+                else if (!RememberNonce(auth, now)) reason = "replay";
+                else
+                {
+                    bytes = await ReadBody(context, max);
+                    if (bytes is null) return Status(413);
+                    if (!CryptographicOperations.FixedTimeEquals(SHA256.HashData(bytes), claimed)) reason = "signature";
+                }
+            }
+            else
+            {
+                var gate = UnsignedReads(spot!.Id);
+                if (!gate.Wait(0)) return TooMany(context);
+                try { bytes = await ReadBody(context, max); }
+                finally { gate.Release(); }
+                if (bytes is null) return Status(413);
+                if (!Ed25519.Verify(auth.Key, BuddyCrypto.RequestPayload(world.ServerPublicKey, auth.At, auth.Nonce, context.Request.Method, path, bytes), auth.Sig))
+                    reason = "signature";
+                else if (!RememberNonce(auth, now)) reason = "replay";
+            }
         }
         if (reason is not null || spot is null || auth is null || bytes is null)
         {
@@ -307,6 +317,8 @@ public sealed partial class BuddyHolder(World world, Hub hub, TimeProvider time,
         if (!_spotBuckets.GetOrAdd(spot.Id, _ => new WebhookIngress.TokenBucket(60, 2, time)).TryTake(out _)) return TooMany(context);
         return await handle(spot, bytes, isSource);
     }
+
+    internal SemaphoreSlim UnsignedReads(string spotId) => _unsignedReads.GetOrAdd(spotId, _ => new SemaphoreSlim(1, 1));
 
     private bool RememberNonce(BuddyAuth auth, long now)
     {

@@ -51,7 +51,7 @@ public static class MemberFeature
     {
         var how = key == "kicked_banned" ? "banned" : "kicked";
         s.World.Store.RemoveMember(target.AccountKey);
-        s.World.Store.RecordDeparture(target.AccountKey, target.Name, how, s.AccountKey, s.Now); // "People who left" (ModPackFeature)
+        s.World.Store.RecordDeparture(target.AccountKey, target.Name, how, s.AccountKey, s.Now, target); // "People who left" (ModPackFeature)
         s.Hub.Disconnect(target.AccountKey, closeCode, reason, key);
         s.Hub.Broadcast(Frames.Event("member.removed", new { accountKey = target.AccountKey }));
         s.Hub.Outhooks?.MemberLeft(target.AccountKey, target.Name, how);
@@ -77,8 +77,9 @@ public static class MemberFeature
         if (key == me.AccountKey) throw RequestException.BadRequest("You can't do that to yourself.", "not_to_self");
         var store = s.World.Store;
         var target = store.GetMember(key);
-        if (target is not null && !Permissions.Outranks(me, target)) throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
         if (target is null && store.GetDeparture(key) is null) throw RequestException.NotFound("Member");
+        // Someone who left counts with the rank they left with: waiting for an admin to leave doesn't let a moderator ban them.
+        ModPackFeature.RequireOutranks(store, me, key);
         var reason = body.OptionalString("reason", MaxReasonLength) ?? "";
         var window = ModPackFeature.DeleteWindow(body);
 

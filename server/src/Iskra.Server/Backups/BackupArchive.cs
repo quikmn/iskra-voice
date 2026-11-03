@@ -9,7 +9,8 @@ namespace Iskra.Server.Backups;
 
 public sealed record BackupManifest(int IskraBackup, long CreatedAt, string ServerKey, string Name, int Uploads, bool IncludesUploads);
 
-public sealed record RestoreResult(string Name, string ServerKey, int Uploads, long Messages, string Folder);
+/// <summary>What a restore brought back. <c>CreatedAt</c> is the date sealed inside an encrypted backup (null for a plain one).</summary>
+public sealed record RestoreResult(string Name, string ServerKey, int Uploads, long Messages, string Folder, long? CreatedAt = null, string? Warning = null);
 
 /// <summary>
 /// The zip inside a backup: manifest.json, iskra.db (an online snapshot), server.json and the keys
@@ -117,6 +118,7 @@ public static partial class BackupArchive
         var createdTarget = !Directory.Exists(target);
         AtomicFile.CreatePrivateDirectory(target);
         string? plainZip = null;
+        long? createdAt = null;
         try
         {
             using var input = File.OpenRead(backupPath);
@@ -127,7 +129,8 @@ public static partial class BackupArchive
             if (BackupFile.LooksEncrypted(head.AsSpan(0, got)))
             {
                 // Zip reading needs to seek: decrypt to a private temp file next to the new world first.
-                var (_, plain) = BackupFile.Decrypt(input, passphrase());
+                var (header, plain) = BackupFile.Decrypt(input, passphrase());
+                createdAt = header.CreatedAt; // part of the authenticated data: checked as the copy is decrypted
                 plainZip = Path.Combine(target, $".restore-{Guid.NewGuid():N}.zip");
                 using (var file = PrivateCreate(plainZip)) plain.CopyTo(file);
                 zipStream = File.OpenRead(plainZip);
@@ -204,7 +207,7 @@ public static partial class BackupArchive
             var (messages, _, _) = world.Store.Counts();
             Features.SecurityLog.Record(world.Store, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), "backup.restored",
                 details: new { backupMadeAt = manifest.CreatedAt, uploads });
-            return new RestoreResult(world.Settings.Name, key, uploads, messages, target);
+            return new RestoreResult(world.Settings.Name, key, uploads, messages, target, createdAt);
         }
         catch
         {

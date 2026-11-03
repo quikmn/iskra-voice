@@ -104,10 +104,12 @@ public static class GifFeature
         if (body.OptionalElement("gif") is not { } element) return null;
         if (attachments.Length > 0 || text.Length > 0 || body.OptionalString("sticker", 64) is not null)
             throw RequestException.BadRequest("A GIF is sent on its own.", "gif_alone");
+        // GIFs turned off: tokens from earlier searches no longer send either.
+        if (!s.Gifs.Enabled) throw RequestException.BadRequest("GIFs are off on this server.", "gifs_off");
         if (element.ValueKind == System.Text.Json.JsonValueKind.String)
             return s.Gifs.ReadToken(element.GetString()!) ?? throw RequestException.BadRequest("Unknown GIF.");
         if (element.ValueKind != System.Text.Json.JsonValueKind.Object) throw RequestException.BadRequest("'gif' must be a token or an object.");
-        if (!s.Gifs.Enabled || s.Gifs.Proxied) throw RequestException.BadRequest("Send GIFs from this server's search.");
+        if (s.Gifs.Proxied) throw RequestException.BadRequest("Send GIFs from this server's search.");
         var gif = new Body(element);
         var id = gif.String("id", 128);
         var url = gif.String("url", 1024);
@@ -161,7 +163,7 @@ public static class GifFeature
             response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }
-        var client = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var client = Hosting.AddressLimits.Key(context);
         if (!hub.Limits.TryTake(client, "gif.media"))
         {
             response.StatusCode = StatusCodes.Status429TooManyRequests;

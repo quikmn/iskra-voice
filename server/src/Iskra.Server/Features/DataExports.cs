@@ -135,7 +135,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("rulesAccepted", $"SELECT account_key, version, at FROM rules_accepted WHERE account_key {Mine};");
         // Notes you wrote as a moderator are yours; notes about you are the moderators' (like reports about you).
         Section("moderatorNotesWritten", $"SELECT id, account_key AS about, text, created_at FROM mod_notes WHERE author_key {Mine} ORDER BY id;");
-        Section("departure", $"SELECT account_key, name, reason, at FROM departures WHERE account_key {Mine};");
+        Section("departure", $"SELECT account_key, name, reason, role, top_position, at FROM departures WHERE account_key {Mine};");
         Section("devices", $"SELECT account_key, device_key, name, platform, created, last_seen FROM devices WHERE account_key {Mine};");
         Section("removedDevices", $"SELECT account_key, device_key, revoked_at FROM device_revocations WHERE account_key {Mine};");
         Section("pushSubscriptions", $"SELECT account_key, device_key, created_at, updated_at FROM push_subscriptions WHERE account_key {Mine};");
@@ -231,6 +231,10 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("outgoingWebhooksCreated", $"SELECT id, name, url, events, created_by, created_at FROM outgoing_webhooks WHERE created_by {Mine};");
         Section("feedsAdded", $"SELECT id, kind, source, name, channel_id, created_by, created_at FROM feed_subscriptions WHERE created_by {Mine};");
         Section("serverImagesSet", $"SELECT kind, file_id, set_by, set_at FROM server_images WHERE set_by {Mine};");
+        Section("emojisBrought", $"SELECT id, name, file_id, created_at FROM external_emojis WHERE created_by {Mine} ORDER BY created_at;");
+        Section("stickersBrought", $"SELECT id, name, file_id, created_at FROM external_stickers WHERE created_by {Mine} ORDER BY created_at;");
+        Section("roomsHosted", $"SELECT channel_id, lobby_id, locked, created_at FROM voice_rooms WHERE host_key {Mine};");
+        Section("roomInvites", $"SELECT channel_id, account_key FROM voice_room_invites WHERE account_key {Mine};");
         Section("activitiesAdded", $"SELECT id, name, version, size, files, enabled, added_by, added_at FROM activities WHERE added_by {Mine} ORDER BY added_at;");
         Section("timeouts", $"SELECT account_key, until, reason, at FROM timeouts WHERE account_key {Mine};");
         Section("bans", $"SELECT account_key, reason, banned_at FROM bans WHERE account_key {Mine};");
@@ -292,6 +296,10 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         - giveawayEntries, giveawaysHosted, giveawaysWon: giveaways you entered (kept until 7 days after they end), ones
           you started, and ones you were drawn as a winner of.
         - tagsSaved: Tags bot snippets you were the last to save.
+        - emojisBrought, stickersBrought: emoji and stickers you brought over from other servers (name, the stored
+          picture, when). The server keeps one copy per picture for everyone who brought it.
+        - roomsHosted, roomInvites: voice rooms you made from a lobby (kept while the room exists) and the rooms you were
+          invited into while locked.
         - activitiesAdded: activities you added to this server (name, version, size, when). What activities send while
           people play is never stored.
         - timeouts, bans, reportsMade, reportsAboutYou, auditLog, securityLog: moderation and security records about you.

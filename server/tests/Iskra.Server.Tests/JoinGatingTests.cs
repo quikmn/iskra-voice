@@ -219,4 +219,112 @@ public class JoinGatingTests
         await owner.RequestAsync("join.settings.update", new { invitesPaused = false });
         Assert.Equal("welcome", (await Attempt(server, fourth, "Raider 4", code)).Reply.Type());
     }
+
+    [Fact]
+    public async Task A_flood_of_join_requests_pauses_invites()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        Assert.Equal("result", (await owner.RequestAsync("automod.update", new
+        {
+            automod = new { enabled = true, joins = new { enabled = true, count = 2, minutes = 10 } },
+        })).Type());
+        var code = await ApprovalInvite(owner);
+        for (var i = 0; i < 3; i++)
+        {
+            using var identity = new TestIdentity();
+            Assert.Equal("join_pending", (await Attempt(server, identity, $"Raider {i}", code)).Reply.ErrorCode());
+        }
+        Assert.True(server.World.Store.JoinSettings().InvitesPaused);
+        using var fourth = new TestIdentity();
+        Assert.Equal("invites_paused", (await Attempt(server, fourth, "Raider 4", code)).Reply.ErrorCode());
+        Assert.Equal(3, server.World.Store.GetInvite(code)!.Uses);
+    }
+
+    [Fact]
+    public async Task Waiting_doesnt_fill_the_security_log()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var code = await ApprovalInvite(owner);
+        using var sam = new TestIdentity();
+        for (var i = 0; i < 10; i++) Assert.Equal("join_pending", (await Attempt(server, sam, "Sam", code)).Reply.ErrorCode());
+        var events = server.World.Store.SecurityEvents(null, sam.AccountKey, null, 100);
+        Assert.Equal(["join.pending"], events.Select(e => e.Event));
+        // A refusal is still worth logging.
+        Assert.Equal("result", (await owner.RequestAsync("join.decline", new { accountKey = sam.AccountKey })).Type());
+        Assert.Equal("join_declined", (await Attempt(server, sam, "Sam", code)).Reply.ErrorCode());
+        Assert.Contains(server.World.Store.SecurityEvents("auth.failed", sam.AccountKey, null, 100), e => e.Event == "auth.failed");
+    }
+
+    [Fact]
+    public async Task The_waiting_list_is_capped_and_comes_in_pages()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var code = await ApprovalInvite(owner);
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        for (var i = 0; i < 500; i++)
+            server.World.Store.AddJoinRequest($"waiting-{i:D4}", $"Waiting {i}", code, "member", now + i);
+
+        var first = (await owner.RequestAsync("join.list", new { limit = 2 })).Body();
+        Assert.Equal(["Waiting 0", "Waiting 1"], first.GetProperty("requests").EnumerateArray().Select(r => r.GetProperty("name").GetString()));
+        Assert.True(first.GetProperty("more").GetBoolean());
+        var next = (await owner.RequestAsync("join.list", new { offset = 2, limit = 1 })).Body();
+        Assert.Equal("Waiting 2", next.GetProperty("requests")[0].GetProperty("name").GetString());
+        var all = (await owner.RequestAsync("join.list")).Body();
+        Assert.Equal(100, all.GetProperty("requests").GetArrayLength());
+
+        // Full: turned away before a use is spent.
+        using var sam = new TestIdentity();
+        var (reply, close) = await Attempt(server, sam, "Sam", code);
+        Assert.Equal("join_queue_full", reply.ErrorCode());
+        Assert.Equal(4401, close);
+        Assert.Equal(0, server.World.Store.GetInvite(code)!.Uses);
+        Assert.Null(server.World.Store.GetJoinRequest(sam.AccountKey));
+    }
+
+    [Fact]
+    public async Task A_fresh_direct_invite_lets_someone_in_who_was_declined_or_is_waiting()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var code = await ApprovalInvite(owner);
+        using var sam = new TestIdentity();
+        Assert.Equal("join_pending", (await Attempt(server, sam, "Sam", code)).Reply.ErrorCode());
+        Assert.Equal("result", (await owner.RequestAsync("join.decline", new { accountKey = sam.AccountKey })).Type());
+        // Another approval invite doesn't get round the refusal; a direct one from a moderator does.
+        Assert.Equal("join_declined", (await Attempt(server, sam, "Sam", await ApprovalInvite(owner))).Reply.ErrorCode());
+        Assert.Equal("welcome", (await Attempt(server, sam, "Sam", server.Invite())).Reply.Type());
+        Assert.Null(server.World.Store.GetJoinRequest(sam.AccountKey));
+
+        using var tia = new TestIdentity();
+        Assert.Equal("join_pending", (await Attempt(server, tia, "Tia", code)).Reply.ErrorCode());
+        Assert.Equal("welcome", (await Attempt(server, tia, "Tia", server.Invite())).Reply.Type());
+        Assert.Equal(0, server.World.Store.CountPendingJoins());
+    }
+
+    [Fact]
+    public async Task Approving_rechecks_the_invite()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var code = await ApprovalInvite(owner);
+        using var sam = new TestIdentity();
+        Assert.Equal("join_pending", (await Attempt(server, sam, "Sam", code)).Reply.ErrorCode());
+        Assert.Equal("result", (await owner.RequestAsync("invite.revoke", new { code })).Type());
+
+        var refused = await owner.RequestAsync("join.approve", new { accountKey = sam.AccountKey });
+        Assert.Equal("join_invite_gone", refused.Body().GetProperty("key").GetString());
+        Assert.Null(server.World.Store.GetMember(sam.AccountKey));
+        Assert.Equal("result", (await owner.RequestAsync("join.decline", new { accountKey = sam.AccountKey })).Type());
+
+        // An invite for a role its maker can no longer give: refused too.
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var trusted = (await admin.RequestAsync("invite.create", new { approve = true, role = "trusted" })).Body().GetProperty("invite").GetProperty("code").GetString()!;
+        using var tia = new TestIdentity();
+        Assert.Equal("join_pending", (await Attempt(server, tia, "Tia", trusted)).Reply.ErrorCode());
+        Assert.Equal("result", (await owner.RequestAsync("member.setRole", new { accountKey = admin.Key, role = "member" })).Type());
+        Assert.Equal("join_invite_role", (await owner.RequestAsync("join.approve", new { accountKey = tia.AccountKey })).Body().GetProperty("key").GetString());
+    }
 }

@@ -343,6 +343,30 @@ public class DisappearTests
     }
 
     [Fact]
+    public async Task A_picture_also_on_a_whiteboard_stays_when_its_message_disappears()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var alice = await server.JoinAsync("Alice");
+        await SetTimer(admin, new { channelId = server.General, seconds = 300 });
+        var file = await Upload(server, alice, EmojiTests.Png, "cat.png");
+        var id = file.GetProperty("id").GetString()!;
+        await Send(alice, server.General, "here for 5 minutes", new { attachments = new[] { id } });
+        var board = server.World.Store.CreateChannel("sketch", "whiteboard", "member", "member", Now).Id;
+        var boardId = (await alice.RequestAsync("wb.get", new { channelId = board })).Body().GetProperty("board").GetProperty("id").GetString();
+        var drawn = await alice.RequestAsync("wb.update", new
+        {
+            channelId = board, boardId,
+            ops = new[] { new { id = "image-0001", p = new { kind = "image", x = 0, y = 0, w = 10, h = 10, src = Iskra.Server.Files.Uploads.UrlOf(server.World.Store.GetFile(id)!) } } },
+        });
+        Assert.True(drawn.Type() == "result", drawn.ToString());
+        Assert.Contains(id, server.World.Store.BoardFileIds());
+
+        Assert.Equal(0, Sweeper(server).Sweep(Now + 6 * 60_000).Files);
+        Assert.True(File.Exists(UploadPath(server, id)));
+    }
+
+    [Fact]
     public async Task Expired_dms_group_messages_and_their_encrypted_files_go()
     {
         using var server = new IskraServer();

@@ -52,10 +52,12 @@ public static class BotScope
 
     private static object Set(Session s, Member me, Body body)
     {
-        if (!Permissions.IsAdmin(me)) throw RequestException.Forbidden("Only admins can change what a bot can read.", "admins_bot_scope");
+        // The same power as adding bots (the base-role table's "bots"), on bots ranked below you.
+        if (!BaseRoles.Allows(me, BaseAbility.Bots)) throw RequestException.Forbidden("Only admins can change what a bot can read.", "admins_bot_scope");
         var key = body.String("accountKey", 64);
         var bot = s.World.Store.GetMember(key);
         if (bot is null || !s.World.Store.IsBot(key)) throw RequestException.NotFound("Bot");
+        if (!Permissions.Outranks(me, bot)) throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
         var readAll = body.OptionalBool("readAll") ?? throw RequestException.BadRequest("'readAll' is required.");
         s.World.Store.SetBotReadAll(key, readAll);
         // Web Push carries message text: a bot that may no longer read everything loses any subscription it made.

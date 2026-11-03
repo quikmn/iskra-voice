@@ -11,7 +11,8 @@ namespace Iskra.Server.Backups;
 public sealed record BuddyPairingCode(string Url, byte[] HolderKey, byte[] Token);
 
 /// <summary>A parsed <c>Authorization: IskraBuddy ...</c> header.</summary>
-public sealed record BuddyAuth(byte[] Key, long At, byte[] Nonce, byte[] Sig);
+/// <summary>A signed request's Authorization header. <see cref="BodyHash"/> (SHA-256 of the body, optional) lets the holder check the signature before reading the body.</summary>
+public sealed record BuddyAuth(byte[] Key, long At, byte[] Nonce, byte[] Sig, byte[]? BodyHash = null);
 
 /// <summary>
 /// The keys and signed payloads of backup buddies (PROTOCOL.md → Backup buddies): the recovery code, the restore key
@@ -101,15 +102,20 @@ public static class BuddyCrypto
     // ── Signed requests ──────────────────────────────────────────────────────
 
     public static byte[] RequestPayload(byte[] holderKey, long at, byte[] nonce, string method, string pathAndQuery, ReadOnlySpan<byte> body) =>
-        Ed25519.Payload(RequestContext, holderKey, Ed25519.U64BigEndian(at), nonce,
-            SHA256.HashData(Encoding.UTF8.GetBytes($"{method.ToUpperInvariant()} {pathAndQuery}")), SHA256.HashData(body));
+        RequestPayloadForHash(holderKey, at, nonce, method, pathAndQuery, SHA256.HashData(body));
 
-    /// <summary>The Authorization header value for one request.</summary>
+    /// <summary>The same signed bytes from the body's SHA-256, so a holder can check a request before reading its body.</summary>
+    public static byte[] RequestPayloadForHash(byte[] holderKey, long at, byte[] nonce, string method, string pathAndQuery, byte[] bodyHash) =>
+        Ed25519.Payload(RequestContext, holderKey, Ed25519.U64BigEndian(at), nonce,
+            SHA256.HashData(Encoding.UTF8.GetBytes($"{method.ToUpperInvariant()} {pathAndQuery}")), bodyHash);
+
+    /// <summary>The Authorization header value for one request, with the body's hash (holders that predate it ignore it).</summary>
     public static string Authorization(Key key, byte[] holderKey, long at, string method, string pathAndQuery, ReadOnlySpan<byte> body)
     {
         var nonce = RandomNumberGenerator.GetBytes(16);
-        var sig = Ed25519.Sign(key, RequestPayload(holderKey, at, nonce, method, pathAndQuery, body));
-        return $"{Scheme} key={Ed25519.ToB64u(Ed25519.PublicKeyOf(key))}, at={at}, nonce={Ed25519.ToB64u(nonce)}, sig={Ed25519.ToB64u(sig)}";
+        var hash = SHA256.HashData(body);
+        var sig = Ed25519.Sign(key, RequestPayloadForHash(holderKey, at, nonce, method, pathAndQuery, hash));
+        return $"{Scheme} key={Ed25519.ToB64u(Ed25519.PublicKeyOf(key))}, at={at}, nonce={Ed25519.ToB64u(nonce)}, sig={Ed25519.ToB64u(sig)}, body={Ed25519.ToB64u(hash)}";
     }
 
     public static BuddyAuth? ParseAuthorization(string? header)
@@ -125,6 +131,8 @@ public static class BuddyCrypto
         if (!fields.TryGetValue("at", out var atText) || !long.TryParse(atText, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var at)) return null;
         if (!fields.TryGetValue("nonce", out var nonceText) || !Ed25519.TryFromB64u(nonceText, out var nonce) || nonce.Length != 16) return null;
         if (!fields.TryGetValue("sig", out var sigText) || !Ed25519.TryFromB64u(sigText, out var sig) || sig.Length != Ed25519.SignatureSize) return null;
-        return new BuddyAuth(key, at, nonce, sig);
+        byte[]? bodyHash = null;
+        if (fields.TryGetValue("body", out var hashText) && (!Ed25519.TryFromB64u(hashText, out bodyHash) || bodyHash.Length != 32)) return null;
+        return new BuddyAuth(key, at, nonce, sig, bodyHash);
     }
 }

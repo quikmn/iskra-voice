@@ -15,6 +15,8 @@ public static class RoomFeature
 {
     public const int MaxNameLength = 60;
     public const int MaxRooms = 100;
+    /// <summary>Rooms one person may host at once (a server has up to <see cref="MaxRooms"/>).</summary>
+    public const int MaxRoomsPerHost = 3;
     public const int MaxInvites = 50;
     public const long EmptyMs = 30_000;
 
@@ -50,9 +52,19 @@ public static class RoomFeature
     {
         var store = s.World.Store;
         if (store.IsBot(me.AccountKey)) throw RequestException.BadRequest("Bots can't make rooms. Join a room someone made.", "lobby_bot");
-        if (store.AllRooms().Count >= MaxRooms)
+        var all = store.AllRooms();
+        // Joining a lobby again while you host one of its rooms takes you back to that room.
+        if (all.FirstOrDefault(r => r.LobbyId == lobby.Id && r.HostKey == me.AccountKey) is { } mine && store.GetChannel(mine.ChannelId) is { } own)
+        {
+            VoiceLimitFeature.CheckJoin(s, me, own);
+            return own;
+        }
+        if (all.Count >= MaxRooms)
             throw RequestException.BadRequest($"A server can have up to {MaxRooms} rooms at once.", "rooms_max", new { max = MaxRooms });
-        if (!s.TryTakeLimit("rooms.created")) throw new RequestException("rate_limited", "Slow down a little.");
+        if (all.Count(r => r.HostKey == me.AccountKey) >= MaxRoomsPerHost)
+            throw RequestException.BadRequest($"You can host up to {MaxRoomsPerHost} rooms at once.", "rooms_per_host", new { max = MaxRoomsPerHost });
+        // Per person, not per connection: more connections don't make more rooms.
+        if (!s.Hub.Limits.TryTake(me.AccountKey, "rooms.created")) throw new RequestException("rate_limited", "Slow down a little.");
 
         var name = RoomName($"{store.DisplayName(me)}'s room");
         var room = store.CreateChannel(name, "voice", lobby.ReadRole, lobby.WriteRole, s.Now);
@@ -121,10 +133,20 @@ public static class RoomFeature
         var name = body.OptionalString("name", MaxNameLength * 4) is { } raw ? RoomName(raw) : channel.Name;
         var userLimit = VoiceLimitFeature.Field(body, channel.Kind);
         var locked = body.OptionalBool("locked");
-        if (name != channel.Name) store.UpdateChannel(channel = channel with { Name = name });
-        if (userLimit is { } limit && limit != store.UserLimit(channel.Id)) store.SetUserLimit(channel.Id, limit);
-        if (locked is { } l && l != room.Locked) store.SetRoomLocked(channel.Id, l);
-        ChannelFeature.BroadcastChannels(s);
+        var changed = false;
+        if (name != channel.Name)
+        {
+            // The name shows in everyone's channel list: AutoMod checks it, and it can't pass for another channel there.
+            AutoModFeature.Check(s, me, channel, name, "room");
+            if (store.AllChannels().Any(c => c.Id != channel.Id && c.CategoryId == channel.CategoryId && c.Kind != "thread" && string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)))
+                throw RequestException.BadRequest("Another channel here already has that name.", "room_name_taken");
+            if (!s.Hub.Limits.TryTake(me.AccountKey, "room.rename")) throw new RequestException("rate_limited", "Slow down a little.");
+            store.UpdateChannel(channel = channel with { Name = name });
+            changed = true;
+        }
+        if (userLimit is { } limit && limit != store.UserLimit(channel.Id)) { store.SetUserLimit(channel.Id, limit); changed = true; }
+        if (locked is { } l && l != room.Locked) { store.SetRoomLocked(channel.Id, l); changed = true; }
+        if (changed) ChannelFeature.BroadcastChannels(s);
         return ChannelView(s, channel);
     }
 

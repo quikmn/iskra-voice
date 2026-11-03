@@ -177,6 +177,12 @@ public class GifTests
             Assert.Equal(HttpStatusCode.BadGateway, (await http.GetAsync(url)).StatusCode);
             server.Gifs.Media = _ => ("image/gif", "GIF89a"u8.ToArray(), 100L * 1024 * 1024);
             Assert.Equal(HttpStatusCode.BadGateway, (await http.GetAsync(url)).StatusCode);
+
+            // Regression: GIFs turned off, a token from before doesn't send.
+            var later = (await bob.RequestAsync("gif.trending")).Body().GetProperty("gifs")[0].GetProperty("token").GetString()!;
+            Assert.Equal("result", (await admin.RequestAsync("gif.configure", new { key = "" })).Type());
+            var off = await bob.RequestAsync("chat.send", new { channelId = server.General, text = "", gif = later });
+            Assert.Equal("gifs_off", off.Body().GetProperty("key").GetString());
         }
     }
 

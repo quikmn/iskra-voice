@@ -78,10 +78,10 @@ public sealed class LinkRelay
 
     /// <summary>The HTTP side has no account: limit it per client address.</summary>
     private bool Allowed(HttpContext context) =>
-        _perAddress.TryTake(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", "link.http");
+        _perAddress.TryTake(Hosting.AddressLimits.Key(context), "link.http");
 
     private bool AllowedPart(HttpContext context) =>
-        _perAddress.TryTake(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", "link.part");
+        _perAddress.TryTake(Hosting.AddressLimits.Key(context), "link.part");
 
     private static IResult TooMany() => Results.StatusCode(StatusCodes.Status429TooManyRequests);
 

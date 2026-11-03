@@ -81,7 +81,7 @@ public static class LfgFeature
                 ?? throw RequestException.BadRequest($"The note can be up to {MaxNote} characters.", "lfg_note", new { max = MaxNote });
 
         AutoModFeature.Check(s, me, channel, note is null ? game : game + "\n" + note, "post");
-        if (!s.TryTakeLimit("lfg.created")) throw new RequestException("rate_limited", "Slow down a little.");
+        if (!s.Hub.Limits.TryTake(me.AccountKey, "lfg.created")) throw new RequestException("rate_limited", "Slow down a little.");
         ModerationFeature.CheckSlowmode(s, me, channel);
         var expires = startAt is { } start ? start + AfterStartMs : s.Now + WithoutTimeMs;
         var (message, post) = store.AddLfg(channel.Id, me.AccountKey, Summary(game, slots),

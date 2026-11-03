@@ -30,7 +30,7 @@ public static class LandingPage
     public static IResult Serve(HttpContext context, World world, Hub hub)
     {
         var headers = context.Response.Headers;
-        var client = BugInbox.LimitKey(context.Connection.RemoteIpAddress).ToString();
+        var client = Hosting.AddressLimits.Key(context);
         if (!hub.Limits.TryTake("landing:" + client, "landing.page"))
         {
             headers.RetryAfter = "10";

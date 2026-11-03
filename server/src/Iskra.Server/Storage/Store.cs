@@ -389,6 +389,8 @@ public sealed partial class Store : IDisposable
         ("onboarding-1", OnboardingMigration),
         // Call recording: "don't record me" per account, and the start/stop lines in a voice channel's chat.
         ("recording-1", RecordingMigration),
+        // The rank people left with (moderators may only act on people who left if they outranked them).
+        ("modpack-2", ModPackRankMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

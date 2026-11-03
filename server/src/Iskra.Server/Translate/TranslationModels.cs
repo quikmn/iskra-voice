@@ -50,8 +50,10 @@ public sealed class TranslationModelService
     {
         _world = world;
         Pins = pins;
+        // One model downloads at a time, however many a member asks for at once (each file is checked in memory).
+        var downloads = new SemaphoreSlim(1, 1);
         _byDir = pins.Models.ToDictionary(m => m.Dir, m =>
-            new PinnedModel(world, upstream.Inner, m.Manifest, System.IO.Path.Combine(world.Path, "models", "translate", m.Dir), "translate.model", time, log),
+            new PinnedModel(world, upstream.Inner, m.Manifest, System.IO.Path.Combine(world.Path, "models", "translate", m.Dir), "translate.model", time, log, downloads),
             StringComparer.Ordinal);
     }
 

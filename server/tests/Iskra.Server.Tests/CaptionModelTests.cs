@@ -92,12 +92,19 @@ public class CaptionModelTests
         Assert.NotEmpty(server.World.Store.SecurityEvents("captions.model.rejected", null, null, 10));
         Assert.Empty(server.World.Store.SecurityEvents("captions.model.download", null, null, 10));
 
-        // Upstream down: the same answer. Once it's right again, the next request fetches it.
+        // Upstream down: the same answer. A failure is remembered for a while: requests meanwhile don't fetch again.
         server.Models.Tampered = null;
         server.Models.Fail = true;
+        server.Clock.Advance(Iskra.Server.Captions.PinnedModel.RetryAfter);
         using (var down = await http.GetAsync(link))
             Assert.Equal(HttpStatusCode.BadGateway, down.StatusCode);
         server.Models.Fail = false;
+        var fetches = server.Models.Fetches["encoder.q8.onnx"];
+        using (var soon = await http.GetAsync(link))
+            Assert.Equal(HttpStatusCode.BadGateway, soon.StatusCode);
+        Assert.Equal(fetches, server.Models.Fetches["encoder.q8.onnx"]);
+        // Once it's right again and the wait is over, the next request fetches it.
+        server.Clock.Advance(Iskra.Server.Captions.PinnedModel.RetryAfter);
         Assert.Equal(FakeModelUpstream.Encoder[..200], await http.GetByteArrayAsync(link));
     }
 

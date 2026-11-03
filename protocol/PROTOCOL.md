@@ -809,6 +809,8 @@ Everything else a server answers over HTTP(S), on the same port as `/ws`:
 | `GET`, `HEAD /models/<dir>/<part>` | The live-captions model ([Live captions model](#live-captions-model)) |
 | `GET`, `HEAD /models/translate/<dir>/<part>` | Translation models ([Translation models](#translation-models)) |
 
+Every limit these endpoints keep per client address counts an IPv6 address by its /64 (one home network), and a full table of addresses forgets the least limited ones first, never all at once.
+
 ## Forum channels
 
 A forum is a channel of kind `forum` (`channel.create` with `kind: "forum"`; listed in `channels` like any channel, same `readRole`/`writeRole`). It holds **posts** instead of a stream of messages. A post is a [thread](#threads) under the forum: its id is the thread id (use it as the `channelId` for `chat.send`, `chat.history`, `chat.typing`, `chat.pin`), its title is the thread name, and its first message is the thread's root, stored in the forum channel itself. `chat.send`, `poll.create` and `thread.create` don't work in a forum directly (`bad_request`).
@@ -1020,7 +1022,7 @@ The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API o
 | `gif.trending` | `page?` (1–50) | `{ gifs: [Gif], hasNext }` | anyone; proxy mode only (`unavailable` otherwise) |
 | `gif.search` | `q` (1–100 chars, one line), `page?` | `{ gifs: [Gif], hasNext }` | as above |
 | `gif.categories` | | `{ categories: [{ name, query, preview \| null }] }` | as above |
-| `chat.send` | adds `gif?`: in proxy mode a `token` from a `Gif`; in direct mode `{ id, title, url, preview?, width, height }` as KLIPY gave it (`url`/`preview` must be `https` on KLIPY's media hosts, the default port, no credentials). Then no `text`, `attachments` or `sticker` | | channel writers |
+| `chat.send` | adds `gif?`: in proxy mode a `token` from a `Gif`; in direct mode `{ id, title, url, preview?, width, height }` as KLIPY gave it (`url`/`preview` must be `https` on KLIPY's media hosts, the default port, no credentials). Then no `text`, `attachments` or `sticker`. With GIFs turned off, any `gif` (old tokens too) is `bad_request`, key `gifs_off` | | channel writers |
 
 - `Gif { id, title, width, height, url, preview, token }`. Event `gif.status` goes to every session (each with its own `customerId`) when an admin changes the key or mode. Without a key, GIF requests answer `unavailable` (also when KLIPY can't be reached or the server's budget for calls to it is used up). Rate limits: `gif.search` and `gif.trending` 1/s (burst 10), `gif.categories` 1 every 5 s (burst 5).
 - **customer_id:** direct mode, a per-member pseudonym (an HMAC of the account key, never the key itself); proxy mode, one pseudonym for the whole server.
@@ -1060,7 +1062,7 @@ BlockEntry { "accountKey": "<b64u 32>", "blocked": true, "at": 1760000000000 }  
 | `member.timeout.status` | | `{ timeout: { until, reason } \| null }` | yourself |
 
 - `Member` gains `timedOutUntil` (ms, or null). Setting a new timeout replaces the old one. The server ends timeouts when they run out (within about a second) and sends `member.updated`; enforcement always compares with the current time.
-- While timed out, these requests answer `forbidden`: `chat.send`, `chat.edit`, `chat.react`, `chat.typing`, `chat.pin`, `upload.begin`, `thread.create`, `thread.update`, `poll.create`, `poll.vote`, `poll.end`, `voice.join`, `sound.play`, `call.start`, `call.accept`. Calling someone who is timed out is `forbidden` too. A new timeout takes the member out of voice and ends their calls on this server; LiveKit joins from a timed-out member are removed. Reading, DMs and profile changes keep working.
+- While timed out, every request answers `forbidden` (key `timed_out`) except reading and looking after yourself: reading requests (history, lists, search, `*.get`), what staff read, `data.export` and `channel.export`, your own account, devices, keys, profile, prefs, push, blocks, reminders and roles you pick yourself, `rules.accept`, `report.create`, `member.leave`, deleting your own messages, stepping back (`lfg.leave`, `lfg.close`, `act.leave`, `wb.leave`, `watch.stop`, `whisper.stop`, `stage.decline`, ending or declining calls, your voice flags, recording consent and opt-out, `voice.record.stop`), and DMs and group DMs. The server keeps the list (`Participation.StillAllowed`); any request not on it, including every new one, is refused, so writing, reacting, voice, calls, threads, polls, LFG posts, giveaways, suggestions, rooms, activities, whispers, whiteboards and admin changes all are. Calling someone who is timed out is `forbidden` too. A new timeout takes the member out of voice and ends their calls on this server; LiveKit joins from a timed-out member are removed.
 
 ### Slowmode
 
@@ -1077,7 +1079,10 @@ Three ways to slow a raid or vet newcomers, all applied in the handshake:
   you in", close 4401) and their app retries the handshake now and then (every 15 s or so) until a moderator decides.
   Approved: the next handshake gets its `welcome` (the invite's role). Declined: `join_declined` (close 4403; the use
   stays spent, and after a day the request is forgotten, so a new invite is needed). Requests nobody answers are
-  forgotten after 7 days. Bots never wait.
+  forgotten after 7 days. Bots never wait. While waiting, the handshake writes no `auth.failed` to the security log
+  (only the first `join.pending`). A fresh invite that needs no approval (usable, not paused) lets someone who is
+  waiting or was declined straight in and removes their request. At most 500 requests wait at once: past that, approval
+  invites answer `join_queue_full` (close 4401) before a use is spent.
 - **Paused invites.** While paused, every invite but the owner's first answers `invites_paused` (close 4401) before a
   use is spent. Admins pause and resume by hand; AutoMod's join-flood rule pauses (never resumes).
 - **Newcomer slowmode.** Members younger than `newcomerHours` get at least `newcomerSlowmode` seconds between messages
@@ -1092,9 +1097,9 @@ JoinSettings { "invitesPaused": false, "pausedAt": null, "pausedBy": "<accountKe
 
 | type | body | result | who |
 |---|---|---|---|
-| `join.list` | | `{ requests: [JoinRequest] }` (oldest first) | moderators (as [reports](#reports); `forbidden`, key `mods_joins`) |
+| `join.list` | `offset?` (≥ 0), `limit?` (1–100, default 100) | `{ requests: [JoinRequest], more }` (oldest first; `more`: there are later ones) | moderators (as [reports](#reports); `forbidden`, key `mods_joins`) |
 | `join.count` | | `{ pending }` (0 for everyone else) | anyone |
-| `join.approve` | `accountKey` | `{ member }` | moderators; `not_found` unless they're waiting; `bad_request` (key `join_banned`) if banned meanwhile |
+| `join.approve` | `accountKey` | `{ member }` | moderators; `not_found` unless they're waiting; `bad_request` (key `join_banned`) if banned meanwhile; `bad_request` key `join_invite_gone` if the invite they used has been revoked, has expired or is gone (decline them instead); `forbidden` key `join_invite_role` if the invite's role is above member and its maker may no longer give it |
 | `join.decline` | `accountKey` | | moderators |
 | `join.settings.get` | | `{ settings: JoinSettings }` | admin+ (`forbidden`, key `admins_joins`) |
 | `join.settings.update` | any of `invitesPaused`, `newcomerHours` (0–720), `newcomerSlowmode` (a slowmode step) | `{ settings }` | admin+. Rate limited (10, then 1 a second) |
@@ -1713,7 +1718,7 @@ Rules { "text": "1. Be kind …", "welcome": "Welcome!", "required": true,
 
 - `welcome` carries `rules` (`Rules`, without the counts). Event `rules` `{ rules }` goes to every session (each its own view) after `rules.update`, and to your own sessions after `rules.accept`.
 - `required` needs non-empty `text`. `reaccept: true` (only with `required`) raises `version`, so everyone must agree again. Turning `required` on without `reaccept` counts everyone who is a member right now as having agreed, so only people who join later are asked; with `reaccept`, existing members are asked too. Edits without `reaccept` keep everyone's agreement. Whoever saves required rules has agreed to them.
-- Not yet agreed: these answer `rules_required`: `chat.send`, `chat.edit`, `chat.react`, `chat.typing`, `chat.pin`, `chat.forward`, `upload.begin`, `thread.create`, `thread.update`, `poll.create`, `poll.vote`, `poll.end`, `voice.join`, `sound.play`, `call.start`, `call.accept`, `stage.hand`, `stage.start`, `forum.post.create`, `forum.post.update`, `event.create`, `event.update`, `event.interest`, `watch.start`, `watch.control`, `watch.chat`, `invite.create`, and the page changes in [docs channels](#docs-channels). LiveKit joins from them are removed. Reading, DMs, profile changes and settings keep working.
+- Not yet agreed: the same requests a [timeout](#timeouts) stops answer `rules_required` (everything but reading, looking after yourself, `rules.accept`, `report.create`, leaving and DMs; new requests are refused by default). LiveKit joins from them are removed. Reading, DMs, profile changes and settings keep working.
 - The owner and bots never need to agree; webhooks don't go through sessions. Agreements are stored per account key and kept if someone leaves and comes back.
 - Audit: `rules.update` `{ required, reaccept, version, textChanged }`.
 
@@ -2295,7 +2300,7 @@ members get it: the app asks for a short-lived link over its session, then downl
   longer a member) the answer is `403` and nothing is fetched. The first linked request makes the server fetch the whole model once from `source` (HTTPS, at most the
   pinned size per file, redirects only to HTTPS); concurrent requests wait for that same download. Each file and each
   part must match its SHA-256 before anything is written (atomically, to `models/<dir>/` in the world folder);
-  otherwise nothing is kept, the answer is `502`, and a later request tries again. Then `200`,
+  otherwise nothing is kept, the answer is `502`, and only a request 10 minutes later tries again. Then `200`,
   `application/octet-stream`, `Cache-Control: private, max-age=31536000, immutable`, byte ranges allowed.
 - **`HEAD`** on the same path (with a link): `200` when the server offers the model (without fetching anything), `404` when not.
 - `Access-Control-Allow-Origin: *` (the apps' pages are `app://`, `capacitor://` and the web app's own origin; the
@@ -2755,7 +2760,7 @@ interactions and the messages meant for it.
 | type | body | result | who |
 |---|---|---|---|
 | `bot.invite` | gains `readAll?` (bool, default `false`) | | admin+ |
-| `bot.scope.set` | `accountKey` (a bot member), `readAll` (bool) | `{ member }` | admin+; `member.updated` goes to everyone |
+| `bot.scope.set` | `accountKey` (a bot member), `readAll` (bool) | `{ member }` | whoever has the `bots` base-role ability (admins by default; `forbidden`, key `admins_bot_scope`), on bots ranked below them (`rank_members`); `member.updated` goes to everyone |
 
 - `Member.readsMessages`: `true`/`false` for bots, `null` for people. Bots that joined before this existed keep reading
   everything (`true`); `readAll` from the invite is copied to the bot when it joins.
@@ -2985,6 +2990,10 @@ Safety rules for powers, all checked on the server before anything changes:
   permission `mentionEveryone` (`bad_request`, key `base_power_not_allowed`, args `{ role }`). `trusted` and `admin` may
   get any ability but the owner's and any permission.
 - Unknown names → `bad_request`.
+- Not in the table, so always the admins' (and the owner's), whatever it says: the AFK channel (`afk.update`), how
+  people join (`join.settings.*`), activities admins add (`act.add`, `act.remove`, `act.configure`), saving the server
+  as a template, invites that never expire, and seeing every invite. Changing what a bot can read (`bot.scope.set`)
+  follows `bots`, like adding one.
 
 Changes are stored as additions and removals from the defaults (`base_role_powers`, migration `builtinroles-2`), so a
 server that never changes anything behaves exactly as before, and abilities added in later versions follow their
@@ -3330,7 +3339,7 @@ TeamSplit { "id": 4, "channelId": 7,              // the voice channel everyone 
 - Events: `teams.split { split }` to readers of the voice channel when a split starts or loses a team channel;
   `teams.ended { id }` to everyone when it ends. The usual `channels` events announce the team channels coming and going.
 - Audit `teams.start` (`{ channelId, name, teams, people }`) and `teams.end` (`{ channelId, name, moved }`).
-- Rate limits: splits that go ahead, 3, then 1 every 10 s (refused requests only count towards the general bucket);
+- Rate limits: splits that go ahead, 3, then 1 every 10 s per person (refused requests only count towards the general bucket);
   `teams.end` 5, then 1 every 2 s.
 - Storage: `team_splits` and `team_channels` (migration `teams-1`).
 
@@ -3377,7 +3386,7 @@ Lfg { "game": "Valheim", "slots": 3,              // how many more people the po
 - Pushes carry `kind: "lfg"`, `channelId` and `messageId`, with `text` titles `lfgJoined`, `lfgFull` and `lfgPosted`
   and bodies `lfgIn` ("In #channel") and `lfgTime` (args `{ name, game, slots?, channel? }`).
 - Event `lfg.updated { id, channelId, lfg }` to channel readers after every join, leave, close and expiry.
-- Rate limits: posts that go ahead, 3, then 1 every 30 s; `lfg.join` and `lfg.leave` 10, then 1 a second.
+- Rate limits: posts that go ahead, 3, then 1 every 30 s per person (all their connections together); `lfg.join` and `lfg.leave` 10, then 1 a second.
 - Storage: `lfg_posts`, `lfg_members` and `lfg_notify` (migration `lfg-1`). Who joined which post and the notify
   setting are in "Download my data" and deleted with the account.
 
@@ -3407,7 +3416,10 @@ limit and locks it; rooms are deleted once empty, like [team channels](#team-spl
   write roles, role overrides, hi-fi setting and user limit, placed right after the lobby and the rooms it already has.
   `voice.join` then hands out the token for the room, and the usual `channels` event (sent to everyone before the
   answer) announces it. A LiveKit join to the lobby itself (an old token) is removed. Up to 100 rooms per server
-  (`rooms_max`, args `{ max }`).
+  (`rooms_max`, args `{ max }`) and 3 hosted by one person (`rooms_per_host`, args `{ max }`); joining a lobby whose
+  room you already host takes you back into that room.
+- **Renaming** (`room.update` `name`) goes through [AutoMod](#automod) like a message, and can't take the name of
+  another channel in the same category (`bad_request`, key `room_name_taken`).
 - **Locked:** `voice.join` answers `room_locked` (key `room_locked`, args `{ name, host }`) unless you are the host,
   invited, someone a moderator moved there in the last minute (`voice.move` works as for a full channel) or someone who
   can move members (`moveMembers`, as for [user limits](#voice-user-limits)); LiveKit joins are checked again. Locking
@@ -3419,8 +3431,8 @@ limit and locks it; rooms are deleted once empty, like [team channels](#team-spl
   Deleting the lobby, or turning its flag off, leaves its rooms alone until they empty.
 - Audit: `channel.create` details gain `lobby`; `channel.update` changes gain `lobby: { from, to }`. Rooms themselves
   (their creation, renames, locks, invites) never reach the audit log.
-- Rate limits: rooms that get made, 5, then 1 every 10 s per session (refused joins only count towards the general
-  bucket); `room.update` 10, then 1 a second; `room.invite` and `room.uninvite` 20, then 2 a second.
+- Rate limits: rooms that get made, 5, then 1 every 10 s per person (all their connections together; refused joins
+  only count towards the general bucket); renames 5, then 1 every 5 s per person; `room.update` 10, then 1 a second; `room.invite` and `room.uninvite` 20, then 2 a second.
 - Storage: `voice_lobbies`, `voice_rooms` and `voice_room_invites` (migration `rooms-1`), dropped with the channel.
 
 ## Disappearing messages
@@ -3514,10 +3526,11 @@ is fetched only when a member first needs it.
   valid link (missing, wrong signature, expired or too far ahead, a captions link, or an account that is no longer a
   member) `403` and nothing is fetched. The first linked request for a model makes the server fetch that model's files
   once from `source` (HTTPS, size-capped), check every file and part against the pins and write them atomically to
-  `models/translate/<dir>/`; on a mismatch nothing is kept and the answer is `502`. Then `200`,
+  `models/translate/<dir>/`; on a mismatch nothing is kept and the answer is `502` (tried again only after 10 minutes).
+  The server fetches one translation model at a time; requests for another wait for it. Then `200`,
   `application/octet-stream`, `Cache-Control: private, max-age=31536000, immutable`, byte ranges allowed. `HEAD`,
   `OPTIONS` and `Access-Control-Allow-Origin: *` as for captions.
-- **Limits.** 40 requests at once per client address, then one every 2 seconds (`429`); a model is 3-4 parts.
+- **Limits.** 40 requests at once per client address (IPv6 by its /64), then one every 2 seconds (`429`); a model is 3-4 parts.
 - **`translate.config`** (request, the owner: `forbidden`, key `owner_translate`; empty body) →
   `{ offer, downloaded: ["en-sv", ...] }` (the models already on the server).
 - **`translate.configure`** (request, the owner; `{ offer: boolean }`, required; limit 10, then one a second) → the
@@ -3612,8 +3625,9 @@ Live { "x": 120.5, "y": -40, "tool"?: "pen",
 - **Size:** a board's snapshot plus the batches after it may be at most 6 MB; past that, batches that add anything are
   refused (`bad_request`, key `wb_full`), while batches that only delete objects are taken (encrypted boards: see below). A plain snapshot holds at
   most 20,000 objects and 4 MB; a compaction that would pass that leaves the batches as they are.
-- **Pictures:** `src` must name an image uploaded to this server (`bad_request` otherwise). The unused-upload sweep keeps
-  files a board refers to.
+- **Pictures:** `src` must name an image uploaded to this server by the person drawing, one already on this board, or
+  one placed earlier in the same batch (`bad_request`, key `wb_picture`, otherwise: a board can't keep someone else's
+  upload alive). The unused-upload sweep, and the disappearing-messages sweep, keep files a board refers to.
 - **Clearing** deletes the board's batches and snapshot. A whiteboard channel starts a new empty board (a new `id`); a
   voice channel's board closes. Audit `wb.clear` `{ channelId, channelName }`.
 - **Safety:** AutoMod checks the `text` of every op on a plain board (`automod` with `what: "whiteboard"`); timed-out
@@ -3894,6 +3908,11 @@ know, a bad signature, an `at` more than 5 minutes off, a nonce it has seen from
 `at` from before the holder started (nonces are remembered in memory only, so nothing replays across a restart). The
 key is looked up before the body is read; refused requests count against the client address.
 
+Requests with a body also send its hash in the header: `..., sig=<b64u 64>, body=<b64u 32>` (`body` = SHA-256 of the
+body, the same bytes the signature covers). The holder then checks the signature and nonce **before** reading the body,
+and refuses (`401`) a body that doesn't match the hash. Without `body` (older sources) the holder reads at most one
+such body per spot at a time (`429` while one is being read). Holders that don't know `body` ignore it.
+
 | Request | Who | Body | Answer |
 |---|---|---|---|
 | `GET /buddy/v1/hello` | anyone (unsigned) | | `{ iskra: 1, key }`: the holder's server key, for a restore that only has the address |
@@ -3941,7 +3960,7 @@ On the source:
 | type | body | result |
 |---|---|---|
 | `buddy.status` | | `BuddyStatus` |
-| `buddy.add` | `code` (≤ 1024 chars) | `BuddyStatus` plus `recoveryCode` (string when this made it, else null) |
+| `buddy.add` | `code` (≤ 1024 chars), `allowLocal?` (bool: the owner said yes to an address on the local network) | `BuddyStatus` plus `recoveryCode` (string when this made it, else null) |
 | `buddy.remove` | `id` | `BuddyStatus` |
 | `buddy.backupNow` | | `BuddyStatus` (makes today's daily backup if there's none yet, then every buddy tries now) |
 | `buddy.recoveryCode` | | `{ recoveryCode }` (to write it down again; security log `buddy.recovery.shown`) |
@@ -3962,7 +3981,11 @@ Buddy {
   user name, plain http to a public address, or a LocalOnly server given a non-loopback address), `buddy_unreachable`
   (`args: { reason }`), `buddy_code_used` (the holder said `404`), `buddy_already` (`409`, or already a buddy here),
   `buddy_wrong_server` (the answer isn't signed by the key in the code), `buddy_self` (your own server),
-  `buddy_max` (8 buddies), `buddy_refused` (`args: { status }`, any other answer).
+  `buddy_max` (8 buddies), `buddy_refused` (`args: { status }`, any other answer), `buddy_address_local`
+  (`args: { host }`: the code points at plain http or an address on the local network, and `allowLocal` wasn't sent;
+  nothing has been contacted yet. Apps show the host and ask the owner, then send again with `allowLocal: true`; never
+  for LocalOnly servers, which only pair on this machine anyway). `buddy_unreachable`'s `reason` is the same
+  "it didn't answer" whether the address refused, timed out or has no route, so a code can't map the network.
 - Problems in `Buddy.error`: `buddy_unreachable`, `buddy_unknown` (`401`/`403`: the holder doesn't know us any more),
   `buddy_too_big` (`args: { size, quota }`), `buddy_full` (the holder's disk), `buddy_limited` (`429`), `buddy_removed`,
   `buddy_failed` (`args: { reason }`), `buddy_backups_off` (daily backups are off: nothing to send).
@@ -4012,8 +4035,10 @@ Spot {
 `--json` result), then deletes the temp file. Before downloading it refuses a size over 1 TB (the biggest spot) or
 more than this computer has room for (the copy, and as much again for the restored server). The command may reach
 loopback addresses (it runs on the person's own computer). A recovery code the holder doesn't know gets `401` ("That recovery code
-isn't known there"); a changed or cut-off copy fails the backup's own checks. The desktop app's **Restore from a backup
-→ From a buddy's server** runs this.
+isn't known there"); a changed or cut-off copy fails the backup's own checks. The dates the holder lists are its own
+word: after restoring, the command prints the date sealed inside the copy, and when that is more than a day before the
+newest date the holder listed it warns that the holder may have handed over an older copy (`--json` gains
+`createdAt` and `warning`, null when fine). The desktop app's **Restore from a backup → From a buddy's server** runs this.
 
 ### Security log
 
@@ -4668,13 +4693,16 @@ Tag { "name": "rules", "text": "Be kind.", "updatedBy": "<accountKey>" | null, "
 the suggestions channel. It needs the bot on (`suggestions_off`), a channel it can see (`suggestions_channel`), text
 1–1000 characters with newlines (`suggestion_text`, args `{ max }`), and per person at most 3 suggestions in 10 minutes
 (`suggestions_slow`, args `{ max, minutes }`; counted in the database, so reconnecting doesn't reset it). Bots can't
-(`suggestion_bot`). The `/suggest` message itself is deleted once the card is posted (`chat.deleted`), so an anonymous
+(`suggestion_bot`). The card is posted for the person, so the same rules apply as to writing there (except the
+channel's write role): they must be able to read the suggestions channel (`not_found` otherwise, so its id doesn't
+leak), not be timed out (`forbidden`, key `timed_out`) and have agreed to required rules (`rules_required`), and the
+text goes through AutoMod (`automod`). The `/suggest` message itself is deleted once the card is posted (`chat.deleted`), so an anonymous
 suggestion stays anonymous; the answer is private: `{ "kind": "suggestion.posted", "channelId", "messageId" }`
 (`suggestion.usage` without an idea).
 
 | type | body | result | who |
 |---|---|---|---|
-| `suggestion.create` | `text` | `{ messageId, channelId }` | anyone but bots |
+| `suggestion.create` | `text` | `{ messageId, channelId }` | anyone but bots who can read the suggestions channel (see above) |
 | `suggestion.vote` | `messageId` (a suggestion card), `vote: 1 \| -1 \| 0` (0 takes it back) | `{ vote, up, down }` | anyone who can read the card; not bots (`suggestion_bot_vote`); only while open (`suggestion_closed`) |
 | `suggestion.decide` | `messageId`, `status: "open" \| "accepted" \| "declined" \| "implemented"`, optional `reason` (one line, ≤ 300: `suggestion_reason`, args `{ max }`) | `{ status, reason }` | staff (`forbidden`, key `suggestions_staff`); audit `suggestion.decide` (`{ messageId, status }`, the reason as the entry's reason) |
 | `suggestion.author` | `messageId` | `{ accountKey \| null }` | staff; for an anonymous card, audit `suggestion.author` |
@@ -4883,7 +4911,7 @@ encrypted channels asks everyone first. Web and phone apps show the mark and the
 | type | body | result | who |
 |---|---|---|---|
 | `voice.record.start` | `channelId` (a voice or stage channel you're in) | `{ recording: Recording }` | `recordVoice` (`forbidden`, key `record_forbidden`); in the call (`bad_request`, key `voice_join_first`); not bots (`record_bot`); one recording per channel (`record_already`, args `{ by }`) |
-| `voice.record.stop` | `channelId` | `{}` (also when nothing is recorded) | the recorder, or anyone with `recordVoice` who can read the channel, whatever their rank (intended: anyone trusted to record may end a recording; `forbidden`, key `record_stop_forbidden`) |
+| `voice.record.stop` | `channelId` | `{ stopped }` (`false` when nothing was being recorded) | the recorder, or anyone with `recordVoice` who can read the channel and isn't outranked by the recorder (admins always; a recorder who has left doesn't count). Otherwise `forbidden`, key `record_stop_forbidden` |
 | `voice.record.optout` | `optOut?` (bool; left out: just read it) | `{ optOut }` | anyone: "don't record me", for every call on this server |
 | `voice.record.consent` | `channelId`, `agree` (bool) | `{}` | someone in an encrypted channel's call while it's being recorded or asked about (`voice_join_first`; nothing asked: `record_none`) |
 

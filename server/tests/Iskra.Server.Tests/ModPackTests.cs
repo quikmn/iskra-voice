@@ -160,6 +160,71 @@ public class ModPackTests
     }
 
     [Fact]
+    public async Task Notes_and_history_follow_rank_and_channel_access()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var mod = await Moderator(server, owner, "Mira");
+        using var sam = await server.JoinAsync("Sam", "trusted");
+        using var tia = await server.JoinAsync("Tia", "trusted");
+
+        // Nothing about people who outrank you.
+        Assert.Equal("result", (await owner.RequestAsync("member.notes.add", new { accountKey = admin.Key, text = "Ask before deleting channels." })).Type());
+        Assert.Equal("rank_members", (await mod.RequestAsync("member.notes.list", new { accountKey = admin.Key })).Body().GetProperty("key").GetString());
+        Assert.Equal("rank_members", (await mod.RequestAsync("member.history", new { accountKey = admin.Key })).Body().GetProperty("key").GetString());
+        Assert.Equal("rank_members", (await mod.RequestAsync("member.history", new { accountKey = owner.Key })).Body().GetProperty("key").GetString());
+
+        // A channel the moderator can't read: Sam's message there is deleted, and reported and resolved with a note.
+        var hidden = (await owner.RequestAsync("channel.create", new { name = "hr-complaints", readRole = "trusted" })).Body().GetProperty("channel").GetProperty("id").GetInt64();
+        Assert.Equal("not_found", (await mod.RequestAsync("chat.history", new { channelId = hidden })).ErrorCode());
+        var reported = await Send(sam, hidden, "something");
+        var report = (await tia.RequestAsync("report.create", new { messageId = reported, reason = "harassment" })).Body().GetProperty("id").GetInt64();
+        Assert.Equal("result", (await owner.RequestAsync("report.resolve", new { id = report, outcome = "deleted", note = "Talked to HR about it" })).Type());
+        var deleted = await Send(sam, hidden, "something else");
+        Assert.Equal("result", (await owner.RequestAsync("chat.delete", new { id = deleted })).Type());
+
+        var seen = (await mod.RequestAsync("member.history", new { accountKey = sam.Key })).Body().GetProperty("entries").EnumerateArray().ToList();
+        var deletion = seen.Single(e => e.GetProperty("action").GetString() == "message.delete");
+        Assert.False(deletion.GetProperty("details").TryGetProperty("channelName", out _));
+        Assert.False(deletion.GetProperty("details").TryGetProperty("channelId", out _));
+        var resolution = seen.Single(e => e.GetProperty("action").GetString() == "report.resolve");
+        Assert.Equal(JsonValueKind.Null, resolution.GetProperty("reason").ValueKind);
+        Assert.False(resolution.GetProperty("details").TryGetProperty("reason", out _));
+        Assert.DoesNotContain("hr-complaints", string.Join("", seen.Select(e => e.GetRawText())));
+        Assert.DoesNotContain("HR", string.Join("", seen.Select(e => e.GetRawText())));
+
+        // An admin with the activity log sees it all.
+        var full = (await admin.RequestAsync("member.history", new { accountKey = sam.Key })).Body().GetProperty("entries").EnumerateArray().ToList();
+        Assert.Equal("hr-complaints", full.Single(e => e.GetProperty("action").GetString() == "message.delete").GetProperty("details").GetProperty("channelName").GetString());
+        Assert.Equal("Talked to HR about it", full.Single(e => e.GetProperty("action").GetString() == "report.resolve").GetProperty("reason").GetString());
+    }
+
+    [Fact]
+    public async Task A_moderator_cant_ban_someone_who_left_and_outranked_them()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var mod = await Moderator(server, owner, "Mira");
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var sam = await server.JoinAsync("Sam");
+        Assert.Equal("result", (await admin.RequestAsync("member.leave")).Type());
+        Assert.Equal("result", (await sam.RequestAsync("member.leave")).Type());
+        Assert.Equal("admin", server.World.Store.GetDeparture(admin.Key)!.Role);
+
+        Assert.Equal("rank_members", (await mod.RequestAsync("member.ban", new { accountKey = admin.Key })).Body().GetProperty("key").GetString());
+        Assert.Equal("rank_members", (await mod.RequestAsync("member.notes.list", new { accountKey = admin.Key })).Body().GetProperty("key").GetString());
+        Assert.False(server.World.Store.IsBanned(admin.Key));
+        Assert.Equal("result", (await mod.RequestAsync("member.ban", new { accountKey = sam.Key })).Type());
+        Assert.Equal("result", (await owner.RequestAsync("member.ban", new { accountKey = admin.Key })).Type());
+
+        // Someone who left before ranks were kept: admins only.
+        server.World.Store.RecordDeparture("old-key", "Old", "left", null, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        Assert.Equal("rank_members", (await mod.RequestAsync("member.ban", new { accountKey = "old-key" })).Body().GetProperty("key").GetString());
+        Assert.Equal("result", (await owner.RequestAsync("member.ban", new { accountKey = "old-key" })).Type());
+    }
+
+    [Fact]
     public async Task People_who_left_are_forgotten_with_the_audit_log_after_90_days()
     {
         using var server = new IskraServer();

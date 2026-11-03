@@ -321,6 +321,40 @@ public class BuiltinBots3Tests
         Assert.Equal("suggestions_channel", ErrorKey(await admin.RequestAsync("suggestion.create", new { text = "Hello" })));
     }
 
+    [Fact]
+    public async Task Suggestions_go_through_automod_timeouts_rules_and_channel_access()
+    {
+        using var server = Server();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var alice = await server.JoinAsync("Alice");
+        var bot = await TurnOn(owner, "suggestions");
+        var board = Channel(server, "suggestions");
+        Assert.Equal("result", (await owner.RequestAsync("automod.update", new
+        {
+            automod = new { enabled = true, words = new { enabled = true, blocked = new[] { "rotten" } } },
+        })).Type());
+
+        // AutoMod sees the text, as it would a message.
+        Assert.Equal("automod", (await alice.RequestAsync("suggestion.create", new { text = "A rotten idea" })).ErrorCode());
+        // Timed out: no cards either.
+        await owner.RequestAsync("member.timeout", new { accountKey = alice.Key, durationMs = 60_000 });
+        Assert.Equal("timed_out", ErrorKey(await alice.RequestAsync("suggestion.create", new { text = "Movie night" })));
+        await owner.RequestAsync("member.timeout.remove", new { accountKey = alice.Key });
+        // Required rules not agreed yet.
+        Assert.Equal("result", (await owner.RequestAsync("rules.update", new { text = "Be kind.", required = true, reaccept = true })).Type());
+        Assert.Equal("rules_required", (await alice.RequestAsync("suggestion.create", new { text = "Movie night" })).ErrorCode());
+        Assert.Equal("result", (await alice.RequestAsync("rules.accept", new { version = 1 })).Type());
+        // Someone who can't read the suggestions channel isn't told it exists.
+        Assert.Equal("result", (await owner.RequestAsync("member.setRole", new { accountKey = alice.Key, role = "guest" })).Type());
+        Assert.Equal("not_found", (await alice.RequestAsync("suggestion.create", new { text = "Movie night" })).ErrorCode());
+        Assert.Empty(Posts(server, board, bot));
+
+        // All clear: the card goes up.
+        Assert.Equal("result", (await owner.RequestAsync("member.setRole", new { accountKey = alice.Key, role = "member" })).Type());
+        Assert.Equal("result", (await alice.RequestAsync("suggestion.create", new { text = "Movie night" })).Type());
+        Assert.Single(Posts(server, board, bot));
+    }
+
     // ── Giveaways ────────────────────────────────────────────────────────────
 
     [Fact]

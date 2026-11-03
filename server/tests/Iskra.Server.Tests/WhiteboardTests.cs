@@ -182,6 +182,26 @@ public class WhiteboardTests
     }
 
     [Fact]
+    public async Task A_board_cant_keep_someone_elses_upload_alive()
+    {
+        using var server = new IskraServer();
+        using var bob = await server.JoinAsync("Bob");
+        using var mallory = await server.JoinAsync("Mallory");
+        var id = Board(server);
+        var boardId = await Open(mallory, id);
+        var bobs = server.World.Store.GetFile(await EmojiTests.Upload(server, bob, EmojiTests.Png, "bob.png"))!;
+        var hers = server.World.Store.GetFile(await EmojiTests.Upload(server, mallory, EmojiTests.Png, "mine.png"))!;
+
+        Assert.Equal("wb_picture", Key(await mallory.RequestAsync("wb.update",
+            new { channelId = id, boardId, ops = new[] { new { id = "image-0001", p = new { kind = "image", x = 0, y = 0, w = 10, h = 10, src = Iskra.Server.Files.Uploads.UrlOf(bobs) } } } })));
+        Assert.DoesNotContain(bobs.Id, server.World.Store.BoardFileIds());
+        await Draw(mallory, id, boardId, new { id = "image-0002", p = new { kind = "image", x = 0, y = 0, w = 10, h = 10, src = Iskra.Server.Files.Uploads.UrlOf(hers) } });
+        // A picture the board already keeps can be copied on it by anyone who draws.
+        await Draw(bob, id, boardId, new { id = "image-0003", p = new { kind = "image", x = 5, y = 5, w = 10, h = 10, src = Iskra.Server.Files.Uploads.UrlOf(hers) } });
+        Assert.Contains(hers.Id, server.World.Store.BoardFileIds());
+    }
+
+    [Fact]
     public async Task A_full_board_takes_only_deletions()
     {
         using var server = new IskraServer();

@@ -17,7 +17,10 @@ public sealed class BuddyHttpException(int status, string message, long? receive
 }
 
 /// <summary>The address isn't one a buddy may be reached at (see PROTOCOL.md → Backup buddies, Connections).</summary>
-public sealed class BuddyAddressException(string message) : Exception(message);
+public class BuddyAddressException(string message) : Exception(message);
+
+/// <summary>Pairing was asked to stay off local networks (no <c>allowLocal</c>), and the address is on one.</summary>
+public sealed class BuddyLocalAddressException() : BuddyAddressException("That address is on a local network.");
 
 public sealed record BuddyVersion(string Id, long Size, long At);
 
@@ -73,13 +76,36 @@ public sealed class BuddyHttp : IDisposable
         return plainHttp ? OutgoingWebhooks.IsLocalNetwork(address) : LinkPreviews.IsPublic(address) || OutgoingWebhooks.IsLocalNetwork(address);
     }
 
+    /// <summary>On a request: connect only to public addresses (pairing before the owner said a local network is fine).</summary>
+    public static readonly HttpRequestOptionsKey<bool> PublicOnly = new("iskra.buddy.publicOnly");
+
+    private static bool IsPublic(IPAddress a) => LinkPreviews.IsPublic(a.IsIPv4MappedToIPv6 ? a.MapToIPv4() : a);
+
+    /// <summary>A pairing code's address resolves to a private, local-network or loopback address (or is plain http).</summary>
+    public static async Task<bool> IsLocalAsync(string url, CancellationToken cancel)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        if (uri.Scheme == Uri.UriSchemeHttp) return true; // plain http only ever goes to local networks
+        IPAddress[] addresses;
+        if (IPAddress.TryParse(uri.Host.Trim('[', ']'), out var literal)) addresses = [literal];
+        else
+        {
+            try { addresses = await Dns.GetHostAddressesAsync(uri.IdnHost, cancel); }
+            catch (SocketException) { return false; }
+        }
+        return addresses.Any(a => !IsPublic(a));
+    }
+
     private static Func<SocketsHttpConnectionContext, CancellationToken, ValueTask<Stream>> Connect(bool localOnly, bool allowLoopback) =>
         async (context, cancel) =>
         {
             var plain = context.InitialRequestMessage.RequestUri?.Scheme == Uri.UriSchemeHttp;
+            var publicOnly = context.InitialRequestMessage.Options.TryGetValue(PublicOnly, out var only) && only;
             var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancel);
             var allowed = addresses.Where(a => MayConnect(a, localOnly, plain, allowLoopback)).ToList();
             if (allowed.Count == 0) throw new BuddyAddressException("That address isn't allowed for a backup buddy.");
+            // Checked on the address actually used, so a name that changes its answer can't slip past the owner's choice.
+            if (publicOnly && (allowed = allowed.Where(IsPublic).ToList()).Count == 0) throw new BuddyLocalAddressException();
             Exception? last = null;
             foreach (var address in allowed)
             {
@@ -138,7 +164,8 @@ public sealed class BuddyHttp : IDisposable
     }
 
     /// <summary>Pairs with the spot in the code, and checks the holder's signed answer against the code's key.</summary>
-    public async Task<BuddyPaired> PairAsync(BuddyPairingCode code, Key serverKey, Key restore, string name, long now, CancellationToken cancel)
+    public async Task<BuddyPaired> PairAsync(BuddyPairingCode code, Key serverKey, Key restore, string name, long now, CancellationToken cancel,
+        bool publicOnly = false)
     {
         var sourceKey = Ed25519.PublicKeyOf(serverKey);
         var restoreKey = Ed25519.PublicKeyOf(restore);
@@ -151,7 +178,9 @@ public sealed class BuddyHttp : IDisposable
         });
         using var content = new ByteArrayContent(body);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-        using var response = await _http.PostAsync($"{code.Url}/buddy/v1/pair", content, cancel);
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{code.Url}/buddy/v1/pair") { Content = content };
+        request.Options.Set(PublicOnly, publicOnly);
+        using var response = await _http.SendAsync(request, cancel);
         await ThrowUnlessOk(response, cancel);
         var answer = await ReadJson(response, cancel);
         try

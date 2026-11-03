@@ -31,7 +31,8 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
     public const double FailBurst = 20, FailPerSecond = 1;
 
     private readonly ConcurrentDictionary<string, TokenBucket> _hooks = new();
-    private readonly ConcurrentDictionary<IPAddress, TokenBucket> _failures = new();
+    /// <summary>Bad secrets and signatures, per client network (an IPv6 /64), the oldest forgotten first.</summary>
+    private readonly Hosting.BoundedTable<IPAddress, TokenBucket> _failures = new(10_000, b => b.Available);
 
     /// <summary>
     /// Where plain HTTP would be redirected to HTTPS, webhooks from other machines are refused instead: their URL holds
@@ -70,12 +71,11 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
 
     private (Webhook? Hook, IResult? Failure) Authorize(HttpContext context, string id, string secret)
     {
-        var ip = context.Connection.RemoteIpAddress ?? IPAddress.None;
+        var ip = Hosting.AddressLimits.Network(context.Connection.RemoteIpAddress);
         var hook = world.Store.GetWebhook(id);
         if (hook is not null && WebhookFeature.SecretMatches(hook, secret)) return (hook, null);
         // Secrets are 256-bit, so guessing is hopeless; this just keeps junk traffic cheap.
         var bucket = _failures.GetOrAdd(ip, _ => new TokenBucket(FailBurst, FailPerSecond, time));
-        if (_failures.Count > 10_000) _failures.Clear();
         if (!bucket.TryTake(out var wait)) return (null, RateLimited(context, wait));
         return (null, Error(StatusCodes.Status404NotFound, "Unknown Webhook", 10015));
     }
@@ -107,8 +107,7 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
         if (!SignatureOk(context, hook, format, body))
         {
             var ip = context.Connection.RemoteIpAddress ?? IPAddress.None;
-            var bucket = _failures.GetOrAdd(ip, _ => new TokenBucket(FailBurst, FailPerSecond, time));
-            if (_failures.Count > 10_000) _failures.Clear();
+            var bucket = _failures.GetOrAdd(Hosting.AddressLimits.Network(ip), _ => new TokenBucket(FailBurst, FailPerSecond, time));
             LogCounts.Hooks(world).Hit("in-bad-signature"); // the log only counts them; who sent it is in the security log (LoggedIp rules)
             if (!bucket.TryTake(out var failWait)) return RateLimited(context, failWait);
             SecurityLog.Record(world.Store, time.GetUtcNow().ToUnixTimeMilliseconds(), "webhook.bad_signature",
@@ -261,6 +260,15 @@ public sealed class WebhookIngress(World world, Hub hub, TimeProvider time, ILog
         private readonly double _capacity = capacity;
         private double _tokens = capacity;
         private long _updated = time.GetTimestamp();
+
+        /// <summary>How much is left, from 1 (full) to 0 (limited).</summary>
+        public double Available
+        {
+            get
+            {
+                lock (_gate) return Math.Min(_capacity, _tokens + time.GetElapsedTime(_updated).TotalSeconds * perSecond) / _capacity;
+            }
+        }
 
         public bool TryTake(out TimeSpan wait)
         {

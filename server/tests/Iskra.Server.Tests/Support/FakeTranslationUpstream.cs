@@ -21,10 +21,28 @@ public sealed class FakeTranslationUpstream : IModelUpstream
     /// <summary>Serve these bytes instead (a tampered upstream).</summary>
     public byte[]? Tampered { get; set; }
 
-    public Task<byte[]> GetFileAsync(ModelManifest manifest, ModelFile file, CancellationToken cancel)
+    /// <summary>Holds every fetch until set.</summary>
+    public TaskCompletionSource? Gate { get; set; }
+    /// <summary>The most fetches that were running at once.</summary>
+    public int MaxConcurrent { get; private set; }
+    private int _running;
+
+    public async Task<byte[]> GetFileAsync(ModelManifest manifest, ModelFile file, CancellationToken cancel)
     {
-        lock (Fetches) Fetches[$"{manifest.Dir}/{file.Name}"] = Fetches.GetValueOrDefault($"{manifest.Dir}/{file.Name}") + 1;
-        return Task.FromResult(Tampered ?? (file.Name == "vocab.spm.gz" ? Vocab : Model));
+        lock (Fetches)
+        {
+            Fetches[$"{manifest.Dir}/{file.Name}"] = Fetches.GetValueOrDefault($"{manifest.Dir}/{file.Name}") + 1;
+            MaxConcurrent = Math.Max(MaxConcurrent, ++_running);
+        }
+        try
+        {
+            if (Gate is { } gate) await gate.Task;
+            return Tampered ?? (file.Name == "vocab.spm.gz" ? Vocab : Model);
+        }
+        finally
+        {
+            lock (Fetches) _running--;
+        }
     }
 
     private static TranslationPin Pin(string from, string to, string dir) =>

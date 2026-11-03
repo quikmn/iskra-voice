@@ -349,16 +349,70 @@ public class RoomTests
     public async Task Rooms_are_rate_limited_and_capped()
     {
         using var server = new IskraServer();
+        var store = server.World.Store;
         using var admin = await server.JoinAsync("Admin", "admin");
         var lobby = await Lobby(admin);
         using var alice = await server.JoinAsync("Alice");
+        // Joining the lobby again while you host one of its rooms takes you back to it.
+        var first = (await alice.RequestAsync("voice.join", new { channelId = lobby })).Body().GetProperty("channelId").GetInt64();
+        Assert.Equal(first, (await alice.RequestAsync("voice.join", new { channelId = lobby })).Body().GetProperty("channelId").GetInt64());
+        // Up to three rooms hosted at once (one per lobby).
         var codes = new List<string?>();
-        for (var i = 0; i < 6; i++) codes.Add((await alice.RequestAsync("voice.join", new { channelId = lobby })).ErrorCode());
-        Assert.Equal([null, null, null, null, null, "rate_limited"], codes);
-        Assert.Equal(5, server.World.Store.AllRooms().Count);
+        for (var i = 0; i < 3; i++)
+        {
+            var other = await Lobby(admin, $"lobby-{i}");
+            codes.Add(Key(await alice.RequestAsync("voice.join", new { channelId = other })));
+        }
+        Assert.Equal([null, null, "rooms_per_host"], codes);
+        Assert.Equal(3, store.AllRooms().Count);
         // Deleting the lobby leaves its rooms (they empty out and go by themselves).
         Assert.Equal("result", (await admin.RequestAsync("channel.delete", new { id = lobby })).Type());
-        Assert.Equal(5, server.World.Store.AllRooms().Count);
-        Assert.Equal(5, server.World.Store.AllChannels().Count(c => c.Kind == "voice"));
+        Assert.Equal(3, store.AllRooms().Count);
+    }
+
+    [Fact]
+    public async Task Rooms_are_limited_per_person_not_per_connection()
+    {
+        using var server = new IskraServer();
+        var store = server.World.Store;
+        using var admin = await server.JoinAsync("Admin", "admin");
+        var lobby = await Lobby(admin);
+        using var alice = await server.JoinAsync("Alice");
+        using var second = await server.ConnectAsync();
+        Assert.Equal("welcome", (await second.LoginAsync(alice.Identity, "Alice")).Type());
+        using var bob = await server.JoinAsync("Bob");
+
+        // Two connections of one account share one bucket of five (each room handed on, so the host cap isn't what stops it).
+        var codes = new List<string?>();
+        for (var i = 0; i < 6; i++)
+        {
+            var reply = await (i % 2 == 0 ? alice.Client : second).RequestAsync("voice.join", new { channelId = lobby });
+            codes.Add(reply.ErrorCode());
+            if (reply.Type() == "result") store.SetRoomHost(reply.Body().GetProperty("channelId").GetInt64(), admin.Key);
+        }
+        Assert.Equal([null, null, null, null, null, "rate_limited"], codes);
+        // Someone else still can.
+        Assert.Equal("result", (await bob.RequestAsync("voice.join", new { channelId = lobby })).Type());
+    }
+
+    [Fact]
+    public async Task Renaming_a_room_goes_through_automod_and_cant_copy_another_channel()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        var lobby = await Lobby(owner);
+        using var alice = await server.JoinAsync("Alice");
+        Assert.Equal("result", (await owner.RequestAsync("automod.update", new
+        {
+            automod = new { enabled = true, words = new { enabled = true, blocked = new[] { "rotten" } } },
+        })).Type());
+        var room = await JoinLobby(server, alice, lobby);
+        var before = server.World.Store.GetChannel(room)!.Name;
+
+        Assert.Equal("automod", (await alice.RequestAsync("room.update", new { channelId = room, name = "rotten room" })).ErrorCode());
+        Assert.Equal("room_name_taken", Key(await alice.RequestAsync("room.update", new { channelId = room, name = "lobby" })));
+        Assert.Equal(before, server.World.Store.GetChannel(room)!.Name);
+        Assert.Equal("result", (await alice.RequestAsync("room.update", new { channelId = room, name = "Game night" })).Type());
+        Assert.Equal("game-night", server.World.Store.GetChannel(room)!.Name);
     }
 }

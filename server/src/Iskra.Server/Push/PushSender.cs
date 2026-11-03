@@ -33,6 +33,7 @@ public sealed class WebPushSender : IPushSender, IDisposable
             AllowAutoRedirect = false,
             ConnectTimeout = TimeSpan.FromSeconds(5),
             UseCookies = false,
+            UseProxy = false, // a proxy would be the address checked, not the real one
             ConnectCallback = LinkPreviews.PublicOnlyConnect(config.GetValue<bool>("Push:AllowLoopbackForTests")),
         };
         _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };

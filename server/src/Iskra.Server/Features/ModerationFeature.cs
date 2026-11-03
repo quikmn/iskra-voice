@@ -22,17 +22,6 @@ public static class ModerationFeature
     public static readonly long[] TimeoutDurations = [60_000, 5 * 60_000, 3600_000, 24 * 3600_000, 7 * 24 * 3600_000];
     public static readonly int[] SlowmodeSteps = [0, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 21600];
 
-    /// <summary>What a timed-out member can't do: write, react, make threads or polls, use voice, calls and the soundboard.</summary>
-    private static readonly HashSet<string> BlockedWhileTimedOut =
-    [
-        "chat.send", "chat.edit", "chat.react", "chat.typing", "chat.pin", "upload.begin", "interaction.invoke",
-        "thread.create", "thread.update", "poll.create", "poll.vote", "poll.end",
-        "voice.join", "sound.play", "call.start", "call.accept",
-        "forum.post.create", "forum.post.update", "event.create", "event.update",
-        "docs.page.create", "docs.page.save", "docs.page.move", "docs.page.delete", "docs.page.restore",
-        "wb.open", "wb.update", "wb.live", "wb.snapshot", "wb.clear",
-    ];
-
     public static void Register(Router router)
     {
         router.Add("block.list", (s, me, _) => new { blocks = s.World.Store.Blocks(me.AccountKey).Select(PublicBlock) });
@@ -108,10 +97,13 @@ public static class ModerationFeature
 
     // ── Timeouts ─────────────────────────────────────────────────────────────
 
-    /// <summary>The router asks before every request: a timed-out member is refused anything in <see cref="BlockedWhileTimedOut"/>.</summary>
+    /// <summary>
+    /// The router asks before every request: a timed-out member can read, look after their own account and talk in DMs,
+    /// but is refused everything else (<see cref="Participation"/>): writing, reacting, voice, calls, posting cards.
+    /// </summary>
     internal static RequestException? Gate(Session s, Member me, string type)
     {
-        if (!BlockedWhileTimedOut.Contains(type) || s.World.Store.TimedOutUntil(me.AccountKey, s.Now) is null) return null;
+        if (!Participation.Restricted(type) || s.World.Store.TimedOutUntil(me.AccountKey, s.Now) is null) return null;
         return RequestException.Forbidden("You're timed out on this server for now.", "timed_out");
     }
 

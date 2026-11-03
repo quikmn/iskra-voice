@@ -238,7 +238,7 @@ public static partial class WhiteboardFeature
         if (e is null)
         {
             if (body.Has("envelope")) throw RequestException.BadRequest("That board isn't end-to-end encrypted.");
-            var parsed = ParseOps(store, body.Element("ops"));
+            var parsed = ParseOps(store, body.Element("ops"), me.AccountKey, channel.Id);
             if (parsed.Texts.Count > 0) AutoModFeature.Check(s, me, channel, string.Join("\n", parsed.Texts), "whiteboard");
             (data, files, onlyDeletes) = (parsed.Json, parsed.Files, parsed.OnlyDeletes);
             if (body.OptionalElement("live") is { } raw) live = ParseLive(raw, canDraw: true);
@@ -393,7 +393,7 @@ public static partial class WhiteboardFeature
     internal sealed record ParsedOps(string Json, string[] Files, List<string> Texts, bool OnlyDeletes);
 
     /// <summary>A plain batch, field by field (PROTOCOL.md → Whiteboards → The board model). Unknown or bad fields are refused.</summary>
-    internal static ParsedOps ParseOps(Store store, JsonElement ops)
+    internal static ParsedOps ParseOps(Store store, JsonElement ops, string drawer, long channelId)
     {
         if (ops.ValueKind != JsonValueKind.Array || ops.GetArrayLength() is 0 or > MaxOpsPerBatch)
             throw RequestException.BadRequest($"'ops' must be a list of 1–{MaxOpsPerBatch} changes.");
@@ -410,7 +410,7 @@ public static partial class WhiteboardFeature
             foreach (var part in op.EnumerateObject())
             {
                 if (part.Name == "id" && part.Value.ValueKind == JsonValueKind.String && ObjectId().IsMatch(part.Value.GetString()!)) id = part.Value.GetString();
-                else if (part.Name == "p" && part.Value.ValueKind == JsonValueKind.Object) props = Props(store, part.Value, files, texts, ref onlyDeletes);
+                else if (part.Name == "p" && part.Value.ValueKind == JsonValueKind.Object) props = Props(store, part.Value, files, texts, ref onlyDeletes, drawer, channelId);
                 else throw Bad("Each change is { id, p }.");
             }
             if (id is null || props is null || props.Count == 0) throw Bad("Each change is { id, p }.");
@@ -421,7 +421,7 @@ public static partial class WhiteboardFeature
 
     private static RequestException Bad(string message) => RequestException.BadRequest(message);
 
-    private static JsonObject Props(Store store, JsonElement p, HashSet<string> files, List<string> texts, ref bool onlyDeletes)
+    private static JsonObject Props(Store store, JsonElement p, HashSet<string> files, List<string> texts, ref bool onlyDeletes, string drawer, long channelId)
     {
         var props = new JsonObject();
         foreach (var field in p.EnumerateObject())
@@ -445,7 +445,7 @@ public static partial class WhiteboardFeature
                 "pts" => Points(v),
                 "color" or "fill" => v.ValueKind == JsonValueKind.String && Color().IsMatch(v.GetString()!) ? v.GetString()! : throw Bad($"'{field.Name}' must be a colour like #1a2b3c."),
                 "text" => TextField(v, texts),
-                "src" => Picture(store, v, files),
+                "src" => Picture(store, v, files, drawer, channelId),
                 "d" => v.ValueKind is JsonValueKind.True or JsonValueKind.False ? v.GetBoolean() : throw Bad("'d' must be true or false."),
                 _ => throw Bad($"Unknown whiteboard field '{Clip(field.Name)}'."),
             };
@@ -489,13 +489,18 @@ public static partial class WhiteboardFeature
         return text;
     }
 
-    /// <summary>A picture must be an image uploaded to this server; the board keeps the file while it refers to it.</summary>
-    private static JsonNode Picture(Store store, JsonElement v, HashSet<string> files)
+    /// <summary>
+    /// A picture must be an image uploaded to this server, by the drawer or one this board already keeps (a copy within
+    /// the board); the board keeps the file while it refers to it. So nobody can keep someone else's upload alive past
+    /// a moderator's (or its author's) deletion by putting it on a board.
+    /// </summary>
+    private static JsonNode Picture(Store store, JsonElement v, HashSet<string> files, string drawer, long channelId)
     {
         if (v.ValueKind != JsonValueKind.String || FileSrc().Match(v.GetString()!) is not { Success: true } m)
             throw Bad("'src' must be a /files/… link to this server.");
         var file = store.GetFile(m.Groups[1].Value);
-        if (file is null || !file.Type.StartsWith("image/", StringComparison.Ordinal))
+        if (file is null || !file.Type.StartsWith("image/", StringComparison.Ordinal)
+            || (file.Uploader != drawer && !files.Contains(file.Id) && !store.BoardKeepsFile(channelId, file.Id)))
             throw RequestException.BadRequest("Pictures on a whiteboard must be images uploaded to this server.", "wb_picture");
         files.Add(file.Id);
         return v.GetString()!;
