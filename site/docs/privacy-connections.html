@@ -174,7 +174,7 @@ when it happens, what the other side learns, and how to turn it off. The apps sh
 <tr>
 <td><strong>Alert words, follows and quiet hours</strong></td>
 <td>none: your device → your own servers only</td>
-<td>Your alert words, follows (people and roles you follow in a channel) and quiet hours stay on your devices and sync between them sealed (servers can't read them); the app matches words and follows itself, in encrypted channels and DMs too. Only if you tick &quot;Also when Iskra is closed&quot; do your servers get a readable copy of the words and follows (words matched only in channels that aren't encrypted; a follow needs no text), and only servers your browser gets push from get your quiet hours schedule (days, times, time zone)</td>
+<td>Your alert words, follows (people and roles you follow in a channel) and quiet hours stay on your devices and sync between them sealed (servers can't read them); the app matches words and follows itself, in encrypted channels and direct messages too. Only if you tick &quot;Also when Iskra is closed&quot; do your servers get a readable copy of the words and follows (words matched only in channels that aren't encrypted; a follow needs no text), and only servers your browser gets push from get your quiet hours schedule (days, times, time zone)</td>
 <td>Your servers, as above; no third party</td>
 <td>Words and follows: on your devices only. Schedule: only where push is on</td>
 <td>My settings → Notifications (untick, or turn quiet hours off: the copies are deleted)</td>
@@ -449,7 +449,7 @@ OS updates), which Iskra doesn't control.</p>
 <td><strong>Outgoing webhooks</strong></td>
 <td>Server → the address an admin picked (HTTPS; plain HTTP only on the owner's own network)</td>
 <td>When a chosen event happens: a new message or reaction in chosen channels, a member joining or leaving, an event starting</td>
-<td>What the event contains (message text and author's name, member names); never encrypted channels, DMs or group chats</td>
+<td>What the event contains (message text and author's name, member names); never encrypted channels, direct messages or group chats</td>
 <td>None until an admin adds one; every member sees the hosts in My settings → Privacy &amp; data → Who Iskra talks to</td>
 <td>Server settings → Bots &amp; webhooks → Outgoing (turn off or delete)</td>
 </tr>

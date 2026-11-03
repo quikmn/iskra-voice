@@ -195,7 +195,7 @@ A bot is an ordinary Iskra identity (its own account and device keys) that conne
 
 - shows it with a **BOT** badge,
 - only lets it in with a **bot invite** (made by an admin; single use), and never lets a bot invite be used by a person,
-- keeps it out of voice unless an admin allows it ([Voice bots](#voice-bots)), out of group DMs and calls, and doesn't let it create invites, schedule messages or be made admin (guest, member or trusted only),
+- keeps it out of voice unless an admin allows it ([Voice bots](#voice-bots)), out of group chats and calls, and doesn't let it create invites, schedule messages or be made admin (guest, member or trusted only),
 - lets it send and receive [direct messages](#direct-messages), end-to-end encrypted like everyone's, within limits people control,
 - applies the same rate limits as everyone else (2 messages a second, bursts of 10).
 
@@ -306,9 +306,9 @@ works on its own with the SDK from npm (`npm install`, then `npm start`; Node ru
 From this repository, in `bots/`: `ISKRA_INVITE='<bot invite link>' npm run trivia` the first time, then `npm run trivia`
 (likewise `feeds-advanced`, `server-stats`, `jukebox` and `starter`). Their tests run with `npm test`.
 
-#### Bots on this PC (desktop app)
+#### Bots on this computer (desktop app)
 
-No Node.js needed: the desktop app runs gallery bots itself. In **My settings → Bots on this PC**, add one from the
+No Node.js needed: the desktop app runs gallery bots itself. In **My settings → Bots on this computer**, add one from the
 list (Starter, Trivia, Feeds Plus and Server stats come with the app and update with it), press **Start**, and either
 let the app make a bot invite on a server where you're an admin (with the rights that bot needs) or paste one. The app
 starts it with its own built-in Node.js, shows whether it's online, its last log lines and its settings (like the
@@ -432,7 +432,7 @@ await bot.sendDm(accountKey, 'Your turn in the game 🎲')   // e.g. bot.members
   channel message). The bot checks a command's `role` itself, from the member list; commands that need a `permission`
   answer that they only work in a channel.
 - **Who a bot can write to:** members of its server who haven't blocked it. People choose in **My settings → Privacy &
-  data → DMs from bots** (on by default). With it off, a bot can only answer someone who wrote to it first. A bot's
+  data → Direct messages from bots** (on by default). With it off, a bot can only answer someone who wrote to it first. A bot's
   DM also follows the person's **Who can message me**: it can arrive as a message request, or be refused (`dm_closed`)
   for people who only take DMs from people they've talked to. Writing to the bot counts; so does using one of its
   commands or buttons, for 15 minutes (enough to answer by DM).
@@ -553,7 +553,7 @@ The audio goes from the bot's computer straight to the server's voice service, l
 
 ### What bots can't do (yet)
 
-- **Group DMs and calls:** bots can't be in group DMs, call or be called.
+- **Group chats and calls:** bots can't be in group chats, call or be called.
 - **Files in DMs:** bots can read files people attach to a DM, but can't attach files to their own DMs yet.
 - **Encrypted channels:** bots can't read or post there; commands work, with private answers (see above).
 

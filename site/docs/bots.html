@@ -73,7 +73,7 @@
 <main class="doc docs-main" id="top">
   <div class="doc-kicker">Docs</div>
   <h1>Bots and webhooks</h1>
-  <p class="updated">Last updated <time datetime="2026-10-18">18 October 2026</time></p>
+  <p class="updated">Last updated <time datetime="2026-11-03">3 November 2026</time></p>
   <details class="mobile-toc">
     <summary>On this page</summary>
     <ul class="toc-list"><li class="l2"><a href="#webhooks">Webhooks</a></li><li class="l2"><a href="#outgoing-webhooks">Outgoing webhooks</a></li><li class="l2"><a href="#built-in-bots">Built-in bots</a></li><li class="l2"><a href="#bots">Bots</a></li></ul>
@@ -425,7 +425,7 @@ channels. Turning it off removes it; turning it on again brings back the same me
 <ul>
 <li>shows it with a <strong>BOT</strong> badge,</li>
 <li>only lets it in with a <strong>bot invite</strong> (made by an admin; single use), and never lets a bot invite be used by a person,</li>
-<li>keeps it out of voice unless an admin allows it (<a href="#voice-bots">Voice bots</a>), out of group DMs and calls, and doesn't let it create invites, schedule messages or be made admin (guest, member or trusted only),</li>
+<li>keeps it out of voice unless an admin allows it (<a href="#voice-bots">Voice bots</a>), out of group chats and calls, and doesn't let it create invites, schedule messages or be made admin (guest, member or trusted only),</li>
 <li>lets it send and receive <a href="#direct-messages">direct messages</a>, end-to-end encrypted like everyone's, within limits people control,</li>
 <li>applies the same rate limits as everyone else (2 messages a second, bursts of 10).</li>
 </ul>
@@ -579,8 +579,8 @@ works on its own with the SDK from npm (<code>npm install</code>, then <code>npm
 </table></div>
 <p>From this repository, in <code>bots/</code>: <code>ISKRA_INVITE='&lt;bot invite link&gt;' npm run trivia</code> the first time, then <code>npm run trivia</code>
 (likewise <code>feeds-advanced</code>, <code>server-stats</code>, <code>jukebox</code> and <code>starter</code>). Their tests run with <code>npm test</code>.</p>
-<h4 id="bots-on-this-pc-desktop-app">Bots on this PC (desktop app)<a class="anchor" href="#bots-on-this-pc-desktop-app" aria-hidden="true" tabindex="-1">#</a></h4>
-<p>No Node.js needed: the desktop app runs gallery bots itself. In <strong>My settings → Bots on this PC</strong>, add one from the
+<h4 id="bots-on-this-computer-desktop-app">Bots on this computer (desktop app)<a class="anchor" href="#bots-on-this-computer-desktop-app" aria-hidden="true" tabindex="-1">#</a></h4>
+<p>No Node.js needed: the desktop app runs gallery bots itself. In <strong>My settings → Bots on this computer</strong>, add one from the
 list (Starter, Trivia, Feeds Plus and Server stats come with the app and update with it), press <strong>Start</strong>, and either
 let the app make a bot invite on a server where you're an admin (with the rights that bot needs) or paste one. The app
 starts it with its own built-in Node.js, shows whether it's online, its last log lines and its settings (like the
@@ -771,7 +771,7 @@ are DMs: <code>private</code> makes no difference there, cards become text, and 
 channel message). The bot checks a command's <code>role</code> itself, from the member list; commands that need a <code>permission</code>
 answer that they only work in a channel.</li>
 <li><strong>Who a bot can write to:</strong> members of its server who haven't blocked it. People choose in <strong>My settings → Privacy &amp;
-data → DMs from bots</strong> (on by default). With it off, a bot can only answer someone who wrote to it first. A bot's
+data → Direct messages from bots</strong> (on by default). With it off, a bot can only answer someone who wrote to it first. A bot's
 DM also follows the person's <strong>Who can message me</strong>: it can arrive as a message request, or be refused (<code>dm_closed</code>)
 for people who only take DMs from people they've talked to. Writing to the bot counts; so does using one of its
 commands or buttons, for 15 minutes (enough to answer by DM).</li>
@@ -922,7 +922,7 @@ Windows x64, macOS and Linux x64/arm64) and the WebAssembly decoders; see the <a
 The audio goes from the bot's computer straight to the server's voice service, like an app's.</p>
 <h3 id="what-bots-cant-do-yet">What bots can't do (yet)<a class="anchor" href="#what-bots-cant-do-yet" aria-hidden="true" tabindex="-1">#</a></h3>
 <ul>
-<li><strong>Group DMs and calls:</strong> bots can't be in group DMs, call or be called.</li>
+<li><strong>Group chats and calls:</strong> bots can't be in group chats, call or be called.</li>
 <li><strong>Files in DMs:</strong> bots can read files people attach to a DM, but can't attach files to their own DMs yet.</li>
 <li><strong>Encrypted channels:</strong> bots can't read or post there; commands work, with private answers (see above).</li>
 </ul>

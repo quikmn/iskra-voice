@@ -16,5 +16,6 @@
 - Android: swiping the app away in a call now ends the call and gives other apps their sound back; leftover shared files are cleaned up.
 - Desktop: Electron security update.
 - Desktop: no more freeze at start-up after a crash left bots behind, and two screen-share requests at once no longer mix up their answers.
+- Clearer words across the app, in English and Swedish: one name for each thing (direct messages and group chats, permissions, built-in roles, the audit log, "My settings →" paths), error messages that say what to do next, and the same quotes, dashes and time formats everywhere.
 
 ### Good to know

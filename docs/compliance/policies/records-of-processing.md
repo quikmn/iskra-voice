@@ -51,7 +51,7 @@ recorded here.
 | Transfers | DigitalOcean (US company, data in Amsterdam): DPF / SCCs. Push services (US): DPF / SCCs; payload end-to-end encrypted to the device |
 | Retention | [data-retention.md](data-retention.md) |
 | Security | [docs/security.md](../../security.md), [controls-matrix.md](../controls-matrix.md); E2EE for DMs/groups/calls; HTTPS with TLS 1.2+; firewall (ufw); automatic OS security updates; encrypted backup downloads |
-| Rights | Access/portability: Settings → Privacy & data → Download my data (`data.export`), or email; rectification: edit profile, messages; erasure: delete messages, leave, Delete account, or email; objection/restriction: email |
+| Rights | Access/portability: My settings → Account → Download my data (`data.export`), or email; rectification: edit profile, messages; erasure: delete messages, leave, Delete account, or email; objection/restriction: email |
 
 ## 4. Email to spark@iskra.foo
 

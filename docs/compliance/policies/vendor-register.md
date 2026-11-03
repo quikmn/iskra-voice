@@ -30,7 +30,7 @@ data is involved. DPA status "to accept" is an owner action ([owner-actions.md](
 | **sslip.io** | Supplier | Free wildcard DNS for servers opened to the internet without a domain (not used by chat.iskra.foo) | DNS queries for the server's name | Not confirmed | None (free public service) |
 | **Resend** | *Unconfirmed* | DNS records for `send.iskra.foo` exist (docs/ci-cd.md §4); no code in this repo sends email | Recipients' addresses, if used for mail from spark@iskra.foo | US | To confirm whether it's in use; accept its DPA if so |
 | **Certum** (Asseco Data Systems) | Supplier | Windows code-signing certificate, key held in Certum's cloud HSM (SimplySign) | Owner's identity only | Poland (EU) | Certum terms |
-| **Ko-fi**, **PayPal** | Third party | Donations; the site and Settings → About link to them | Donors give their data to Ko-fi/PayPal directly | UK / Luxembourg (EU entity for EU users) | Their own terms; the owner receives donor name/email from them as controller |
+| **Ko-fi**, **PayPal** | Third party | Donations; the site and My settings → About & legal link to them | Donors give their data to Ko-fi/PayPal directly | UK / Luxembourg (EU entity for EU users) | Their own terms; the owner receives donor name/email from them as controller |
 | **npm registry**, **NuGet** (Microsoft) | Supplier | Package downloads for builds | None | US | — |
 | **YouTube, Twitch, X, Reddit, linked websites** | Third party | Embeds (click-to-load placeholders; a per-site, per-device "Always load" tick) and watch parties (a "plays from …" notice before anything loads); link previews fetched by the server (text only) | Users' IP (embeds, watch parties); the server's IP (previews) | Various | Their own terms (privacy policy §8) |
 
