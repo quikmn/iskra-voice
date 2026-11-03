@@ -219,6 +219,8 @@ test('dialogs and a light theme have no serious accessibility problems', async (
   await page.getByRole('button', { name: /Make a page|Edit page/ }).click()
   await expect(page.getByLabel('Page HTML')).toBeVisible()
   await page.getByLabel('Page HTML').evaluate((el) => el.closest('[role="dialog"]')?.setAttribute('data-audit-page', ''))
+  // The mouse rests where "Edit page" was, which can be over the dialog's Save: audit it at rest, not hovered.
+  await page.mouse.move(0, 0)
   await audit(page, 'dialog: profile page editor', { include: '[data-audit-page]' })
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')

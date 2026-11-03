@@ -18,7 +18,7 @@ import { MemberDialog } from '../dialogs/MemberDialog'
 import { RoleChips } from '../roles/RoleSettings'
 import { openMySettings } from '../settings/open'
 import { hueFor } from '../format'
-import { Close } from '../icons'
+import { Close, MoreHorizontal } from '../icons'
 import { renderMarkdown } from '../markdown'
 import { EmailSafe, Secret } from '../streamer/StreamerBits'
 import { useMemberPresence } from '../../state/presence'
@@ -115,9 +115,12 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
       >
         <div className="profile-scroll">
           <div className="profile-banner" style={{ background: banner }}>
-            <button className="icon-button small profile-close" onClick={closeProfileCard} aria-label={t('common.close')}>
-              <Close />
-            </button>
+            {/* A popover closes with a click outside or Esc; the phone sheet gets a ✕. */}
+            {sheet && (
+              <button className="icon-button small profile-close" onClick={closeProfileCard} aria-label={t('common.close')}>
+                <Close />
+              </button>
+            )}
           </div>
           <div className="profile-head">
             <span className="profile-avatar-ring" style={{ background: 'var(--float)' }}>
@@ -145,19 +148,21 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
         </div>
         {/* Outside the scrolling part, so the buttons are always in sight. */}
         <div className="profile-actions">
+          {!isSelf && !member.builtin && (
+            <button className="button primary" onClick={() => { openConversation(member.accountKey); closeProfileCard() }}>{t('settings.member.message')}</button>
+          )}
           {page && (
-            <button className="button primary" onClick={() => openProfilePage(server.key, member.accountKey)}>
+            <button className={`button ${isSelf || member.builtin ? 'primary' : ''}`} onClick={() => openProfilePage(server.key, member.accountKey)}>
               {t('profile.openPage')}
             </button>
-          )}
-          {!isSelf && !member.builtin && (
-            <button className="button" onClick={() => { openConversation(member.accountKey); closeProfileCard() }}>{t('settings.member.message')}</button>
           )}
           {!isSelf && <FriendButtons accountKey={member.accountKey} />}
           {isSelf ? (
             <button className="button" onClick={onEdit}>{t('profile.edit')}</button>
           ) : (
-            <button className="button" onClick={() => openMemberDetails(server.key, member.accountKey)}>{t('common.more')}</button>
+            <button className="icon-button profile-more" onClick={() => openMemberDetails(server.key, member.accountKey)} aria-label={t('common.more')} title={t('common.more')}>
+              <MoreHorizontal />
+            </button>
           )}
         </div>
       </div>

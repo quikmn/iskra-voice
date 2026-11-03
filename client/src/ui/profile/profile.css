@@ -25,9 +25,8 @@ button.author:hover { text-decoration: underline; }
 .profile-card-backdrop.sheet { background: var(--scrim); display: flex; align-items: flex-end; justify-content: center; animation: fade 0.12s ease-out; }
 .profile-card-backdrop.sheet .profile-card {
   position: relative; width: min(520px, 100%); border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0;
-  padding-bottom: var(--safe-bottom); animation: sheet-up 0.2s var(--ease); max-height: 85dvh;
+  padding-bottom: var(--safe-bottom); animation: sheet-up var(--dur-slow) var(--ease); max-height: 85dvh;
 }
-@keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
 .profile-banner { height: 64px; position: relative; }
 .profile-close { position: absolute; right: 8px; top: 8px; background: rgba(0, 0, 0, 0.35); color: #fff; }
 .profile-close:hover { background: rgba(0, 0, 0, 0.55); color: #fff; }
@@ -43,10 +42,12 @@ button.author:hover { text-decoration: underline; }
   margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); white-space: pre-wrap; overflow-wrap: anywhere;
   font-size: 14px; color: var(--text);
 }
-.profile-id { font-size: 12px; margin-top: 10px; }
-.profile-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 16px 16px; flex: none; }
-.profile-actions .button { padding: 7px 12px; font-size: 14px; }
-.profile-actions .button.primary { flex-basis: 100%; }
+.profile-id { font-size: var(--fs-xs); margin-top: var(--sp-2); }
+.profile-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4) var(--sp-4); flex: none; }
+.profile-actions .button { padding: 0 var(--sp-3); font-size: var(--fs-ui); }
+.profile-actions .button.primary { flex: 1 1 auto; }
+.profile-actions .profile-more { margin-left: auto; width: var(--control-h); height: var(--control-h); border-radius: var(--r-md); }
+.profile-actions .friend-chip { align-self: center; }
 
 /* Page viewer and editor. */
 .modal.wide { width: min(980px, 100%); }

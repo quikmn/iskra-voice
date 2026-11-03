@@ -11,6 +11,7 @@ import { errorMessage } from '../../i18n/errors'
 import { BuiltinRoles } from './BuiltinRoles'
 import { useServerBaseRoles } from '../../state/baseRoles'
 import type { ServerState } from '../../state/store'
+import { ChevronDown, ChevronUp, GripVertical } from '../icons'
 import './roles.css'
 
 const errorText = errorMessage
@@ -101,7 +102,7 @@ export function RolesSection({ server }: { server: ServerState }) {
                 onDragOver={(e) => movable && e.preventDefault()}
                 onDrop={(e) => onDrop(e, i)}
               >
-                <span className={`drag-handle ${movable ? '' : 'locked'}`} aria-hidden>⋮⋮</span>
+                <span className={`drag-handle ${movable ? '' : 'locked'}`} aria-hidden><GripVertical size={16} /></span>
                 <button className="role-pick" onClick={() => setSelected(selected === r.id ? null : r.id)} aria-expanded={selected === r.id}>
                   <span className="role-dot" style={{ background: r.color ?? 'var(--muted)' }} aria-hidden />
                   {r.icon && <span aria-hidden>{r.icon}</span>}
@@ -111,9 +112,9 @@ export function RolesSection({ server }: { server: ServerState }) {
                 {movable && (
                   <span className="role-move">
                     <button className="icon-button small" aria-label={t('roles.moveUp', { name: r.name })} disabled={i === 0 || !isAbove(me, roles[i - 1].position, roles)}
-                      onClick={() => void move(r.id, i - 1)}>↑</button>
+                      onClick={() => void move(r.id, i - 1)}><ChevronUp size={16} /></button>
                     <button className="icon-button small" aria-label={t('roles.moveDown', { name: r.name })} disabled={i === roles.length - 1}
-                      onClick={() => void move(r.id, i + 1)}>↓</button>
+                      onClick={() => void move(r.id, i + 1)}><ChevronDown size={16} /></button>
                   </span>
                 )}
               </li>

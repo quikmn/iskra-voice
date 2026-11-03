@@ -15,11 +15,10 @@ test('built-in roles are listed with a badge, what they can do, and the same nam
   await joinVia(friend, await createInviteLink(host), 'Sam')
   await host.locator('.member-list').getByRole('button', { name: 'Sam' }).waitFor()
 
-  // ── Settings → Roles: the built-in roles first, each with the badge and how many hold it.
+  // ── Settings → Roles: the built-in roles first (under their own heading), each with how many hold it.
   const room = await openServerSettings(host, 'Roles')
   const builtin = room.getByRole('list', { name: 'Built-in roles' })
   await expect(builtin.locator('.builtin-role-name')).toHaveText(['Owner', 'Admin', 'Trusted', 'Member', 'Guest'])
-  await expect(builtin.locator('.builtin-badge')).toHaveText(Array(5).fill('Built-in'))
   await expect(builtin.locator('[data-base-role="owner"]')).toContainText('1')
   await expect(builtin.locator('[data-base-role="member"]')).toContainText('1')
   await expect(room.getByText('Custom roles', { exact: true })).toBeVisible()

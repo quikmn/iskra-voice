@@ -1,13 +1,13 @@
 /* ── Rent a server on DigitalOcean ─────────────────────────────────── */
-.do-rental .small { font-size: 13px; }
+.do-rental .small { font-size: var(--fs-md); }
 .do-rental .field small { display: block; margin-top: 4px; }
-.do-size { margin: 10px 0; padding: 8px 12px; border-radius: var(--radius); background: var(--surface-2); font-size: 14px; }
-.do-progress { list-style: none; margin: 6px 0 12px; padding: 0; display: grid; gap: 10px; font-size: 14px; }
+.do-size { margin: 10px 0; padding: 8px 12px; border-radius: var(--radius); background: var(--surface-2); font-size: var(--fs-ui); }
+.do-progress { list-style: none; margin: 6px 0 12px; padding: 0; display: grid; gap: 10px; font-size: var(--fs-ui); }
 .do-progress li { display: flex; align-items: center; gap: 10px; color: var(--muted); }
 .do-progress li[data-state='current'] { color: var(--text); font-weight: 500; }
 .do-progress li[data-state='done'] { color: var(--text-2); }
 .do-progress li[data-state='failed'] { color: var(--red, var(--text)); }
-.do-dot { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--surface-3); display: grid; place-items: center; font-size: 11px; }
+.do-dot { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--surface-3); display: grid; place-items: center; font-size: var(--fs-xs); }
 .do-progress li[data-state='done'] .do-dot { border-color: var(--green); color: var(--green); }
 .do-progress li[data-state='done'] .do-dot::before { content: '✓'; }
 .do-progress li[data-state='failed'] .do-dot { border-color: currentColor; }

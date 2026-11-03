@@ -53,7 +53,7 @@
 .settings-facts { display: grid; gap: 0; margin: 12px 0 24px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .settings-facts > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 10px 14px; }
 .settings-facts > div + div { border-top: 1px solid var(--border); }
-.settings-facts dt { color: var(--muted); font-size: 14px; }
+.settings-facts dt { color: var(--muted); font-size: var(--fs-ui); }
 .settings-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .capitalize { display: inline-block; }
 .capitalize::first-letter { text-transform: uppercase; }
@@ -61,7 +61,7 @@
   display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 16px;
   border: 1px solid color-mix(in srgb, var(--red) 35%, transparent); border-radius: var(--radius);
 }
-.settings-danger p { margin: 2px 0 0; font-size: 14px; }
+.settings-danger p { margin: 2px 0 0; font-size: var(--fs-ui); }
 
 @media (max-width: 760px) {
   /* Phones: iOS-style inset groups with headers, 20px icons, 48px rows. */
@@ -91,7 +91,7 @@
 
 /* Overview: the server's icon and banner (ServerImagesSection.tsx). */
 .server-images { display: grid; gap: 12px; margin: 20px 0; }
-.server-images h3 { margin: 0; font-size: 15px; }
+.server-images h3 { margin: 0; font-size: var(--fs-base); }
 .server-images > p { margin: 0; }
 .server-image-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .server-image-preview { flex: none; display: grid; place-items: center; }

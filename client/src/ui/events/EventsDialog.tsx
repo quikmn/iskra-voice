@@ -11,6 +11,7 @@ import { creatorTime, eventIcs, formatRange, icsFileName, localZone, openEvents,
 import { joinVoice } from '../../state/voice'
 import { Avatar, Modal } from '../bits'
 import { Pencil, Plus, Volume } from '../icons'
+import { EmptyState } from '../kit'
 import { CalendarIcon, CalendarPlus, MapPin, RepeatIcon, StarIcon } from '../forums/icons'
 import { EventForm } from './EventForm'
 import { useNow } from './useNow'
@@ -54,11 +55,8 @@ export function EventsDialog({ server, focus, onClose }: { server: ServerState; 
     >
       <div ref={listRef} className="event-list">
         {list.length === 0 ? (
-          <div className="event-empty">
-            <span className="empty-icon"><CalendarIcon size={30} /></span>
-            <h3>{t('events.dialog.empty')}</h3>
-            <p className="muted">{canCreateEvent(server) ? t('events.dialog.emptyCreate') : t('events.dialog.emptyView')}</p>
-          </div>
+          <EmptyState className="event-empty" icon={<CalendarIcon size={28} />} title={t('events.dialog.empty')}
+            body={canCreateEvent(server) ? t('events.dialog.emptyCreate') : t('events.dialog.emptyView')} />
         ) : (
           list.map((event) => (
             <EventCard key={event.id} server={server} event={event} now={now} focused={event.id === focus}

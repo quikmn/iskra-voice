@@ -392,7 +392,21 @@ input:focus, textarea:focus, select:focus { border-color: var(--focus); box-shad
 .segmented { display: flex; gap: 4px; background: var(--bg); padding: 4px; border-radius: var(--radius); margin-bottom: 16px; }
 .segmented button { display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1; border: 0; background: transparent; padding: 8px; border-radius: calc(var(--radius) * 0.7); color: var(--muted); font-weight: 600; }
 .segmented button.on { background: var(--surface-3); color: var(--text); }
-input[type='range'] { padding: 0; accent-color: var(--accent); }
+/* Sliders: a quiet track and an accent thumb, the same in every theme (the browser's own track is white on dark).
+   A page may set --fill (0%–100%) to colour the part before the thumb. */
+input[type='range'] {
+  -webkit-appearance: none; appearance: none; padding: 0; height: 24px; background: transparent; cursor: pointer; accent-color: var(--accent);
+  --track: linear-gradient(to right, var(--accent) var(--fill, 0%), var(--surface-3) var(--fill, 0%));
+}
+input[type='range']::-webkit-slider-runnable-track { height: 4px; border-radius: var(--r-pill); background: var(--track); }
+input[type='range']::-moz-range-track { height: 4px; border-radius: var(--r-pill); background: var(--track); }
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; border: 0;
+  background: var(--accent); box-shadow: 0 0 0 3px var(--surface), var(--shadow-1); transition: transform var(--dur-fast);
+}
+input[type='range']::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; border: 0; background: var(--accent); box-shadow: 0 0 0 3px var(--surface); }
+input[type='range']:hover::-webkit-slider-thumb { transform: scale(1.12); }
+input[type='range']:disabled { opacity: 0.45; cursor: default; }
 
 /* ── Chat ───────────────────────────────────────────────────────────── */
 .chat { display: flex; flex-direction: column; height: 100%; }

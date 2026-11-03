@@ -8,6 +8,7 @@ import {
 import { Modal, Spinner } from '../bits'
 import { messageTime } from '../format'
 import { Pencil } from '../icons'
+import { Badge } from '../kit'
 import { QrCode } from '../QrCode'
 import { SignOutSection } from './SignOut'
 
@@ -39,7 +40,7 @@ function DeviceRow({ device }: { device: DeviceView }) {
         ) : (
           <strong>
             {device.name}
-            {device.current && <span className="pill device-current">{t('settings.devices.thisDevice')}</span>}
+            {device.current && <Badge tone="accent" size="xs" className="device-current">{t('settings.devices.thisDevice')}</Badge>}
           </strong>
         )}
         <span className="muted">

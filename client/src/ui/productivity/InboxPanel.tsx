@@ -26,7 +26,7 @@ import {
 import { Avatar, Modal } from '../bits'
 import { plainText } from '../markdown'
 import { Lock } from '../icons'
-import { Toast } from '../kit'
+import { Chip, EmptyState, TabPanel, Tabs, Toast } from '../kit'
 import { AlarmClock, Bookmark, CheckAll, Clock } from './icons'
 import { WhenPicker, whenText } from './WhenPicker'
 import './productivity.css'
@@ -39,19 +39,15 @@ export function InboxPanel({ tab }: { tab: InboxTab }) {
   const { t } = useTranslation()
   return (
     <Modal title={t(`productivity.inbox.titles.${tab}`)} onClose={closeInbox} wide className="inbox-dialog">
-      <div className="segmented inbox-tabs" role="tablist">
-        {TABS.map((x) => (
-          <button key={x} role="tab" aria-selected={tab === x} className={tab === x ? 'on' : ''} onClick={() => useInbox.setState({ open: x })}>
-            {t(`productivity.inbox.tabs.${x}`)}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" className="inbox-panel">
+      <Tabs className="inbox-tabs" idPrefix="inbox" label={t('productivity.inbox.titles.inbox')} value={tab}
+        onChange={(x) => useInbox.setState({ open: x })}
+        items={TABS.map((x) => ({ id: x, label: t(`productivity.inbox.tabs.${x}`) }))} />
+      <TabPanel idPrefix="inbox" id={tab} className="inbox-panel">
         {tab === 'inbox' && <InboxTabView />}
         {tab === 'saved' && <SavedTab />}
         {tab === 'reminders' && <RemindersTab />}
         {tab === 'scheduled' && <ScheduledTab />}
-      </div>
+      </TabPanel>
     </Modal>
   )
 }
@@ -75,9 +71,7 @@ function InboxTabView() {
       <div className="inbox-toolbar">
         <div className="inbox-filters" role="group" aria-label={t('productivity.inbox.filters.label')}>
           {FILTERS.map((f) => (
-            <button key={f} className={`chip ${filter === f ? 'on' : ''}`} aria-pressed={filter === f} onClick={() => setInboxFilter(f)}>
-              {t(`productivity.inbox.filters.${f}`)}
-            </button>
+            <Chip key={f} on={filter === f} onToggle={() => setInboxFilter(f)}>{t(`productivity.inbox.filters.${f}`)}</Chip>
           ))}
         </div>
         <button className="button small" onClick={markAllInboxRead}><CheckAll size={15} /> {t('productivity.inbox.markAll')}</button>
@@ -86,7 +80,7 @@ function InboxTabView() {
         <input type="checkbox" checked={includeEveryone} onChange={(e) => setIncludeEveryone(e.target.checked)} />
         <span>{t('productivity.inbox.everyone')}</span>
       </label>
-      {entries.length === 0 ? <p className="inbox-empty muted">{t('productivity.inbox.empty')}</p> : (
+      {entries.length === 0 ? <EmptyState className="inbox-empty" icon={<CheckAll size={24} />} body={t('productivity.inbox.empty')} /> : (
         <ul className="inbox-list">
           {entries.map((e) => <InboxRow key={e.key} entry={e} />)}
         </ul>
@@ -181,7 +175,7 @@ function SavedTab() {
   return (
     <>
       <p className="muted small-note"><Lock size={12} /> {t('productivity.saved.privacy')}</p>
-      {list.length === 0 ? <p className="inbox-empty muted">{t('productivity.saved.none')}</p> : (
+      {list.length === 0 ? <EmptyState className="inbox-empty" icon={<Bookmark size={24} />} body={t('productivity.saved.none')} /> : (
         <>
           <p className="muted small-note">{t('productivity.saved.count', { count: list.length, formattedCount: formatNumber(list.length) })}</p>
           <ul className="inbox-list">{list.map((e) => <SavedRow key={e.key} entry={e} />)}</ul>
@@ -214,7 +208,7 @@ function SavedRow({ entry }: { entry: SavedEntry }) {
 function RemindersTab() {
   const { t } = useTranslation()
   const { upcoming, due } = splitReminders(useReminders((s) => s.all))
-  if (upcoming.length === 0 && due.length === 0) return <p className="inbox-empty muted">{t('productivity.reminders.none')}</p>
+  if (upcoming.length === 0 && due.length === 0) return <EmptyState className="inbox-empty" icon={<AlarmClock size={24} />} body={t('productivity.reminders.none')} />
   return (
     <>
       {due.length > 0 && <h3 className="inbox-heading">{t('productivity.reminders.due')}</h3>}
@@ -285,7 +279,7 @@ export function ReminderToasts() {
 function ScheduledTab() {
   const { t } = useTranslation()
   const list = scheduledList(useScheduled((s) => s.all))
-  if (list.length === 0) return <p className="inbox-empty muted">{t('productivity.scheduled.none')}</p>
+  if (list.length === 0) return <EmptyState className="inbox-empty" icon={<Clock size={24} />} body={t('productivity.scheduled.none')} />
   return <ul className="inbox-list">{list.map((item) => <ScheduledRow key={`${item.server}:${item.id}`} item={item} />)}</ul>
 }
 

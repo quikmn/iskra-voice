@@ -29,7 +29,6 @@ export function BuiltinRoles({ server, selected, onSelect }: { server: ServerSta
               <button className="role-pick" onClick={() => onSelect(selected === id ? null : id)} aria-expanded={selected === id}>
                 <span className="role-dot" style={{ background: info?.color ?? 'var(--muted)' }} aria-hidden />
                 <span className="builtin-role-name">{baseRoleName(id)}</span>
-                <span className="pill builtin-badge">{t('roles.base.badge')}</span>
                 {info?.changed && <span className="pill builtin-changed">{t('roles.base.changedBadge')}</span>}
                 <span className="muted">{counts[id]}</span>
               </button>

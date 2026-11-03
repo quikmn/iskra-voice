@@ -217,3 +217,17 @@
     radial-gradient(farthest-side at 50% 100%, var(--shadow-color), transparent) center bottom / 100% 8px no-repeat scroll,
     var(--scroll-bg, var(--float));
 }
+
+/* ── Touch: 44px tap targets ───────────────────────────────────────────
+   Small controls keep their look; an invisible ::before grows what a finger can hit to --tap tall. Only up and down:
+   wider would spill past a pane's right edge and make it scroll sideways. `position: relative` is zero-specificity,
+   so a button placed absolutely elsewhere stays where it is. */
+@media (pointer: coarse) {
+  :where(.icon-button, .switch, .k-chip, .button.small) { position: relative; }
+  .icon-button::before, .switch::before, .k-chip::before, .button.small::before {
+    content: ''; position: absolute; inset: min(0px, calc((100% - var(--tap)) / 2)) 0;
+  }
+  .k-row-main { min-height: 48px; }
+  .org-item { min-height: var(--tap); }
+  .k-tabs > button { min-height: var(--tap); }
+}

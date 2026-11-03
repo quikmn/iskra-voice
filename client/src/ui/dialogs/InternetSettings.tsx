@@ -75,9 +75,6 @@ export function InternetSection({ server }: { server: ServerState }) {
       {isOwner && <p className="muted small-print" data-testid="internet-third-parties">{t('settings.internet.thirdParties')}</p>}
       {error && <p className="error-text">{error}</p>}
 
-      {/* Friends without port forwarding: the desktop app that hosts the server runs the tunnel, or the server's own iskra-p2p. */}
-      {(isOwner || server.p2p) && <P2pSection server={server} here={here} />}
-
       {status.enabled && (
         <ol className="checklist" aria-label={t('settings.internet.progress')}>
           {steps.map((step) => (
@@ -132,6 +129,10 @@ export function InternetSection({ server }: { server: ServerState }) {
         </p>
       )}
       {tailscaleOpen && <InviteDialog server={server} via="tailscale" onClose={() => setTailscaleOpen(false)} />}
+
+      {/* The advanced way, after the switch and its checklist: friends without port forwarding (the desktop app that
+          hosts the server runs the tunnel, or the server's own iskra-p2p). */}
+      {(isOwner || server.p2p) && <P2pSection server={server} here={here} />}
 
       {here && isOwner && (
         <div className="internet-here">

@@ -8,7 +8,7 @@ import type { HostedServer } from '../../platform/desktop'
 import { loadP2pStatus, rotateP2p, setP2p, useP2p } from '../../state/p2p'
 import type { ServerState } from '../../state/store'
 import { Spinner } from '../bits'
-import { Switch } from '../kit'
+import { Badge, Switch } from '../kit'
 
 export function P2pSection({ server, here }: { server: ServerState; here: HostedServer | null }) {
   const { t } = useTranslation()
@@ -64,7 +64,7 @@ export function P2pSection({ server, here }: { server: ServerState; here: Hosted
       <div className="internet-head">
         <div>
           <strong>
-            {t('hosting.p2p.title')} <span className="p2p-chip">{t('hosting.p2p.experimental')}</span>
+            {t('hosting.p2p.title')} <Badge tone="warning" size="xs" className="p2p-chip">{t('hosting.p2p.experimental')}</Badge>
           </strong>
           <p className={`internet-summary ${tone}`}>{summary}</p>
         </div>
