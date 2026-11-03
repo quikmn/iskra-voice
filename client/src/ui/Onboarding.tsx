@@ -12,6 +12,7 @@ import { acceptTerms, needsAcceptance, useTerms, useTermsAccepted } from '../sta
 import { takeDeletedNotice } from '../state/accountDeletion'
 import { TermsAgreement, TermsFirst } from './safety/Terms'
 import { addingMode, inHost } from '../state/accounts'
+import { ChevronRight, Key, Smartphone, Sparkles, User } from './icons'
 
 // First the choice: new here, or already on another device (so people link instead of making a second account).
 type Mode = 'choose' | 'new' | 'existing' | 'recovery' | 'link'
@@ -104,13 +105,17 @@ export function Onboarding() {
           {/* Right above the greyed-out choices, so it shows on a phone too. */}
           {!accepted && !agreed && <p className="terms-hint" id="terms-hint">{t('safety.terms.tickFirst')}</p>}
           <div className="choice-list equal">
-            <button type="button" className="choice" disabled={!accepted && !agreed} aria-describedby={!accepted && !agreed ? 'terms-hint' : undefined} onClick={pick('new')}>
+            <button type="button" className="choice rich" disabled={!accepted && !agreed} aria-describedby={!accepted && !agreed ? 'terms-hint' : undefined} onClick={pick('new')}>
+              <span className="choice-icon" aria-hidden><Sparkles size={18} /></span>
               <strong>{t('account.welcome.new')}</strong>
               <span className="muted">{t('account.welcome.newHint')}</span>
+              <span className="choice-arrow" aria-hidden><ChevronRight size={16} /></span>
             </button>
-            <button type="button" className="choice" disabled={!accepted && !agreed} aria-describedby={!accepted && !agreed ? 'terms-hint' : undefined} onClick={pick('existing')}>
+            <button type="button" className="choice rich" disabled={!accepted && !agreed} aria-describedby={!accepted && !agreed ? 'terms-hint' : undefined} onClick={pick('existing')}>
+              <span className="choice-icon" aria-hidden><User size={18} /></span>
               <strong>{t('account.welcome.existing')}</strong>
               <span className="muted">{t('account.welcome.existingHint')}</span>
+              <span className="choice-arrow" aria-hidden><ChevronRight size={16} /></span>
             </button>
           </div>
           {pendingInvite && <p className="onboarding-note muted">{t('account.welcome.invitedTwice')}</p>}
@@ -126,13 +131,17 @@ export function Onboarding() {
           {brand}
           <p className="lead">{t('app.onboarding.welcomeBack')}</p>
           <div className="choice-list">
-            <button type="button" className="choice" onClick={() => setMode('link')}>
+            <button type="button" className="choice rich" onClick={() => setMode('link')}>
+              <span className="choice-icon" aria-hidden><Smartphone size={18} /></span>
               <strong>{t('app.onboarding.linkDevice')}</strong>
               <span className="muted">{t('app.onboarding.linkDeviceHint')}</span>
+              <span className="choice-arrow" aria-hidden><ChevronRight size={16} /></span>
             </button>
-            <button type="button" className="choice" onClick={() => setMode('recovery')}>
+            <button type="button" className="choice rich" onClick={() => setMode('recovery')}>
+              <span className="choice-icon" aria-hidden><Key size={18} /></span>
               <strong>{t('app.onboarding.useRecoveryKey')}</strong>
               <span className="muted">{t('app.onboarding.useRecoveryKeyHint')}</span>
+              <span className="choice-arrow" aria-hidden><ChevronRight size={16} /></span>
             </button>
           </div>
           <p className="fine-print">

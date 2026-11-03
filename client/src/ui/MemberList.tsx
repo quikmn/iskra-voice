@@ -20,13 +20,23 @@ import { channelHere, setFollowing, useFollowing } from '../state/alerts'
 import { MenuItem, MenuTitle, OrgMenu } from './organize/OrgMenu'
 import { MemberRecordingMark } from './recording/Recording'
 import { useState, type MouseEvent as ReactMouseEvent } from 'react'
+import { Close, Search } from './icons'
 
-export function MemberList({ server }: { server: ServerState }) {
+/**
+ * The members column: a slim header (how many, a search that filters the list, Close in the phone drawer), then the
+ * people grouped by hoisted role, by level, and offline last.
+ */
+export function MemberList({ server, onClose }: { server: ServerState; onClose?: () => void }) {
   const { t } = useTranslation()
   const roleTitle = (role: Role) => t(`app.members.roleTitles.${role}`)
   const roles = useServerRoles(server.key)
   const baseRoles = useServerBaseRoles(server.key)
-  const members = Object.values(server.members).sort((a, b) => a.name.localeCompare(b.name))
+  const [query, setQuery] = useState<string | null>(null)
+  const needle = query?.trim().toLocaleLowerCase() ?? ''
+  const everyone = Object.values(server.members)
+  const members = everyone
+    .filter((m) => !needle || m.name.toLocaleLowerCase().includes(needle))
+    .sort((a, b) => a.name.localeCompare(b.name))
   const online = members.filter((m) => m.online)
   const offline = members.filter((m) => !m.online)
   // Online people with a hoisted role are grouped under their highest one; the rest by level.
@@ -38,6 +48,47 @@ export function MemberList({ server }: { server: ServerState }) {
 
   return (
     <div className="member-list">
+      <header className="member-list-header">
+        {query === null ? (
+          <>
+            <h2 className="member-list-title">
+              {t('shell.members.title')}
+              <span className="member-list-count" aria-label={t('shell.members.count', { count: everyone.length })}>{everyone.length}</span>
+            </h2>
+            <button className="icon-button small" onClick={() => setQuery('')} aria-label={t('shell.members.search')} title={t('shell.members.search')}>
+              <Search size={16} />
+            </button>
+          </>
+        ) : (
+          <div className="member-search">
+            <Search size={14} />
+            <input
+              autoFocus
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && query) {
+                  e.stopPropagation()
+                  setQuery('')
+                }
+              }}
+              placeholder={t('shell.members.searchPlaceholder')}
+              aria-label={t('shell.members.search')}
+              maxLength={64}
+            />
+            <button className="icon-button small" onClick={() => setQuery(null)} aria-label={t('shell.members.clear')} title={t('shell.members.clear')}>
+              <Close size={14} />
+            </button>
+          </div>
+        )}
+        {onClose && (
+          <button className="icon-button small member-list-close" onClick={onClose} aria-label={t('shell.members.close')} title={t('shell.members.close')}>
+            <Close size={16} />
+          </button>
+        )}
+      </header>
+      {needle && members.length === 0 && <p className="member-list-none">{t('shell.members.none', { query: (query ?? '').trim() })}</p>}
       {roles.filter((r) => r.hoist).map((role) => {
         const group = online.filter((m) => hoisted.get(m.accountKey)?.id === role.id)
         if (group.length === 0) return null

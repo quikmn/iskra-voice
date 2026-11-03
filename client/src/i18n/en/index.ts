@@ -72,6 +72,7 @@ import { dmRequests } from './dmRequests'
 import { share } from './share'
 import { recording } from './recording'
 import { kit } from './kit'
+import { shell } from './shell'
 
 export const en = {
   common,
@@ -147,4 +148,5 @@ export const en = {
   share,
   recording,
   kit,
+  shell,
 } as const

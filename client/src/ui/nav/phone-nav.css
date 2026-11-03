@@ -2,7 +2,7 @@
 .nav-column:focus, .members-column:focus { outline: none; }
 @media (max-width: 760px) {
   /* While a drawer is dragged its scrim shows, faded with the drawer (the drag sets its opacity). */
-  .shell.swiping .scrim { display: block; position: fixed; inset: 0; background: var(--scrim); z-index: calc(var(--z-drawer) - 1); animation: none; }
+  .shell.swiping .scrim { display: block; position: fixed; inset: 0; background: color-mix(in srgb, var(--scrim), #000 30%); z-index: calc(var(--z-drawer) - 1); animation: none; }
   .shell.swiping .nav-column, .shell.swiping .members-column { will-change: transform; }
   .shell.swiping { user-select: none; -webkit-user-select: none; }
   .shell.swiping-members .members-column { box-shadow: -20px 0 50px var(--shadow-color); }
@@ -10,6 +10,6 @@
 }
 .back-hint {
   position: fixed; left: 50%; bottom: calc(96px + var(--safe-bottom, 0px)); transform: translateX(-50%); z-index: var(--z-notice);
-  padding: 10px 16px; border-radius: 999px; background: var(--float); color: var(--text); border: 1px solid var(--border);
-  box-shadow: var(--shadow-modal); font-size: 14px; white-space: nowrap; pointer-events: none; animation: fade 0.15s ease-out;
+  padding: 10px var(--sp-4); border-radius: var(--r-pill); background: var(--float); color: var(--text); border: 1px solid var(--border);
+  box-shadow: var(--shadow-pop); font-size: var(--fs-ui); white-space: nowrap; pointer-events: none; animation: fade var(--dur) ease-out;
 }
