@@ -100,12 +100,19 @@ public sealed class ModelDownloadException(string message) : Exception(message);
 /// <summary>
 /// Keeps one pinned model in a folder of the world (models/...), fetching it once from upstream the first time someone
 /// asks (every byte checked against the pinned SHA-256s) and serving it from disk after that. Concurrent requests share
-/// one download. The security log gets "&lt;logPrefix&gt;.download" and "&lt;logPrefix&gt;.rejected".
+/// one download; models that share <paramref name="downloads"/> download one at a time (each file is held in memory
+/// while it's checked); after a failure the model isn't tried again for <see cref="RetryAfter"/>. The security log gets
+/// "&lt;logPrefix&gt;.download" and "&lt;logPrefix&gt;.rejected".
 /// </summary>
-public class PinnedModel(World world, IModelUpstream upstream, ModelManifest manifest, string folder, string logPrefix, TimeProvider time, ILogger log)
+public class PinnedModel(World world, IModelUpstream upstream, ModelManifest manifest, string folder, string logPrefix, TimeProvider time, ILogger log,
+    SemaphoreSlim? downloads = null)
 {
+    /// <summary>How long a failed download is remembered before someone's request may start it again.</summary>
+    public static readonly TimeSpan RetryAfter = TimeSpan.FromMinutes(10);
+
     private readonly Lock _lock = new();
     private Task? _download;
+    private DateTimeOffset _failedAt;
 
     public ModelManifest Manifest { get; } = manifest;
 
@@ -119,13 +126,33 @@ public class PinnedModel(World world, IModelUpstream upstream, ModelManifest man
 
     public bool Complete => Manifest.Files.All(f => f.Parts.Select((_, i) => ModelManifest.PartName(f, i)).All(p => File.Exists(Path.Combine(Folder, p))));
 
-    /// <summary>Downloads whatever isn't on disk yet. One download at a time; a failed one can be tried again.</summary>
+    /// <summary>Downloads whatever isn't on disk yet. One download at a time; a failed one can be tried again after <see cref="RetryAfter"/>.</summary>
     public Task EnsureAsync()
     {
         lock (_lock)
         {
-            if (_download is null || _download.IsFaulted || _download.IsCanceled) _download = Task.Run(DownloadAsync);
+            if (_download is null || (_download.IsCompletedSuccessfully && !Complete)
+                || ((_download.IsFaulted || _download.IsCanceled) && time.GetUtcNow() - _failedAt >= RetryAfter))
+                _download = Task.Run(DownloadOnceAsync);
             return _download;
+        }
+    }
+
+    private async Task DownloadOnceAsync()
+    {
+        if (downloads is not null) await downloads.WaitAsync();
+        try
+        {
+            await DownloadAsync();
+        }
+        catch
+        {
+            lock (_lock) _failedAt = time.GetUtcNow();
+            throw;
+        }
+        finally
+        {
+            downloads?.Release();
         }
     }
 

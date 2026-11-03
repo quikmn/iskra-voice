@@ -72,7 +72,7 @@ public static class CaptionModelFeature
         // app://, capacitor:// and the web app's own origin all download it; the link in the address is the credential (no cookies).
         Uploads.AllowCors(context);
         if (!model.Enabled || model.PathOf(dir, part) is not { } path) return Results.NotFound();
-        var client = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var client = Hosting.AddressLimits.Key(context);
         if (!hub.Limits.TryTake(client, "captions.model")) return Results.StatusCode(StatusCodes.Status429TooManyRequests);
         if (!Allowed(context, world, dir)) return Results.StatusCode(StatusCodes.Status403Forbidden);
         if (HttpMethods.IsHead(context.Request.Method)) return Results.Ok();

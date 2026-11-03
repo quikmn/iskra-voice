@@ -441,6 +441,59 @@ public class BuddyBackupTests
         Assert.Null(pair.Holder.World.Store.GetBuddySpot(waiting));
     }
 
+    /// <summary>Stands in for the network: records every request and answers with <see cref="Answer"/>.</summary>
+    private sealed class Recorder : HttpMessageHandler
+    {
+        public List<Uri> Seen { get; } = [];
+        public Func<HttpRequestMessage, HttpResponseMessage> Answer { get; set; } = _ => new HttpResponseMessage(HttpStatusCode.NotFound);
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancel)
+        {
+            lock (Seen) Seen.Add(request.RequestUri!);
+            return Task.FromResult(Answer(request));
+        }
+    }
+
+    [Fact]
+    public async Task Regression_pairing_codes_for_local_networks_need_the_owners_yes_and_errors_dont_map_ports()
+    {
+        var recorder = new Recorder();
+        using var baseServer = new IskraServer { Settings = Quick };
+        using var source = baseServer.WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton(new BuddyHttp(recorder, localOnly: false))));
+        var world = source.Services.GetRequiredService<World>();
+        var ws = await source.Server.CreateWebSocketClient().ConnectAsync(new Uri(source.Server.BaseAddress, "ws"), CancellationToken.None);
+        using var client = new TestClient(ws);
+        using var identity = new TestIdentity();
+        var invite = world.Store.CreateInvite(InviteFeature.NewCode(), "test", "owner", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), null, null).Code;
+        Assert.Equal("welcome", (await client.LoginAsync(identity, "Owner", invite)).Type());
+
+        string Code(string url) => BuddyCrypto.EncodePairingCode(url, RandomNumberGenerator.GetBytes(32), RandomNumberGenerator.GetBytes(32));
+        foreach (var url in new[] { "http://10.0.0.1:1", "https://[fd00::1]" })
+        {
+            var refused = await client.RequestAsync("buddy.add", new { code = Code(url) });
+            Assert.Equal("buddy_address_local", ErrorKey(refused));
+            Assert.Equal(new Uri(url).Host, refused.Body().GetProperty("args").GetProperty("host").GetString());
+        }
+        Assert.Empty(recorder.Seen); // nothing was contacted
+
+        // With the owner's yes it goes ahead; refused, unreachable and too slow all read the same.
+        var reasons = new List<string?>();
+        foreach (var fail in new Func<HttpRequestMessage, HttpResponseMessage>[]
+        {
+            _ => throw new HttpRequestException("refused", new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionRefused)),
+            _ => throw new HttpRequestException("no route", new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostUnreachable)),
+            _ => throw new TaskCanceledException("slow"),
+        })
+        {
+            recorder.Answer = fail;
+            var reply = await client.RequestAsync("buddy.add", new { code = Code("https://10.0.0.5:8443"), allowLocal = true });
+            Assert.Equal("buddy_unreachable", ErrorKey(reply));
+            reasons.Add(reply.Body().GetProperty("message").GetString());
+        }
+        Assert.Single(reasons.Distinct());
+        Assert.Equal(3, recorder.Seen.Count);
+    }
+
     [Fact]
     public async Task Pairing_problems_are_explained_and_only_the_owner_may_ask()
     {
@@ -517,6 +570,44 @@ public class BuddyBackupTests
             Restore.Dispose();
             Holder.Dispose();
         }
+    }
+
+    [Fact]
+    public async Task Regression_part_bodies_nobody_signed_are_not_read_or_only_one_at_a_time()
+    {
+        using var held = new Held();
+        using var owner = await held.PairAsync(new { label = "Bo", quotaMb = 100, keep = 3, graceDays = 0, url = Url });
+        using var client = held.Holder.CreateClient();
+        var source = Ed25519.ToB64u(Ed25519.PublicKeyOf(held.Source));
+        string Forged(bool withHash) =>
+            $"{BuddyCrypto.Scheme} key={source}, at={Held.Now()}, nonce={Ed25519.ToB64u(RandomNumberGenerator.GetBytes(16))}, sig={Ed25519.ToB64u(RandomNumberGenerator.GetBytes(64))}"
+            + (withHash ? $", body={Ed25519.ToB64u(RandomNumberGenerator.GetBytes(32))}" : "");
+        async Task<HttpStatusCode> Put(string auth, byte[] body)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, "/buddy/v1/uploads/0000000000000000?offset=0") { Content = new ByteArrayContent(body) };
+            request.Headers.TryAddWithoutValidation("Authorization", auth);
+            try
+            {
+                using var response = await client.SendAsync(request);
+                return response.StatusCode;
+            }
+            catch (Exception e) when (e is HttpRequestException or IOException) { return 0; } // the test host may cut an unread body off
+        }
+
+        // With the body's hash in the header, a bad signature is refused before the body is read: a body over the part
+        // limit is never looked at (reading it first would have answered 413), the signature is what's refused.
+        await Put(Forged(withHash: true), new byte[BuddyHolder.PartBytes + 16]);
+        Assert.Contains(held.Holder.World.Store.SecurityEvents("buddy.auth.failed", null, null, 10), e => e.Details!.Contains("\"signature\""));
+        // Without it, one body per spot is read at a time: while one is being read, another is turned away at once.
+        var gate = held.Holder.Services.GetRequiredService<BuddyHolder>().UnsignedReads(held.SpotId);
+        Assert.True(gate.Wait(0));
+        Assert.Equal(HttpStatusCode.TooManyRequests, await Put(Forged(withHash: false), new byte[10]));
+        gate.Release();
+        Assert.Equal(HttpStatusCode.Unauthorized, await Put(Forged(withHash: false), new byte[10]));
+
+        // Real uploads (signed with the hash) still work.
+        var data = RandomNumberGenerator.GetBytes(5000);
+        Assert.Equal(5000, (await held.UploadAsync(data)).Size);
     }
 
     [Fact]

@@ -57,7 +57,8 @@ public static class BuddyBackupFeature
         var code = body.String("code", BuddyCrypto.MaxCodeLength);
         if (!s.Hub.Limits.TryTake(me.AccountKey, "buddy.add"))
             throw new RequestException("rate_limited", "Slow down a little and try again.");
-        var (added, recovery) = await services.Source.AddAsync(code, CancellationToken.None);
+        var allowLocal = body.OptionalBool("allowLocal") ?? false;
+        var (added, recovery) = await services.Source.AddAsync(code, CancellationToken.None, allowLocal);
         SecurityLog.Record(s, "buddy.added", details: new { url = added.Url, holderKey = added.HolderKey });
         return Merge(services.Source.Status(), recovery);
     }

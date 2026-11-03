@@ -356,7 +356,7 @@ public static partial class ActivitiesFeature
 
     public static IResult Serve(HttpContext context, World world, Hub hub, string id, string path)
     {
-        if (!hub.Limits.TryTake(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", "activity.file"))
+        if (!hub.Limits.TryTake(Hosting.AddressLimits.Key(context), "activity.file"))
             return Results.StatusCode(StatusCodes.Status429TooManyRequests);
         if (!IdPattern().IsMatch(id) || !ActivityBundle.ValidPath(path)) return Results.NotFound();
         var store = world.Store;

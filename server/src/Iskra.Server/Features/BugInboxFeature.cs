@@ -89,7 +89,7 @@ public sealed partial class BugInbox(World world, Hub hub, Uploads uploads, Time
     public int PerAddressPerHour { get; set; } = 5;
     public int GlobalPerHour { get; set; } = 60;
 
-    private readonly ConcurrentDictionary<IPAddress, WebhookIngress.TokenBucket> _addresses = new();
+    private readonly Hosting.BoundedTable<IPAddress, WebhookIngress.TokenBucket> _addresses = new(10_000, b => b.Available);
     private WebhookIngress.TokenBucket? _global;
     private int _globalLimit;
 
@@ -133,22 +133,13 @@ public sealed partial class BugInbox(World world, Hub hub, Uploads uploads, Time
     }
 
     /// <summary>The limiter's key: the address itself, or its /64 for IPv6 (one home usually has a whole /64).</summary>
-    public static IPAddress LimitKey(IPAddress? address)
-    {
-        if (address is null) return IPAddress.None;
-        if (address.IsIPv4MappedToIPv6) return address.MapToIPv4();
-        if (address.AddressFamily != AddressFamily.InterNetworkV6) return address;
-        var bytes = address.GetAddressBytes();
-        Array.Clear(bytes, 8, 8);
-        return new IPAddress(bytes);
-    }
+    public static IPAddress LimitKey(IPAddress? address) => Hosting.AddressLimits.Network(address);
 
     private static IResult Error(int status, string error, string message) => Results.Json(new { error, message }, statusCode: status);
 
     private IResult? Limit(HttpContext context)
     {
         var perSecond = PerAddressPerHour / 3600.0;
-        if (_addresses.Count > 10_000) _addresses.Clear();
         var bucket = _addresses.GetOrAdd(LimitKey(context.Connection.RemoteIpAddress), _ => new WebhookIngress.TokenBucket(PerAddressPerHour, perSecond, time));
         if (!bucket.TryTake(out var wait)) return RateLimited(context, wait);
         if (_global is null || _globalLimit != GlobalPerHour)

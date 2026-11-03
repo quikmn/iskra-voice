@@ -72,7 +72,12 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
         ?? throw new RequestException("not_found", "There's no recovery code yet: it's made when you add the first backup buddy.", "buddy_no_code"));
 
     /// <summary>Pairs with the spot in <paramref name="text"/>. Returns the recovery code when this made it.</summary>
-    public async Task<(BuddyRow Buddy, string? RecoveryCode)> AddAsync(string text, CancellationToken cancel)
+    /// <summary>
+    /// Pairs with the holder in a pairing code. An address on a local network (private, CGNAT, loopback, or plain http)
+    /// needs <paramref name="allowLocal"/>: the code is opaque, so the owner confirms first (<c>buddy_address_local</c>,
+    /// args <c>{ host }</c>), and a pasted code can't make the server probe its own network.
+    /// </summary>
+    public async Task<(BuddyRow Buddy, string? RecoveryCode)> AddAsync(string text, CancellationToken cancel, bool allowLocal = false)
     {
         var code = BuddyCrypto.DecodePairingCode(text)
             ?? throw RequestException.BadRequest("That isn't a backup buddy pairing code. Ask your friend for a new one.", "buddy_code");
@@ -85,6 +90,8 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
         if (buddies.Count >= MaxBuddies)
             throw RequestException.BadRequest($"This server has {MaxBuddies} backup buddies already.", "buddy_max", new { max = MaxBuddies });
         var url = await BuddyHttp.CheckUrlAsync(code.Url, http.LocalOnly, cancel, http.AllowLoopback);
+        var publicOnly = !allowLocal && !http.LocalOnly && !http.AllowLoopback;
+        if (publicOnly && await BuddyHttp.IsLocalAsync(url, cancel)) throw LocalAddress(url);
 
         var made = world.Store.BuddyRecoveryCode() is null;
         var recovery = world.Store.EnsureBuddyRecoveryCode(BuddyCrypto.NewRecoveryCode(), Now);
@@ -95,7 +102,7 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
         BuddyPaired paired;
         try
         {
-            paired = await http.PairAsync(code with { Url = url }, world.ServerKey, restoreKey, name, Now, cancel);
+            paired = await http.PairAsync(code with { Url = url }, world.ServerKey, restoreKey, name, Now, cancel, publicOnly);
         }
         catch (BuddyHttpException ex)
         {
@@ -106,6 +113,10 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
                 409 => RequestException.BadRequest("That server keeps backups for this one already.", "buddy_already"),
                 _ => RequestException.BadRequest($"Your friend's server said no ({ex.Status}).", "buddy_refused", new { status = ex.Status }),
             };
+        }
+        catch (Exception ex) when (FindLocal(ex))
+        {
+            throw LocalAddress(url);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or BuddyAddressException)
         {
@@ -145,12 +156,25 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
         Wake();
     }
 
+    private static bool FindLocal(Exception? ex)
+    {
+        for (; ex is not null; ex = ex.InnerException) if (ex is BuddyLocalAddressException) return true;
+        return false;
+    }
+
+    private static RequestException LocalAddress(string url) =>
+        RequestException.BadRequest("That code points to an address on a local network. Pair only if you trust it.", "buddy_address_local",
+            new { host = new Uri(url).Host });
+
+    /// <summary>
+    /// Why a buddy couldn't be reached, in words that don't tell hosts or ports apart (refused, no route and too slow
+    /// all read the same), so a code can't be used to map the network around this server.
+    /// </summary>
     private static string Reason(Exception ex) => ex switch
     {
-        TaskCanceledException => "it took too long to answer",
         BuddyAddressException => ex.Message,
-        HttpRequestException { InnerException: { } inner } => inner.Message,
-        _ => ex.Message,
+        HttpRequestException { InnerException: BuddyAddressException inner } => inner.Message,
+        _ => "it didn't answer",
     };
 
     // ── Sending ──────────────────────────────────────────────────────────────

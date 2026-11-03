@@ -161,7 +161,7 @@ public static class GifFeature
             response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }
-        var client = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var client = Hosting.AddressLimits.Key(context);
         if (!hub.Limits.TryTake(client, "gif.media"))
         {
             response.StatusCode = StatusCodes.Status429TooManyRequests;

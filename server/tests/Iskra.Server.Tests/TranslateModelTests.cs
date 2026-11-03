@@ -12,6 +12,7 @@ namespace Iskra.Server.Tests;
 public class TranslateModelTests
 {
     private const string EnSv = "translate-ensv-test";
+    private const string SvEn = "translate-sven-test";
 
     private static string Url(string part, string dir = EnSv) => $"/models/translate/{dir}/{part}";
 
@@ -138,7 +139,44 @@ public class TranslateModelTests
         Assert.Empty(server.World.Store.SecurityEvents("translate.model.download", null, null, 10));
 
         server.Translations.Tampered = null;
+        server.Clock.Advance(Iskra.Server.Captions.PinnedModel.RetryAfter);
         Assert.Equal(FakeTranslationUpstream.Model[..200], await http.GetByteArrayAsync(link));
+    }
+
+    [Fact]
+    public async Task Models_download_one_at_a_time_and_a_failure_isnt_retried_at_once()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        await Offer(owner);
+        var http = server.CreateClient();
+        var gate = new TaskCompletionSource();
+        server.Translations.Gate = gate;
+        var both = new[]
+        {
+            http.GetAsync(await Link(owner, "model.bin.gz.part0.bin", EnSv)),
+            http.GetAsync(await Link(owner, "model.bin.gz.part0.bin", SvEn)),
+        };
+        await Task.Delay(500);
+        // Only the first model's first file is being fetched; the other model waits its turn.
+        Assert.Equal(1, server.Translations.MaxConcurrent);
+        Assert.Single(server.Translations.Fetches);
+        gate.SetResult();
+        foreach (var response in await Task.WhenAll(both)) using (response) Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, server.Translations.MaxConcurrent);
+
+        // A failed download isn't started again by the next request, only after a while.
+        server.Translations.Gate = null;
+        server.Translations.Tampered = new byte[300];
+        var link = await Link(owner, "vocab.spm.gz.part0.bin", EnSv);
+        File.Delete(Path.Combine(server.WorldPath, "models", "translate", EnSv, "vocab.spm.gz.part0.bin"));
+        using (var refused = await http.GetAsync(link)) Assert.Equal(HttpStatusCode.BadGateway, refused.StatusCode);
+        var fetches = server.Translations.Fetches[$"{EnSv}/vocab.spm.gz"];
+        server.Translations.Tampered = null;
+        using (var again = await http.GetAsync(link)) Assert.Equal(HttpStatusCode.BadGateway, again.StatusCode);
+        Assert.Equal(fetches, server.Translations.Fetches[$"{EnSv}/vocab.spm.gz"]);
+        server.Clock.Advance(Iskra.Server.Captions.PinnedModel.RetryAfter);
+        using (var later = await http.GetAsync(link)) Assert.Equal(HttpStatusCode.OK, later.StatusCode);
     }
 
     [Fact]

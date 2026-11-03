@@ -175,7 +175,7 @@ public static class OwnerSetup
     }
 
     /// <summary>Requests to the claim endpoint per client address: a burst of 30, then one every 2 seconds.</summary>
-    private static readonly ConditionalWeakTable<World, ConcurrentDictionary<IPAddress, WebhookIngress.TokenBucket>> Limits = new();
+    private static readonly ConditionalWeakTable<World, Hosting.BoundedTable<IPAddress, WebhookIngress.TokenBucket>> Limits = new();
     public const int ClaimBurst = 30;
 
     /// <summary>
@@ -187,8 +187,7 @@ public static class OwnerSetup
         context.Response.Headers.AccessControlAllowOrigin = "*";
         context.Response.Headers.CacheControl = "no-store";
         var time = context.RequestServices.GetRequiredService<TimeProvider>();
-        var buckets = Limits.GetOrCreateValue(world);
-        if (buckets.Count > 10_000) buckets.Clear(); // memory only; a flood of addresses just starts them over
+        var buckets = Limits.GetValue(world, _ => new Hosting.BoundedTable<IPAddress, WebhookIngress.TokenBucket>(10_000, b => b.Available));
         var bucket = buckets.GetOrAdd(BugInbox.LimitKey(context.Connection.RemoteIpAddress), _ => new WebhookIngress.TokenBucket(ClaimBurst, 0.5, time));
         if (!bucket.TryTake(out var wait))
         {
