@@ -8,7 +8,7 @@ export const profile: Messages['profile'] = {
   uploadPicture: 'Ladda upp bild',
   picture: 'Profilbild',
   name: 'Namn',
-  nameHint: 'Visas överallt: på alla dina servrar, i DM och för vänner, utom där du har ett smeknamn på servern.',
+  nameHint: 'Visas överallt: på alla dina servrar, i direktmeddelanden och för vänner, utom där du har ett smeknamn på servern.',
   nicknamesHere: 'Ditt smeknamn på servern visas i stället på {{servers}}.',
   nameSaved: 'Sparat. Ditt namn är uppdaterat överallt.',
   nameLine: 'Namn: {{name}}',

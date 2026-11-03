@@ -13,7 +13,7 @@ export const invitetrack: Messages['invitetrack'] = {
   someone: 'någon',
   notTracked: 'Gick med innan inbjudningar spårades',
   filter: 'Gick med via',
-  filterAny: 'Vilken inbjudan som helst',
+  filterAny: 'Alla inbjudningar',
   filterOption: '{{invite}} ({{count}})',
   audit: {
     join: '{{target}} gick med via {{invite}}',

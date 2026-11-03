@@ -28,7 +28,7 @@ export const joinQuestions = {
   editor: {
     title: 'Välkomstfrågor',
     intro: 'Frågor nya medlemmar svarar på direkt när de har gått med (efter reglerna, om du har några). Varje svar kan ge roller och föreslå kanaler. Alla kan ändra sina svar senare från servermenyn, eller med /roles.',
-    safety: 'Svar och roller för nya medlemmar ger bara roller som medlemmar kan välja själva, och de har aldrig behörigheter eller rang. Bocka i "Medlemmar kan välja den här rollen själva" på en roll under Roller för att erbjuda den.',
+    safety: 'Svar och roller för nya medlemmar ger bara roller som medlemmar kan välja själva, och de har aldrig behörigheter eller rang. Bocka i ”Medlemmar kan välja den här rollen själva” på en roll under Roller för att erbjuda den.',
     openRoles: 'Öppna Roller',
     noneYet: 'Inga frågor än.',
     add: 'Lägg till en fråga',
@@ -66,7 +66,7 @@ export const joinQuestions = {
     title: 'Roller för nya medlemmar',
     intro: 'Alla som går med från och med nu får de här rollerna, oavsett inbjudan. Bara roller som medlemmar kan välja själva, så ingen får behörigheter av att gå med. Bottar får dem inte.',
     save: 'Spara roller för nya medlemmar',
-    saved: 'Sparat.',
+    saved: 'Sparat',
     max: 'Upp till {{max}} roller.',
     apply: 'Ge till alla nu',
     applyConfirm: 'Ge rollerna för nya medlemmar till alla medlemmar som inte har dem än?',

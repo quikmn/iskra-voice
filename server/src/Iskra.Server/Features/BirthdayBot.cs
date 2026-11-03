@@ -40,7 +40,7 @@ public static partial class BirthdayBot
     private static object Set(Session s, Member me, Body body)
     {
         var store = s.World.Store;
-        if (MoreBuiltinBots.BotIfOn(store, Id) is null) throw RequestException.BadRequest("Birthdays aren't on in this server.", "birthdays_off");
+        if (MoreBuiltinBots.BotIfOn(store, Id) is null) throw RequestException.BadRequest("Birthdays aren't on for this server.", "birthdays_off");
         if (store.IsBot(me.AccountKey)) throw RequestException.BadRequest("Bots don't have birthdays.", "birthday_bot");
         var month = (int)(body.OptionalLong("month", 1, 12) ?? throw RequestException.BadRequest("'month' is required."));
         var day = (int)(body.OptionalLong("day", 1, 31) ?? throw RequestException.BadRequest("'day' is required."));

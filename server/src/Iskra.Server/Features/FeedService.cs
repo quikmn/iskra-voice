@@ -288,7 +288,7 @@ public sealed partial class FeedService : BackgroundService
                 case "twitch":
                 {
                     var credentials = TwitchCredentials()
-                        ?? throw RequestException.BadRequest("Twitch needs the owner to add a Twitch app's client id and secret first.", "feeds_twitch_setup");
+                        ?? throw RequestException.BadRequest("Twitch needs the owner to add a Twitch app's client ID and secret first.", "feeds_twitch_setup");
                     var login = FeedFetcher.ParseTwitch(input)
                         ?? throw RequestException.BadRequest("That isn't a Twitch channel name.", "feeds_twitch_login");
                     var user = await Fetcher.TwitchUserAsync(credentials.ClientId, credentials.Secret, login, cancel)
@@ -302,10 +302,10 @@ public sealed partial class FeedService : BackgroundService
                     var (channelId, page) = Fetcher.ParseYouTube(input);
                     if (channelId is null && page is not null) channelId = await Fetcher.ResolveYouTubeAsync(page, cancel);
                     if (channelId is null)
-                        throw RequestException.BadRequest("Couldn't find that YouTube channel. Paste its channel id (it starts with UC).", "feeds_youtube_channel");
+                        throw RequestException.BadRequest("Couldn't find that YouTube channel. Paste its channel ID (it starts with UC).", "feeds_youtube_channel");
                     var response = await Fetcher.GetAsync(new Uri(Fetcher.YouTubeBase + FeedFetcher.YouTubeFeedPath(channelId)), null, null, cancel);
                     if (FeedFetcher.Parse(response.Body) is not { } doc)
-                        throw RequestException.BadRequest("Couldn't find that YouTube channel. Paste its channel id (it starts with UC).", "feeds_youtube_channel");
+                        throw RequestException.BadRequest("Couldn't find that YouTube channel. Paste its channel ID (it starts with UC).", "feeds_youtube_channel");
                     return new Resolved(channelId, doc.Title ?? channelId, $"https://www.youtube.com/channel/{channelId}", response.ETag, response.LastModified,
                         doc.Items.Select(i => i.Id).ToList());
                 }
@@ -329,12 +329,12 @@ public sealed partial class FeedService : BackgroundService
         catch (FeedException e)
         {
             if (kind == "youtube" && e.Code is "http" or "not_feed")
-                throw RequestException.BadRequest("Couldn't find that YouTube channel. Paste its channel id (it starts with UC).", "feeds_youtube_channel");
+                throw RequestException.BadRequest("Couldn't find that YouTube channel. Paste its channel ID (it starts with UC).", "feeds_youtube_channel");
             throw e.Code switch
             {
                 "too_large" => RequestException.BadRequest("That feed is too big (over 2 MB).", "feeds_too_large"),
                 "not_feed" => RequestException.BadRequest("That address isn't an RSS or Atom feed.", "feeds_not_feed"),
-                "twitch_auth" => RequestException.BadRequest("Twitch didn't accept the client id and secret.", "feeds_twitch_credentials"),
+                "twitch_auth" => RequestException.BadRequest("Twitch didn't accept the client ID and secret.", "feeds_twitch_credentials"),
                 _ => RequestException.BadRequest("Couldn't reach that address. Check it and try again.", "feeds_unreachable"),
             };
         }

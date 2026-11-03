@@ -62,7 +62,7 @@ public static class LandingFeature
         {
             var raw = body.OptionalString("description", MaxDescriptionLength * 2) ?? "";
             description = raw.Trim().Length == 0 ? "" : Text.Normalize(raw, MaxDescriptionLength, allowNewlines: true)
-                ?? throw RequestException.BadRequest($"The description can be up to {MaxDescriptionLength} characters, without control characters.",
+                ?? throw RequestException.BadRequest($"The description can be up to {MaxDescriptionLength} characters, with no invisible characters.",
                     "landing_description", new { max = MaxDescriptionLength });
         }
         var inviteCode = before.InviteCode;
@@ -76,7 +76,7 @@ public static class LandingFeature
                 if (invite is not null && Roles.Rank(invite.Role) > Roles.Rank(Roles.Member))
                     throw RequestException.BadRequest("Only invites for members can go on the public page.", "landing_invite_role");
                 if (UsableInvite(store, code, s.Now) is null)
-                    throw RequestException.BadRequest("That invite doesn't work anymore. Pick another one.", "landing_invite");
+                    throw RequestException.BadRequest("That invite doesn't work any more. Pick another one.", "landing_invite");
                 inviteCode = code;
             }
         }

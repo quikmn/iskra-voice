@@ -22,7 +22,7 @@ export const outhooks: Messages['outhooks'] = {
     'thread.created': 'En tråd eller ett foruminlägg startas',
     'voice.joined': 'Någon går med i röst',
     'voice.left': 'Någon lämnar röst',
-    'member.updated': 'En medlems nivå, roller eller smeknamn ändras',
+    'member.updated': 'En medlems roller eller smeknamn på servern ändras',
     'role.created': 'En roll skapas',
     'role.updated': 'En roll ändras',
     'role.deleted': 'En roll tas bort',

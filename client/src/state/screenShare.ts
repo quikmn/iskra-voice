@@ -18,7 +18,7 @@ export const QUALITIES: { id: ShareQuality; label: string }[] = [
   { id: '720p30', label: '720p 30' },
   { id: '1080p30', label: '1080p 30' },
   { id: '1080p60', label: '1080p 60' },
-  { id: 'source', label: 'Source 60' },
+  { id: 'source', label: 'Original 60' },
 ]
 
 /** Capture size and frame rate (0 × 0 = the screen's own size) with the bitrate to send it at. */

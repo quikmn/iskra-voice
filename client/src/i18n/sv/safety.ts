@@ -80,7 +80,7 @@ export const safety: Messages['safety'] = {
     kind: {
       message: 'meddelande',
       member: 'person',
-      dm: 'privata meddelanden',
+      dm: 'direktmeddelanden',
     },
     deleted: 'raderat sedan dess',
     jump: 'Gå till meddelandet',
@@ -99,8 +99,8 @@ export const safety: Messages['safety'] = {
     handledHint: 'Du löste det på annat sätt (ett samtal, en varning)',
     timeoutReason: 'Anmäld',
     confirmDelete: 'Radera meddelandet för alla? Det går inte att ångra.',
-    confirmKick: 'Sparka ut {{name}}? Personen kan komma tillbaka med en ny inbjudan.',
-    confirmBan: 'Bannlysa {{name}}? Personen kan inte komma tillbaka förrän bannlysningen tas bort.',
+    confirmKick: 'Sparka ut {{name}}? Hen kan komma tillbaka med en ny inbjudan.',
+    confirmBan: 'Bannlysa {{name}}? Hen kan inte komma tillbaka förrän bannlysningen hävs.',
     resolutionNote: 'Kommentar till de andra moderatorerna (valfritt)',
   },
   joins: {

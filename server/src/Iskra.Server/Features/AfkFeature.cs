@@ -50,7 +50,7 @@ public static class AfkFeature
         if (!Minutes.Contains(minutes))
             throw RequestException.BadRequest("Move idle people after 5, 15, 30 or 60 minutes, or never (0).", "afk_minutes");
         if (levels.Any(l => !Roles.IsValid(l)))
-            throw RequestException.BadRequest("Pick base roles from guest, member, trusted, admin and owner.", "afk_levels");
+            throw RequestException.BadRequest("Pick built-in roles from guest, member, trusted, admin and owner.", "afk_levels");
         var existing = store.AllRoles().Select(r => r.Id).ToHashSet();
         if (roles.Length > MaxTalkRoles || roles.Any(r => !existing.Contains(r)))
             throw RequestException.BadRequest("One of those roles doesn't exist.", "afk_roles");

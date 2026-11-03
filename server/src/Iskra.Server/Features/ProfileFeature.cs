@@ -26,10 +26,10 @@ public static partial class ProfileFeature
     /// <summary>Avatars (members' and webhooks'): a supported image of known size, at most 1 MB and 4096 px a side.</summary>
     public static void CheckAvatarImage(StoredFile file)
     {
-        if (!AvatarTypes.Contains(file.Type)) throw RequestException.BadRequest("Avatars must be PNG, JPEG, WebP or GIF images.", "avatar_type");
-        if (file.Size > MaxAvatarBytes) throw RequestException.BadRequest($"Avatars can be up to {MaxAvatarBytes / 1024} KB.", "avatar_size", new { kb = MaxAvatarBytes / 1024 });
-        if (file.Width is not { } w || file.Height is not { } h || w < 1 || h < 1) throw RequestException.BadRequest("Couldn't read that image's size.", "image_size_unreadable");
-        if (w > MaxAvatarSide || h > MaxAvatarSide) throw RequestException.BadRequest("That image is too large.", "image_too_large");
+        if (!AvatarTypes.Contains(file.Type)) throw RequestException.BadRequest("Profile pictures must be PNG, JPEG, WebP or GIF images.", "avatar_type");
+        if (file.Size > MaxAvatarBytes) throw RequestException.BadRequest($"Profile pictures can be up to {MaxAvatarBytes / 1024} KB.", "avatar_size", new { kb = MaxAvatarBytes / 1024 });
+        if (file.Width is not { } w || file.Height is not { } h || w < 1 || h < 1) throw RequestException.BadRequest("Couldn't read that picture's size.", "image_size_unreadable");
+        if (w > MaxAvatarSide || h > MaxAvatarSide) throw RequestException.BadRequest("That picture is too big.", "image_too_large");
     }
 
     [GeneratedRegex("^#[0-9a-fA-F]{6}$")]
@@ -109,7 +109,7 @@ public static partial class ProfileFeature
         raw is null ? null
         : raw.Trim().Length == 0 ? ""
         : Text.Normalize(raw, MaxBioLength, allowNewlines: true)
-          ?? throw RequestException.BadRequest($"Bios can be up to {MaxBioLength} characters, with no invisible characters.", "bio_length", new { max = MaxBioLength });
+          ?? throw RequestException.BadRequest($"About me can be up to {MaxBioLength} characters, with no invisible characters.", "bio_length", new { max = MaxBioLength });
 
     private static string? Pronouns(string? raw) =>
         raw is null ? null

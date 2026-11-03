@@ -46,7 +46,7 @@ export const mediaChannels = {
     count: '{{n}} of {{total}}',
     show: 'Show {{n}} of {{total}}',
     openOriginal: 'Open original',
-    missing: 'This post isn\'t here anymore.',
+    missing: "This post isn't here any more.",
     keys: 'Left and right arrows move between posts; Escape closes.',
   },
   newPost: {
@@ -68,7 +68,7 @@ export const mediaChannels = {
     sensitive: 'Sensitive: blur until someone chooses to look',
     remove: 'Remove {{name}}',
     post: 'Post',
-    uploading: 'Uploading {{percent}}%…',
+    uploading: 'Uploading… {{percent}}%',
     posting: 'Posting…',
   },
 } as const

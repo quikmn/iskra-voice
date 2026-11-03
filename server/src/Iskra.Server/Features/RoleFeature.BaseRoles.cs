@@ -76,11 +76,11 @@ public static partial class RoleFeature
             if ((changedAbilities & ~adjustable) != 0 || (changedPerms & ~adjustablePerms) != Perm.None)
                 throw RequestException.BadRequest(
                     role is Roles.Guest or Roles.Member
-                        ? "Guests and members can only get everyday powers: inviting, events, pinning, mentioning everyone, sounds, whispering and emoji from other servers."
-                        : "Some powers always stay with the owner.",
+                        ? "Guests and members can only get everyday permissions: inviting, events, pinning, mentioning everyone, sounds, whispering and emoji from other servers."
+                        : "Some permissions always stay with the owner.",
                     "base_power_not_allowed", new { role });
             if ((changedAbilities & ~BaseRoles.AbilitiesOf(me)) != 0 || (changedPerms & ~Permissions.Effective(me)) != Perm.None)
-                throw RequestException.Forbidden("You can only give or take powers you have yourself.", "base_power_not_yours");
+                throw RequestException.Forbidden("You can only give or take permissions you have yourself.", "base_power_not_yours");
         }
 
         var changed = false;

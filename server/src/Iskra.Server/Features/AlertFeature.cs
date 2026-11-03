@@ -65,7 +65,7 @@ public static class AlertFeature
         var clean = new List<string>();
         foreach (var raw in words)
         {
-            if (raw.Any(char.IsControl)) throw RequestException.BadRequest("Alert words can't contain control characters.", "alerts_word");
+            if (raw.Any(char.IsControl)) throw RequestException.BadRequest("Alert words can't contain invisible characters.", "alerts_word");
             var word = Regex.Replace(raw.Trim(), @"\s+", " ");
             if (word.Length == 0) continue;
             if (seen.Add(word)) clean.Add(word);

@@ -13,7 +13,7 @@ export const compliance: Messages['compliance'] = {
     deviceHint: 'Din profil, dina servrar, vänner, din blockeringslista och historiken från dina direktmeddelanden och gruppchattar, som en JSON-fil. Dina nycklar är inte med. Filen är inte krypterad, så förvara den säkert.',
     deviceDownload: 'Ladda ner data från den här enheten',
     deviceDone: 'Sparade {{name}}.',
-    deleteHint: 'Vill du radera ditt konto och det servrarna sparar om dig? Gå till Inställningar → Konto.',
+    deleteHint: 'Vill du radera ditt konto och det servrarna sparar om dig? Gå till Mina inställningar → Konto.',
   },
   connections: {
     title: 'Vem Iskra pratar med',
@@ -35,7 +35,7 @@ export const compliance: Messages['compliance'] = {
     },
     gifs: {
       who: 'KLIPY (GIF:ar)',
-      when: 'Normalt aldrig: GIF-sökning och GIF:ar går via din server. Bara om serverns ägare valt "Direkt från KLIPY" frågar din app KLIPY själv, och då väntar GIF:ar i chatten på ett klick.',
+      when: 'Normalt aldrig: GIF-sökning och GIF:ar går via din server. Bara om serverns ägare valt ”Direkt från KLIPY” frågar din app KLIPY själv, och då väntar GIF:ar i chatten på ett klick.',
       off: 'Då ser KLIPY din IP-adress och dina sökningar. Ägaren väljer det i Serverinställningar → GIF:ar.',
     },
     updates: {
@@ -44,7 +44,7 @@ export const compliance: Messages['compliance'] = {
       off: 'GitHub ser din IP-adress och appens version. Uppdateringar täpper till säkerhetshål, så det är på om du inte stänger av det här (skrivbordsappen).',
     },
     updateChecks: 'Leta efter uppdateringar automatiskt',
-    updateChecksHint: '"Leta efter uppdateringar" i menyn i aktivitetsfältet fungerar fortfarande när det här är av.',
+    updateChecksHint: '”Leta efter uppdateringar” i menyn i aktivitetsfältet fungerar fortfarande när det här är av.',
     push: {
       who: 'Pushtjänster (aviseringar)',
       when: 'Bara om du slår på aviseringar på en enhet: dina servrar skickar dem via webbläsarens pushtjänst (Google, Mozilla, Microsoft eller Apple).',
@@ -57,7 +57,7 @@ export const compliance: Messages['compliance'] = {
     },
     hosting: {
       who: 'När du kör en server',
-      when: 'Låt vänner var som helst gå med (Internetåtkomst): din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let’s Encrypt för HTTPS-certifikatet och sslip.io för den gratis adressen om du inte har en egen domän. Textning: servern hämtar talmodellen en gång från Hugging Face. Serveruppdateringar: GitHub. Backupkompisar: krypterade säkerhetskopior till en väns Iskra-server, bara om ägaren kopplar ihop dem (den kan inte läsa dem).',
+      when: "Låt vänner var som helst gå med (Internetåtkomst): din router (UPnP eller NAT-PMP, i ditt eget nätverk), Let's Encrypt för HTTPS-certifikatet och sslip.io för den gratis adressen om du inte har en egen domän. Textning: servern hämtar talmodellen en gång från Hugging Face. Serveruppdateringar: GitHub. Backupkompisar: krypterade säkerhetskopior till en väns Iskra-server, bara om ägaren kopplar ihop dem (den kan inte läsa dem).",
       off: 'De ser serverns adress, inte dina medlemmars. Internetvärd och serveruppdateringar slår du av och på i Serverinställningar, textningsmodellen i server.json.',
     },
     previews: {
@@ -87,11 +87,11 @@ export const compliance: Messages['compliance'] = {
     },
     bugReports: {
       who: 'Iskras felrapporter (chat.iskra.foo), bara när du skickar en felrapport',
-      when: 'När du trycker på Skicka i "Rapportera en bugg": det du skrev, dina skärmbilder, din e-post om du angav den, och (om du inte bockar ur det) loggar med appversion, inställningar, anslutning och röststatus och fel. Du ser allt först under "Se vad som skickas".',
+      when: 'När du trycker på Skicka i ”Rapportera ett fel”: det du skrev, dina skärmbilder, din e-post om du angav den, och (om du inte bockar ur det) loggar med appversion, inställningar, anslutning och röststatus och fel. Du ser allt först under ”Se vad som skickas”.',
       off: 'Den hamnar i en privat kanal som bara Iskra-teamet läser. Servern ser din internetadress för att begränsa missbruk men sparar den inte. Skicka ingen, eller spara den som en fil i stället.',
     },
     p2p: {
-      who: 'HyperDHT (ett publikt peer-to-peer-nätverk), bara för "Anslut utan portvidarebefordran"',
+      who: 'HyperDHT (ett publikt peer-to-peer-nätverk), bara för ”Anslut utan portvidarebefordran”',
       when: 'Bara om en servers ägare slagit på det i datorappen, och när du går med i en sådan server med datorappen och dess adress inte går att nå: appen pratar med noder i det publika HyperDHT-nätverket (först de tre bootstrap-noderna som Holepunch kör, sedan vilka noder som helst) för att annonsera servern eller hitta den, och sedan direkt med den andra datorn.',
       off: 'De noderna ser din internetadress och nyckeln du annonserar eller slår upp, aldrig vad den är eller vad du säger. Ägaren slår av och på det i Serverinställningar → Internetåtkomst; lämna servern för att sluta.',
     },
@@ -110,13 +110,13 @@ export const compliance: Messages['compliance'] = {
     outgoingHook: '{{host}} ({{name}}): {{events}}',
     nothingElse: 'Inget annat: ingen analys, inga annonser, inga kraschrapporter, inga typsnitt eller skript från andra webbplatser. Stavningskontrollen är datorns egen (av på Linux, där den skulle hämta ordlistor från Google).',
     sitesTitle: 'Webbplatser som laddas utan att fråga',
-    sitesHint: 'Webbplatser du kryssat i "Ladda alltid från …" för, bara på den här enheten.',
+    sitesHint: 'Webbplatser du kryssat i ”Ladda alltid från …” för, bara på den här enheten.',
     noSites: 'Inga än. Spelare och inlägg från andra webbplatser väntar på ett klick.',
     forget: 'Glöm',
     forgetSite: 'Glöm {{site}}',
   },
   securityLog: {
-    intro: 'Misslyckade inloggningar, nya medlemmar och enheter, bytta kontonycklar, säkerhetskopior och nedladdad data på den här servern. Moderatorernas åtgärder finns i aktivitetsloggen. Bara du som ägare ser det här.',
+    intro: 'Misslyckade inloggningar, nya medlemmar och enheter, bytta kontonycklar, säkerhetskopior och nedladdad data på den här servern. Moderatorernas åtgärder finns i granskningsloggen. Bara du som ägare ser det här.',
     event: 'Händelse',
     allEvents: 'Alla händelser',
     refresh: 'Uppdatera',
@@ -135,16 +135,16 @@ export const compliance: Messages['compliance'] = {
   retention: {
     title: 'Lagringstider',
     intro: 'Hur länge den här servern sparar saker. 0 betyder för alltid. Äldre data raderas varje timme, för alla, och går inte att få tillbaka.',
-    messagesDays: 'Meddelanden, DM och gruppmeddelanden',
-    uploadsDays: 'Filer i meddelanden och DM',
-    auditDays: 'Aktivitetslogg',
+    messagesDays: 'Kanalmeddelanden, direktmeddelanden och gruppchattar',
+    uploadsDays: 'Filer i meddelanden och direktmeddelanden',
+    auditDays: 'Granskningslogg',
     securityLogDays: 'Inloggningar och säkerhet',
     days: 'dagar',
     forever: 'Sparas för alltid',
     ips: 'Spara IP-adresser i säkerhetsloggen',
     ipsHint: 'Av som standard. När det är på sparar servern IP-adressen för varje misslyckad inloggning, ny medlem och ny enhet lika länge som säkerhetsloggen. Berätta för medlemmarna om du slår på det.',
     save: 'Spara',
-    saved: 'Sparat.',
+    saved: 'Sparat',
     invalid: 'Ange hela dagar från 0 till 36500.',
     confirm: 'Data som är äldre än så raderas inom en timme, för alla. Det går inte att ångra.',
     confirmSave: 'Radera och spara',

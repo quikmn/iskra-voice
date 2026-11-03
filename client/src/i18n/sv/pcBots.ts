@@ -13,7 +13,7 @@ export const pcBots: Messages['pcBots'] = {
   gallery: {
     starter: 'En mall med tre kommandon, ett kort med en knapp och tester. Börja här för att skriva din egen.',
     trivia: 'Frågesport med svarsknappar och en topplista per vecka: /trivia start. Inga nivåer eller XP.',
-    feedsAdvanced: 'Flöden med nyckelordsfilter, och Twitch-aviseringar som var och en följer själv (som DM). Twitch kräver en egen Twitch-app.',
+    feedsAdvanced: 'Flöden med nyckelordsfilter, och Twitch-aviseringar som var och en följer själv (som direktmeddelande). Twitch kräver en egen Twitch-app.',
     serverStats: 'Ett kort varje vecka med medlemmar, nya personer och meddelanden per kanal. Bara antal, aldrig vem som skrev vad.',
     other: 'En bot från galleriet.',
   },

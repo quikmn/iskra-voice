@@ -25,7 +25,7 @@ export const disappear = {
     channel: 'New messages in this channel disappear for everyone once the time is up.',
   },
   newOnly: 'Changing the timer only affects messages sent after the change.',
-  deleted: 'When their time is up, messages and their files are deleted from the server and from everyone’s devices. Server backups never include them.',
+  deleted: "When their time is up, messages and their files are deleted from the server and from everyone's devices. Server backups never include them.",
   honest: 'People can still take screenshots, copy text or save files before a message disappears.',
   managersOnly: 'Only people who can manage channels can change this.',
   saving: 'Saving…',

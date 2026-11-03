@@ -121,7 +121,7 @@ public static class GroupFeature
         var envelope = body.Element("envelope");
         if (envelope.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'envelope' must be an object.");
         var raw = envelope.GetRawText();
-        if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.", "message_too_large");
+        if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("That message is too big. Split it into a few.", "message_too_large");
         DisappearFeature.EnvelopeExpires(envelope);
         var files = DmFileFeature.CheckGroupAttachments(s, me, group.Members, body);
 

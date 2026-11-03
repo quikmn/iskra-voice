@@ -24,7 +24,7 @@ import './e2ee.css'
 /** Core and state errors are written in English; this shows the known ones in the reader's language. */
 export function e2eeText(text: string): string {
   if (text === 'waiting') return t('e2ee.waiting')
-  for (const [id, english] of Object.entries(en.e2ee.errors)) if (english === text) return t(`e2ee.errors.${id as keyof typeof en.e2ee.errors}`)
+  for (const [id, english] of Object.entries(en.e2ee.errors)) if (english.replace('{{max}}', String(MAX_CHANNEL_MEMBERS)) === text) return t(`e2ee.errors.${id as keyof typeof en.e2ee.errors}`, { max: MAX_CHANNEL_MEMBERS })
   // The ones encrypted channels share with DMs (tampered, unverified sender, ...).
   return dmErrorText({ message: text })
 }

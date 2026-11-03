@@ -21,7 +21,7 @@ export const outhooks = {
     'thread.created': 'A thread or forum post starts',
     'voice.joined': 'Someone joins voice',
     'voice.left': 'Someone leaves voice',
-    'member.updated': "A member's level, roles or nickname change",
+    'member.updated': "A member's roles or server nickname change",
     'role.created': 'A role is created',
     'role.updated': 'A role is changed',
     'role.deleted': 'A role is deleted',

@@ -21,7 +21,7 @@ export const afk: Messages['afk'] = {
     idleHint: 'Inaktiv betyder att du inte skriver, klickar eller trycker (någonstans på datorn i skrivbordsappen, i Iskra på webben och i mobilen) och inte pratar, under hela tiden. Den som pratar flyttas aldrig.',
     canTalk: 'Kan prata här',
     canTalkHint: 'Alla andra i AFK-kanalen får mikrofon och ljud avstängda av servern, oavsett sina egna inställningar.',
-    baseRoles: 'Grundroller',
+    baseRoles: 'Inbyggda roller',
     customRoles: 'Roller',
     saved: 'Sparat',
   },

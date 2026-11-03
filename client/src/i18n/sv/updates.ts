@@ -72,7 +72,7 @@ export const updates: Messages['updates'] = {
     off: 'Uppdateringar är avstängda i den här versionen',
     offDetail: 'Utvecklingsversioner uppdaterar inte sig själva.',
     failed: 'Kunde inte söka efter uppdateringar',
-    failedDetail: 'Kontrollera din internetanslutning och försök igen.',
+    failedDetail: 'Kolla din internetanslutning och försök igen.',
   },
   notice: {
     available: 'Ny version för {{server}}: Iskra {{version}}.',

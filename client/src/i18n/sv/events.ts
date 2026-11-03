@@ -58,7 +58,7 @@ export const events: Messages['events'] = {
     cover: 'Omslagsbild',
     coverAlt: 'Omslag',
     removeCover: 'Ta bort omslagsbild',
-    uploading: 'Laddar upp {{percent}} %',
+    uploading: 'Laddar upp… {{percent}} %',
     addCover: 'Lägg till en omslagsbild',
     repeat: 'Upprepas',
     until: 'Till och med (valfritt)',

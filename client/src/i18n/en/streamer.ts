@@ -3,9 +3,9 @@
 export const streamer = {
   title: 'Streamer mode',
   pill: 'Streamer mode',
-  pillHint: 'Streamer mode is on: invite links, ids and previews are hidden, and notifications are quiet. Turn it off in My settings or your status menu.',
+  pillHint: 'Streamer mode is on: invite links, IDs and previews are hidden, and notifications are quiet. Turn it off in My settings or your status menu.',
   switch: 'Streamer mode',
-  switchHint: 'For when your screen is on a stream: hides invite links and codes, account ids and safety numbers, email addresses in profiles and message previews, and keeps notifications and sounds quiet. Follows your account to your other devices.',
+  switchHint: 'For when your screen is on a stream: hides invite links and codes, account IDs and safety numbers, email addresses in profiles and message previews, and keeps notifications and sounds quiet. Follows your account to your other devices.',
   on: 'On',
   off: 'Off',
   autoTitle: 'Turn on by itself',

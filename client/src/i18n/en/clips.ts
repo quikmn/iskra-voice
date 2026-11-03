@@ -26,7 +26,7 @@ export const clips = {
     save: 'Save',
     share: 'Share in chat',
     sharing: 'Sharing… {{percent}}%',
-    savedFile: 'Saved.',
+    savedFile: 'Saved',
     shared: 'Shared in the chat.',
     discard: 'Discard',
   },

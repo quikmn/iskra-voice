@@ -100,7 +100,7 @@ public static partial class WatchFeature
                 return new WatchSource("file", Uploads.UrlOf(file), file.Id, null, title ?? file.Name);
             case "youtube":
                 var videoId = source.String("videoId", 16);
-                if (!YouTubeId().IsMatch(videoId)) throw RequestException.BadRequest("That isn't a YouTube video id.", "youtube_id");
+                if (!YouTubeId().IsMatch(videoId)) throw RequestException.BadRequest("That isn't a YouTube video ID.", "youtube_id");
                 return new WatchSource("youtube", null, null, videoId, title);
             default:
                 throw RequestException.BadRequest("'kind' must be url, file or youtube.");

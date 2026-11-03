@@ -257,7 +257,7 @@ public static partial class FeedsFeature
             return new { twitch = TwitchView(store) };
         }
         if (!TwitchCredential().IsMatch(clientId) || !TwitchCredential().IsMatch(secret))
-            throw RequestException.BadRequest("Twitch didn't accept the client id and secret.", "feeds_twitch_credentials");
+            throw RequestException.BadRequest("Twitch didn't accept the client ID and secret.", "feeds_twitch_credentials");
         try
         {
             await service.Fetcher.CheckTwitchAsync(clientId, secret, CancellationToken.None);
@@ -265,7 +265,7 @@ public static partial class FeedsFeature
         catch (FeedException e)
         {
             throw e.Code == "twitch_auth"
-                ? RequestException.BadRequest("Twitch didn't accept the client id and secret.", "feeds_twitch_credentials")
+                ? RequestException.BadRequest("Twitch didn't accept the client ID and secret.", "feeds_twitch_credentials")
                 : RequestException.BadRequest("Couldn't reach that address. Check it and try again.", "feeds_unreachable");
         }
         store.SetFeedSetting(FeedService.TwitchClientId, clientId);

@@ -16,7 +16,7 @@ export const bots3: Messages['bots3'] = {
   tags: {
     managers: 'Vem som kan ändra taggar',
     managersHint: 'Admins och medlemmar med den här rollen. Alla kan lägga upp taggar med /tag namn.',
-    title: 'Taggar ({{count}} av {{max}})',
+    title: 'Taggar · {{count}} av {{max}}',
     none: 'Inga taggar än. Lägg till den första här nedanför.',
     search: 'Hitta en tagg',
     name: 'Namn',
@@ -30,8 +30,8 @@ export const bots3: Messages['bots3'] = {
     cancel: 'Avbryt',
     remove: 'Ta bort',
     removeConfirm: 'Ta bort taggen {{name}}?',
-    saved: 'Sparat.',
-    removed: 'Borttagen.',
+    saved: 'Sparat',
+    removed: 'Borttagen',
     usage: 'Lägg upp den med /tag {{name}}',
   },
   suggestions: {
@@ -40,7 +40,7 @@ export const bots3: Messages['bots3'] = {
     channelHint: 'Dit förslagskorten går. Medlemmar föreslår med /suggest i vilken kanal som helst, eller med knappen Föreslå.',
     staffHint: 'Personalen markerar förslag som godkända, avböjda eller genomförda. Admins kan alltid.',
     prompt: 'Lägg upp en Föreslå-knapp där',
-    prompted: 'Upplagd.',
+    prompted: 'Upplagd',
   },
   giveaways: {
     hint: 'Starta en i vilken kanal som helst: /giveaway 1h 2w Steam-nyckel (1h: hur länge, 2w: två vinnare; lägg till ett rollomnämnande så kan bara medlemmar med den rollen vara med). Sedan /giveaway end, cancel eller reroll.',

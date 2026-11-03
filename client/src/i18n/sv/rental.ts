@@ -35,9 +35,9 @@ export const rental: Messages['rental'] = {
   },
   token: {
     heading: 'Låt appen sätta upp den',
-    intro: 'Skapa en nyckel (en "personal access token") som låter appen skapa servern åt dig. Den stannar i appens minne på den här datorn, skickas bara till DigitalOcean och slängs när uppsättningen är klar.',
+    intro: 'Skapa en nyckel (en ”personal access token”) som låter appen skapa servern åt dig. Den stannar i appens minne på den här datorn, skickas bara till DigitalOcean och slängs när uppsättningen är klar.',
     step1: 'Öppna <tokens>API → Tokens</tokens> hos DigitalOcean och tryck på <b>Generate New Token</b>.',
-    step2: 'Döp den till "Iskra setup" och välj kortast möjliga <b>Expiration</b> (30 dagar, eller Custom för en dag).',
+    step2: 'Döp den till ”Iskra setup” och välj kortast möjliga <b>Expiration</b> (30 dagar, eller Custom för en dag).',
     step3: 'Under <b>Scopes</b> väljer du <b>Custom Scopes</b> och kryssar bara i: <b>droplet</b> (create, read, delete), <b>firewall</b> (create, read, delete), <b>regions</b> (read), <b>sizes</b> (read) och <b>tag</b> (create). DigitalOcean kan kryssa i några närliggande läsbehörigheter själv; det är okej.',
     step4: 'Tryck på <b>Generate Token</b>, kopiera den (den börjar med dop_v1_) och klistra in den här.',
     label: 'Token',
@@ -56,7 +56,7 @@ export const rental: Messages['rental'] = {
     size: '{{memory}} minne, {{vcpus}} CPU, {{disk}} GB disk, Ubuntu 24.04. <b>{{price}} i månaden</b>, debiterat av DigitalOcean per timme.',
     ssh: 'Tillåt även SSH (terminalåtkomst)',
     sshHint: 'Av från början: ingen behöver logga in för att köra Iskra, så brandväggen släpper bara in webb och röst. Du kan öppna den senare hos DigitalOcean.',
-    note: 'Det här skapar en server (en "droplet") och en brandvägg i ditt DigitalOcean-konto. Inget skapas innan du trycker på knappen.',
+    note: 'Det här skapar en server (en ”droplet”) och en brandvägg i ditt DigitalOcean-konto. Inget skapas innan du trycker på knappen.',
     create: 'Skapa server för {{price}} i månaden',
   },
   progress: {
@@ -148,7 +148,7 @@ export const rental: Messages['rental'] = {
     sees:
       'Iskra-projektet kör ingenting åt din server och ser ingenting: inte din server, dina meddelanden, ditt DigitalOcean-konto, din token eller ditt kort. Appen pratade med DigitalOcean bara under uppsättningen, med din token, och har glömt den. ' +
       'DigitalOcean kan, som alla hostingföretag, tekniskt sett läsa serverns disk; direktmeddelanden och krypterade kanaler är totalsträckskrypterade, så dem kan de inte läsa. ' +
-      'Din server pratar själv med GitHub (uppdateringar) och Let’s Encrypt (certifikatet), och sslip.io:s namnservrar svarar för dess adress.',
+      'Din server pratar själv med GitHub (uppdateringar) och Let\'s Encrypt (certifikatet), och sslip.io:s namnservrar svarar för dess adress.',
     aiTitle: 'Hjälp från en AI-assistent',
     aiIntro: 'Om något strular kan du klistra in texten nedan i en AI-assistent (Claude, ChatGPT…). Den beskriver din uppsättning exakt och innehåller inga hemligheter.',
     sshOpen: 'SSH (22/tcp) är tillåtet',
@@ -159,7 +159,7 @@ export const rental: Messages['rental'] = {
       '- Uppsatt vid första starten av ett cloud-init-skript i user data (logg: /var/log/iskra-setup.log). Det installerade Iskra {{version}} från GitHub releases (iskra-server-{{version}}-linux-x64.tar.gz, kontrollerat mot SHA256SUMS.txt).\n' +
       '- Programmet i /opt/iskra; data ("world") i /opt/iskra/world: server.json (inställningar), iskra.db (SQLite), server.key, uploads/, backups/, certs/. Allt ägs av systemanvändaren "iskra".\n' +
       '- systemd-tjänsten "iskra" (/etc/systemd/system/iskra.service) kör "/opt/iskra/iskra-server /opt/iskra/world" som användaren iskra, med ExecStartPre=-/opt/iskra/iskra-update-guard och AmbientCapabilities=CAP_NET_BIND_SERVICE. Rösten är LiveKit, som servern startar själv.\n' +
-      '- Adress {{url}} (ett sslip.io-namn för IP-adressen). Servern hämtar sitt eget HTTPS-certifikat från Let’s Encrypt (server.json "Https": {"Mode": "acme"}).\n' +
+      '- Adress {{url}} (ett sslip.io-namn för IP-adressen). Servern hämtar sitt eget HTTPS-certifikat från Let\'s Encrypt (server.json "Https": {"Mode": "acme"}).\n' +
       '- Portar: 80/tcp (certifikatkontroll), 443/tcp (webb och WebSocket), 7881/tcp och 7882/udp (röst). Öppna i ufw på dropleten (tillsammans med 22/tcp) och i DigitalOceans molnbrandvägg "{{droplet}}-firewall": {{ssh}}.\n' +
       '- Automatiska uppdateringar från GitHub releases (server.json "Updates": {"Mode": "auto"}) och dagliga säkerhetskopior i /opt/iskra/world/backups.\n' +
       '- Loggar: journalctl -u iskra -n 200 --no-pager. Status: systemctl status iskra. Hälsa: curl -s {{url}}/health\n' +

@@ -1,11 +1,11 @@
 // "Share to…": text, links and files shared from another app (the phone apps' share sheet).
 export const share = {
   title: 'Share to…',
-  preview: 'What you’re sharing',
+  preview: "What you're sharing",
   message: 'Message',
   messagePlaceholder: 'Add a message (optional)',
-  skipped_one: '{{count}} file couldn’t be added (too big, or more than 10).',
-  skipped_other: '{{count}} files couldn’t be added (too big, or more than 10).',
+  skipped_one: "{{count}} file couldn't be added (too big, or more than 10).",
+  skipped_other: "{{count}} files couldn't be added (too big, or more than 10).",
   sendToLabel: 'Send to',
   search: 'Search channels, people and groups',
   places: 'Places to share to',
@@ -19,9 +19,9 @@ export const share = {
   sendTo: 'Send to {{target}}',
   sending: 'Sending… {{percent}}',
   errors: {
-    empty: 'There’s nothing to send.',
-    offline: 'That server isn’t connected right now. Try again in a moment.',
+    empty: "There's nothing to send.",
+    offline: "That server isn't connected right now. Try again in a moment.",
     tooBig: '{{name}} is bigger than this server allows ({{max}}).',
-    fileGone: '{{name}} isn’t available any more. Share it again.',
+    fileGone: "{{name}} isn't available any more. Share it again.",
   },
 }

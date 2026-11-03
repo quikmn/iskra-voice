@@ -7,7 +7,7 @@ export const moreBots: Messages['moreBots'] = {
     channelNone: 'Ingenstans (pausad)',
     channelHint: 'Botten måste kunna se kanalen. Den behöver inte kunna skriva där.',
     save: 'Spara',
-    saved: 'Sparat.',
+    saved: 'Sparat',
     loading: 'Laddar…',
     invalid: {
       threshold: 'Välj 1–50 reaktioner.',
@@ -31,7 +31,7 @@ export const moreBots: Messages['moreBots'] = {
       messagePlaceholder: '👋 Välkommen till {server}, {name}!',
       messageHint: 'Använd {name}, {server} och {memberCount}. Markdown fungerar. Lämna tomt för standardhälsningen.',
       privateMessage: 'Privat välkomnande (valfritt)',
-      privatePlaceholder: 'Hej {name}! Kika på #rules först.',
+      privatePlaceholder: 'Hej {name}! Kika på #regler först.',
       privateHint: 'Bara den nya medlemmen ser det, när hen har kommit in.',
       preview: 'Förhandsvisning',
       batchHint: 'När många går med samtidigt får de en gemensam hälsning i stället för en var.',
@@ -58,7 +58,7 @@ export const moreBots: Messages['moreBots'] = {
     month: 'Månad',
     day: 'Dag',
     save: 'Spara födelsedag',
-    saved: 'Sparat.',
-    removed: 'Borttagen.',
+    saved: 'Sparat',
+    removed: 'Borttagen',
   },
 }

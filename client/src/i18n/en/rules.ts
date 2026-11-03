@@ -47,7 +47,7 @@ export const rules = {
     againHint: "For changes that matter. Small fixes don't need it.",
     agreedCount: '{{agreed}} of {{members}} members have agreed to the current rules.',
     seeAsMember: 'See what members see',
-    saved: 'Saved.',
+    saved: 'Saved',
   },
   userLimit: {
     label: 'User limit',

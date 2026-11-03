@@ -26,7 +26,7 @@ export const speech = {
     show: 'Show transcript',
     hide: 'Hide transcript',
     working: 'Transcribing on this device…',
-    loading: 'Getting the speech model ready… {{percent}} %',
+    loading: 'Getting the speech model ready… {{percent}}%',
     empty: 'No speech heard in this voice message.',
     needsDownload: 'Transcripts need a one-time download of the speech model ({{size}}) from this server, the same one live captions use. It stays on this device; the recording and the text never leave it.',
     download: 'Download',

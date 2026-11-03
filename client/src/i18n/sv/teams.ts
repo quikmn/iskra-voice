@@ -3,7 +3,7 @@ import type { Messages } from '../types'
 export const teams: Messages['teams'] = {
   title: 'Dela upp i lag',
   heading: 'Lag från {{channel}}',
-  noPower: 'Att dela upp i lag flyttar folk, så det kräver rätten att flytta medlemmar.',
+  noPower: 'Att dela upp i lag flyttar folk, så det kräver behörigheten Flytta medlemmar.',
   how: 'Hur lagen delas',
   mode: {
     random: 'Slumpa',

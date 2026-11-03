@@ -48,7 +48,7 @@ export const rules: Messages['rules'] = {
     againHint: 'För ändringar som spelar roll. Små rättelser behöver inte det.',
     agreedCount: '{{agreed}} av {{members}} medlemmar har godkänt de nuvarande reglerna.',
     seeAsMember: 'Se det medlemmarna ser',
-    saved: 'Sparat.',
+    saved: 'Sparat',
   },
   userLimit: {
     label: 'Max antal användare',

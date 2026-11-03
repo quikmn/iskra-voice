@@ -7,7 +7,7 @@ export const profile = {
   uploadPicture: 'Upload picture',
   picture: 'Profile picture',
   name: 'Name',
-  nameHint: 'Shown everywhere: on all your servers, in DMs and to friends, except where you set a server nickname.',
+  nameHint: 'Shown everywhere: on all your servers, in direct messages and to friends, except where you set a server nickname.',
   nicknamesHere: 'Your server nickname is shown instead on {{servers}}.',
   nameSaved: 'Saved. Your name is updated everywhere.',
   nameLine: 'Name: {{name}}',

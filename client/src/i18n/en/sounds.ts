@@ -37,7 +37,7 @@ export const sounds = {
       tooBig: 'That file is too big. Pick one up to 1 MB.',
       tooLong: 'That sound is too long. Pick one up to 4 seconds.',
       empty: 'That sound is silent.',
-      unreadable: "That sound couldn't be played here. Try an MP3, OGG or WAV file.",
+      unreadable: "That sound couldn't be played here. Try an MP3, Ogg or WAV file.",
     },
   },
 }

@@ -43,7 +43,7 @@ export function myVotes(poll: Poll, me: string | undefined): number[] {
   return poll.options.flatMap((o, i) => (o.votes.includes(me) ? [i] : []))
 }
 
-/** "45m left", "3h left", "2d left". */
+/** "45 min left", "3 h left", "2 d left". */
 export function timeLeft(ms: number): string {
   if (ms < 60_000) return t('expressions.poll.lessThanMinute')
   if (ms < 3_600_000) return t('expressions.poll.minutesLeft', { count: Math.floor(ms / 60_000) })

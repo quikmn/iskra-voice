@@ -68,7 +68,7 @@ public static class ModPackFeature
         var channel = ChatFeature.ReadableChannel(s, me, body.Long("channelId"));
         var element = body.Element("ids");
         if (element.ValueKind != JsonValueKind.Array || element.GetArrayLength() is 0 or > MaxBulkDelete)
-            throw RequestException.BadRequest($"'ids' must be a list of 1–{MaxBulkDelete} message ids.", "bulk_delete_max", new { max = MaxBulkDelete });
+            throw RequestException.BadRequest($"Pick 1–{MaxBulkDelete} messages.", "bulk_delete_max", new { max = MaxBulkDelete });
         var ids = element.EnumerateArray()
             .Select(e => e.ValueKind == JsonValueKind.Number && e.TryGetInt64(out var id) ? id : throw RequestException.BadRequest("'ids' must be a list of ids."))
             .Distinct().ToList();
@@ -129,7 +129,7 @@ public static class ModPackFeature
     {
         var window = body.OptionalLong("deleteMessagesMs", min: 0);
         if (window is null or 0) return null;
-        if (!DeleteWindows.Contains(window.Value)) throw RequestException.BadRequest("'deleteMessagesMs' must be 24 hours or 7 days.", "ban_delete_window");
+        if (!DeleteWindows.Contains(window.Value)) throw RequestException.BadRequest("Messages can be deleted from the last 24 hours or the last 7 days.", "ban_delete_window");
         return window;
     }
 
@@ -144,7 +144,7 @@ public static class ModPackFeature
         var target = s.World.Store.GetMember(key) ?? throw RequestException.NotFound("Member");
         if (!Permissions.Outranks(me, target)) throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
         var reason = Text.Normalize(body.String("reason", MemberFeature.MaxReasonLength * 2), MemberFeature.MaxReasonLength, allowNewlines: false)
-            ?? throw RequestException.BadRequest($"'reason' must be 1–{MemberFeature.MaxReasonLength} characters.", "warn_reason", new { max = MemberFeature.MaxReasonLength });
+            ?? throw RequestException.BadRequest($"The reason must be 1–{MemberFeature.MaxReasonLength} characters.", "warn_reason", new { max = MemberFeature.MaxReasonLength });
         Audit.Record(s, "member.warn", target.AccountKey, reason);
         s.Hub.SendToAccount(target.AccountKey, Frames.Event("member.warned", new { reason, by = me.AccountKey, byName = me.Name, at = s.Now }));
         return null;
@@ -200,7 +200,7 @@ public static class ModPackFeature
         var key = body.String("accountKey", 64);
         RequireOutranks(store, me, key);
         var limit = (int)(body.OptionalLong("limit", min: 1, max: MaxHistory) ?? 50);
-        // Moderators who can't read the whole activity log only see what they could see anyway.
+        // Moderators who can't read the whole audit log only see what they could see anyway.
         var fullLog = Permissions.Has(me, Perm.ViewAuditLog);
         return new
         {

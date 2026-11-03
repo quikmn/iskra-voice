@@ -57,7 +57,7 @@ export const events = {
     cover: 'Cover image',
     coverAlt: 'Cover',
     removeCover: 'Remove cover image',
-    uploading: 'Uploading {{percent}}%',
+    uploading: 'Uploading… {{percent}}%',
     addCover: 'Add a cover image',
     repeat: 'Repeats',
     until: 'Until (optional)',

@@ -39,7 +39,7 @@ public static class SuggestionsBot
     private static SuggestionsConfig Config(Store store) => MoreBuiltinBots.Config<SuggestionsConfig>(store, Id);
 
     private static Member RequireOn(Store store) =>
-        MoreBuiltinBots.BotIfOn(store, Id) ?? throw RequestException.BadRequest("Suggestions aren't on in this server.", "suggestions_off");
+        MoreBuiltinBots.BotIfOn(store, Id) ?? throw RequestException.BadRequest("Suggestions aren't on for this server.", "suggestions_off");
 
     private static void RequireStaff(Store store, Member me)
     {
