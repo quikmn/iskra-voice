@@ -86,7 +86,7 @@ public static class TeamsFeature
             throw RequestException.BadRequest("This voice channel is split into teams already. Bring everyone back first.", "teams_active");
         if (splits.Count >= MaxSplits)
             throw RequestException.BadRequest($"A server can have up to {MaxSplits} team splits at once.", "teams_max", new { max = MaxSplits });
-        if (!s.TryTakeLimit("teams.created")) throw new RequestException("rate_limited", "Slow down a little.");
+        if (!s.Hub.Limits.TryTake(me.AccountKey, "teams.created")) throw new RequestException("rate_limited", "Slow down a little.");
 
         // One voice channel per team, right after the voice channel, with its permissions.
         var hifi = store.IsHifi(channel.Id);

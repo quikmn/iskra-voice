@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Iskra.Server.Protocol;
 using Iskra.Server.Sessions;
 using Iskra.Server.Storage;
@@ -40,6 +41,19 @@ public static class ModPackFeature
     private static void RequireModerator(Member me)
     {
         if (!ReportFeature.IsModerator(me)) throw RequestException.Forbidden("Only moderators can do that.", "mods_only");
+    }
+
+    /// <summary>
+    /// Acting on, or reading about, someone needs them ranked below you: a member by their rank now, someone who left by
+    /// the rank they left with (when that wasn't kept, admins only). People who were never members here are fine.
+    /// </summary>
+    internal static void RequireOutranks(Store store, Member me, string accountKey)
+    {
+        bool ok;
+        if (store.GetMember(accountKey) is { } target) ok = Permissions.Outranks(me, target);
+        else if (store.GetDeparture(accountKey) is { } gone) ok = gone.AsMember() is { } rank ? Permissions.Outranks(me, rank) : Permissions.IsAdmin(me);
+        else ok = true;
+        if (!ok) throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
     }
 
     // ── Bulk delete ──────────────────────────────────────────────────────────
@@ -143,7 +157,9 @@ public static class ModPackFeature
     private static object ListNotes(Session s, Member me, Body body)
     {
         RequireModerator(me);
-        return new { notes = s.World.Store.ModNotes(body.String("accountKey", 64)).Select(NoteView) };
+        var key = body.String("accountKey", 64);
+        RequireOutranks(s.World.Store, me, key);
+        return new { notes = s.World.Store.ModNotes(key).Select(NoteView) };
     }
 
     /// <summary>About anyone, member or not (notes outlive a kick, so a returning troublemaker is recognised).</summary>
@@ -153,8 +169,7 @@ public static class ModPackFeature
         var store = s.World.Store;
         var key = body.String("accountKey", 64);
         if (key == me.AccountKey) throw RequestException.BadRequest("You can't do that to yourself.", "not_to_self");
-        if (store.GetMember(key) is { } target && !Permissions.Outranks(me, target))
-            throw RequestException.Forbidden("You can only manage members ranked below you.", "rank_members");
+        RequireOutranks(store, me, key);
         var text = Text.Normalize(body.String("text", MaxNoteLength * 2), MaxNoteLength, allowNewlines: true)
             ?? throw RequestException.BadRequest($"Notes can be 1–{MaxNoteLength} characters.", "note_length", new { max = MaxNoteLength });
         if (store.CountModNotes(key) >= MaxNotesPerPerson)
@@ -181,16 +196,50 @@ public static class ModPackFeature
     private static object History(Session s, Member me, Body body)
     {
         RequireModerator(me);
+        var store = s.World.Store;
         var key = body.String("accountKey", 64);
+        RequireOutranks(store, me, key);
         var limit = (int)(body.OptionalLong("limit", min: 1, max: MaxHistory) ?? 50);
+        // Moderators who can't read the whole activity log only see what they could see anyway.
+        var fullLog = Permissions.Has(me, Perm.ViewAuditLog);
         return new
         {
-            entries = s.World.Store.AuditAbout(key, HistoryActions, limit).Select(e => new
+            entries = store.AuditAbout(key, HistoryActions, limit).Select(e =>
             {
-                id = e.Id, at = e.At, action = e.Action, actor = e.Actor, actorName = e.ActorName, target = e.Target, targetName = e.TargetName, reason = e.Reason,
-                details = e.Details is null ? (JsonElement?)null : JsonDocument.Parse(e.Details).RootElement.Clone(),
+                var details = e.Details is null ? null : JsonNode.Parse(e.Details) as JsonObject;
+                var reason = e.Reason;
+                if (!fullLog && details is not null) (details, reason) = Redact(store, me, e.Action, details, reason);
+                return new
+                {
+                    id = e.Id, at = e.At, action = e.Action, actor = e.Actor, actorName = e.ActorName, target = e.Target, targetName = e.TargetName, reason,
+                    details = details is null ? (JsonElement?)null : JsonSerializer.SerializeToElement(details),
+                };
             }),
         };
+    }
+
+    /// <summary>
+    /// A history entry for a moderator without viewAuditLog: no channel they can't read (a deleted channel: admins only)
+    /// and, for a report they couldn't see, not its reason or the resolving moderator's note.
+    /// </summary>
+    private static (JsonObject Details, string? Reason) Redact(Store store, Member me, string action, JsonObject details, string? reason)
+    {
+        if (details["channelId"] is JsonValue idValue && idValue.TryGetValue<long>(out var channelId))
+        {
+            var channel = store.GetChannel(channelId);
+            if (channel is null ? !Permissions.IsAdmin(me) : !Permissions.CanRead(me, channel))
+            {
+                details.Remove("channelId");
+                details.Remove("channelName");
+            }
+        }
+        if (action == "report.resolve" && details["reportId"] is JsonValue reportValue && reportValue.TryGetValue<long>(out var reportId)
+            && (store.GetReport(reportId) is not { } report || !ReportFeature.CanSee(store, me, report)))
+        {
+            details.Remove("reason");
+            reason = null;
+        }
+        return (details, reason);
     }
 
     private static object Departed(Session s, Member me, Body body)

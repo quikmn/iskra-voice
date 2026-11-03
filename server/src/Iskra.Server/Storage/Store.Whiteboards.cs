@@ -174,6 +174,9 @@ public sealed partial class Store
     }
 
     /// <summary>Uploads any board refers to (the unused-upload sweep keeps them).</summary>
+    public bool BoardKeepsFile(long channelId, string fileId) =>
+        Scalar("SELECT 1 FROM wb_files WHERE channel_id = $ch AND file_id = $f;", ("$ch", channelId), ("$f", fileId)) is not null;
+
     public HashSet<string> BoardFileIds() => Query("SELECT DISTINCT file_id FROM wb_files;", r => r.GetString(0)).ToHashSet();
 
     /// <summary>

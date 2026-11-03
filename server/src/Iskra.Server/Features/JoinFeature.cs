@@ -12,6 +12,10 @@ namespace Iskra.Server.Features;
 public static class JoinFeature
 {
     public const int MaxNewcomerHours = 24 * 30;
+    /// <summary>People waiting at once; more are turned away (<c>join_queue_full</c>) before an invite use is spent.</summary>
+    public const int MaxPending = 500;
+    /// <summary>Requests per <c>join.list</c> page.</summary>
+    public const int MaxListPage = 100;
     /// <summary>Who AutoMod pauses invites as (never an account key).</summary>
     public const string AutoModBy = AutoModFeature.Author;
 
@@ -43,10 +47,14 @@ public static class JoinFeature
         };
     }
 
+    /// <summary>Oldest first, a page at a time (`offset`, `limit`), with whether more are waiting.</summary>
     private static object List(Session s, Member me, Body body)
     {
         RequireModerator(me);
-        return new { requests = s.World.Store.PendingJoinRequests().Select(r => View(s.World.Store, r)) };
+        var offset = (int)(body.OptionalLong("offset", min: 0, max: MaxPending) ?? 0);
+        var limit = (int)(body.OptionalLong("limit", min: 1, max: MaxListPage) ?? MaxListPage);
+        var page = s.World.Store.PendingJoinRequests(offset, limit + 1);
+        return new { requests = page.Take(limit).Select(r => View(s.World.Store, r)), more = page.Count > limit };
     }
 
     /// <summary>Tells every online moderator how many people are waiting.</summary>
@@ -71,6 +79,12 @@ public static class JoinFeature
         var store = s.World.Store;
         var request = Pending(s, body);
         if (store.IsBanned(request.AccountKey)) throw RequestException.BadRequest("They were banned meanwhile.", "join_banned");
+        // The invite still has to be good: not revoked or expired since, and its maker still able to give its role.
+        var invite = store.GetInvite(request.InviteCode);
+        if (invite is null || invite.Revoked || invite.ExpiresAt is { } exp && exp <= s.Now)
+            throw RequestException.BadRequest("The invite they used was revoked or has expired. Decline, and send them a new one if you like.", "join_invite_gone");
+        if (Roles.Rank(request.Role) > Roles.Rank(Roles.Member) && (store.GetMember(invite.CreatedBy) is not { } maker || !Permissions.CanGrant(maker, request.Role)))
+            throw RequestException.BadRequest("Whoever made their invite can't give its role any more. Decline, and send them a new one if you like.", "join_invite_role");
         store.RemoveJoinRequest(request.AccountKey);
         var member = OnboardingFeature.Joined(store, store.AddMember(request.AccountKey, request.Name, request.Role, s.Now));
         var via = InviteTrackFeature.Joined(store, member, request.InviteCode, me.AccountKey, s.Now);

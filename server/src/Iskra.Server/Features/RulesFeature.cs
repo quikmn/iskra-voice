@@ -13,18 +13,6 @@ public static class RulesFeature
     public const int MaxTextLength = 6000;
     public const int MaxWelcomeLength = 500;
 
-    /// <summary>What needs agreeing first: the same things a timeout stops, plus a few more ways to take part.</summary>
-    private static readonly HashSet<string> NeedsAgreement =
-    [
-        "chat.send", "chat.edit", "chat.react", "chat.typing", "chat.pin", "chat.forward", "upload.begin",
-        "thread.create", "thread.update", "poll.create", "poll.vote", "poll.end",
-        "voice.join", "sound.play", "call.start", "call.accept", "stage.hand", "stage.start",
-        "forum.post.create", "forum.post.update", "event.create", "event.update", "event.interest",
-        "watch.start", "watch.control", "watch.chat", "invite.create", "interaction.invoke",
-        "docs.page.create", "docs.page.save", "docs.page.move", "docs.page.delete", "docs.page.restore",
-        "wb.open", "wb.update", "wb.live", "wb.snapshot", "wb.clear",
-    ];
-
     public static void Register(Router router)
     {
         router.Add("rules.get", (s, me, _) => new { rules = View(s.World.Store, me, counts: Permissions.IsAdmin(me)) });
@@ -39,9 +27,9 @@ public static class RulesFeature
         rules is { Required: true } && member.Role != Roles.Owner && !store.IsBot(member.AccountKey)
         && store.AcceptedRulesVersion(member.AccountKey) < rules.Version;
 
-    /// <summary>The router asks before every request.</summary>
+    /// <summary>The router asks before every request: what needs agreeing first is everything a timeout stops (<see cref="Participation"/>).</summary>
     internal static RequestException? Gate(Session s, Member me, string type) =>
-        NeedsAgreement.Contains(type) && MustAgree(s.World.Store, me)
+        Participation.Restricted(type) && MustAgree(s.World.Store, me)
             ? new RequestException("rules_required", "Agree to the server rules first.", "rules_agree_first")
             : null;
 

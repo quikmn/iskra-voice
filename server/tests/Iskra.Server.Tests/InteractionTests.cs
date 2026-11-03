@@ -108,6 +108,22 @@ public class InteractionTests
     }
 
     [Fact]
+    public async Task Taking_bots_from_admins_also_stops_bot_scope_changes()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var bot = await JoinBot(server, owner, readAll: false);
+        var abilities = Iskra.Server.Sessions.BaseRoles.AbilitiesOf("admin").Where(a => a != "bots").ToArray();
+        Assert.Equal("result", (await owner.RequestAsync("role.base.update", new { role = "admin", abilities })).Type());
+
+        var refused = await admin.RequestAsync("bot.scope.set", new { accountKey = bot.Key, readAll = true });
+        Assert.Equal("forbidden", refused.ErrorCode());
+        Assert.False(server.World.Store.BotReadsAll(bot.Key));
+        Assert.Equal("result", (await owner.RequestAsync("bot.scope.set", new { accountKey = bot.Key, readAll = true })).Type());
+    }
+
+    [Fact]
     public async Task Reading_everything_is_the_admins_choice_and_can_change()
     {
         using var server = new IskraServer();

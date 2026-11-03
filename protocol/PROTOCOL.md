@@ -1060,7 +1060,7 @@ BlockEntry { "accountKey": "<b64u 32>", "blocked": true, "at": 1760000000000 }  
 | `member.timeout.status` | | `{ timeout: { until, reason } \| null }` | yourself |
 
 - `Member` gains `timedOutUntil` (ms, or null). Setting a new timeout replaces the old one. The server ends timeouts when they run out (within about a second) and sends `member.updated`; enforcement always compares with the current time.
-- While timed out, these requests answer `forbidden`: `chat.send`, `chat.edit`, `chat.react`, `chat.typing`, `chat.pin`, `upload.begin`, `thread.create`, `thread.update`, `poll.create`, `poll.vote`, `poll.end`, `voice.join`, `sound.play`, `call.start`, `call.accept`. Calling someone who is timed out is `forbidden` too. A new timeout takes the member out of voice and ends their calls on this server; LiveKit joins from a timed-out member are removed. Reading, DMs and profile changes keep working.
+- While timed out, every request answers `forbidden` (key `timed_out`) except reading and looking after yourself: reading requests (history, lists, search, `*.get`), what staff read, `data.export` and `channel.export`, your own account, devices, keys, profile, prefs, push, blocks, reminders and roles you pick yourself, `rules.accept`, `report.create`, `member.leave`, deleting your own messages, stepping back (`lfg.leave`, `lfg.close`, `act.leave`, `wb.leave`, `watch.stop`, `whisper.stop`, `stage.decline`, ending or declining calls, your voice flags, recording consent and opt-out, `voice.record.stop`), and DMs and group DMs. The server keeps the list (`Participation.StillAllowed`); any request not on it, including every new one, is refused, so writing, reacting, voice, calls, threads, polls, LFG posts, giveaways, suggestions, rooms, activities, whispers, whiteboards and admin changes all are. Calling someone who is timed out is `forbidden` too. A new timeout takes the member out of voice and ends their calls on this server; LiveKit joins from a timed-out member are removed.
 
 ### Slowmode
 
@@ -1713,7 +1713,7 @@ Rules { "text": "1. Be kind …", "welcome": "Welcome!", "required": true,
 
 - `welcome` carries `rules` (`Rules`, without the counts). Event `rules` `{ rules }` goes to every session (each its own view) after `rules.update`, and to your own sessions after `rules.accept`.
 - `required` needs non-empty `text`. `reaccept: true` (only with `required`) raises `version`, so everyone must agree again. Turning `required` on without `reaccept` counts everyone who is a member right now as having agreed, so only people who join later are asked; with `reaccept`, existing members are asked too. Edits without `reaccept` keep everyone's agreement. Whoever saves required rules has agreed to them.
-- Not yet agreed: these answer `rules_required`: `chat.send`, `chat.edit`, `chat.react`, `chat.typing`, `chat.pin`, `chat.forward`, `upload.begin`, `thread.create`, `thread.update`, `poll.create`, `poll.vote`, `poll.end`, `voice.join`, `sound.play`, `call.start`, `call.accept`, `stage.hand`, `stage.start`, `forum.post.create`, `forum.post.update`, `event.create`, `event.update`, `event.interest`, `watch.start`, `watch.control`, `watch.chat`, `invite.create`, and the page changes in [docs channels](#docs-channels). LiveKit joins from them are removed. Reading, DMs, profile changes and settings keep working.
+- Not yet agreed: the same requests a [timeout](#timeouts) stops answer `rules_required` (everything but reading, looking after yourself, `rules.accept`, `report.create`, leaving and DMs; new requests are refused by default). LiveKit joins from them are removed. Reading, DMs, profile changes and settings keep working.
 - The owner and bots never need to agree; webhooks don't go through sessions. Agreements are stored per account key and kept if someone leaves and comes back.
 - Audit: `rules.update` `{ required, reaccept, version, textChanged }`.
 
@@ -2755,7 +2755,7 @@ interactions and the messages meant for it.
 | type | body | result | who |
 |---|---|---|---|
 | `bot.invite` | gains `readAll?` (bool, default `false`) | | admin+ |
-| `bot.scope.set` | `accountKey` (a bot member), `readAll` (bool) | `{ member }` | admin+; `member.updated` goes to everyone |
+| `bot.scope.set` | `accountKey` (a bot member), `readAll` (bool) | `{ member }` | whoever has the `bots` base-role ability (admins by default; `forbidden`, key `admins_bot_scope`), on bots ranked below them (`rank_members`); `member.updated` goes to everyone |
 
 - `Member.readsMessages`: `true`/`false` for bots, `null` for people. Bots that joined before this existed keep reading
   everything (`true`); `readAll` from the invite is copied to the bot when it joins.
@@ -2985,6 +2985,10 @@ Safety rules for powers, all checked on the server before anything changes:
   permission `mentionEveryone` (`bad_request`, key `base_power_not_allowed`, args `{ role }`). `trusted` and `admin` may
   get any ability but the owner's and any permission.
 - Unknown names → `bad_request`.
+- Not in the table, so always the admins' (and the owner's), whatever it says: the AFK channel (`afk.update`), how
+  people join (`join.settings.*`), activities admins add (`act.add`, `act.remove`, `act.configure`), saving the server
+  as a template, invites that never expire, and seeing every invite. Changing what a bot can read (`bot.scope.set`)
+  follows `bots`, like adding one.
 
 Changes are stored as additions and removals from the defaults (`base_role_powers`, migration `builtinroles-2`), so a
 server that never changes anything behaves exactly as before, and abilities added in later versions follow their
@@ -4668,13 +4672,16 @@ Tag { "name": "rules", "text": "Be kind.", "updatedBy": "<accountKey>" | null, "
 the suggestions channel. It needs the bot on (`suggestions_off`), a channel it can see (`suggestions_channel`), text
 1–1000 characters with newlines (`suggestion_text`, args `{ max }`), and per person at most 3 suggestions in 10 minutes
 (`suggestions_slow`, args `{ max, minutes }`; counted in the database, so reconnecting doesn't reset it). Bots can't
-(`suggestion_bot`). The `/suggest` message itself is deleted once the card is posted (`chat.deleted`), so an anonymous
+(`suggestion_bot`). The card is posted for the person, so the same rules apply as to writing there (except the
+channel's write role): they must be able to read the suggestions channel (`not_found` otherwise, so its id doesn't
+leak), not be timed out (`forbidden`, key `timed_out`) and have agreed to required rules (`rules_required`), and the
+text goes through AutoMod (`automod`). The `/suggest` message itself is deleted once the card is posted (`chat.deleted`), so an anonymous
 suggestion stays anonymous; the answer is private: `{ "kind": "suggestion.posted", "channelId", "messageId" }`
 (`suggestion.usage` without an idea).
 
 | type | body | result | who |
 |---|---|---|---|
-| `suggestion.create` | `text` | `{ messageId, channelId }` | anyone but bots |
+| `suggestion.create` | `text` | `{ messageId, channelId }` | anyone but bots who can read the suggestions channel (see above) |
 | `suggestion.vote` | `messageId` (a suggestion card), `vote: 1 \| -1 \| 0` (0 takes it back) | `{ vote, up, down }` | anyone who can read the card; not bots (`suggestion_bot_vote`); only while open (`suggestion_closed`) |
 | `suggestion.decide` | `messageId`, `status: "open" \| "accepted" \| "declined" \| "implemented"`, optional `reason` (one line, ≤ 300: `suggestion_reason`, args `{ max }`) | `{ status, reason }` | staff (`forbidden`, key `suggestions_staff`); audit `suggestion.decide` (`{ messageId, status }`, the reason as the entry's reason) |
 | `suggestion.author` | `messageId` | `{ accountKey \| null }` | staff; for an anonymous card, audit `suggestion.author` |

@@ -115,9 +115,14 @@ public sealed class Router
     /// <summary>For slow work (network fetches): runs off the read loop, so the connection stays responsive.</summary>
     public void AddAsync(string type, AsyncHandler handler) => _asyncHandlers.Add(type, handler);
 
+    /// <summary>Every request type a handler is registered for (tests check each is gated or allowed on purpose).</summary>
+    public IEnumerable<string> Types => _handlers.Keys.Concat(_asyncHandlers.Keys);
+
+    private bool Knows(string type) => _handlers.ContainsKey(type) || _asyncHandlers.ContainsKey(type);
+
     public void Handle(Session session, Member me, Envelope request)
     {
-        if ((ModerationFeature.Gate(session, me, request.Type) ?? RulesFeature.Gate(session, me, request.Type) ?? BotScope.Gate(session, me, request.Type)) is { } refused)
+        if (Knows(request.Type) && (ModerationFeature.Gate(session, me, request.Type) ?? RulesFeature.Gate(session, me, request.Type) ?? BotScope.Gate(session, me, request.Type)) is { } refused)
         {
             session.Send(Frames.Error(request.Id, refused.Code, refused.Message, refused.Extra));
             return;
@@ -156,7 +161,7 @@ public sealed class Router
     /// </summary>
     public object? Invoke(Session session, Member me, string type, System.Text.Json.JsonElement body)
     {
-        if ((ModerationFeature.Gate(session, me, type) ?? RulesFeature.Gate(session, me, type) ?? BotScope.Gate(session, me, type)) is { } refused) throw refused;
+        if (Knows(type) && (ModerationFeature.Gate(session, me, type) ?? RulesFeature.Gate(session, me, type) ?? BotScope.Gate(session, me, type)) is { } refused) throw refused;
         if (session.World.Moved is { } moved) throw new RequestException("moved", $"This server has moved to {moved.Url}.");
         if (!_handlers.TryGetValue(type, out var handler)) throw new RequestException("unknown_type", $"Unknown type '{Truncate(type, 64)}'.");
         var result = handler(session, me, new Body(body));

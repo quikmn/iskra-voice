@@ -199,6 +199,21 @@ public class LfgTests
     }
 
     [Fact]
+    public async Task Posts_are_limited_per_person_not_per_connection()
+    {
+        using var server = new IskraServer();
+        using var alice = await server.JoinAsync("Alice");
+        using var second = await server.ConnectAsync();
+        Assert.Equal("welcome", (await second.LoginAsync(alice.Identity, "Alice")).Type());
+        using var bob = await server.JoinAsync("Bob");
+        var codes = new List<string?>();
+        for (var i = 0; i < 4; i++)
+            codes.Add((await (i % 2 == 0 ? alice.Client : second).RequestAsync("lfg.create", new { channelId = server.General, game = "Valheim", slots = 2 })).ErrorCode());
+        Assert.Equal([null, null, null, "rate_limited"], codes);
+        Assert.Null((await Post(bob, server.General)).ErrorCode());
+    }
+
+    [Fact]
     public async Task Creating_is_rate_limited_and_data_goes_with_the_account()
     {
         using var server = new IskraServer();

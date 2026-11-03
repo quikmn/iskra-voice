@@ -224,9 +224,11 @@ public sealed class Session
                 AuthFailure.JoinPending => ("join_pending", "Waiting for a moderator to let you in.", CloseCodes.AuthFailed),
                 AuthFailure.JoinDeclined => ("join_declined", "The moderators didn't let you in.", CloseCodes.Forbidden),
                 AuthFailure.InvitesPaused => ("invites_paused", "This server isn't taking new members right now. Try again later.", CloseCodes.AuthFailed),
+                AuthFailure.JoinQueueFull => ("join_queue_full", "Too many people are waiting to join this server right now. Try again later.", CloseCodes.AuthFailed),
                 _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
             };
-            SecurityLog.Record(_world.Store, Now, "auth.failed", _provenAccount, LoggedIp, new { reason = code }, source: RemoteIp);
+            // A waiting app asks again every few seconds: its first ask is the event (join.pending), the rest aren't.
+            if (!_stillWaiting) SecurityLog.Record(_world.Store, Now, "auth.failed", _provenAccount, LoggedIp, new { reason = code }, source: RemoteIp);
             _log.Note("SES-110", "sess", "refused", ("conn", LogId), ("why", code), ("via", Tunnelled ? "tunnel" : "direct"));
             SendNow(Frames.Error(envelope?.Id, code, message, failure == AuthFailure.KeyRotation ? _authError!.Value.Extra : null));
             Close(close, message);
@@ -393,10 +395,16 @@ public sealed class Session
 
     // ── Auth ─────────────────────────────────────────────────────────────────
 
-    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked, KeyRotation, NameRequired, JoinPending, JoinDeclined, InvitesPaused }
+    private enum AuthFailure { Invalid, Banned, InviteRequired, DeviceRevoked, KeyRotation, NameRequired, JoinPending, JoinDeclined, InvitesPaused, JoinQueueFull }
 
     /// <summary>Set when the handshake fails because the account was deleted or its key rotated (AccountFeature/KeyFeature.OnAuth).</summary>
     private (string Code, string Message, object Extra)? _authError;
+
+    private bool Usable(Invite invite) =>
+        !invite.Revoked && (invite.ExpiresAt is not { } exp || exp > Now) && (invite.MaxUses is not { } max || invite.Uses < max);
+
+    /// <summary>The handshake was refused because a join request is waiting (logged once, as join.pending, not as auth.failed).</summary>
+    private bool _stillWaiting;
 
     /// <summary>The account a failed handshake proved it holds (signature checked), for the security log.</summary>
     private string? _provenAccount;
@@ -478,13 +486,27 @@ public sealed class Session
         }
 
         if (name is null) return (null, AuthFailure.NameRequired);
-        // Already asked to join: the invite was used then; the answer is still pending, or was no (JoinFeature).
+        // Already asked to join: the invite was used then; the answer is still pending, or was no (JoinFeature). A fresh
+        // invite that doesn't need approval (a moderator sent them one) lets them in anyway and drops the request.
         if (_world.Store.GetJoinRequest(cert.AccountKey) is { } request)
-            return (null, request.DeclinedAt is null ? AuthFailure.JoinPending : AuthFailure.JoinDeclined);
+        {
+            if (invite is null || invite == request.InviteCode || _world.Store.GetInvite(invite) is not { Approve: false } direct || !Usable(direct)
+                || (_world.Store.JoinSettings().InvitesPaused && direct.Role != Roles.Owner))
+            {
+                _stillWaiting = request.DeclinedAt is null;
+                return (null, request.DeclinedAt is null ? AuthFailure.JoinPending : AuthFailure.JoinDeclined);
+            }
+            _world.Store.RemoveJoinRequest(cert.AccountKey);
+            if (request.DeclinedAt is null) JoinFeature.QueueChanged(_world.Store, _hub);
+        }
         if (invite is null || !BotFeature.InviteFits(_world.Store, invite, isBot)) return (null, AuthFailure.InviteRequired);
+        var offered = _world.Store.GetInvite(invite);
         // Paused invites turn people away before a use is spent (the owner's first invite always works).
-        if (_world.Store.JoinSettings().InvitesPaused && _world.Store.GetInvite(invite) is { Role: not Roles.Owner })
+        if (_world.Store.JoinSettings().InvitesPaused && offered is { Role: not Roles.Owner })
             return (null, AuthFailure.InvitesPaused);
+        // So does a full waiting list: a raid with fresh keys can't queue up without end.
+        if (offered is { Approve: true } && !isBot && _world.Store.CountPendingJoins() >= JoinFeature.MaxPending)
+            return (null, AuthFailure.JoinQueueFull);
         var used = _world.Store.TryUseInvite(invite, Now);
         if (used is null) return (null, AuthFailure.InviteRequired);
         var role = used.Role;
@@ -493,6 +515,8 @@ public sealed class Session
             _world.Store.AddJoinRequest(cert.AccountKey, name, invite, role, Now);
             SecurityLog.Record(_world.Store, Now, "join.pending", cert.AccountKey, LoggedIp, new { role });
             JoinFeature.QueueChanged(_world.Store, _hub);
+            if (role != Roles.Owner) AutoModFeature.JoinSeen(_world, _hub, Now); // asking to join counts for the join-flood rule
+            _stillWaiting = true; // join.pending is the event
             return (null, AuthFailure.JoinPending);
         }
 

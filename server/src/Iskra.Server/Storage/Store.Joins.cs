@@ -56,8 +56,9 @@ public sealed partial class Store
         Query($"SELECT {JoinColumns} FROM join_requests WHERE account_key = $a;", ReadJoin, ("$a", accountKey)).FirstOrDefault();
 
     /// <summary>Waiting for a decision, oldest first.</summary>
-    public List<JoinRequest> PendingJoinRequests() =>
-        Query($"SELECT {JoinColumns} FROM join_requests WHERE declined_at IS NULL ORDER BY requested_at, account_key;", ReadJoin);
+    public List<JoinRequest> PendingJoinRequests(int offset = 0, int limit = int.MaxValue) =>
+        Query($"SELECT {JoinColumns} FROM join_requests WHERE declined_at IS NULL ORDER BY requested_at, account_key LIMIT $limit OFFSET $offset;",
+            ReadJoin, ("$limit", limit), ("$offset", offset));
 
     public int CountPendingJoins() => Convert.ToInt32(Scalar("SELECT COUNT(*) FROM join_requests WHERE declined_at IS NULL;"));
 

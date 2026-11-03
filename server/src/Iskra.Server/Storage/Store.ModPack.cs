@@ -3,8 +3,18 @@ namespace Iskra.Server.Storage;
 /// <summary>A moderator's private note about a person (ModPackFeature). Never shown to the person.</summary>
 public sealed record ModNote(long Id, string AccountKey, string Text, string AuthorKey, string AuthorName, long CreatedAt);
 
-/// <summary>Someone who isn't a member any more: how they went (left, kicked, banned, deleted) and their last name here.</summary>
-public sealed record Departure(string AccountKey, string Name, string Reason, string? ByKey, long At);
+/// <summary>
+/// Someone who isn't a member any more: how they went (left, kicked, banned, deleted), their last name here, and the rank
+/// they had (base role and highest custom role's position; null for departures recorded before ranks were kept).
+/// </summary>
+public sealed record Departure(string AccountKey, string Name, string Reason, string? ByKey, long At)
+{
+    public string? Role { get; init; }
+    public int TopPosition { get; init; }
+
+    /// <summary>The rank they left with, as a member for <see cref="Sessions.Permissions.Outranks"/>; null if not kept.</summary>
+    public Member? AsMember() => Role is null ? null : new Member(AccountKey, Name, Role, 0) { TopPosition = TopPosition };
+}
 
 public sealed partial class Store
 {
@@ -25,6 +35,12 @@ public sealed partial class Store
             by_key      TEXT,
             at          INTEGER NOT NULL
         );
+        """;
+
+    /// <summary>The rank someone left with, so moderators can't act on someone who outranked them by waiting for them to leave.</summary>
+    private const string ModPackRankMigration = """
+        ALTER TABLE departures ADD COLUMN role TEXT;
+        ALTER TABLE departures ADD COLUMN top_position INTEGER NOT NULL DEFAULT 0;
         """;
 
     // ── Moderator notes ──────────────────────────────────────────────────────
@@ -54,22 +70,31 @@ public sealed partial class Store
 
     // ── People who left ──────────────────────────────────────────────────────
 
-    public void RecordDeparture(string accountKey, string name, string reason, string? byKey, long now) =>
+    public void RecordDeparture(string accountKey, string name, string reason, string? byKey, long now, Member? rank = null) =>
         Exec("""
-            INSERT INTO departures (account_key, name, reason, by_key, at) VALUES ($a, $n, $r, $by, $at)
-            ON CONFLICT(account_key) DO UPDATE SET name = excluded.name, reason = excluded.reason, by_key = excluded.by_key, at = excluded.at;
-            """, ("$a", accountKey), ("$n", name), ("$r", reason), ("$by", byKey), ("$at", now));
+            INSERT INTO departures (account_key, name, reason, by_key, at, role, top_position) VALUES ($a, $n, $r, $by, $at, $role, $top)
+            ON CONFLICT(account_key) DO UPDATE SET name = excluded.name, reason = excluded.reason, by_key = excluded.by_key, at = excluded.at,
+                role = excluded.role, top_position = excluded.top_position;
+            """, ("$a", accountKey), ("$n", name), ("$r", reason), ("$by", byKey), ("$at", now), ("$role", rank?.Role), ("$top", rank?.TopPosition ?? 0));
+
+    private const string DepartureColumns = "account_key, name, reason, by_key, at, role, top_position";
+
+    private static Departure ReadDeparture(Microsoft.Data.Sqlite.SqliteDataReader r) =>
+        new(r.GetString(0), r.GetString(1), r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3), r.GetInt64(4))
+        {
+            Role = r.IsDBNull(5) ? null : r.GetString(5),
+            TopPosition = r.GetInt32(6),
+        };
 
     /// <summary>Newest first, only people who aren't members right now (someone who came back is just a member).</summary>
     public List<Departure> Departures(int limit) =>
-        Query("""
-            SELECT account_key, name, reason, by_key, at FROM departures
+        Query($"""
+            SELECT {DepartureColumns} FROM departures
             WHERE account_key NOT IN (SELECT account_key FROM members) ORDER BY at DESC LIMIT $limit;
-            """, r => new Departure(r.GetString(0), r.GetString(1), r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3), r.GetInt64(4)), ("$limit", limit));
+            """, ReadDeparture, ("$limit", limit));
 
     public Departure? GetDeparture(string accountKey) =>
-        Query("SELECT account_key, name, reason, by_key, at FROM departures WHERE account_key = $a;",
-            r => new Departure(r.GetString(0), r.GetString(1), r.GetString(2), r.IsDBNull(3) ? null : r.GetString(3), r.GetInt64(4)), ("$a", accountKey)).FirstOrDefault();
+        Query($"SELECT {DepartureColumns} FROM departures WHERE account_key = $a;", ReadDeparture, ("$a", accountKey)).FirstOrDefault();
 
     public void PruneDepartures(long olderThan) => Exec("DELETE FROM departures WHERE at < $t;", ("$t", olderThan));
 

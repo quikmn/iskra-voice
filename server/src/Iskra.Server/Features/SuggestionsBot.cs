@@ -95,8 +95,13 @@ public static class SuggestionsBot
         var config = Config(store);
         if (MoreBuiltinBots.PostChannel(store, bot, config.ChannelId, s.Now) is not { } channel)
             throw RequestException.BadRequest("Suggestions have no channel yet. Ask an admin to pick one.", "suggestions_channel");
+        // The card is posted for them: the same rules as writing there themselves, except the channel's write role.
+        if (!Permissions.CanRead(me, channel)) throw RequestException.NotFound("Channel");
+        if (ModerationFeature.IsTimedOut(store, me.AccountKey, s.Now)) throw RequestException.Forbidden("You're timed out on this server for now.", "timed_out");
+        if (RulesFeature.MustAgree(store, me)) throw new RequestException("rules_required", "Agree to the server rules first.", "rules_agree_first");
         if (raw.Trim().Length == 0 || Text.Normalize(raw, MaxText, allowNewlines: true) is not { } text)
             throw RequestException.BadRequest($"A suggestion is 1–{MaxText} characters.", "suggestion_text", new { max = MaxText });
+        AutoModFeature.Check(s, me, channel, text, "suggestion");
         if (store.CountSuggestionsSince(me.AccountKey, s.Now - WindowMinutes * 60_000L) >= PerPerson)
             throw RequestException.BadRequest($"You can make {PerPerson} suggestions every {WindowMinutes} minutes. Try again soon.", "suggestions_slow",
                 new { max = PerPerson, minutes = WindowMinutes });
