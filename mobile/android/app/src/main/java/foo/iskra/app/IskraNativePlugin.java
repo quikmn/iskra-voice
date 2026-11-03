@@ -69,7 +69,8 @@ public class IskraNativePlugin extends Plugin {
         // Nothing of the call may outlive it: the "In voice" notification, the speaker choice, other apps' ducking.
         VoiceService.stop(getContext());
         abandonFocus();
-        releaseRoute();
+        // Only when this page was in a call: outside one, the speaker and device choice belong to other apps.
+        if (deviceWatch != null) releaseRoute();
         setKeepAwake(false);
         if (instance == this) instance = null;
         shareReader.shutdown();
