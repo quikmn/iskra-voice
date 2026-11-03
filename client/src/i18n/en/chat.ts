@@ -164,6 +164,8 @@ export const chat = {
     statusForbidden: 'No permission to search here',
   },
   header: {
+    more: 'Channel options',
+    moreConversation: 'Conversation options',
     threads: 'Threads',
     pins: 'Pinned messages',
     pinnedIn: 'Pinned in #{{name}}',

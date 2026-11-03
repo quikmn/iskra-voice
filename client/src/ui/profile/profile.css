@@ -42,11 +42,20 @@ button.author:hover { text-decoration: underline; }
   margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); white-space: pre-wrap; overflow-wrap: anywhere;
   font-size: 14px; color: var(--text);
 }
-.profile-id { font-size: var(--fs-xs); margin-top: var(--sp-2); }
+/* The profile page: a quiet row under the bio, not another button in the footer. */
+.profile-page-link {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); width: 100%; margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface-2);
+  color: var(--text); font-size: var(--fs-ui); font-weight: var(--fw-medium); text-align: left;
+}
+.profile-page-link:hover { background: var(--surface-3); }
+.profile-page-link svg { color: var(--muted); flex: none; }
+/* [Message] [add friend] [⋯]: the one thing people do from a card, then the rest. */
 .profile-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4) var(--sp-4); flex: none; }
 .profile-actions .button { padding: 0 var(--sp-3); font-size: var(--fs-ui); }
 .profile-actions .button.primary { flex: 1 1 auto; }
-.profile-actions .profile-more { margin-left: auto; width: var(--control-h); height: var(--control-h); border-radius: var(--r-md); }
+.profile-actions > .icon-button { width: var(--control-h); height: var(--control-h); border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); }
+.profile-actions > .icon-button:hover:not(:disabled) { background: var(--surface-3); }
 .profile-actions .friend-chip { align-self: center; }
 
 /* Page viewer and editor. */

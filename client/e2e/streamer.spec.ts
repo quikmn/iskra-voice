@@ -38,7 +38,13 @@ test('streamer mode hides invite links, ids and safety numbers, and the status m
   await host.screenshot({ path: join(SHOTS, 'streamer-invite.png') })
   await host.keyboard.press('Escape')
   await host.locator('.member-list').getByRole('button', { name: 'Friend' }).first().click()
-  await expect(host.locator('.profile-id code')).toHaveText(DOTS)
+  // The card shows no raw ID (it's "Copy user ID" in ⋯); the member details show it as dots.
+  await expect(host.locator('.profile-card')).toBeVisible()
+  await expect(host.locator('.profile-card code')).toHaveCount(0)
+  await host.locator('.profile-card').getByRole('button', { name: 'More' }).click()
+  await expect(host.getByRole('menuitem', { name: 'Copy user ID' })).toBeVisible()
+  await host.getByRole('menuitem', { name: 'Member details' }).click()
+  await expect(host.locator('.member-card code')).toHaveText(DOTS)
   await host.screenshot({ path: join(SHOTS, 'streamer-profile.png') })
   await host.keyboard.press('Escape')
 

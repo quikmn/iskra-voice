@@ -541,3 +541,49 @@ export const CheckCheck = (p: P) => (
     <path d="m22 10-7.5 7.5L13 16" />
   </Svg>
 )
+
+// Chat (additive): a speech bubble, an unread dot on one, a bar chart for polls, a report flag, a clock for later.
+export const MessageCircle = (p: P) => (
+  <Svg {...p}>
+    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+  </Svg>
+)
+
+export const MessageDot = (p: P) => (
+  <Svg {...p}>
+    <path d="M11.7 3H5a2 2 0 0 0-2 2v16l4-4h12a2 2 0 0 0 2-2v-2.7" />
+    <circle cx="18" cy="6" r="3" />
+  </Svg>
+)
+
+export const BarChart = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 3v18h18" />
+    <path d="M8 17v-5" />
+    <path d="M13 17V7" />
+    <path d="M18 17v-8" />
+  </Svg>
+)
+
+export const Flag = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 22V4c4-2 8 2 12 0s4 0 4 0v10c-4 2-8-2-12 0s-4 0-4 0" />
+  </Svg>
+)
+
+export const Clock = (p: P) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 6v6l4 2" />
+  </Svg>
+)
+
+export const ListChecks = (p: P) => (
+  <Svg {...p}>
+    <path d="m3 17 2 2 4-4" />
+    <path d="m3 7 2 2 4-4" />
+    <path d="M13 6h8" />
+    <path d="M13 12h8" />
+    <path d="M13 18h8" />
+  </Svg>
+)

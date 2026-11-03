@@ -17,8 +17,9 @@ test('messages disappear on everyone’s screen when their timer is up, in chann
   await friend.clock.install()
   await joinVia(friend, await createInviteLink(host), 'Friend')
 
-  // ── A channel: only people who manage channels set it ──
-  await host.getByTestId('disappear-button').click()
+  // ── A channel: only people who manage channels set it (off, it's in the header's "⋯") ──
+  await host.getByTestId('header-more').click()
+  await host.getByTestId('disappear-item').click()
   const dialog = host.getByRole('dialog', { name: 'Disappearing messages' })
   await expect(dialog.getByText('People can still take screenshots')).toBeVisible()
   await dialog.getByText('5 minutes', { exact: true }).click()
@@ -53,7 +54,8 @@ test('messages disappear on everyone’s screen when their timer is up, in chann
   await host.getByPlaceholder('Message Friend').fill('hello first')
   await host.getByPlaceholder('Message Friend').press('Enter')
   await expect(host.locator('.message-text', { hasText: 'hello first' })).toBeVisible()
-  await host.getByTestId('disappear-button').click()
+  await host.getByTestId('header-more').click()
+  await host.getByTestId('disappear-item').click()
   await host.getByRole('dialog', { name: 'Disappearing messages' }).getByText('1 hour', { exact: true }).click()
   await expect(host.locator('.disappear-line', { hasText: 'You set new messages to disappear after 1 hour.' })).toBeVisible()
   await host.getByPlaceholder('Message Friend').fill('this one disappears')

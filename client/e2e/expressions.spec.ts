@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, longPress, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
+import { composerAction, createInviteLink, hasLiveKit, joinVia, longPress, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -32,7 +32,7 @@ test('polls, server emoji, reactions and the soundboard', async ({ browser }) =>
   await joinVia(friend, await createInviteLink(host), 'Friend')
 
   // ── A poll ──
-  await host.getByRole('button', { name: 'Create a poll' }).click()
+  await composerAction(host, 'Create a poll')
   const dialog = host.getByRole('dialog', { name: 'Create a poll' })
   await dialog.getByLabel('Question').fill('What do we play tonight?')
   await dialog.getByRole('textbox', { name: 'Answer 1' }).fill('Minecraft')

@@ -4,7 +4,7 @@
 import { useTranslation } from 'react-i18next'
 import type { SearchResult } from '../../core/protocol'
 import { useApp, type ServerState } from '../../state/store'
-import { closeSearch, DMS, resultCount, runGroupMore, runSearch, setSearchScope, setSearchText, useSearch, type DmHit, type SearchGroup } from '../../state/search'
+import { closeSearch, DMS, resultCount, runGroupMore, runSearch, setSearchScope, setSearchText, useSearch, type DmHit, type SearchGroup, type SearchScope } from '../../state/search'
 import { conversationLabel } from '../../state/threads'
 import { jumpToMessage } from '../../state/jump'
 import { nameOf, openConversation } from '../../state/dms'
@@ -17,6 +17,7 @@ import { ArrowLeft, SearchIcon } from './extraIcons'
 import { useEscapeLayer } from '../layers'
 import { resolveKey } from '../../state/keyMap'
 import { DocSearchHits } from '../docs/DocSearchHits'
+import { Segmented } from '../kit'
 import { stripMarkdownPieces } from '../plainMarkdown'
 
 const HINTS = [
@@ -39,7 +40,7 @@ export function SearchPanel({ server }: { server: ServerState }) {
   function addFilter(filter: string) {
     const next = `${text.trim()} ${filter}`.trimStart()
     setSearchText(next)
-    document.querySelector<HTMLInputElement>('.side-panel .panel-search input, .desktop-search input')?.focus()
+    document.querySelector<HTMLInputElement>(isPhone() ? '.side-panel .panel-search input' : '.side-panel .search-box-row input')?.focus()
   }
 
   const found = everywhere ? groups.some((g) => g.results.length + g.hits.length > 0) : results.length > 0
@@ -60,17 +61,36 @@ export function SearchPanel({ server }: { server: ServerState }) {
             onKeyDown={(e) => e.key === 'Enter' && void runSearch(server.key)}
           />
         </label>
+        <span className="panel-icon desktop-title"><SearchIcon /></span>
         <div className="panel-title desktop-title">
-          <h2>{searched ? (loading && !found ? t('chat.search.searching') : resultCount(total, totalCapped)) : t('common.search')}</h2>
+          <h2>{t('common.search')}</h2>
+          {searched && <span className="muted" role="status">{loading && !found ? t('chat.search.searching') : resultCount(total, totalCapped)}</span>}
         </div>
         <span className="spacer" />
         <button className="icon-button panel-close" onClick={closeSearch} aria-label={t('chat.search.close')} title={t('common.close')}><Close /></button>
       </header>
 
-      <div className="segmented search-scope" role="radiogroup" aria-label={t('chat.search.scopeLabel')}>
-        <button role="radio" aria-checked={!everywhere} className={everywhere ? '' : 'on'} onClick={() => setSearchScope('server')}>{t('chat.search.scopeServer')}</button>
-        <button role="radio" aria-checked={everywhere} className={everywhere ? 'on' : ''} onClick={() => setSearchScope('everywhere')}>{t('chat.search.scopeEverywhere')}</button>
+      {/* Wide screens: the panel has its own box (the header's may have folded into an icon). */}
+      <div className="search-box-row">
+        <label className="header-search">
+          <SearchIcon size={15} />
+          <input
+            type="search"
+            placeholder={everywhere ? t('chat.search.placeholderEverywhere') : t('chat.search.placeholder', { name: server.name })}
+            aria-label={t('chat.search.searchMessages')}
+            value={text}
+            maxLength={300}
+            autoFocus={!isPhone()}
+            onChange={(e) => setSearchText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void runSearch(server.key)}
+          />
+        </label>
       </div>
+
+      <Segmented<SearchScope> className="search-scope" label={t('chat.search.scopeLabel')} value={scope} onChange={setSearchScope} items={[
+        { id: 'server', label: t('chat.search.scopeServer') },
+        { id: 'everywhere', label: t('chat.search.scopeEverywhere') },
+      ]} />
 
       <div className="search-results">
         {error && <p className="error-text search-note">{error}</p>}
@@ -156,6 +176,7 @@ function ResultCard({ server, result }: { server: ServerState; result: SearchRes
         }}
       >
         <span className="result-where">{conversationLabel(server, message.channelId)}</span>
+        <span className="result-jump" aria-hidden>{t('chat.pins.jump')}</span>
         <span className="result-row">
           <Avatar name={name} accountKey={message.author} size={28} />
           <span className="result-body">
@@ -199,6 +220,7 @@ function DmHitCard({ hit }: { hit: DmHit }) {
         }}
       >
         <span className="result-where">{where}</span>
+        <span className="result-jump" aria-hidden>{t('chat.pins.jump')}</span>
         <span className="result-row">
           <Avatar name={author} accountKey={message.from} size={28} />
           <span className="result-body">

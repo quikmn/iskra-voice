@@ -12,16 +12,11 @@ import { bestStatus, statusOf } from '../../state/presenceRules'
 import { useApp } from '../../state/store'
 import { openUserMenu } from '../../state/userMenu'
 import { AccountAvatar, AccountStatusText } from '../presence/Presence'
-import { Menu, UserPlus, Users } from '../icons'
+import { Check, Close, Menu, MessageCircle, MoreHorizontal, UserPlus, Users } from '../icons'
 import type { Panel } from '../Shell'
 import { userMenuProps } from './userMenuProps'
+import { EmptyState } from '../kit'
 import './people.css'
-
-const MoreDots = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-    <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
-  </svg>
-)
 
 /** Runs a friend action, keeping its error for the caller to show. */
 function useAction() {
@@ -43,9 +38,10 @@ function useAction() {
 
 /**
  * Where you stand with someone, as buttons: Add friend · Request sent (Cancel) · Accept / Ignore · Friends.
- * `header`: the DM header's compact version (nothing once you're friends).
+ * `header`: the compact version on the Friends page (nothing once you're friends). `icon`: "Add friend" as an icon
+ * button (the profile card).
  */
-export function FriendButtons({ accountKey, header }: { accountKey: string; header?: boolean }) {
+export function FriendButtons({ accountKey, header, icon }: { accountKey: string; header?: boolean; icon?: boolean }) {
   const { t } = useTranslation()
   const relation = useRelation(accountKey)
   const blocked = useIsBlocked(accountKey)
@@ -57,11 +53,15 @@ export function FriendButtons({ accountKey, header }: { accountKey: string; head
   const small = header ? 'small' : ''
   return (
     <>
-      {relation === 'none' && (
+      {relation === 'none' && (icon ? (
+        <button className="icon-button friend-add-icon" disabled={busy} onClick={run(() => addFriend(accountKey))} aria-label={t('friends.add')} title={t('friends.add')}>
+          <UserPlus />
+        </button>
+      ) : (
         <button className={`button ${small} ${header ? 'primary' : ''}`} disabled={busy} onClick={run(() => addFriend(accountKey))}>
           {header && <UserPlus size={14} />} {t('friends.add')}
         </button>
-      )}
+      ))}
       {relation === 'outgoing' && (
         <>
           <span className="friend-chip">{t('friends.requestSent')}</span>
@@ -70,13 +70,55 @@ export function FriendButtons({ accountKey, header }: { accountKey: string; head
       )}
       {relation === 'incoming' && (
         <>
-          <button className={`button primary ${small}`} disabled={busy} onClick={run(() => acceptFriend(accountKey))} aria-label={t('friends.acceptRequest')}>{t('friends.accept')}</button>
-          <button className={`button ${small}`} disabled={busy} onClick={run(() => ignoreFriend(accountKey))} aria-label={t('friends.ignoreRequest')}>{t('friends.ignore')}</button>
+          <button className={`button primary ${small} friend-answer`} disabled={busy} onClick={run(() => acceptFriend(accountKey))} aria-label={t('friends.acceptRequest')}>
+            {header && <Check size={16} />}<span className="friend-answer-label">{t('friends.accept')}</span>
+          </button>
+          <button className={`button ${small} friend-answer`} disabled={busy} onClick={run(() => ignoreFriend(accountKey))} aria-label={t('friends.ignoreRequest')}>
+            {header && <Close size={16} />}<span className="friend-answer-label">{t('friends.ignore')}</span>
+          </button>
         </>
       )}
       {relation === 'friends' && !header && <span className="friend-chip on"><Users size={13} /> {t('friends.isFriend')}</span>}
       {error && <span className="error-text friend-error" role="alert">{error}</span>}
     </>
+  )
+}
+
+/**
+ * Where you stand with someone in their DM, as a slim banner under the header (the header keeps its tools): "Add
+ * friend", "Request sent · Cancel request" or "Accept / Ignore". Nothing once you're friends.
+ */
+export function FriendBanner({ accountKey }: { accountKey: string }) {
+  const { t } = useTranslation()
+  const relation = useRelation(accountKey)
+  const blocked = useIsBlocked(accountKey)
+  const { error, busy, run } = useAction()
+  const mine = useApp((s) => s.identity)
+  const bot = useApp((s) => Object.values(s.servers).some((server) => !!server.members[accountKey]?.bot))
+  if (blocked || !mine || bot || relation === 'friends') return null
+  const name = nameOf(accountKey)
+  const text = relation === 'incoming' ? t('friends.banner.incoming', { name })
+    : relation === 'outgoing' ? t('friends.banner.outgoing', { name }) : t('friends.banner.none', { name })
+  return (
+    <div className={`friend-banner ${relation}`} role="region" aria-label={t('friends.banner.label')} data-testid="friend-banner">
+      <span className="friend-banner-icon" aria-hidden><UserPlus size={16} /></span>
+      <span className="friend-banner-text">{text}</span>
+      <span className="friend-banner-actions">
+        {relation === 'none' && (
+          <button className="button small primary" disabled={busy} onClick={run(() => addFriend(accountKey))}>{t('friends.add')}</button>
+        )}
+        {relation === 'outgoing' && (
+          <button className="button small ghost" disabled={busy} onClick={run(() => cancelFriendRequest(accountKey))}>{t('friends.cancel')}</button>
+        )}
+        {relation === 'incoming' && (
+          <>
+            <button className="button small ghost" disabled={busy} onClick={run(() => ignoreFriend(accountKey))} aria-label={t('friends.ignoreRequest')}>{t('friends.ignore')}</button>
+            <button className="button small primary" disabled={busy} onClick={run(() => acceptFriend(accountKey))} aria-label={t('friends.acceptRequest')}>{t('friends.accept')}</button>
+          </>
+        )}
+      </span>
+      {error && <span className="error-text friend-error" role="alert">{error}</span>}
+    </div>
   )
 }
 
@@ -191,13 +233,7 @@ export function FriendsView({ onToggle, start }: { onToggle: (panel: Panel) => v
 }
 
 function Empty({ title, hint }: { title: string; hint?: string }) {
-  return (
-    <div className="empty-state">
-      <span className="empty-icon"><Users size={32} /></span>
-      <h1>{title}</h1>
-      {hint && <p>{hint}</p>}
-    </div>
-  )
+  return <EmptyState size="page" icon={<Users size={32} />} title={title} body={hint} className="friends-empty" />
 }
 
 /** One person on the Friends page: right-click (or ⋯) for everything else. */
@@ -217,16 +253,19 @@ function PersonRow({ accountKey, sub }: { accountKey: string; sub?: string }) {
         <strong>{name}</strong>
         {sub ? <span className="muted">{sub}</span> : <AccountStatusText accountKey={accountKey} fallback className="muted" />}
       </div>
-      {relation === 'friends' ? (
-        <button className="button small" disabled={!reachable} title={reachable ? undefined : t('app.home.noSharedServer')} onClick={() => openConversation(accountKey)}>
-          {t('friends.message')}
+      <span className="friend-actions">
+        {relation === 'friends' ? (
+          <button className="icon-button friend-message" disabled={!reachable} aria-label={t('friends.messageName', { name })}
+            title={reachable ? t('friends.messageName', { name }) : t('app.home.noSharedServer')} onClick={() => openConversation(accountKey)}>
+            <MessageCircle />
+          </button>
+        ) : (
+          <FriendButtons accountKey={accountKey} header />
+        )}
+        <button className="icon-button" onClick={more} aria-label={t('friends.more', { name })} title={t('friends.more', { name })}>
+          <MoreHorizontal />
         </button>
-      ) : (
-        <FriendButtons accountKey={accountKey} header />
-      )}
-      <button className="icon-button small" onClick={more} aria-label={t('friends.more', { name })} title={t('friends.more', { name })}>
-        <MoreDots />
-      </button>
+      </span>
     </div>
   )
 }

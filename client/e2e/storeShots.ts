@@ -4,7 +4,7 @@
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { expect, type Browser, type BrowserContextOptions, type Page } from '@playwright/test'
-import { agreeToTerms, hasLiveKit, joinVia, send, type TestServer } from './helpers'
+import { composerAction, agreeToTerms, hasLiveKit, joinVia, send, type TestServer } from './helpers'
 
 export type Lang = 'en' | 'sv'
 
@@ -171,7 +171,7 @@ export async function serverScreens(browser: Browser, server: TestServer, lang: 
   await mine.getByRole('button', { name: 'Add reaction' }).click()
   await friends.Sam.locator('.reaction-picker button').first().click()
   const alex = friends.Alex
-  await alex.getByRole('button', { name: 'Create a poll' }).click()
+  await composerAction(alex, 'Create a poll')
   const pollDialog = alex.getByRole('dialog', { name: 'Create a poll' })
   await pollDialog.getByLabel('Question').fill(c.poll.question)
   await pollDialog.getByRole('textbox', { name: 'Answer 1' }).fill(c.poll.answers[0])

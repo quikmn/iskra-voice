@@ -30,6 +30,8 @@ export const app: Messages['app'] = {
     e2eTitle: 'Bara du och de kan läsa de här meddelandena',
     e2e: 'Totalsträckskrypterat',
     verify: 'Verifiera',
+    e2eVerify: 'Totalsträckskrypterat. Verifiera säkerhetsnumret',
+    verifyNumber: 'Verifiera säkerhetsnummer',
     dmStart: 'Här börjar din konversation med {{name}}. Meddelandena är totalsträckskrypterade: servrarna vidarebefordrar dem bara.',
     messagePlaceholder: 'Skriv till {{name}}',
     unreachable: 'Du och {{name}} har ingen gemensam server online just nu, så meddelanden kan inte levereras.',

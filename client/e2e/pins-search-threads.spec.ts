@@ -63,16 +63,21 @@ test('pin a message, talk in a thread, and search for it', async ({ browser }) =
   await box.fill('flou')
   await box.press('Enter')
   const results = host.locator('.search-panel')
-  await expect(results.getByRole('heading', { name: '1 message' })).toBeVisible()
+  await expect(results.locator('.panel-title [role=status]')).toHaveText('1 message')
   await expect(results.locator('.result-where')).toHaveText('#general › Baking plans')
   await expect(results.locator('mark')).toHaveText('flour')
   await host.screenshot({ path: join(SHOTS, 'search.png') })
   await results.locator('.result-card').click()
   await expect(host.locator('.thread-panel .message', { hasText: 'bring the flour' })).toBeVisible()
 
-  // Filters: from:Host with a word, and jumping to a message in the channel.
-  await box.fill('from:host apple')
-  await box.press('Enter')
+  // Filters: from:Host with a word, and jumping to a message in the channel. With the thread open the chat header is
+  // narrower: search is its icon there, and the panel has its own box.
+  await expect(host.locator('.chat .header-search')).toHaveCount(0)
+  await host.locator('.chat-header').getByRole('button', { name: 'Search messages' }).click()
+  const panelBox = host.locator('.search-panel').getByRole('searchbox', { name: 'Search messages' })
+  await expect(panelBox).toBeFocused()
+  await panelBox.fill('from:host apple')
+  await panelBox.press('Enter')
   await expect(host.locator('.search-panel .result-card')).toHaveCount(1)
   await host.locator('.search-panel .result-card').click()
   await expect(host.locator('.messages .message', { hasText: 'apple pie' })).toBeVisible()

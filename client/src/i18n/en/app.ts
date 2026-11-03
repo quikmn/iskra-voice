@@ -29,6 +29,8 @@ export const app = {
     e2eTitle: 'Only you and they can read these messages',
     e2e: 'End-to-end encrypted',
     verify: 'Verify',
+    e2eVerify: 'End-to-end encrypted. Verify the safety number',
+    verifyNumber: 'Verify safety number',
     dmStart: 'This is the start of your conversation with {{name}}. Messages are end-to-end encrypted: servers only pass them along.',
     messagePlaceholder: 'Message {{name}}',
     unreachable: "You don't share an online server with {{name}} right now, so messages can't be delivered.",

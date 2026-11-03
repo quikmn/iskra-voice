@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { composerAction, createInviteLink, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -80,7 +80,7 @@ test('save, remind, send later, the inbox and edit history', async ({ browser })
   // ── Send later: scheduled a few seconds ahead, it arrives as Host ──
   const hostBox = host.getByPlaceholder('Message #general')
   await hostBox.fill('see you at noon (scheduled)')
-  await host.getByRole('button', { name: 'Send later', exact: true }).click()
+  await composerAction(host, 'Send later')
   const later = host.getByRole('dialog', { name: 'Send later' })
   await later.getByRole('button', { name: 'Pick a date and time' }).click()
   await later.getByTestId('when-custom').fill(await soon(host, 5))
@@ -100,7 +100,7 @@ test('save, remind, send later, the inbox and edit history', async ({ browser })
   await friend.getByRole('dialog').getByRole('button', { name: 'Message', exact: true }).click()
   const dmBox = friend.getByPlaceholder('Message Host')
   await dmBox.fill('a secret, a bit later')
-  await friend.getByRole('button', { name: 'Send later', exact: true }).click()
+  await composerAction(friend, 'Send later')
   const dmLater = friend.getByRole('dialog', { name: 'Send later' })
   await expect(dmLater).toContainText('Encrypted now')
   await dmLater.getByRole('button', { name: 'Pick a date and time' }).click()

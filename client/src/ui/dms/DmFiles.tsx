@@ -8,9 +8,9 @@ import { dmErrorText, sendDm, sharedServers } from '../../state/dms'
 import { sendGroupMessage } from '../../state/groups'
 import { canStreamToDisk, IN_MEMORY_NOTE_BYTES, openDmFile, saveDmFile, uploadDmFile, type OpenedFile } from '../../state/dmFiles'
 import { draftKey, setDraft, useDraft } from '../../state/drafts'
-import { ImageGrid, Lightbox, SpoilerCover, SpoilerToggle, isSpoilerName, longTextFile, shownName } from '../chat/media'
+import { ImageGrid, Lightbox, SpoilerCover, isSpoilerName, longTextFile, shownName } from '../chat/media'
 import { formatSize } from '../chat/helpers'
-import { Close, FileIcon, Lock, Paperclip, Send, Smile } from '../icons'
+import { FileIcon, Lock, Send, Smile } from '../icons'
 import { EmojiPicker } from '../expressions/EmojiPicker'
 import { insertAt } from '../expressions/emoji'
 import { VoicePlayer, VoiceRecordButton } from '../chat/voice/VoiceMessages'
@@ -20,6 +20,8 @@ import { voiceRecordingSupported, type Recording } from '../chat/voice/recorder'
 import { useSendLater } from '../productivity/SendLater'
 import { useQueuedSend } from '../chat/QueuedSend'
 import { useBotDmCommands } from './BotDmCommands'
+import { ComposerMenu } from '../chat/ComposerMenu'
+import { UploadChip } from '../chat/UploadChip'
 import './dm-files.css'
 
 /** Decrypted automatically when small enough; bigger files wait for a click. */
@@ -70,6 +72,8 @@ export function DmComposer({ peer, placeholder, group, bot = false }: {
   const canSend = !!route && !uploading && (text.trim().length > 0 || ready.length > 0)
   const canQueue = !!route && uploading
   const micInstead = !text.trim() && uploads.length === 0 && voiceRecordingSupported()
+  // Bumped when the "+" menu asks for a voice message: the mic button starts recording.
+  const [voiceStart, setVoiceStart] = useState(0)
   const queue = useQueuedSend(uploads.map((u) => ({ done: !!u.result, failed: !!u.error })), () => submit())
   const later = useSendLater({
     target: group ? { kind: 'group', key: group.key } : { kind: 'dm', peer },
@@ -131,25 +135,21 @@ export function DmComposer({ peer, placeholder, group, bot = false }: {
       {uploads.length > 0 && (
         <div className="pending-uploads">
           {uploads.map((u) => (
-            <div key={u.localId} className={`pending-upload ${u.error ? 'failed' : ''}`} title={u.error ?? u.file.name}>
-              {u.preview ? <img src={u.preview} alt="" /> : <span className="file-icon" aria-hidden><FileIcon size={20} /></span>}
-              <span className="file-name">{u.file.name}</span>
-              {!u.error && <SpoilerToggle on={!!u.spoiler} onToggle={() => setUploads((list) => list.map((x) => (x.localId === u.localId ? { ...x, spoiler: !x.spoiler } : x)))} />}
-              {u.error
-                ? <span className="upload-error" role="alert">{u.error}</span>
-                : <span className="muted">{u.result ? formatSize(u.file.size) : formatNumber(u.progress, { style: 'percent', maximumFractionDigits: 0 })}</span>}
-              {!u.result && !u.error && <span className="upload-progress" style={{ width: `${u.progress * 100}%` }} />}
-              <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={t('chat.composer.removeFile', { name: u.file.name })}><Close size={14} /></button>
-            </div>
+            <UploadChip key={u.localId} name={u.file.name} size={u.file.size} preview={u.preview} progress={u.progress} done={!!u.result} error={u.error}
+              spoiler={!!u.spoiler} onSpoiler={() => setUploads((list) => list.map((x) => (x.localId === u.localId ? { ...x, spoiler: !x.spoiler } : x)))}
+              onRemove={() => removeUpload(u)} />
           ))}
         </div>
       )}
       {queue.bar}
       <div className="composer">
         {commands.popup}
-        <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('dms.files.attachTitle')}>
-          <Paperclip />
-        </button>
+        <ComposerMenu actions={{
+          attach: () => fileInput.current?.click(),
+          emoji: (anchor) => setPicker(anchor),
+          voice: micInstead && route ? () => setVoiceStart((n) => n + 1) : undefined,
+          later: later.open,
+        }} />
         <input
           ref={fileInput}
           type="file"
@@ -191,11 +191,10 @@ export function DmComposer({ peer, placeholder, group, bot = false }: {
           }}
         />
         {/* Standard emoji only: custom ones belong to a server, and the other side may not share it. */}
-        <button className="icon-button attach-button" onClick={(e) => setPicker(e.currentTarget)} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emoji')}>
+        <button className="icon-button attach-button emoji-button" onClick={(e) => setPicker(e.currentTarget)} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emoji')}>
           <Smile />
         </button>
-        {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!route} />}
-        {later.button}
+        {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!route} startSignal={voiceStart} />}
         <button className={`send-button ${micInstead ? 'idle' : ''}`} onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
           <Send />
         </button>

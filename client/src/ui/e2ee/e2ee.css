@@ -45,3 +45,10 @@
   font-size: 11px; font-weight: 700; color: var(--bg, #000); background: var(--amber); vertical-align: middle; cursor: help;
 }
 .e2ee-settings-note { display: flex; align-items: center; gap: 6px; }
+/* The chat header's one lock: after the channel's name, a small button that opens the encryption panel. */
+.e2ee-title-lock {
+  flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; margin-left: var(--sp-1); padding: 0;
+  border: 0; border-radius: var(--r-sm); background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green);
+}
+.e2ee-title-lock:hover { background: color-mix(in srgb, var(--green) 22%, transparent); }
+.e2ee-title-lock.warn { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }

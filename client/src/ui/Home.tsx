@@ -1,5 +1,6 @@
 import { DisappearLine, ExpiryBadge } from './disappear/Disappear'
-import { DmTimerButton } from './disappear/Timers'
+import { useDmTimerTool } from './disappear/Timers'
+import { HeaderMore, useHeaderFit } from './chat/HeaderMore'
 import { useAlertPattern } from '../state/alerts'
 import { matchesAlert } from '../state/alertsLogic'
 import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
@@ -10,7 +11,7 @@ import { useApp } from '../state/store'
 import { discardDm, nameOf, openConversation, openFriends, sendDm, sharedServers, useDms, type Dm } from '../state/dms'
 import { useIncomingCount } from '../state/friends'
 import { quietKind } from '../state/friendMachine'
-import { FriendButtons, FriendLine, FriendsView } from './people/Friends'
+import { FriendBanner, FriendLine, FriendsView } from './people/Friends'
 import { userMenuProps } from './people/userMenuProps'
 import { dividerOf, dividerTarget, dmConv, useRead, useReads } from '../state/readState'
 import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
@@ -40,7 +41,7 @@ import { KeyHistory } from './keys/KeyTransparency'
 import { messageListKeys, useAnnounceNew } from './a11y'
 import { useBotPeer } from '../state/botDms'
 import { BotBadge } from './chat/BotBits'
-import { AutoTranslateButton, TranslationBlock } from './translate/Translate'
+import { TranslationBlock, useAutoTranslateTool } from './translate/Translate'
 import { dmItem } from './translate/items'
 import { convKey } from '../state/translate'
 import { DmRequestBar, DmRequestRows, HeldDmBody } from './dms/DmRequests'
@@ -147,6 +148,9 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
   const peerBot = useBotPeer(peer)
   const held = useDmStatus(peer) !== 'accepted' // a message request: no composer, links or files until accepted
   const messages = conversation?.messages ?? []
+  const [headerRef, fit] = useHeaderFit<HTMLElement>()
+  const timer = useDmTimerTool(peer, reachable && !blocked && !peerBot.bot)
+  const translate = useAutoTranslateTool(convKey.dm(peer))
 
   useLayoutEffect(() => {
     const el = scroller.current
@@ -174,7 +178,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         window.dispatchEvent(new CustomEvent(DM_ATTACH_EVENT, { detail: [...e.dataTransfer.files] }))
       }}
     >
-      <header className="chat-header">
+      <header className={`chat-header dm-header fit-${fit}`} ref={headerRef}>
         <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('app.openMenu')}>
           <Menu />
         </button>
@@ -184,16 +188,24 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
           {peerBot.bot && <BotBadge builtin={peerBot.builtin} />}
         </span>
         <AccountStatusText accountKey={peer} className="muted dm-header-status" />
-        <span className="e2e-badge" title={t('app.home.e2eTitle')}><Lock size={13} /> {t('app.home.e2e')}</span>
-        <span className="spacer" />
-        {!peerBot.bot && <DmTimerButton peer={peer} canChange={reachable && !blocked} />}
-        {reachable && !peerBot.bot && <span className="dm-header-friend"><FriendButtons accountKey={peer} header /></span>}
-        {!blocked && !peerBot.bot && <CallButtons peer={peer} />}
-        <AutoTranslateButton conv={convKey.dm(peer)} />
-        <button className="button small verify-button" onClick={() => setVerify(true)} aria-label={t('app.home.verify')} title={t('app.home.verify')}>
-          <ShieldCheck size={15} /><span className="verify-label">{t('app.home.verify')}</span>
+        {/* The pill says it's encrypted and is the way to the safety number. */}
+        <button className="e2e-badge" onClick={() => setVerify(true)} title={t('app.home.e2eTitle')} aria-label={t('app.home.e2eVerify')}>
+          <Lock size={13} /> {t('app.home.e2e')}
         </button>
+        <span className="spacer" />
+        <div className="header-tools">
+          {timer.button}
+          {translate.on && translate.button}
+          {!blocked && !peerBot.bot && <CallButtons peer={peer} />}
+          <HeaderMore label={t('chat.header.moreConversation')} groups={[
+            [...(timer.item && !peerBot.bot ? [timer.item] : []), ...(translate.on ? [] : [translate.item])],
+            [{ key: 'verify', label: t('app.home.verifyNumber'), icon: <ShieldCheck />, onSelect: () => setVerify(true), testId: 'verify-item' }],
+          ]} />
+          {translate.popover}
+          {timer.dialog}
+        </div>
       </header>
+      {reachable && !peerBot.bot && <FriendBanner accountKey={peer} />}
       <CallPanel peer={peer} />
       <DmKeyWarning peer={peer} />
 

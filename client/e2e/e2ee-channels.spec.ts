@@ -12,6 +12,7 @@ test.afterEach(async () => server?.stop())
 async function openMember(page: Page, name: string) {
   await page.locator('.member-list').getByRole('button', { name }).click()
   await page.getByRole('dialog', { name: `Profile of ${name}` }).getByRole('button', { name: 'More' }).click()
+  await page.getByRole('menuitem', { name: 'Member details' }).click()
   const dialog = page.getByRole('dialog', { name })
   await expect(dialog).toBeVisible()
   return dialog

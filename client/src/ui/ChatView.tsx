@@ -15,7 +15,7 @@ import { InteractionLine, InteractionTray, MessageComponents } from './chat/BotI
 import { authorOf, sameSender } from './chat/bots'
 import { patchUpload } from './chat/uploads'
 import { ImportedBadge, ImportedExtras } from './chat/ImportedBits'
-import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/helpers'
+import { firstLink, replyKey, setReply, useReply } from './chat/helpers'
 import { Avatar, Spinner } from './bits'
 import { openProfileCard } from '../state/profile'
 import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
@@ -23,16 +23,13 @@ import { useAlertPattern } from '../state/alerts'
 import { matchesAlert } from '../state/alertsLogic'
 import './alerts/alerts.css'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
-import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
-import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, Volume, WifiOff } from './icons'
-import { HeaderTools } from './chat/HeaderTools'
-import { AutoTranslateButton, TranslationBlock } from './translate/Translate'
-import { ReadAloudHeaderButton } from './speech/ReadAloud'
+import { Close, Hash, Pencil, Reply, Send, Smile, Trash, WifiOff } from './icons'
+import { ChannelHeader } from './chat/HeaderTools'
+import { TranslationBlock } from './translate/Translate'
 import { parseTtsCommand, ttsBlocked } from '../state/speech'
 import { channelItem } from './translate/items'
-import { convKey } from '../state/translate'
-import { EncryptedBits, EncryptedWriteBlock, EncryptionButton, LockBadge, StartOverRecordLine, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
+import { EncryptedBits, EncryptedWriteBlock, StartOverRecordLine, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
 import { editEncrypted, isEncrypted, uploadFor } from '../state/e2eeChannels'
 import { MessageActionSheet } from './chat/MessageActionSheet'
 import { useLongPress } from './chat/useLongPress'
@@ -45,12 +42,13 @@ import { useEmojiLookup } from './expressions/useEmojiLookup'
 import { useEmojiSuggest } from './expressions/EmojiSuggest'
 import { PollCard, PollDialog } from './expressions/Polls'
 import { LfgCard } from './lfg/Lfg'
-import { PollIcon } from './expressions/icons'
 import { useServerEmojis } from '../state/expressions'
 import { VoiceMessage, VoiceRecordButton } from './chat/voice/VoiceMessages'
 import { ComposerMenu } from './chat/ComposerMenu'
+import { UploadChip } from './chat/UploadChip'
+import { GifIcon } from './chat/extraIcons'
 import { voiceRecordingSupported, type Recording } from './chat/voice/recorder'
-import { BlockGate, ChannelSettingsButton, SlowmodeChip, TimedOutBar } from './moderation/Moderation'
+import { BlockGate, SlowmodeChip, TimedOutBar } from './moderation/Moderation'
 import { useSlowmodeWait, useTimedOut } from './moderation/hooks'
 import { RulesBar } from './rules/Rules'
 import { useMustAgree } from '../state/rules'
@@ -66,7 +64,7 @@ import { StickerMessage } from './chat/Stickers'
 import { ExpressionPicker, GifMessage, type ExpressionTab } from './chat/ExpressionPicker'
 import { sendGif } from '../state/gifs'
 import { sendSticker } from '../state/stickers'
-import { SpoilerToggle, isSpoilerName, longTextFile } from './chat/media'
+import { isSpoilerName, longTextFile } from './chat/media'
 import { AutoModAlertCard } from './automod/AutoModAlert'
 import { userMenuProps } from './people/userMenuProps'
 import { EditedMark } from './productivity/EditHistory'
@@ -81,7 +79,6 @@ import { JoinPending } from './JoinPending'
 import { BulkSelectBar, SelectBox } from './moderation/ModPack'
 import { toggleSelected, useIsSelected, useSelectingIn } from '../state/modpack'
 import { useReadableColor } from '../theme/useReadable'
-import { ChannelPopoutButton } from './popout/PopoutButtons'
 import { ChannelTopic } from './chat/ChannelTopic'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
@@ -116,30 +113,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         window.dispatchEvent(new CustomEvent('iskra:attach', { detail: [...e.dataTransfer.files] }))
       }}
     >
-      <header className="chat-header">
-        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('chat.view.openChannels')}>
-          <Menu />
-        </button>
-        {channel ? (
-          <h1>
-            <span className="hash">{channel.kind === 'voice' || channel.kind === 'stage' ? <Volume size={20} /> : <Hash size={20} />}</span>
-            <span className="chat-title-name">{channel.name}</span>
-            <LockBadge channel={channel} size={14} />
-          </h1>
-        ) : (
-          <h1>{server.name}</h1>
-        )}
-        <span className="spacer" />
-        <HeaderTools key={channel?.id} server={server} channel={channel} />
-        {channel && channel.kind === 'text' && <AutoTranslateButton conv={convKey.channel(server.key, channel.id)} />}
-        {channel && <ReadAloudHeaderButton serverKey={server.key} channelId={channel.id} />}
-        <EncryptionButton server={server} channel={channel} />
-        <ChannelSettingsButton server={server} channel={channel} />
-        {channel?.kind === 'text' && <ChannelPopoutButton serverKey={server.key} channelId={channel.id} />}
-        <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label={t('chat.view.members')} title={t('chat.view.members')}>
-          <Users />
-        </button>
-      </header>
+      <ChannelHeader server={server} channel={channel} onNav={() => onToggle('nav')} onMembers={() => onToggle('members')} />
       <ChannelTopic channel={channel} />
 
       {server.status.state === 'pending' ? <JoinPending server={server} /> : failedJoin(server) ? <JoinFailed server={server} /> : <ConnectionBanner server={server} />}
@@ -738,16 +712,8 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       {uploads.length > 0 && (
         <div className="pending-uploads">
           {uploads.map((u) => (
-            <div key={u.localId} className={`pending-upload ${u.error ? 'failed' : ''}`} title={u.error ?? u.file.name}>
-              {u.preview ? <img src={u.preview} alt="" className={isSpoilerName(u.file.name) ? 'spoiler-preview' : undefined} /> : <span className="file-icon" aria-hidden><FileIcon size={20} /></span>}
-              <span className="file-name">{u.file.name}</span>
-              {!u.error && <SpoilerToggle on={isSpoilerName(u.file.name)} onToggle={() => toggleSpoiler(u)} />}
-              {u.error
-                ? <span className="upload-error" role="alert">{u.error}</span>
-                : <span className="muted">{u.result ? formatSize(u.file.size) : formatNumber(u.progress, { style: 'percent', maximumFractionDigits: 0 })}</span>}
-              {!u.result && !u.error && <span className="upload-progress" style={{ width: `${u.progress * 100}%` }} />}
-              <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={t('chat.composer.removeFile', { name: u.file.name })}><Close size={14} /></button>
-            </div>
+            <UploadChip key={u.localId} name={u.file.name} size={u.file.size} preview={u.preview} progress={u.progress} done={!!u.result} error={u.error}
+              spoiler={isSpoilerName(u.file.name)} onSpoiler={() => toggleSpoiler(u)} onRemove={() => removeUpload(u)} />
           ))}
         </div>
       )}
@@ -763,16 +729,9 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
           gifs: isEncrypted(server.key, channelId) ? undefined : (anchor) => openPicker(anchor, 'gifs'),
           emoji: (anchor) => openPicker(anchor, 'emoji'),
           voice: micInstead ? () => setVoiceStart((n) => n + 1) : undefined,
+          later: later.open,
         }}
       />
-      <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('chat.composer.attach')} disabled={!online}>
-        <Paperclip />
-      </button>
-      {!isEncrypted(server.key, channelId) && (
-        <button className="icon-button attach-button" onClick={() => setPollOpen(true)} aria-label={t('chat.composer.poll')} title={t('chat.composer.poll')} disabled={!online}>
-          <PollIcon />
-        </button>
-      )}
       <input
         ref={fileInput}
         type="file"
@@ -856,15 +815,15 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       />
       {!isEncrypted(server.key, channelId) && (
         <button className="icon-button attach-button gif-button" onClick={(e) => openPicker(e.currentTarget, 'gifs')} aria-label={t('chat.composer.gifs')} title={t('chat.composer.gifs')} disabled={!online}>
-          GIF
+          <GifIcon size={20} />
         </button>
       )}
-      <button className="icon-button attach-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emojiTitle')}>
+      <button className="icon-button attach-button emoji-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emojiTitle')}>
         <Smile />
       </button>
-      {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!online} startSignal={voiceStart} />}
       <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
-      {later.button}
+      {/* Nothing typed: the mic stands where Send goes (Send comes back with the first letter). */}
+      {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!online} startSignal={voiceStart} />}
       <button className={`send-button ${micInstead ? 'idle' : ''}`} onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
         <Send />
       </button>

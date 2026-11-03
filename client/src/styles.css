@@ -419,13 +419,15 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 /* ── Chat ───────────────────────────────────────────────────────────── */
 .chat { display: flex; flex-direction: column; height: 100%; }
 .chat-header {
-  height: 52px; padding: 0 12px 0 16px; display: flex; align-items: center; gap: 8px;
+  height: 52px; padding: 0 var(--sp-3) 0 var(--sp-4); display: flex; align-items: center; gap: var(--sp-2);
   border-bottom: 1px solid var(--border); flex: none;
 }
+/* The name keeps a floor: the tools fold into "⋯" (ui/chat/HeaderMore.tsx) before it would shrink past it. */
 .chat-header h1 {
-  color: var(--text-strong); font-size: 16px; margin: 0; display: flex; align-items: center; gap: 6px; min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-strong); font-size: var(--fs-base); font-weight: var(--fw-bold); margin: 0; display: flex; align-items: center; gap: 6px;
+  flex: 0 1 auto; min-width: min(120px, 40%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.chat-header > .header-tools, .chat-header > .icon-button { flex: none; }
 .chat-header .hash { color: var(--muted); display: inline-grid; }
 .spacer { flex: 1; }
 .banner { padding: 10px 16px; font-size: 14px; }
@@ -554,13 +556,17 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 .sidebar-hint { color: var(--muted); font-size: 13px; padding: 4px 8px; margin: 0; }
 .dm-row { padding: 5px 8px; gap: 10px; }
 .friends { flex: 1; overflow-y: auto; padding: 12px 16px; }
-.friend-row { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: var(--radius); }
-.friend-row:hover { background: var(--surface-2); }
+.friend-row { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) 10px; border-radius: var(--r-lg); }
+.friend-row:hover { background: var(--hover); }
 .friend-text { display: grid; flex: 1; min-width: 0; line-height: 1.3; }
 .e2e-badge {
-  display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--green);
-  background: color-mix(in srgb, var(--green) 10%, transparent); padding: 3px 9px; border-radius: 99px; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--green);
+  background: color-mix(in srgb, var(--green) 10%, transparent); padding: 3px 9px; border-radius: var(--r-pill); white-space: nowrap;
+  border: 0; flex: none;
 }
+/* In a DM it's a button: the way to the safety number. */
+button.e2e-badge:hover { background: color-mix(in srgb, var(--green) 18%, transparent); }
+.chat-header.fit-narrow .e2e-badge, .chat-header.fit-narrow .dm-header-status, .chat-header.fit-mid .dm-header-status { display: none; }
 .button.small { min-height: var(--control-h-sm); padding: 0 var(--sp-3); font-size: var(--fs-md); }
 .message-notice { display: flex; align-items: center; gap: 6px; color: var(--muted); font-style: italic; font-size: 14px; }
 .channel-start .avatar { margin-bottom: 10px; }
@@ -635,34 +641,43 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 }
 .reaction-picker button { font-size: 18px; padding: 4px; }
 .composer-wrap { flex: none; }
-/* Phones: the composer's buttons fold into one "+" (ui/chat/ComposerMenu.tsx) so "Message #channel" has room. The mic
-   stays: it sits where Send appears, so it costs the box nothing. */
-.composer-plus { display: none; }
+/* The composer row: "+" · box · GIF · emoji · mic or Send (ui/chat/ComposerMenu.tsx holds attach, poll, voice and send
+   later). Below 480 px GIF and emoji move into "+" as well, so "Message #channel" has room. */
+.composer > .composer-plus, .attach-button { align-self: center; }
 @media (max-width: 480px) {
-  .composer > .attach-button:not(.composer-plus):not(.voice-record-button) { display: none; }
-  .composer > .composer-plus { display: inline-grid; }
+  .composer > .gif-button, .composer > .emoji-button { display: none; }
 }
-.composer-menu .org-item svg, .composer-menu-gif { flex: none; width: 18px; text-align: center; }
-.composer-menu-gif { font-size: 10px; font-weight: 800; letter-spacing: 0.04em; }
-.reply-bar, .pending-uploads { margin: 0 16px; padding: 6px 12px; background: var(--surface-2); border-radius: 10px 10px 0 0; font-size: 13px; color: var(--text-2); }
+/* Nothing typed yet: the mic stands in for the send button (Send comes back with the first letter). */
+.composer .send-button.idle { display: none; }
+.reply-bar, .pending-uploads {
+  margin: 0 var(--sp-4); padding: 6px var(--sp-3); background: var(--surface-2); border-radius: var(--r-lg) var(--r-lg) 0 0;
+  font-size: var(--fs-md); color: var(--text-2);
+}
 .reply-bar { display: flex; align-items: center; justify-content: space-between; }
-.pending-uploads { display: flex; gap: 8px; overflow-x: auto; padding: 8px; }
+.pending-uploads { display: flex; gap: var(--sp-2); overflow-x: auto; padding: var(--sp-2); }
 .reply-bar + .pending-uploads { border-radius: 0; border-top: 1px solid var(--border); }
 .reply-bar + .composer, .pending-uploads + .composer { border-top-left-radius: 0; border-top-right-radius: 0; margin-top: 0; }
+/* A waiting file: thumbnail · name over size (or progress, or the error) · spoiler eye · ✕, in one row. */
 .pending-upload {
-  position: relative; display: grid; grid-template-columns: 40px 1fr auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
-  width: 220px; padding: 6px; border-radius: calc(var(--radius) * 0.8); background: var(--bg); overflow: hidden; flex: none;
+  display: flex; align-items: center; gap: var(--sp-2); width: 240px; flex: none; padding: 6px;
+  border-radius: var(--r-md); background: var(--bg); border: 1px solid var(--border);
 }
-.pending-upload img, .pending-upload .file-icon { grid-row: span 2; width: 40px; height: 40px; object-fit: cover; border-radius: calc(var(--radius) * 0.6); display: grid; place-items: center; }
-.pending-upload .file-name { font-size: 12px; max-width: 120px; }
-.pending-upload .muted { font-size: 11px; }
-.pending-upload .icon-button { grid-row: span 2; grid-column: 3; }
-.pending-upload.failed { outline: 1px solid var(--red); }
+.upload-thumb {
+  width: 40px; height: 40px; flex: none; display: grid; place-items: center; overflow: hidden;
+  border-radius: var(--r-sm); background: var(--surface-2); color: var(--text-2);
+}
+.upload-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.upload-thumb img.spoiler-preview { filter: blur(6px); }
+.upload-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.pending-upload .file-name { font-size: var(--fs-md); max-width: none; color: var(--text); }
+.upload-meta { font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.upload-bar { display: block; height: 3px; border-radius: var(--r-pill); background: var(--surface-3); overflow: hidden; }
+.upload-bar > span { display: block; height: 100%; background: var(--accent); transition: width var(--dur); }
+.pending-upload .icon-button.small { width: 28px; height: 28px; flex: none; }
+.upload-spoiler.on { color: var(--accent); background: var(--accent-subtle); }
+.pending-upload.failed { border-color: var(--red); }
 /* Why it failed, readable on the chip itself. */
-.pending-upload.failed .file-name { grid-column: 2; grid-row: 1; }
-.pending-upload .upload-error { grid-column: 2; grid-row: 2; font-size: 11px; line-height: 1.3; color: var(--red); overflow-wrap: anywhere; }
-.upload-progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); transition: width 0.2s; }
-.attach-button { align-self: center; }
+.pending-upload .upload-error { font-size: var(--fs-xs); line-height: 1.3; color: var(--red); overflow-wrap: anywhere; }
 .composer { padding-left: 4px; }
 .chat.dragging .messages { outline: 2px dashed var(--accent); outline-offset: -8px; }
 
@@ -834,7 +849,6 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
   .stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .call-button { width: 48px; height: 48px; }
   .e2e-badge { display: none; }
-  .friend-row { flex-wrap: wrap; }
   .empty-state .copy-row { flex-direction: column; align-items: stretch; width: min(320px, 100%); }
   .channel-start h2, .channel-start .channel-start-title { font-size: 21px; }
 }
@@ -1047,10 +1061,6 @@ input.confirm-code::placeholder { color: var(--placeholder); }
 .message:hover .message-meta time, :root[data-input='keyboard'] .message:focus-within .message-meta time { color: var(--text-2); }
 
 /* ── UX polish (P3): phone composer room, long sheets, file choosers, crash note ── */
-@media (max-width: 760px) {
-  /* Nothing typed yet: the mic stands in for the send button, so "Message #channel" isn't cut short. */
-  .composer .send-button.idle { display: none; }
-}
 .sheet-more {
   position: sticky; bottom: 0; display: block; height: 44px; margin-top: -44px; pointer-events: none;
   background: linear-gradient(transparent, var(--float));
@@ -1097,12 +1107,6 @@ input[type='checkbox'], input[type='radio'] { width: auto; padding: 0; flex: non
 @media (max-width: 380px) {
   /* Small phones: the composer's buttons sit closer so "Message #channel" fits. */
   .composer { gap: 0; padding-left: 2px; }
-}
-.verify-button { gap: 6px; }
-@media (max-width: 760px) {
-  /* DM header on phones: Verify is its shield icon, so the header stays one line. */
-  .chat-header .button.verify-button { width: 36px; height: 36px; padding: 0; border-color: transparent; background: transparent; color: var(--text-2); }
-  .chat-header .verify-button .verify-label { display: none; }
 }
 /* A long channel name ends in "…" instead of being cut at a hyphen. */
 .chat-title-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

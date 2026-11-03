@@ -16,7 +16,6 @@ label.header-search input, label.header-search input:focus {
 }
 label.header-search input:focus { width: 230px; }
 .header-search input::-webkit-search-cancel-button { filter: grayscale(1); }
-.header-tools .mobile-search { display: none; }
 
 .header-popover {
   position: absolute; top: 44px; right: 0; z-index: var(--z-dropdown); width: min(420px, calc(100vw - 24px)); max-height: min(70dvh, 560px);
@@ -86,8 +85,8 @@ label.header-search input:focus { width: 230px; }
 }
 .panel-icon { color: var(--muted); display: inline-grid; }
 .panel-title { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.panel-title h2 { margin: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.panel-title .muted { font-size: 12px; white-space: nowrap; }
+.panel-title h2 { margin: 0; font-size: var(--fs-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel-title .muted { font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-panel-header .panel-back { display: none; }
 .panel-search { display: none; flex: 1; margin-left: 0; height: 36px; }
 label.header-search.panel-search input, label.header-search.panel-search input:focus { width: 100%; font-size: 16px; }
@@ -106,8 +105,13 @@ label.header-search.panel-search input, label.header-search.panel-search input:f
 .thread-started-by { margin: 10px 0 0; font-size: 13px; }
 
 /* Search results */
-.search-scope { margin: 8px 8px 0; flex: none; }
-.search-scope button { padding: 6px; font-size: 13px; }
+/* The panel's own box, for when the chat header has folded its box into an icon (wide screens only). */
+.search-box-row { flex: none; padding: var(--sp-2) var(--sp-2) 0; }
+.search-box-row .header-search { margin: 0; height: 36px; }
+.search-box-row label.header-search input, .search-box-row label.header-search input:focus { width: 100%; }
+.chat-area:has(.desktop-search) .search-box-row { display: none; }
+.search-scope { margin: var(--sp-2) var(--sp-2) 0; flex: none; }
+.search-scope button { padding: 6px; font-size: var(--fs-md); }
 .search-group h3 { display: flex; align-items: baseline; gap: 8px; margin: 10px 8px 6px; font-size: 13px; }
 .search-group h3 .search-group-name { color: var(--text-strong); }
 .search-group h3 .search-group-status { font-weight: 400; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -125,15 +129,22 @@ label.header-search.panel-search input, label.header-search.panel-search input:f
 .search-chip:hover { background: var(--surface-2); }
 .mobile-count { display: none; }
 .result-card {
-  width: 100%; display: grid; gap: 6px; text-align: left; border: 1px solid var(--border); background: var(--surface-2);
+  position: relative; width: 100%; display: grid; gap: 6px; text-align: left; border: 1px solid var(--border); background: var(--surface-2);
   border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; color: var(--text);
 }
 .result-card:hover { border-color: var(--accent); }
-.result-where { font-size: 12px; font-weight: 600; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result-where { font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 48px; }
+/* "Jump", like the pins list: shown on hover and focus. */
+.result-jump {
+  position: absolute; top: 8px; right: 10px; padding: 0 var(--sp-2); border-radius: var(--r-sm); background: var(--surface-3); color: var(--text-2);
+  font-size: var(--fs-xs); line-height: 18px; opacity: 0; transition: opacity var(--dur-fast);
+}
+.result-card:hover .result-jump, .result-card:focus-visible .result-jump { opacity: 1; }
+@media (hover: none) { .result-jump { display: none; } }
 .result-row { display: flex; gap: 10px; min-width: 0; }
 .result-body { display: grid; min-width: 0; flex: 1; }
 .result-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; color: var(--text-2); }
-.result-text mark { background: rgba(251, 191, 36, 0.28); color: var(--text); border-radius: 3px; padding: 0 1px; }
+.result-text mark { background: color-mix(in srgb, var(--amber) 30%, transparent); color: var(--text); border-radius: var(--r-sm); padding: 0 1px; }
 .load-more { margin: 4px 0 12px; }
 
 @media (min-width: 1101px) {
@@ -148,8 +159,8 @@ label.header-search.panel-search input, label.header-search.panel-search input:f
 }
 
 @media (max-width: 760px) {
-  .desktop-search, .desktop-title, .side-panel-header .panel-close { display: none; }
-  .header-tools .mobile-search, .side-panel-header .panel-back { display: inline-grid; }
+  .desktop-search, .desktop-title, .side-panel-header .panel-close, .search-box-row { display: none; }
+  .side-panel-header .panel-back { display: inline-grid; }
   .panel-search { display: flex; }
   .mobile-count { display: block; text-align: left; }
   .side-panel {

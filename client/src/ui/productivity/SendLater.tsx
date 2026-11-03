@@ -34,6 +34,8 @@ export function useSendLater({ target, prepare, blocked, disabled, onScheduled }
   }
 
   return {
+    /** Opens the dialog (the composer's "+" menu). */
+    open: start,
     button: (
       <button className="icon-button attach-button send-later-button" onClick={start} disabled={disabled}
         aria-label={t('productivity.sendLater.button')} title={`${t('productivity.sendLater.button')} · ${t('productivity.sendLater.hint')}`}>

@@ -73,9 +73,10 @@ test('translate a message on the device, with models from your own server', asyn
   await expect(swedish.getByTestId('translation')).toHaveCount(0)
 
   // Auto-translate here: new messages not in English are translated as they come (the models are on the device now).
-  await host.getByTestId('auto-translate-button').click()
+  await host.getByTestId('header-more').click()
+  await host.getByTestId('auto-translate-item').click()
   const popover = host.getByRole('dialog', { name: 'Translation' })
-  await popover.getByRole('checkbox', { name: 'Auto-translate messages not in my language' }).check()
+  await popover.getByRole('switch', { name: 'Auto-translate messages not in my language' }).click()
   await host.screenshot({ path: join(SHOTS, 'translate-auto.png') })
   await host.keyboard.press('Escape')
   await send(friend, 'Servern ligger nere igen, kan någon starta om den?')

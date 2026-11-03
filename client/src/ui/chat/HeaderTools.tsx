@@ -1,5 +1,6 @@
-// Channel header tools: threads and pinned messages (popovers) and the search box.
-import { ChannelTimerButton } from '../disappear/Timers'
+// A channel's header: its name (and lock), then the tools. Threads, pins and search are icons (search is a box when
+// there's room); everything else sits in "⋯" (HeaderMore.tsx), except tools that are showing a state: a timer that's
+// on, auto-translate that's on, read-aloud that's on, a popped-out window.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { prepareChannel, readable } from '../../state/e2eeChannels'
 import { useTranslation } from 'react-i18next'
@@ -11,57 +12,146 @@ import { loadThreads, openThread, useThreads } from '../../state/threads'
 import { channelConv, useReads } from '../../state/readState'
 import { openSearch, runSearch, setSearchText, useSearch, closeSearch } from '../../state/search'
 import { jumpToMessage } from '../../state/jump'
+import { has } from '../../state/permissions'
+import { useServerRoles } from '../../state/roles'
+import { setReadAloudHere, speechSupported, useReadAloudHere } from '../../state/speech'
+import { popoutModeFor, togglePopout, usePoppedOut } from '../../state/popouts'
+import { convKey } from '../../state/translate'
 import { Avatar, Spinner } from '../bits'
 import { fullTime, messageTime } from '../format'
 import { renderMarkdown } from '../markdown'
 import { relativeTime } from './pinThreadHelpers'
 import { PinIcon, SearchIcon, ThreadIcon } from './extraIcons'
 import { useEscapeLayer, useFocusTrap } from '../layers'
+import { ChevronDown, ChevronRight, Hash, Menu, Sliders, Users, Volume } from '../icons'
+import { useChannelTimerTool } from '../disappear/Timers'
+import { useAutoTranslateTool } from '../translate/Translate'
+import { EncryptionLock } from '../e2ee/E2ee'
+import { ChannelSettingsDialog } from '../organize/Dialogs'
+import { PopInIcon, PopOutIcon } from '../popout/popoutIcons'
+import { HeaderMore, useHeaderFit, type HeaderFit, type MoreItem } from './HeaderMore'
 import './chat-extras.css'
 import { resolveKey } from '../../state/keyMap'
 
 const INACTIVE_MS = 7 * 24 * 3600 * 1000
 
-export function HeaderTools({ server, channel }: { server: ServerState; channel: Channel | undefined }) {
-  const [open, setOpen] = useState<'threads' | 'pins' | null>(null)
-  const text = useSearch((s) => s.text)
+export function ChannelHeader({ server, channel, onNav, onMembers }: {
+  server: ServerState
+  channel: Channel | undefined
+  onNav: () => void
+  onMembers: () => void
+}) {
   const { t } = useTranslation()
-  if (!channel || !['text', 'voice', 'stage'].includes(channel.kind)) return null
+  const [ref, fit] = useHeaderFit<HTMLElement>()
+  return (
+    <header className={`chat-header fit-${fit}`} ref={ref}>
+      <button className="icon-button mobile-only" onClick={onNav} aria-label={t('chat.view.openChannels')}>
+        <Menu />
+      </button>
+      {channel ? (
+        <h1>
+          <span className="hash">{channel.kind === 'voice' || channel.kind === 'stage' ? <Volume size={20} /> : <Hash size={20} />}</span>
+          <span className="chat-title-name">{channel.name}</span>
+          <EncryptionLock server={server} channel={channel} />
+        </h1>
+      ) : (
+        <h1><span className="chat-title-name">{server.name}</span></h1>
+      )}
+      <span className="spacer" />
+      {channel && ['text', 'voice', 'stage'].includes(channel.kind)
+        ? <HeaderTools key={channel.id} server={server} channel={channel} fit={fit} />
+        : null}
+      <button className="icon-button members-toggle" onClick={onMembers} aria-label={t('chat.view.members')} title={t('chat.view.members')}>
+        <Users />
+      </button>
+    </header>
+  )
+}
+
+function HeaderTools({ server, channel, fit }: { server: ServerState; channel: Channel; fit: HeaderFit }) {
+  const [open, setOpen] = useState<'threads' | 'pins' | null>(null)
+  const [settings, setSettings] = useState(false)
+  const text = useSearch((s) => s.text)
+  const roles = useServerRoles(server.key)
+  const { t } = useTranslation()
   const toggle = (which: 'threads' | 'pins') => setOpen((o) => (o === which ? null : which))
+  const isText = channel.kind === 'text'
+  const timer = useChannelTimerTool(server, channel)
+  const translate = useAutoTranslateTool(convKey.channel(server.key, channel.id))
+  const readingAloud = useReadAloudHere(server.key, channel.id) && speechSupported()
+  const popTarget = { kind: 'chat' as const, serverKey: server.key, channelId: channel.id }
+  const poppedOut = usePoppedOut(popTarget)
+  const canPop = isText && popoutModeFor('chat') === 'window'
+  const canManage = has(server.me, roles, 'manageChannels')
+  // The box needs room; without it the search panel has its own (chat-extras.css).
+  const searchBox = fit === 'wide'
+  const pinsInline = fit !== 'narrow'
+
+  const more: MoreItem[][] = [
+    [
+      ...(!pinsInline ? [{ key: 'pins', label: t('chat.header.pins'), icon: <PinIcon />, onSelect: () => setOpen('pins') }] : []),
+      ...(timer.item ? [timer.item] : []),
+      ...(isText && !translate.on ? [translate.item] : []),
+      ...(speechSupported() && !readingAloud
+        ? [{ key: 'read-aloud', label: t('speech.channel.toggle'), icon: <Volume />, onSelect: () => setReadAloudHere(server.key, channel.id, true) }] : []),
+    ],
+    [
+      ...(canPop && !poppedOut ? [{ key: 'popout', label: t('popout.popOutChannel'), icon: <PopOutIcon />, onSelect: () => void togglePopout(popTarget) }] : []),
+      ...(canManage ? [{ key: 'settings', label: t('moderation.channelSettings'), icon: <Sliders />, onSelect: () => setSettings(true) }] : []),
+    ],
+  ]
 
   return (
     <div className="header-tools">
-      <ChannelTimerButton server={server} channel={channel} />
-      {channel.kind === 'text' && (
+      {timer.button}
+      {isText && translate.on && translate.button}
+      {readingAloud && (
+        <button className="icon-button on read-aloud-on" onClick={() => setReadAloudHere(server.key, channel.id, false)}
+          aria-label={t('speech.channel.turnOff')} title={t('speech.channel.turnOff')} data-testid="read-aloud-on">
+          <Volume />
+        </button>
+      )}
+      {canPop && poppedOut && (
+        <button className="icon-button on" onClick={() => void togglePopout(popTarget)} aria-pressed aria-label={t('popout.popIn')} title={t('popout.popIn')}>
+          <PopInIcon />
+        </button>
+      )}
+      {isText && (
         <button className={`icon-button ${open === 'threads' ? 'on' : ''}`} onClick={() => toggle('threads')} aria-label={t('chat.header.threads')} title={t('chat.header.threads')} aria-expanded={open === 'threads'}>
           <ThreadIcon />
         </button>
       )}
-      <button className={`icon-button ${open === 'pins' ? 'on' : ''}`} onClick={() => toggle('pins')} aria-label={t('chat.header.pins')} title={t('chat.header.pins')} aria-expanded={open === 'pins'}>
-        <PinIcon />
-      </button>
-      <label className="header-search desktop-search">
-        <SearchIcon size={15} />
-        <input
-          type="search"
-          placeholder={t('common.search')}
-          aria-label={t('chat.search.searchMessages')}
-          value={text}
-          maxLength={300}
-          onChange={(e) => setSearchText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void runSearch(server.key)
-            else if (e.key === 'Escape' && (text || useSearch.getState().key)) {
-              e.preventDefault()
-              setSearchText('')
-              closeSearch()
-            }
-          }}
-        />
-      </label>
-      <button className="icon-button mobile-search" onClick={() => openSearch(server.key)} aria-label={t('chat.search.searchMessages')} title={t('common.search')}>
-        <SearchIcon />
-      </button>
+      {pinsInline && (
+        <button className={`icon-button ${open === 'pins' ? 'on' : ''}`} onClick={() => toggle('pins')} aria-label={t('chat.header.pins')} title={t('chat.header.pins')} aria-expanded={open === 'pins'}>
+          <PinIcon />
+        </button>
+      )}
+      {searchBox ? (
+        <label className="header-search desktop-search">
+          <SearchIcon size={15} />
+          <input
+            type="search"
+            placeholder={t('common.search')}
+            aria-label={t('chat.search.searchMessages')}
+            value={text}
+            maxLength={300}
+            onChange={(e) => setSearchText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void runSearch(server.key)
+              else if (e.key === 'Escape' && (text || useSearch.getState().key)) {
+                e.preventDefault()
+                setSearchText('')
+                closeSearch()
+              }
+            }}
+          />
+        </label>
+      ) : (
+        <button className="icon-button mobile-search" onClick={() => openSearch(server.key)} aria-label={t('chat.search.searchMessages')} title={t('common.search')}>
+          <SearchIcon />
+        </button>
+      )}
+      <HeaderMore label={t('chat.header.more')} groups={more} />
       {open === 'pins' && (
         <Popover title={t('chat.header.pinnedIn', { name: channel.name })} onClose={() => setOpen(null)}>
           <PinList server={server} channelId={channel.id} onJump={() => setOpen(null)} />
@@ -72,6 +162,9 @@ export function HeaderTools({ server, channel }: { server: ServerState; channel:
           <ThreadList server={server} channelId={channel.id} onOpen={() => setOpen(null)} />
         </Popover>
       )}
+      {translate.popover}
+      {timer.dialog}
+      {settings && <ChannelSettingsDialog server={server} channel={channel} onClose={() => setSettings(false)} />}
     </div>
   )
 }
@@ -221,7 +314,7 @@ function ThreadList({ server, channelId, onOpen }: { server: ServerState; channe
       {older.length > 0 && (
         <>
           <button className="link-like older-toggle" onClick={() => setShowOlder((v) => !v)} aria-expanded={showOlder}>
-            {showOlder ? '▾' : '▸'} {t('chat.threads.older', { n: older.length })}
+            {showOlder ? <ChevronDown size={14} /> : <ChevronRight size={14} />} {t('chat.threads.older', { n: older.length })}
           </button>
           {showOlder && <ul className="thread-list">{older.map(row)}</ul>}
         </>

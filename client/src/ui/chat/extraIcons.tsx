@@ -1,4 +1,4 @@
-// Icons for pins, search and threads (same Lucide-style line icons as ../icons).
+// Icons for pins, search, threads and GIFs (same Lucide-style line icons as ../icons).
 import type { ReactNode } from 'react'
 
 type P = { size?: number }
@@ -54,5 +54,15 @@ export const ArrowLeft = (p: P) => (
   <Svg {...p}>
     <path d="m12 19-7-7 7-7" />
     <path d="M19 12H5" />
+  </Svg>
+)
+
+/** "GIF" in a rounded box, drawn in the same line style (not a text label at a different weight per place). */
+export const GifIcon = (p: P) => (
+  <Svg {...p}>
+    <rect x="2" y="5" width="20" height="14" rx="3" />
+    <path d="M10 10.2A2 2 0 0 0 8.5 9.5c-1.1 0-2 1.1-2 2.5s.9 2.5 2 2.5c.9 0 1.5-.6 1.5-1.5v-.5H8.8" strokeWidth={1.6} />
+    <path d="M12.5 9.5v5" strokeWidth={1.6} />
+    <path d="M17.5 9.5h-2.2v5M15.3 12h1.8" strokeWidth={1.6} />
   </Svg>
 )

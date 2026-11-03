@@ -1,10 +1,10 @@
-// Phones: the composer's attach, poll, GIF, emoji and voice-message buttons fold into one "+" that opens a sheet, so the
-// message box (and its placeholder) has room; desktop keeps the row of buttons. Everything stays reachable by keyboard.
+// The composer is "+ · box · GIF · emoji · send" (attach, poll, voice message and send later live in "+"); below 480 px
+// GIF and emoji fold into "+" too, so the message box (and its placeholder) has room. Everything stays reachable by keyboard.
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { composerAction, joinVia, SHOTS, startServer } from './helpers'
 
-test('below 480 px the composer folds its buttons into a "+" sheet; wider screens keep them', async ({ browser }) => {
+test('the composer keeps four controls; below 480 px GIF and emoji fold into the "+" sheet too', async ({ browser }) => {
   const server = await startServer('Phone composer')
   try {
     const page = await (await browser.newContext()).newPage()
@@ -13,16 +13,23 @@ test('below 480 px the composer folds its buttons into a "+" sheet; wider screen
     const plus = composer.getByRole('button', { name: 'Add to your message' })
     const box = page.getByPlaceholder('Message #general')
 
-    // Desktop: the buttons are there, no "+".
-    await expect(composer.getByRole('button', { name: 'Attach files' })).toBeVisible()
+    // Desktop: "+", GIF, emoji and send (attach and poll are in "+", a popover above it).
+    await expect(plus).toBeVisible()
     await expect(composer.getByRole('button', { name: 'Emoji', exact: true })).toBeVisible()
-    await expect(plus).toBeHidden()
+    await expect(composer.getByRole('button', { name: 'GIFs', exact: true })).toBeVisible()
+    await expect(composer.getByRole('button', { name: 'Attach files' })).toHaveCount(0)
+    await plus.click()
+    const popover = page.getByRole('dialog', { name: 'Add to your message' })
+    await expect(popover.getByRole('menuitem')).toHaveText([/Attach files$/, /Create a poll$/, /Record a voice message$/, /Send later$/])
+    await page.screenshot({ path: join(SHOTS, 'composer-plus-desktop.png') })
+    await page.keyboard.press('Escape')
+    await expect(popover).toHaveCount(0)
 
     // Phone: one "+", the box wide enough for its placeholder.
     await page.setViewportSize({ width: 390, height: 844 })
     await page.waitForTimeout(400)
     await expect(plus).toBeVisible()
-    await expect(composer.getByRole('button', { name: 'Attach files' })).toBeHidden()
+    await expect(composer.getByRole('button', { name: 'GIFs', exact: true })).toBeHidden()
     await expect(composer.getByRole('button', { name: 'Emoji', exact: true })).toBeHidden()
     await expect(composer.getByRole('button', { name: 'Create a poll' })).toBeHidden()
     const width = await box.evaluate((el) => el.getBoundingClientRect().width)
@@ -32,7 +39,7 @@ test('below 480 px the composer folds its buttons into a "+" sheet; wider screen
     // The sheet lists the actions; Emoji opens the picker and the picked emoji lands in the box.
     await plus.click()
     const sheet = page.getByRole('dialog', { name: 'Add to your message' })
-    await expect(sheet.getByRole('menuitem')).toHaveText([/Attach files$/, /Create a poll$/, /GIFs$/, /Emoji$/, /Record a voice message$/])
+    await expect(sheet.getByRole('menuitem')).toHaveText([/Attach files$/, /Create a poll$/, /GIFs$/, /Emoji$/, /Record a voice message$/, /Send later$/])
     await page.screenshot({ path: join(SHOTS, 'phone-composer-sheet.png') })
     await sheet.getByRole('menuitem', { name: 'Emoji' }).click()
     await expect(sheet).toHaveCount(0)
@@ -65,9 +72,9 @@ test('below 480 px the composer folds its buttons into a "+" sheet; wider screen
     await expect(page.getByRole('dialog', { name: 'Create a poll' })).toBeVisible()
     await page.keyboard.press('Escape')
 
-    // Back on a wide screen the buttons return.
+    // Back on a wide screen GIF and emoji return to the row.
     await page.setViewportSize({ width: 1280, height: 720 })
-    await expect(plus).toBeHidden()
+    await expect(plus).toBeVisible()
     await expect(composer.getByRole('button', { name: 'Emoji', exact: true })).toBeVisible()
   } finally {
     await server.stop()

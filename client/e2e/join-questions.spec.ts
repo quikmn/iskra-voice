@@ -125,6 +125,7 @@ test('join questions: admins ask, newcomers answer step by step, answers give ro
   await expect(chips).not.toContainText('PC')
   // Answering never lifts anyone: Sam is still a plain member to the host's moderation tools.
   await host.getByRole('dialog', { name: 'Profile of Sam' }).getByRole('button', { name: 'More' }).click()
+  await host.getByRole('menuitem', { name: 'Member details' }).click()
   await expect(host.getByRole('dialog', { name: 'Sam' }).getByRole('button', { name: 'Kick' })).toBeVisible()
   await host.keyboard.press('Escape')
 

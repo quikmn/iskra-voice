@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
-import { agreeToTerms, createInviteLink, hasLiveKit, joinVia, send, SHOTS, startServer, type TestServer } from './helpers'
+import { composerAction, agreeToTerms, createInviteLink, hasLiveKit, joinVia, send, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(!process.env.AUDIT, 'UX audit tour: set AUDIT=1')
 test.use({ actionTimeout: 8000 })
@@ -435,7 +435,7 @@ test('UX audit tour (browser)', async ({ browser }) => {
     await owner.keyboard.press('Escape')
   })
   await part('owner-chat-tools', async () => {
-    await owner.getByRole('button', { name: 'Create a poll' }).click()
+    await composerAction(owner, 'Create a poll')
     await snap(owner, '20-poll-dialog')
     const dialog = owner.getByRole('dialog', { name: 'Create a poll' })
     await dialog.getByLabel('Question').fill('What do we play tonight?')

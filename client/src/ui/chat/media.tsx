@@ -16,15 +16,6 @@ export function longTextFile(text: string): File {
   return new File([text], 'message.txt', { type: 'text/plain' })
 }
 
-export function SpoilerToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
-  const { t } = useTranslation()
-  return (
-    <button className={`spoiler-toggle ${on ? 'on' : ''}`} onClick={onToggle} aria-pressed={on} title={on ? t('chat.media.spoilerOnTitle') : t('chat.media.spoilerOffTitle')}>
-      {on ? t('chat.media.spoiler') : t('chat.media.markSpoiler')}
-    </button>
-  )
-}
-
 /** Covers its child until clicked once. */
 export function SpoilerCover({ active, children, className }: { active: boolean; children: React.ReactNode; className?: string }) {
   const [shown, setShown] = useState(false)
