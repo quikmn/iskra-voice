@@ -15,7 +15,7 @@ const CSS = `
 .strip .row { flex-wrap: nowrap; }
 /* Tools on the left, the board in the middle, guesses and scores on the right: the board takes the height that's left,
    so nothing sits under it and the frame never scrolls. */
-.layout { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) min(220px, 28vw); grid-template-rows: minmax(0, 1fr); gap: 12px; width: 100%; }
+.layout { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) min(240px, 34vw); grid-template-rows: minmax(0, 1fr); gap: 12px; width: 100%; }
 /* Fixed columns: the tools are hidden while you don't draw, and the board must keep the middle column. */
 .tools { grid-column: 1; } .main { grid-column: 2; } .side { grid-column: 3; }
 .main { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; }

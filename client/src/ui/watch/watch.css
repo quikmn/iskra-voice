@@ -23,6 +23,11 @@ button.watch-overlay { cursor: pointer; }
 /* What's on and who hosts it; the host's settings and End at the end of the same row. */
 .watch-head { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; min-height: 32px; }
 .watch-head .button.small { flex: none; }
+/* A narrow player: the title gets its own line, the host's buttons go under it on the right. */
+@container (max-width: 440px) {
+  .watch-head { flex-wrap: wrap; justify-content: flex-end; }
+  .watch-head .watch-title { flex-basis: 100%; }
+}
 .watch-title { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex: 1; }
 .watch-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-strong); }
 .watch-title .muted { font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
