@@ -51,7 +51,9 @@ test('the desktop app turns streamer mode on while a listed program runs, and of
     await page.getByLabel('Program file').fill(program)
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(page.locator('.custom-games')).toContainText('My Streamer')
-    await page.getByTestId('streamer-auto').check()
+    const auto = page.getByTestId('streamer-auto').getByRole('switch')
+    await auto.click()
+    await expect(auto).toBeChecked()
     await page.screenshot({ path: join(SHOTS, 'streamer-desktop-settings.png') })
     await page.keyboard.press('Escape')
     // The detector lists programs right away (and every 30 s): the pill comes up by itself.
@@ -65,7 +67,8 @@ test('the desktop app turns streamer mode on while a listed program runs, and of
 
     // Auto off: the pill goes (the manual switch was never on).
     await openSettings(page, 'Desktop app')
-    await page.getByTestId('streamer-auto').uncheck()
+    await page.getByTestId('streamer-auto').getByRole('switch').click()
+    await expect(page.getByTestId('streamer-auto').getByRole('switch')).not.toBeChecked()
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('streamer-pill')).toHaveCount(0, { timeout: 15_000 })
   } finally {
