@@ -24,7 +24,7 @@ test('mute and deafen keybinds work in the browser while Iskra is focused', asyn
   await openSettings(page, 'Voice & audio')
   const settings = page.getByRole('dialog', { name: 'Settings' })
   await expect(settings.getByRole('heading', { name: 'Keybinds' })).toBeVisible()
-  await expect(settings.getByText('For hotkeys that work while you\'re in a game, use the desktop app.')).toBeVisible()
+  await expect(settings.getByText('For keybinds that work while you\'re in a game, use the desktop app.', { exact: false })).toBeVisible()
   await expect(settings.locator('.hotkey-row', { hasText: 'Toggle mute' }).locator('.key-chip')).toHaveText('Not set')
 
   await settings.getByRole('button', { name: 'Set toggle mute key' }).click()

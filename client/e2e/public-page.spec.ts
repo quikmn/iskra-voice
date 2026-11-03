@@ -37,8 +37,8 @@ test('the public page says nothing until the owner turns it on; then a stranger 
   await expect(invite.locator('option').nth(1)).toBeAttached()
   await invite.selectOption({ index: 1 })
   await expect(section).not.toContainText('Make an invite first')
-  await section.getByTestId('landing-counts').click() // checked once the server says so
-  await expect(section.getByTestId('landing-counts')).toBeChecked()
+  await section.getByTestId('landing-counts').getByRole('switch').click() // checked once the server says so
+  await expect(section.getByTestId('landing-counts').getByRole('switch')).toBeChecked()
   await host.screenshot({ path: join(SHOTS, 'public-page-settings.png') })
   await host.keyboard.press('Escape')
 

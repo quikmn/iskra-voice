@@ -57,7 +57,7 @@ test('AutoMod blocks a word, tells the sender why, alerts and audits', async ({ 
   await host.screenshot({ path: join(SHOTS, 'automod-alert.png') })
 
   // ── The audit log has it.
-  await openServerSettings(host, 'Activity log')
+  await openServerSettings(host, 'Audit log')
   await expect(serverRoom(host)).toContainText('AutoMod blocked a message by Friend in #general (blocked word)')
   await expect(serverRoom(host)).toContainText('Host changed the AutoMod settings')
   await host.keyboard.press('Escape')
