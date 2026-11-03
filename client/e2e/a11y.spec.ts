@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 import { BUILT_IN_THEMES } from '../src/theme/themes'
-import { createInviteLink, hasLiveKit, joinVia, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { callTool, createInviteLink, hasLiveKit, joinVia, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -230,7 +230,7 @@ test('dialogs and a light theme have no serious accessibility problems', async (
     await page.locator('.voice-channel', { hasText: 'hangout' }).getByRole('button').first().click()
     await expect(page.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 20_000 })
     const controls = page.locator('.call-controls')
-    await controls.getByRole('button', { name: 'Soundboard' }).click()
+    await (await callTool(page, 'Together', 'Soundboard')).click()
     await opened('Soundboard')
     await audit(page, 'dialog: soundboard', inDialog)
     await page.keyboard.press('Escape')

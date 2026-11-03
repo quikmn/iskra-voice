@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
+import { callTool, createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -55,7 +55,7 @@ test('voice channels have their own chat, and clips save the last seconds with a
   await expect(friend.locator('.message-text .mention', { hasText: '@Friend' })).toBeVisible()
 
   // Clips are opt in: off, the button says so and offers to turn them on.
-  await host.locator('.call-controls').getByRole('button', { name: 'Clips are off' }).click()
+  await (await callTool(host, 'More', 'Clips are off')).click()
   const clipsOff = host.getByRole('alert').filter({ hasText: 'Clips are off' })
   await expect(clipsOff).toBeVisible()
   // Down by the controls, not over the header.

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import { Bot } from '../../bots/sdk/src/index'
-import { agreeToTerms, createInviteLink, hasLiveKit, joinVia, longPress, send, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, callTool, createInviteLink, hasLiveKit, joinVia, longPress, send, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(!process.env.ISKRA_TOUR, 'screenshot tour: set ISKRA_TOUR=1')
 test.use({ actionTimeout: 8000 })
@@ -633,10 +633,10 @@ test('screenshot tour', async ({ browser }) => {
       await expect(phone.locator('.call-controls')).toBeVisible()
       await shot(host, '60-voice-stage-desktop')
       await shot(phone, '60-voice-stage-phone')
-      await host.locator('.call-controls').getByRole('button', { name: 'Soundboard' }).click()
+      await (await callTool(host, 'Together', 'Soundboard')).click()
       await shot(host, '61-soundboard-desktop')
       await host.getByRole('dialog', { name: 'Soundboard' }).getByRole('button', { name: /airhorn/ }).click()
-      await phone.locator('.call-controls').getByRole('button', { name: 'Soundboard' }).click()
+      await (await callTool(phone, 'More', 'Soundboard')).click()
       await shot(phone, '61-soundboard-phone')
       await phone.keyboard.press('Escape')
       await host.keyboard.press('Escape')
@@ -644,9 +644,9 @@ test('screenshot tour', async ({ browser }) => {
       await shot(phone, '62-sound-toast-phone')
 
       await part('whiteboard in a call', async () => {
-        await host.locator('.call-controls').getByRole('button', { name: 'Open a whiteboard' }).click()
+        await (await callTool(host, 'Together', 'Open a whiteboard')).click()
         await expect(host.getByTestId('whiteboard')).toBeVisible()
-        await phone.locator('.call-controls').getByRole('button', { name: 'Show the whiteboard' }).click()
+        await (await callTool(phone, 'More', 'Show the whiteboard')).click()
         await expect(phone.getByTestId('whiteboard')).toBeVisible()
         await shot(host, '64-whiteboard-call-desktop')
         await shot(phone, '64-whiteboard-call-phone')

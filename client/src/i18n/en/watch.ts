@@ -32,6 +32,7 @@ export const watch = {
   volume: 'Volume',
   fullScreen: 'Full screen',
   partyChat: 'Party chat',
+  settings: 'Watch party settings',
   anyoneControls: 'Anyone can control',
   end: 'End watch party',
   chatEmpty: "Say hi. Messages here aren't saved.",

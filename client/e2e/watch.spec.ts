@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
+import { callTool, createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -55,7 +55,7 @@ test('a watch party stays in step for everyone, late joiners included', async ({
   await expect(cinema(host).locator('.voice-participants li')).toHaveCount(2)
 
   // The host uploads a video and starts the party; it shows for both, paused at the start.
-  await host.locator('.call-controls').getByRole('button', { name: 'Watch together' }).click()
+  await (await callTool(host, 'Together', 'Watch together')).click()
   const dialog = host.getByRole('dialog', { name: 'Watch together' })
   await dialog.getByLabel('Title (optional)').fill('Test pattern')
   await dialog.locator('input[type=file]').setInputFiles(FILM)
@@ -94,8 +94,10 @@ test('a watch party stays in step for everyone, late joiners included', async ({
   await expect.poll(() => time(late), { timeout: 10_000 }).toBeGreaterThan(11.5)
 
   // Anyone can control: now the friend can press play.
-  await host.getByLabel('Anyone can control').click() // applied once the server confirms
-  await expect(host.getByLabel('Anyone can control')).toBeChecked()
+  await host.getByRole('button', { name: 'Watch party settings' }).click()
+  await host.getByRole('menuitemcheckbox', { name: 'Anyone can control' }).click() // applied once the server confirms
+  await expect(host.getByRole('menuitemcheckbox', { name: 'Anyone can control' })).toBeChecked()
+  await host.keyboard.press('Escape')
   await friend.locator('.watch-controls').getByRole('button', { name: 'Play' }).click()
   await expect.poll(() => paused(host), { timeout: 10_000 }).toBe(false)
   await expect(party(host)).toContainText('anyone can control')

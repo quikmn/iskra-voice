@@ -56,10 +56,17 @@
 
 /* In a call: the board takes the big spot. */
 .wb-call {
-  flex: 1 1 60%; min-height: 320px; display: flex; flex-direction: column; border-radius: calc(var(--radius) * 1.2);
+  flex: 1 1 auto; min-height: 320px; display: flex; flex-direction: column; border-radius: var(--r-xl);
   overflow: hidden; border: 1px solid var(--border); background: var(--surface);
 }
-.wb-call-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--border); }
+.wb-call-head {
+  display: flex; align-items: center; gap: var(--sp-2); min-height: 44px; padding: var(--sp-1) var(--sp-2) var(--sp-1) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+.wb-call-head > svg { flex: none; color: var(--text-2); }
+.wb-call-head strong { font-size: var(--fs-ui); color: var(--text-strong); white-space: nowrap; }
+/* The page sits in the panel with its own rounded edge, not cut off square. */
+.wb-call .wb-canvas { margin: var(--sp-2); border-radius: var(--r-lg); box-shadow: 0 0 0 1px var(--border); }
 .wb-compact .wb-tool { width: 32px; height: 32px; }
 .call-button.wb-waiting { box-shadow: 0 0 0 2px var(--accent); }
 

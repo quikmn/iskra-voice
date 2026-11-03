@@ -46,7 +46,6 @@
 .background-notice { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; color: var(--amber); }
 
 /* One more button in the call: let the row wrap on narrow phones rather than overflow. */
-.call-controls { flex-wrap: wrap; }
 
 @media (max-width: 760px) {
   .caption-line { font-size: 14px; }

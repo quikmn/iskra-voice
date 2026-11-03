@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, longPress, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
+import { callTool, createInviteLink, hasLiveKit, joinVia, longPress, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -148,7 +148,7 @@ test('polls, server emoji, reactions and the soundboard', async ({ browser }) =>
   await expect(host.locator('.voice-participants li')).toHaveCount(2)
 
   // Play it from the call screen: everyone in the call hears it and sees who played it.
-  await friend.locator('.call-controls').getByRole('button', { name: 'Soundboard' }).click()
+  await (await callTool(friend, 'More', 'Soundboard')).click()
   await friend.getByRole('dialog', { name: 'Soundboard' }).getByRole('button', { name: /airhorn/ }).click()
   await expect(host.locator('.sound-toast')).toContainText('Friend played airhorn')
   await expect(friend.locator('.sound-toast')).toContainText('Friend played airhorn')

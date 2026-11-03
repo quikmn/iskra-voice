@@ -8,6 +8,7 @@ import { SoundboardIcon } from './icons'
 import { usePopoverPosition } from './popover'
 import { ToastPill } from '../kit'
 import { useEscapeLayer, useFocusTrap } from '../layers'
+import { trayAnchor } from '../calls/tray'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 
@@ -20,7 +21,7 @@ export function SoundboardButton({ variant }: { variant: 'bar' | 'call' }) {
     <>
       <button
         className={`${variant === 'call' ? 'call-button' : 'icon-button'} ${open ? 'on' : ''}`}
-        onClick={(e) => setOpen(open ? null : e.currentTarget)}
+        onClick={(e) => setOpen(open ? null : trayAnchor(e.currentTarget))}
         aria-label={t('expressions.soundboard.title')}
         aria-expanded={!!open}
         title={t('expressions.soundboard.title')}

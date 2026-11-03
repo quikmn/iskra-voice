@@ -7,6 +7,8 @@ export const voice: Messages['voice'] = {
   undeafen: 'Slå på ljudet',
   speaker: 'Högtalare',
   flipCamera: 'Byt mellan främre och bakre kameran',
+  /** Under the button on a phone. */
+  flipShort: 'Vänd',
   speakerOn: 'Spelas i högtalaren. Tryck för att hålla telefonen mot örat i stället',
   earpieceOn: 'Spelas i luren (håll telefonen mot örat). Tryck för högtalaren',
   muted: 'Mikrofonen avstängd',
@@ -47,6 +49,20 @@ export const voice: Messages['voice'] = {
     muted: 'mikrofonen avstängd',
     deafened: 'ljudet avstängt',
     controls: 'Samtalskontroller',
+  },
+  tray: {
+    you: 'Du',
+    together: 'Tillsammans',
+    togetherHint: 'Titta, rita, spela och ljudbräda',
+    call: 'Samtal',
+    more: 'Mer',
+  },
+  devices: {
+    audio: 'Mikrofon och högtalare',
+    input: 'Mikrofon',
+    output: 'Högtalare',
+    camera: 'Välj kamera',
+    cameras: 'Kamera',
   },
   share: {
     title: 'Dela skärmen',

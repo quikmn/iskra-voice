@@ -7,6 +7,15 @@
   display: flex; align-items: center; gap: 8px; flex: none; min-width: 0; padding: 6px 16px;
   background: var(--surface); border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-2);
 }
+/* No status yet: a ghost chip in the call's header that opens the editor. */
+.vstatus-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex: none; min-width: 0; max-width: 40%; height: 28px; padding: 0 10px;
+  border: 1px dashed color-mix(in srgb, var(--text) 22%, transparent); border-radius: var(--r-pill); background: none;
+  color: var(--muted); font-size: var(--fs-md); white-space: nowrap; transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+.vstatus-chip span { overflow: hidden; text-overflow: ellipsis; }
+.vstatus-chip:hover { color: var(--text); border-color: var(--border); background: var(--hover); border-style: solid; }
+@media (max-width: 480px) { .vstatus-chip span { display: none; } .vstatus-chip { width: 32px; padding: 0; justify-content: center; } }
 .vstatus-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .vstatus-text.muted { color: var(--muted); }
 .vstatus-bar.editing { flex-wrap: wrap; padding-block: 8px; }

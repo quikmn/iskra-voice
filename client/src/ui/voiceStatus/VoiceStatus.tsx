@@ -29,18 +29,46 @@ export function VoiceStatusLine({ server, channelId }: { server: ServerState; ch
 }
 
 /** In the call, under its header: the status, and setting or clearing it for those who may. */
-export function VoiceStatusBar({ server, channel }: { server: ServerState; channel: Channel }) {
+export function VoiceStatusBar({ server, channel, place = 'bar', editing: editingProp, onEditing }: {
+  server: ServerState
+  channel: Channel
+  /** 'header': with no status yet, a small "Set a status" chip for the call's header; 'bar': the row under it. */
+  place?: 'header' | 'bar'
+  /** Shared by the chip and the row (the chip opens the row's editor). */
+  editing?: boolean
+  onEditing?: (editing: boolean) => void
+}) {
   const { t } = useTranslation()
   const status = useChannelStatus(server.key, channel.id)
   const roles = useServerRoles(server.key)
   const inCall = useVoice((s) => s.session?.serverKey === server.key && s.session.channelId === channel.id && s.session.state === 'connected')
-  const [editing, setEditing] = useState(false)
+  const [editingHere, setEditingHere] = useState(false)
+  const editing = editingProp ?? editingHere
+  const setEditing = onEditing ?? setEditingHere
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   if (channel.kind !== 'voice') return null
   const canSet = maySetStatus(server.me, channel, roles, inCall)
   if (!status && !canSet) return null
+  // No status yet: not a row of its own, just a quiet chip in the header.
+  if (place === 'header') {
+    if (status || editing) return null
+    return (
+      <button
+        className="vstatus-chip" type="button" data-testid="voice-status-bar" aria-label={t('voiceStatus.set')} title={t('voiceStatus.none')}
+        onClick={() => {
+          setDraft('')
+          setError(null)
+          setEditing(true)
+        }}
+      >
+        <Pencil size={14} />
+        <span>{t('voiceStatus.set')}</span>
+      </button>
+    )
+  }
+  if (!status && !editing && onEditing) return null
 
   const check = checkStatusText(draft)
   const save = async (text: string) => {

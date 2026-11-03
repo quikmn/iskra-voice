@@ -70,8 +70,9 @@ test('voice status: set in the call, seen by others, cleared when everyone leave
   await lounge(host).getByRole('button').first().click()
   await expect(host.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
   const bar = host.getByTestId('voice-status-bar')
-  await expect(bar).toContainText('No status yet')
-  await bar.getByRole('button', { name: 'Set a status' }).click()
+  // No status yet: a "Set a status" chip in the header, not a row of its own.
+  await expect(bar).toHaveText('Set a status')
+  await bar.click()
   const editor = host.getByTestId('voice-status-editor')
   const field = editor.getByLabel('Voice channel status')
   await field.fill('x'.repeat(61))

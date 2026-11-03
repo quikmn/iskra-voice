@@ -1,6 +1,6 @@
 // Draw & guess: a shared canvas the drawer paints on (sent in small pieces), the word's shape and a guess box for
 // everyone else, a timer, and scores. The drawer's app holds the word and ends the round.
-import { fill, fmt, h, run, type Ctx } from '../kit'
+import { fill, fmt, h, run, scoreRow, type Ctx } from '../kit'
 import {
   COLORS, drawerOf, hashOf, HEIGHT, initialDraw, isRight, maskOf, MAX_GUESS, MAX_POINTS, MAX_STROKE_POINTS, parseDraw, reduceDraw,
   ROUND_SECONDS, SIZES, WIDTH, type DrawState, type Stroke,
@@ -10,9 +10,9 @@ import { WORDS, threeWords } from './words'
 const COLOR_NAMES = ['black', 'red', 'orange', 'green', 'blue', 'purple', 'pink', 'eraser'] as const
 
 const CSS = `
-#app { gap: 6px; padding: 8px; height: 100%; }
-.status { margin: 0; }
-.top { display: flex; gap: 8px; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; }
+#app { gap: 8px; padding: 8px; height: 100%; }
+.status { margin: 0; text-align: left; }
+.strip .row { flex-wrap: nowrap; }
 /* Tools on the left, the board in the middle, guesses and scores on the right: the board takes the height that's left,
    so nothing sits under it and the frame never scrolls. */
 .layout { flex: 1; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) min(220px, 28vw); grid-template-rows: minmax(0, 1fr); gap: 12px; width: 100%; }
@@ -26,11 +26,17 @@ canvas.mine { cursor: crosshair; }
 .size { min-height: 36px; padding: 0; } .swatch + .size { grid-column-start: 1; }
 .swatch { width: 36px; height: 36px; min-height: 36px; padding: 0; border-radius: 50%; border: 2px solid var(--border); }
 .swatch[aria-pressed="true"], .size[aria-pressed="true"] { outline: 3px solid var(--accent); outline-offset: 2px; }
-.side { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: auto; }
-.timer { margin: 0; font-variant-numeric: tabular-nums; }
-.guesses { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 220px; overflow: auto; }
-.guesses li { overflow-wrap: anywhere; }
+.side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: auto; }
+.timer.chip { align-self: flex-start; }
+.timer.low { color: var(--red); }
+/* The guesses read like a chat: newest at the bottom, the right ones in green. */
+.guess-card { flex: 1 1 auto; min-height: 96px; grid-template-rows: auto minmax(0, 1fr); }
+.guesses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; overflow: auto; min-height: 0; }
+.guesses li { overflow-wrap: anywhere; padding: 3px 4px; border-radius: 6px; font-size: 14px; }
+.guesses strong { font-weight: 600; }
 .guesses .ok { color: var(--green); font-weight: 600; }
+.guesses .ok::before { content: '✓ '; }
+.guesses:empty::after { content: attr(data-empty); color: var(--muted); font-size: 13px; padding: 2px 4px; }
 .words { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .words button { font-size: 1.1rem; min-width: 120px; }
 .guess { display: flex; gap: 6px; } .guess input { flex: 1; min-width: 0; }
@@ -67,14 +73,14 @@ interface Local {
 function mount(ctx: Ctx<DrawState>) {
   const s = ctx.strings.draw
   const local: Local = { word: null, choices: [], startedAt: 0, round: 0, ended: false, nexted: 0, sent: [], color: 0, size: 1, group: 0, got: false }
-  const top = h('div', { className: 'top' })
+  const top = h('div', { className: 'strip' })
   const status = h('p', { className: 'status', role: 'status', 'aria-live': 'polite' })
   const canvas = h('canvas', { width: WIDTH, height: HEIGHT, role: 'img' })
   const g = canvas.getContext('2d')!
   const mainCol = h('div', { className: 'main' })
   const side = h('div', { className: 'side' })
   const layout = h('div', { className: 'layout' })
-  fill(ctx.root, h('h1', { className: 'sr-only' }, s.title), top, status, layout)
+  fill(ctx.root, h('h1', { className: 'sr-only' }, s.title), top, layout)
   const present = (id: string | null) => !!id && ctx.players().some((p) => p.id === id)
 
   // ── Drawing ──────────────────────────────────────────────────────────────
@@ -206,17 +212,20 @@ function mount(ctx: Ctx<DrawState>) {
   const tools = h('div', { className: 'tools', role: 'toolbar', 'aria-label': s.tools }, ...swatches, ...sizes,
     h('button', { onclick: () => ctx.send({ t: 'undo' }) }, s.undo),
     h('button', { onclick: () => ctx.send({ t: 'clear' }) }, s.clear))
-  const timer = h('p', { className: 'muted timer' })
+  const timer = h('span', { className: 'timer chip' })
   const actions = h('div', { className: 'row' })
   fill(mainCol, words, mask, h('div', { className: 'board' }, canvas))
   const guessInput = h('input', { maxlength: MAX_GUESS, 'aria-label': s.guessHere, placeholder: s.guessHere, autocomplete: 'off',
     onkeydown: (e: Event) => { if ((e as KeyboardEvent).key === 'Enter') guess() } })
   const guessForm = h('div', { className: 'guess' }, guessInput, h('button', { className: 'primary', onclick: () => guess() }, s.guess))
-  const guessList = h('ul', { className: 'guesses', 'aria-live': 'polite' })
-  const guessBox = h('div', {}, h('h2', {}, s.guesses), guessList)
+  const guessList = h('ul', { className: 'guesses', 'aria-live': 'polite', 'data-empty': '…' })
+  const guessBox = h('div', { className: 'card guess-card' }, h('h2', {}, s.guesses), guessList)
   const playerList = h('ul', { className: 'scores' })
+  const roundChip = h('span', { className: 'chip' })
+  const topButtons = h('span', { className: 'row' })
+  fill(top, roundChip, status, timer, topButtons)
   fill(layout, tools, mainCol, side)
-  fill(side, timer, actions, guessForm, guessBox, h('div', {}, h('h2', {}, s.players), playerList))
+  fill(side, h('div', { className: 'card' }, h('h2', {}, s.players), playerList), actions, guessBox, guessForm)
   const show = (el: HTMLElement, on: boolean) => (el.hidden = !on)
 
   function update(state: DrawState) {
@@ -255,12 +264,12 @@ function mount(ctx: Ctx<DrawState>) {
       }, 4000)
     }
 
-    fill(top,
-      h('span', { className: 'muted' }, state.rounds ? fmt(s.round, { n: state.round, total: state.rounds }) : s.lobby),
-      h('span', { className: 'row' },
-        !inGame ? h('button', { className: 'primary', onclick: () => ctx.send({ t: 'join' }) }, s.join) : null,
-        inGame ? h('button', { onclick: () => ctx.send({ t: 'leave' }) }, s.leave) : null,
-        inGame && !playing && state.roster.length >= 2 ? h('button', { className: 'primary', onclick: () => ctx.send({ t: 'start' }) }, state.phase === 'over' ? s.again : s.start) : null))
+    // Leaving the activity is in the app's header; here only joining, or stepping out before the game starts.
+    roundChip.textContent = state.rounds ? fmt(s.round, { n: state.round, total: state.rounds }) : s.title
+    fill(topButtons,
+      !inGame ? h('button', { className: 'primary', onclick: () => ctx.send({ t: 'join' }) }, s.join) : null,
+      inGame && !playing ? h('button', { onclick: () => ctx.send({ t: 'leave' }) }, s.leave) : null,
+      inGame && !playing && state.roster.length >= 2 ? h('button', { className: 'primary', onclick: () => ctx.send({ t: 'start' }) }, state.phase === 'over' ? s.again : s.start) : null)
 
     const winners = Object.entries(state.scores).sort((a, b) => b[1] - a[1])
     status.textContent = state.phase === 'lobby' ? (state.roster.length < 2 ? s.needTwo : s.ready)
@@ -282,7 +291,7 @@ function mount(ctx: Ctx<DrawState>) {
     swatches.forEach((b, i) => b.setAttribute('aria-pressed', String(local.color === i)))
     sizes.forEach((b, i) => b.setAttribute('aria-pressed', String(local.size === i)))
     show(timer, state.phase === 'drawing' && !!local.startedAt)
-    if (local.startedAt) timer.textContent = fmt(s.timeLeft, { seconds: Math.max(0, ROUND_SECONDS - Math.floor((Date.now() - local.startedAt) / 1000)) })
+    if (local.startedAt) tick()
     fill(actions,
       (state.phase === 'drawing' || state.phase === 'picking') && drawer && !present(drawer) && inGame ? h('button', { onclick: () => ctx.send({ t: 'skip' }) }, s.skip) : null,
       state.phase === 'between' && inGame && !iDraw ? h('button', { onclick: () => ctx.send({ t: 'next' }) }, s.next) : null)
@@ -293,9 +302,15 @@ function mount(ctx: Ctx<DrawState>) {
     fill(guessList,
       ...state.guessed.map((id) => h('li', { className: 'ok' }, fmt(s.gotItOther, { name: ctx.nameOf(id) }))),
       ...state.guesses.map((x) => h('li', {}, h('strong', {}, ctx.nameOf(x.from)), ': ', x.text)))
-    fill(playerList, ...state.roster.map((id) => h('li', { className: id === ctx.me.id ? 'me' : '' },
-      h('span', {}, ctx.nameOf(id), id === drawer && playing ? ` (${s.drawer})` : ''), h('strong', {}, String(state.scores[id] ?? 0)))))
+    fill(playerList, ...state.roster.map((id) => scoreRow(id, ctx.nameOf(id), state.scores[id] ?? 0, id === ctx.me.id, id === drawer && playing ? s.drawer : null)))
+    if (state.roster.length === 0) fill(playerList, h('li', { className: 'muted' }, s.lobby))
     redraw()
+  }
+
+  function tick() {
+    const left = Math.max(0, ROUND_SECONDS - Math.floor((Date.now() - local.startedAt) / 1000))
+    timer.textContent = fmt(s.timeLeft, { seconds: left })
+    timer.classList.toggle('low', left <= 10)
   }
 
   // The drawer's app ends the round when time's up; everyone's timer ticks.
@@ -304,7 +319,7 @@ function mount(ctx: Ctx<DrawState>) {
     if (state.phase !== 'drawing' || !local.startedAt) return
     const elapsed = (Date.now() - local.startedAt) / 1000
     if (drawerOf(state) === ctx.me.id && elapsed >= ROUND_SECONDS) endRound()
-    timer.textContent = fmt(s.timeLeft, { seconds: Math.max(0, ROUND_SECONDS - Math.floor(elapsed)) })
+    tick()
   }, 500)
 
   return { update }

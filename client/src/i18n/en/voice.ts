@@ -6,6 +6,8 @@ export const voice = {
   undeafen: 'Undeafen',
   speaker: 'Speaker',
   flipCamera: 'Switch between the front and back camera',
+  /** Under the button on a phone. */
+  flipShort: 'Flip',
   speakerOn: 'Playing on the speaker. Tap to hold the phone to your ear instead',
   earpieceOn: 'Playing on the earpiece (hold the phone to your ear). Tap for the speaker',
   muted: 'Muted',
@@ -46,6 +48,20 @@ export const voice = {
     muted: 'muted',
     deafened: 'deafened',
     controls: 'Call controls',
+  },
+  tray: {
+    you: 'You',
+    together: 'Together',
+    togetherHint: 'Watch, draw, play and soundboard',
+    call: 'Call',
+    more: 'More',
+  },
+  devices: {
+    audio: 'Microphone and speaker',
+    input: 'Microphone',
+    output: 'Speaker',
+    camera: 'Choose a camera',
+    cameras: 'Camera',
   },
   share: {
     title: 'Share your screen',

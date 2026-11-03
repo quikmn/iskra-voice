@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
+import { callTool, createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -32,9 +32,9 @@ test('a call opens a whiteboard, both draw on it, and it stays until cleared', a
   await joinRoom(friend)
 
   // The host opens a whiteboard; the friend's button shows there's one, and shows it.
-  await host.locator('.call-controls').getByRole('button', { name: 'Open a whiteboard' }).click()
+  await (await callTool(host, 'Together', 'Open a whiteboard')).click()
   await expect(host.getByTestId('whiteboard')).toBeVisible()
-  await friend.locator('.call-controls').getByRole('button', { name: 'Show the whiteboard' }).click()
+  await (await callTool(friend, 'Together', 'Show the whiteboard')).click()
   await expect(friend.getByTestId('whiteboard')).toBeVisible()
 
   const box = (await host.locator('.wb-canvas').boundingBox())!
@@ -56,10 +56,11 @@ test('a call opens a whiteboard, both draw on it, and it stays until cleared', a
   // Hidden and shown again: still there. Whoever opened it can clear it, which closes it for everyone.
   await host.getByRole('button', { name: 'Hide the whiteboard' }).first().click()
   await expect(host.getByTestId('whiteboard')).toHaveCount(0)
-  await host.locator('.call-controls').getByRole('button', { name: 'Show the whiteboard' }).click()
+  await (await callTool(host, 'Together', 'Show the whiteboard')).click()
   await expect(host.locator('.wb-canvas')).toHaveAttribute('data-count', '2')
   await host.getByRole('button', { name: 'Clear the board' }).click()
   await host.getByRole('dialog', { name: 'Clear this whiteboard?' }).getByRole('button', { name: 'Clear' }).click()
   await expect(friend.getByTestId('whiteboard')).toHaveCount(0)
-  await expect(friend.locator('.call-controls').getByRole('button', { name: 'Open a whiteboard' })).toBeVisible()
+  await expect(await callTool(friend, 'Together', 'Open a whiteboard')).toBeVisible()
+  await friend.keyboard.press('Escape')
 })

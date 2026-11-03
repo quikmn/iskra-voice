@@ -383,18 +383,27 @@ input:focus, textarea:focus, select:focus { border-color: var(--focus); box-shad
 .voice-participants li .member-name { flex: 1; }
 .voice-participants li .avatar { transition: box-shadow 0.12s; }
 .voice-participants li.speaking .avatar { box-shadow: 0 0 0 2px var(--green); }
+/* While you're in voice: a card above the me bar. Line 1: a dot and the state (and the call's badges); line 2: where
+   (a link to the call); then your controls, hang up at the end. Whisper and priority sit in the same card. */
 .voice-bar {
-  display: flex; align-items: center; gap: 8px; padding: 10px; border-top: 1px solid var(--border);
-  background: var(--sidebar); flex: none;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); row-gap: 6px; flex: none;
+  margin: 0 8px 8px; padding: 10px 8px 6px 12px; background: var(--rail); border-radius: var(--panel-radius);
 }
-.voice-bar.error { color: var(--red); font-size: 13px; justify-content: space-between; }
-.voice-bar.notice { color: var(--muted); font-size: 13px; justify-content: space-between; }
-.voice-status { display: grid; min-width: 0; flex: 1; font-size: 12px; line-height: 1.3; }
-.voice-status strong { font-size: 13px; color: var(--amber); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voice-bar.error, .voice-bar.notice { flex-wrap: nowrap; justify-content: space-between; font-size: var(--fs-md); padding: 10px 8px 10px 12px; }
+.voice-bar.error { color: var(--red); }
+.voice-bar.notice { color: var(--muted); }
+.voice-status { display: grid; gap: 2px; min-width: 0; flex: 1 1 100%; font-size: var(--fs-sm); line-height: var(--lh-tight); }
+.voice-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.voice-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
+.voice-bar.connected .voice-dot { background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 22%, transparent); }
+.voice-status strong { font-size: var(--fs-md); color: var(--amber); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .voice-status strong.connected { color: var(--green); }
-.voice-status span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-.voice-controls { display: flex; gap: 0; flex: none; }
+.voice-status > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.voice-status .link-like { padding-left: 14px; font-size: var(--fs-sm); }
+.voice-controls { display: flex; align-items: center; gap: 2px; flex: 1 1 100%; margin-left: -4px; }
 .voice-controls .icon-button { width: 32px; height: 32px; }
+.voice-controls-gap { flex: 1; }
+.voice-bar .whisper-controls { flex: 1 1 100%; padding: 0 0 4px; }
 .icon-button.off { color: var(--red); }
 .icon-button.hang-up:hover { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
 .segmented { display: flex; gap: 4px; background: var(--bg); padding: 4px; border-radius: var(--radius); margin-bottom: 16px; }
@@ -508,13 +517,20 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 /* ── Call screen ────────────────────────────────────────────────────── */
 .stage { display: flex; flex-direction: column; height: 100%; background: var(--stage); }
 .stage .chat-header { background: var(--surface); }
-.stage-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto; }
-.stage-body.has-focus .stage-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
-.stage-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); align-content: start; }
+.stage-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); overflow-y: auto; }
+/* Something in the big spot (a screen, a watch party, the whiteboard, an activity): it takes the height, and everyone
+   else is a strip of small tiles under it that scrolls sideways. */
+.stage-body.has-focus > :is(.activity-call, .wb-call, .watch-party, .video-tile.big) { flex: 1 1 auto; }
+.stage-body.has-focus .stage-grid { display: flex; flex: none; gap: var(--sp-2); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.stage-body.has-focus .stage-grid > * { flex: none; width: 168px; }
+.stage-grid { display: grid; gap: var(--sp-3); grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); align-content: start; }
+/* Nothing big: the tiles share the stage at the size VoiceStage works out (--tile-w), centred both ways. */
+.stage-grid.fit { flex: 1 0 auto; display: flex; flex-wrap: wrap; justify-content: center; align-content: center; }
+.stage-grid.fit > * { flex: none; width: var(--tile-w); }
 .stage-hint { text-align: center; }
 .video-tile, .person-tile {
-  position: relative; border-radius: calc(var(--radius) * 1.2); overflow: hidden; background: var(--surface-2); aspect-ratio: 16 / 9;
-  display: grid; place-items: center; border: 2px solid transparent; transition: border-color 0.12s;
+  position: relative; border-radius: var(--r-xl); overflow: hidden; background: var(--surface-2); aspect-ratio: 16 / 9;
+  display: grid; place-items: center; border: 2px solid transparent; transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .video-tile[role='button'] { cursor: pointer; }
 .video-tile.big { flex: 1; min-height: 0; aspect-ratio: auto; background: #000; }
@@ -522,28 +538,24 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 .video-tile.screen video, .video-tile.big video, .video-tile.portrait video { object-fit: contain; background: #000; }
 .video-tile video.mirror { transform: scaleX(-1); }
 .video-tile.speaking, .person-tile.speaking { border-color: var(--green); box-shadow: 0 0 18px var(--speaking-glow); }
-.tile-label {
-  position: absolute; left: 8px; bottom: 8px; display: flex; align-items: center; gap: 6px; padding: 3px 8px;
-  border-radius: calc(var(--radius) * 0.6); background: rgba(0, 0, 0, 0.6); font-size: 13px; font-weight: 600; max-width: calc(100% - 16px);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* The avatar grows with its tile and stays clear of the name label (container units: the tile's own height). */
+.person-tile { container-type: size; cursor: pointer; }
+.person-tile:hover { background: color-mix(in srgb, var(--surface-2) 85%, var(--text)); }
+.person-tile .avatar {
+  --avatar: clamp(40px, 42cqh, 128px);
+  width: var(--avatar) !important; height: var(--avatar) !important; font-size: calc(var(--avatar) * 0.38) !important;
+  margin-bottom: min(16px, 8cqh);
 }
-.person-tile .tile-label svg { color: var(--red); }
+.tile-label {
+  position: absolute; left: var(--sp-2); bottom: var(--sp-2); display: flex; align-items: center; gap: 6px; padding: 2px var(--sp-2);
+  border-radius: var(--r-sm); background: rgba(0, 0, 0, 0.6); color: #fff; font-size: var(--fs-md); font-weight: var(--fw-medium);
+  line-height: 20px; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.person-tile .tile-label svg { color: var(--red); flex: none; }
 .tile-fullscreen { position: absolute; right: 6px; top: 6px; background: rgba(0, 0, 0, 0.55); opacity: 0; }
 .video-tile:hover .tile-fullscreen, .tile-fullscreen:focus-visible { opacity: 1; }
 .video-tile:fullscreen { border: 0; border-radius: 0; }
-.call-controls {
-  display: flex; justify-content: center; gap: 12px; padding: 14px 16px; flex: none;
-}
-.call-button {
-  width: 52px; height: 52px; border-radius: 50%; border: 0; background: var(--surface-3); color: var(--text);
-  display: grid; place-items: center; transition: background 0.15s, transform 0.1s;
-}
-.call-button:hover { background: var(--hover); }
-.call-button:active { transform: scale(0.95); }
-.call-button.off { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
-.call-button.on { background: var(--accent); color: var(--on-accent); }
-.call-button.hang-up { background: var(--hangup); color: #fff; }
-.call-button.hang-up:hover { background: var(--hangup-hover); }
+/* The call controls: ui/calls/controls.css. */
 .link-like { border: 0; background: none; padding: 0; color: var(--muted); text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .link-like:hover { color: var(--text); text-decoration: underline; }
 
@@ -830,9 +842,9 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
   .message-actions { right: 10px; }
   .composer { margin: 0 8px 8px; }
   .me-bar { margin-bottom: 8px; }
-  .stage-body { padding: 8px; gap: 8px; }
-  .stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .call-button { width: 48px; height: 48px; }
+  .stage-body { padding: var(--sp-2); gap: var(--sp-2); }
+  .stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
+  .stage-body.has-focus .stage-grid > * { width: 128px; }
   .e2e-badge { display: none; }
   .friend-row { flex-wrap: wrap; }
   .empty-state .copy-row { flex-direction: column; align-items: stretch; width: min(320px, 100%); }
@@ -978,10 +990,6 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 }
 .friend-row .button { flex: none; }
 /* Voice bar: status on its own line, controls below, so nothing gets squeezed. */
-.voice-bar:not(.error) { flex-wrap: wrap; row-gap: 4px; }
-.voice-bar:not(.error) .voice-status { flex: 1 1 100%; }
-.voice-bar:not(.error) .voice-controls { flex: 1 1 100%; justify-content: space-between; }
-.voice-bar .voice-controls .icon-button { width: 36px; height: 32px; }
 .copy-row input.color-input { flex: none; }
 /* In a call, the call panel says how it's encrypted; the header badge would repeat it. */
 .chat-header:has(+ .call-panel) .e2e-badge { display: none; }
@@ -1032,17 +1040,6 @@ input.confirm-code::placeholder { color: var(--placeholder); }
 .join-pending-wait { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
 .join-name { width: min(320px, 100%); text-align: left; }
 
-/* ── UX fixes: call controls say what they do on phones (no hover tooltips there) ── */
-@media (max-width: 760px) {
-  .call-controls { gap: 6px 16px; flex-wrap: wrap; }
-  .call-controls .call-button { position: relative; margin-bottom: 26px; }
-  .call-controls .call-button::after {
-    content: attr(aria-label); position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%); width: 64px;
-    font-size: 10.5px; line-height: 1.15; color: var(--muted); text-align: center; pointer-events: none;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-  }
-}
-
 /* ── UX fixes: a hovered or focused message keeps its time readable (the row's tint lowers the muted colour's contrast) ── */
 .message:hover .message-meta time, :root[data-input='keyboard'] .message:focus-within .message-meta time { color: var(--text-2); }
 
@@ -1082,7 +1079,7 @@ input[type='checkbox'], input[type='radio'] { width: auto; padding: 0; flex: non
 .checkbox + .field { margin-top: 14px; }
 @media (max-width: 760px) {
   /* Voice controls in the drawer: finger-sized. */
-  .voice-bar .voice-controls .icon-button { flex: 0 1 44px; min-width: 0; height: 40px; }
+  .voice-bar .voice-controls .icon-button { width: 40px; height: 40px; }
 }
 /* Touch screens: small buttons grow to finger size (WCAG 2.5.8 asks 24px; phones want more). :root wins over the
    feature stylesheets that load after this one. */

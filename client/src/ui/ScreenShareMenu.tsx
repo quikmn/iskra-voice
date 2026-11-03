@@ -8,6 +8,7 @@ import { QUALITIES, updateShareSettings, useScreenShareSettings } from '../state
 import { toggleScreenShare } from '../state/voice'
 import { usePopoverPosition } from './expressions/popover'
 import { useEscapeLayer, useFocusTrap } from './layers'
+import { SwitchRow } from './kit'
 import './desktop.css'
 
 /** Whether "Share audio" can do anything here, and what it shares. */
@@ -56,13 +57,8 @@ export function ScreenShareMenu({ anchor, onClose }: { anchor: HTMLElement; onCl
           </div>
           <small className="muted">{settings.hint === 'motion' ? t('voice.share.motionHint') : t('voice.share.detailHint')}</small>
         </div>
-        <label className="checkbox">
-          <input type="checkbox" checked={settings.audio && audio.ok} disabled={!audio.ok} onChange={(e) => updateShareSettings({ audio: e.target.checked })} />
-          <span>
-            {t('voice.share.audio')}
-            <br /><small className="muted">{audio.note}</small>
-          </span>
-        </label>
+        <SwitchRow className="share-audio" title={t('voice.share.audio')} help={audio.note} checked={settings.audio && audio.ok} disabled={!audio.ok}
+          onChange={(on) => updateShareSettings({ audio: on })} />
         <button
           className="button primary"
           onClick={() => {

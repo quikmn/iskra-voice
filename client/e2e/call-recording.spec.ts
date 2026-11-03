@@ -3,7 +3,7 @@
 // "don't record me". Chromium's fake microphone is the only audio.
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
-import { createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
+import { callTool, createInviteLink, hasLiveKit, joinVia, SHOTS, startServer, type TestServer } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -96,7 +96,7 @@ test('recording a call: per-person files on the recorder, a mark for everyone, m
     .toBe(true)
 
   // The host starts recording: the dialog says what happens and where the files go.
-  await host.locator('.call-controls').getByRole('button', { name: 'Record this call' }).click()
+  await (await callTool(host, 'More', 'Record this call')).click()
   const dialog = host.getByRole('dialog', { name: 'Record this call' })
   await expect(dialog.getByText('C:\\Users\\Test\\Documents\\Iskra recordings')).toBeVisible()
   await expect(dialog.getByRole('checkbox', { name: 'Also save one file with everyone mixed together' })).toBeChecked()
@@ -180,7 +180,7 @@ test('recording a call: per-person files on the recorder, a mark for everyone, m
   await studio(friend).getByRole('button').first().click()
   await expect(friend.locator('.voice-status strong')).toHaveText('Voice connected', { timeout: 20_000 })
   await expect(studio(host).locator('li', { hasText: 'Friend' }).getByRole('img', { name: 'Not in the recording' })).toHaveCount(0) // nothing recorded now
-  await host.locator('.call-controls').getByRole('button', { name: 'Record this call' }).click()
+  await (await callTool(host, 'More', 'Record this call')).click()
   await host.getByRole('dialog', { name: 'Record this call' }).getByRole('button', { name: 'Start recording' }).click()
   await expect(studio(host).locator('li', { hasText: 'Friend' }).getByRole('img', { name: 'Not in the recording' })).toBeVisible()
   await expect(friend.getByTestId('recording-strip').getByRole('button', { name: 'Record me again' })).toBeVisible()
