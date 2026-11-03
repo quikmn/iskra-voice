@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Text.Json;
 using Iskra.Server.Features;
+using Iskra.Server.Storage;
 using Iskra.Server.Tests.Support;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
@@ -266,6 +267,27 @@ public class ComplianceTests
         Assert.Equal(owner.Key, exports[0].GetProperty("details").GetProperty("by").GetString());
 
         Assert.Equal(HttpStatusCode.NotFound, (await server.CreateClient().GetAsync("/export/not-a-token")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Regression_brought_emoji_stickers_and_rooms_are_in_the_export()
+    {
+        using var server = new IskraServer();
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var alice = await server.JoinAsync("Alice");
+        var store = server.World.Store;
+        store.AddExternalEmoji(new CustomEmoji("e1", "party", "f1", alice.Key, Now), "aa");
+        store.AddExternalSticker(new Sticker("s1", "wave", "f2", alice.Key, Now), "bb");
+        store.AddExternalEmoji(new CustomEmoji("e2", "owners", "f3", owner.Key, Now), "cc");
+        store.AddRoom(server.General, server.General, alice.Key, Now);
+        store.SetRoomInvite(server.General, alice.Key, true);
+        store.SetRoomInvite(server.General, owner.Key, true);
+
+        var data = await Download(server, (await alice.RequestAsync("data.export")).Body());
+        Assert.Equal("party", Assert.Single(data.GetProperty("emojisBrought").EnumerateArray()).GetProperty("name").GetString());
+        Assert.Equal("wave", Assert.Single(data.GetProperty("stickersBrought").EnumerateArray()).GetProperty("name").GetString());
+        Assert.Equal(server.General, Assert.Single(data.GetProperty("roomsHosted").EnumerateArray()).GetProperty("channel_id").GetInt64());
+        Assert.Equal(alice.Key, Assert.Single(data.GetProperty("roomInvites").EnumerateArray()).GetProperty("account_key").GetString());
     }
 
     [Fact]

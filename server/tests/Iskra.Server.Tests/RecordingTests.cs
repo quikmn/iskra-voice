@@ -128,6 +128,31 @@ public class RecordingTests
     }
 
     [Fact]
+    public async Task Regression_a_recorder_lower_down_cant_stop_a_recording_by_someone_above_them()
+    {
+        using var server = new IskraServer();
+        var lounge = VoiceChannel(server);
+        using var owner = await server.JoinAsync("Owner", "owner");
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var bob = await server.JoinAsync("Bob");
+        var roleId = (await owner.RequestAsync("role.create", new { name = "Recorder", permissions = new[] { "recordVoice" } })).Body().GetProperty("role").GetProperty("id").GetInt64();
+        await owner.RequestAsync("member.roles.set", new { accountKey = bob.Key, roles = new[] { roleId } });
+        Joined(server, lounge, admin);
+        Joined(server, lounge, bob);
+
+        Assert.Equal("result", (await admin.RequestAsync("voice.record.start", new { channelId = lounge })).Type());
+        Assert.Equal("record_stop_forbidden", Key(await bob.RequestAsync("voice.record.stop", new { channelId = lounge })));
+        Assert.NotNull(Voice(server).Recordings.Get(lounge));
+        var stopped = await admin.RequestAsync("voice.record.stop", new { channelId = lounge });
+        Assert.True(stopped.Body().GetProperty("stopped").GetBoolean());
+        Assert.False((await admin.RequestAsync("voice.record.stop", new { channelId = lounge })).Body().GetProperty("stopped").GetBoolean());
+
+        // The other way round is fine: someone above may end it.
+        Assert.Equal("result", (await bob.RequestAsync("voice.record.start", new { channelId = lounge })).Type());
+        Assert.True((await admin.RequestAsync("voice.record.stop", new { channelId = lounge })).Body().GetProperty("stopped").GetBoolean());
+    }
+
+    [Fact]
     public async Task Another_recorder_may_stop_it_and_it_ends_when_the_recorder_leaves_or_after_four_hours()
     {
         using var server = new IskraServer();

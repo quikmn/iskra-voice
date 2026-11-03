@@ -77,8 +77,9 @@ public static class ProxyProtocol
             if (outcome == Header.Ok)
             {
                 input.AdvanceTo(buffer.GetPosition(consumed));
-                context.RemoteEndPoint = peer;
-                context.Features.Set(new ProxiedPeer(peer!, proxy));
+                // LOCAL: the proxy itself, as it connected (still marked proxied, so it never counts as this machine).
+                if (peer is not null) context.RemoteEndPoint = peer;
+                context.Features.Set(new ProxiedPeer(peer ?? proxy, proxy));
                 break;
             }
             if (outcome == Header.Invalid || result.IsCompleted)
@@ -112,13 +113,13 @@ public static class ProxyProtocol
         peer = null;
         if (buffer.Length == 0) return Header.Incomplete;
         var first = buffer.FirstSpan[0];
-        if (first == SignatureV2[0]) return TryParseV2(buffer, out consumed, out peer);
+        if (first == SignatureV2[0]) return TryParseV2(buffer, out consumed, out peer, allowLocal: true);
         if (first == PrefixV1[0]) return TryParseV1(buffer, out consumed, out peer);
         return Header.Invalid;
     }
 
-    /// <summary>Version 2 (binary), command PROXY, TCP over IPv4 or IPv6; TLVs after the addresses are skipped.</summary>
-    public static Header TryParseV2(ReadOnlySequence<byte> buffer, out long consumed, out IPEndPoint? peer)
+    /// <summary>Version 2 (binary): command PROXY, TCP over IPv4 or IPv6 (TLVs after the addresses are skipped), or command LOCAL (no peer).</summary>
+    public static Header TryParseV2(ReadOnlySequence<byte> buffer, out long consumed, out IPEndPoint? peer, bool allowLocal = false)
     {
         consumed = 0;
         peer = null;
@@ -128,9 +129,19 @@ public static class ProxyProtocol
         var signature = Math.Min(have, 12);
         if (!head[..signature].SequenceEqual(SignatureV2[..signature])) return Header.Invalid;
         if (have < 16) return Header.Incomplete;
-        if (head[12] != 0x21) return Header.Invalid; // version 2, command PROXY (LOCAL has no client to name)
-        var family = head[13];
         var length = BinaryPrimitives.ReadUInt16BigEndian(head[14..16]);
+        if (head[12] == 0x20 && allowLocal)
+        {
+            // Version 2, command LOCAL: the proxy's own connection (a health check). The spec says to accept it and
+            // ignore the address block; the connection stays the proxy's (peer null). Not for the p2p tunnel, which
+            // always names the friend.
+            if (length > MaxV2Length) return Header.Invalid;
+            if (buffer.Length < 16 + length) return Header.Incomplete;
+            consumed = 16 + length;
+            return Header.Ok;
+        }
+        if (head[12] != 0x21) return Header.Invalid; // version 2, command PROXY
+        var family = head[13];
         int addressBytes;
         switch (family)
         {

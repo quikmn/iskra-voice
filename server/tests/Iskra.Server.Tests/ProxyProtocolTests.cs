@@ -101,6 +101,25 @@ public class ProxyProtocolTests : IDisposable
     }
 
     [Fact]
+    public void Regression_version_2_local_health_checks_are_accepted_without_a_client()
+    {
+        // Command LOCAL (0x20), family UNSPEC, no addresses; and one with an address block, which is ignored.
+        byte[] bare = [0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A, 0x20, 0x00, 0x00, 0x00];
+        Assert.Equal(ProxyProtocol.Header.Ok, Parse([.. bare, .. "GET"u8.ToArray()], out var peer, out var consumed));
+        Assert.Null(peer);
+        Assert.Equal(bare.Length, consumed);
+        var withAddresses = V2(IPAddress.Parse("203.0.113.9"), 4321);
+        withAddresses[12] = 0x20;
+        Assert.Equal(ProxyProtocol.Header.Ok, Parse(withAddresses, out peer, out consumed));
+        Assert.Null(peer);
+        Assert.Equal(withAddresses.Length, consumed);
+        Assert.Equal(ProxyProtocol.Header.Incomplete, Parse(withAddresses[..^2], out _, out _));
+        // Other commands are still refused.
+        withAddresses[12] = 0x22;
+        Assert.Equal(ProxyProtocol.Header.Invalid, Parse(withAddresses, out _, out _));
+    }
+
+    [Fact]
     public void Trusted_addresses_must_be_ip_addresses()
     {
         Assert.Equal([IPAddress.Loopback, IPAddress.IPv6Loopback], ProxyProtocol.Trusted(new Storage.HttpsSettings().ProxyTrustedFrom));

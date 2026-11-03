@@ -62,18 +62,20 @@ public static class RecordingFeature
     {
         var channel = VoiceChannel(s, me, body);
         var recordings = s.Voice.Recordings;
-        if (recordings.Get(channel.Id) is not { } current) return new { };
-        if (current.By != me.AccountKey && !Permissions.Has(me, Perm.RecordVoice))
-            throw RequestException.Forbidden("Only the person recording can stop it.", "record_stop_forbidden");
+        if (recordings.Get(channel.Id) is not { } current) return new { stopped = false };
+        // Someone else's recording: anyone trusted to record may end it, but not one made by someone above them.
+        if (current.By != me.AccountKey && (!Permissions.Has(me, Perm.RecordVoice)
+            || (s.World.Store.GetMember(current.By) is { } recorder && !Permissions.IsAdmin(me) && Permissions.Outranks(recorder, me))))
+            throw RequestException.Forbidden("Only the person recording, or someone above them, can stop it.", "record_stop_forbidden");
         Limit(s, me, "voice.record");
-        if (recordings.Stop(channel.Id) is not { } stopped) return new { };
+        if (recordings.Stop(channel.Id) is not { } stopped) return new { stopped = false };
         Audit.Record(s, "voice.record.stop", target: stopped.By == me.AccountKey ? null : stopped.By, details: new
         {
             channelId = channel.Id, channelName = channel.Name, why = "stopped", durationMs = Math.Max(0, s.Now - stopped.StartedAt), encrypted = stopped.Encrypted,
         });
         if (stopped.Live && !stopped.Encrypted) PostNotice(s.World.Store, s.Hub, channel, stopped.By, "stop", s.Now);
         s.Voice.Republish(channel.Id);
-        return new { };
+        return new { stopped = true };
     }
 
     /// <summary>"Don't record me" on or off, for every call on this server. Shown next to your name in the call.</summary>

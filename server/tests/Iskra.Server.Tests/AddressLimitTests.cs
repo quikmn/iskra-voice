@@ -1,6 +1,8 @@
 using System.Net;
+using System.Text.RegularExpressions;
 using Iskra.Server.Features;
 using Iskra.Server.Hosting;
+using Iskra.Server.Tests.Support;
 
 namespace Iskra.Server.Tests;
 
@@ -32,5 +34,22 @@ public class AddressLimitTests
         Assert.True(table.Count <= 100);
         Assert.True(table.Contains("attacker"));
         Assert.False(Bucket("attacker").TryTake(out _)); // still limited (the old table was cleared at its cap)
+    }
+
+    [Fact]
+    public void Regression_fetches_checked_for_public_addresses_never_go_through_a_proxy()
+    {
+        // The public-address check runs on the address connected to: through a proxy that's the proxy, not the target.
+        var dir = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(Repo.ProtocolFile("PROTOCOL.md")))!, "server", "src", "Iskra.Server");
+        var checkedHandlers = 0;
+        foreach (var file in Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories).Where(f => !f.Contains("bin") && !f.Contains("obj")))
+            foreach (Match m in Regex.Matches(File.ReadAllText(file), @"new SocketsHttpHandler\s*\{(?<body>[^}]*)\}"))
+            {
+                var body = m.Groups["body"].Value;
+                if (!body.Contains("ConnectCallback")) continue;
+                checkedHandlers++;
+                Assert.True(body.Contains("UseProxy = false"), $"{Path.GetFileName(file)}: a handler with a ConnectCallback must set UseProxy = false");
+            }
+        Assert.True(checkedHandlers >= 6, $"{checkedHandlers} handlers found");
     }
 }

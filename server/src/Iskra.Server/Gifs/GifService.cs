@@ -36,6 +36,7 @@ public sealed class GifUpstream : IGifUpstream, IDisposable
             AllowAutoRedirect = false,
             ConnectTimeout = TimeSpan.FromSeconds(4),
             UseCookies = false,
+            UseProxy = false, // a proxy would be the address checked, not the real one
             ConnectCallback = LinkPreviews.PublicOnlyConnect(config.GetValue<bool>("Previews:AllowLoopbackForTests")),
         };
         _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };

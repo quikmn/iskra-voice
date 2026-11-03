@@ -36,6 +36,7 @@ public sealed partial class LinkPreviews : IDisposable
             MaxAutomaticRedirections = 3,
             ConnectTimeout = TimeSpan.FromSeconds(4),
             UseCookies = false,
+            UseProxy = false, // a proxy would be the address checked, not the real one
             ConnectCallback = PublicOnlyConnect(allowLoopback),
         };
         _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(6) };

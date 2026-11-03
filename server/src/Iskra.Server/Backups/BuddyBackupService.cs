@@ -163,7 +163,7 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
     }
 
     private static RequestException LocalAddress(string url) =>
-        RequestException.BadRequest("That code points to an address on a local network. Pair only if you trust it.", "buddy_address_local",
+        RequestException.BadRequest($"That code points to {new Uri(url).Host}, an address on a local network. Pair only if you trust it.", "buddy_address_local",
             new { host = new Uri(url).Host });
 
     /// <summary>

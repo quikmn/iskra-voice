@@ -39,13 +39,29 @@ public static class BuddyRestore
                     return true;
                 });
             if (new FileInfo(temp).Length != version.Size) throw new InvalidDataException("The download was cut off. Try again.");
-            return BackupArchive.Restore(temp, target, () => code, log);
+            var result = BackupArchive.Restore(temp, target, () => code, log);
+            var warning = RollbackWarning(result.CreatedAt, spot.Versions.Max(v => v.At));
+            if (result.CreatedAt is { } made) log?.Invoke($"This copy was made on {DateTimeOffset.FromUnixTimeMilliseconds(made).ToLocalTime():yyyy-MM-dd HH:mm}.");
+            if (warning is not null) log?.Invoke(warning);
+            return result with { Warning = warning };
         }
         finally
         {
             try { Directory.Delete(folder, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
     }
+
+    /// <summary>How much older a copy may be than the newest date the holder lists (a big copy takes a while to send).</summary>
+    public static readonly TimeSpan RollbackSlack = TimeSpan.FromDays(1);
+
+    /// <summary>
+    /// The dates the holder lists are its own word; the date inside the copy is sealed by the source. A copy made well
+    /// before the newest date listed may be an old one passed off as new (a holder can't change a copy, but it can pick one).
+    /// </summary>
+    internal static string? RollbackWarning(long? createdAt, long newestListed) =>
+        createdAt is { } made && newestListed - made > (long)RollbackSlack.TotalMilliseconds
+            ? $"Warning: this copy was made on {DateTimeOffset.FromUnixTimeMilliseconds(made).ToLocalTime():yyyy-MM-dd HH:mm}, but your friend's server lists a copy from {DateTimeOffset.FromUnixTimeMilliseconds(newestListed).ToLocalTime():yyyy-MM-dd HH:mm}. It may be giving you an older copy than the newest: check with your friend before you use it."
+            : null;
 
     /// <summary>The biggest copy a restore downloads: the biggest spot a holder can give (1 TB).</summary>
     public const long MaxCopyBytes = Features.BuddyBackupFeature.MaxQuotaMb * 1024 * 1024;

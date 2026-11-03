@@ -236,6 +236,8 @@ public class BuddyBackupTests
         {
             var restored = await BuddyRestore.RestoreAsync(http, "http://localhost", recovery.ToLowerInvariant(), target, null, null, default);
             Assert.Equal(Ed25519.ToB64u(pair.SourceWorld.ServerPublicKey), restored.ServerKey);
+            Assert.NotNull(restored.CreatedAt);
+            Assert.Null(restored.Warning);
             using (var world = World.OpenOrCreate(target))
             {
                 // The restored server knows its buddy and its code: it carries on sending there.
@@ -249,8 +251,25 @@ public class BuddyBackupTests
             try { Directory.Delete(target, true); } catch (IOException) { }
         }
 
-        // The holder (or anyone on the way) changes a byte: the restore fails and leaves nothing behind.
+        // Regression: the holder passes the copy off as newer than it is: the restore says so (the copy's own date is sealed).
         var spotId = pair.Holder.World.Store.BuddySpots().Single().Id;
+        var listed = pair.Holder.World.Store.BuddyVersions(spotId).Single();
+        pair.Holder.World.Store.SetBuddyVersionAt(listed.Id, listed.At + (long)TimeSpan.FromDays(3).TotalMilliseconds);
+        var target3 = Path.Combine(Path.GetTempPath(), $"iskra-buddy-restored-{Guid.NewGuid():N}");
+        try
+        {
+            var said = new List<string>();
+            var rolled = await BuddyRestore.RestoreAsync(http, "http://localhost", recovery, target3, null, said.Add, default);
+            Assert.NotNull(rolled.Warning);
+            Assert.Contains(said, line => line.StartsWith("Warning: this copy was made on", StringComparison.Ordinal));
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        }
+        finally
+        {
+            try { Directory.Delete(target3, true); } catch (IOException) { }
+        }
+
+        // The holder (or anyone on the way) changes a byte: the restore fails and leaves nothing behind.
         var blobPath = Directory.EnumerateFiles(Path.Combine(pair.Holder.WorldPath, "buddy-held", spotId), "*.blob").Single();
         var blob = await File.ReadAllBytesAsync(blobPath);
         blob[blob.Length / 2] ^= 0x40;
