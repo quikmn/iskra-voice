@@ -1,14 +1,16 @@
 // One toast host with two lanes, so toasts never land on each other:
-// - "corner": bottom right, stacked, newest on top; for notes that want a reaction (an update, a warning, an event
-//   starting, a call for another account). A card with a mark or icon, a title and a line, an action and ✕.
-// - "top": top centre (above the composer on phones), for passing notes ("Sam played airhorn", "Clip saved"). A pill.
+// - "corner": bottom right (under the header on phones), stacked; for notes that want a reaction (an update, a
+//   warning, an event starting, a call for another account). A card with a mark or icon, a title and a line, an
+//   action and ✕.
+// - "notes": centred just above the message box and the call controls (never over the header), for passing notes
+//   ("Sam played airhorn", "Clip saved"). A pill.
 // Each toast renders where it is in the React tree (its own state and timers) and portals into its lane.
 import { type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Close } from '../icons'
 import type { Tone } from './Display'
 
-export type ToastLane = 'corner' | 'top'
+export type ToastLane = 'corner' | 'notes'
 
 /** The lane's element, made once at the end of <body>. */
 function laneElement(lane: ToastLane): HTMLElement {
@@ -71,7 +73,7 @@ export function Toast({ tone = 'neutral', mark, icon, title, body, children, act
   )
 }
 
-/** A passing note in the top lane: an icon and a line, maybe a button. */
+/** A passing note in the notes lane: an icon and a line, maybe a button. */
 export function ToastPill({ tone = 'neutral', icon, children, action, className, testId, role = 'status' }: {
   tone?: Tone
   icon?: ReactNode
@@ -82,7 +84,7 @@ export function ToastPill({ tone = 'neutral', icon, children, action, className,
   role?: 'status' | 'alert'
 }) {
   return (
-    <ToastPortal lane="top">
+    <ToastPortal lane="notes">
       <div className={`toast-pill tone-${tone} ${action ? 'has-action' : ''} ${className ?? ''}`} role={role} data-testid={testId}>
         {icon && <span className="toast-icon" aria-hidden="true">{icon}</span>}
         <span className="toast-pill-text">{children}</span>

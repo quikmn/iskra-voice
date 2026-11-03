@@ -145,15 +145,15 @@
   right: 16px; bottom: calc(84px + var(--safe-bottom)); z-index: var(--z-toast);
   flex-direction: column-reverse; align-items: flex-end; width: min(380px, calc(100vw - 32px));
 }
-/* Top centre, under the channel header; passing notes. */
-.toast-lane.top {
-  top: calc(64px + var(--safe-top)); left: 50%; transform: translateX(-50%); z-index: var(--z-notice);
-  flex-direction: column; align-items: center; width: max-content; max-width: calc(100vw - 24px);
+/* Passing notes: centred just above the message box and the call controls, never over the channel header.
+   A view whose bottom bar is taller (call controls that wrap) can set --notes-lane-bottom on :root. */
+.toast-lane.notes {
+  bottom: calc(var(--notes-lane-bottom, 96px) + var(--safe-bottom)); left: 50%; transform: translateX(-50%); z-index: var(--z-notice);
+  flex-direction: column-reverse; align-items: center; width: max-content; max-width: calc(100vw - 24px);
 }
 @media (max-width: 760px) {
-  .toast-lane.corner { left: 8px; right: 8px; width: auto; bottom: calc(76px + var(--safe-bottom)); align-items: stretch; }
-  /* Phones: eyes and thumbs are at the bottom; passing notes sit above the composer and the call controls. */
-  .toast-lane.top { top: auto; bottom: calc(96px + var(--safe-bottom)); flex-direction: column-reverse; }
+  /* Phones: the passing notes keep the bottom; the cards that want a reaction drop in under the header. */
+  .toast-lane.corner { left: 8px; right: 8px; width: auto; bottom: auto; top: calc(60px + var(--safe-top)); flex-direction: column; align-items: stretch; }
 }
 .toast {
   position: relative; display: flex; align-items: center; gap: var(--sp-3); width: 100%; padding: 12px 8px 12px 14px;

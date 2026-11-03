@@ -1,6 +1,7 @@
 <!-- Release notes for the next version. Each change is its own line; the release step merges them. -->
 
 ### What's new
+- A tidier look across settings and dialogs: real switches for things that take effect at once, an unsaved-changes bar for forms, My settings in groups with icons, one place for notices, menus with icons and submenus, the member sheet's moderation in tabs, and bigger touch targets on phones.
 
 ### Fixes
 - Encrypted channels stay encrypted on your device even if a server stops saying they are: nothing is sent in them then, and a message that arrives unencrypted is never shown as a member's. Encrypted whiteboards ignore anything unencrypted.
