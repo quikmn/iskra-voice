@@ -54,13 +54,13 @@ try there. Do the steps in any order. If something doesn't work, or you don't un
   **Translate**. It runs on your phone; nothing goes to a translation service. It works between English and 12
   European languages so far.
 - **Whiteboard**: open **#whiteboard** under Try things and draw something; others see it as you draw. In a voice
-  channel, open a **whiteboard** from the call bar and draw with someone.
+  channel, tap **More** in the call bar, then **Open a whiteboard**, and draw with someone.
 - **Polls** (#polls): tap the poll button next to the message box, or send **/poll Pizza or tacos? | Pizza | Tacos**.
 - **Threads** (#threads): long-press a message, choose **Start a thread**, and reply inside it.
 - **Forums** (#feedback): make a post with a title and a tag. Tell us what you like or what confused you.
 - **Events**: tap **Events** at the top of the channel list. Say you're interested, or plan one.
 - **Stage** (town-hall): join and tap **Ask to speak**.
-- **Watch together** (Watch party): tap **Watch together** in the call bar and paste a YouTube link.
+- **Watch together** (Watch party): tap **More** in the call bar, then **Watch together**, and paste a YouTube link.
 - **Private and encrypted chats**: tap someone's name and choose **Message**. Direct messages are end-to-end
   encrypted: only the two of you can read them. A channel with a **lock** is encrypted too.
 
