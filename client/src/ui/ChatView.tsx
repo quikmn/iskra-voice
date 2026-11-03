@@ -15,7 +15,7 @@ import { InteractionLine, InteractionTray, MessageComponents } from './chat/BotI
 import { authorOf, sameSender } from './chat/bots'
 import { patchUpload } from './chat/uploads'
 import { ImportedBadge, ImportedExtras } from './chat/ImportedBits'
-import { firstLink, formatSize, replyKey, setReply, useReply } from './chat/helpers'
+import { firstLink, replyKey, setReply, useReply } from './chat/helpers'
 import { Avatar, Spinner } from './bits'
 import { openProfileCard } from '../state/profile'
 import { decodeMentions, encodeMentions, renderMarkdown } from './markdown'
@@ -23,18 +23,14 @@ import { useAlertPattern } from '../state/alerts'
 import { matchesAlert } from '../state/alertsLogic'
 import './alerts/alerts.css'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
-import { formatNumber } from '../i18n/format'
 import type { Panel } from './Shell'
-import { Close, FileIcon, Hash, Menu, Paperclip, Pencil, Reply, Send, Smile, Trash, Users, Volume, WifiOff } from './icons'
-import { HeaderTools } from './chat/HeaderTools'
-import { AutoTranslateButton, TranslationBlock } from './translate/Translate'
-import { ReadAloudHeaderButton } from './speech/ReadAloud'
+import { Close, Hash, Pencil, Reply, Send, Smile, WifiOff } from './icons'
+import { ChannelHeader } from './chat/HeaderTools'
+import { TranslationBlock } from './translate/Translate'
 import { parseTtsCommand, ttsBlocked } from '../state/speech'
 import { channelItem } from './translate/items'
-import { convKey } from '../state/translate'
-import { EncryptedBits, EncryptedWriteBlock, EncryptionButton, LockBadge, StartOverRecordLine, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
+import { EncryptedBits, EncryptedWriteBlock, StartOverRecordLine, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
 import { editEncrypted, isEncrypted, uploadFor } from '../state/e2eeChannels'
-import { MessageActionSheet } from './chat/MessageActionSheet'
 import { useLongPress } from './chat/useLongPress'
 import { JumpToPresent, MessageMenuExtras, PinnedMark, PinNoteRow, ThreadSummary } from './chat/PinThreadBits'
 import { withPinNotes } from './chat/pinThreadHelpers'
@@ -45,28 +41,29 @@ import { useEmojiLookup } from './expressions/useEmojiLookup'
 import { useEmojiSuggest } from './expressions/EmojiSuggest'
 import { PollCard, PollDialog } from './expressions/Polls'
 import { LfgCard } from './lfg/Lfg'
-import { PollIcon } from './expressions/icons'
 import { useServerEmojis } from '../state/expressions'
 import { VoiceMessage, VoiceRecordButton } from './chat/voice/VoiceMessages'
 import { ComposerMenu } from './chat/ComposerMenu'
+import { UploadChip } from './chat/UploadChip'
+import { GifIcon } from './chat/extraIcons'
 import { voiceRecordingSupported, type Recording } from './chat/voice/recorder'
-import { BlockGate, ChannelSettingsButton, SlowmodeChip, TimedOutBar } from './moderation/Moderation'
+import { BlockGate, SlowmodeChip, TimedOutBar } from './moderation/Moderation'
 import { useSlowmodeWait, useTimedOut } from './moderation/hooks'
 import { RulesBar } from './rules/Rules'
 import { useMustAgree } from '../state/rules'
-import { ForwardDialog, ForwardedLine, ForwardIcon } from './organize/ForwardDialog'
+import { ForwardDialog, ForwardedLine } from './organize/ForwardDialog'
 import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
 import { channelConv, dividerOf, dividerTarget, useRead } from '../state/readState'
 import { useRoleLookup, useServerRoles } from '../state/roles'
 import { useServerBaseRoles } from '../state/baseRoles'
 import { canDeleteMessage, canMentionRole, canSendIn, has, nameColor } from '../state/permissions'
 import { draftKey, setDraft, useDraft } from '../state/drafts'
-import { MessageMoreButton } from './chat/MessageMore'
+import { MessageMenu, MessageMoreButton } from './chat/MessageMore'
 import { StickerMessage } from './chat/Stickers'
 import { ExpressionPicker, GifMessage, type ExpressionTab } from './chat/ExpressionPicker'
 import { sendGif } from '../state/gifs'
 import { sendSticker } from '../state/stickers'
-import { SpoilerToggle, isSpoilerName, longTextFile } from './chat/media'
+import { isSpoilerName, longTextFile } from './chat/media'
 import { AutoModAlertCard } from './automod/AutoModAlert'
 import { userMenuProps } from './people/userMenuProps'
 import { EditedMark } from './productivity/EditHistory'
@@ -81,7 +78,6 @@ import { JoinPending } from './JoinPending'
 import { BulkSelectBar, SelectBox } from './moderation/ModPack'
 import { toggleSelected, useIsSelected, useSelectingIn } from '../state/modpack'
 import { useReadableColor } from '../theme/useReadable'
-import { ChannelPopoutButton } from './popout/PopoutButtons'
 import { ChannelTopic } from './chat/ChannelTopic'
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000
@@ -116,30 +112,7 @@ export function ChatView({ server, onToggle }: { server: ServerState; onToggle: 
         window.dispatchEvent(new CustomEvent('iskra:attach', { detail: [...e.dataTransfer.files] }))
       }}
     >
-      <header className="chat-header">
-        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('chat.view.openChannels')}>
-          <Menu />
-        </button>
-        {channel ? (
-          <h1>
-            <span className="hash">{channel.kind === 'voice' || channel.kind === 'stage' ? <Volume size={20} /> : <Hash size={20} />}</span>
-            <span className="chat-title-name">{channel.name}</span>
-            <LockBadge channel={channel} size={14} />
-          </h1>
-        ) : (
-          <h1>{server.name}</h1>
-        )}
-        <span className="spacer" />
-        <HeaderTools key={channel?.id} server={server} channel={channel} />
-        {channel && channel.kind === 'text' && <AutoTranslateButton conv={convKey.channel(server.key, channel.id)} />}
-        {channel && <ReadAloudHeaderButton serverKey={server.key} channelId={channel.id} />}
-        <EncryptionButton server={server} channel={channel} />
-        <ChannelSettingsButton server={server} channel={channel} />
-        {channel?.kind === 'text' && <ChannelPopoutButton serverKey={server.key} channelId={channel.id} />}
-        <button className="icon-button members-toggle" onClick={() => onToggle('members')} aria-label={t('chat.view.members')} title={t('chat.view.members')}>
-          <Users />
-        </button>
-      </header>
+      <ChannelHeader server={server} channel={channel} onNav={() => onToggle('nav')} onMembers={() => onToggle('members')} />
       <ChannelTopic channel={channel} />
 
       {server.status.state === 'pending' ? <JoinPending server={server} /> : failedJoin(server) ? <JoinFailed server={server} /> : <ConnectionBanner server={server} />}
@@ -271,9 +244,12 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
     })
   }, [messages])
   // The "New messages" divider goes above the first unread message, once it's loaded (older ones may still be on the server).
-  const firstUnread = divider && messages && (!hasMore || messages.some((m) => !m.tempId && m.id <= (divider.from.id as number)))
+  const target = divider && messages && (!hasMore || messages.some((m) => !m.tempId && m.id <= (divider.from.id as number)))
     ? dividerTarget(messages, divider.from, (m) => (m.tempId ? null : { id: m.id, at: m.createdAt }))?.id ?? null
     : null
+  // In a thread or a voice channel's chat, a divider above everything says nothing: it only shows with older messages above.
+  const quiet = thread && !hasMore && target !== null && target === messages?.find((m) => !m.tempId)?.id
+  const firstUnread = quiet ? null : target
 
   if (!rendered) {
     return (
@@ -287,9 +263,11 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
     <>
     <div className="messages" ref={scroller} onScroll={onScroll} onKeyDown={messageListKeys} tabIndex={0}
       role="region" aria-label={t('chat.a11y.messages', { name: conversationLabel(server, channelId) })}>
-      <UnreadBar conv={conv} scroller={scroller} onJump={() => (stickToBottom.current = false)}
-        catchUp={{ spec: { kind: 'channel', serverKey: server.key, channelId }, title: conversationLabel(server, channelId) }}
-        loadOlder={() => loadHistory(server.key, channelId, true).then(() => !!useApp.getState().servers[server.key]?.hasMore[channelId])} />
+      {!quiet && (
+        <UnreadBar conv={conv} scroller={scroller} onJump={() => (stickToBottom.current = false)}
+          catchUp={{ spec: { kind: 'channel', serverKey: server.key, channelId }, title: conversationLabel(server, channelId) }}
+          loadOlder={() => loadHistory(server.key, channelId, true).then(() => !!useApp.getState().servers[server.key]?.hasMore[channelId])} />
+      )}
       {!hasMore && (header ?? (
         <div className="channel-start">
           <span className="channel-start-icon" aria-hidden><Hash size={32} /></span>
@@ -347,7 +325,6 @@ function MessageRow({
   const baseRoles = useServerBaseRoles(server.key)
   const roleColor = useReadableColor(message.webhook ? null : nameColor(author, roles, baseRoles))
   const authorColor = roleColor || `hsl(${hueFor(message.author)} 70% var(--name-l))`
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const [picking, setPicking] = useState(false)
   const [sheet, setSheet] = useState(false)
   const [forwarding, setForwarding] = useState(false)
@@ -357,7 +334,6 @@ function MessageRow({
   // Selecting messages to delete together (moderators): the row becomes a tick box.
   const selecting = useSelectingIn(server.key, message.channelId)
   const selected = useIsSelected(message.id)
-  const [error, setError] = useState<string | null>(null)
   const emojiLookup = useEmojiLookup(server.key)
   const alerts = useAlertPattern(server.key)
   const alerted = !mine && !message.forwarded && matchesAlert(alerts, message.text)
@@ -368,14 +344,6 @@ function MessageRow({
     void jumpToMessage(server.key, message.channelId, id)
   }
 
-  async function remove() {
-    try {
-      await connectionFor(server.key)?.request('chat.delete', { id: message.id })
-    } catch (e) {
-      setError(errorMessage(e))
-    }
-    setConfirmDelete(false)
-  }
 
   return (
     <>
@@ -470,33 +438,21 @@ function MessageRow({
             <button className="link" onClick={() => discardFailed(server.key, message.channelId, message.tempId!)}>{t('chat.message.discard')}</button>
           </div>
         )}
-        {error && <div className="message-failed">{error}</div>}
       </div>
       {!editing && !message.tempId && !selecting && (
         <div className={`message-actions ${picking ? 'open' : ''}`} role="toolbar" aria-label={t('chat.a11y.actions')}>
-          {confirmDelete ? (
-            <>
-              <span>{t('chat.message.deleteConfirm')}</span>
-              <button className="danger" onClick={() => void remove()}>{t('common.yes')}</button>
-              <button onClick={() => setConfirmDelete(false)}>{t('common.no')}</button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => setPicking((p) => !p)} title={t('chat.message.addReaction')} aria-label={t('chat.message.addReaction')}><Smile size={15} /></button>
-              <button onClick={() => setReply(server.key, message.channelId, message)} title={t('chat.message.reply')} aria-label={t('chat.message.reply')}><Reply size={15} /></button>
-              <MessageMenuExtras server={server} message={message} />
-              {canForward && <button onClick={() => setForwarding(true)} title={t('chat.message.forward')} aria-label={t('chat.message.forward')}><ForwardIcon /></button>}
-              <MessageMoreButton server={server} message={message} />
-              {canEdit && <button onClick={() => onEdit(true)} title={t('common.edit')} aria-label={t('common.edit')}><Pencil size={15} /></button>}
-              {canDelete && <button onClick={() => setConfirmDelete(true)} title={t('common.delete')} aria-label={t('common.delete')}><Trash size={15} /></button>}
-            </>
-          )}
+          <button onClick={() => setPicking((p) => !p)} title={t('chat.message.addReaction')} aria-label={t('chat.message.addReaction')}><Smile size={15} /></button>
+          <button onClick={() => setReply(server.key, message.channelId, message)} title={t('chat.message.reply')} aria-label={t('chat.message.reply')}><Reply size={15} /></button>
+          {canEdit && <button onClick={() => onEdit(true)} title={t('common.edit')} aria-label={t('common.edit')}><Pencil size={15} /></button>}
+          <MessageMenuExtras server={server} message={message} />
+          <MessageMoreButton server={server} message={message} canEdit={canEdit} canDelete={canDelete} onEdit={() => onEdit(true)}
+            onForward={canForward ? () => setForwarding(true) : undefined} />
           {picking && <ReactionPicker server={server} message={message} onClose={() => setPicking(false)} />}
         </div>
       )}
       {sheet && (
-        <MessageActionSheet server={server} message={message} canEdit={canEdit} canDelete={canDelete} onEdit={() => onEdit(true)} onClose={() => setSheet(false)}
-          onForward={canForward ? () => setForwarding(true) : undefined} />
+        <MessageMenu server={server} message={message} canEdit={canEdit} canDelete={canDelete} onEdit={() => onEdit(true)} onClose={() => setSheet(false)}
+          onForward={canForward ? () => setForwarding(true) : undefined} anchor={null} />
       )}
       {forwarding && <ForwardDialog server={server} message={message} onClose={() => setForwarding(false)} />}
     </div>
@@ -738,16 +694,8 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       {uploads.length > 0 && (
         <div className="pending-uploads">
           {uploads.map((u) => (
-            <div key={u.localId} className={`pending-upload ${u.error ? 'failed' : ''}`} title={u.error ?? u.file.name}>
-              {u.preview ? <img src={u.preview} alt="" className={isSpoilerName(u.file.name) ? 'spoiler-preview' : undefined} /> : <span className="file-icon" aria-hidden><FileIcon size={20} /></span>}
-              <span className="file-name">{u.file.name}</span>
-              {!u.error && <SpoilerToggle on={isSpoilerName(u.file.name)} onToggle={() => toggleSpoiler(u)} />}
-              {u.error
-                ? <span className="upload-error" role="alert">{u.error}</span>
-                : <span className="muted">{u.result ? formatSize(u.file.size) : formatNumber(u.progress, { style: 'percent', maximumFractionDigits: 0 })}</span>}
-              {!u.result && !u.error && <span className="upload-progress" style={{ width: `${u.progress * 100}%` }} />}
-              <button className="icon-button small" onClick={() => removeUpload(u)} aria-label={t('chat.composer.removeFile', { name: u.file.name })}><Close size={14} /></button>
-            </div>
+            <UploadChip key={u.localId} name={u.file.name} size={u.file.size} preview={u.preview} progress={u.progress} done={!!u.result} error={u.error}
+              spoiler={isSpoilerName(u.file.name)} onSpoiler={() => toggleSpoiler(u)} onRemove={() => removeUpload(u)} />
           ))}
         </div>
       )}
@@ -763,16 +711,9 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
           gifs: isEncrypted(server.key, channelId) ? undefined : (anchor) => openPicker(anchor, 'gifs'),
           emoji: (anchor) => openPicker(anchor, 'emoji'),
           voice: micInstead ? () => setVoiceStart((n) => n + 1) : undefined,
+          later: later.open,
         }}
       />
-      <button className="icon-button attach-button" onClick={() => fileInput.current?.click()} aria-label={t('chat.composer.attach')} title={t('chat.composer.attach')} disabled={!online}>
-        <Paperclip />
-      </button>
-      {!isEncrypted(server.key, channelId) && (
-        <button className="icon-button attach-button" onClick={() => setPollOpen(true)} aria-label={t('chat.composer.poll')} title={t('chat.composer.poll')} disabled={!online}>
-          <PollIcon />
-        </button>
-      )}
       <input
         ref={fileInput}
         type="file"
@@ -856,15 +797,15 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
       />
       {!isEncrypted(server.key, channelId) && (
         <button className="icon-button attach-button gif-button" onClick={(e) => openPicker(e.currentTarget, 'gifs')} aria-label={t('chat.composer.gifs')} title={t('chat.composer.gifs')} disabled={!online}>
-          GIF
+          <GifIcon size={20} />
         </button>
       )}
-      <button className="icon-button attach-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emojiTitle')}>
+      <button className="icon-button attach-button emoji-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emojiTitle')}>
         <Smile />
       </button>
-      {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!online} startSignal={voiceStart} />}
       <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
-      {later.button}
+      {/* Nothing typed: the mic stands where Send goes (Send comes back with the first letter). */}
+      {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!online} startSignal={voiceStart} />}
       <button className={`send-button ${micInstead ? 'idle' : ''}`} onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
         <Send />
       </button>

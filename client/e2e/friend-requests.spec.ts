@@ -66,11 +66,11 @@ test('friend requests: right-click to send, accept, friends on both sides, then 
   await expect(bobRow).toBeVisible()
   await alice.screenshot({ path: join(SHOTS, 'friends-all.png') })
 
-  // Alice messages Bob; the DM shows the request line, and the header has no "Add friend" any more.
+  // Alice messages Bob; the DM shows the request line, and there's no "Add friend" banner any more.
   await bobRow.getByRole('button', { name: 'Message' }).click()
   await expect(alice.locator('.friend-line').first()).toContainText('You sent Bob a friend request.')
   await expect(alice.locator('.friend-line').last()).toContainText('Bob accepted your friend request.')
-  await expect(alice.locator('.chat-header').getByRole('button', { name: /Add friend/ })).toHaveCount(0)
+  await expect(alice.getByTestId('friend-banner')).toHaveCount(0)
   await alice.getByPlaceholder('Message Bob').fill('friends now!')
   await alice.getByPlaceholder('Message Bob').press('Enter')
   await expect(bob.locator('.dm-row', { hasText: 'Alice' })).toBeVisible()
@@ -81,7 +81,7 @@ test('friend requests: right-click to send, accept, friends on both sides, then 
   await menu.getByRole('menuitem', { name: 'Remove friend' }).click()
   await alice.screenshot({ path: join(SHOTS, 'friends-remove.png') })
   await menu.getByRole('button', { name: 'Remove' }).click()
-  await expect(alice.locator('.chat-header').getByRole('button', { name: /Add friend/ })).toBeVisible()
+  await expect(alice.getByTestId('friend-banner').getByRole('button', { name: 'Add friend' })).toBeVisible()
   await bob.locator('.channel', { hasText: 'Friends' }).click()
   await bob.getByRole('tab', { name: 'All' }).click()
   await expect(bob.locator('.friend-row', { hasText: 'Alice' })).toHaveCount(0)
@@ -94,7 +94,7 @@ test('friend requests: right-click to send, accept, friends on both sides, then 
   await expect(bob.getByRole('dialog', { name: 'Options for Alice' }).getByRole('menuitem', { name: 'Add friend' })).toBeVisible()
   await bob.screenshot({ path: join(SHOTS, 'friends-menu-phone.png') })
 
-  // A narrow phone (360 px): Bob asks again; Alice's Accept/Ignore stay on screen, in the DM header and on Friends.
+  // A narrow phone (360 px): Bob asks again; Alice's Accept/Ignore stay on screen, in the DM's banner and on Friends.
   await bob.getByRole('dialog', { name: 'Options for Alice' }).getByRole('menuitem', { name: 'Add friend' }).click()
   await alice.setViewportSize({ width: 360, height: 740 })
   const noSpill = async (button: ReturnType<typeof alice.locator>, other?: ReturnType<typeof alice.locator>) => {
@@ -107,10 +107,12 @@ test('friend requests: right-click to send, accept, friends on both sides, then 
       expect(overlap).toBe(false)
     }
   }
-  const header = alice.locator('.chat-header')
-  await expect(header.getByRole('button', { name: 'Accept friend request' })).toBeVisible()
-  await noSpill(header.getByRole('button', { name: 'Accept friend request' }), header.getByRole('button', { name: 'Verify' }))
-  await noSpill(header.getByRole('button', { name: 'Ignore friend request' }), header.getByRole('button', { name: 'Verify' }))
+  const banner = alice.getByTestId('friend-banner')
+  await expect(banner.getByRole('button', { name: 'Accept friend request' })).toBeVisible()
+  await noSpill(banner.getByRole('button', { name: 'Accept friend request' }), banner.getByRole('button', { name: 'Ignore friend request' }))
+  await noSpill(banner.getByRole('button', { name: 'Ignore friend request' }))
+  // The header stays one line: the name, the call buttons, "⋯".
+  expect((await alice.locator('.chat-header').boundingBox())!.height).toBeLessThanOrEqual(53)
   await alice.screenshot({ path: join(SHOTS, 'friends-dm-header-360.png') })
   await alice.getByRole('button', { name: 'Open menu' }).first().click()
   await alice.locator('.channel', { hasText: 'Friends' }).click()

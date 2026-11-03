@@ -1,6 +1,6 @@
 // Profile cards (a popover on wide screens, a bottom sheet on phones), the profile page viewer,
 // and the full member dialog they lead to. Rendered once by the Shell.
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { fingerprint } from '../../core/connection'
@@ -18,9 +18,10 @@ import { MemberDialog } from '../dialogs/MemberDialog'
 import { RoleChips } from '../roles/RoleSettings'
 import { openMySettings } from '../settings/open'
 import { hueFor } from '../format'
-import { Close, MoreHorizontal } from '../icons'
+import { Check, ChevronRight, Close, Copy, MoreHorizontal, User } from '../icons'
+import { Menu, MenuItem, ToastPill, type MenuAnchor } from '../kit'
 import { renderMarkdown } from '../markdown'
-import { EmailSafe, Secret } from '../streamer/StreamerBits'
+import { EmailSafe } from '../streamer/StreamerBits'
 import { useMemberPresence } from '../../state/presence'
 import { STATUS_LABELS } from '../../state/presenceRules'
 import { CustomStatusLine } from '../presence/Presence'
@@ -82,6 +83,13 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
   const isSelf = me?.accountKey === member.accountKey
   const page = pagesOn ? pageUrl(server.url, member.page) : null
   const presence = useMemberPresence(member)
+  const [more, setMore] = useState<MenuAnchor | null>(null)
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 1600)
+    return () => clearTimeout(timer)
+  }, [copied])
 
   // Next to what was clicked, kept inside the window: re-placed whenever the card's size or the window changes
   // (a friend request or late content can make it grow while open).
@@ -143,28 +151,43 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
                 <EmailSafe text={member.bio} render={(bio) => renderMarkdown(bio, { nameOf: (k) => server.members[k]?.name ?? null, me: me?.accountKey })} />
               </div>
             )}
-            <div className="profile-id muted">{t('settings.member.id')} <code><Secret value={fingerprint(member.accountKey)} /></code></div>
+            {page && (
+              <button className="profile-page-link" onClick={() => openProfilePage(server.key, member.accountKey)}>
+                <span>{t('profile.openPage')}</span><ChevronRight size={16} />
+              </button>
+            )}
           </div>
         </div>
         {/* Outside the scrolling part, so the buttons are always in sight. */}
         <div className="profile-actions">
-          {!isSelf && !member.builtin && (
+          {isSelf ? (
+            <button className="button primary" onClick={onEdit}>{t('profile.edit')}</button>
+          ) : !member.builtin && (
             <button className="button primary" onClick={() => { openConversation(member.accountKey); closeProfileCard() }}>{t('settings.member.message')}</button>
           )}
-          {page && (
-            <button className={`button ${isSelf || member.builtin ? 'primary' : ''}`} onClick={() => openProfilePage(server.key, member.accountKey)}>
-              {t('profile.openPage')}
-            </button>
-          )}
-          {!isSelf && <FriendButtons accountKey={member.accountKey} />}
-          {isSelf ? (
-            <button className="button" onClick={onEdit}>{t('profile.edit')}</button>
-          ) : (
-            <button className="icon-button profile-more" onClick={() => openMemberDetails(server.key, member.accountKey)} aria-label={t('common.more')} title={t('common.more')}>
-              <MoreHorizontal />
-            </button>
-          )}
+          {!isSelf && <FriendButtons accountKey={member.accountKey} icon />}
+          <button className={`icon-button profile-more ${more ? 'on' : ''}`} aria-label={t('common.more')} title={t('common.more')} aria-haspopup="menu" aria-expanded={!!more}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect()
+              setMore(more ? null : { x: r.right, y: r.bottom + 6 })
+            }}>
+            <MoreHorizontal />
+          </button>
         </div>
+        {more && (
+          <Menu anchor={more} label={t('profile.moreFor', { name: member.name })} onClose={() => setMore(null)}>
+            <div className="org-list" role="menu" aria-label={t('profile.moreFor', { name: member.name })}>
+              {!isSelf && (
+                <MenuItem icon={<User />} onClick={() => { setMore(null); openMemberDetails(server.key, member.accountKey) }}>{t('profile.details')}</MenuItem>
+              )}
+              <MenuItem icon={<Copy />} testId="copy-user-id" onClick={() => {
+                setMore(null)
+                void navigator.clipboard.writeText(fingerprint(member.accountKey)).then(() => setCopied(true), () => undefined)
+              }}>{t('profile.copyId')}</MenuItem>
+            </div>
+          </Menu>
+        )}
+        {copied && <ToastPill tone="success" icon={<Check size={16} />}>{t('profile.idCopied')}</ToastPill>}
       </div>
     </div>
   )

@@ -155,6 +155,7 @@ test('categories, notification levels and nicknames', async ({ browser }) => {
   const card = host.getByRole('dialog', { name: 'Profile of Captain F' })
   await expect(card.locator('.profile-realname')).toHaveText('Name: Friend')
   await card.getByRole('button', { name: 'More' }).click()
+  await host.getByRole('menuitem', { name: 'Member details' }).click()
   await expect(host.getByRole('dialog', { name: 'Captain F' })).toBeVisible()
   const details = host.locator('.modal', { has: host.getByLabel('Server nickname', { exact: true }) }) // its title follows the nickname
   await details.getByLabel('Server nickname', { exact: true }).fill('Freddie')

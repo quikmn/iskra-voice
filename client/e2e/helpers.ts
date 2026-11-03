@@ -339,17 +339,14 @@ export async function send(page: Page, text: string) {
 }
 
 /**
- * Clicks one of the composer's actions ("Emoji", "GIFs", "Attach files", "Create a poll", "Record a voice message").
- * Below 480 px they sit behind the "+" button (a sheet), so that opens first.
+ * Clicks one of the composer's actions ("Emoji", "GIFs", "Attach files", "Create a poll", "Record a voice message",
+ * "Send later"). GIFs and emoji are buttons in the row (below 480 px they move behind "+"); the rest are in the "+" menu.
  */
 export async function composerAction(page: Page, name: string) {
-  const plus = page.locator('.composer').getByRole('button', { name: 'Add to your message' })
-  if (await plus.isVisible()) {
-    await plus.click()
-    await page.getByRole('menuitem', { name, exact: true }).click()
-  } else {
-    await page.locator('.composer').getByRole('button', { name, exact: true }).click()
-  }
+  const inline = page.locator('.composer').getByRole('button', { name, exact: true })
+  if (await inline.isVisible()) return inline.click()
+  await page.locator('.composer').getByRole('button', { name: 'Add to your message' }).click()
+  await page.getByRole('menuitem', { name, exact: true }).click()
 }
 
 export async function createInviteLink(page: Page): Promise<string> {

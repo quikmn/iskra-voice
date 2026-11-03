@@ -1,6 +1,7 @@
 // Group DMs: the sidebar rows, the conversation, and the dialogs to make a group, add people and manage it.
 import { DisappearLine, ExpiryBadge } from '../disappear/Disappear'
-import { GroupTimerButton } from '../disappear/Timers'
+import { useGroupTimerTool } from '../disappear/Timers'
+import { HeaderMore, useHeaderFit } from '../chat/HeaderMore'
 import { useAlertPattern } from '../../state/alerts'
 import { matchesAlert } from '../../state/alertsLogic'
 import { Fragment, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -33,7 +34,7 @@ import { groupText } from './groupText'
 import { errorMessage } from '../../i18n/errors'
 import { userMenuProps } from '../people/userMenuProps'
 import { messageListKeys, useAnnounceNew } from '../a11y'
-import { AutoTranslateButton, TranslationBlock } from '../translate/Translate'
+import { TranslationBlock, useAutoTranslateTool } from '../translate/Translate'
 import { groupItem } from '../translate/items'
 import { convKey } from '../../state/translate'
 
@@ -363,6 +364,42 @@ function MembersDialog({ g, onClose, onAdd, onRename }: { g: GroupConv; onClose:
 
 // ── The conversation ───────────────────────────────────────────────────────
 
+/** A group's header: who's in it and the encryption pill, then call buttons, "⋯" (timer, translate) and members. */
+function GroupHeader({ groupKey, members, title, member, canChange, onNav, onMembers }: {
+  groupKey: string
+  members: string[]
+  title: string
+  member: boolean
+  canChange: boolean
+  onNav: () => void
+  onMembers: () => void
+}) {
+  const { t } = useTranslation()
+  const [ref, fit] = useHeaderFit<HTMLElement>()
+  const timer = useGroupTimerTool(groupKey, canChange)
+  const translate = useAutoTranslateTool(convKey.group(groupKey))
+  return (
+    <header className={`chat-header fit-${fit}`} ref={ref}>
+      <button className="icon-button mobile-only" onClick={onNav} aria-label={t('groups.openMenu')}><Menu /></button>
+      <GroupAvatar members={members} />
+      <h1 className="group-title">{title}</h1>
+      <span className="e2e-badge" title={t('groups.onlyPeopleRead')}><Lock size={13} /> {t('groups.e2e')}</span>
+      <span className="spacer" />
+      <div className="header-tools">
+        {timer.button}
+        {translate.on && translate.button}
+        {member && <GroupCallButtons groupKey={groupKey} />}
+        <HeaderMore label={t('chat.header.moreConversation')} groups={[[...(timer.item ? [timer.item] : []), ...(translate.on ? [] : [translate.item])]]} />
+        <button className="icon-button" onClick={onMembers} aria-label={t('groups.groupMembers')} title={t('groups.membersTitle')}>
+          <Users />
+        </button>
+        {translate.popover}
+        {timer.dialog}
+      </div>
+    </header>
+  )
+}
+
 export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: (panel: Panel) => void }) {
   const { t } = useTranslation()
   const g = useGroups((s) => s.groups[groupKey])
@@ -425,19 +462,8 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
 
   return (
     <div className="chat group-chat">
-      <header className="chat-header">
-        <button className="icon-button mobile-only" onClick={() => onToggle('nav')} aria-label={t('groups.openMenu')}><Menu /></button>
-        <GroupAvatar members={g.view.members} />
-        <h1 className="group-title">{title}</h1>
-        <span className="e2e-badge" title={t('groups.onlyPeopleRead')}><Lock size={13} /> {t('groups.e2e')}</span>
-        <span className="spacer" />
-        <GroupTimerButton groupKey={groupKey} canChange={member && !reason} />
-        {member && <GroupCallButtons groupKey={groupKey} />}
-        <AutoTranslateButton conv={convKey.group(groupKey)} />
-        <button className="icon-button" onClick={() => setDialog('members')} aria-label={t('groups.groupMembers')} title={t('groups.membersTitle')}>
-          <Users />
-        </button>
-      </header>
+      <GroupHeader groupKey={groupKey} members={g.view.members} title={title} member={member} canChange={member && !reason}
+        onNav={() => onToggle('nav')} onMembers={() => setDialog('members')} />
       {inThisCall && <GroupCallPanel groupKey={groupKey} />}
       {call && !inThisCall && member && <OngoingCallBanner groupKey={groupKey} />}
       {archived && (

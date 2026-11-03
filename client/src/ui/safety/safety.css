@@ -96,7 +96,6 @@
   .report-reasons { grid-template-columns: 1fr; }
   .report-actions .button { flex: 1; }
 }
-.more-menu button.danger { color: var(--red); }
 /* The first-run card grew with the terms: let short screens scroll it instead of cutting it off. */
 .onboarding { overflow-y: auto; place-items: safe center; }
 

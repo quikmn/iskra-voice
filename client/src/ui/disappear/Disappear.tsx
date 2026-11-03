@@ -20,8 +20,11 @@ export function TimerIcon({ size = 16 }: { size?: number }) {
 
 type Kind = 'dm' | 'group' | 'channel'
 
-/** The header button: shows the timer when it's on (the conversation's badge), and opens the setting. */
-export function DisappearButton({ kind, seconds, canChange, onSet }: {
+/**
+ * The timer in a conversation header. While it's on it shows as an icon with the time (the conversation's badge);
+ * while it's off it's a row in the header's "⋯" (`item`), or nothing when you can't change it. Both open the dialog.
+ */
+export function useDisappearTool({ kind, seconds, canChange, onSet }: {
   kind: Kind
   seconds: number
   canChange: boolean
@@ -30,23 +33,25 @@ export function DisappearButton({ kind, seconds, canChange, onSet }: {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const state = seconds ? t(`disappear.timers.${seconds}` as 'disappear.timers.300') : t('disappear.timers.0')
-  // Off and nothing you can change: nothing to show.
-  if (!seconds && !canChange) return null
-  return (
-    <>
+  return {
+    on: seconds > 0,
+    button: seconds > 0 ? (
       <button
-        className={`icon-button disappear-button ${seconds ? 'on' : ''}`}
+        className="icon-button disappear-button on"
         onClick={() => setOpen(true)}
         aria-label={t('disappear.button', { state })}
         title={t('disappear.button', { state })}
         data-testid="disappear-button"
       >
         <TimerIcon />
-        {seconds > 0 && <span className="disappear-short">{t(`disappear.short.${seconds}` as 'disappear.short.300')}</span>}
+        <span className="disappear-short">{t(`disappear.short.${seconds}` as 'disappear.short.300')}</span>
       </button>
-      {open && <DisappearDialog kind={kind} seconds={seconds} canChange={canChange} onSet={onSet} onClose={() => setOpen(false)} />}
-    </>
-  )
+    ) : null,
+    item: !seconds && canChange
+      ? { key: 'disappear', label: t('disappear.title'), icon: <TimerIcon />, onSelect: () => setOpen(true), testId: 'disappear-item' }
+      : null,
+    dialog: open && <DisappearDialog kind={kind} seconds={seconds} canChange={canChange} onSet={onSet} onClose={() => setOpen(false)} />,
+  }
 }
 
 export function DisappearDialog({ kind, seconds, canChange, onSet, onClose }: {

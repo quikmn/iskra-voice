@@ -33,7 +33,6 @@ export const chat: Messages['chat'] = {
     discard: 'Släng',
     couldNotSend: 'Kunde inte skicka.',
     tooFast: 'Du skickar för snabbt, vänta lite.',
-    deleteConfirm: 'Radera?',
     addReaction: 'Lägg till reaktion',
     reply: 'Svara',
     forward: 'Vidarebefordra',
@@ -165,6 +164,8 @@ export const chat: Messages['chat'] = {
     statusForbidden: 'Ingen behörighet att söka här',
   },
   header: {
+    more: 'Kanalalternativ',
+    moreConversation: 'Samtalsalternativ',
     threads: 'Trådar',
     pins: 'Fästa meddelanden',
     pinnedIn: 'Fäst i #{{name}}',

@@ -56,6 +56,27 @@ export function EncryptionButton({ server, channel }: { server: ServerState; cha
   )
 }
 
+/**
+ * A chat header's lock, right after the channel's name: it says "encrypted" and opens the encryption panel, so the
+ * header shows one lock instead of a badge plus a button.
+ */
+export function EncryptionLock({ server, channel }: { server: ServerState; channel: Channel }) {
+  const [open, setOpen] = useState(false)
+  const { t } = useTranslation()
+  const state = useE2ee((s) => s.channels[slotOf(server.key, channel.id)])
+  if (!channel.e2ee) return null
+  const warn = !!state?.problem || !!channel.e2ee.lost
+  return (
+    <>
+      <button className={`e2ee-title-lock ${warn ? 'warn' : ''}`} onClick={() => setOpen(true)} aria-label={t('e2ee.panel.open')} title={t('e2ee.badge')}
+        data-testid="e2ee-panel-open">
+        <Lock size={14} />
+      </button>
+      {open && <EncryptionDialog server={server} channel={channel} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
 export function EncryptionDialog({ server, channel, onClose }: { server: ServerState; channel: Channel; onClose: () => void }) {
   const { t } = useTranslation()
   const state = useE2ee((s) => s.channels[slotOf(server.key, channel.id)])

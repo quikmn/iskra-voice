@@ -27,6 +27,13 @@ export const friends = {
   ignore: 'Ignore',
   cancel: 'Cancel request',
   message: 'Message',
+  messageName: 'Message {{name}}',
+  banner: {
+    label: 'Friend request',
+    none: "You and {{name}} aren't friends yet.",
+    outgoing: 'Friend request sent to {{name}}.',
+    incoming: '{{name}} sent you a friend request.',
+  },
   more: 'More options for {{name}}',
   add: 'Add friend',
   requestSent: 'Request sent',

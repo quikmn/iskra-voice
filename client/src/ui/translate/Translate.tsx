@@ -10,28 +10,29 @@ import {
 } from '../../state/translate'
 import { languageName, TRANSLATE_LANGUAGES } from '../../state/translate/languages'
 import { Popover } from '../chat/HeaderTools'
+import { MenuItem, SwitchRow } from '../kit'
 import './translate.css'
 
 type Wrap = (doneLabel: string | null, action: () => void | Promise<unknown>) => () => void
 
 const name = (code: string | undefined) => (code ? languageName(code, intlLocale()) : '')
 
-const TranslateIcon = ({ size = 18 }: { size?: number }) => (
+export const TranslateIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="m5 8 6 6" /><path d="m4 14 6-6 2-3" /><path d="M2 5h12" /><path d="M7 2h1" /><path d="m22 22-5-10-5 10" /><path d="M14 18h6" />
   </svg>
 )
 
 /** "Translate" (or "Show original") for a message menu; `wrap` is the menu's own click wrapper. */
-export function TranslateMenuItem({ item, wrap, icon }: { item: TranslateItem | null; wrap: Wrap; icon?: boolean }) {
+export function TranslateMenuItem({ item, wrap }: { item: TranslateItem | null; wrap: Wrap }) {
   const { t } = useTranslation()
   const { key, entry } = useMessageTranslation(item)
   if (!item) return null
   const showing = entry?.shown && entry.status === 'done'
   return (
-    <button role="menuitem" onClick={wrap(null, () => (showing ? hideTranslation(key) : translateMessage(item)))}>
-      {icon && <TranslateIcon />}{showing ? t('translate.showOriginal') : t('translate.menu')}
-    </button>
+    <MenuItem icon={<TranslateIcon />} onClick={wrap(null, () => (showing ? hideTranslation(key) : translateMessage(item)))}>
+      {showing ? t('translate.showOriginal') : t('translate.menu')}
+    </MenuItem>
   )
 }
 
@@ -124,29 +125,31 @@ export function TranslateTargetField() {
   )
 }
 
-/** Header button: auto-translate here, and into which language. */
-export function AutoTranslateButton({ conv }: { conv: string }) {
+/**
+ * Auto-translate here, and into which language, for a conversation header: an icon while it's on (it says so), else
+ * a row in the header's "⋯". Both open the same popover.
+ */
+export function useAutoTranslateTool(conv: string) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const auto = useAutoTranslate(conv)
-  return (
-    <div className="header-tools translate-tools">
+  return {
+    on: auto,
+    button: (
       <button className={`icon-button ${open || auto ? 'on' : ''}`} onClick={() => setOpen((o) => !o)} aria-label={t('translate.auto.button')}
         title={t('translate.auto.button')} aria-expanded={open} data-testid="auto-translate-button">
         <TranslateIcon />
       </button>
-      {open && (
-        <Popover title={t('translate.auto.title')} onClose={() => setOpen(false)}>
-          <div className="translate-popover">
-            <label className="checkbox">
-              <input type="checkbox" checked={auto} onChange={(e) => setAutoTranslate(conv, e.target.checked)} />
-              {t('translate.auto.toggle')}
-            </label>
-            <TranslateTargetField />
-            <p className="muted small">{t('translate.auto.hint')}</p>
-          </div>
-        </Popover>
-      )}
-    </div>
-  )
+    ),
+    item: { key: 'translate', label: t('translate.auto.button'), icon: <TranslateIcon />, onSelect: () => setOpen(true), testId: 'auto-translate-item' },
+    popover: open && (
+      <Popover title={t('translate.auto.title')} onClose={() => setOpen(false)}>
+        <div className="translate-popover">
+          <SwitchRow title={t('translate.auto.toggle')} checked={auto} onChange={(on) => setAutoTranslate(conv, on)} />
+          <TranslateTargetField />
+          <p className="muted small">{t('translate.auto.hint')}</p>
+        </div>
+      </Popover>
+    ),
+  }
 }

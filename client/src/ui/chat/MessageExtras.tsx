@@ -6,7 +6,8 @@ import { formatSize, QUICK_REACTIONS } from './helpers'
 import { connectionFor, fileUrl, toggleReaction, type ServerState } from '../../state/store'
 import { ImageGrid, Lightbox, SpoilerCover, TextFilePreview, isSpoilerName, isTextFile, shownName } from './media'
 import { EmojiGlyph, EmojiPicker } from '../expressions/EmojiPicker'
-import { SmilePlus } from '../expressions/icons'
+import { Play, SmilePlus } from '../expressions/icons'
+import { Switch } from '../kit'
 import { useEscapeLayer } from '../layers'
 import { focusFirstItem, useReturnFocus } from '../a11y'
 import { FileIcon } from '../icons'
@@ -61,14 +62,21 @@ export function Attachments({ server, files }: { server: ServerState; files: Fil
   )
 }
 
+/** The little hook from a reply up to the message it answers. */
+const ReplyCurve = () => (
+  <svg className="reply-curve" width="14" height="10" viewBox="0 0 14 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+    <path d="M1 10V6a4 4 0 0 1 4-4h8" />
+  </svg>
+)
+
 export function ReplyLine({ server, reply, onJump }: { server: ServerState; reply: ReplyPreview; onJump: (id: number) => void }) {
   const { t } = useTranslation()
-  if (reply.deleted) return <div className="reply-line muted">↪ {t('chat.message.replyDeleted')}</div>
+  if (reply.deleted) return <div className="reply-line muted"><ReplyCurve />{t('chat.message.replyDeleted')}</div>
   const name = reply.importedName ?? server.members[reply.author]?.name ?? t('common.someone')
   const text = plainText(reply.text, { nameOf: (k) => server.members[k]?.name ?? null }).replace(/\s+/g, ' ')
   return (
     <button className="reply-line" onClick={() => onJump(reply.id)}>
-      <span className="reply-author">↪ {name}</span>
+      <ReplyCurve /><span className="reply-author">{name}</span>
       <span className="reply-text">{text || (reply.hasAttachments ? t('chat.message.attachment') : '')}</span>
     </button>
   )
@@ -206,13 +214,13 @@ function EmbedCard({ embed, url, preview }: { embed: Embed; url: string; preview
       ) : (
         <div className="embed-gate" data-testid="embed-gate">
           <button className={`embed-play ${embed.shape}`} onClick={load}>
-            <span className="embed-play-icon" aria-hidden>▶</span>
+            <span className="embed-play-icon" aria-hidden><Play size={20} /></span>
             <span>{action}</span>
             <span className="muted embed-note">{t('chat.embed.note', { provider: site })}</span>
           </button>
-          <label className="checkbox embed-remember">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-            {t('chat.embed.always', { site })}
+          <label className="embed-remember">
+            <Switch checked={remember} onChange={setRemember} label={t('chat.embed.always', { site })} />
+            <span aria-hidden>{t('chat.embed.always', { site })}</span>
           </label>
         </div>
       )}

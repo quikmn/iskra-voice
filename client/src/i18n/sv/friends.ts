@@ -28,6 +28,13 @@ export const friends: Messages['friends'] = {
   ignore: 'Ignorera',
   cancel: 'Avbryt förfrågan',
   message: 'Skicka meddelande',
+  messageName: 'Skriv till {{name}}',
+  banner: {
+    label: 'Vänförfrågan',
+    none: '{{name}} och du är inte vänner än.',
+    outgoing: 'Vänförfrågan skickad till {{name}}.',
+    incoming: '{{name}} har skickat en vänförfrågan till dig.',
+  },
   more: 'Fler val för {{name}}',
   add: 'Lägg till vän',
   requestSent: 'Förfrågan skickad',

@@ -11,6 +11,7 @@ test.afterEach(async () => server?.stop())
 async function openMember(page: Page, name: string) {
   await page.locator('.member-list').getByRole('button', { name }).first().click()
   await page.getByRole('dialog', { name: `Profile of ${name}` }).getByRole('button', { name: 'More' }).click()
+  await page.getByRole('menuitem', { name: 'Member details' }).click()
   const dialog = page.getByRole('dialog', { name })
   await expect(dialog).toBeVisible()
   return dialog
@@ -91,7 +92,8 @@ test('encrypted channel started over: a returning member sees a warning, starts 
   await channelRow(bob, 'vault').click()
   await expect(bob.locator('.message-text', { hasText: before })).toBeVisible({ timeout: 20_000 })
 
-  await host.getByRole('button', { name: 'Channel settings' }).click()
+  await host.getByTestId('header-more').click()
+  await host.getByRole('menuitem', { name: 'Channel settings' }).click()
   const channelSettings = host.getByRole('dialog', { name: '#vault settings' })
   await channelSettings.getByLabel('Add a role').selectOption({ label: 'Away' })
   await channelSettings.getByRole('radiogroup', { name: 'See the channel for Away' }).getByRole('radio', { name: 'Deny' }).click()

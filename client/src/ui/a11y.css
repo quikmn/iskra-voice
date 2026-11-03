@@ -37,7 +37,7 @@
     transition-duration: 0.001ms !important; scroll-behavior: auto !important;
   }
 }
-.emoji-picker:focus, .soundboard:focus, .share-menu:focus, .header-popover:focus, .more-menu:focus, .reaction-picker:focus { outline: none; }
+.emoji-picker:focus, .soundboard:focus, .share-menu:focus, .header-popover:focus, .reaction-picker:focus { outline: none; }
 
 /* Call tiles: the tile is a button under its label and full-screen button. */
 .tile-focus { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; background: none; cursor: pointer; border-radius: inherit; }

@@ -35,7 +35,8 @@ async function createChannel(page: Page, name: string, readRole?: string) {
 async function forward(page: Page, text: string, target: string) {
   const message = page.locator('.message', { hasText: text }).last()
   await message.hover()
-  await message.getByRole('button', { name: 'Forward' }).click()
+  await message.getByRole('button', { name: 'More', exact: true }).click()
+  await page.getByRole('menu', { name: 'Message options' }).getByRole('menuitem', { name: 'Forward' }).click()
   const dialog = page.getByRole('dialog', { name: 'Forward message' })
   await dialog.getByLabel('Search channels and people').fill(target.replace(/^#/, ''))
   await dialog.getByRole('button', { name: `Forward to ${target}`, exact: true }).click()

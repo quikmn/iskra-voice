@@ -92,7 +92,8 @@ test('the review server greets testers with a welcome, a guide and topics', asyn
 
   await owner.getByRole('button', { name: 'general', exact: true }).click()
   await expect(owner.locator('.channel-topic')).toContainText('Talk about anything')
-  await owner.getByRole('button', { name: 'Channel settings' }).click()
+  await owner.getByTestId('header-more').click()
+  await owner.getByRole('menuitem', { name: 'Channel settings' }).click()
   const settings = owner.getByRole('dialog', { name: '#general settings' })
   await settings.getByLabel('Topic').fill('Anything goes. Be kind.')
   await settings.getByRole('button', { name: 'Save' }).click()

@@ -12,6 +12,7 @@ test.afterAll(async () => server?.stop())
 async function openMember(page: Page, name: string) {
   await page.locator('.member-list').getByRole('button', { name }).click()
   await page.getByRole('dialog', { name: `Profile of ${name}` }).getByRole('button', { name: 'More' }).click()
+  await page.getByRole('menuitem', { name: 'Member details' }).click()
   const dialog = page.getByRole('dialog', { name })
   await expect(dialog).toBeVisible()
   return dialog
@@ -76,7 +77,8 @@ test('block, timeout, slowmode and the audit log', async ({ browser }) => {
   await expect(friend.getByPlaceholder('Message #general')).toBeVisible()
 
   // ── Slowmode: a countdown after each message; admins aren't limited.
-  await host.getByRole('button', { name: 'Channel settings' }).click()
+  await host.getByTestId('header-more').click()
+  await host.getByRole('menuitem', { name: 'Channel settings' }).click()
   const settings = host.getByRole('dialog', { name: '#general settings' })
   await settings.getByLabel('Slowmode').fill('2') // 10 s
   await expect(settings).toContainText('one message every 10 s')
@@ -88,8 +90,11 @@ test('block, timeout, slowmode and the audit log', async ({ browser }) => {
   await send(friend, 'slow and steady')
   await expect(friend.locator('[id^="msg-"] .message-text', { hasText: 'slow and steady' })).toBeVisible()
   await expect(friend.locator('.slowmode-chip.waiting')).toHaveText(/0:\d\d/)
+  // An empty box shows the microphone instead of Send; with something typed, Send waits for the timer.
+  await friend.getByPlaceholder('Message #general').fill('too soon')
   await expect(friend.getByRole('button', { name: 'Send', exact: true })).toBeDisabled()
   await friend.screenshot({ path: join(SHOTS, 'moderation-slowmode.png') })
+  await friend.getByPlaceholder('Message #general').fill('')
   await send(host, 'admin one')
   await send(host, 'admin two')
   await expect(host.locator('.message-text', { hasText: 'admin two' })).toBeVisible()

@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { Modal } from '../bits'
 import { parseOpenRoute } from '../../core/pushRoute'
-import { Copy } from '../icons'
+import { Check, Copy } from '../icons'
 import { formatTimestamp, highlight, type TimestampStyle } from './richTextRules'
 import { useRichEngines } from './richLoader'
 import './rich-text.css'
@@ -31,9 +31,11 @@ export function CodeBlock({ code, language }: { code: string; language: string }
           {rich ?? (language ? highlight(code, language).map((tok, i) => (tok.kind === 'plain' ? tok.text : <span key={i} className={`tok-${tok.kind}`}>{tok.text}</span>)) : code)}
         </code>
       </pre>
-      <button className="code-copy" onClick={() => void copy()} aria-label={t('chat.richText.copyCode')} title={t('chat.richText.copyCode')}>
-        {copied ? t('common.copied') : <Copy size={14} />}
+      {/* The button itself says it worked (a check for a moment), nothing floats over the code. */}
+      <button className={`code-copy ${copied ? 'copied' : ''}`} onClick={() => void copy()} aria-label={t('chat.richText.copyCode')} title={t('chat.richText.copyCode')}>
+        {copied ? <Check size={14} /> : <Copy size={14} />}
       </button>
+      <span className="sr-only" role="status">{copied ? t('common.copied') : ''}</span>
     </div>
   )
 }

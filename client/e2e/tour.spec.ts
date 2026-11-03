@@ -400,6 +400,7 @@ test('screenshot tour', async ({ browser }) => {
     await host.locator('.member-list').getByRole('button', { name: /Alice/ }).click()
     await shot(host, '26-profile-card-desktop')
     await host.getByRole('button', { name: 'More' }).click()
+    await host.getByRole('menuitem', { name: 'Member details' }).click()
     await shot(host, '27-dialog-member-desktop')
     await host.keyboard.press('Escape')
     await phone.getByRole('button', { name: 'Members' }).first().click()
