@@ -270,7 +270,7 @@ export async function startScreen(browser: Browser, lang: Lang, device: Device, 
   const phone = await nativeApp(browser, device, lang)
   await phone.goto('/')
   await agreeToTerms(phone)
-  await phone.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await phone.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await phone.getByLabel('Your name').fill('Maja')
   await phone.getByRole('button', { name: 'Continue' }).click()
   await expect(phone.getByText('No servers yet')).toBeVisible()

@@ -13,7 +13,7 @@ async function knock(page: Page, link: string, name: string) {
   await page.goto(link)
   await expect(page.getByText("You've been invited")).toBeVisible()
   await agreeToTerms(page)
-  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await page.getByLabel('Your name').fill(name)
   await page.getByRole('button', { name: 'Join' }).click()
 }
@@ -91,7 +91,7 @@ test('approval invites queue joiners for moderators; paused invites turn people 
   await expect(late.getByRole('heading', { name: 'general', exact: true })).toBeVisible({ timeout: 15_000 })
 
   // The activity log tells the story.
-  await openServerSettings(host, 'Activity log')
+  await openServerSettings(host, 'Audit log')
   const log = host.locator('.audit-list')
   await expect(log).toContainText('Host let Sam in')
   await expect(log).toContainText('Host paused invites')

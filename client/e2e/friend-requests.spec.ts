@@ -38,7 +38,7 @@ test('friend requests: right-click to send, accept, friends on both sides, then 
   await bob.locator('.channel', { hasText: 'Friends' }).click()
   // All (the default tab) shows the request on top instead of "No friends yet" (UX audit P1).
   await expect(bob.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true')
-  const requests = bob.getByRole('region', { name: 'Friend requests — 1' })
+  const requests = bob.getByRole('region', { name: 'Friend requests · 1' })
   await expect(requests.locator('.friend-row', { hasText: 'Alice' })).toContainText('Incoming friend request')
   await expect(requests.getByRole('button', { name: 'Accept friend request' })).toBeVisible()
   await expect(bob.getByText('No friends yet')).toHaveCount(0)
@@ -46,7 +46,7 @@ test('friend requests: right-click to send, accept, friends on both sides, then 
   // Alice sees hers under Sent.
   await alice.getByRole('button', { name: 'Direct messages' }).click()
   await alice.locator('.channel', { hasText: 'Friends' }).click()
-  await expect(alice.getByRole('region', { name: 'Sent — 1' }).locator('.friend-row', { hasText: 'Bob' })).toBeVisible()
+  await expect(alice.getByRole('region', { name: 'Sent · 1' }).locator('.friend-row', { hasText: 'Bob' })).toBeVisible()
   await bob.getByRole('tab', { name: /Pending/ }).click()
   const request = bob.locator('.friend-row', { hasText: 'Alice' })
   await expect(request).toContainText('Incoming friend request')
@@ -114,7 +114,7 @@ test('friend requests: right-click to send, accept, friends on both sides, then 
   await alice.screenshot({ path: join(SHOTS, 'friends-dm-header-360.png') })
   await alice.getByRole('button', { name: 'Open menu' }).first().click()
   await alice.locator('.channel', { hasText: 'Friends' }).click()
-  const narrow = alice.getByRole('region', { name: 'Friend requests — 1' })
+  const narrow = alice.getByRole('region', { name: 'Friend requests · 1' })
   await expect(narrow.locator('.section-title')).toBeInViewport({ ratio: 1 })
   await noSpill(narrow.getByRole('button', { name: 'Accept friend request' }))
   await noSpill(narrow.getByRole('button', { name: 'Ignore friend request' }))

@@ -10,7 +10,7 @@ const settled = (page: Page) => page.evaluate(() => Promise.all(document.getAnim
 const MINE = ['Profile', 'Appearance', 'Language', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Streamer mode', 'Voice & audio', 'Camera', 'Blocked people', 'Account', 'Assistant', 'Privacy & data', 'About & legal']
 const SERVER_SECTIONS = [
   'Overview', 'Channels', 'Voice', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Join questions', 'Translation',
-  'Members', 'Roles', 'Reports', 'AutoMod', 'Activity log', 'Sign-ins & security',
+  'Members', 'Roles', 'Reports', 'AutoMod', 'Audit log', 'Sign-ins & security',
   'Bots & webhooks', 'Activities',
   'Internet access', 'Limits', 'Backup & move', 'Export channels', 'Import from Discord', 'Server updates',
 ]
@@ -32,7 +32,7 @@ test('the server room belongs to one server; My settings has no server sections'
   const menu = host.getByRole('dialog', { name: 'Hangout options' })
   await expect(menu.getByRole('menuitem')).toHaveText([
     'Invite friends', 'Create channel…', 'Server settings', 'Members', 'Roles', 'Reports', 'More settings',
-    /^Notifications/, /^Mute server/, /^Sound/, /^Notify me for LFG/, 'Server nickname…', 'Mark as read', 'Move / Folder', 'Hide server', 'Leave server',
+    /^Notifications/, /^Mute server/, /^Sound/, /^Notify me for LFG/, 'Server nickname…', 'Mark as read', 'Move to folder', 'Hide server', 'Leave server',
   ])
   await settled(host)
   await host.screenshot({ path: join(SHOTS, 'server-room-menu.png') })
@@ -71,10 +71,10 @@ test('the server room belongs to one server; My settings has no server sections'
   // The dropdown above the channels opens the room of the server you're looking at, via More settings.
   await host.locator('.server-header-button').click()
   await host.getByRole('menuitem', { name: 'More settings' }).click()
-  await host.getByRole('menuitem', { name: 'Activity log' }).click()
+  await host.getByRole('menuitem', { name: 'Audit log' }).click()
   const dungeonRoom = serverRoom(host, 'Dungeon')
   await expect(dungeonRoom.getByRole('heading', { name: 'Dungeon', level: 1 })).toBeVisible()
-  await expect(dungeonRoom.getByRole('button', { name: 'Activity log', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect(dungeonRoom.getByRole('button', { name: 'Audit log', exact: true })).toHaveAttribute('aria-current', 'page')
   // The browser's back button closes it too.
   await host.goBack()
   await expect(dungeonRoom).toHaveCount(0)
@@ -94,7 +94,7 @@ test('the server room belongs to one server; My settings has no server sections'
   const mine = host.getByRole('dialog', { name: 'Settings' })
   await expect(mine.getByRole('heading', { name: 'My settings', level: 1 })).toBeVisible()
   await expect(mine.getByRole('navigation', { name: 'Settings sections' }).getByRole('button')).toHaveText(MINE)
-  for (const section of ['Overview', 'Roles', 'Activity log', 'Internet access']) await expect(mine.getByRole('button', { name: section, exact: true })).toHaveCount(0)
+  for (const section of ['Overview', 'Roles', 'Audit log', 'Internet access']) await expect(mine.getByRole('button', { name: section, exact: true })).toHaveCount(0)
   await expect(mine).not.toContainText('Hangout')
   await settled(host)
   await host.screenshot({ path: join(SHOTS, 'my-settings-desktop.png') })
@@ -110,7 +110,7 @@ test('the server room belongs to one server; My settings has no server sections'
   // A member with no admin rights: no Server settings at all, just their own things.
   await friend.locator('.server-rail').getByTitle('Hangout', { exact: true }).click({ button: 'right' })
   const theirs = friend.getByRole('dialog', { name: 'Hangout options' })
-  await expect(theirs.getByRole('menuitem')).toHaveText(['Invite friends', /^Notifications/, /^Mute server/, /^Sound/, /^Notify me for LFG/, 'Server nickname…', 'Mark as read', 'Move / Folder', 'Hide server', 'Leave server'])
+  await expect(theirs.getByRole('menuitem')).toHaveText(['Invite friends', /^Notifications/, /^Mute server/, /^Sound/, /^Notify me for LFG/, 'Server nickname…', 'Mark as read', 'Move to folder', 'Hide server', 'Leave server'])
   await settled(friend)
   await friend.screenshot({ path: join(SHOTS, 'server-room-member-menu.png') })
   await theirs.getByRole('menuitem', { name: 'Server nickname…' }).click()
@@ -151,8 +151,8 @@ test('phone: the server room is a page stack under the server band', async ({ br
   await room.getByRole('button', { name: 'Back' }).click()
   await expect(nav).toBeVisible()
   // The phone's back button goes up a level too, then closes.
-  await nav.getByRole('button', { name: 'Activity log', exact: true }).click()
-  await expect(room.getByRole('heading', { name: /Activity log/ })).toBeVisible()
+  await nav.getByRole('button', { name: 'Audit log', exact: true }).click()
+  await expect(room.getByRole('heading', { name: /Audit log/ })).toBeVisible()
   await phone.goBack()
   await expect(nav).toBeVisible()
   await expect(room).toBeVisible()

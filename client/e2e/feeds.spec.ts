@@ -75,7 +75,7 @@ test('Feeds: an admin adds an RSS feed and new posts show up in the channel', as
   // A new post on the blog; "Check now" picks it up and the bot posts it (the old one never).
   items.unshift({ id: 'new-1', title: 'Margherita *done right*' })
   await row.getByTestId('feed-check').click()
-  await expect(row.getByRole('status').last()).toHaveText('Checked.')
+  await expect(row.getByRole('status').last()).toHaveText('Checked')
   await host.keyboard.press('Escape')
   const post = host.getByTestId('feed-post')
   await expect(post).toHaveCount(1)

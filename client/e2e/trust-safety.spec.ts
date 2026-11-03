@@ -20,7 +20,7 @@ async function moreMenu(page: Page, text: string) {
 test('the terms are agreed on first run, and again when they change', async ({ browser }) => {
   const page = await (await browser.newContext()).newPage()
   await page.goto('/')
-  const isNew = page.getByRole('button', { name: /I’m new to Iskra/ })
+  const isNew = page.getByRole('button', { name: /I'm new to Iskra/ })
   const already = page.getByRole('button', { name: /I already use Iskra/ })
   await expect(isNew).toBeDisabled()
   await expect(already).toBeDisabled()
@@ -153,7 +153,7 @@ test('a reported message reaches the moderators, who delete it and resolve the r
   await expect(badge).toContainText('1')
   await badge.click()
   const shared = settings.locator('.report-card').first()
-  await expect(shared).toContainText('private messages')
+  await expect(shared).toContainText('direct messages')
   await expect(shared).toContainText('tell me where you live')
   await expect(shared).toContainText("Shared by the reporter from an encrypted conversation")
   await shared.getByRole('button', { name: 'Dismiss' }).click()
@@ -161,7 +161,7 @@ test('a reported message reaches the moderators, who delete it and resolve the r
   await host.keyboard.press('Escape')
 
   // The audit log says a report was handled, never by whom it was made.
-  await openServerSettings(host, 'Activity log')
+  await openServerSettings(host, 'Audit log')
   await expect(host.getByText(/Host handled a report about Troll: message deleted/)).toBeVisible()
   await host.keyboard.press('Escape')
 })
@@ -200,7 +200,7 @@ test('deleting an account removes it from the server and wipes the device', asyn
 
     // The device starts over, and the server forgot the account and its messages.
     await expect(leaver.getByText('Your account was deleted, and everything it had on this device is gone.')).toBeVisible({ timeout: 15_000 })
-    await expect(leaver.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible()
+    await expect(leaver.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible()
     await leaver.waitForTimeout(350) // let the dialog finish appearing
     await leaver.screenshot({ path: join(SHOTS, 'safety-account-deleted.png') })
     await expect(owner.locator('.message-text', { hasText: 'goodbye everyone' })).toHaveCount(0)

@@ -67,7 +67,7 @@ test('the splash shows first, then fades into the app', async () => {
     expect(log.filter((e) => e.startsWith('splash view')).at(-1)).toBe('splash view Iskra | Ready')
     expect(log.some((e) => e.includes('Updated to'))).toBe(false)
     expect(await splashWindows(app)).toBe(0)
-    await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible()
     // This version is remembered, for "Updated to X" next time.
     expect(JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8')).lastRunVersion).toBe(VERSION)
 
@@ -81,7 +81,7 @@ test('the splash shows first, then fades into the app', async () => {
     await updating('9.9.9')
     const overlay = page.getByRole('alertdialog', { name: 'Updating Iskra to 9.9.9…' })
     await expect(overlay).toBeVisible()
-    await expect(overlay).toContainText('It’ll be back in a few seconds.')
+    await expect(overlay).toContainText("It'll be back in a few seconds.")
     await page.screenshot({ path: join(SHOTS, 'desktop-updating-overlay.png'), animations: 'disabled' })
     await updating(null) // it didn't quit after all
     await expect(overlay).toBeHidden()
@@ -186,7 +186,7 @@ test('splash screenshots', async ({ page }) => {
   await shot('desktop-splash.png', { heading: 'Iskra', status: 'Starting your servers…', progress: 0.54, lang: 'en' })
   await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '54')
   await shot('desktop-splash-updated.png', { heading: `Updated to ${VERSION}`, status: 'Connecting…', progress: 0.85, lang: 'en' })
-  await shot('desktop-splash-updating.png', { heading: 'Updating Iskra to 9.9.9…', status: 'It’ll be back in a few seconds.', progress: null, lang: 'en' })
+  await shot('desktop-splash-updating.png', { heading: 'Updating Iskra to 9.9.9…', status: "It'll be back in a few seconds.", progress: null, lang: 'en' })
   await expect(page.getByRole('progressbar')).not.toHaveAttribute('aria-valuenow', /.*/)
   expect(await page.title()).toBe('Updating Iskra to 9.9.9…')
 })

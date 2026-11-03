@@ -254,7 +254,7 @@ export async function joinVia(page: Page, link: string, name: string, landing = 
   await page.goto(link)
   await expect(page.getByText("You've been invited")).toBeVisible()
   await agreeToTerms(page)
-  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await page.getByLabel('Your name').fill(name)
   await page.getByRole('button', { name: 'Join' }).click()
   await expect(page.getByRole('heading', { name: landing, exact: true })).toBeVisible({ timeout: 15_000 })
@@ -312,7 +312,7 @@ export async function recordSeen(page: Page, selector: string): Promise<() => Pr
 
 /** The first-run screen asks to agree to the terms before either choice (once per device and terms version). */
 export async function agreeToTerms(page: Page) {
-  await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible({ timeout: 15_000 })
   const box = page.getByRole('checkbox', { name: /I agree to the Terms of Use/ })
   if (await box.isVisible()) await box.check()
 }

@@ -12,8 +12,8 @@ async function setLevel(page: Page, name: string, level: string) {
   await page.locator('.member-list').getByRole('button', { name }).click()
   await page.getByRole('dialog', { name: `Profile of ${name}` }).getByRole('button', { name: 'More' }).click()
   const dialog = page.getByRole('dialog', { name })
-  await dialog.getByLabel('Base role').selectOption(level)
-  await expect(dialog.getByLabel('Base role')).toHaveValue(level)
+  await dialog.getByLabel('Built-in role').selectOption(level)
+  await expect(dialog.getByLabel('Built-in role')).toHaveValue(level)
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
 }

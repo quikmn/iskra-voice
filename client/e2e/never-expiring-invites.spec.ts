@@ -57,7 +57,7 @@ test('an owner makes a never-expiring invite, a friend joins with it, and revoki
   await carol.goto(neverLink)
   await expect(carol.getByText("You've been invited")).toBeVisible()
   await agreeToTerms(carol)
-  await carol.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await carol.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await carol.getByLabel('Your name').fill('Carol')
   await carol.getByRole('button', { name: 'Join' }).click()
   await expect(carol.getByText('You need a valid invite to join this server.')).toBeVisible({ timeout: 15_000 })

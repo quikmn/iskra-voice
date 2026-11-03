@@ -30,7 +30,7 @@ test('one search asks every server and the DMs, grouped by server, and knows whe
     await panel.getByRole('radio', { name: 'Everywhere' }).click()
     await expect(panel.getByRole('heading', { name: '2 messages' })).toBeVisible()
     const groups = panel.locator('.search-group')
-    await expect(groups.locator('.search-group-name')).toHaveText(['Away Team', 'Home Base', 'Direct messages and groups'])
+    await expect(groups.locator('.search-group-name')).toHaveText(['Away Team', 'Home Base', 'Direct messages and group chats'])
     await expect(groups.nth(0).locator('.result-card')).toContainText('apple crumble away')
     await expect(groups.nth(1).locator('.result-card')).toContainText('apple pie at home')
     await expect(groups.nth(2).locator('.search-group-status')).toHaveText('0 messages')
@@ -54,7 +54,7 @@ test('one search asks every server and the DMs, grouped by server, and knows whe
     await viktor.keyboard.press('Control+k')
     const switcher = viktor.getByRole('dialog', { name: 'Jump to a conversation' })
     await switcher.getByRole('combobox').fill('crumble')
-    await switcher.getByRole('button', { name: 'Search everywhere for “crumble”' }).click()
+    await switcher.getByRole('button', { name: 'Search everywhere for "crumble"' }).click()
     await expect(panel.getByRole('radio', { name: 'Everywhere' })).toHaveAttribute('aria-checked', 'true')
     await expect(panel.locator('.result-card')).toContainText(['apple crumble away'])
 

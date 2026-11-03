@@ -93,7 +93,7 @@ test('an emoji from one server can be sent and reacted with on another, and the 
     const external = powers.getByRole('checkbox', { name: 'Use emoji and stickers from their other servers here' })
     await expect(external).toBeChecked()
     await external.uncheck()
-    await powers.getByRole('button', { name: 'Save powers' }).click()
+    await powers.getByRole('button', { name: 'Save permissions' }).click()
     await expect(powers.getByRole('status')).toHaveText('Saved')
     await owner.keyboard.press('Escape')
     await viktor.getByRole('button', { name: 'Emoji', exact: true }).click()

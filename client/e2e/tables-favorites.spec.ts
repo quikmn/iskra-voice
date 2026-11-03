@@ -40,7 +40,7 @@ test('tables and small text in chat, favorite channels on Home', async ({ browse
   // ── Favorites: star two channels from the channel menu (one by keyboard) ──
   const general = page.locator('.org-row', { has: page.locator('.channel-name', { hasText: /^general$/ }) }).first()
   await general.locator('.channel').click({ button: 'right' })
-  await page.getByRole('menuitem', { name: 'Add to favorites' }).click()
+  await page.getByRole('menuitem', { name: 'Add to favourites' }).click()
 
   await page.getByRole('button', { name: 'Create channel' }).first().click()
   const create = page.getByRole('dialog', { name: 'Create channel' })
@@ -52,10 +52,10 @@ test('tables and small text in chat, favorite channels on Home', async ({ browse
   await other.hover()
   await other.getByRole('button', { name: '#lounge options' }).focus()
   await page.keyboard.press('Enter')
-  await page.getByRole('menuitem', { name: 'Add to favorites' }).click()
+  await page.getByRole('menuitem', { name: 'Add to favourites' }).click()
 
   await page.getByRole('button', { name: 'Direct messages' }).click()
-  const section = page.getByRole('group', { name: 'Favorites' })
+  const section = page.getByRole('group', { name: 'Favourites' })
   await expect(section.getByTestId('favorite')).toHaveCount(2)
   const names = await section.locator('.fav-row .channel-name').allTextContents()
   expect(names).toEqual(['general', 'lounge'])
@@ -66,13 +66,13 @@ test('tables and small text in chat, favorite channels on Home', async ({ browse
   await section.getByRole('button', { name: /^Move #?general down/ }).click()
   await expect(section.locator('.fav-row .channel-name').last()).toHaveText('general')
   await page.screenshot({ path: join(SHOTS, 'favorites-edit.png') })
-  await section.getByRole('button', { name: /^Remove #?general from favorites/ }).click()
+  await section.getByRole('button', { name: /^Remove #?general from favourites/ }).click()
   await expect(section.getByTestId('favorite')).toHaveCount(1)
 
   // Kept after a reload, and a click jumps to the channel.
   await page.reload()
   await page.getByRole('button', { name: 'Direct messages' }).click()
-  const kept = page.getByRole('group', { name: 'Favorites' }).getByTestId('favorite')
+  const kept = page.getByRole('group', { name: 'Favourites' }).getByTestId('favorite')
   await expect(kept).toHaveCount(1)
   const name = (await kept.locator('.channel-name').textContent())!
   await kept.locator('.channel').click()
@@ -81,7 +81,7 @@ test('tables and small text in chat, favorite channels on Home', async ({ browse
   // Unstar from the menu: the section goes away.
   const here = page.locator('.org-row:not(.fav-row)', { has: page.locator('.channel.active') })
   await here.locator('.channel').click({ button: 'right' })
-  await page.getByRole('menuitem', { name: 'Remove from favorites' }).click()
+  await page.getByRole('menuitem', { name: 'Remove from favourites' }).click()
   await page.getByRole('button', { name: 'Direct messages' }).click()
-  await expect(page.getByRole('group', { name: 'Favorites' })).toHaveCount(0)
+  await expect(page.getByRole('group', { name: 'Favourites' })).toHaveCount(0)
 })

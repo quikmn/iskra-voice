@@ -59,7 +59,7 @@ test('a new name shows everywhere at once, for you and everyone else', async ({ 
 
   // A renames herself in My profile.
   await openSettings(a)
-  await expect(a.getByText('Shown everywhere: on all your servers, in DMs and to friends, except where you set a server nickname.')).toBeVisible()
+  await expect(a.getByText('Shown everywhere: on all your servers, in direct messages and to friends, except where you set a server nickname.')).toBeVisible()
   await a.getByLabel('Name', { exact: true }).fill('Nineleven')
   await a.getByRole('button', { name: 'Save profile' }).click()
   await expect(a.getByText('Saved. Your name is updated everywhere.')).toBeVisible()

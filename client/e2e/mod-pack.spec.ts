@@ -84,7 +84,7 @@ test('moderators delete messages together, warn, keep notes, see history, and re
   await expect(departed.getByRole('button', { name: 'Ban', exact: true })).toBeVisible()
 
   // The activity log has one entry for the bulk delete.
-  await host.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Activity log', exact: true }).click()
+  await host.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Audit log', exact: true }).click()
   const log = host.locator('.audit-list')
   await expect(log).toContainText('Host deleted 2 messages in #general')
   await expect(log).toContainText('Host warned Sam')

@@ -46,7 +46,7 @@ describe('a message that did not decrypt', () => {
 
 describe('e2ee error texts', () => {
   it('the translated "too many" error matches the limit the client enforces', () => {
-    expect(en.e2ee.errors.tooMany).toBe(`At most ${MAX_CHANNEL_MEMBERS} people can be in an encrypted channel.`)
+    expect(en.e2ee.errors.tooMany.replace('{{max}}', String(MAX_CHANNEL_MEMBERS))).toBe(`At most ${MAX_CHANNEL_MEMBERS} people can be in an encrypted channel.`)
   })
 })
 

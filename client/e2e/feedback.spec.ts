@@ -124,11 +124,11 @@ test('server menus: the rail icon and the server name lead to its settings; the 
   await host.locator('.server-icon[title="Menu Test"]').click({ button: 'right' })
   const menu = host.getByRole('dialog', { name: 'Menu Test options' })
   for (const item of ['Invite friends', 'Create channel…', 'Server settings', 'Members', 'Roles', 'Reports', 'More settings', 'Server nickname…',
-    'Mark as read', 'Move / Folder', 'Hide server', 'Leave server']) {
+    'Mark as read', 'Move to folder', 'Hide server', 'Leave server']) {
     await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
   }
   await menu.getByRole('menuitem', { name: 'More settings' }).click()
-  for (const item of ['Channels', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Join questions', 'AutoMod', 'Activity log',
+  for (const item of ['Channels', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Join questions', 'AutoMod', 'Audit log',
     'Sign-ins & security', 'Bots & webhooks', 'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates']) {
     await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
   }

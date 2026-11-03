@@ -121,7 +121,7 @@ test('app lock: a passphrase protects the keys and is asked for at startup', asy
   const page = await (await browser.newContext()).newPage()
   await page.goto('/')
   await agreeToTerms(page)
-  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Locked')
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByText('No servers yet')).toBeVisible()

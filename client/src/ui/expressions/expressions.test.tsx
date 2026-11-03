@@ -98,9 +98,9 @@ describe('polls', () => {
 
   it('words the time left and checks drafts', () => {
     expect(timeLeft(30_000)).toBe('less than a minute left')
-    expect(timeLeft(45 * 60_000)).toBe('45m left')
-    expect(timeLeft(5 * 3_600_000)).toBe('5h left')
-    expect(timeLeft(3 * 86_400_000)).toBe('3d left')
+    expect(timeLeft(45 * 60_000)).toBe('45 min left')
+    expect(timeLeft(5 * 3_600_000)).toBe('5 h left')
+    expect(timeLeft(3 * 86_400_000)).toBe('3 d left')
     expect(pollProblem('', ['a', 'b'])).toBe('Ask a question.')
     expect(pollProblem('Q', ['a', ' '])).toBe('Add at least two answers.')
     expect(pollProblem('Q', ['a', 'A'])).toBe('Answers must be different from each other.')

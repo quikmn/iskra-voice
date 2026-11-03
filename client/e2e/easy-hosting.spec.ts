@@ -43,7 +43,7 @@ test('from a fresh install to friends talking in voice, timed', async ({ browser
     const host = await appWindow(app)
     await agreeToTerms(host)
     await shot(host, '1-welcome')
-    await host.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await host.getByRole('button', { name: /I'm new to Iskra/ }).click()
     await host.getByLabel('Your name').fill('Ada')
     await host.getByRole('button', { name: 'Continue' }).click()
     lap('profile')

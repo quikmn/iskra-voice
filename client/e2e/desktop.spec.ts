@@ -33,7 +33,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
   })
   try {
     const page = await appWindow(app)
-    await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible()
     expect(page.url()).toMatch(/^app:\/\/iskra\//)
 
     // The window title always names the build: version and short commit ("dev" without git), after the page's own title.
@@ -178,7 +178,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
 
     await agreeToTerms(page)
 
-    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Desk')
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'I have an invite link' }).click()
@@ -275,7 +275,7 @@ test('creating a server from the desktop app makes you its owner', async () => {
   try {
     const page = await appWindow(app)
     await agreeToTerms(page)
-    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Host')
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Create a server' }).click()
@@ -320,7 +320,7 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     const page = await appWindow(app)
     await expect(page.getByText("You've been invited")).toBeVisible()
     await agreeToTerms(page)
-    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Linked')
     await page.getByRole('button', { name: 'Join' }).click()
     await expect(page.getByRole('heading', { name: 'general' })).toBeVisible()
@@ -351,8 +351,8 @@ test('Desktop app settings, the unread badge, and iskra:// invite links', async 
     const settings = page.getByRole('dialog', { name: 'Settings' })
     await settings.getByRole('button', { name: 'Desktop app', exact: true }).click()
     await expect(settings.getByLabel(/Start Iskra with your computer/)).not.toBeChecked()
-    await expect(settings.getByLabel(/Close button minimises to the tray/)).toBeChecked()
-    await settings.getByLabel(/Close button minimises to the tray/).uncheck()
+    await expect(settings.getByLabel(/Close button minimizes to the tray/)).toBeChecked()
+    await settings.getByLabel(/Close button minimizes to the tray/).uncheck()
     await settings.getByLabel(/Hardware acceleration/).uncheck()
     await expect(settings.getByRole('button', { name: 'Restart now' })).toBeVisible()
     await page.screenshot({ path: join(SHOTS, 'desktop-settings-app.png') })
@@ -412,7 +412,7 @@ test('restoring a server from a backup in the desktop app', async () => {
     }, saved)
     const page = await appWindow(app)
     await agreeToTerms(page)
-    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Host')
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'I have an invite link' }).click()

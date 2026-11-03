@@ -39,7 +39,7 @@ test('app lock with a passkey: the passkey unlocks the keys, and can be renamed 
   await addAuthenticator(page)
   await page.goto('/')
   await agreeToTerms(page)
-  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Passkey Person')
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByText('No servers yet')).toBeVisible()

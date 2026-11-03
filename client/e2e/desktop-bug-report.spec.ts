@@ -52,7 +52,7 @@ test('the bug report is a window of its own that takes screenshots of the app’
   try {
     const page = await appWindow(app)
     await agreeToTerms(page)
-    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Desk')
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'I have an invite link' }).click()

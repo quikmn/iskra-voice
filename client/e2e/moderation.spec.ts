@@ -96,7 +96,7 @@ test('block, timeout, slowmode and the audit log', async ({ browser }) => {
   await expect(host.locator('.slowmode-chip')).toHaveCount(0)
 
   // ── Audit log: admins see who did what.
-  await openServerSettings(host, 'Activity log')
+  await openServerSettings(host, 'Audit log')
   const log = host.locator('.audit-list')
   await expect(log).toContainText('Host edited #general: slowmode off → 10 s')
   await expect(log).toContainText("Host ended Friend's timeout")
@@ -118,7 +118,7 @@ test('block, timeout, slowmode and the audit log', async ({ browser }) => {
   await host.getByRole('button', { name: 'Open channels' }).click()
   const phoneSettings = await openServerSettings(host)
   // Below the fold on a phone: scroll to it first.
-  const auditItem = phoneSettings.getByRole('button', { name: 'Activity log' })
+  const auditItem = phoneSettings.getByRole('button', { name: 'Audit log' })
   await auditItem.scrollIntoViewIfNeeded()
   await host.waitForTimeout(300)
   await auditItem.click()

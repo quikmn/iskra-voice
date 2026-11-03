@@ -67,7 +67,7 @@ test('the public page says nothing until the owner turns it on; then a stranger 
   await joinButton.click()
   await expect(stranger.getByText("You've been invited")).toBeVisible()
   await agreeToTerms(stranger)
-  await stranger.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await stranger.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await stranger.getByLabel('Your name').fill('Stranger')
   await stranger.getByRole('button', { name: 'Join' }).click()
   await expect(stranger.getByRole('heading', { name: 'general', exact: true })).toBeVisible({ timeout: 15_000 })

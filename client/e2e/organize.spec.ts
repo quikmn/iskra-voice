@@ -140,7 +140,7 @@ test('categories, notification levels and nicknames', async ({ browser }) => {
   await serverMenu.getByRole('menuitem', { name: 'Server nickname…' }).click()
   await friend.getByLabel('Server nickname', { exact: true }).fill('Captain F')
   await friend.getByRole('button', { name: 'Save', exact: true }).click()
-  await expect(friend.getByText('Saved.')).toBeVisible()
+  await expect(friend.getByText('Saved')).toBeVisible()
   await friend.keyboard.press('Escape')
   await expect(friend.locator('.me-bar')).toContainText('Captain F')
   await expect(host.locator('.member-list')).toContainText('Captain F')

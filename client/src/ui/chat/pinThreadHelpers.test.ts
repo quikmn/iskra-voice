@@ -34,7 +34,7 @@ describe('relative time', () => {
   it('reads naturally', () => {
     const now = 1_000_000_000
     expect(relativeTime(now - 10_000, now)).toBe('just now')
-    expect(relativeTime(now - 5 * 60_000, now)).toBe('5m ago')
-    expect(relativeTime(now - 3 * 3600_000, now)).toBe('3h ago')
+    expect(relativeTime(now - 5 * 60_000, now)).toBe('5 min ago')
+    expect(relativeTime(now - 3 * 3600_000, now)).toBe('3 h ago')
   })
 })
