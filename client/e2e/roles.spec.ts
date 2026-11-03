@@ -89,7 +89,8 @@ test('custom roles: create, reorder, assign, moderate without admin, channel per
   await mod.keyboard.press('Escape')
 
   // ── Channel permissions: Supporters can't send in #general.
-  await mod.getByRole('button', { name: 'Channel settings' }).click()
+  await mod.getByTestId('header-more').click()
+  await mod.getByRole('menuitem', { name: 'Channel settings' }).click()
   const channelSettings = mod.getByRole('dialog', { name: '#general settings' })
   await channelSettings.getByLabel('Add a role').selectOption({ label: 'Supporter' })
   await channelSettings.getByRole('radiogroup', { name: 'Send messages for Supporter' }).getByRole('radio', { name: 'Deny' }).click()

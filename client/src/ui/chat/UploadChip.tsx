@@ -26,7 +26,7 @@ export function UploadChip({ name, size, preview, progress, done, error, spoiler
         <span className="file-name">{name}</span>
         {error
           ? <span className="upload-error" role="alert">{error}</span>
-          : <span className="upload-meta">{done ? formatSize(size) : formatNumber(progress, { style: 'percent', maximumFractionDigits: 0 })}</span>}
+          : <span className="upload-meta muted">{done ? formatSize(size) : formatNumber(progress, { style: 'percent', maximumFractionDigits: 0 })}</span>}
         {!done && !error && <span className="upload-bar" aria-hidden><span style={{ width: `${progress * 100}%` }} /></span>}
       </span>
       {!error && (
