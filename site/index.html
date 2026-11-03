@@ -1917,19 +1917,44 @@
   <div class="reveal">
     <div class="section-label">Themes</div>
     <h2 class="section-title">Themes, your way.</h2>
-    <p class="section-desc">Pick one of eleven built-in themes or write your own. Every color, corner radius, avatar shape and font is yours to set, and themes are plain files you can share. Click one to preview it.</p>
+    <p class="section-desc">Pick one of thirteen built-in themes, light or dark, or write your own: every color, corner radius and avatar shape is yours to set, and themes are plain files you can share. The font is a setting of its own, with Inter, Rounded, Serif, Monospace and your system font. Click a theme to preview it.</p>
   </div>
 
+  <!-- THEME-SWATCHES:BEGIN (written by node scripts/build-site-docs.mjs from client/src/theme/themes.ts) -->
   <div class="theme-swatches reveal" id="theme-swatches">
-    <div class="theme-swatch active" data-theme="iskra" style="--t-accent:#7c6fff;--t-glow:rgba(124,111,255,0.22)">
+    <div class="theme-swatch active" data-theme="iskra" title="The default: deep night with a violet spark" style="--t-accent:#695bff;--t-glow:rgba(105,91,255,0.22)">
       <div class="swatch-dots">
-        <div class="swatch-dot" style="background:#07070d"></div>
-        <div class="swatch-dot" style="background:#7c6fff"></div>
+        <div class="swatch-dot" style="background:#141424"></div>
+        <div class="swatch-dot" style="background:#695bff"></div>
         <div class="swatch-dot" style="background:#00cfff"></div>
       </div>
       Iskra
     </div>
-    <div class="theme-swatch" data-theme="catppuccin" style="--t-accent:#cba6f7;--t-glow:rgba(203,166,247,0.22)">
+    <div class="theme-swatch" data-theme="daylight" title="Bright and clear, for daytime" style="--t-accent:#5646e8;--t-glow:rgba(86,70,232,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#ffffff"></div>
+        <div class="swatch-dot" style="background:#5646e8"></div>
+        <div class="swatch-dot" style="background:#0b62c4"></div>
+      </div>
+      Iskra Light
+    </div>
+    <div class="theme-swatch" data-theme="graphite" title="Calm greys with a blurple accent" style="--t-accent:#5865f2;--t-glow:rgba(88,101,242,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#2b2c31"></div>
+        <div class="swatch-dot" style="background:#5865f2"></div>
+        <div class="swatch-dot" style="background:#4cbcff"></div>
+      </div>
+      Graphite
+    </div>
+    <div class="theme-swatch" data-theme="midnight" title="True black, for OLED screens" style="--t-accent:#7b6dff;--t-glow:rgba(123,109,255,0.22)">
+      <div class="swatch-dots">
+        <div class="swatch-dot" style="background:#0d0d10"></div>
+        <div class="swatch-dot" style="background:#7b6dff"></div>
+        <div class="swatch-dot" style="background:#4cc9ff"></div>
+      </div>
+      Midnight
+    </div>
+    <div class="theme-swatch" data-theme="catppuccin" title="Soothing pastel palette" style="--t-accent:#cba6f7;--t-glow:rgba(203,166,247,0.22)">
       <div class="swatch-dots">
         <div class="swatch-dot" style="background:#1e1e2e"></div>
         <div class="swatch-dot" style="background:#cba6f7"></div>
@@ -1937,79 +1962,72 @@
       </div>
       Catppuccin Mocha
     </div>
-    <div class="theme-swatch" data-theme="dracula" style="--t-accent:#bd93f9;--t-glow:rgba(189,147,249,0.22)">
+    <div class="theme-swatch" data-theme="dracula" title="Vibrant purple accents" style="--t-accent:#bd93f9;--t-glow:rgba(189,147,249,0.22)">
       <div class="swatch-dots">
-        <div class="swatch-dot" style="background:#21222c"></div>
+        <div class="swatch-dot" style="background:#282a36"></div>
         <div class="swatch-dot" style="background:#bd93f9"></div>
-        <div class="swatch-dot" style="background:#50fa7b"></div>
+        <div class="swatch-dot" style="background:#8be9fd"></div>
       </div>
       Dracula
     </div>
-    <div class="theme-swatch" data-theme="tokyonight" style="--t-accent:#7aa2f7;--t-glow:rgba(122,162,247,0.22)">
+    <div class="theme-swatch" data-theme="tokyonight" title="Inspired by Tokyo after dark" style="--t-accent:#7aa2f7;--t-glow:rgba(122,162,247,0.22)">
       <div class="swatch-dots">
         <div class="swatch-dot" style="background:#1a1b26"></div>
         <div class="swatch-dot" style="background:#7aa2f7"></div>
-        <div class="swatch-dot" style="background:#2ac3de"></div>
+        <div class="swatch-dot" style="background:#7dcfff"></div>
       </div>
       Tokyo Night
     </div>
-    <div class="theme-swatch" data-theme="nord" style="--t-accent:#88c0d0;--t-glow:rgba(136,192,208,0.22)">
+    <div class="theme-swatch" data-theme="nord" title="Arctic, north-bluish palette" style="--t-accent:#88c0d0;--t-glow:rgba(136,192,208,0.22)">
       <div class="swatch-dots">
         <div class="swatch-dot" style="background:#2e3440"></div>
         <div class="swatch-dot" style="background:#88c0d0"></div>
-        <div class="swatch-dot" style="background:#a3be8c"></div>
+        <div class="swatch-dot" style="background:#8fbcbb"></div>
       </div>
       Nord
     </div>
-    <div class="theme-swatch" data-theme="onedark" style="--t-accent:#61afef;--t-glow:rgba(97,175,239,0.22)">
+    <div class="theme-swatch" data-theme="onedark" title="Atom's iconic blue-grey dark theme" style="--t-accent:#61afef;--t-glow:rgba(97,175,239,0.22)">
       <div class="swatch-dots">
-        <div class="swatch-dot" style="background:#21252b"></div>
+        <div class="swatch-dot" style="background:#282c34"></div>
         <div class="swatch-dot" style="background:#61afef"></div>
-        <div class="swatch-dot" style="background:#98c379"></div>
+        <div class="swatch-dot" style="background:#56b6c2"></div>
       </div>
       One Dark
     </div>
-    <div class="theme-swatch" data-theme="solarized" style="--t-accent:#268bd2;--t-glow:rgba(38,139,210,0.22)">
+    <div class="theme-swatch" data-theme="solarized" title="Precision colours for machines and people" style="--t-accent:#268bd2;--t-glow:rgba(38,139,210,0.22)">
       <div class="swatch-dots">
         <div class="swatch-dot" style="background:#002b36"></div>
         <div class="swatch-dot" style="background:#268bd2"></div>
-        <div class="swatch-dot" style="background:#2aa198"></div>
+        <div class="swatch-dot" style="background:#35b8ad"></div>
       </div>
       Solarized Dark
     </div>
-    <div class="theme-swatch" data-theme="default" style="--t-accent:#5865f2;--t-glow:rgba(88,101,242,0.22)">
+    <div class="theme-swatch" data-theme="synthwave" title="Outrun the grid with neon pinks and deep purples" style="--t-accent:#ff3ea5;--t-glow:rgba(255,62,165,0.22)">
       <div class="swatch-dots">
-        <div class="swatch-dot" style="background:#202225"></div>
-        <div class="swatch-dot" style="background:#5865f2"></div>
-        <div class="swatch-dot" style="background:#00aff4"></div>
-      </div>
-      Graphite
-    </div>
-    <div class="theme-swatch" data-theme="synthwave" style="--t-accent:#ff007f;--t-glow:rgba(255,0,127,0.22)">
-      <div class="swatch-dots">
-        <div class="swatch-dot" style="background:#150633"></div>
-        <div class="swatch-dot" style="background:#ff007f"></div>
-        <div class="swatch-dot" style="background:#00f3ff"></div>
+        <div class="swatch-dot" style="background:#1e1131"></div>
+        <div class="swatch-dot" style="background:#ff3ea5"></div>
+        <div class="swatch-dot" style="background:#36f9f6"></div>
       </div>
       Synthwave 1984
     </div>
-    <div class="theme-swatch" data-theme="cyberlime" style="--t-accent:#39ff14;--t-glow:rgba(57,255,20,0.22)">
+    <div class="theme-swatch" data-theme="cyberlime" title="Digital rain and terminal aesthetics" style="--t-accent:#daf537;--t-glow:rgba(218,245,55,0.22)">
       <div class="swatch-dots">
-        <div class="swatch-dot" style="background:#0a140a"></div>
-        <div class="swatch-dot" style="background:#39ff14"></div>
-        <div class="swatch-dot" style="background:#00ffcc"></div>
+        <div class="swatch-dot" style="background:#0c160d"></div>
+        <div class="swatch-dot" style="background:#daf537"></div>
+        <div class="swatch-dot" style="background:#5cc8ff"></div>
       </div>
       Cyber-Lime
     </div>
-    <div class="theme-swatch" data-theme="bloodmoon" style="--t-accent:#ff3333;--t-glow:rgba(255,51,51,0.22)">
+    <div class="theme-swatch" data-theme="bloodmoon" title="Darkness lit by a crimson moon" style="--t-accent:#ed46a5;--t-glow:rgba(237,70,165,0.22)">
       <div class="swatch-dots">
-        <div class="swatch-dot" style="background:#140a0a"></div>
-        <div class="swatch-dot" style="background:#ff3333"></div>
-        <div class="swatch-dot" style="background:#ff66cc"></div>
+        <div class="swatch-dot" style="background:#1a0f12"></div>
+        <div class="swatch-dot" style="background:#ed46a5"></div>
+        <div class="swatch-dot" style="background:#ffb36b"></div>
       </div>
       Blood Moon
     </div>
   </div>
+  <!-- THEME-SWATCHES:END -->
 
   <div class="theme-code-label reveal">Snippet from an Iskra theme file</div>
   <div class="code-block reveal" id="theme-code-block"></div>
@@ -2490,228 +2508,7 @@
 
 // Theme picker
 (function() {
-  const T = {
-    iskra: {
-      bg: '#0b0b14',
-      c: { key: '#00cfff', str: '#4ade80', num: '#fbbf24', bool: '#fbbf24', comment: '#7878a0' },
-      json: {
-        meta: { name: 'Iskra', desc: 'The default: deep night with a violet spark', scheme: 'dark' },
-        colors: {
-          bgSurface:'#08080f', bgDeep:'#0b0b14', bgBody:'#07070d', bgFloat:'#1b1b30',
-          bgSidebar:'#10101c', bgSidebarHover:'#1b1b30', bgChat:'#141424',
-          bgHover:'#2f2f4f', bgButton:'#1b1b30', bgBorder:'rgba(120,100,255,0.14)', bgActive:'#24243d',
-          textHeading:'#e2e2f0', textNormal:'#e2e2f0', textMuted:'#b4b4cc',
-          textSubtle:'#7878a0', textFaint:'#4b4b66',
-          accent:'#7c6fff', accentHover:'#6a5cff', success:'#4ade80', successHover:'#4ade80',
-          danger:'#f87171', dangerHover:'#b91c1c', warning:'#fbbf24', link:'#00cfff',
-          statusOnline:'#4ade80', statusAway:'#fbbf24', statusDnd:'#f87171',
-          mentionBg:'rgba(124,111,255,0.2)', warningBg:'rgba(251,191,36,0.1)',
-          dangerBg:'rgba(248,113,113,0.12)', speakingGlow:'transparent',
-          accentSubtle:'rgba(124,111,255,0.08)', onAccent:'#ffffff', mentionText:'#c9c3ff'
-        }
-      }
-    },
-    catppuccin: {
-      bg: '#181825',
-      c: { key: '#89dceb', str: '#a6e3a1', num: '#fab387', bool: '#f9e2af', comment: '#6c7086' },
-      json: {
-        meta: { name: 'Catppuccin Mocha', desc: 'Soothing pastel palette', scheme: 'dark' },
-        colors: {
-          bgSurface:'#11111b', bgDeep:'#181825', bgBody:'#1e1e2e', bgFloat:'#181825',
-          bgSidebar:'#1e1e2e', bgSidebarHover:'#24243e', bgChat:'#313244',
-          bgHover:'#585b70', bgButton:'#45475a', bgBorder:'#45475a', bgActive:'#6c6f85',
-          textHeading:'#cdd6f4', textNormal:'#cdd6f4', textMuted:'#a6adc8',
-          textSubtle:'#7f849c', textFaint:'#6c7086',
-          accent:'#cba6f7', accentHover:'#b08de0', success:'#a6e3a1', successHover:'#8bc987',
-          danger:'#f38ba8', dangerHover:'#d6728e', warning:'#fab387', link:'#89dceb',
-          statusOnline:'#a6e3a1', statusAway:'#f9e2af', statusDnd:'#f38ba8',
-          mentionBg:'rgba(203,166,247,0.25)', warningBg:'rgba(249,226,175,0.25)',
-          dangerBg:'rgba(243,139,168,0.15)', speakingGlow:'rgba(166,227,161,0.4)',
-          accentSubtle:'rgba(203,166,247,0.08)'
-        }
-      }
-    },
-    dracula: {
-      bg: '#1e1f29',
-      c: { key: '#8be9fd', str: '#50fa7b', num: '#ffb86c', bool: '#f1fa8c', comment: '#505878' },
-      json: {
-        meta: { name: 'Dracula', desc: 'Vibrant purple accents', scheme: 'dark' },
-        colors: {
-          bgSurface:'#191a21', bgDeep:'#21222c', bgBody:'#21222c', bgFloat:'#1e1f29',
-          bgSidebar:'#282a36', bgSidebarHover:'#30324a', bgChat:'#353748',
-          bgHover:'#54576e', bgButton:'#44475a', bgBorder:'#3d3f58', bgActive:'#6272a4',
-          textHeading:'#f8f8f2', textNormal:'#e8e8de', textMuted:'#8090c0',
-          textSubtle:'#6b7aad', textFaint:'#505878',
-          accent:'#bd93f9', accentHover:'#a67fd5', success:'#50fa7b', successHover:'#38d966',
-          danger:'#ff5555', dangerHover:'#e03535', warning:'#ffb86c', link:'#8be9fd',
-          statusOnline:'#50fa7b', statusAway:'#ffb86c', statusDnd:'#ff5555',
-          mentionBg:'rgba(189,147,249,0.25)', warningBg:'rgba(255,184,108,0.25)',
-          dangerBg:'rgba(255,85,85,0.15)', speakingGlow:'rgba(80,250,123,0.4)',
-          accentSubtle:'rgba(189,147,249,0.08)'
-        }
-      }
-    },
-    tokyonight: {
-      bg: '#16161e',
-      c: { key: '#2ac3de', str: '#9ece6a', num: '#e0af68', bool: '#e0af68', comment: '#5a6490' },
-      json: {
-        meta: { name: 'Tokyo Night', desc: 'Inspired by Tokyo after dark', scheme: 'dark' },
-        colors: {
-          bgSurface:'#13141c', bgDeep:'#16161e', bgBody:'#1a1b26', bgFloat:'#16161e',
-          bgSidebar:'#1f2335', bgSidebarHover:'#252a40', bgChat:'#2a2f48',
-          bgHover:'#3d4466', bgButton:'#363b5e', bgBorder:'#3b4261', bgActive:'#464c74',
-          textHeading:'#c0caf5', textNormal:'#a9b1d6', textMuted:'#8899c4',
-          textSubtle:'#7082b4', textFaint:'#5a6490',
-          accent:'#7aa2f7', accentHover:'#5e86e0', success:'#9ece6a', successHover:'#84b552',
-          danger:'#f7768e', dangerHover:'#e05a72', warning:'#e0af68', link:'#2ac3de',
-          statusOnline:'#9ece6a', statusAway:'#e0af68', statusDnd:'#f7768e',
-          mentionBg:'rgba(122,162,247,0.25)', warningBg:'rgba(224,175,104,0.25)',
-          dangerBg:'rgba(247,118,142,0.15)', speakingGlow:'rgba(158,206,106,0.4)',
-          accentSubtle:'rgba(122,162,247,0.08)'
-        }
-      }
-    },
-    nord: {
-      bg: '#2e3440',
-      c: { key: '#8fbcbb', str: '#a3be8c', num: '#d08770', bool: '#ebcb8b', comment: '#7089a0' },
-      json: {
-        meta: { name: 'Nord', desc: 'Arctic, north-bluish palette', scheme: 'dark' },
-        colors: {
-          bgSurface:'#242933', bgDeep:'#2e3440', bgBody:'#2e3440', bgFloat:'#2e3440',
-          bgSidebar:'#3b4252', bgSidebarHover:'#404b5e', bgChat:'#4c566a',
-          bgHover:'#566071', bgButton:'#5e6779', bgBorder:'#6b7a8f', bgActive:'#7d8fa8',
-          textHeading:'#eceff4', textNormal:'#d8dee9', textMuted:'#88aacc',
-          textSubtle:'#8899b0', textFaint:'#7089a0',
-          accent:'#88c0d0', accentHover:'#7ab0c0', success:'#a3be8c', successHover:'#8ca876',
-          danger:'#bf616a', dangerHover:'#a05059', warning:'#ebcb8b', link:'#8fbcbb',
-          statusOnline:'#a3be8c', statusAway:'#ebcb8b', statusDnd:'#bf616a',
-          mentionBg:'rgba(136,192,208,0.25)', warningBg:'rgba(235,203,139,0.25)',
-          dangerBg:'rgba(191,97,106,0.15)', speakingGlow:'rgba(163,190,140,0.4)',
-          accentSubtle:'rgba(136,192,208,0.08)'
-        }
-      }
-    },
-    onedark: {
-      bg: '#21252b',
-      c: { key: '#56b6c2', str: '#98c379', num: '#d19a66', bool: '#e5c07b', comment: '#636b7a' },
-      json: {
-        meta: { name: 'One Dark', desc: "Atom's iconic dark theme", scheme: 'dark' },
-        colors: {
-          bgSurface:'#1a1d23', bgDeep:'#21252b', bgBody:'#1d2025', bgFloat:'#21252b',
-          bgSidebar:'#21252b', bgSidebarHover:'#272b33', bgChat:'#2f333d',
-          bgHover:'#333840', bgButton:'#343a44', bgBorder:'#3e4452', bgActive:'#4b5263',
-          textHeading:'#abb2bf', textNormal:'#abb2bf', textMuted:'#7f848e',
-          textSubtle:'#7a8090', textFaint:'#636b7a',
-          accent:'#61afef', accentHover:'#4d9de0', success:'#98c379', successHover:'#82aa65',
-          danger:'#e06c75', dangerHover:'#c45a62', warning:'#e5c07b', link:'#56b6c2',
-          statusOnline:'#98c379', statusAway:'#e5c07b', statusDnd:'#e06c75',
-          mentionBg:'rgba(97,175,239,0.25)', warningBg:'rgba(229,192,123,0.25)',
-          dangerBg:'rgba(224,108,117,0.15)', speakingGlow:'rgba(152,195,121,0.4)',
-          accentSubtle:'rgba(97,175,239,0.08)'
-        }
-      }
-    },
-    solarized: {
-      bg: '#003541',
-      c: { key: '#2aa198', str: '#859900', num: '#cb4b16', bool: '#b58900', comment: '#4e7085' },
-      json: {
-        meta: { name: 'Solarized Dark', desc: 'Precision colors for machines and people', scheme: 'dark' },
-        colors: {
-          bgSurface:'#001f27', bgDeep:'#002531', bgBody:'#002b36', bgFloat:'#003541',
-          bgSidebar:'#002b36', bgSidebarHover:'#0a3a47', bgChat:'#073642',
-          bgHover:'#156070', bgButton:'#0d4255', bgBorder:'#195060', bgActive:'#226070',
-          textHeading:'#fdf6e3', textNormal:'#93a1a1', textMuted:'#7a9aa3',
-          textSubtle:'#657b83', textFaint:'#4e7085',
-          accent:'#268bd2', accentHover:'#1e6fa6', success:'#859900', successHover:'#6b7d00',
-          danger:'#dc322f', dangerHover:'#b22826', warning:'#cb4b16', link:'#2aa198',
-          statusOnline:'#859900', statusAway:'#b58900', statusDnd:'#dc322f',
-          mentionBg:'rgba(38,139,210,0.25)', warningBg:'rgba(203,75,22,0.25)',
-          dangerBg:'rgba(220,50,47,0.15)', speakingGlow:'rgba(133,153,0,0.4)',
-          accentSubtle:'rgba(38,139,210,0.08)'
-        }
-      }
-    },
-    default: {
-      bg: '#232428',
-      c: { key: '#00aff4', str: '#3ba55d', num: '#faa61a', bool: '#faa61a', comment: '#6b7178' },
-      json: {
-        meta: { name: 'Graphite', desc: 'Calm greys with a blurple accent', scheme: 'dark' },
-        colors: {
-          bgSurface:'#111214', bgDeep:'#1e1f22', bgBody:'#202225', bgFloat:'#232428',
-          bgSidebar:'#2b2d31', bgSidebarHover:'#25272b', bgChat:'#313338',
-          bgHover:'#35373c', bgButton:'#383a40', bgBorder:'#3a3c42', bgActive:'#3f4147',
-          textHeading:'#ffffff', textNormal:'#dcddde', textMuted:'#949ba4',
-          textSubtle:'#72767d', textFaint:'#6b7178',
-          accent:'#5865f2', accentHover:'#4752c4', success:'#3ba55d', successHover:'#2d8a4e',
-          danger:'#ed4245', dangerHover:'#c03537', warning:'#faa61a', link:'#00aff4',
-          statusOnline:'#3ba55d', statusAway:'#faa61a', statusDnd:'#ed4245',
-          mentionBg:'rgba(88,101,242,0.25)', warningBg:'rgba(250,166,26,0.25)',
-          dangerBg:'rgba(237,66,69,0.15)', speakingGlow:'rgba(59,165,93,0.40)',
-          accentSubtle:'rgba(88,101,242,0.08)'
-        }
-      }
-    },
-    synthwave: {
-      bg: '#0f0524',
-      c: { key: '#00f3ff', str: '#ff007f', num: '#ff9a00', bool: '#ff9a00', comment: '#7a5a9a' },
-      json: {
-        meta: { name: 'Synthwave 1984', desc: 'Outrun the grid with neon pinks and deep purples', scheme: 'dark' },
-        colors: {
-          bgSurface:'#0d0221', bgDeep:'#0f0524', bgBody:'#150633', bgFloat:'#1a0840',
-          bgSidebar:'#1a0840', bgSidebarHover:'#261447', bgChat:'#210b45',
-          bgHover:'#2e1c5c', bgButton:'#3a1c71', bgBorder:'#4d2b85', bgActive:'#5c2a9e',
-          textHeading:'#ffffff', textNormal:'#e0e0e0', textMuted:'#b39ddb',
-          textSubtle:'#9575cd', textFaint:'#673ab7',
-          accent:'#ff007f', accentHover:'#e60073', success:'#39ff14', successHover:'#32e612',
-          danger:'#ff3131', dangerHover:'#d92b2b', warning:'#ff9a00', link:'#00f3ff',
-          statusOnline:'#39ff14', statusAway:'#ff9a00', statusDnd:'#ff3131',
-          mentionBg:'rgba(255,0,127,0.25)', warningBg:'rgba(255,154,0,0.25)',
-          dangerBg:'rgba(255,49,49,0.15)', speakingGlow:'rgba(57,255,20,0.4)',
-          accentSubtle:'rgba(255,0,127,0.08)'
-        }
-      }
-    },
-    cyberlime: {
-      bg: '#050f05',
-      c: { key: '#00ffcc', str: '#39ff14', num: '#f0ad4e', bool: '#f0ad4e', comment: '#507050' },
-      json: {
-        meta: { name: 'Cyber-Lime', desc: 'Digital rain and terminal aesthetics', scheme: 'dark' },
-        colors: {
-          bgSurface:'#020a02', bgDeep:'#050f05', bgBody:'#0a140a', bgFloat:'#0d1a0d',
-          bgSidebar:'#0d1a0d', bgSidebarHover:'#142614', bgChat:'#0d1f0d',
-          bgHover:'#1b331b', bgButton:'#1e3d1e', bgBorder:'#2a4d2a', bgActive:'#2e5c2e',
-          textHeading:'#d0ffd0', textNormal:'#a0c0a0', textMuted:'#709070',
-          textSubtle:'#507050', textFaint:'#305030',
-          accent:'#39ff14', accentHover:'#32e612', success:'#39ff14', successHover:'#32e612',
-          danger:'#ff4444', dangerHover:'#cc3333', warning:'#f0ad4e', link:'#00ffcc',
-          statusOnline:'#39ff14', statusAway:'#f0ad4e', statusDnd:'#ff4444',
-          mentionBg:'rgba(57,255,20,0.25)', warningBg:'rgba(240,173,78,0.25)',
-          dangerBg:'rgba(255,68,68,0.15)', speakingGlow:'rgba(57,255,20,0.4)',
-          accentSubtle:'rgba(57,255,20,0.08)'
-        }
-      }
-    },
-    bloodmoon: {
-      bg: '#0f0505',
-      c: { key: '#ff66cc', str: '#00ff88', num: '#ffaa00', bool: '#ffaa00', comment: '#805050' },
-      json: {
-        meta: { name: 'Blood Moon', desc: 'High-contrast darkness with crimson strikes', scheme: 'dark' },
-        colors: {
-          bgSurface:'#0a0000', bgDeep:'#0f0505', bgBody:'#140a0a', bgFloat:'#1a0d0d',
-          bgSidebar:'#1a0d0d', bgSidebarHover:'#261414', bgChat:'#1c0f0f',
-          bgHover:'#331b1b', bgButton:'#4d1a1a', bgBorder:'#662222', bgActive:'#7a2828',
-          textHeading:'#ffffff', textNormal:'#e0c0c0', textMuted:'#a07070',
-          textSubtle:'#805050', textFaint:'#503030',
-          accent:'#ff3333', accentHover:'#cc0000', success:'#00ff88', successHover:'#00cc6e',
-          danger:'#ff0000', dangerHover:'#cc0000', warning:'#ffaa00', link:'#ff66cc',
-          statusOnline:'#00ff88', statusAway:'#ffaa00', statusDnd:'#ff0000',
-          mentionBg:'rgba(255,51,51,0.25)', warningBg:'rgba(255,170,0,0.25)',
-          dangerBg:'rgba(255,0,0,0.15)', speakingGlow:'rgba(0,255,136,0.4)',
-          accentSubtle:'rgba(255,51,51,0.08)'
-        }
-      }
-    }
-  };
+  /* THEMES:BEGIN */ const T = {"iskra":{"bg":"#0c0b19","c":{"key":"#00cfff","str":"#4ade80","num":"#fbbf24","bool":"#fbbf24","comment":"#8a8aae"},"json":{"meta":{"name":"Iskra","desc":"The default: deep night with a violet spark","scheme":"dark"},"colors":{"bgSurface":"#080714","bgBody":"#080714","bgDeep":"#0c0b19","bgSidebar":"#10101f","bgSidebarHover":"#191a2b","bgChat":"#141424","bgFloat":"#1d1d2f","bgButton":"#242438","bgHover":"#27283c","bgActive":"#2d2e44","bgBorder":"rgba(120,100,255,0.14)","textHeading":"#ececf8","textNormal":"#e2e2f0","textMuted":"#b4b4cc","textSubtle":"#8a8aae","textFaint":"#4b4b66","accent":"#695bff","accentHover":"#5c4aed","onAccent":"#ffffff","link":"#00cfff","success":"#4ade80","successHover":"#2eca6d","danger":"#f87171","dangerHover":"#dc575a","warning":"#fbbf24","statusOnline":"#4ade80","statusAway":"#fbbf24","statusDnd":"#f87171","mentionBg":"rgba(105,91,255,0.18)","mentionText":"#c4caff","warningBg":"rgba(251,191,36,0.12)","dangerBg":"rgba(248,113,113,0.12)","accentSubtle":"rgba(105,91,255,0.1)","speakingGlow":"rgba(74,222,128,0.35)"},"radius":10}},"daylight":{"bg":"#f5f5f9","c":{"key":"#0b62c4","str":"#157a3e","num":"#8a5300","bool":"#8a5300","comment":"#5f5f75"},"json":{"meta":{"name":"Iskra Light","desc":"Bright and clear, for daytime","scheme":"light"},"colors":{"bgSurface":"#e3e3ec","bgBody":"#e3e3ec","bgDeep":"#f5f5f9","bgSidebar":"#efeff5","bgSidebarHover":"#e5e5ee","bgChat":"#ffffff","bgFloat":"#ffffff","bgButton":"#ebebf2","bgHover":"#f0f0f6","bgActive":"#dddde9","bgBorder":"rgba(30,25,90,0.14)","textHeading":"#0e0e1a","textNormal":"#22222f","textMuted":"#45455a","textSubtle":"#5f5f75","textFaint":"#a3a3b6","accent":"#5646e8","accentHover":"#4535d2","onAccent":"#ffffff","link":"#0b62c4","success":"#157a3e","successHover":"#0f6431","danger":"#c2262e","dangerHover":"#a11d24","warning":"#8a5300","statusOnline":"#1f9d50","statusAway":"#c98a00","statusDnd":"#d93a40","mentionBg":"rgba(86,70,232,0.12)","mentionText":"#3a2cc4","warningBg":"rgba(201,138,0,0.12)","dangerBg":"rgba(194,38,46,0.08)","accentSubtle":"rgba(86,70,232,0.08)","speakingGlow":"rgba(31,157,80,0.30)"},"radius":10}},"graphite":{"bg":"#212227","c":{"key":"#4cbcff","str":"#3fc174","num":"#f0b232","bool":"#f0b232","comment":"#a2a8b1"},"json":{"meta":{"name":"Graphite","desc":"Calm greys with a blurple accent","scheme":"dark"},"colors":{"bgSurface":"#1d1e22","bgBody":"#1d1e22","bgDeep":"#212227","bgSidebar":"#26272c","bgSidebarHover":"#313237","bgChat":"#2b2c31","bgFloat":"#35363b","bgButton":"#3d3e43","bgHover":"#414247","bgActive":"#47484e","bgBorder":"rgba(162,174,203,0.12)","textHeading":"#f2f3f5","textNormal":"#dbdee1","textMuted":"#bcc1c8","textSubtle":"#a2a8b1","textFaint":"#5b5d63","accent":"#5865f2","accentHover":"#4b55e1","onAccent":"#ffffff","link":"#4cbcff","success":"#3fc174","successHover":"#23ae62","danger":"#f78a8c","dangerHover":"#db7174","warning":"#f0b232","statusOnline":"#3fc174","statusAway":"#f0b232","statusDnd":"#f78a8c","mentionBg":"rgba(88,101,242,0.18)","mentionText":"#bccdff","warningBg":"rgba(240,178,50,0.12)","dangerBg":"rgba(247,138,140,0.12)","accentSubtle":"rgba(88,101,242,0.1)","speakingGlow":"rgba(63,193,116,0.35)"},"radius":10}},"midnight":{"bg":"#050505","c":{"key":"#4cc9ff","str":"#4ade80","num":"#fbbf24","bool":"#fbbf24","comment":"#8e8e99"},"json":{"meta":{"name":"Midnight","desc":"True black, for OLED screens","scheme":"dark"},"colors":{"bgSurface":"#000000","bgBody":"#000000","bgDeep":"#050505","bgSidebar":"#08080a","bgSidebarHover":"#18181d","bgChat":"#0d0d10","bgFloat":"#16161a","bgButton":"#1e1e23","bgHover":"#232329","bgActive":"#2a2a31","bgBorder":"rgba(255,255,255,0.10)","textHeading":"#f5f5f7","textNormal":"#e6e6ea","textMuted":"#b9b9c2","textSubtle":"#8e8e99","textFaint":"#4a4a52","accent":"#7b6dff","accentHover":"#897dff","onAccent":"#000000","link":"#4cc9ff","success":"#4ade80","successHover":"#2eca6d","danger":"#ff7b7b","dangerHover":"#e36263","warning":"#fbbf24","statusOnline":"#4ade80","statusAway":"#fbbf24","statusDnd":"#ff7b7b","mentionBg":"rgba(123,109,255,0.18)","mentionText":"#c7c9ff","warningBg":"rgba(251,191,36,0.12)","dangerBg":"rgba(255,123,123,0.12)","accentSubtle":"rgba(123,109,255,0.1)","speakingGlow":"rgba(74,222,128,0.35)"},"radius":10}},"catppuccin":{"bg":"#151523","c":{"key":"#89dceb","str":"#a6e3a1","num":"#f9e2af","bool":"#f9e2af","comment":"#9da3c0"},"json":{"meta":{"name":"Catppuccin Mocha","desc":"Soothing pastel palette","scheme":"dark"},"colors":{"bgSurface":"#11111e","bgBody":"#11111e","bgDeep":"#151523","bgSidebar":"#1a1928","bgSidebarHover":"#242435","bgChat":"#1e1e2e","bgFloat":"#272839","bgButton":"#2f2f42","bgHover":"#323346","bgActive":"#39394e","bgBorder":"rgba(165,164,241,0.12)","textHeading":"#cdd6f4","textNormal":"#cdd6f4","textMuted":"#bac2de","textSubtle":"#9da3c0","textFaint":"#585b70","accent":"#cba6f7","accentHover":"#dbb6ff","onAccent":"#11111e","link":"#89dceb","success":"#a6e3a1","successHover":"#93cf8e","danger":"#f38ba8","dangerHover":"#d7728f","warning":"#f9e2af","statusOnline":"#a6e3a1","statusAway":"#f9e2af","statusDnd":"#f38ba8","mentionBg":"rgba(203,166,247,0.18)","mentionText":"#e0c1ff","warningBg":"rgba(249,226,175,0.12)","dangerBg":"rgba(243,139,168,0.12)","accentSubtle":"rgba(203,166,247,0.1)","speakingGlow":"rgba(166,227,161,0.35)"},"radius":10}},"dracula":{"bg":"#1f202b","c":{"key":"#8be9fd","str":"#50fa7b","num":"#ffb86c","bool":"#ffb86c","comment":"#a4acd0"},"json":{"meta":{"name":"Dracula","desc":"Vibrant purple accents","scheme":"dark"},"colors":{"bgSurface":"#1a1c26","bgBody":"#1a1c26","bgDeep":"#1f202b","bgSidebar":"#232530","bgSidebarHover":"#2e303d","bgChat":"#282a36","bgFloat":"#323441","bgButton":"#393c4a","bgHover":"#3d3f4e","bgActive":"#434656","bgBorder":"rgba(161,169,228,0.12)","textHeading":"#f8f8f2","textNormal":"#ecece6","textMuted":"#c5c9dc","textSubtle":"#a4acd0","textFaint":"#6272a4","accent":"#bd93f9","accentHover":"#cda3ff","onAccent":"#1a1c26","link":"#8be9fd","success":"#50fa7b","successHover":"#32e667","danger":"#ff6e6e","dangerHover":"#e25456","warning":"#ffb86c","statusOnline":"#50fa7b","statusAway":"#ffb86c","statusDnd":"#ff6e6e","mentionBg":"rgba(189,147,249,0.18)","mentionText":"#ddc2ff","warningBg":"rgba(255,184,108,0.12)","dangerBg":"rgba(255,110,110,0.12)","accentSubtle":"rgba(189,147,249,0.1)","speakingGlow":"rgba(80,250,123,0.35)"},"radius":10}},"tokyonight":{"bg":"#11121c","c":{"key":"#7dcfff","str":"#9ece6a","num":"#e0af68","bool":"#e0af68","comment":"#8b93bf"},"json":{"meta":{"name":"Tokyo Night","desc":"Inspired by Tokyo after dark","scheme":"dark"},"colors":{"bgSurface":"#0d0e17","bgBody":"#0d0e17","bgDeep":"#11121c","bgSidebar":"#151721","bgSidebarHover":"#1f212d","bgChat":"#1a1b26","bgFloat":"#232531","bgButton":"#2a2c39","bgHover":"#2d303d","bgActive":"#343644","bgBorder":"rgba(161,169,227,0.12)","textHeading":"#c0caf5","textNormal":"#c0caf5","textMuted":"#a9b1d6","textSubtle":"#8b93bf","textFaint":"#565f89","accent":"#7aa2f7","accentHover":"#89b2ff","onAccent":"#0d0e17","link":"#7dcfff","success":"#9ece6a","successHover":"#8cbb57","danger":"#f7768e","dangerHover":"#db5d76","warning":"#e0af68","statusOnline":"#9ece6a","statusAway":"#e0af68","statusDnd":"#f7768e","mentionBg":"rgba(122,162,247,0.18)","mentionText":"#b0d1ff","warningBg":"rgba(224,175,104,0.12)","dangerBg":"rgba(247,118,142,0.12)","accentSubtle":"rgba(122,162,247,0.1)","speakingGlow":"rgba(158,206,106,0.35)"},"radius":10}},"nord":{"bg":"#252a35","c":{"key":"#8fbcbb","str":"#a3be8c","num":"#ebcb8b","bool":"#ebcb8b","comment":"#b0bbcc"},"json":{"meta":{"name":"Nord","desc":"Arctic, north-bluish palette","scheme":"dark"},"colors":{"bgSurface":"#20252f","bgBody":"#20252f","bgDeep":"#252a35","bgSidebar":"#292f3a","bgSidebarHover":"#343a47","bgChat":"#2e3440","bgFloat":"#383e4c","bgButton":"#3f4655","bgHover":"#434a59","bgActive":"#495161","bgBorder":"rgba(145,174,231,0.12)","textHeading":"#eceff4","textNormal":"#e5e9f0","textMuted":"#c8cfdb","textSubtle":"#b0bbcc","textFaint":"#616e88","accent":"#88c0d0","accentHover":"#98d0e0","onAccent":"#20252f","link":"#8fbcbb","success":"#a3be8c","successHover":"#91ab7a","danger":"#ec9aa1","dangerHover":"#d18189","warning":"#ebcb8b","statusOnline":"#a3be8c","statusAway":"#ebcb8b","statusDnd":"#ec9aa1","mentionBg":"rgba(136,192,208,0.18)","mentionText":"#a3dcec","warningBg":"rgba(235,203,139,0.12)","dangerBg":"rgba(236,154,161,0.12)","accentSubtle":"rgba(136,192,208,0.1)","speakingGlow":"rgba(163,190,140,0.35)"},"radius":10}},"onedark":{"bg":"#1e222a","c":{"key":"#56b6c2","str":"#98c379","num":"#e5c07b","bool":"#e5c07b","comment":"#9ba2b0"},"json":{"meta":{"name":"One Dark","desc":"Atom's iconic blue-grey dark theme","scheme":"dark"},"colors":{"bgSurface":"#1a1e25","bgBody":"#1a1e25","bgDeep":"#1e222a","bgSidebar":"#23272f","bgSidebarHover":"#2e323a","bgChat":"#282c34","bgFloat":"#32363e","bgButton":"#3a3e46","bgHover":"#3d424a","bgActive":"#444851","bgBorder":"rgba(171,178,191,0.12)","textHeading":"#e6e9ef","textNormal":"#ccd1da","textMuted":"#b3bac6","textSubtle":"#9ba2b0","textFaint":"#5c6370","accent":"#61afef","accentHover":"#71bfff","onAccent":"#1a1e25","link":"#56b6c2","success":"#98c379","successHover":"#85af67","danger":"#ef838b","dangerHover":"#d16a73","warning":"#e5c07b","statusOnline":"#98c379","statusAway":"#e5c07b","statusDnd":"#ef838b","mentionBg":"rgba(97,175,239,0.18)","mentionText":"#a9d4ff","warningBg":"rgba(229,192,123,0.12)","dangerBg":"rgba(239,131,139,0.12)","accentSubtle":"rgba(97,175,239,0.1)","speakingGlow":"rgba(152,195,121,0.35)"},"radius":10}},"solarized":{"bg":"#00212c","c":{"key":"#35b8ad","str":"#a3b61f","num":"#d6a520","bool":"#d6a520","comment":"#93a7a9"},"json":{"meta":{"name":"Solarized Dark","desc":"Precision colours for machines and people","scheme":"dark"},"colors":{"bgSurface":"#001c27","bgBody":"#001c27","bgDeep":"#00212c","bgSidebar":"#002631","bgSidebarHover":"#06313d","bgChat":"#002b36","bgFloat":"#0b3540","bgButton":"#153d49","bgHover":"#19414d","bgActive":"#204853","bgBorder":"rgba(147,161,161,0.14)","textHeading":"#fdf6e3","textNormal":"#e3e3d8","textMuted":"#b2c0c0","textSubtle":"#93a7a9","textFaint":"#586e75","accent":"#268bd2","accentHover":"#3a9be3","onAccent":"#001c27","link":"#35b8ad","success":"#a3b61f","successHover":"#8fa10a","danger":"#f2776c","dangerHover":"#d4514a","warning":"#d6a520","statusOnline":"#a3b61f","statusAway":"#d6a520","statusDnd":"#f2776c","mentionBg":"rgba(38,139,210,0.18)","mentionText":"#9ccdf2","warningBg":"rgba(214,165,32,0.12)","dangerBg":"rgba(242,119,108,0.12)","accentSubtle":"rgba(38,139,210,0.1)","speakingGlow":"rgba(163,182,31,0.35)"},"radius":10}},"synthwave":{"bg":"#150925","c":{"key":"#36f9f6","str":"#72f1b8","num":"#fede5d","bool":"#fede5d","comment":"#a58fcf"},"json":{"meta":{"name":"Synthwave 1984","desc":"Outrun the grid with neon pinks and deep purples","scheme":"dark"},"colors":{"bgSurface":"#10061f","bgBody":"#10061f","bgDeep":"#150925","bgSidebar":"#190d2b","bgSidebarHover":"#241738","bgChat":"#1e1131","bgFloat":"#281a3d","bgButton":"#302147","bgHover":"#33244b","bgActive":"#3a2a54","bgBorder":"rgba(186,156,239,0.16)","textHeading":"#ffffff","textNormal":"#ece6f6","textMuted":"#c9b9e6","textSubtle":"#a58fcf","textFaint":"#615971","accent":"#ff3ea5","accentHover":"#ff52b5","onAccent":"#10061f","link":"#36f9f6","success":"#72f1b8","successHover":"#5cdda5","danger":"#ff7a59","dangerHover":"#e36040","warning":"#fede5d","statusOnline":"#72f1b8","statusAway":"#fede5d","statusDnd":"#ff7a59","mentionBg":"rgba(255,62,165,0.18)","mentionText":"#ffb6d6","warningBg":"rgba(254,222,93,0.12)","dangerBg":"rgba(255,122,89,0.12)","accentSubtle":"rgba(255,62,165,0.1)","speakingGlow":"rgba(114,241,184,0.35)"},"radius":10}},"cyberlime":{"bg":"#050d05","c":{"key":"#5cc8ff","str":"#46fbae","num":"#ffc94d","bool":"#ffc94d","comment":"#80a07d"},"json":{"meta":{"name":"Cyber-Lime","desc":"Digital rain and terminal aesthetics","scheme":"dark"},"colors":{"bgSurface":"#020903","bgBody":"#020903","bgDeep":"#050d05","bgSidebar":"#081209","bgSidebarHover":"#121c12","bgChat":"#0c160d","bgFloat":"#151f16","bgButton":"#1c261d","bgHover":"#1f2a20","bgActive":"#253026","bgBorder":"rgba(160,255,120,0.12)","textHeading":"#eaffe6","textNormal":"#d2e8cf","textMuted":"#a5c0a2","textSubtle":"#80a07d","textFaint":"#3b4f3a","accent":"#daf537","accentHover":"#eaff4f","onAccent":"#020903","link":"#5cc8ff","success":"#46fbae","successHover":"#2ee598","danger":"#ff6b6b","dangerHover":"#e35253","warning":"#ffc94d","statusOnline":"#46fbae","statusAway":"#ffc94d","statusDnd":"#ff6b6b","mentionBg":"rgba(218,245,55,0.18)","mentionText":"#eaff9a","warningBg":"rgba(255,201,77,0.12)","dangerBg":"rgba(255,107,107,0.12)","accentSubtle":"rgba(218,245,55,0.1)","speakingGlow":"rgba(70,251,174,0.35)"},"radius":10}},"bloodmoon":{"bg":"#110709","c":{"key":"#ffb36b","str":"#5ee8a0","num":"#ffd45e","bool":"#ffd45e","comment":"#a88487"},"json":{"meta":{"name":"Blood Moon","desc":"Darkness lit by a crimson moon","scheme":"dark"},"colors":{"bgSurface":"#0c0406","bgBody":"#0c0406","bgDeep":"#110709","bgSidebar":"#150b0e","bgSidebarHover":"#201518","bgChat":"#1a0f12","bgFloat":"#24181b","bgButton":"#2b1f22","bgHover":"#2f2226","bgActive":"#35292c","bgBorder":"rgba(255,110,130,0.13)","textHeading":"#fff2f2","textNormal":"#f0dcdc","textMuted":"#c9a9ab","textSubtle":"#a88487","textFaint":"#55383c","accent":"#ed46a5","accentHover":"#ff58b4","onAccent":"#0c0406","link":"#ffb36b","success":"#5ee8a0","successHover":"#47d48b","danger":"#fe6652","dangerHover":"#e14d3b","warning":"#ffd45e","statusOnline":"#5ee8a0","statusAway":"#ffd45e","statusDnd":"#fe6652","mentionBg":"rgba(237,70,165,0.18)","mentionText":"#ffb0d8","warningBg":"rgba(255,212,94,0.12)","dangerBg":"rgba(254,102,82,0.12)","accentSubtle":"rgba(237,70,165,0.1)","speakingGlow":"rgba(94,232,160,0.35)"},"radius":10}}}; /* THEMES:END */
 
   function kv(key, val, kColor, vColor) {
     return `&nbsp;&nbsp;<span style="color:${kColor}">"${key}"</span>: <span style="color:${vColor}">"${val}"</span>`;

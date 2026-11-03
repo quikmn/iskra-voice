@@ -7,7 +7,7 @@
   background: var(--accent); color: var(--on-accent); font-size: 10px; font-weight: 700; display: grid; place-items: center;
   border: 2px solid var(--stage); box-sizing: content-box;
 }
-.voice-chat-toggle .chat-count.ping { background: var(--red); color: #fff; }
+.voice-chat-toggle .chat-count.ping { background: var(--danger-solid); color: #fff; }
 .voice-chat-start .channel-start-icon { color: var(--muted); }
 @media (min-width: 1101px) {
   /* The chat takes the member list's place, like a thread does. */

@@ -1,5 +1,5 @@
 /* ── Recording a call ─────────────────────────────────────────────────────── */
-.call-button.record-button.on { color: #fff; background: var(--red); }
+.call-button.record-button.on { color: #fff; background: var(--danger-solid); }
 .call-button.record-button.on:hover { background: color-mix(in srgb, var(--red) 85%, #000); }
 .record-start { display: inline-flex; align-items: center; gap: 6px; }
 
@@ -15,7 +15,7 @@
 /* "REC": on the channel's row, in the voice bar and next to the recorder's name. */
 .recording-pill, .recording-mark {
   display: inline-flex; align-items: center; flex: none; padding: 0 5px; height: 16px; border-radius: 4px;
-  font-size: 10px; font-weight: 800; letter-spacing: 0.04em; line-height: 1; color: #fff; background: var(--red);
+  font-size: 10px; font-weight: 800; letter-spacing: 0.04em; line-height: 1; color: #fff; background: var(--danger-solid);
 }
 .recording-mark { margin-left: 6px; }
 .voice-status .recording-pill { justify-self: start; width: fit-content; color: #fff; overflow: visible; margin-top: 2px; }

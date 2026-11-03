@@ -102,7 +102,7 @@ describe("each account's Web Storage", () => {
     expect(two.getItem('iskra.theme')).toBe('{"id":"midnight"}')
     two.setItem('iskra.language', 'sv')
     expect(localStorage.getItem('iskra.language')).toBe('sv')
-    expect(DEVICE_KEYS).toEqual(['iskra.language', 'iskra.theme'])
+    expect(DEVICE_KEYS).toEqual(['iskra.language', 'iskra.theme', 'iskra.font'])
     // Not counted as an account's own, so clearing an account leaves them.
     expect(Object.keys(two)).toEqual([])
     two.setItem('iskra.voice', 'v')

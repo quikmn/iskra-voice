@@ -91,7 +91,7 @@
 .server-icon.dragging { opacity: 0.4; }
 .server-icon.drop-before { box-shadow: 0 -6px 0 -3px var(--accent); }
 .server-icon.drop-after { box-shadow: 0 6px 0 -3px var(--accent); }
-.server-icon.drop-combine { outline: 2px solid var(--accent); outline-offset: 3px; }
+.server-icon.drop-combine { outline: 2px solid var(--focus); outline-offset: 3px; }
 .rail-folder { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: none; border-radius: calc(var(--radius) * 1.6); }
 .rail-folder.open { background: color-mix(in srgb, var(--folder) 18%, transparent); padding-bottom: 8px; }
 .folder-icon { color: var(--folder); background: color-mix(in srgb, var(--folder) 25%, var(--surface-2)); }

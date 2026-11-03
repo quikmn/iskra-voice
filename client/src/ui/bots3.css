@@ -37,7 +37,7 @@
 }
 .bots3-status-choice input { position: absolute; opacity: 0; pointer-events: none; }
 .bots3-status-choice.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.bots3-status-choice:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.bots3-status-choice:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
 .suggest-prompt .button { justify-self: start; }
 .bots3-suggest-form { display: grid; gap: 6px; }
 .bots3-suggest-form textarea { width: 100%; max-width: 100%; resize: vertical; }

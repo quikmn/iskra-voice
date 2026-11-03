@@ -1,44 +1,52 @@
 /* Iskra client. Colors follow iskra.foo. */
+@import './theme/fonts.css';
 :root {
-  --bg: #0b0b14;
-  --rail: #08080f;
-  --sidebar: #10101c;
+  /* The default look (Iskra), the same values as the built-in "iskra" theme in src/theme/themes.ts and what
+     theme.ts computes from it (theme.test.ts checks they match). applyTheme sets them all again at start-up. */
+  --bg: #0c0b19;
+  --rail: #080714;
+  --stage: #080714;
+  --sidebar: #10101f;
+  --sidebar-hover: #191a2b;
   --surface: #141424;
-  --surface-2: #1b1b30;
-  --surface-3: #24243d;
-  --border: rgba(120, 100, 255, 0.14);
-  --accent: #695bff;
-  --accent-strong: #5a4bf0;
-  --accent-2: #00cfff;
+  --float: #1d1d2f;
+  --surface-2: #242438;
+  --hover: #27283c;
+  --surface-3: #2d2e44;
+  --border: rgba(120,100,255,0.14);
+  --text-strong: #ececf8;
   --text: #e2e2f0;
   --text-2: #b4b4cc;
-  --muted: #8484a8;
-  --placeholder: #8484a8; /* dimmer than --text, 4.5:1 on inputs (theme.ts placeholderColor) */
-  --green: #4ade80;
-  --red: #f87171;
-  --amber: #fbbf24;
-  --radius: 10px;
-  /* Themeable extras (see src/theme/theme.ts); these are the default look. */
-  --stage: #07070d;
-  --sidebar-hover: #1b1b30;
-  --float: #1b1b30;
-  --hover: #2f2f4f;
-  --text-strong: #e2e2f0;
+  --muted: #8a8aae;
   --faint: #4b4b66;
-  --green-strong: #4ade80;
-  --danger-solid: #b91c1c;
-  --hangup: #dc2626;
-  --hangup-hover: #b91c1c;
-  --online: var(--green);
-  --away: var(--amber);
-  --dnd: var(--red);
-  --mention-bg: rgba(124, 111, 255, 0.2);
-  --mention-text: #c9c3ff;
-  --warning-bg: rgba(251, 191, 36, 0.1);
-  --danger-bg: rgba(248, 113, 113, 0.12);
-  --speaking-glow: transparent;
-  --accent-subtle: rgba(124, 111, 255, 0.08);
-  --on-accent: #fff;
+  --accent: #695bff;
+  --accent-strong: #5c4aed;
+  --accent-2: #00cfff;
+  --green: #4ade80;
+  --green-strong: #2eca6d;
+  --red: #f87171;
+  --red-strong: #dc575a;
+  --amber: #fbbf24;
+  --online: #4ade80;
+  --away: #fbbf24;
+  --dnd: #f87171;
+  --mention-bg: rgba(105,91,255,0.18);
+  --mention-text: #c4caff;
+  --warning-bg: rgba(251,191,36,0.12);
+  --danger-bg: rgba(248,113,113,0.12);
+  --speaking-glow: rgba(74,222,128,0.35);
+  --accent-subtle: rgba(105,91,255,0.1);
+  --on-accent: #ffffff;
+  --danger-solid: #cc494d;
+  --danger-solid-hover: #af3f42;
+  --hangup: #cc494d;
+  --hangup-hover: #af3f42;
+  --success-solid: #00892f;
+  --success-solid-hover: #007628;
+  --on-warning: #0b0b14;
+  --focus: #695bff;
+  --placeholder: #8a8aae;
+  --radius: 10px;
   --avatar-radius: 50%;
   /* The panel frame (desktop): the gutter of dark base between the panels, their corners, and the height the me bar
      and the message box share. Phones are full-bleed (see "Phones and small windows"). */
@@ -61,6 +69,7 @@
   --z-call: 70;
   --z-notice: 80;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* The default fonts (src/theme/fonts.ts; the person picks theirs in Appearance), bundled in theme/fonts.css. */
   --font: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
   color-scheme: dark;
@@ -92,7 +101,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 input, textarea, select { font: inherit; color: inherit; }
 code { font-family: var(--mono); font-size: 0.9em; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; }
 a { color: var(--accent-2); }
-:where(button, a, summary, [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* One focus ring everywhere: --focus is the accent, nudged to show at 3:1 on every surface (theme.ts computedColors). */
+:where(button, a, summary, [tabindex]):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 :where(input[type='checkbox'], input[type='radio'], progress) { accent-color: var(--accent); }
 kbd {
   font-family: var(--mono); font-size: 11px; padding: 1px 5px; border-radius: 4px; background: var(--surface-2);
@@ -146,7 +156,7 @@ input[type='file']::file-selector-button {
   font: inherit; font-weight: 600; font-size: 13px; color: var(--text); margin-right: 10px; padding: 6px 12px; cursor: pointer;
   border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.6); background: var(--surface-2);
 }
-input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+input:focus, textarea:focus, select:focus { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
 .checkbox { display: flex; gap: 10px; align-items: flex-start; line-height: 1.35; cursor: pointer; }
 .checkbox input { flex: none; margin: 2px 0 0; width: 16px; height: 16px; }
 .muted { color: var(--muted); }
@@ -230,7 +240,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .server-icon.add { color: var(--green); display: grid; place-items: center; }
 .server-icon.add:hover { background: var(--green); color: var(--bg); }
 .badge {
-  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--red); color: #fff;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger-solid); color: #fff;
   font-size: 11px; font-weight: 700; display: inline-grid; place-items: center;
 }
 .server-icon .badge { position: absolute; right: -4px; bottom: -4px; border: 3px solid var(--rail); height: 22px; border-radius: 11px; }
@@ -639,7 +649,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 /* A hoisted role's heading is a button (follow the role); it looks like the other headings. */
 .member-group-head { all: unset; cursor: pointer; border-radius: 4px; }
 .member-group-head:hover { color: var(--text); }
-.member-group-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.member-group-head:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .member {
   width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 0; border-radius: calc(var(--radius) * 0.6);
   background: transparent; text-align: left;

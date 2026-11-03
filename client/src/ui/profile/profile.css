@@ -1,7 +1,7 @@
 /* ── Profiles: avatars, cards, pages, theme picker ─────────────────── */
 .avatar > .avatar-image { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }
 .avatar-button { border: 0; background: none; padding: 0; border-radius: var(--avatar-radius); height: fit-content; }
-.avatar-button:focus-visible, .author:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.avatar-button:focus-visible, .author:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 button.author { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; cursor: pointer; }
 button.author:hover { text-decoration: underline; }
 .participant {
@@ -86,17 +86,52 @@ webview.page-frame, webview.page-preview { display: flex; overflow: hidden; }
 .crop-view.rect { border-radius: var(--radius); }
 .crop-view img { position: absolute; left: 0; top: 0; max-width: none; user-select: none; pointer-events: none; transform-origin: 0 0; }
 
-/* Theme picker. */
-.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+/* Theme picker: cards grouped in rows, each a small picture of the app in that theme. */
+.theme-groups { display: grid; gap: 14px; }
+.theme-group-label { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 8px; }
 .theme-option {
-  display: grid; gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); text-align: left;
-  transition: border-color 0.12s, transform 0.12s;
+  position: relative; display: grid; gap: 7px; padding: 6px 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); text-align: left; min-width: 0;
+  transition: border-color 0.12s, background 0.12s;
 }
-.theme-option:hover { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
-.theme-option.active { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
-.theme-dots { display: flex; gap: 6px; padding: 10px; border-radius: calc(var(--radius) * 0.6); }
-.theme-dots span { width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15); }
-.theme-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theme-option:hover { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: var(--surface-2); }
+.theme-option.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.theme-preview {
+  display: flex; gap: 3px; height: 64px; padding: 4px; border-radius: calc(var(--radius) * 0.6); overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.theme-preview-side { flex: 0 0 34%; display: grid; align-content: start; gap: 3px; padding: 5px 4px; border-radius: 4px; }
+.theme-preview-row { display: flex; align-items: center; height: 9px; padding: 0 4px; border-radius: 3px; }
+.theme-preview-row span { height: 3px; width: 70%; border-radius: 2px; opacity: 0.9; }
+.theme-preview-chat { flex: 1; position: relative; display: grid; align-content: start; gap: 5px; padding: 8px 7px; border-radius: 4px; }
+.theme-preview-line { height: 4px; width: 82%; border-radius: 2px; }
+.theme-preview-line.short { width: 56%; }
+.theme-preview-line.link { width: 34%; }
+.theme-preview-pill { position: absolute; right: 7px; bottom: 7px; width: 26px; height: 10px; border-radius: 5px; }
+.theme-name { padding: 0 2px; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theme-font-chip {
+  justify-self: start; margin: -2px 2px 0; padding: 1px 6px; border-radius: 999px; font-size: 11px; line-height: 16px;
+  color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border);
+}
+
+/* Font: radio cards, each "Aa" drawn in its own font (the stacks come from fonts.ts, never from a theme file). */
+
+.font-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.font-option {
+  display: grid; justify-items: start; align-content: start; gap: 2px; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--bg); text-align: left; min-width: 0; transition: border-color 0.12s, background 0.12s;
+}
+.font-option:hover { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: var(--surface-2); }
+.font-option.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.font-option.in-use:not(.active) { border-style: dashed; border-color: var(--accent); }
+.font-sample { font-size: 26px; line-height: 1.15; font-weight: 600; color: var(--text-strong); }
+.font-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.font-tag { padding: 0 6px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 16px; color: var(--on-accent); background: var(--accent); }
+.font-note { font-size: 11px; line-height: 1.3; color: var(--muted); }
+.font-code { margin: 14px 0 12px; max-width: 260px; }
+.font-use-theme > span { display: grid; gap: 2px; }
+.font-helper { font-size: 13px; }
 .theme-actions { margin-top: 12px; }
 .theme-editor { margin-top: 12px; display: grid; gap: 8px; justify-items: start; }
 .theme-editor textarea { font-family: var(--mono); font-size: 12px; resize: vertical; }

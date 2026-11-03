@@ -37,7 +37,7 @@
 .e2ee-voice-badge svg { flex-shrink: 0; }
 .e2ee-voice-badge.in-stage { font-size: 12px; padding: 3px 9px; margin-left: 4px; }
 .e2ee-voice-badge.pending { color: var(--muted); background: var(--surface-2); }
-.e2ee-voice-badge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.e2ee-voice-badge:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .e2ee-peer-lock { display: inline-flex; align-items: center; color: var(--green); margin-left: 4px; vertical-align: middle; }
 .person-tile .tile-label .e2ee-peer-lock svg { color: inherit; }
 .e2ee-unencrypted {

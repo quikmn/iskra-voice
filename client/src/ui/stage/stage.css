@@ -53,7 +53,7 @@
 .listener-name { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hand-badge {
   position: absolute; top: 2px; left: calc(50% + 12px); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--amber); color: #1a1300; box-shadow: 0 0 0 2px var(--stage);
+  background: var(--amber); color: var(--on-warning); box-shadow: 0 0 0 2px var(--stage);
 }
 .stage-error { text-align: center; }
 

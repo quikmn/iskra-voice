@@ -11,7 +11,7 @@
 .media-tile img, .media-tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.25s var(--ease); }
 .media-tile:hover img, .media-tile:hover video, .media-tile:focus-visible img, .media-tile:focus-visible video { transform: scale(1.03); }
 .media-tile.active { box-shadow: 0 0 0 3px var(--accent); }
-.media-tile:focus-visible { outline: 3px solid var(--accent); }
+.media-tile:focus-visible { outline: 3px solid var(--focus); }
 .media-tile.sensitive img, .media-tile.sensitive video { filter: blur(22px) brightness(0.8); transform: scale(1.15); }
 .media-tile-empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
 .media-sensitive {

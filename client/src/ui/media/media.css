@@ -14,7 +14,7 @@
 }
 .backdrop span { padding: 3px 6px; }
 .backdrop.on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
-.backdrop:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.backdrop:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 /* The same soft gradients the worker draws. */
 .backdrop-aurora {
   background:

@@ -154,10 +154,16 @@ test('desktop: rounded panels on the base, bottom bars aligned, in three themes'
   expectFrame(desktop)
   expectBarsAligned(desktop)
 
-  // Two other themes (one small radius, one large): the gutter and the corners come from the variables.
-  for (const [name, file] of [['Nord', 'nord'], ['Synthwave 1984', 'synthwave']] as const) {
+  // Two other themes, and a theme file with a large corner radius (built-ins all use 10): the gutter and the
+  // corners come from the variables.
+  const ROUND = JSON.stringify({ meta: { name: 'Round' }, colors: { bgSurface: '#101418', bgChat: '#1a2026', bgSidebar: '#161b20' }, radius: 18 })
+  for (const [name, file] of [['Nord', 'nord'], ['Synthwave 1984', 'synthwave'], ['Round', 'round']] as const) {
     await openSettings(page, 'Appearance')
-    await page.getByRole('radio', { name, exact: true }).click()
+    if (file === 'round') {
+      await page.getByRole('button', { name: 'Write your own' }).click()
+      await page.getByLabel('Theme JSON').fill(ROUND)
+      await page.getByRole('button', { name: 'Apply' }).click()
+    } else await page.getByRole('radio', { name, exact: true }).click()
     await page.keyboard.press('Escape')
     await page.mouse.move(DESKTOP.width / 2, 60)
     await page.waitForTimeout(300)
@@ -166,7 +172,7 @@ test('desktop: rounded panels on the base, bottom bars aligned, in three themes'
     await page.screenshot({ path: join(SHOTS, `layout-frame-theme-${file}.png`), animations: 'disabled' })
     expectFrame(themed)
     expectBarsAligned(themed)
-    expect(themed.radius.main).not.toBe(desktop.radius.main)
+    if (file === 'round') expect(themed.radius.main).not.toBe(desktop.radius.main)
     expect(themed.colors.rail).not.toBe(desktop.colors.rail)
   }
 

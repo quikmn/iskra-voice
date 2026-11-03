@@ -57,7 +57,7 @@
       <div class="side-group">Using Iskra</div>
       <ul>
         <li class="here"><a href="/docs/voice-processing" aria-current="page">Voice processing</a>
-<ul class="side-toc"><li class="l2"><a href="#your-microphone">Your microphone</a></li><li class="l2"><a href="#what-you-hear">What you hear</a></li><li class="l2"><a href="#your-cameras-background">Your camera's background</a></li><li class="l2"><a href="#live-captions">Live captions</a></li><li class="l2"><a href="#message-translation">Message translation</a></li><li class="l2"><a href="#voice-message-transcripts">Voice message transcripts</a></li><li class="l2"><a href="#read-aloud">Read aloud</a></li><li class="l2"><a href="#how-transparent-it-is">How transparent it is</a></li><li class="l2"><a href="#cpu">CPU</a></li><li class="l2"><a href="#third-party-notices">Third-party notices</a></li><li class="l3"><a href="#voice-bots-sdk">Voice bots (SDK)</a></li><li class="l3"><a href="#rich-text-code-and-math">Rich text (code and math)</a></li></ul>
+<ul class="side-toc"><li class="l2"><a href="#your-microphone">Your microphone</a></li><li class="l2"><a href="#what-you-hear">What you hear</a></li><li class="l2"><a href="#your-cameras-background">Your camera's background</a></li><li class="l2"><a href="#live-captions">Live captions</a></li><li class="l2"><a href="#message-translation">Message translation</a></li><li class="l2"><a href="#voice-message-transcripts">Voice message transcripts</a></li><li class="l2"><a href="#read-aloud">Read aloud</a></li><li class="l2"><a href="#how-transparent-it-is">How transparent it is</a></li><li class="l2"><a href="#cpu">CPU</a></li><li class="l2"><a href="#third-party-notices">Third-party notices</a></li><li class="l3"><a href="#voice-bots-sdk">Voice bots (SDK)</a></li><li class="l3"><a href="#rich-text-code-and-math">Rich text (code and math)</a></li><li class="l3"><a href="#fonts">Fonts</a></li></ul>
         </li>
         <li><a href="/docs/activities">Activities</a></li>
         <li><a href="/docs/assistant">The assistant (bring your own AI)</a></li>
@@ -73,7 +73,7 @@
 <main class="doc docs-main" id="top">
   <div class="doc-kicker">Docs</div>
   <h1>Voice processing</h1>
-  <p class="updated">Last updated <time datetime="2026-10-18">18 October 2026</time></p>
+  <p class="updated">Last updated <time datetime="2026-11-03">3 November 2026</time></p>
   <details class="mobile-toc">
     <summary>On this page</summary>
     <ul class="toc-list"><li class="l2"><a href="#your-microphone">Your microphone</a></li><li class="l2"><a href="#what-you-hear">What you hear</a></li><li class="l2"><a href="#your-cameras-background">Your camera's background</a></li><li class="l2"><a href="#live-captions">Live captions</a></li><li class="l2"><a href="#message-translation">Message translation</a></li><li class="l2"><a href="#voice-message-transcripts">Voice message transcripts</a></li><li class="l2"><a href="#read-aloud">Read aloud</a></li><li class="l2"><a href="#how-transparent-it-is">How transparent it is</a></li><li class="l2"><a href="#cpu">CPU</a></li><li class="l2"><a href="#third-party-notices">Third-party notices</a></li></ul>
@@ -677,6 +677,41 @@ only when a message needs them, and their output is turned into React elements t
 </tr>
 </tbody>
 </table></div>
+<h3 id="fonts">Fonts<a class="anchor" href="#fonts" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The app's fonts (My settings → Appearance → Font) ship with it as variable woff2 files, Latin and Latin Extended
+only, so nothing is fetched from a font service and they work offline in the browser, desktop and phone apps. The
+licence texts are in the app at <code>/licenses/</code> (<code>client/public/licenses/</code>).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Font</th>
+<th>Version</th>
+<th>Used for</th>
+<th>License</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/rsms/inter" target="_blank" rel="noopener">Inter</a></td>
+<td>4.001 (the same files as iskra.foo)</td>
+<td>the default text font</td>
+<td>SIL Open Font License 1.1 (<code>Inter-OFL.txt</code>)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/JetBrains/JetBrainsMono" target="_blank" rel="noopener">JetBrains Mono</a></td>
+<td>2.211 (the same files as iskra.foo)</td>
+<td>code, and the Monospace font</td>
+<td>SIL Open Font License 1.1 (<code>JetBrainsMono-OFL.txt</code>)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/googlefonts/nunito" target="_blank" rel="noopener">Nunito</a> via <a href="https://fontsource.org/fonts/nunito" target="_blank" rel="noopener">Fontsource</a></td>
+<td>npm <code>@fontsource-variable/nunito</code> 5.3.0</td>
+<td>the Rounded font</td>
+<td>SIL Open Font License 1.1 (<code>Nunito-OFL.txt</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<p>System and Serif use the device's own fonts.</p>
 </div>
 
   <div class="doc-foot">
