@@ -49,8 +49,10 @@ test('two accounts in the desktop app: the shell serves both, and both come back
     await page.getByLabel('Your name').fill('Dee')
     await page.getByRole('button', { name: 'Continue' }).click()
 
-    await page.getByTestId('account-switcher').click()
-    await page.getByRole('menuitem', { name: 'Add account' }).click()
+    // One account: no tile in the rail (the me bar is you); the status menu's Add account opens on the two ways.
+    await expect(page.getByTestId('account-switcher')).toHaveCount(0)
+    await page.locator('.me-status-button').click()
+    await page.getByTestId('account-menu-row').click()
     await page.getByRole('menuitem', { name: /Create a new account/ }).click()
 
     const eli = page.frameLocator('iframe[data-account="2"]')

@@ -10,23 +10,27 @@
 .account-chooser-list { display: grid; gap: 6px; margin-top: 12px; }
 .account-chooser-item {
   display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 1px solid var(--border);
-  border-radius: var(--radius); background: var(--surface-2); color: var(--text); text-align: left; font: inherit;
+  border-radius: var(--r-lg); background: var(--surface-2); color: var(--text); text-align: left; font: inherit;
 }
 .account-chooser-item:hover, .account-chooser-item:focus-visible { background: var(--hover); }
 .account-chooser-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* The switcher at the bottom of the server rail. */
-/* The picture fills the button, which takes the server icons' shape (a circle, rounded on hover); no browser padding. */
+/* The tile at the bottom of the server rail (two or more accounts): yours behind, the one you'd switch to in front,
+   so it reads as "accounts" and not as a second you next to the me bar. Same 48px footprint as a server. */
 .server-icon.account-switch {
-  margin-top: auto; position: sticky; bottom: 0; padding: 0; display: block; background: var(--surface-2);
+  margin-top: auto; position: sticky; bottom: 0; padding: 0; display: grid; place-items: center; background: transparent;
   box-shadow: 0 -8px 8px var(--rail); /* servers scrolling under it fade out */
 }
 /* Level with the profile bar beside it: that bar is --bottom-bar tall and 16px (8px on phones) above the panel's
    bottom, the rail ends there too with 12px padding, and this button is 48px. */
 .server-icon.account-switch { margin-bottom: calc(16px + var(--bottom-bar) / 2 - 12px - 24px); }
 @media (max-width: 760px) { .server-icon.account-switch { margin-bottom: calc(8px + var(--bottom-bar) / 2 - 12px - 24px); } }
-.server-icon.account-switch:hover { background: var(--surface-3); }
-.server-icon.account-switch .avatar { display: grid; place-items: center; width: 100% !important; height: 100% !important; border-radius: inherit; transition: border-radius var(--dur-slow); }
+.server-icon.account-switch:hover, .server-icon.account-switch[aria-expanded='true'] { background: var(--surface-2); color: inherit; }
+.account-stack { position: relative; width: 40px; height: 40px; }
+.account-stack > .avatar { position: absolute; }
+.account-stack > .avatar:first-child { left: 0; top: 0; opacity: 0.7; }
+.account-stack > .avatar:last-child { right: 0; bottom: 0; box-shadow: 0 0 0 2px var(--rail); }
+.server-icon.account-switch:hover .account-stack > .avatar:last-child { box-shadow: 0 0 0 2px var(--surface-2); }
 .server-icon.account-switch.ringing { animation: account-ring 1s ease-in-out infinite; }
 @keyframes account-ring { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 60%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .server-icon.account-switch.ringing { animation: none; box-shadow: 0 0 0 3px var(--green); } }
@@ -34,8 +38,14 @@
 .account-avatar .avatar-image { width: 100%; height: 100%; object-fit: cover; }
 
 .account-list { min-width: 260px; }
-.account-row { display: flex; align-items: center; gap: 2px; border-radius: calc(var(--radius) * 0.6); }
+.account-row { display: flex; align-items: center; gap: 2px; border-radius: var(--r-sm); }
 .account-row.current { background: var(--accent-subtle); }
+/* Reordering is for the odd tidy-up: the arrows show on the row you point at (always on touch screens). */
+@media (hover: hover) {
+  .account-move { opacity: 0; transition: opacity var(--dur-fast); }
+  .account-row:hover .account-move, .account-row:focus-within .account-move { opacity: 1; }
+}
+.account-add-icon { flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--r-md); background: var(--surface-2); color: var(--accent-2); }
 .account-item { flex: 1; min-width: 0; }
 .account-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
 .account-item-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-ui); }
@@ -46,8 +56,7 @@
 .account-move { display: flex; flex-direction: column; flex: none; }
 .account-move .icon-button.small { width: 24px; height: 18px; }
 .account-move .flip { display: inline-grid; transform: rotate(180deg); }
-.account-add-label { display: inline-flex; align-items: center; gap: 8px; }
-.account-add-choice { align-items: flex-start; }
+.account-add-choice { align-items: center; gap: var(--sp-3); }
 .account-add-choice small { white-space: normal; }
 .account-menu-note { font-size: var(--fs-sm); margin: 6px 10px 4px; max-width: 260px; }
 .org-sheet .account-list { min-width: 0; }
@@ -57,7 +66,7 @@
 /* While an account is being added: the way back to the others, above its first-run screen. */
 .account-adding-bar {
   position: fixed; top: calc(8px + var(--safe-top)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
-  display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 14px; border-radius: 99px;
+  display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 14px; border-radius: var(--r-pill);
   background: var(--surface-2); border: 1px solid var(--border); font-size: var(--fs-md); color: var(--text-2);
 }
 

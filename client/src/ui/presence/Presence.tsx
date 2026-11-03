@@ -10,11 +10,13 @@ import {
 import { Avatar, Modal } from '../bits'
 import { EmojiPicker } from '../expressions/EmojiPicker'
 import { usePopoverPosition } from '../expressions/popover'
-import { Close, Smile } from '../icons'
+import { Bug, Close, Key, Smile, Users } from '../icons'
 import { bugShortcut, openBugReport } from '../../state/bugReport/bugReport'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { QuietStatusRow } from '../alerts/AlertSettings'
 import { StreamerStatusRow } from '../streamer/StreamerBits'
+import { openRecoveryKey, useRecoveryDue } from '../dialogs/RecoveryKey'
+import { openAccountMenu, useAccountsRow } from '../accounts/AccountSwitcher'
 import './presence.css'
 
 /** "🎮 Raiding tonight": emoji and text, rendered by React. */
@@ -40,18 +42,22 @@ export function MeStatusButton({ name, accountKey, sub, speaking = false, flag =
   const state = usePresence()
   const status = myShownStatus(state)
   const custom = activeCustom(state.mine.custom)
+  // After "Later" on the recovery-key banner, a dot on the avatar keeps it findable (the status menu has the row).
+  const keyDue = useRecoveryDue() === 'quiet'
+  const label = t('presence.setStatus', { status: STATUS_LABELS[status] })
   return (
     <>
       <button
         className="me-status-button"
         onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
-        aria-label={t('presence.setStatus', { status: STATUS_LABELS[status] })}
+        aria-label={keyDue ? `${label}. ${t('shell.recovery.notSaved')}` : label}
         aria-haspopup="menu"
         aria-expanded={!!anchor}
       >
         <span className={`me-avatar ${speaking ? 'speaking' : ''}`} title={title}>
           <Avatar name={name} accountKey={accountKey} size={32} status={status} />
           {flag}
+          {keyDue && !flag && <span className="me-avatar-dot" aria-hidden />}
         </span>
         <span className="me-text">
           <strong>{name}</strong>
@@ -72,6 +78,8 @@ function StatusMenu({ anchor, onClose, onCustom }: { anchor: HTMLElement; onClos
   const { style, sheet } = usePopoverPosition(anchor, ref)
   const mine = usePresence((s) => s.mine)
   const custom = activeCustom(mine.custom)
+  const keyDue = useRecoveryDue() !== null
+  const accounts = useAccountsRow()
   useEscapeLayer(onClose)
   useFocusTrap(ref)
 
@@ -107,10 +115,28 @@ function StatusMenu({ anchor, onClose, onCustom }: { anchor: HTMLElement; onClos
           ))}
         </div>
         <QuietStatusRow onClose={onClose} />
-        <StreamerStatusRow onClose={onClose} />
-        <button className="status-menu-bug" role="menuitem" onClick={() => { onClose(); openBugReport() }}>
-          <span>{t('bugReport.open')}</span>{bugShortcut() && <span className="muted">{bugShortcut()}</span>}
-        </button>
+        {/* Not about your status: the app and your account, under a line. */}
+        <div className="status-menu-extras" role="group">
+          <StreamerStatusRow onClose={onClose} />
+          {keyDue && (
+            <button className="status-menu-item attention" role="menuitem" onClick={() => { onClose(); openRecoveryKey() }}>
+              <Key size={16} /><span>{t('shell.recovery.row')}</span><span className="status-menu-dot" aria-hidden />
+            </button>
+          )}
+          {accounts && (
+            <button className="status-menu-item" role="menuitem" data-testid="account-menu-row" onClick={() => {
+              const rect = anchor.getBoundingClientRect()
+              onClose()
+              openAccountMenu({ x: rect.left, y: rect.top - 8 })
+            }}>
+              <Users size={16} /><span>{accounts.label}</span>
+              {accounts.unread > 0 && <span className="badge" aria-label={t('accounts.switcher.otherUnread', { count: accounts.unread })}>{accounts.unread > 99 ? '99+' : accounts.unread}</span>}
+            </button>
+          )}
+          <button className="status-menu-item" role="menuitem" onClick={() => { onClose(); openBugReport() }}>
+            <Bug size={16} /><span>{t('bugReport.open')}</span>{bugShortcut() && <kbd className="status-menu-kbd">{bugShortcut()}</kbd>}
+          </button>
+        </div>
       </div>
     </div>,
     document.body,

@@ -25,6 +25,15 @@ async function onDevice<T>(page: Page, read: () => Promise<T> | T): Promise<T> {
 const account = (page: Page, slot: number): FrameLocator => page.frameLocator(`iframe[data-account="${slot}"]`)
 const frameOf = (page: Page, slot: number): Frame => page.frames().find((f) => new URL(f.url()).searchParams.get('account') === String(slot))!
 
+/** One account: the status menu (the me bar's avatar) has Add account, which opens on the two ways to add one. */
+async function addAccount(app: Page | FrameLocator) {
+  await expect(app.getByTestId('account-switcher')).toHaveCount(0)
+  await app.locator('.me-status-button').first().click()
+  await expect(app.getByTestId('account-menu-row')).toHaveText('Add account')
+  await app.getByTestId('account-menu-row').click()
+  await expect(app.getByRole('dialog', { name: 'Accounts' })).toBeVisible()
+}
+
 async function openSwitcher(app: FrameLocator) {
   await app.getByTestId('account-switcher').click()
   await expect(app.getByRole('dialog', { name: 'Accounts' })).toBeVisible()
@@ -53,12 +62,13 @@ test('two accounts in one app, each with its own servers, unread, links and voic
   const page = await (await browser.newContext()).newPage()
   await joinVia(page, one.ownerLink(), 'Ada')
 
-  // One account: the switcher shows it, and offers to add one.
-  await page.getByTestId('account-switcher').click()
+  // One account: no second you in the rail; the status menu offers to add one (and back shows who's here).
+  await addAccount(page)
   const menu = page.getByRole('dialog', { name: 'Accounts' })
+  await expect(menu.getByText('Iskra restarts once to add the account.')).toBeVisible()
+  await menu.getByRole('button', { name: 'Back' }).click()
   await expect(menu.getByRole('menuitemradio', { name: 'Ada' })).toBeVisible()
   await menu.getByRole('menuitem', { name: 'Add account' }).click()
-  await expect(menu.getByText('Iskra restarts once to add the account.')).toBeVisible()
   await menu.getByRole('menuitem', { name: /Create a new account/ }).click()
 
   // The page comes back holding both accounts; the new one starts on "pick a name".
@@ -181,8 +191,7 @@ test('an existing install becomes account 1 as it is, and adding an account can 
   await joinVia(page, solo.ownerLink(), 'Solo')
   // Nothing about accounts was stored for a single account.
   expect(await page.evaluate(() => localStorage.getItem('iskra-accounts'))).toBeNull()
-  await page.getByTestId('account-switcher').click()
-  await page.getByRole('menuitem', { name: 'Add account' }).click()
+  await addAccount(page)
   await page.getByRole('menuitem', { name: /Use an account I already have/ }).click()
   const added = account(page, 2)
   await expect(added.getByRole('button', { name: /Link with my other device/ })).toBeVisible({ timeout: 20_000 })
@@ -232,8 +241,7 @@ test('the same account twice: voice moves calmly between its devices, and adding
   }
 
   // Adding Ada again on her first device (with her recovery key): Iskra keeps one copy and goes to it.
-  await first.getByTestId('account-switcher').click()
-  await first.getByRole('menuitem', { name: 'Add account' }).click()
+  await addAccount(first)
   await first.getByRole('menuitem', { name: /Use an account I already have/ }).click()
   const again = account(first, 2)
   await again.getByRole('button', { name: /Use my recovery key/ }).click({ timeout: 20_000 })
@@ -247,14 +255,13 @@ test('the same account twice: voice moves calmly between its devices, and adding
   await same.stop()
 })
 
-test('phone: the switcher sits in the drawer, and back works for the account on screen', async ({ browser }) => {
+test('phone: adding from the status menu, the switcher in the drawer, and back works for the account on screen', async ({ browser }) => {
   const pocket = await startServer('Accounts Pocket')
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
   const page = await context.newPage()
   await joinVia(page, pocket.ownerLink(), 'Ada')
   await page.getByRole('button', { name: 'Open channels' }).first().click()
-  await page.getByTestId('account-switcher').click()
-  await page.getByRole('menuitem', { name: 'Add account' }).click()
+  await addAccount(page)
   await page.getByRole('menuitem', { name: /Create a new account/ }).click()
   const gus = account(page, 2)
   await gus.getByLabel('Your name').fill('Gus')

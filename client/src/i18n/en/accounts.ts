@@ -15,6 +15,7 @@ export const accounts = {
     moveUp: 'Move {{name}} up',
     moveDown: 'Move {{name}} down',
     add: 'Add account',
+    switchAccount: 'Switch account',
     addNew: 'Create a new account',
     addNewHint: 'A separate account with its own name, servers and messages.',
     addExisting: 'Use an account I already have',

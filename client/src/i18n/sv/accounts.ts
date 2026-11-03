@@ -15,6 +15,7 @@ export const accounts = {
     moveUp: 'Flytta upp {{name}}',
     moveDown: 'Flytta ner {{name}}',
     add: 'Lägg till konto',
+    switchAccount: 'Byt konto',
     addNew: 'Skapa ett nytt konto',
     addNewHint: 'Ett separat konto med eget namn, egna servrar och meddelanden.',
     addExisting: 'Använd ett konto jag redan har',

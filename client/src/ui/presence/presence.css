@@ -1,12 +1,18 @@
 /* ── Presence: me bar button, status menu, custom status ───────────── */
 .me-status-button {
   display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; padding: 2px 6px 2px 2px; margin: -2px 0 -2px -2px;
-  border: 0; background: none; color: inherit; text-align: left; border-radius: calc(var(--radius) * 0.7); cursor: pointer;
+  border: 0; background: none; color: inherit; text-align: left; border-radius: var(--r-md); cursor: pointer;
+  transition: background var(--dur-fast);
 }
 .me-status-button:hover, .me-status-button[aria-expanded='true'] { background: var(--hover); }
 .me-status-button .me-text span { text-transform: none; }
 .me-status-button .me-text span::first-letter { text-transform: uppercase; }
-.me-custom { font-size: 12px; color: var(--muted); }
+.me-custom { font-size: var(--fs-sm); color: var(--muted); }
+/* The recovery key isn't saved (the banner was put off): a small amber dot on the avatar's top right. */
+.me-avatar-dot {
+  position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--amber); box-shadow: 0 0 0 2px var(--rail);
+}
 
 .custom-status { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
 .custom-status-emoji { flex: none; line-height: 1; }
@@ -14,28 +20,44 @@
 
 .status-menu-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); }
 .status-menu.floating {
-  position: fixed; width: 280px; max-width: calc(100vw - 16px); background: var(--float); border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: var(--shadow-modal); padding: 6px; outline: none; animation: fade 0.12s ease-out;
+  position: fixed; width: 280px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow-y: auto;
+  background: var(--float); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-pop); padding: 6px; outline: none; animation: fade var(--dur-fast) ease-out;
 }
-.status-menu.action-sheet { padding-left: 12px; padding-right: 12px; }
+.status-menu.action-sheet { padding-left: var(--sp-3); padding-right: var(--sp-3); }
 .status-custom-row { display: flex; align-items: center; gap: 4px; }
 .status-custom-edit {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 10px; border: 0; background: var(--surface-2);
-  border-radius: calc(var(--radius) * 0.7); color: var(--text); text-align: left; font-size: 14px;
+  border-radius: var(--r-md); color: var(--text); text-align: left; font-size: var(--fs-ui);
 }
 .status-custom-edit:hover { background: var(--surface-3); }
 .status-custom-edit svg { color: var(--muted); flex: none; }
-.status-clears { font-size: 12px; padding: 4px 10px 0; }
+.status-clears { font-size: var(--fs-sm); padding: 4px 10px 0; }
 .status-choices { display: grid; margin-top: 6px; border-top: 1px solid var(--border); padding-top: 6px; }
 .status-choices button {
   display: flex; align-items: flex-start; gap: 12px; padding: 9px 10px; border: 0; background: none; color: var(--text); text-align: left;
-  border-radius: calc(var(--radius) * 0.6); font-size: 14px;
+  border-radius: var(--r-sm); font-size: var(--fs-ui);
 }
 .status-choices button:hover { background: var(--hover); }
 .status-choices button.chosen { background: var(--surface-3); }
 .status-choice-text { display: grid; gap: 1px; }
-.status-choice-text span { font-size: 12px; color: var(--muted); }
+.status-choice-text span { font-size: var(--fs-sm); color: var(--muted); }
 .action-sheet .status-choices button { padding: 13px 10px; font-size: 16px; }
+
+/* Under a line: streamer mode, the recovery key, accounts, a bug report. One row look, one line above them all. */
+.status-menu-extras { display: grid; gap: 1px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+.status-menu .status-menu-extras > button {
+  margin: 0; border: 0; border-radius: var(--r-sm); padding: 9px 10px; font-size: var(--fs-md); color: var(--text-2);
+}
+.status-menu .status-menu-extras > button:hover { background: var(--hover); color: var(--text); }
+.status-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; background: none; text-align: left; }
+.status-menu-item > svg { flex: none; color: var(--muted); }
+.status-menu-item > span:not(.badge, .status-menu-dot) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-menu-item.attention > svg { color: var(--amber); }
+.status-menu-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
+.status-menu-kbd { flex: none; font-size: var(--fs-xs); font-weight: var(--fw-regular); color: var(--muted); }
+.status-menu-extras .status-streamer-dot { width: 16px; flex: none; }
+.action-sheet.status-menu .status-menu-extras > button { padding: 13px 10px; font-size: var(--fs-base); }
 
 .status-dot { position: relative; flex: none; width: 12px; height: 12px; border-radius: 50%; margin-top: 3px; background: var(--online); }
 .status-dot.presence-idle { background: var(--amber); }
@@ -47,14 +69,14 @@
 .custom-status-input { display: flex; align-items: center; gap: 6px; }
 .custom-status-input input { flex: 1; min-width: 0; }
 .custom-status-emoji-button { flex: none; font-size: 20px; }
-.field-hint { font-size: 12px; justify-self: end; }
+.field-hint { font-size: var(--fs-sm); justify-self: end; }
 
 /* Where custom statuses appear */
-.member-status { font-size: 12px; color: var(--muted); display: flex; min-width: 0; }
-.profile-status { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; padding: 8px 10px; border-radius: calc(var(--radius) * 0.8); background: var(--surface-2); font-size: 14px; }
-.profile-status-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.member-status { font-size: var(--fs-sm); color: var(--muted); display: flex; min-width: 0; }
+.profile-status { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; padding: 8px 10px; border-radius: var(--r-md); background: var(--surface-2); font-size: var(--fs-ui); }
+.profile-status-label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-md); color: var(--muted); }
 .profile-status-label .status-dot { margin: 0; width: 10px; height: 10px; }
 .profile-status-label .status-dot.presence-idle::after { width: 6px; height: 6px; }
 .profile-status-label .status-dot.presence-dnd::after { left: 2px; right: 2px; top: 4px; }
-.dm-status { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.dm-status { display: block; font-size: var(--fs-sm); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
 .dm-row-text { display: grid; min-width: 0; flex: 1; line-height: 1.25; }
