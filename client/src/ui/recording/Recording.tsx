@@ -15,6 +15,7 @@ import {
 } from '../../state/recording'
 import { answers, isRecorded, needsAnswer, offsetLabel, olderApp } from '../../state/recordingLogic'
 import { Modal } from '../bits'
+import { ToastPill } from '../kit'
 import { Close } from '../icons'
 import './recording.css'
 
@@ -258,17 +259,18 @@ export function RecordingLayer() {
         </div>
       )}
       {error && (
-        <div className="recording-toast error" role="alert">
-          <span>{typeof error === 'string' ? error : t(`recording.errors.${error.key}`)}</span>
-          <button className="icon-button small" onClick={clearRecordingError} aria-label={t('common.close')}><Close size={14} /></button>
-        </div>
+        <ToastPill tone="danger" role="alert" className="recording-toast error"
+          action={<button className="icon-button small" onClick={clearRecordingError} aria-label={t('common.close')}><Close size={14} /></button>}>
+          {typeof error === 'string' ? error : t(`recording.errors.${error.key}`)}
+        </ToastPill>
       )}
       {saved && (
-        <div className="recording-toast" role="status">
-          <span>{t('recording.saved')}</span>
+        <ToastPill tone="success" className="recording-toast" action={<>
           <button className="button small" onClick={showRecordingFolder}>{t('recording.open')}</button>
           <button className="icon-button small" onClick={dismissSaved} aria-label={t('common.close')}><Close size={14} /></button>
-        </div>
+        </>}>
+          {t('recording.saved')}
+        </ToastPill>
       )}
     </div>
   )

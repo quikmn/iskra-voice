@@ -32,7 +32,7 @@ test('alert words notify like a mention, and quiet hours show in the status menu
   await expect(settings.locator('.alert-chip')).toHaveText(['pizza', 'raid night'])
 
   // ── Quiet hours: the whole day, every day, letting mentions through ──
-  await settings.getByRole('checkbox', { name: 'Quiet hours on a schedule' }).check()
+  await settings.getByRole('switch', { name: 'Quiet hours on a schedule' }).check()
   await settings.getByLabel('From', { exact: true }).fill('00:00')
   await settings.getByLabel('To', { exact: true }).fill('00:00')
   for (const day of ['Sun', 'Sat']) {

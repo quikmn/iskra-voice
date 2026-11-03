@@ -36,7 +36,6 @@
 .mod-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mod-history-list { margin: 0; }
 .mod-history-list .audit-entry { font-size: 14px; }
-.warn-toast { border-color: color-mix(in srgb, var(--amber) 50%, transparent); }
 .ban-delete { margin: 8px 0; }
 .departed { margin-top: 22px; }
 .departed h3 { margin-bottom: 4px; }

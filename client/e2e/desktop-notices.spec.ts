@@ -111,7 +111,7 @@ test('the tray’s "Check for updates" and About show inside the app, never as n
     await send({ kind: 'update-check', result: 'up-to-date', version: '<img src=x>' })
     await send({ kind: 'nope' })
     await page.waitForTimeout(300)
-    await expect(page.locator('.update-toast')).toHaveCount(0)
+    await expect(page.locator('.toast')).toHaveCount(0)
 
     expect(await app.evaluate(() => (globalThis as unknown as TestGlobals).nativeBoxes)).toBe(0)
   } finally {

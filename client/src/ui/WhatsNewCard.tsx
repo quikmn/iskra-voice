@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { releaseNotesUrl } from '../releaseNotes'
 import { dismissWhatsNew, linesFor, useWhatsNew } from '../state/whatsNew'
 import { Close } from './icons'
+import { ToastPortal } from './kit'
 import './whats-new.css'
 
 export function WhatsNewCard() {
@@ -13,6 +14,7 @@ export function WhatsNewCard() {
   if (!notes) return null
   const lines = linesFor(notes, i18n.language)
   return (
+    <ToastPortal>
     <section className="whats-new" aria-labelledby={titleId} data-testid="whats-new">
       <div className="whats-new-head">
         <div className="whats-new-mark" aria-hidden="true">
@@ -34,5 +36,6 @@ export function WhatsNewCard() {
         <button className="button primary" onClick={dismissWhatsNew}>{t('whatsNew.gotIt')}</button>
       </div>
     </section>
+    </ToastPortal>
   )
 }

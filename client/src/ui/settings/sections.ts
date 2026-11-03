@@ -25,7 +25,30 @@ export interface ServerSectionInfo extends SectionInfo<ServerSectionId> {
   group: ServerGroup
 }
 
-const MINE: MySectionId[] = ['profile', 'appearance', 'language', 'devices', 'recovery', 'security', 'notifications', 'streamer', 'voice', 'video', 'blocked', 'desktop', 'pcBots', 'account', 'assistant', 'privacy', 'about']
+export type MyGroup = 'you' | 'app' | 'privacy' | 'about'
+
+export const MY_GROUPS: MyGroup[] = ['you', 'app', 'privacy', 'about']
+
+/** My settings in nav order, by group: you, the app on this device, privacy and safety, about. */
+const MINE: { id: MySectionId; group: MyGroup }[] = [
+  { id: 'profile', group: 'you' },
+  { id: 'account', group: 'you' },
+  { id: 'devices', group: 'you' },
+  { id: 'recovery', group: 'you' },
+  { id: 'security', group: 'you' },
+  { id: 'appearance', group: 'app' },
+  { id: 'language', group: 'app' },
+  { id: 'notifications', group: 'app' },
+  { id: 'voice', group: 'app' },
+  { id: 'video', group: 'app' },
+  { id: 'streamer', group: 'app' },
+  { id: 'assistant', group: 'app' },
+  { id: 'desktop', group: 'app' },
+  { id: 'pcBots', group: 'app' },
+  { id: 'blocked', group: 'privacy' },
+  { id: 'privacy', group: 'privacy' },
+  { id: 'about', group: 'about' },
+]
 
 /** Any of these opens Members and Reports (the ones that act on people). */
 const MODERATION: Permission[] = ['manageMessages', 'timeoutMembers', 'kickMembers', 'banMembers']
@@ -64,8 +87,8 @@ export const SERVER_GROUPS: ServerGroup[] = ['server', 'safety', 'apps', 'hostin
 export const isServerSection = (id: SectionId): id is ServerSectionId => SERVER.some((s) => s.id === id)
 
 /** My settings: about you on every server (Desktop app only in the app). Never anything about one server. */
-export function mySections(desktopApp = false): SectionInfo<MySectionId>[] {
-  return MINE.filter((id) => desktopApp || (id !== 'desktop' && id !== 'pcBots')).map((id) => ({ id, label: t(`settings.sections.${id}`) }))
+export function mySections(desktopApp = false): (SectionInfo<MySectionId> & { group: MyGroup })[] {
+  return MINE.filter(({ id }) => desktopApp || (id !== 'desktop' && id !== 'pcBots')).map(({ id, group }) => ({ id, group, label: t(`settings.sections.${id}`) }))
 }
 
 /**

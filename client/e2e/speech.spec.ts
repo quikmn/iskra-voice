@@ -115,7 +115,7 @@ test('voice message transcripts, read aloud, read new messages aloud and /tts', 
 
   // The friend turns on "Play /tts messages" (off by default) and hears the host's.
   await openSettings(friend, 'Voice & audio')
-  const play = friend.getByRole('checkbox', { name: 'Play /tts messages' })
+  const play = friend.getByRole('switch', { name: 'Play /tts messages' })
   await expect(play).not.toBeChecked()
   await play.check()
   await friend.getByRole('dialog', { name: 'Settings' }).getByRole('heading', { name: 'Speech' }).scrollIntoViewIfNeeded()

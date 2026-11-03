@@ -62,7 +62,7 @@ test('voice channels have their own chat, and clips save the last seconds with a
   expect((await clipsOff.boundingBox())!.y).toBeGreaterThan(400)
   await openSettings(host, 'Voice & audio')
   const settings = host.getByRole('dialog', { name: 'Settings' })
-  await settings.getByRole('checkbox', { name: 'Let me save clips' }).check()
+  await settings.getByRole('switch', { name: 'Let me save clips' }).check()
   await expect(settings.getByText('Clip length: 30 seconds')).toBeVisible()
   await settings.getByLabel('Clip length').fill('15')
   await expect(settings.getByText('Clip length: 15 seconds')).toBeVisible()

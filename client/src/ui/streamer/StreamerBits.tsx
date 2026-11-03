@@ -7,6 +7,7 @@ import { setStreamerMode, useStreamer, useStreamerMode } from '../../state/strea
 import { maskEmails, maskSecret } from '../../state/streamerLogic'
 import { openMySettings } from '../settings/open'
 import './streamer.css'
+import { SwitchRow } from '../kit'
 
 /** "Streamer mode", while it's on. `floating`: the main window's corner pill; otherwise inline (pop-outs, captions). */
 export function StreamerPill({ floating = false }: { floating?: boolean }) {
@@ -64,13 +65,7 @@ export function StreamerSection() {
   return (
     <section className="settings-section" data-testid="streamer-section">
       <h2>{t('streamer.title')}</h2>
-      <label className="checkbox">
-        <input type="checkbox" checked={manual} onChange={(e) => setStreamerMode(e.target.checked)} />
-        <span>
-          {t('streamer.switch')}
-          <br /><small className="muted">{t('streamer.switchHint')}</small>
-        </span>
-      </label>
+      <SwitchRow title={t('streamer.switch')} help={t('streamer.switchHint')} checked={manual} onChange={(on) => setStreamerMode(on)} />
       {autoOn && <p className="muted" role="status">{t('streamer.autoNow')}</p>}
       {desktop && (
         <p className="muted">

@@ -9,17 +9,18 @@
 .settings-room:focus { outline: none; }
 
 .room-band {
-  flex: none; display: flex; align-items: center; gap: 14px; min-height: 116px; padding: 20px 24px 20px 28px; color: #fff;
+  flex: none; display: flex; align-items: center; gap: var(--sp-3); min-height: 76px; padding: var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-5); color: #fff;
   background: linear-gradient(115deg, var(--room-band), color-mix(in srgb, var(--room-band) 72%, #000));
 }
 .room-mine .room-band { background: var(--surface-2); color: var(--text-strong); border-bottom: 1px solid var(--border); }
-.room-identity { display: flex; align-items: center; gap: 18px; min-width: 0; flex: 1; }
+.room-identity { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1; }
 .room-titles { min-width: 0; }
-.room-name { margin: 0; font-size: clamp(24px, 3.2vw, 34px); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; overflow-wrap: anywhere; }
-.room-sub { margin: 6px 0 0; font-size: 14px; opacity: 0.85; }
+.room-name { margin: 0; font-size: 22px; font-weight: var(--fw-bold); letter-spacing: -0.01em; line-height: var(--lh-tight); overflow-wrap: anywhere; }
+.room-sub { margin: 2px 0 0; font-size: var(--fs-md); opacity: 0.85; }
 .room-mine .room-sub { color: var(--muted); opacity: 1; }
 .room-esc {
-  flex: none; padding: 2px 7px; border: 1px solid currentColor; border-radius: 6px; font: 600 11px/1.4 inherit;
+  flex: none; padding: 2px 7px; border: 1px solid currentColor; border-radius: var(--r-sm); font-weight: var(--fw-medium); font-size: var(--fs-xs); line-height: 1.4;
+  background: transparent; color: inherit; opacity: 0.75;
 }
 .room-band .icon-button, .room-slim .icon-button { color: inherit; flex: none; }
 .room-band .icon-button:hover, .room-slim .icon-button:hover { background: color-mix(in srgb, currentColor 16%, transparent); }
@@ -28,19 +29,18 @@
   display: inline-grid; place-items: center; flex: none; color: #fff; font-weight: 800; user-select: none;
 }
 .room-tile:has(.server-picture) { overflow: hidden; }
-.room-tile.large { width: 68px; height: 68px; border-radius: calc(var(--radius) * 1.8); font-size: 24px; box-shadow: 0 0 0 3px rgb(255 255 255 / 0.22); }
-.room-tile.small { width: 24px; height: 24px; border-radius: 7px; font-size: 10px; }
+.room-tile.large { width: 48px; height: 48px; border-radius: var(--r-lg); font-size: 18px; box-shadow: 0 0 0 2px rgb(255 255 255 / 0.22); }
+.room-tile.small { width: 24px; height: 24px; border-radius: var(--r-sm); font-size: var(--fs-xs); }
 
 .room-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 248px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
-.settings-room .settings-nav { padding: 14px 10px 24px; gap: 16px; }
+.settings-room .settings-nav { padding: var(--sp-3) 10px var(--sp-5); gap: var(--sp-4); }
 /* Group headers are plain words in normal case. */
-.settings-room .settings-nav-title { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--muted); padding: 2px 10px 6px; }
+.settings-room .settings-nav-title { text-transform: none; letter-spacing: 0; font-size: var(--fs-md); font-weight: var(--fw-medium); color: var(--muted); padding: 2px 10px 6px; }
 .room-server .settings-nav-item.active { box-shadow: inset 3px 0 0 var(--room-marker); }
 .settings-nav-count {
-  flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--red); color: #fff;
-  font-size: 12px; font-weight: 700; display: inline-grid; place-items: center;
+  flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r-pill); background: var(--danger-solid); color: #fff;
+  font-size: var(--fs-sm); font-weight: var(--fw-bold); display: inline-grid; place-items: center;
 }
-.settings-room .settings-pane { padding: 24px 32px 40px; }
 
 /* Phones: a page stack. The band and the list first; each section under a slim band. */
 .room-slim {
@@ -54,12 +54,11 @@
 .room-crumb-sep { opacity: 0.6; flex: none; }
 
 @media (max-width: 760px) {
-  .room-band { min-height: 100px; padding: 16px 8px 16px 16px; }
+  .room-band { min-height: 76px; padding: var(--sp-3) var(--sp-2) var(--sp-3) var(--sp-4); }
   .room-identity { gap: 14px; }
-  .room-tile.large { width: 56px; height: 56px; font-size: 20px; }
+  .room-tile.large { width: 48px; height: 48px; font-size: 18px; }
   .room-body { grid-template-columns: minmax(0, 1fr); }
-  .settings-room .settings-nav { padding: 12px 12px 24px; gap: 18px; }
-  .settings-room .settings-pane { padding: 16px 16px 32px; }
+  .settings-room .settings-nav { padding: var(--sp-3) var(--sp-3) var(--sp-5); gap: var(--sp-5); }
   .room-server .settings-nav-item.active { box-shadow: none; }
 }
 

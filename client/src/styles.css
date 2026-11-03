@@ -66,6 +66,49 @@
   color-scheme: dark;
 }
 
+/* ── Design tokens (not colours) ────────────────────────────────────────
+   The shared scale for type, spacing, corners, elevation, focus and motion. Component CSS uses these instead of
+   pixel values; the UI kit (ui/kit/) is built on them. Colours stay with the themes (theme/theme.ts). */
+:root {
+  /* Type: six sizes (11px is the floor), three weights (800 only for the brand wordmark). */
+  --fs-xs: 11px;   /* badges, kbd, timestamps */
+  --fs-sm: 12px;   /* captions, meta, group headers */
+  --fs-md: 13px;   /* secondary UI text, menus, small buttons */
+  --fs-ui: 14px;   /* UI chrome between md and base (rows, settings help) */
+  --fs-base: 15px; /* body and messages */
+  --fs-lg: 18px;   /* dialog titles, section group titles */
+  --fs-xl: 22px;   /* page titles (a settings section's heading) */
+  --fw-regular: 400; --fw-medium: 600; --fw-bold: 700;
+  --lh-tight: 1.25; --lh-body: 1.45;
+
+  /* Spacing: a 4px base. */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+
+  /* Corners: derived from the theme's --radius, four steps and a pill. */
+  --r-sm: calc(var(--radius) * 0.6);  /* chips, kbd, inline code, mentions, rows in a list */
+  --r-md: calc(var(--radius) * 0.8);  /* buttons, inputs */
+  --r-lg: var(--radius);              /* cards, popovers, menus, toasts */
+  --r-xl: calc(var(--radius) * 1.6);  /* dialogs, sheets */
+  --r-pill: 999px;
+
+  /* Elevation: every shadow goes through --shadow-color, so light themes soften. */
+  --shadow-1: 0 2px 8px color-mix(in srgb, var(--shadow-color) 50%, transparent);   /* hover bars, chips over media */
+  --shadow-pop: 0 12px 32px var(--shadow-color);                                    /* menus, popovers, toasts */
+  --shadow-modal: 0 24px 64px var(--shadow-color);                                  /* dialogs, sheets */
+
+  /* Focus: one ring. The themes set --focus (the accent nudged to 3:1 on the panels); this is the fallback. */
+  --focus: var(--accent);
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--focus);
+
+  /* Motion (plus --ease). Reduced motion turns them all off (ui/a11y.css). */
+  --dur-fast: 0.12s; --dur: 0.16s; --dur-slow: 0.24s;
+
+  /* Controls: one height for inputs and buttons; 44px targets on touch screens (see "Touch targets"). */
+  --control-h: 38px;
+  --control-h-sm: 28px;
+  --tap: 44px;
+}
+
 /* Safe areas (notch, status bar, navigation bar, home indicator): use these, never env(safe-area-inset-*) directly.
    The Android app sets --safe-area-inset-* on <html> (Capacitor SystemBars, insetsHandling "css"), which is right on
    every WebView version and with the keyboard open; iOS and browsers fall back to env(), then 0. */
@@ -90,12 +133,13 @@ body {
 }
 button { font: inherit; color: inherit; cursor: pointer; }
 input, textarea, select { font: inherit; color: inherit; }
-code { font-family: var(--mono); font-size: 0.9em; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; }
+code { font-family: var(--mono); font-size: 0.9em; background: var(--surface-2); padding: 1px 6px; border-radius: var(--r-sm); }
 a { color: var(--accent-2); }
-:where(button, a, summary, [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* One focus ring for everything (keyboard only): 2px of --focus at a 2px offset. Inputs show it on any focus. */
+:where(button, a, summary, [tabindex], [role='switch']):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 :where(input[type='checkbox'], input[type='radio'], progress) { accent-color: var(--accent); }
 kbd {
-  font-family: var(--mono); font-size: 11px; padding: 1px 5px; border-radius: 4px; background: var(--surface-2);
+  font-family: var(--mono); font-size: var(--fs-xs); padding: 1px 5px; border-radius: var(--r-sm); background: var(--surface-2);
   border: 1px solid var(--border); border-bottom-width: 2px; color: var(--text-2);
 }
 ::selection { background: color-mix(in srgb, var(--accent) 40%, transparent); }
@@ -104,15 +148,15 @@ kbd {
 .button {
   border: 1px solid var(--border);
   background: var(--surface-2);
-  padding: 9px 16px;
-  border-radius: calc(var(--radius) * 0.8);
-  font-weight: 600;
+  min-height: var(--control-h); padding: 0 var(--sp-4);
+  border-radius: var(--r-md);
+  font-weight: var(--fw-medium); font-size: var(--fs-ui);
   white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s, opacity 0.15s, transform 0.1s;
+  transition: background var(--dur-fast), border-color var(--dur-fast), opacity var(--dur-fast), transform var(--dur-fast);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; color: var(--text);
 }
 .button:hover:not(:disabled) { background: var(--surface-3); }
-.button:active:not(:disabled) { transform: translateY(1px); }
+.button:active:not(:disabled) { transform: scale(0.98); }
 .button:disabled { opacity: 0.45; cursor: default; }
 .button.primary { background: var(--accent); border-color: transparent; color: var(--on-accent); }
 .button.primary:hover:not(:disabled) { background: var(--accent-strong); }
@@ -125,7 +169,8 @@ kbd {
 .button.wide { width: 100%; }
 .icon-button {
   border: 0; background: transparent; color: var(--text-2);
-  width: 36px; height: 36px; border-radius: calc(var(--radius) * 0.8); display: inline-grid; place-items: center; flex: none;
+  width: 36px; height: 36px; border-radius: var(--r-md); display: inline-grid; place-items: center; flex: none;
+  transition: background var(--dur-fast), color var(--dur-fast);
 }
 .icon-button:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
 .icon-button:active:not(:disabled) { background: var(--surface-3); }
@@ -134,19 +179,31 @@ kbd {
 .link { border: 0; background: none; padding: 0; color: var(--accent-2); text-decoration: underline; text-underline-offset: 2px; }
 .link:hover { text-decoration-thickness: 2px; }
 
-.field { display: grid; gap: 6px; margin-bottom: 14px; }
-.field > span { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+/* A field: the label in sentence case above its control (ui/kit Field adds help and error lines). */
+.field { display: grid; gap: 6px; margin-bottom: var(--sp-4); }
+.field > span { font-size: var(--fs-md); font-weight: var(--fw-medium); color: var(--text-2); }
 .field.inline { margin-bottom: 0; }
 input, textarea, select {
-  background: var(--bg); border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.8); padding: 10px 12px; outline: none; width: 100%;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); padding: 9px 12px; outline: none; width: 100%;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
+:where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']), select) { min-height: var(--control-h); }
+/* Native selects: the same box as an input, with our own chevron instead of the OS arrow. */
+select {
+  appearance: none; padding-right: 34px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238484a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 16px;
+}
+select[multiple], select[size] { background-image: none; padding-right: 12px; }
 input::placeholder, textarea::placeholder { color: var(--placeholder); opacity: 1; }
 input[type='file'] { padding: 6px; font-size: 14px; color: var(--text-2); }
 input[type='file']::file-selector-button {
   font: inherit; font-weight: 600; font-size: 13px; color: var(--text); margin-right: 10px; padding: 6px 12px; cursor: pointer;
-  border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.6); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface-2);
 }
-input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+input:focus, textarea:focus, select:focus { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+:where(input[type='checkbox'], input[type='radio'], input[type='range']):focus { box-shadow: none; }
+:where(input[type='checkbox'], input[type='radio'], input[type='range']):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .checkbox { display: flex; gap: 10px; align-items: flex-start; line-height: 1.35; cursor: pointer; }
 .checkbox input { flex: none; margin: 2px 0 0; width: 16px; height: 16px; }
 .muted { color: var(--muted); }
@@ -351,7 +408,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .spacer { flex: 1; }
 .banner { padding: 10px 16px; font-size: 14px; }
 .banner { display: flex; align-items: center; gap: 10px; flex: none; }
-.banner > span { flex: 1; min-width: 0; }
+.banner > span:not([aria-hidden]) { flex: 1; min-width: 0; }
 .banner.warn { background: var(--warning-bg); color: var(--text); border-bottom: 1px solid color-mix(in srgb, var(--amber) 30%, transparent); }
 .banner.warn svg { color: var(--amber); flex: none; }
 .banner.error { background: var(--danger-bg); color: var(--red); border-bottom: 1px solid color-mix(in srgb, var(--red) 25%, transparent); }
@@ -482,7 +539,7 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
   display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--green);
   background: color-mix(in srgb, var(--green) 10%, transparent); padding: 3px 9px; border-radius: 99px; white-space: nowrap;
 }
-.button.small { padding: 5px 12px; font-size: 13px; }
+.button.small { min-height: var(--control-h-sm); padding: 0 var(--sp-3); font-size: var(--fs-md); }
 .message-notice { display: flex; align-items: center; gap: 6px; color: var(--muted); font-style: italic; font-size: 14px; }
 .channel-start .avatar { margin-bottom: 10px; }
 .safety-number {
@@ -651,25 +708,51 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 .member-card-name { font-size: 18px; }
 
 /* ── Modals ─────────────────────────────────────────────────────────── */
+/* Desktop: a centred card. Phones: a bottom sheet (see below). Footer: primary right, the secondary (ghost) to its
+   left, a destructive action far left. A header ‹ is for list → detail; a footer Back only in a numbered wizard. */
 .modal-backdrop {
   position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; z-index: var(--z-modal);
   padding: calc(16px + var(--safe-top)) calc(16px + var(--safe-right)) calc(16px + var(--safe-bottom)) calc(16px + var(--safe-left));
-  animation: fade 0.14s ease-out;
+  animation: fade var(--dur) ease-out;
 }
 .modal {
   width: min(480px, 100%); max-height: calc(100dvh - 32px - var(--safe-top) - var(--safe-bottom)); display: flex; flex-direction: column; outline: none;
-  background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.4); box-shadow: var(--shadow-modal);
-  animation: pop 0.16s var(--ease);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: var(--shadow-modal);
+  animation: pop var(--dur) var(--ease);
 }
-.modal-header { display: flex; align-items: center; gap: 8px; padding: 16px 12px 0 20px; flex: none; }
-.modal-header h2 { color: var(--text-strong); margin: 0; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.modal-header {
+  display: flex; align-items: center; gap: var(--sp-2); padding: 14px 12px 10px 20px; flex: none;
+  border-bottom: 1px solid transparent; transition: border-color var(--dur-fast);
+}
+.modal.scrolled > .modal-header { border-bottom-color: var(--border); }
+.modal-header h2 { color: var(--text-strong); margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-bold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .modal-header .modal-back { margin-left: -10px; }
 .modal-body > :first-child { margin-top: 0; }
 .modal-body > :last-child { margin-bottom: 0; }
-.modal-body { padding: 16px 20px; overflow-y: auto; }
-.modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; background: var(--sidebar); border-radius: 0 0 calc(var(--radius) * 1.4) calc(var(--radius) * 1.4); }
+.modal-body { padding: 10px 20px 18px; overflow-y: auto; overscroll-behavior: contain; }
+.modal-footer {
+  display: flex; justify-content: flex-end; align-items: center; gap: var(--sp-2); padding: 12px 20px; flex: none;
+  background: var(--sidebar); border-top: 1px solid var(--border); border-radius: 0 0 var(--r-xl) var(--r-xl);
+}
+/* One secondary look in footers: ghost. */
+.modal-footer .button:not(.primary, .danger, .danger-outline) { background: transparent; border-color: transparent; color: var(--text-2); }
+.modal-footer .button:not(.primary, .danger, .danger-outline):hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: scale(0.97) translateY(4px); } }
+@keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
+/* Phones: every dialog is a bottom sheet, full width, rounded on top, clear of the home indicator. */
+@media (max-width: 760px) {
+  .modal-backdrop:not(.switcher-backdrop) { place-items: end stretch; padding: calc(12px + var(--safe-top)) 0 0; }
+  .modal-backdrop:not(.switcher-backdrop) > .modal {
+    width: 100%; max-height: calc(100dvh - 12px - var(--safe-top)); border-bottom: 0; border-radius: var(--r-xl) var(--r-xl) 0 0;
+    animation: sheet-up var(--dur-slow) var(--ease);
+  }
+  .modal-backdrop:not(.switcher-backdrop) > .modal > :last-child { padding-bottom: calc(16px + var(--safe-bottom)); }
+  .modal-backdrop:not(.switcher-backdrop) > .modal > .modal-footer { border-radius: 0; }
+  .modal-header { padding-left: 16px; }
+  .modal-body { padding-left: 16px; padding-right: 16px; }
+  .modal-footer { padding-left: 16px; padding-right: 16px; }
+}
 
 .copy-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .copy-row input { flex: 1; min-width: 0; }
@@ -725,7 +808,6 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
   .message-actions { right: 10px; }
   .composer { margin: 0 8px 8px; }
   .me-bar { margin-bottom: 8px; }
-  .modal { border-radius: calc(var(--radius) * 1.4); }
   .stage-body { padding: 8px; gap: 8px; }
   .stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .call-button { width: 48px; height: 48px; }
@@ -805,7 +887,6 @@ input[type='range'] { padding: 0; accent-color: var(--accent); }
 }
 
 /* ── Sheets, quick switcher ─────────────────────────────────────────── */
-@keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
 .sheet-backdrop {
   position: fixed; inset: 0; z-index: var(--z-popover); background: var(--scrim); display: flex; align-items: flex-end; justify-content: center;
   animation: fade 0.14s ease-out;

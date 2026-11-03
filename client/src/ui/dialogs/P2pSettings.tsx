@@ -8,6 +8,7 @@ import type { HostedServer } from '../../platform/desktop'
 import { loadP2pStatus, rotateP2p, setP2p, useP2p } from '../../state/p2p'
 import type { ServerState } from '../../state/store'
 import { Spinner } from '../bits'
+import { Switch } from '../kit'
 
 export function P2pSection({ server, here }: { server: ServerState; here: HostedServer | null }) {
   const { t } = useTranslation()
@@ -68,16 +69,7 @@ export function P2pSection({ server, here }: { server: ServerState; here: Hosted
           <p className={`internet-summary ${tone}`}>{summary}</p>
         </div>
         {canSwitch && (
-          <button
-            className={`switch ${enabled ? 'on' : ''}`}
-            role="switch"
-            aria-checked={enabled}
-            aria-label={t('hosting.p2p.switch')}
-            disabled={busy}
-            onClick={() => void run(() => setP2p(server.key, !enabled))}
-          >
-            <span />
-          </button>
+          <Switch checked={enabled} label={t('hosting.p2p.switch')} disabled={busy} onChange={() => void run(() => setP2p(server.key, !enabled))} />
         )}
       </div>
       <p className="muted small-print" data-testid="p2p-privacy">{t('hosting.p2p.privacy')}</p>

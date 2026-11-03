@@ -59,21 +59,9 @@
 .event-cover-preview .icon-button { position: absolute; top: 6px; right: 6px; background: var(--scrim); color: #fff; }
 .cover-pick { justify-self: start; }
 
-/* Reminder toasts */
-.event-toasts {
-  position: fixed; right: 16px; bottom: calc(16px + var(--safe-bottom)); z-index: var(--z-toast); display: grid; gap: 8px; width: min(380px, calc(100vw - 32px));
-}
-.event-toast {
-  display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; background: var(--float); border: 1px solid var(--border);
-  border-radius: var(--radius); box-shadow: var(--shadow-pop); animation: pop 0.16s var(--ease);
-}
-.event-toast-icon { color: var(--accent); display: inline-grid; flex: none; }
-.event-toast-text { flex: 1; min-width: 0; display: grid; font-size: 13px; line-height: 1.3; }
-.event-toast-text strong { color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.event-toast-text span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Reminder toasts are ui/kit Toast (the corner lane). */
 
 @media (max-width: 760px) {
   .event-times, .event-repeat { grid-template-columns: 1fr; gap: 0; }
-  .event-toasts { left: 8px; right: 8px; bottom: calc(76px + var(--safe-bottom)); width: auto; }
   .event-actions .button.small { padding: 7px 10px; }
 }

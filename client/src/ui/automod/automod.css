@@ -31,12 +31,6 @@
 .automod-chip:hover { background: var(--hover); }
 .automod-chip.on { background: var(--accent-subtle); border-color: var(--accent); color: var(--text-strong); }
 
-.automod-save {
-  position: sticky; bottom: 0; margin-top: 20px; padding: 10px 12px; display: none; align-items: center; justify-content: space-between;
-  gap: 10px; flex-wrap: wrap; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: var(--shadow-pop); font-size: 14px;
-}
-.automod-save.show { display: flex; }
 
 /* An alert in the chat. */
 .automod-alert {

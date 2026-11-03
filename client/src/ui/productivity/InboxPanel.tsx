@@ -26,6 +26,7 @@ import {
 import { Avatar, Modal } from '../bits'
 import { plainText } from '../markdown'
 import { Lock } from '../icons'
+import { Toast } from '../kit'
 import { AlarmClock, Bookmark, CheckAll, Clock } from './icons'
 import { WhenPicker, whenText } from './WhenPicker'
 import './productivity.css'
@@ -265,19 +266,17 @@ export function ReminderToasts() {
   const shown = toasts.map((k) => all[k]).filter((r): r is Reminder => !!r)
   if (shown.length === 0) return null
   return (
-    <div className="event-toasts reminder-toasts" role="status" aria-live="polite">
+    <>
       {shown.map((r) => (
-        <div key={`${r.server}:${r.id}`} className="event-toast reminder-toast">
-          <span className="event-toast-icon"><AlarmClock size={18} /></span>
-          <div className="event-toast-text">
-            <strong>{r.content?.note || t('productivity.reminders.toastLabel')}</strong>
-            <span>{r.content ? `${r.content.snap.authorName}: ${r.content.snap.preview}` : t('productivity.reminders.notifyBody')}</span>
-          </div>
-          {r.content && <button className="button primary small" onClick={() => void openReminder(r.server, r.id)}>{t('productivity.reminders.open')}</button>}
-          <button className="button small" onClick={() => void deleteReminder(r).catch(() => undefined)}>{t('productivity.reminders.doneButton')}</button>
-        </div>
+        <Toast key={`${r.server}:${r.id}`} tone="accent" icon={<AlarmClock size={18} />} className="reminder-toast"
+          title={r.content?.note || t('productivity.reminders.toastLabel')}
+          body={r.content ? `${r.content.snap.authorName}: ${r.content.snap.preview}` : t('productivity.reminders.notifyBody')}
+          action={<>
+            {r.content && <button className="button primary small" onClick={() => void openReminder(r.server, r.id)}>{t('productivity.reminders.open')}</button>}
+            <button className="button small" onClick={() => void deleteReminder(r).catch(() => undefined)}>{t('productivity.reminders.doneButton')}</button>
+          </>} />
       ))}
-    </div>
+    </>
   )
 }
 

@@ -11,13 +11,14 @@ import { SavedFullError, toggleSaved, useIsSaved } from '../../state/saved'
 import { channelTarget } from '../../state/messageRefs'
 import { MAX_SAVED } from '../../state/productivityLogic'
 import { useEscapeLayer, useFocusTrap } from '../layers'
-import { Copy } from '../icons'
+import { Check, Copy } from '../icons'
 import { useLongPress } from '../chat/useLongPress'
 import { AlarmClock, Bookmark } from './icons'
 import { openRemindDialog, useMessageDialogs, type MessageTarget } from './RemindDialog'
 import { TranslateButton, TranslateMenuItem } from '../translate/Translate'
 import type { TranslateItem } from '../../state/translate'
 import './productivity.css'
+import { ToastPill } from '../kit'
 
 type Wrap = (doneLabel: string | null, action: () => void | Promise<unknown>) => () => void
 
@@ -56,7 +57,7 @@ export function ChannelSaveRemind({ server, message, wrap, icons }: { server: Se
 export function DoneToast() {
   const done = useMessageDialogs((s) => s.done)
   if (!done) return null
-  return <div className="productivity-done" role="status">{done}</div>
+  return <ToastPill tone="success" icon={<Check size={16} />} className="productivity-done">{done}</ToastPill>
 }
 
 // ── DM and group messages ───────────────────────────────────────────────────

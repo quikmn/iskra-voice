@@ -5,6 +5,7 @@ import { roleRank, type BugInboxSettings } from '../../core/protocol'
 import { errorMessage } from '../../i18n/errors'
 import { connectionFor, type ServerState } from '../../state/store'
 import { Spinner } from '../bits'
+import { Switch } from '../kit'
 
 export function BugInboxSection({ server }: { server: ServerState }) {
   const { t } = useTranslation()
@@ -52,11 +53,7 @@ export function BugInboxSection({ server }: { server: ServerState }) {
               <strong>{t('bugReport.inbox.enabled')}</strong>
               <p className="muted">{t('bugReport.inbox.limits')}</p>
             </div>
-            <button className={`switch ${settings.enabled ? 'on' : ''}`} role="switch" aria-checked={settings.enabled}
-              aria-label={t('bugReport.inbox.enabled')} disabled={settings.channelId === null}
-              onClick={() => void change({ enabled: !settings.enabled })}>
-              <span />
-            </button>
+            <Switch checked={settings.enabled} label={t('bugReport.inbox.enabled')} disabled={settings.channelId === null} onChange={() => void change({ enabled: !settings.enabled })} />
           </div>
           {settings.enabled && <p className="muted">{t('bugReport.inbox.endpoint', { url })}</p>}
           {error && <p className="error-text" role="alert">{error}</p>}

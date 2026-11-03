@@ -14,6 +14,7 @@ import { connectionFor, type ServerState } from '../../state/store'
 import { Spinner } from '../bits'
 import '../dialogs/InternetSettings.css'
 import './automod.css'
+import { SaveBar, Switch } from '../kit'
 
 interface Draft {
   config: AutoModConfig
@@ -39,7 +40,6 @@ export function AutoModSection({ server }: { server: ServerState }) {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(false)
 
   useEffect(() => {
     connectionFor(server.key)?.request('automod.get', {})
@@ -89,8 +89,6 @@ export function AutoModSection({ server }: { server: ServerState }) {
       if (reply) {
         setSaved(reply.automod)
         setDraft(toDraft(reply.automod))
-        setDone(true)
-        setTimeout(() => setDone(false), 1800)
       }
     } catch (e) {
       setError(errorMessage(e))
@@ -123,10 +121,7 @@ export function AutoModSection({ server }: { server: ServerState }) {
               : t('automod.offSummary')}
           </p>
         </div>
-        <button className={`switch ${c.enabled ? 'on' : ''}`} role="switch" aria-checked={c.enabled} aria-label={t('automod.title')}
-          onClick={() => patch({ enabled: !c.enabled })}>
-          <span />
-        </button>
+        <Switch checked={c.enabled} label={t('automod.title')} onChange={() => patch({ enabled: !c.enabled })} />
       </div>
       <div className="automod-preset">
         <button className="button small" onClick={() => setDraft((d) => d && {
@@ -255,16 +250,8 @@ export function AutoModSection({ server }: { server: ServerState }) {
         </fieldset>
       </div>
 
-      <div className={`automod-save ${dirty || error || (built && 'problem' in built) ? 'show' : ''}`}>
-        {built && 'problem' in built ? <span className="error-text">{built.problem}</span>
-          : error ? <span className="error-text">{error}</span>
-          : <span>{dirty ? t('automod.unsaved') : ''}</span>}
-        <div className="copy-row">
-          <button className="button ghost" disabled={!dirty || busy} onClick={() => { setDraft(toDraft(saved)); setError(null) }}>{t('common.undo')}</button>
-          <button className="button primary" disabled={!dirty || busy} onClick={() => void save()}>{busy ? <Spinner /> : t('automod.saveChanges')}</button>
-        </div>
-      </div>
-      {done && !dirty && <p className="muted" role="status">{t('automod.saved')}</p>}
+      <SaveBar className="automod-save" dirty={dirty} busy={busy} problem={built && 'problem' in built ? built.problem : null} error={error}
+        onUndo={() => { setDraft(toDraft(saved)); setError(null) }} onSave={() => void save()} />
     </section>
   )
 }
@@ -312,10 +299,7 @@ function JoiningSettings({ server }: { server: ServerState }) {
           <strong>{settings.invitesPaused ? t('automod.joining.paused') : t('automod.joining.open')}</strong>
           <p className="internet-summary">{settings.invitesPaused ? t('automod.joining.pausedBy', { name: pausedBy }) : t('automod.joining.openHint')}</p>
         </div>
-        <button className={`switch ${settings.invitesPaused ? 'on' : ''}`} role="switch" aria-checked={settings.invitesPaused} aria-label={t('automod.joining.pauseLabel')}
-          disabled={busy} onClick={() => void run(() => updateJoinSettings(server.key, { invitesPaused: !settings.invitesPaused }))}>
-          <span />
-        </button>
+        <Switch checked={settings.invitesPaused} label={t('automod.joining.pauseLabel')} disabled={busy} onChange={() => void run(() => updateJoinSettings(server.key, { invitesPaused: !settings.invitesPaused }))} />
       </div>
       <p className="muted">{t('automod.joining.newcomersHint')}</p>
       <div className="automod-inline">
@@ -346,9 +330,7 @@ function Rule({ title, hint, on, onToggle, children }: { title: string; hint: st
           <strong>{title}</strong>
           <p className="internet-summary">{hint}</p>
         </div>
-        <button className={`switch ${on ? 'on' : ''}`} role="switch" aria-checked={on} aria-label={title} onClick={() => onToggle(!on)}>
-          <span />
-        </button>
+        <Switch checked={on} label={title} onChange={() => onToggle(!on)} />
       </div>
       {on && <div className="automod-rule-body">{children}</div>}
     </div>

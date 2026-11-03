@@ -26,7 +26,7 @@ test('inside the iPhone app: no Home Screen hints, notifications while the app i
   await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Notifications' }).click()
   // No push while closed: the app says notifications arrive while it's open, and offers no push toggle.
   await expect(page.getByText('On phones, notifications arrive while the app is open.', { exact: false })).toBeVisible()
-  await expect(page.getByRole('checkbox', { name: /Push notifications on this device/ })).toHaveCount(0)
+  await expect(page.getByRole('switch', { name: /Push notifications on this device/ })).toHaveCount(0)
   await expect(page.getByText('add Iskra to your Home Screen first')).toHaveCount(0)
   await page.screenshot({ path: join(SHOTS, 'ios-app-push.png'), animations: 'disabled' })
   await context.close()

@@ -8,6 +8,7 @@ import {
 } from '../../state/captions'
 import { captionDownloadBytes } from '../../state/models'
 import './media.css'
+import { SwitchRow } from '../kit'
 
 /** How captions are doing, with the download's yes/cancel/retry buttons (shared with the call screen). */
 export function CaptionStatusText() {
@@ -63,11 +64,7 @@ export function CaptionSettingsSection() {
   return (
     <section className="settings-section media-settings">
       <h2>{t('media.captions.title')}</h2>
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.enabled} disabled={!supported} onChange={(e) => updateCaptions({ enabled: e.target.checked })} />
-        {t('media.captions.show')}
-      </label>
-      <p className="muted">{t('media.captions.hint')}</p>
+      <SwitchRow title={t('media.captions.show')} help={t('media.captions.hint')} checked={settings.enabled} disabled={!supported} onChange={(on) => updateCaptions({ enabled: on })} />
       {supported ? (
         <p className="muted">{cached ? t('media.captions.downloaded') : t('media.captions.download', { size: formatBytes(captionDownloadBytes()) })}</p>
       ) : (
@@ -81,10 +78,7 @@ export function CaptionSettingsSection() {
           <option value="sv">{t('media.captions.sv')}</option>
         </select>
       </label>
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.includeSelf} disabled={!supported} onChange={(e) => updateCaptions({ includeSelf: e.target.checked })} />
-        {t('media.captions.includeSelf')}
-      </label>
+      <SwitchRow title={t('media.captions.includeSelf')} checked={settings.includeSelf} disabled={!supported} onChange={(on) => updateCaptions({ includeSelf: on })} />
       {settings.enabled && status !== 'off' && <p className="muted" role="status"><CaptionStatusText /></p>}
     </section>
   )

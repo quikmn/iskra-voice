@@ -1,41 +1,14 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { desktop } from '../platform/desktop'
 import { parseUpdateStatus, updateNotice, type UpdateStatus } from '../platform/updates'
-import { Close } from './icons'
+import { Toast } from './kit'
 import './update-toast.css'
 
 const DISMISSED = 'iskra.update-dismissed'
 
-/**
- * The app's toast, bottom right over the message box: a mark, a title and a line, maybe a button, and ✕. The update
- * notice below and the desktop shell's own notices (DesktopNotices.tsx) share it, so they look the same.
- */
-export function Toast({ mark, title, body, action, onClose, closeLabel, closeTitle, className, testId }: {
-  mark?: ReactNode
-  title: string
-  body: string
-  action?: ReactNode
-  onClose: () => void
-  closeLabel: string
-  closeTitle?: string
-  className?: string
-  testId?: string
-}) {
-  return (
-    <div className={`update-toast ${className ?? ''}`} role="status" aria-live="polite" data-testid={testId}>
-      {mark && <div className="update-toast-mark" aria-hidden="true">{mark}</div>}
-      <div className="update-toast-text">
-        <strong>{title}</strong>
-        <span>{body}</span>
-      </div>
-      {action}
-      <button className="icon-button" onClick={onClose} aria-label={closeLabel} title={closeTitle ?? closeLabel}>
-        <Close size={16} />
-      </button>
-    </div>
-  )
-}
+/** The app's toast (ui/kit): the update notice below and the desktop shell's notices (DesktopNotices.tsx) share it. */
+export { Toast } from './kit'
 
 function readDismissed(): string | null {
   try {
@@ -118,6 +91,8 @@ export function UpdateToast() {
 
   return (
     <Toast
+      tone="accent"
+      testId="update-toast"
       mark={<DownloadMark />}
       title={notice.kind === 'ready' ? t('app.update.ready') : t('app.update.available')}
       body={notice.kind === 'ready' ? t('app.update.readyBody', { version: notice.version }) : t('app.update.availableBody', { version: notice.version })}

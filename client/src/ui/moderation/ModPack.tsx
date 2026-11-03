@@ -17,8 +17,8 @@ import { useServerRoles } from '../../state/roles'
 import { useApp, type ServerState } from '../../state/store'
 import { Avatar, Modal } from '../bits'
 import { fullTime, messageTime } from '../format'
-import { Close, Trash } from '../icons'
-import '../update-toast.css'
+import { AlertTriangle, Trash } from '../icons'
+import { Toast } from '../kit'
 import './moderation.css'
 import { JoinedViaLine } from './JoinedVia'
 
@@ -125,15 +125,10 @@ export function WarnToast() {
   const server = useApp((s) => (warning ? s.servers[warning.serverKey] : undefined))
   if (!warning) return null
   return (
-    <div className="update-toast warn-toast" role="alert" data-testid="warn-toast">
-      <div className="update-toast-text">
-        <strong>{t('moderation.warn.toastTitle', { server: server?.name ?? '' })}</strong>
-        <span>{t('moderation.warn.toastBody', { name: warning.byName, reason: warning.reason })}</span>
-      </div>
-      <button className="icon-button" onClick={() => dismissWarning(warning.at)} aria-label={t('app.dismiss')} title={t('app.dismiss')}>
-        <Close size={16} />
-      </button>
-    </div>
+    <Toast tone="warning" role="alert" icon={<AlertTriangle size={18} />} className="warn-toast" testId="warn-toast"
+      title={t('moderation.warn.toastTitle', { server: server?.name ?? '' })}
+      body={t('moderation.warn.toastBody', { name: warning.byName, reason: warning.reason })}
+      onClose={() => dismissWarning(warning.at)} closeLabel={t('app.dismiss')} />
   )
 }
 

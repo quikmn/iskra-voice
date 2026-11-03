@@ -29,7 +29,7 @@ test('streamer mode hides invite links, ids and safety numbers, and the status m
   // On, from My settings: the pill shows, the link and ids are dots.
   await openSettings(host, 'Streamer mode')
   const section = host.getByTestId('streamer-section')
-  await section.getByRole('checkbox', { name: /^Streamer mode/ }).check()
+  await section.getByRole('switch', { name: /^Streamer mode/ }).check()
   await host.keyboard.press('Escape')
   await expect(host.getByTestId('streamer-pill')).toBeVisible()
   await host.getByRole('button', { name: 'Invite friends' }).click()

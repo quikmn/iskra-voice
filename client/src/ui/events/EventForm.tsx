@@ -122,7 +122,6 @@ export function EventForm({ server, event, onBack, onClose }: { server: ServerSt
       className="events-modal"
       footer={
         <>
-          <button className="button" onClick={onBack}>{t('common.back')}</button>
           <button className="button primary" disabled={!!problem || busy || uploading !== null} onClick={() => void save()}>
             {event ? t('common.save') : t('events.form.scheduleButton')}
           </button>

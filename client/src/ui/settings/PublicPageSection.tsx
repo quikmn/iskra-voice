@@ -9,6 +9,7 @@ import { LANDING_DESCRIPTION_MAX, landingInviteChoices, landingUrl, loadLanding,
 import { connectionFor, type ServerState } from '../../state/store'
 import { Spinner } from '../bits'
 import './landing.css'
+import { Switch, SwitchRow } from '../kit'
 
 export function PublicPageSection({ server }: { server: ServerState }) {
   const { t } = useTranslation()
@@ -77,11 +78,7 @@ export function PublicPageSection({ server }: { server: ServerState }) {
               <strong>{t('landing.enabled')}</strong>
               <p className="muted">{settings.enabled ? t('landing.enabledOn') : t('landing.enabledOff')}</p>
             </div>
-            <button className={`switch ${settings.enabled ? 'on' : ''}`} role="switch" aria-checked={settings.enabled}
-              aria-label={t('landing.enabled')} data-testid="landing-enabled"
-              onClick={() => void change({ enabled: !settings.enabled })}>
-              <span />
-            </button>
+            <Switch checked={settings.enabled} label={t('landing.enabled')} testId="landing-enabled" onChange={() => void change({ enabled: !settings.enabled })} />
           </div>
 
           {settings.enabled && (
@@ -111,18 +108,9 @@ export function PublicPageSection({ server }: { server: ServerState }) {
               {settings.inviteGone && <p className="warning-text" role="note" data-testid="landing-invite-gone">{t('landing.inviteGone')}</p>}
               {chosen && paused && <p className="warning-text" role="note">{t('landing.invitesPaused')}</p>}
 
-              <label className="checkbox">
-                <input type="checkbox" checked={settings.showRules} data-testid="landing-rules" onChange={(e) => void change({ showRules: e.target.checked })} />
-                <span>{t('landing.showRules')}</span>
-              </label>
-              <label className="checkbox">
-                <input type="checkbox" checked={settings.showCounts} data-testid="landing-counts" onChange={(e) => void change({ showCounts: e.target.checked })} />
-                <span>{t('landing.showCounts')}<br /><small className="muted">{t('landing.showCountsHint')}</small></span>
-              </label>
-              <label className="checkbox">
-                <input type="checkbox" checked={settings.indexable} data-testid="landing-indexable" onChange={(e) => void change({ indexable: e.target.checked })} />
-                <span>{t('landing.indexable')}<br /><small className="muted">{t('landing.indexableHint')}</small></span>
-              </label>
+              <SwitchRow title={t('landing.showRules')} checked={settings.showRules} testId="landing-rules" onChange={(on) => void change({ showRules: on })} />
+              <SwitchRow title={t('landing.showCounts')} help={t('landing.showCountsHint')} checked={settings.showCounts} testId="landing-counts" onChange={(on) => void change({ showCounts: on })} />
+              <SwitchRow title={t('landing.indexable')} help={t('landing.indexableHint')} checked={settings.indexable} testId="landing-indexable" onChange={(on) => void change({ indexable: on })} />
             </div>
           )}
           <p className="landing-open">

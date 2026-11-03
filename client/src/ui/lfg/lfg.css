@@ -18,4 +18,3 @@
 .lfg-status.full { color: var(--green); }
 .lfg-status.closed { color: var(--muted); }
 .lfg-expiry { margin: 0; font-size: 13px; }
-.lfg-toast .button { flex-shrink: 0; }

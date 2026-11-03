@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { accountName, addingMode, cancelAdding, dismissAccountToast, inHost, switchAccount, thisSlot, useAccounts } from '../../state/accounts'
 import { signOutThisDevice } from '../../state/signOut'
 import { Modal, Spinner } from '../bits'
-import { Close } from '../icons'
-import '../update-toast.css'
+import { Phone } from '../icons'
+import { Toast } from '../kit'
 import './accounts.css'
 
 export function AccountNotices() {
@@ -17,24 +17,12 @@ export function AccountNotices() {
   const ringing = accounts.filter((a) => a.slot !== thisSlot && a.ringing)
   return (
     <>
-      {(toast || ringing.length > 0) && (
-        <div className="account-toasts">
-          {ringing.map((a) => (
-            <div key={a.slot} className="update-toast account-toast ringing" role="status" data-testid="account-ringing">
-              <div className="update-toast-text">
-                <strong>{t('accounts.ringing.title', { caller: a.ringing ?? '', account: accountName(a) })}</strong>
-              </div>
-              <button className="button primary" onClick={() => switchAccount(a.slot)}>{t('accounts.ringing.switch')}</button>
-            </div>
-          ))}
-          {toast && (
-            <div className="update-toast account-toast" role="status" data-testid="account-toast">
-              <div className="update-toast-text"><span>{toast}</span></div>
-              <button className="icon-button small" onClick={dismissAccountToast} aria-label={t('app.dismiss')}><Close size={14} /></button>
-            </div>
-          )}
-        </div>
-      )}
+      {ringing.map((a) => (
+        <Toast key={a.slot} tone="success" icon={<Phone size={18} />} className="account-toast ringing" testId="account-ringing"
+          title={t('accounts.ringing.title', { caller: a.ringing ?? '', account: accountName(a) })}
+          action={<button className="button primary" onClick={() => switchAccount(a.slot)}>{t('accounts.ringing.switch')}</button>} />
+      ))}
+      {toast && <Toast className="account-toast" testId="account-toast" body={toast} onClose={dismissAccountToast} closeLabel={t('app.dismiss')} />}
       {me?.duplicateOf != null && <DuplicateDialog first={me.duplicateOf} />}
     </>
   )

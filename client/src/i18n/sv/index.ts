@@ -72,6 +72,7 @@ import { pcBots } from './pcBots'
 import { dmRequests } from './dmRequests'
 import { share } from './share'
 import { recording } from './recording'
+import { kit } from './kit'
 
 export const sv: Messages = {
   common,
@@ -146,4 +147,5 @@ export const sv: Messages = {
   dmRequests,
   share,
   recording,
+  kit,
 }

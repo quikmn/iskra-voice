@@ -53,13 +53,6 @@
 .org-sheet .account-list { min-width: 0; }
 .org-sheet .account-row.current { background: var(--accent-subtle); }
 
-/* Notes about the other accounts (left voice as one, a call for one), stacked where the update toast sits. */
-.account-toasts {
-  position: fixed; right: 16px; bottom: calc(84px + var(--safe-bottom)); z-index: var(--z-toast);
-  display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
-}
-.account-toasts .update-toast { position: static; }
-.account-toast.ringing { border-color: color-mix(in srgb, var(--green) 50%, var(--border)); }
 
 /* While an account is being added: the way back to the others, above its first-run screen. */
 .account-adding-bar {

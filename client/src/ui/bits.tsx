@@ -71,13 +71,15 @@ export function Modal({ title, heading, onBack, onClose, children, footer, wide,
 }) {
   const { t } = useTranslation()
   const ref = useRef<HTMLDivElement>(null)
+  // Once the body scrolls, a line under the header keeps the first visible row from running into the title.
+  const [scrolled, setScrolled] = useState(false)
   // The phone's back button follows the back arrow when there is one.
   useEscapeLayer(onClose, true, { back: onBack ?? onClose })
   useFocusTrap(ref)
   // In a portal, so a dialog opened from inside another (Link a device in Settings) isn't styled or clipped by it.
   return createPortal(
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`modal ${wide ? 'wide' : ''} ${className ?? ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref} tabIndex={-1}>
+      <div className={`modal ${wide ? 'wide' : ''} ${scrolled ? 'scrolled' : ''} ${className ?? ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref} tabIndex={-1}>
         <div className="modal-header">
           {onBack && (
             <button className="icon-button modal-back" onClick={onBack} aria-label={t('common.back')}>
@@ -89,7 +91,7 @@ export function Modal({ title, heading, onBack, onClose, children, footer, wide,
             <Close />
           </button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div className="modal-body" onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 0)}>{children}</div>
         {footer && <footer className="modal-footer">{footer}</footer>}
       </div>
     </div>,

@@ -51,18 +51,13 @@
 .recording-card {
   display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 12px;
   background: var(--float); border: 1px solid color-mix(in srgb, var(--red) 45%, var(--border)); box-shadow: var(--shadow-pop);
-  animation: clip-toast-in 0.2s ease-out;
+  animation: k-toast-in var(--dur-slow) var(--ease);
 }
 .recording-card .recording-dot { margin-top: 6px; }
 .recording-card-body { display: grid; gap: 6px; min-width: 0; }
 .recording-card-body p { margin: 0; font-size: 14px; }
 .recording-card-body .small-print { font-size: 12px; }
 .recording-card-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px; }
-.recording-toast {
-  display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 14px; border-radius: 12px; font-size: 14px; justify-self: center;
-  background: var(--float); border: 1px solid var(--border); box-shadow: var(--shadow-pop);
-}
-.recording-toast.error { border-color: color-mix(in srgb, var(--red) 45%, var(--border)); }
 
 .record-dialog p { margin: 0 0 10px; }
 .record-note { font-size: 13px; }

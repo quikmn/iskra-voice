@@ -10,6 +10,7 @@ import { formatBytes } from '../../i18n/format'
 import { Modal, Spinner } from '../bits'
 import { ActivityIcon, BuiltinIcon } from './icons'
 import './activities.css'
+import { Switch } from '../kit'
 
 const START_ROLES = ['guest', 'member', 'trusted', 'admin'] as const
 
@@ -70,7 +71,7 @@ export function ActivitiesSection({ server }: { server: ServerState }) {
                 <li key={b.id}>
                   <span className="activity-choice-icon"><BuiltinIcon id={b.id} /></span>
                   <span className="activity-choice-text"><strong>{name}</strong><span className="muted">{t(`activities.builtins.${b.id}.description`)}</span></span>
-                  <Switch on={b.enabled} label={t('activities.settings.on', { name })} onChange={(on) => void run(() => setActivityEnabled(server.key, b.id, on))} />
+                  <Switch checked={b.enabled} label={t('activities.settings.on', { name })} onChange={(on) => void run(() => setActivityEnabled(server.key, b.id, on))} />
                 </li>
               )
             })}
@@ -90,7 +91,7 @@ export function ActivitiesSection({ server }: { server: ServerState }) {
                       ? t('activities.settings.details', { size: formatBytes(a.size), version: a.version })
                       : t('activities.settings.detailsNoVersion', { size: formatBytes(a.size) })}</span>
                   </span>
-                  <Switch on={a.enabled} label={t('activities.settings.on', { name: a.name })} onChange={(on) => void run(() => setActivityEnabled(server.key, a.id, on))} />
+                  <Switch checked={a.enabled} label={t('activities.settings.on', { name: a.name })} onChange={(on) => void run(() => setActivityEnabled(server.key, a.id, on))} />
                   <button className="button small danger" onClick={() => setRemoving(a)}>{t('activities.settings.remove')}</button>
                 </li>
               ))}
@@ -143,10 +144,3 @@ export function ActivitiesSection({ server }: { server: ServerState }) {
   )
 }
 
-function Switch({ on, label, onChange }: { on: boolean; label: string; onChange: (on: boolean) => void }) {
-  return (
-    <button className={`switch ${on ? 'on' : ''}`} role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}>
-      <span />
-    </button>
-  )
-}

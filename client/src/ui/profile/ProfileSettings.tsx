@@ -13,6 +13,7 @@ import { Avatar } from '../bits'
 import { AvatarCropper } from './AvatarCropper'
 import { PageEditor } from './PageEditor'
 import './profile.css'
+import { SaveBar, SwitchRow } from '../kit'
 
 export function ProfileSection() {
   const { t } = useTranslation()
@@ -114,10 +115,6 @@ export function ProfileSection() {
           {accent ? <button className="button small" onClick={() => setAccent('')}>{t('profile.useDefault')}</button> : <span className="muted">{t('profile.accentHint')}</span>}
         </div>
       </div>
-      <div className="copy-row">
-        <button className="button primary" disabled={!dirty || !trimmed} onClick={() => void save()}>{t('profile.save')}</button>
-        {status && <span className={status.kind === 'error' ? 'error-text' : 'success-text'}>{status.text}</span>}
-      </div>
 
       <div className="page-summary">
         <div>
@@ -137,6 +134,10 @@ export function ProfileSection() {
 
       {cropping && <AvatarCropper file={cropping} onCancel={() => setCropping(null)} onDone={(image) => void applyAvatar(image)} />}
       {editingPage && <PageEditor onClose={() => setEditingPage(false)} />}
+      <SaveBar dirty={dirty} problem={dirty && !trimmed ? t('kit.nameRequired') : null} error={status?.kind === 'error' ? status.text : null}
+        savedNote={!dirty && status?.kind === 'saved' ? status.text : null} saveLabel={t('profile.save')}
+        onUndo={() => { setName(profile?.name ?? ''); setPronouns(profile?.pronouns ?? ''); setBio(profile?.bio ?? ''); setAccent(profile?.accent ?? ''); setStatus(null) }}
+        onSave={() => void save()} />
     </section>
   )
 }
@@ -149,14 +150,7 @@ export function ServerPagesOption({ server }: { server: ServerState }) {
   if (!server.me || roleRank(server.me.role) < roleRank('admin')) return null
   return (
     <>
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={(e) => void setPagesEnabled(server.key, e.target.checked).then(() => setError(null), (err: Error) => setError(errorMessage(err)))}
-        />
-        {t('profile.allowPages')}
-      </label>
+      <SwitchRow title={t('profile.allowPages')} checked={enabled} onChange={(on) => void setPagesEnabled(server.key, on).then(() => setError(null), (err: Error) => setError(errorMessage(err)))} />
       {error && <p className="error-text">{error}</p>}
     </>
   )

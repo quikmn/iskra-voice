@@ -53,13 +53,13 @@ test('the owner checks for updates, sees what is new and picks how updates happe
   await owner.screenshot({ path: join(SHOTS, 'server-updates-settings.png') })
 
   // Test versions too.
-  await section.getByRole('checkbox', { name: /Include test versions/ }).click()
+  await section.getByRole('switch', { name: /Include test versions/ }).click()
   await expect(section.getByText('Update available: 2.0.0-alpha.13')).toBeVisible()
-  await section.getByRole('checkbox', { name: /Include test versions/ }).click()
+  await section.getByRole('switch', { name: /Include test versions/ }).click()
   await expect(section.getByText('Update available: 2.0.0-alpha.12')).toBeVisible()
 
   // The signed build attestation is checked by default; turning that off warns why it matters.
-  const attestation = section.getByRole('checkbox', { name: /Check the signed build attestation/ })
+  const attestation = section.getByRole('switch', { name: /Check the signed build attestation/ })
   await expect(attestation).toBeChecked()
   await expect(section.locator('.update-attestation-off')).toHaveCount(0)
   await attestation.click()

@@ -9,6 +9,7 @@ import { P2pSection } from './P2pSettings'
 import type { ServerState } from '../../state/store'
 import { Spinner } from '../bits'
 import './InternetSettings.css'
+import { Switch } from '../kit'
 
 function StepIcon({ state }: { state: Step['state'] }) {
   if (state === 'working') return <span className="step-icon working" aria-hidden><Spinner /></span>
@@ -65,16 +66,7 @@ export function InternetSection({ server }: { server: ServerState }) {
           <strong>{t('settings.internet.letFriends')}</strong>
           <p className={`internet-summary ${summary.tone}`}>{summary.text}</p>
         </div>
-        <button
-          className={`switch ${status.enabled ? 'on' : ''}`}
-          role="switch"
-          aria-checked={status.enabled}
-          aria-label={t('settings.internetSwitch')}
-          disabled={!isOwner || busy}
-          onClick={() => void change(!status.enabled)}
-        >
-          <span />
-        </button>
+        <Switch checked={status.enabled} label={t('settings.internetSwitch')} disabled={!isOwner || busy} onChange={() => void change(!status.enabled)} />
       </div>
       {!isOwner && <p className="muted">{t('settings.internet.ownerOnly')}</p>}
       {!status.enabled && isOwner && (

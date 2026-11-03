@@ -15,6 +15,7 @@ import { Bots3Settings } from './Bots3Settings'
 import { isBots3 } from '../../state/bots3Logic'
 import '../dialogs/InternetSettings.css'
 import '../bots.css'
+import { Switch } from '../kit'
 
 export function BuiltinBotsSection({ server }: { server: ServerState }) {
   const { t } = useTranslation()
@@ -54,10 +55,7 @@ export function BuiltinBotsSection({ server }: { server: ServerState }) {
                 <span className="builtin-bot-name">{name} <BotBadge builtin /></span>
                 <span className="builtin-bot-about muted">{t(`builtinBots.about.${id}`)}</span>
               </span>
-              <button className={`switch ${on ? 'on' : ''}`} role="switch" aria-checked={on} aria-label={t('builtinBots.settings.toggle', { name })}
-                disabled={!admin || busy !== null} onClick={() => void toggle(id, !on)} data-testid={`builtin-${id}`}>
-                <span />
-              </button>
+              <Switch checked={on} label={t('builtinBots.settings.toggle', { name })} disabled={!admin || busy !== null} onChange={() => void toggle(id, !on)} testId={`builtin-${id}`} />
             </div>
             {settings && (
               <button type="button" className="link builtin-bot-settings-toggle" aria-expanded={open === id} onClick={() => setOpen(open === id ? null : id)}>

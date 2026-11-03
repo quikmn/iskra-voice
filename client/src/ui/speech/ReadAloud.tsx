@@ -12,6 +12,7 @@ import { setAutoTranscribe, useTranscripts } from '../../state/transcripts'
 import { Volume } from '../icons'
 import { MenuItem } from '../organize/OrgMenu'
 import './speech.css'
+import { SwitchRow } from '../kit'
 
 type Wrap = (doneLabel: string | null, action: () => void | Promise<unknown>) => () => void
 
@@ -70,22 +71,14 @@ export function SpeechSettingsSection() {
       <h2>{t('speech.settings.title')}</h2>
 
       <h3>{t('speech.settings.transcripts')}</h3>
-      <label className="checkbox">
-        <input type="checkbox" checked={auto} disabled={!transcripts} onChange={(e) => setAutoTranscribe(e.target.checked)} />
-        {t('speech.settings.autoTranscribe')}
-      </label>
-      <p className="muted">{transcripts ? t('speech.settings.transcriptsHint') : t('speech.transcript.unsupported')}</p>
+      <SwitchRow title={t('speech.settings.autoTranscribe')} help={transcripts ? t('speech.settings.transcriptsHint') : t('speech.transcript.unsupported')} checked={auto} disabled={!transcripts} onChange={(on) => setAutoTranscribe(on)} />
       {auto && slow && <p className="muted" role="status">{t('speech.settings.tooSlow')}</p>}
 
       <h3>{t('speech.settings.readAloud')}</h3>
       {!speech ? <p className="muted">{t('speech.settings.unsupported')}</p> : (
         <>
           <p className="muted">{t('speech.settings.readAloudHint')}</p>
-          <label className="checkbox">
-            <input type="checkbox" checked={settings.playTts} onChange={(e) => updateSpeech({ playTts: e.target.checked })} />
-            {t('speech.settings.playTts')}
-          </label>
-          <p className="muted">{t('speech.settings.playTtsHint')}</p>
+          <SwitchRow title={t('speech.settings.playTts')} help={t('speech.settings.playTtsHint')} checked={settings.playTts} onChange={(on) => updateSpeech({ playTts: on })} />
           <label className="field">
             <span>{t('speech.settings.voice')}</span>
             <select value={settings.voice ?? ''} onChange={(e) => updateSpeech({ voice: e.target.value || null })}>

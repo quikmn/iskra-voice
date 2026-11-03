@@ -94,21 +94,6 @@
 .sound-name { font-size: 12px; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .soundboard-empty, .soundboard-note { margin: 4px 12px 12px; font-size: 13px; }
 .voice-controls .icon-button.on, .call-button.on { color: var(--accent-2); }
-.sound-toasts {
-  position: fixed; top: calc(72px + var(--safe-top)); left: 50%; transform: translateX(-50%); z-index: var(--z-notice);
-  display: grid; gap: 6px; pointer-events: none; width: max-content; max-width: calc(100vw - 24px);
-}
-.sound-toast {
-  display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 99px; font-size: 14px;
-  background: var(--float); border: 1px solid var(--border); box-shadow: var(--shadow-pop); animation: toast-in 0.2s ease-out;
-}
-@keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } }
-/* Phones: the header is where your thumb and eyes go, so toasts sit above the composer / call controls instead. */
-@media (max-width: 760px) {
-  .sound-toasts { top: auto; bottom: calc(96px + var(--safe-bottom)); }
-  .sound-toast { animation-name: toast-up; }
-}
-@keyframes toast-up { from { opacity: 0; transform: translateY(6px); } }
 
 .expression-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
 .expression-row, .expression-new { display: flex; align-items: center; gap: 10px; }

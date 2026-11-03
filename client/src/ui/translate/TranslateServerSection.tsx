@@ -9,6 +9,7 @@ import { connectionFor, type ServerState } from '../../state/store'
 import { languageName, modelBytes, PINS, PIVOT, TRANSLATE_LANGUAGES } from '../../state/translate/languages'
 import { Spinner } from '../bits'
 import './translate.css'
+import { SwitchRow } from '../kit'
 
 const ALL_BYTES = modelBytes(PINS.map((p) => p.name))
 
@@ -52,10 +53,7 @@ export function TranslateServerSection({ server }: { server: ServerState }) {
         error ? <p className="error-text" role="alert">{error}</p> : <Spinner />
       ) : (
         <>
-          <label className="checkbox">
-            <input type="checkbox" checked={config.offer} disabled={busy} onChange={(e) => void offer(e.target.checked)} />
-            {t('translate.server.offer')}
-          </label>
+          <SwitchRow title={t('translate.server.offer')} checked={config.offer} disabled={busy} onChange={(on) => void offer(on)} />
           <p className="muted small">{t('translate.server.offerHint')}</p>
           {error && <p className="error-text" role="alert">{error}</p>}
           <div className="translate-table-wrap">
