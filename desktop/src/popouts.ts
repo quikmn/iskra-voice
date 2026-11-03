@@ -200,3 +200,45 @@ export function popoutWindowOptions(kind: PopoutKind, prefs: PopoutPrefs, bounds
     },
   }
 }
+
+// ── window.open from the main window (security review R3-3) ─────────────────
+
+/** How long after a click or key press a page may open a link in the browser. */
+export const GESTURE_MS = 5_000
+/** Links into the browser: at most this many at once, then one per REFILL_MS. */
+export const EXTERNAL_BURST = 3
+export const REFILL_MS = 2_000
+
+/** Input that counts as the person doing something (Electron's input-event types). */
+export const isGesture = (type: string | undefined): boolean =>
+  !!type && /^(mouseDown|mouseUp|keyDown|rawKeyDown|char|touchStart|touchEnd|gestureTap|pointerDown|pointerUp)$/.test(type)
+
+/**
+ * What a window.open in the main window may do. Every frame in it lands in the same handler, third-party embeds
+ * included, and Electron has no pop-up blocker. So the system browser opens only shortly after the person clicked or
+ * typed in the window, a few at a time; a pop-out never for another origin (an embed's referrer), and without a
+ * referrer (the app sends none) only shortly after a click or key press too (pop-outs only ever open from one).
+ */
+export class WindowOpenGate {
+  private lastGesture = -Infinity
+  private tokens = EXTERNAL_BURST
+  private refilled = -Infinity
+
+  gesture(now: number): void {
+    this.lastGesture = now
+  }
+
+  decide(details: { url: string; referrer: string }, isPopout: boolean, isAppUrl: (url: string) => boolean, now: number): 'popout' | 'external' | 'deny' {
+    const recent = now - this.lastGesture <= GESTURE_MS
+    if (isPopout) return isAppUrl(details.referrer) || (!details.referrer && recent) ? 'popout' : 'deny'
+    if (!/^https?:\/\//i.test(details.url) || !recent) return 'deny'
+    const earned = Math.floor((now - this.refilled) / REFILL_MS)
+    if (earned > 0) {
+      this.tokens = Math.min(EXTERNAL_BURST, this.tokens + earned)
+      this.refilled = this.tokens === EXTERNAL_BURST ? now : this.refilled + earned * REFILL_MS
+    }
+    if (this.tokens <= 0) return 'deny'
+    this.tokens--
+    return 'external'
+  }
+}

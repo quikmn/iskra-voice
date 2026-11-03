@@ -134,6 +134,12 @@ const me = () => {
 
 const lastVoice = new Map<string, Set<string>>()
 
+let inEncrypted: (serverKey: string, channelId: number) => boolean = () => false
+/** state/e2eeChannels.ts says which channels (and threads) are end-to-end encrypted on this device. */
+export function setNotifyEncryptedCheck(check: (serverKey: string, channelId: number) => boolean): void {
+  inEncrypted = check
+}
+
 /** Told about every new channel message from someone you haven't blocked (state/speech.ts reads some aloud). */
 export const heardHooks: ((serverKey: string, message: Message) => void)[] = []
 
@@ -168,8 +174,11 @@ onServerEvent((serverKey, type, body) => {
   const server = state.servers[serverKey]
   if (!server) return
 
-  // Encrypted channels notify once decrypted (state/e2eeChannels.ts).
-  if (type === 'chat.message' && !(body as Events['chat.message']).message.e2ee) notifyChannelMessage(serverKey, (body as Events['chat.message']).message)
+  // Encrypted channels notify once decrypted (state/e2eeChannels.ts); a message there without an envelope never does.
+  if (type === 'chat.message') {
+    const { message } = body as Events['chat.message']
+    if (!message.e2ee && !inEncrypted(serverKey, message.channelId)) notifyChannelMessage(serverKey, message)
+  }
 
   if (type === 'voice.state') {
     // Little chimes when people join or leave the voice channel you're in.

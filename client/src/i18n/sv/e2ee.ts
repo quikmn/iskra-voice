@@ -55,6 +55,7 @@ export const e2ee: Messages['e2ee'] = {
     olderFormat: 'Äldre format',
     olderFormatHint: 'Skickat från en äldre version av Iskra: krypterat och signerat, men inte knutet till den här kanalen eller tråden.',
     afterRemoval: 'Skickat efter att avsändaren förlorade åtkomsten till kanalen ({{date}}), så det kanske inte kommer från hen.',
+    notEncrypted: 'Inte krypterat, så det kan inte komma från en medlem: servern skickade det. Det visas inte.',
   },
   search: {
     local: 'Krypterade kanaler söks bara på den här enheten, i de meddelanden den har dekrypterat.',
@@ -109,5 +110,7 @@ export const e2ee: Messages['e2ee'] = {
     offline: 'Servern är inte ansluten just nu.',
     tooMany: 'Högst 50 personer kan vara med i en krypterad kanal.',
     notEncrypted: 'Det här är inte en krypterad kanal.',
+    downgraded: 'Servern säger att kanalen inte är krypterad längre. Det var den, så den här enheten håller den krypterad och skickar ingenting i den.',
+    boardMismatch: 'Servern och kanalen är inte överens om huruvida tavlan är krypterad, så ingenting skickas till den.',
   },
 }

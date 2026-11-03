@@ -295,6 +295,23 @@ test('a folder bot runs only after a native confirm, and autostart for it asks t
   await r.update(bot.id, { autostart: true })
   assert.equal(r.list()[0].autostart, true)
   assert.deepEqual(r.autostartIds(), [bot.id])
+  // Its code changes (security review R3-7): the next start asks again, and a no keeps it from running.
+  r.killAll()
+  spawned[0].child.exit(null, 'SIGKILL')
+  writeFileSync(path.join(folder, 'bot.js'), 'console.log("changed")')
+  answer = false
+  const before = spawned.length
+  await r.start(bot.id)
+  assert.equal(asked.at(-1), 'folder-changed trusty')
+  assert.equal(spawned.length, before)
+  answer = true
+  await r.start(bot.id)
+  assert.equal(spawned.length, before + 1)
+  r.killAll()
+  spawned.at(-1)!.child.exit(null, 'SIGKILL')
+  const asks = asked.length
+  await r.start(bot.id) // unchanged since: no ask
+  assert.equal(asked.length, asks)
   // Without a way to ask (no confirm), nothing from a folder runs.
   const quiet = runner(path.join(root, 'trust2'), 'linux', { confirm: undefined })
   const other = quiet.r.add({ folder })!
@@ -364,8 +381,9 @@ test('bots never outlive the app: killed at quit, and leftovers from a crash are
   writeFileSync(path.join(dir, a.id, 'bot.pid'), JSON.stringify({ pid: 777, script: spawned[0].args[0] }))
   writeFileSync(path.join(dir, b.id, 'bot.pid'), JSON.stringify({ pid: 778, script: spawned[1].args[0] }))
   const lines: Record<number, string> = { 777: `/app/iskra ${spawned[0].args[0]}`, 778: '/usr/bin/some-other-program' }
-  const next = runner(dir, 'linux', { commandLine: (pid) => lines[pid] ?? null })
-  assert.equal(next.r.killLeftovers(), 1)
+  // Asked in the background (Windows asks PowerShell): the app's start never waits for it.
+  const next = runner(dir, 'linux', { commandLine: async (pid) => lines[pid] ?? null })
+  assert.equal(await next.r.killLeftovers(), 1)
   assert.deepEqual(next.killed, [777])
   assert.ok(!existsSync(path.join(dir, a.id, 'bot.pid')) && !existsSync(path.join(dir, b.id, 'bot.pid')))
   assert.deepEqual(next.r.autostartIds(), [a.id])
@@ -389,5 +407,11 @@ test('invites and the environment', () => {
   assert.ok(!isInvite(42))
   const env = botEnv({ PATH: 'p', ELECTRON_RUN_AS_NODE: '1', ISKRA_LOCAL_ONLY: '1', ISKRA_BOT_STATE: 's' }, 'python', { BOT_NAME: 'X' })
   assert.deepEqual(env, { PATH: 'p', ISKRA_LOCAL_ONLY: '1', PYTHONUNBUFFERED: '1', FORCE_COLOR: '0', BOT_NAME: 'X' })
+  // Only what programs need from the app's environment (security review R3-6): no tokens, no app settings.
+  const windows = botEnv({
+    Path: 'p', SystemRoot: 'C:\Windows', TEMP: 't', USERPROFILE: 'u', APPDATA: 'a', LC_ALL: 'sv_SE', HTTPS_PROXY: 'x',
+    GITHUB_TOKEN: 'secret', ISKRA_DEV_URL: 'http://localhost:5173', NODE_OPTIONS: '--inspect', ELECTRON_ENABLE_LOGGING: '1', ISKRA_INVITE: 'old',
+  }, 'node', { BOT_NAME: 'Y' })
+  assert.deepEqual(Object.keys(windows).sort(), ['APPDATA', 'BOT_NAME', 'ELECTRON_RUN_AS_NODE', 'FORCE_COLOR', 'HTTPS_PROXY', 'LC_ALL', 'PYTHONUNBUFFERED', 'Path', 'SystemRoot', 'TEMP', 'USERPROFILE'])
   assert.deepEqual(readdirSync(root).filter((f) => f.endsWith('.json')), [])
 })

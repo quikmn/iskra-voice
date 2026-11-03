@@ -1,8 +1,9 @@
+// @vitest-environment happy-dom
 // The desktop and phone shells as each account's page sees them: every shell event reaches the right account only.
 import { describe, expect, it, vi } from 'vitest'
 import type { DesktopBridge } from '../platform/desktop'
 import type { NativeBridge } from '../platform/native'
-import { createBridges, type BridgeRouter } from './accountBridges'
+import { createBridges, HOSTED_BY_KEY, type BridgeRouter } from './accountBridges'
 
 /** A shell whose events the test fires by name. */
 function fakeShells() {
@@ -149,7 +150,8 @@ describe("each account's copy of the shell", () => {
   it('serves the MCP bridge for the account on screen only, and drops its client when that account changes', async () => {
     const { bridges, state, desktop } = setUp()
     const setMcp = desktop.assistant!.setMcp as ReturnType<typeof vi.fn>
-    expect(await bridges.desktopFor(2)!.assistant!.setMcp(true)).toEqual({ on: false, command: null })
+    // Off screen: kept (not reported as off, so the setting doesn't flip back), applied once it's on screen.
+    expect(await bridges.desktopFor(2)!.assistant!.setMcp(true)).toEqual({ on: true, command: null })
     expect(setMcp).not.toHaveBeenCalled()
     state.active = 2
     bridges.ownerChanged()
@@ -236,11 +238,22 @@ describe("each account's copy of the shell", () => {
   })
 
   it("keeps a hosted server's owner invite to the account that made it", async () => {
+    localStorage.removeItem(HOSTED_BY_KEY)
     const { bridges } = setUp()
     expect((await bridges.desktopFor(1)!.host.create('W', 'http://app'))?.ownerInvite).toBe('http://x/#/join/owner')
     expect((await bridges.desktopFor(2)!.host.start('w1'))?.ownerInvite).toBeNull()
-    expect((await bridges.desktopFor(2)!.host.list()).map((s) => s.ownerInvite)).toEqual([null, 'http://y/#/join/old'])
-    expect((await bridges.desktopFor(1)!.host.list())[0].ownerInvite).toBe('http://x/#/join/owner')
+    // w0's maker isn't known (made before this was kept): only the first account sees its owner invite.
+    expect((await bridges.desktopFor(2)!.host.list()).map((s) => s.ownerInvite)).toEqual([null, null])
+    expect((await bridges.desktopFor(1)!.host.list()).map((s) => s.ownerInvite)).toEqual(['http://x/#/join/owner', 'http://y/#/join/old'])
+  })
+
+  it('still knows who made a hosted server after a restart (security review R3-5)', async () => {
+    localStorage.removeItem(HOSTED_BY_KEY)
+    await setUp().bridges.desktopFor(2)!.host.create('W', 'http://app') // account 2 makes w1
+    const after = setUp().bridges // the app starts again: new bridges, same device storage
+    expect((await after.desktopFor(1)!.host.list())[0].ownerInvite).toBeNull()
+    expect((await after.desktopFor(2)!.host.list())[0].ownerInvite).toBe('http://x/#/join/owner')
+    expect((await after.desktopFor(3)!.host.start('w1'))?.ownerInvite).toBeNull()
   })
 
   it("forgets an account's listeners when it leaves", () => {

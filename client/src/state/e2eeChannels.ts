@@ -26,9 +26,9 @@ import { hideStored, loadVerdict, tombstonesToWipe, type Hidden } from './e2eeTo
 import { ensurePrekeys, ownRevokedDevices } from './devices'
 import { bundleOf } from './dms'
 import { uploadDmFile } from './dmFiles'
-import { notifyChannelMessage } from './notify'
+import { notifyChannelMessage, setNotifyEncryptedCheck } from './notify'
 import { knownThread } from './threads'
-import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, patchServer, setChannelSender, uploadFile, useApp, type PendingMessage } from './store'
+import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, patchServer, setChannelSender, setChannelsGuard, uploadFile, useApp, type PendingMessage } from './store'
 import { acceptStartOver, CHAIN_REPLACED, chainFor, receiveChain, type ChainState, type PastChain } from './e2eeStartOver'
 import { checkSeen, noteSeen, ROLLED_BACK, seenIndex, type Seen } from './e2eeIntegrity'
 import { setChannelVoiceKeys, setCallKey, useVoice } from './voice'
@@ -138,6 +138,7 @@ function markTombstone(slot: string, at: number | null): Promise<void> {
 /** Wipes what's kept for a slot, for good. */
 function wipeStored(slot: string): Promise<void> {
   void markTombstone(slot, null)
+  forgetEncrypted(slot)
   return queueWrite(slot, () => storage.deleteE2ee(slot))
 }
 
@@ -158,16 +159,178 @@ const me = () => {
   return identity ? b64u(identity.account.publicKey) : ''
 }
 
-/** The encrypted channel a channel or thread belongs to (threads use their parent's chain), or null. */
+/**
+ * The encrypted channel a channel or thread belongs to (threads use their parent's chain), or null. A channel this
+ * device knows is encrypted stays so (see "Channels this device knows are encrypted"), and so does a thread it saw
+ * under one, whatever parent the server names later.
+ */
 export function encryptedChannel(serverKey: string, channelId: number): Channel | null {
   const server = useApp.getState().servers[serverKey]
   if (!server) return null
   const parent = knownThread(serverKey, channelId)?.channelId ?? channelId
   const channel = server.channels.find((c) => c.id === parent)
-  return channel?.e2ee ? channel : null
+  if (channel?.e2ee) {
+    if (parent !== channelId) rememberThread(serverKey, channelId, parent)
+    return channel
+  }
+  const pinned = knownThreads.get(slotOf(serverKey, channelId))
+  const before = pinned !== undefined && pinned !== channelId ? server.channels.find((c) => c.id === pinned) : undefined
+  return before?.e2ee ? before : null
 }
 
 export const isEncrypted = (serverKey: string, channelId: number) => !!encryptedChannel(serverKey, channelId)
+
+// ── Channels this device knows are encrypted (security review R3-1) ──────────
+//
+// The server's `Channel.e2ee` flag isn't trusted on its own: a channel this device saw encrypted stays encrypted here
+// (kept with the chains, so also across restarts) until it's gone for good (wiped as another channel or after its
+// tombstone's 30 days, see wipeStored). If a new channel list leaves the flag out, the channel keeps it, marked `lost`:
+// nothing is sent there in the clear (no chat.send with text, no voice without the key, no plaintext board ops), and
+// the channel shows the problem below. Threads seen under an encrypted channel keep that parent the same way.
+
+export const DOWNGRADED = "The server says this channel isn't encrypted any more. It was, so this device keeps it encrypted and sends nothing in it."
+
+const KNOWN = 'known'
+interface KnownIndex {
+  /** slot → the channel's createdAt (0: the server didn't say). */
+  channels: Record<string, number>
+  /** `serverKey:threadId` → its encrypted parent channel's id. */
+  threads: Record<string, number>
+}
+const known = new Map<string, number>()
+const knownThreads = new Map<string, number>()
+/** Slots whose channel the server lists without the flag right now. */
+const lostSlots = new Set<string>()
+let knownLoaded = false
+let knownLoad: Promise<void> | null = null
+
+/** Two createdAt values name the same channel (0: unknown, as in e2eeTombstone.ts). */
+const sameChannel = (a: number, b: number) => a === 0 || b === 0 || a === b
+
+/** Reads what this device knows (once; again after a failure, e.g. while the vault was locked). */
+function loadKnown(): Promise<void> {
+  knownLoad ??= (async () => {
+    try {
+      const stored = await storage.loadE2ee<KnownIndex>(KNOWN)
+      for (const [slot, at] of Object.entries(stored?.channels ?? {})) if (!known.has(slot) && typeof at === 'number') known.set(slot, at)
+      for (const [slot, id] of Object.entries(stored?.threads ?? {})) if (!knownThreads.has(slot) && typeof id === 'number') knownThreads.set(slot, id)
+      knownLoaded = true
+    } catch {
+      knownLoad = null
+      return
+    }
+    reguard()
+  })()
+  return knownLoad
+}
+
+function saveKnown(): void {
+  void queueWrite(KNOWN, async () => {
+    await loadKnown()
+    if (!knownLoaded) return // never overwrite what's stored with a partial copy
+    await storage.saveE2ee(KNOWN, { channels: Object.fromEntries(known), threads: Object.fromEntries(knownThreads) } satisfies KnownIndex)
+  })
+}
+
+function rememberEncrypted(slot: string, createdAt: number): void {
+  const was = known.get(slot)
+  if (was !== undefined && (was === createdAt || createdAt === 0)) return
+  known.set(slot, createdAt)
+  saveKnown()
+}
+
+function rememberThread(serverKey: string, threadId: number, parent: number): void {
+  const slot = slotOf(serverKey, threadId)
+  if (knownThreads.get(slot) === parent) return
+  knownThreads.set(slot, parent)
+  saveKnown()
+}
+
+/** The channel is gone for good (another channel under its id, or its tombstone ran out): it's no longer kept encrypted. */
+function forgetEncrypted(slot: string): void {
+  let changed = known.delete(slot)
+  lostSlots.delete(slot)
+  const cut = slot.lastIndexOf(':')
+  const serverKey = slot.slice(0, cut)
+  const id = Number(slot.slice(cut + 1))
+  for (const [thread, parent] of knownThreads) {
+    if (parent === id && thread.slice(0, thread.lastIndexOf(':')) === serverKey) {
+      knownThreads.delete(thread)
+      changed = true
+    }
+  }
+  if (changed) saveKnown()
+}
+
+/**
+ * The channel list as this app keeps it (store.ts applyChannels calls this): a channel this device knows is encrypted,
+ * listed with the same createdAt but without the flag, keeps it, marked `lost`.
+ */
+export function guardChannels(serverKey: string, listed: Channel[], before: Channel[]): Channel[] {
+  void loadKnown()
+  const flips: number[] = []
+  const out = listed.map((c): Channel => {
+    const slot = slotOf(serverKey, c.id)
+    const createdAt = c.createdAt ?? 0
+    const wasLost = lostSlots.has(slot)
+    if (c.e2ee && !c.e2ee.lost) {
+      rememberEncrypted(slot, createdAt)
+      lostSlots.delete(slot)
+      if (wasLost) flips.push(c.id)
+      return c
+    }
+    const prev = before.find((b) => b.id === c.id && !!b.e2ee)
+    const was = known.get(slot) ?? (prev && sameChannel(prev.createdAt ?? 0, createdAt) ? (prev.createdAt ?? 0) : undefined)
+    if (was === undefined || !sameChannel(was, createdAt)) {
+      lostSlots.delete(slot)
+      if (wasLost) flips.push(c.id)
+      return c.e2ee ? { ...c, e2ee: null } : c
+    }
+    rememberEncrypted(slot, was || createdAt)
+    lostSlots.add(slot)
+    if (!wasLost) flips.push(c.id)
+    return { ...c, e2ee: { chain: prev?.e2ee?.chain ?? '', version: prev?.e2ee?.version ?? 0, lost: true } }
+  })
+  for (const id of flips) refreshLost(serverKey, id)
+  return out
+}
+
+/** The channel's state shows (or stops showing) the downgrade. */
+function refreshLost(serverKey: string, channelId: number): void {
+  const slot = slotOf(serverKey, channelId)
+  const rec = records.get(slot)
+  if (rec) return publish(rec)
+  useE2ee.setState((s) => {
+    const old = s.channels[slot]
+    if (!lostSlots.has(slot)) {
+      if (old?.problem !== DOWNGRADED) return s
+      return { channels: { ...s.channels, [slot]: { ...old, problem: undefined } } }
+    }
+    return { channels: { ...s.channels, [slot]: { ...(old ?? { members: [], version: 0, hasKey: false, restarts: [] }), problem: old?.problem ?? DOWNGRADED } } }
+  })
+}
+
+/** Once what's stored is read: the lists already shown are looked at again. */
+function reguard(): void {
+  for (const [key, server] of Object.entries(useApp.getState().servers)) {
+    if (!server.channels.some((c) => !c.e2ee && known.has(slotOf(key, c.id)))) continue
+    patchServer(key, (s) => ({ channels: guardChannels(key, s.channels, s.channels) }))
+  }
+}
+
+setChannelsGuard(guardChannels)
+useApp.subscribe((state) => {
+  if (state.phase === 'ready' && !knownLoaded && !knownLoad) void loadKnown()
+})
+
+/** Forgets what this device knows, in memory (tests). */
+export function resetKnownForTests(): void {
+  known.clear()
+  knownThreads.clear()
+  lostSlots.clear()
+  knownLoaded = false
+  knownLoad = null
+}
 
 // ── The local copy ─────────────────────────────────────────────────────────
 
@@ -177,7 +340,8 @@ function publish(rec: Rec, full?: boolean): void {
     channels: {
       ...s.channels,
       [rec.slot]: {
-        members: view?.members ?? [], version: view?.version ?? 0, hasKey: !!view && rec.keys.has(view.version), problem: rec.problem,
+        members: view?.members ?? [], version: view?.version ?? 0, hasKey: !!view && rec.keys.has(view.version),
+        problem: rec.problem ?? (lostSlots.has(rec.slot) ? DOWNGRADED : undefined),
         full: full ?? s.channels[rec.slot]?.full,
         ...(rec.offer ? { offer: { chain: rec.offer.chain, members: rec.offer.view.members, changes: rec.offer.view.changes } } : {}),
         restarts: rec.restarts.map((r) => r.at),
@@ -233,6 +397,7 @@ async function load(serverKey: string, channelId: number): Promise<Rec> {
         }
       }
       records.set(slot, rec)
+      if (rec.chain) rememberEncrypted(slot, rec.createdAt ?? 0)
       publish(rec)
       if (verdict === 'lift') {
         // Listed again under the same channel: the chain and keys are used again (messages are fetched and decrypted anew).
@@ -271,7 +436,11 @@ function forgetSlot(serverKey: string, channelId: number, replaced: boolean, cre
   const now = Date.now()
   return queueWrite(slot, async () => {
     const stored = await storage.loadE2ee<Stored>(slot)
-    if (!stored) return
+    if (!stored) {
+      // Nothing kept but the knowledge that it was encrypted: that goes with the tombstones (after 30 days).
+      if (known.has(slot)) void markTombstone(slot, now)
+      return
+    }
     const tombstone = hideStored(stored, now, createdAt)
     await storage.saveE2ee(slot, tombstone)
     void markTombstone(slot, tombstone.hidden!.at)
@@ -370,6 +539,7 @@ export function syncChannel(serverKey: string, channelId: number): Promise<void>
       publish(rec, reply.want.full)
       persist(rec)
       redecrypt(serverKey)
+      if (lostSlots.has(slot)) return // the server says it isn't encrypted: nothing is signed for it
       maybeMaintain(rec, reply.want)
       maybeRestart(rec, reply.want)
     })().finally(() => syncing.delete(slot))
@@ -635,6 +805,8 @@ export interface Shown {
   afterRemoval?: number
   /** The channel's chain version it was checked against (a later removal means checking it again). */
   checked?: number
+  /** It came without an envelope (see plainIn): nothing of it is shown. */
+  plain?: boolean
 }
 
 type Shownable = PendingMessage & { e2eeShown?: Shown }
@@ -652,7 +824,7 @@ const placeOf = (channel: Channel, channelId: number) => ({ channel: channel.id,
 /** `lenient`: a copy kept elsewhere (pins, a thread's root) may be older than the newest edit this device saw. */
 function decryptOne(serverKey: string, message: Shownable, lenient = false): Shownable {
   const env = message.e2ee
-  if (!env) return message
+  if (!env) return plainIn(serverKey, message) ? notEncrypted(message) : message
   const channel = encryptedChannel(serverKey, message.channelId)
   const rec = channel ? records.get(slotOf(serverKey, channel.id)) : undefined
   if (!channel || !rec) {
@@ -723,6 +895,26 @@ function decryptOne(serverKey: string, message: Shownable, lenient = false): Sho
 export const BEFORE_YOU_JOINED = 'This message was sent before you could read this channel.'
 
 /**
+ * A message without an envelope in an encrypted channel (security review R3-1): no member can have sent it, so it's
+ * never shown as theirs. The server's own lines that carry nothing to read (a disappearing-messages change line) stay.
+ */
+export function plainIn(serverKey: string, m: Shownable): boolean {
+  if (m.e2ee || m.tempId || m.e2eeShown) return false
+  if (m.disappear && !m.text && !m.attachments?.length) return false
+  return isEncrypted(serverKey, m.channelId)
+}
+
+/** What's left of such a message: who the server says sent it and when, nothing of what it says. */
+function notEncrypted(m: Shownable): Shownable {
+  return {
+    id: m.id, channelId: m.channelId, author: m.author, text: '', createdAt: m.createdAt, editedAt: null, attachments: [], replyTo: null,
+    reactions: m.reactions ?? [], ...(m.thread !== undefined ? { thread: m.thread } : {}),
+    e2eeShown: { state: 'error', error: NOT_ENCRYPTED, plain: true },
+  }
+}
+export const NOT_ENCRYPTED = "Not encrypted, so it can't be from a member: the server sent it. It isn't shown."
+
+/**
  * What to show for a message that didn't decrypt, or 'sync' to fetch the chain and keys and try again. A key for an
  * epoch you weren't in never comes (you joined later); one you were in may still be on its way, so it's retried.
  */
@@ -745,7 +937,7 @@ export async function prepareChannel(serverKey: string, channelId: number): Prom
 }
 
 /** A message as this device can show it (decrypted if it can be), for lists outside the chat (pins, a thread's root). */
-export const readable = (serverKey: string, message: Message): Message => (message.e2ee ? decryptOne(serverKey, message as Shownable, true) : message)
+export const readable = (serverKey: string, message: Message): Message => decryptOne(serverKey, message as Shownable, true)
 
 function requestSync(serverKey: string, channelId: number): void {
   const slot = slotOf(serverKey, channelId)
@@ -766,8 +958,10 @@ function stale(serverKey: string, m: Shownable): boolean {
   return version !== undefined && version !== m.e2eeShown.checked
 }
 
-const needsWork = (serverKey: string, m: Shownable) =>
-  !!m.e2ee && (!m.e2eeShown || m.e2eeShown.state === 'pending' || !!m.e2eeShown.retry || stale(serverKey, m))
+const needsWork = (serverKey: string, m: Shownable, encrypted: boolean) =>
+  (!!m.e2ee && (!m.e2eeShown || m.e2eeShown.state === 'pending' || !!m.e2eeShown.retry || stale(serverKey, m))) || (encrypted && plainIn(serverKey, m))
+/** Not looked at yet (an envelope to open, or a message without one that may be in an encrypted channel). */
+const unlooked = (m: Shownable) => !m.e2eeShown && (!!m.e2ee || !m.tempId)
 
 /** Decrypts what's waiting in a server's loaded channels (pending ones are tried again). */
 function redecrypt(serverKey: string, onlyNew = false): void {
@@ -775,8 +969,10 @@ function redecrypt(serverKey: string, onlyNew = false): void {
   if (!server) return
   const changed: Record<number, PendingMessage[]> = {}
   for (const [id, list] of Object.entries(server.messages)) {
-    if (!list.some((m) => (onlyNew ? !!m.e2ee && !(m as Shownable).e2eeShown : needsWork(serverKey, m)))) continue
-    changed[Number(id)] = list.map((m) => (needsWork(serverKey, m) && (!onlyNew || !(m as Shownable).e2eeShown) ? decryptOne(serverKey, m) : m))
+    const encrypted = isEncrypted(serverKey, Number(id))
+    const work = (m: Shownable) => needsWork(serverKey, m, encrypted) && (!onlyNew || !m.e2eeShown)
+    if (!list.some(work)) continue
+    changed[Number(id)] = list.map((m) => (work(m) ? decryptOne(serverKey, m) : m))
   }
   if (Object.keys(changed).length === 0) return
   for (const list of Object.values(changed)) processed.add(list)
@@ -787,11 +983,12 @@ let scheduled = false
 useApp.subscribe((state) => {
   if (state.phase !== 'ready' || scheduled) return
   let work = false
-  for (const server of Object.values(state.servers)) {
-    for (const list of Object.values(server.messages)) {
+  for (const [key, server] of Object.entries(state.servers)) {
+    for (const [id, list] of Object.entries(server.messages)) {
       if (processed.has(list)) continue
       processed.add(list)
       if (list.some((m) => !!m.e2ee && !(m as Shownable).e2eeShown)) work = true
+      else if (list.some(unlooked) && isEncrypted(key, Number(id))) work = true
     }
   }
   if (!work) return
@@ -875,6 +1072,7 @@ export async function uploadFor(serverKey: string, channelId: number, file: File
 export function cannotWrite(serverKey: string, channelId: number): string | null {
   const channel = encryptedChannel(serverKey, channelId)
   if (!channel) return null
+  if (channel.e2ee?.lost) return DOWNGRADED
   const state = useE2ee.getState().channels[slotOf(serverKey, channel.id)]
   if (state?.problem) return state.problem
   if (!state?.members.includes(me())) return 'waiting'
@@ -883,9 +1081,11 @@ export function cannotWrite(serverKey: string, channelId: number): string | null
 }
 
 async function readyRec(serverKey: string, channelId: number): Promise<Rec> {
+  if (lostSlots.has(slotOf(serverKey, channelId))) throw new GroupError(DOWNGRADED)
   const rec = await load(serverKey, channelId)
   if (!rec.view || !rec.keys.has(rec.view.version)) await syncChannel(serverKey, channelId)
   if (rec.problem) throw new GroupError(rec.problem)
+  if (lostSlots.has(rec.slot)) throw new GroupError(DOWNGRADED)
   if (!rec.view || !rec.keys.has(rec.view.version)) throw new DmError("This device doesn't have this channel's key yet.")
   return rec
 }
@@ -925,7 +1125,16 @@ async function sendSealed(serverKey: string, channelId: number, body: { text: st
   }
 }
 
-setChannelSender((serverKey, channelId, body) => (isEncrypted(serverKey, channelId) ? sendSealed(serverKey, channelId, body) : null))
+setChannelSender((serverKey, channelId, body) => {
+  // Until this device has read which channels it knows are encrypted, nothing goes out in the clear.
+  if (!knownLoaded) {
+    return loadKnown().then(() => (isEncrypted(serverKey, channelId)
+      ? sendSealed(serverKey, channelId, body)
+      : connectionFor(serverKey)!.request('chat.send', body as never) as Promise<{ message: Message }>))
+  }
+  return isEncrypted(serverKey, channelId) ? sendSealed(serverKey, channelId, body) : null
+})
+setNotifyEncryptedCheck(isEncrypted)
 
 /** Edits a message in an encrypted channel (keeps its attachments). */
 export async function editEncrypted(serverKey: string, message: Message, text: string): Promise<void> {

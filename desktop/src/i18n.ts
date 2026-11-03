@@ -36,6 +36,7 @@ const en = {
     warnTitle: 'Only run bots you trust',
     runQuestion: (name: string) => `Run "${name}" on this computer?`,
     autostartQuestion: (name: string) => `Start "${name}" every time Iskra starts?`,
+    changedQuestion: (name: string) => `"${name}" changed since you last ran it. Run it anyway?`,
     warnDetail: (folder: string) => `${folder}
 
 This bot runs with your rights on this computer: it can read and change your files. Only run bots you trust.`,
@@ -122,6 +123,7 @@ const sv: DesktopText = {
     warnTitle: 'Kör bara bottar du litar på',
     runQuestion: (name: string) => `Köra "${name}" på den här datorn?`,
     autostartQuestion: (name: string) => `Starta "${name}" varje gång Iskra startar?`,
+    changedQuestion: (name: string) => `"${name}" har ändrats sedan du körde den senast. Köra den ändå?`,
     warnDetail: (folder: string) => `${folder}
 
 Botten körs med dina rättigheter på den här datorn: den kan läsa och ändra dina filer. Kör bara bottar du litar på.`,

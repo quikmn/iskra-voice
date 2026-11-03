@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  areaFor, DEFAULT_SIZE, isPopoutPage, MIN_SIZE, onTopLevel, openBounds, parsePopoutName, parsePopoutPatch, parsePopoutState, popoutWindowOptions, snapBounds,
+  areaFor, DEFAULT_SIZE, EXTERNAL_BURST, GESTURE_MS, isGesture, isPopoutPage, MIN_SIZE, onTopLevel, openBounds, parsePopoutName, parsePopoutPatch, parsePopoutState,
+  popoutWindowOptions, REFILL_MS, snapBounds, WindowOpenGate,
 } from './popouts'
 import { isAppPage } from './platform'
 
@@ -123,4 +124,26 @@ test('always on top above the Windows taskbar, so a full-screen window in front 
   assert.equal(onTopLevel('win32'), 'pop-up-menu')
   assert.equal(onTopLevel('darwin'), 'floating')
   assert.equal(onTopLevel('linux'), 'floating')
+})
+
+test('window.open: embeds never make pop-outs, and open the browser only after a click (security review R3-3)', () => {
+  const gate = new WindowOpenGate()
+  const popout = 'app://iskra/popout.html'
+  // The app's page (no referrer, or its own) right after a click: a pop-out; an embed's: never.
+  assert.equal(gate.decide({ url: popout, referrer: 'https://www.youtube.com/embed/x' }, true, isApp, 1000), 'deny')
+  assert.equal(gate.decide({ url: popout, referrer: '' }, true, isApp, 1000), 'deny') // no click yet
+  assert.equal(gate.decide({ url: popout, referrer: 'app://iskra/index.html' }, true, isApp, 1000), 'popout')
+  // No click: no browser, whoever asks.
+  assert.equal(gate.decide({ url: 'https://phish.example/', referrer: '' }, false, isApp, 1000), 'deny')
+  gate.gesture(2000)
+  assert.equal(gate.decide({ url: popout, referrer: '' }, true, isApp, 2100), 'popout')
+  assert.equal(gate.decide({ url: popout, referrer: 'https://player.twitch.tv/' }, true, isApp, 2100), 'deny')
+  // A click: a few links at once, then one every REFILL_MS; never anything but http(s).
+  assert.equal(gate.decide({ url: 'javascript:alert(1)', referrer: '' }, false, isApp, 2100), 'deny')
+  for (let i = 0; i < EXTERNAL_BURST; i++) assert.equal(gate.decide({ url: 'https://example.com/', referrer: '' }, false, isApp, 2200), 'external')
+  assert.equal(gate.decide({ url: 'https://example.com/', referrer: '' }, false, isApp, 2300), 'deny')
+  assert.equal(gate.decide({ url: 'https://example.com/', referrer: '' }, false, isApp, 2200 + REFILL_MS), 'external')
+  // Long after the click: nothing.
+  assert.equal(gate.decide({ url: 'https://example.com/', referrer: '' }, false, isApp, 2000 + GESTURE_MS + 1), 'deny')
+  assert.ok(isGesture('mouseDown') && isGesture('keyDown') && !isGesture('mouseMove') && !isGesture(undefined))
 })

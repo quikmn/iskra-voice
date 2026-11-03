@@ -21,7 +21,7 @@ import { DO_OAUTH_CLIENT_ID, oauthConfigured, oauthTestOverrides, oauthToken } f
 import { SaveStreams, suggestedName } from './saveStreams'
 import { Recordings } from './recordings'
 import {
-  badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isKey43, isServerId, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
+  badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, devUrl, isAppPage, isHostedId, isKey43, isServerId, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
   keychainKind, serversToStart, setKeepRunning, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
 } from './platform'
 import { parseNoticeAction, updateCheckNotice, type DesktopNotice } from './notices'
@@ -44,12 +44,14 @@ import { AssistantBase, sendAssistantRequest } from './assistantNet'
 import { pageAnswer } from './mcp'
 import { McpHost, mcpTokenPath } from './mcpPipe'
 import { registerBots } from './botsIpc'
-import { parsePopoutPatch } from './popouts'
+import { isGesture, parsePopoutPatch, WindowOpenGate } from './popouts'
+import { ScreenPicks } from './screenPick'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
 /** Chromium's media::AudioDeviceDescription::kLoopbackWithoutChromeId: system audio minus this app's own. */
 const LOOPBACK_WITHOUT_ISKRA = 'loopbackWithoutChrome'
-const DEV_URL = process.env.ISKRA_DEV_URL // e.g. http://localhost:5173 while developing
+const screenPicks = new ScreenPicks()
+const DEV_URL = devUrl(process.env, app.isPackaged) // e.g. http://localhost:5173 while developing (never in an installed app)
 const ASSETS = path.join(__dirname, '..', 'assets')
 const MAC = process.platform === 'darwin'
 const WAYLAND = isWayland(process.platform, process.env)
@@ -296,10 +298,14 @@ function createWindow(): void {
   void window.loadURL(DEV_URL ?? `${APP_ORIGIN}/index.html`)
 
   // Links open in the real browser; the app window never navigates away from the app. Its own pop-outs are the exception.
-  window.webContents.setWindowOpenHandler(({ url, frameName }) => {
+  // Embeds (YouTube, Twitch…) are frames in this window too, so who may do what is checked (WindowOpenGate, popouts.ts).
+  const opens = new WindowOpenGate()
+  window.webContents.on('input-event', (_event, input) => isGesture(input.type) && opens.gesture(Date.now()))
+  window.webContents.setWindowOpenHandler(({ url, frameName, referrer }) => {
     const popout = popouts.options(url, frameName)
-    if (popout) return { action: 'allow', overrideBrowserWindowOptions: popout, outlivesOpener: false }
-    if (/^https?:\/\//.test(url)) void shell.openExternal(url)
+    const decision = opens.decide({ url, referrer: referrer.url }, !!popout, isAppUrl, Date.now())
+    if (popout && decision === 'popout') return { action: 'allow', overrideBrowserWindowOptions: popout, outlivesOpener: false }
+    if (decision === 'external') void shell.openExternal(url)
     return { action: 'deny' }
   })
   window.webContents.on('did-create-window', (child, { frameName }) => popouts.adopt(child, frameName))
@@ -346,7 +352,8 @@ function setUpSession(): void {
   appSession.setPermissionCheckHandler((contents, permission, requestingOrigin) =>
     !!contents && isAppUrl(contents.getURL()) && isAppUrl(requestingOrigin + '/') && allowed.has(permission))
 
-  // Screen sharing: let the user pick a screen or window in our own picker.
+  // Screen sharing: let the user pick a screen or window in our own picker (one request at a time, screenPick.ts).
+  ipcMain.on('iskra:screen-picked', (e, requestId: unknown, id: unknown) => fromApp(e) && screenPicks.answer(requestId, id))
   appSession.setDisplayMediaRequestHandler(async (request, callback) => {
     // e2e runs never take pictures of the developer's screen (testMode.ts).
     const real = realScreenThumbnails(process.env, app.isPackaged)
@@ -358,10 +365,7 @@ function setUpSession(): void {
     }
     if (skipScreenPicker(WAYLAND, sources.length)) return callback({ video: sources[0] })
     const choices = pickerChoices(sources, real)
-    const pickedId = await new Promise<string | null>((resolve) => {
-      ipcMain.once('iskra:screen-picked', (e, id: unknown) => resolve(fromApp(e) && typeof id === 'string' ? id : null))
-      window?.webContents.send('iskra:pick-screen', choices)
-    })
+    const pickedId = await screenPicks.ask((requestId) => window?.webContents.send('iskra:pick-screen', choices, requestId))
     const picked = sources.find((s) => s.id === pickedId)
     if (!picked) return callback({})
     // "loopback" shares system audio on Windows; elsewhere it's ignored.
@@ -762,7 +766,11 @@ ipcMain.handle('iskra:host-templates', (event) => (fromApp(event) ? host.templat
 ipcMain.handle('iskra:host-create', async (event, name: unknown, appUrl: unknown, template: unknown) => {
   if (!fromApp(event) || typeof name !== 'string' || typeof appUrl !== 'string' || !/^https?:\/\//.test(appUrl)) return null
   const picked = typeof template === 'string' ? pickedTemplates.get(template) : undefined
-  if (picked !== undefined) return withKeep(await host.create(name, appUrl, null, picked))
+  if (picked !== undefined) {
+    const made = withKeep(await host.create(name, appUrl, null, picked))
+    pickedTemplates.delete(template as string) // used: its content isn't kept any longer
+    return made
+  }
   return withKeep(await host.create(name, appUrl, isTemplateId(template) ? template : null))
 })
 // Starting a server from a template file: our own open dialog picks it, the bundled server checks it, and the page
@@ -771,6 +779,11 @@ ipcMain.handle('iskra:host-create', async (event, name: unknown, appUrl: unknown
 // the one that knows the person's folders, and the page never sees a path it didn't pick that way. Everything the
 // shell has to *say* goes through sendNotice (never dialog.showMessageBox), so it looks like the rest of the app.
 const pickedTemplates = new Map<string, string>()
+/** A picked file the page never uses is forgotten after a while (its content isn't kept for the app's lifetime). */
+const PICK_KEEP_MS = 30 * 60_000
+function forgetLater<V>(map: Map<string, V>, key: string): void {
+  setTimeout(() => map.delete(key), PICK_KEEP_MS).unref()
+}
 ipcMain.handle('iskra:host-pick-template', async (event) => {
   if (!fromApp(event) || !window) return null
   const picked = await dialog.showOpenDialog(window, {
@@ -785,9 +798,12 @@ ipcMain.handle('iskra:host-pick-template', async (event) => {
   if ('error' in checked) return { error: checked.error }
   const id = `file:${randomUUID()}`
   pickedTemplates.set(id, readFileSync(file, 'utf8'))
+  forgetLater(pickedTemplates, id)
   return { fileName: path.basename(file), template: { ...checked.info, id } }
 })
-ipcMain.handle('iskra:host-start', async (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? withKeep(await host.start(id)) : null))
+// Only a server folder this app made (security review R3-4: never a path the page makes up).
+const hostedId = (id: unknown): id is string => isHostedId(id, host.list())
+ipcMain.handle('iskra:host-start', async (event, id: unknown) => (fromApp(event) && hostedId(id) ? withKeep(await host.start(id)) : null))
 // The owner switched "Let friends connect without port forwarding" on a server hosted here: the tunnel follows the world's files.
 ipcMain.handle('iskra:host-p2p-sync', async (event, id: unknown) => (fromApp(event) && isServerId(id) ? withKeep(await host.syncP2p(id)) : null))
 // Joining a server through its tunnel: a local address for the page, by server key and the secret from the invite.
@@ -809,7 +825,7 @@ ipcMain.handle('iskra:p2p-voice', (event, on: unknown) => {
   const policy = tunnelledVoice.set(on)
   if (policy) window?.webContents.setWebRTCIPHandlingPolicy(policy)
 })
-ipcMain.handle('iskra:host-stop', async (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? withKeep(await host.stop(id)) : null))
+ipcMain.handle('iskra:host-stop', async (event, id: unknown) => (fromApp(event) && hostedId(id) ? withKeep(await host.stop(id)) : null))
 // "Keep my server running": Iskra starts with the computer, hidden in the tray, and starts this server.
 ipcMain.handle('iskra:host-keep-running', (event, id: unknown, on: unknown) => {
   if (!fromApp(event) || typeof id !== 'string' || typeof on !== 'boolean') return null
@@ -849,11 +865,15 @@ ipcMain.handle('iskra:host-pick-backup', async (event) => {
   const info = readBackupInfo(head.subarray(0, read))
   if (!info) throw new Error(text().backup.notBackup)
   pickedBackups.set(file, info.name)
+  forgetLater(pickedBackups, file)
   return { path: file, fileName: path.basename(file), name: info.name, encrypted: info.encrypted }
 })
 ipcMain.handle('iskra:host-restore', (event, file: unknown, passphrase: unknown) => {
   if (!fromApp(event) || typeof file !== 'string' || !pickedBackups.has(file) || typeof passphrase !== 'string' || passphrase.length > 1024) return null
-  return host.restore(file, passphrase, pickedBackups.get(file) ?? null)
+  return host.restore(file, passphrase, pickedBackups.get(file) ?? null).then((restored) => {
+    pickedBackups.delete(file) // restored: picked again for another try (a wrong passphrase keeps it)
+    return restored
+  })
 })
 // Restoring from a backup buddy: the bundled server downloads the copy with the recovery code and restores it.
 ipcMain.handle('iskra:host-restore-buddy', (event, address: unknown, recoveryCode: unknown) => {
@@ -878,7 +898,8 @@ ipcMain.handle('iskra:save-begin', async (event, name: unknown) => {
   if (!watchedPages.has(owner)) {
     watchedPages.add(owner)
     const drop = () => void saves.abortAll(owner)
-    event.sender.on('did-start-navigation', (details) => details.isMainFrame && !details.isSameDocument && drop())
+    // Only once the page really went (a blocked navigation, such as a link click that opens the browser, keeps saving).
+    event.sender.on('did-navigate', drop)
     event.sender.once('destroyed', () => {
       watchedPages.delete(owner)
       drop()
@@ -909,7 +930,7 @@ function watchRecordingPage(page: Electron.WebContents): void {
   recordingPages.add(page.id)
   const owner = page.id
   const drop = () => void recordings.endAll(owner)
-  page.on('did-start-navigation', (details) => details.isMainFrame && !details.isSameDocument && drop())
+  page.on('did-navigate', drop) // the page really went (not a navigation will-navigate blocked)
   page.once('destroyed', () => {
     recordingPages.delete(owner)
     drop()
@@ -1141,8 +1162,8 @@ app.whenReady().then(() => {
   updates.start(settings.updateChecks)
   // Bots set to start with the app (opt-in, per bot).
   // Bots left running by a crash go first, so none runs twice.
-  const leftovers = pcBots.killLeftovers()
-  if (leftovers > 0) deskLog.info('life', 'bot-leftovers', [['n', leftovers]])
+  // (Asked in the background: on Windows each leftover takes a PowerShell call, which mustn't hold up the splash.)
+  void pcBots.killLeftovers().then((leftovers) => leftovers > 0 && deskLog.info('life', 'bot-leftovers', [['n', leftovers]]))
   for (const id of pcBots.autostartIds()) void pcBots.start(id)
   powerMonitor.on('suspend', () => deskLog.info('life', 'sleep'))
   powerMonitor.on('resume', () => deskLog.info('life', 'resumed'))

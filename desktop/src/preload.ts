@@ -11,6 +11,9 @@ export interface ScreenSource {
   isScreen: boolean
 }
 
+/** The screen picker request the page was shown last (its answer names it). */
+let pickRequest = 0
+
 contextBridge.exposeInMainWorld('iskraDesktop', {
   platform: process.platform,
 
@@ -82,11 +85,15 @@ contextBridge.exposeInMainWorld('iskraDesktop', {
   versions: { electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node, arch: process.arch },
 
   onPickScreen: (callback: (sources: ScreenSource[]) => void): (() => void) => {
-    const listener = (_e: IpcRendererEvent, sources: ScreenSource[]) => callback(sources)
+    const listener = (_e: IpcRendererEvent, sources: ScreenSource[], requestId: unknown) => {
+      if (typeof requestId === 'number') pickRequest = requestId
+      callback(sources)
+    }
     ipcRenderer.on('iskra:pick-screen', listener)
     return () => ipcRenderer.off('iskra:pick-screen', listener)
   },
-  pickScreen: (id: string | null): void => ipcRenderer.send('iskra:screen-picked', typeof id === 'string' ? id : null),
+  // The answer names the request it's for (the newest one shown), so it never answers another (main.ts, screenPick.ts).
+  pickScreen: (id: string | null): void => ipcRenderer.send('iskra:screen-picked', pickRequest, typeof id === 'string' ? id : null),
   callAlert: (on: boolean): Promise<void> => ipcRenderer.invoke('iskra:call-alert', on === true),
   // Pop-out windows (opened with window.open by name): always on top, click-through, its handle, and focus.
   popout: {

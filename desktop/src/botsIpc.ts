@@ -49,11 +49,11 @@ function confirmer(window: () => BrowserWindow | null): Confirm {
     const words = text().bots
     const options = {
       type: 'warning' as const,
-      buttons: [kind === 'trust-folder' ? words.run : words.autostart, words.cancel],
+      buttons: [kind === 'autostart-folder' ? words.autostart : words.run, words.cancel],
       defaultId: 1,
       cancelId: 1,
       title: words.warnTitle,
-      message: kind === 'trust-folder' ? words.runQuestion(bot.name) : words.autostartQuestion(bot.name),
+      message: kind === 'trust-folder' ? words.runQuestion(bot.name) : kind === 'folder-changed' ? words.changedQuestion(bot.name) : words.autostartQuestion(bot.name),
       detail: words.warnDetail(bot.folder),
     }
     const win = window()

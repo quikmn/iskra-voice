@@ -11,8 +11,9 @@ import {
 } from '../core/board'
 import { openBoard as openSealed, sealBoard, type BoardEnvelope, type BoardWhat } from '../core/boardCrypto'
 import { RequestError, type Events, type WireBatch, type WireBoard, type WireSnapshot } from '../core/protocol'
+import { t } from '../i18n'
 import { errorMessage } from '../i18n/errors'
-import { channelOpenKeys, channelSealKey, syncChannel } from './e2eeChannels'
+import { channelOpenKeys, channelSealKey, isEncrypted, syncChannel } from './e2eeChannels'
 import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, uploadFile, useApp } from './store'
 import { withoutChannels } from './channelGone'
 
@@ -63,7 +64,10 @@ export interface Session {
   serverKey: string
   channelId: number
   boardId: string | null
+  /** From the channel as this device knows it (never from the server's wb.get, security review R3-2). */
   encrypted: boolean
+  /** The server's board says otherwise than the channel: nothing is sent. */
+  mismatch: boolean
   state: BoardState
   history: History
   lastSeq: number
@@ -117,7 +121,7 @@ function ui(s: Session, patch: Partial<BoardUi>): void {
 
 function newSession(serverKey: string, channelId: number): Session {
   return {
-    key: boardKey(serverKey, channelId), serverKey, channelId, boardId: null, encrypted: false, state: new BoardState(), history: new History(),
+    key: boardKey(serverKey, channelId), serverKey, channelId, boardId: null, encrypted: isEncrypted(serverKey, channelId), mismatch: false, state: new BoardState(), history: new History(),
     lastSeq: 0, loading: false, queue: [], outgoing: [], inflight: false, live: null, liveDirty: false, draftSent: null, cursors: new Map(),
     seen: new Set(), floor: 0, wantSnapshot: false, snapshotTimer: null, chain: Promise.resolve(), users: 0, listeners: new Set(), unreadable: 0,
   }
@@ -206,7 +210,14 @@ async function loadNow(s: Session, incremental: boolean): Promise<void> {
       reset(s)
       s.boardId = reply.board.id
     }
-    s.encrypted = reply.board.encrypted
+    // The channel decides (it stays encrypted on this device even if the server stops saying so); the board must agree.
+    s.encrypted = isEncrypted(s.serverKey, s.channelId)
+    s.mismatch = reply.board.encrypted !== s.encrypted
+    if (s.mismatch) {
+      s.outgoing = []
+      ui(s, { status: 'error', boardId: s.boardId, encrypted: s.encrypted, error: t('e2ee.errors.boardMismatch') })
+      return
+    }
     if (reply.snapshot) await applySnapshot(s, reply.snapshot)
     for (;;) {
       for (const batch of reply.batches) await applyBatch(s, batch)
@@ -233,7 +244,11 @@ async function loadNow(s: Session, incremental: boolean): Promise<void> {
 }
 
 async function applySnapshot(s: Session, snap: WireSnapshot): Promise<void> {
-  if (snap.objects) {
+  if (snap.objects && s.encrypted) {
+    // Plaintext on an encrypted board: nobody in the channel made it.
+    s.unreadable++
+    s.state.load({})
+  } else if (snap.objects) {
     s.state.load(snap.objects)
   } else if (snap.envelope) {
     const opened = await openEnvelope(s, snap.envelope, snap.by ?? '', 'snapshot')
@@ -268,7 +283,7 @@ async function applyBatch(s: Session, batch: WireBatch, cid?: string): Promise<v
   if (batch.seq <= s.lastSeq) return
   let ops: Op[] | null = null
   try {
-    if (batch.ops) ops = checkOps(batch.ops)
+    if (batch.ops) ops = s.encrypted ? null : checkOps(batch.ops) // plaintext on an encrypted board: refused
     else if (batch.envelope) {
       const env = batch.envelope
       if (s.seen.has(env.header?.id) || (env.header?.sentAt ?? 0) < s.floor) ops = null
@@ -377,7 +392,7 @@ function liveToSend(s: Session): Live | null {
 
 async function flush(s: Session): Promise<void> {
   const connection = connectionFor(s.serverKey)
-  if (s.inflight || !s.boardId || !connection?.isOnline || s.loading) return
+  if (s.inflight || !s.boardId || !connection?.isOnline || s.loading || s.mismatch) return
   s.inflight = true
   const next = s.outgoing[0]
   try {
@@ -405,7 +420,7 @@ async function flush(s: Session): Promise<void> {
 
 async function sendLive(s: Session, live: Live): Promise<void> {
   const connection = connectionFor(s.serverKey)
-  if (!connection || !s.boardId) return
+  if (!connection || !s.boardId || s.mismatch) return
   if (s.encrypted) {
     const { view, key } = await channelSealKey(s.serverKey, s.channelId)
     const envelope = sealBoard(useApp.getState().identity!, view, key, { channel: s.channelId, board: s.boardId }, 'live', live)
@@ -542,7 +557,7 @@ onServerEvent((serverKey, type, body) => {
       if (e.boardId !== s.boardId) return
       if (e.envelope) {
         void openEnvelope(s, e.envelope, e.accountKey, 'live').then((opened) => opened && onLive(s, e.accountKey, opened.content))
-      } else onLive(s, e.accountKey, e.live)
+      } else if (!s.encrypted) onLive(s, e.accountKey, e.live) // plaintext on an encrypted board: ignored
       return
     }
     case 'wb.viewers': {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { appResponseHeaders, autostartEntry, badgeText, compareVersions, macCanReplaceItself, macSigning, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER } from './platform'
+import path from 'node:path'
+import { appResponseHeaders, autostartEntry, badgeText, compareVersions, macCanReplaceItself, macSigning, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER, devUrl, isHostedId, isLanPublicUrl, appFile } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -272,4 +273,34 @@ test("only the app frames its own pages (a frame per account), never another sit
   assert.equal(out.get('content-security-policy'), "frame-ancestors 'self'")
   assert.equal(out.get('x-frame-options'), 'SAMEORIGIN')
   assert.equal(out.get('content-type'), 'text/html')
+})
+
+test('host start and stop take only a server folder this app lists (security review R3-4)', () => {
+  const hosted = [{ id: 'friends' }, { id: 'game-night-2' }]
+  assert.ok(isHostedId('friends', hosted))
+  for (const bad of ['../../Users/me/somewhere', '..', '.', 'friends/../x', 'C:\\x', 'a\\b', 'other', '', 42, null]) assert.equal(isHostedId(bad, hosted), false, String(bad))
+  assert.equal(isHostedId('..', [{ id: '..' }]), false)
+})
+
+test('only RFC 1918 and localhost addresses follow the LAN address', () => {
+  for (const ok of ['http://10.0.0.5:47070', 'http://192.168.1.2:47070', 'http://172.16.0.1:47070', 'http://172.31.255.1:47070', 'http://localhost:47070']) assert.ok(isLanPublicUrl(ok), ok)
+  for (const no of ['http://172.15.0.1:47070', 'http://172.32.0.1:47070', 'http://172.217.1.1:47070', 'https://chat.example.com', 'http://localhost.example.com', undefined]) assert.equal(isLanPublicUrl(no), false, String(no))
+})
+
+test('ISKRA_DEV_URL only in an unpackaged app, and only on this computer (security review R3-8)', () => {
+  assert.equal(devUrl({ ISKRA_DEV_URL: 'http://localhost:5173' }, false), 'http://localhost:5173')
+  assert.equal(devUrl({ ISKRA_DEV_URL: 'http://127.0.0.1:5173/' }, false), 'http://127.0.0.1:5173/')
+  assert.equal(devUrl({ ISKRA_DEV_URL: 'http://localhost:5173' }, true), undefined)
+  assert.equal(devUrl({ ISKRA_DEV_URL: 'https://evil.example' }, false), undefined)
+  assert.equal(devUrl({ ISKRA_DEV_URL: 'http://localhost.evil.example' }, false), undefined)
+  assert.equal(devUrl({}, false), undefined)
+})
+
+test('app:// serves the client only on its own host and inside its folder', () => {
+  const dir = path.resolve('/client')
+  assert.equal(appFile('app://iskra/', 'app://iskra', dir), path.join(dir, 'index.html'))
+  assert.equal(appFile('app://iskra/assets/a.js', 'app://iskra', dir), path.join(dir, 'assets', 'a.js'))
+  assert.equal(appFile('app://other/index.html', 'app://iskra', dir), null)
+  assert.equal(appFile('app://iskra/..%2F..%2Fsecret.txt', 'app://iskra', dir), null)
+  assert.equal(appFile('app://iskra/%E0%A4%A', 'app://iskra', dir), null)
 })

@@ -1800,6 +1800,11 @@ export interface Requests {
 export interface ChannelE2ee {
   chain: string
   version: number
+  /**
+   * Set by this app, never by the server: the server stopped saying the channel is encrypted, but this device knows it
+   * is (state/e2eeChannels.ts). It stays encrypted here and nothing can be sent in it.
+   */
+  lost?: true
 }
 
 export interface Channel {
