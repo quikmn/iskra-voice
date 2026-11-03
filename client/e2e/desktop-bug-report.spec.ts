@@ -61,7 +61,8 @@ test('the bug report is a window of its own that takes screenshots of the app’
     await expect(page.getByRole('heading', { name: 'general' })).toBeVisible()
 
     // A channel popped out, to have a second window to take a picture of.
-    await page.getByRole('button', { name: 'Pop out channel' }).click()
+    await page.getByTestId('header-more').click()
+    await page.getByRole('menuitem', { name: 'Pop out channel' }).click()
     await popoutPage(app, 'popout-chat')
 
     // Ctrl+Shift+B: the report opens in its own window, and the main window has no dialog over it.

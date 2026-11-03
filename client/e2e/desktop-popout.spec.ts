@@ -63,7 +63,8 @@ test('pop out the voice panel, a video and a channel; they remember, stay on top
     await expect(page.getByRole('heading', { name: 'general' })).toBeVisible()
 
     // ── A text channel in its own window: the same messages, and you can write from there.
-    await page.getByRole('button', { name: 'Pop out channel' }).click()
+    await page.getByTestId('header-more').click()
+    await page.getByRole('menuitem', { name: 'Pop out channel' }).click()
     const chat = await popoutPage(app, 'popout-chat')
     await expect(page.getByRole('button', { name: 'Pop back in' })).toHaveAttribute('aria-pressed', 'true')
     // No scripts of its own: the main page renders into it.
