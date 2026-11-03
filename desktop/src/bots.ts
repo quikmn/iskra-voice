@@ -7,7 +7,8 @@
 // settings encrypted with the OS keychain when there is one) and a folder per bot (its keys and data for gallery bots,
 // bot.log, and bot.pid while it runs). Invite links are kept in memory only, until the bot has joined. Bots never
 // outlive the app: they're killed when it quits, and leftovers from a crash are killed before anything starts again.
-import { spawnSync, type ChildProcess, type SpawnOptions } from 'node:child_process'
+import { execFile, spawnSync, type ChildProcess, type SpawnOptions } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { appendFileSync, chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
@@ -39,6 +40,8 @@ export interface BotConfig {
   settings: Record<string, string>
   /** Folder bots: the person confirmed they trust it (asked once, before its first run). */
   trusted?: boolean
+  /** Folder bots: what its entry file and package.json were when trusted (entryPrint); changed: asked again. */
+  trustedPrint?: string
 }
 
 export type BotState = 'stopped' | 'starting' | 'running' | 'failed'
@@ -223,7 +226,22 @@ export interface SecretBox {
 }
 
 /** Asks the person (a native dialog in the main process). */
-export type Confirm = (kind: 'trust-folder' | 'autostart-folder', bot: { name: string; folder: string }) => Promise<boolean>
+export type Confirm = (kind: 'trust-folder' | 'autostart-folder' | 'folder-changed', bot: { name: string; folder: string }) => Promise<boolean>
+
+/**
+ * What a folder bot's code is, for trust (security review R3-7): a hash of its entry file and package.json. Not every
+ * file it loads, but the one that runs first changes with nearly every real change. Null: no entry.
+ */
+export function entryPrint(folder: string, read: (p: string) => Buffer | null = (p) => (existsSync(p) ? readFileSync(p) : null)): string | null {
+  const entry = findEntry(folder)
+  if (!entry) return null
+  const hash = createHash('sha256')
+  for (const file of [entry.file, path.join(folder, 'package.json')]) {
+    hash.update(path.relative(folder, file)).update('\0')
+    hash.update(read(file) ?? Buffer.alloc(0)).update('\0')
+  }
+  return hash.digest('hex').slice(0, 32)
+}
 
 export interface RunnerOptions {
   /** userData/bots */
@@ -241,7 +259,7 @@ export interface RunnerOptions {
   /** Finds programs on the PATH (for Python). */
   where?: (name: string) => string[]
   /** A process's command line, or null if it's gone (for leftovers from a crash). */
-  commandLine?: (pid: number) => string | null
+  commandLine?: (pid: number) => string | null | Promise<string | null>
   /** Ends a process and everything it started, at once (taskkill /T /F, or SIGKILL to its group). */
   killTree?: (pid: number) => void
   /** Something changed (state, online): the page refreshes its list. */
@@ -367,7 +385,7 @@ export class BotRunner {
         if (value) secretsSet.push(key)
       } else settings[key] = value
     }
-    const { trusted: _trusted, ...config } = c
+    const { trusted: _trusted, trustedPrint: _print, ...config } = c
     return { ...config, settings, secretsSet, ...s, needsInvite: this.needsInvite(c) }
   }
 
@@ -420,6 +438,7 @@ export class BotRunner {
         if (ok) {
           c.autostart = true
           c.trusted = true
+          c.trustedPrint = entryPrint(c.folder!) ?? undefined
         }
       } else c.autostart = patch.autostart
     }
@@ -441,7 +460,8 @@ export class BotRunner {
     const entry = findEntry(c.folder!)
     if (!entry) return { error: 'no-entry' }
     if (entry.runtime === 'node') return { command: this.opts.execPath, args: [entry.file], cwd: c.folder!, env: botEnv(env, 'node', extra), runtime: 'node' }
-    const python = resolvePython(this.platform, this.opts.where ?? defaultWhere(this.platform, path.dirname(this.opts.execPath)))
+    // Looked up once (where.exe blocks the app for a moment); not found: looked for again next time (it may be installed meanwhile).
+    const python = this.python ??= resolvePython(this.platform, this.opts.where ?? defaultWhere(this.platform, path.dirname(this.opts.execPath)))
     if (!python) return { error: 'no-python' }
     return { command: python.command, args: [...python.args, entry.file], cwd: c.folder!, env: botEnv(env, 'python', extra), runtime: 'python' }
   }
@@ -455,13 +475,20 @@ export class BotRunner {
     if (!c) return null
     if (isInvite(invite)) this.invites.set(id, invite)
     if (this.running.has(id)) return this.status(c)
-    if (c.kind === 'folder' && !c.trusted) {
-      const ok = (await this.opts.confirm?.('trust-folder', { name: c.name, folder: c.folder! })) ?? false
+    await this.cleaning?.catch(() => 0) // a leftover from a crash goes first, so it never runs twice
+    // Trusted once, then again whenever its code changed since (an older config without a print takes the current one).
+    const print = c.kind === 'folder' ? entryPrint(c.folder!) : null
+    const changed = c.kind === 'folder' && !!c.trusted && !!c.trustedPrint && !!print && print !== c.trustedPrint
+    if (c.kind === 'folder' && (!c.trusted || changed)) {
+      const ok = (await this.opts.confirm?.(changed ? 'folder-changed' : 'trust-folder', { name: c.name, folder: c.folder! })) ?? false
       if (!ok) {
         this.fail(c.id, 'not-trusted')
         return this.status(c)
       }
       c.trusted = true
+    }
+    if (c.kind === 'folder' && print && c.trustedPrint !== print) {
+      c.trustedPrint = print
       this.save()
     }
     if (this.running.has(id)) return this.status(c)
@@ -688,7 +715,16 @@ export class BotRunner {
    * Bots left running by a crash of the app: each bot.pid whose process still runs the same script is killed (with what
    * it started) before anything starts again, so autostart never runs a bot twice. Returns how many were killed.
    */
-  killLeftovers(): number {
+  killLeftovers(): Promise<number> {
+    // Asked without blocking the app (Windows asks PowerShell, which takes a while); starts wait for it.
+    this.cleaning = this.killLeftoversNow()
+    return this.cleaning
+  }
+
+  private cleaning: Promise<number> | null = null
+  private python: { command: string; args: string[] } | null = null
+
+  private async killLeftoversNow(): Promise<number> {
     const commandLine = this.opts.commandLine ?? defaultCommandLine(this.platform)
     const killTree = this.opts.killTree ?? defaultKillTree(this.platform)
     let killed = 0
@@ -703,7 +739,7 @@ export class BotRunner {
       }
       rmSync(file, { force: true })
       if (typeof saved.pid !== 'number' || !Number.isInteger(saved.pid) || saved.pid <= 1 || typeof saved.script !== 'string') continue
-      const command = commandLine(saved.pid)
+      const command = await Promise.resolve(commandLine(saved.pid)).catch(() => null)
       // Only if it's still that bot: a PID can be reused by an unrelated program.
       if (command && command.includes(saved.script)) {
         killTree(saved.pid)
@@ -777,16 +813,17 @@ export function defaultKillTree(platform: NodeJS.Platform): (pid: number) => voi
   }
 }
 
-/** A process's command line: /proc on Linux, ps on macOS, CIM on Windows. Null when it's not running. */
-export function defaultCommandLine(platform: NodeJS.Platform): (pid: number) => string | null {
-  return (pid) => {
+/** A process's command line: /proc on Linux, ps on macOS, CIM on Windows. Null when it's not running. Never blocks the app. */
+export function defaultCommandLine(platform: NodeJS.Platform): (pid: number) => Promise<string | null> {
+  return async (pid) => {
     try {
       if (platform === 'linux') return readFileSync(`/proc/${pid}/cmdline`, 'utf8').replace(/\0/g, ' ').trim() || null
-      const result = platform === 'win32'
-        ? spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine`], { encoding: 'utf8', windowsHide: true, timeout: 10_000 })
-        : spawnSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8', timeout: 5000 })
-      const text = String(result.stdout ?? '').trim()
-      return result.status === 0 && text ? text : null
+      const [command, args, timeout] = platform === 'win32'
+        ? ['powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `(Get-CimInstance Win32_Process -Filter 'ProcessId=${pid}').CommandLine`], 10_000] as const
+        : ['ps', ['-p', String(pid), '-o', 'command='], 5000] as const
+      const text = await new Promise<string>((resolve, reject) =>
+        execFile(command, [...args], { encoding: 'utf8', windowsHide: true, timeout }, (error, stdout) => (error ? reject(error) : resolve(String(stdout ?? '').trim()))))
+      return text || null
     } catch {
       return null
     }

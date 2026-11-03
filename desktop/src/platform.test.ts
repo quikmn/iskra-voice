@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { appResponseHeaders, autostartEntry, badgeText, compareVersions, macCanReplaceItself, macSigning, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER, devUrl, isHostedId, isLanPublicUrl } from './platform'
+import path from 'node:path'
+import { appResponseHeaders, autostartEntry, badgeText, compareVersions, macCanReplaceItself, macSigning, deepLinkFromArgv, DEFAULT_DESKTOP_SETTINGS, embedderHeaders, pageOrigin, parseDeepLink, parseDesktopSettings, defaultHostRoot, serversToStart, setKeepRunning, exeName, isAppPage, isWayland, keychainKind, newerRelease, serverRid, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, updateMode, youTubeReferrer, YOUTUBE_REFERRER, devUrl, isHostedId, isLanPublicUrl, appFile } from './platform'
 
 test('server binaries and runtime ids per platform', () => {
   assert.equal(exeName('iskra-server', 'win32'), 'iskra-server.exe')
@@ -293,4 +294,13 @@ test('ISKRA_DEV_URL only in an unpackaged app, and only on this computer (securi
   assert.equal(devUrl({ ISKRA_DEV_URL: 'https://evil.example' }, false), undefined)
   assert.equal(devUrl({ ISKRA_DEV_URL: 'http://localhost.evil.example' }, false), undefined)
   assert.equal(devUrl({}, false), undefined)
+})
+
+test('app:// serves the client only on its own host and inside its folder', () => {
+  const dir = path.resolve('/client')
+  assert.equal(appFile('app://iskra/', 'app://iskra', dir), path.join(dir, 'index.html'))
+  assert.equal(appFile('app://iskra/assets/a.js', 'app://iskra', dir), path.join(dir, 'assets', 'a.js'))
+  assert.equal(appFile('app://other/index.html', 'app://iskra', dir), null)
+  assert.equal(appFile('app://iskra/..%2F..%2Fsecret.txt', 'app://iskra', dir), null)
+  assert.equal(appFile('app://iskra/%E0%A4%A', 'app://iskra', dir), null)
 })

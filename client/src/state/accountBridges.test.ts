@@ -150,7 +150,8 @@ describe("each account's copy of the shell", () => {
   it('serves the MCP bridge for the account on screen only, and drops its client when that account changes', async () => {
     const { bridges, state, desktop } = setUp()
     const setMcp = desktop.assistant!.setMcp as ReturnType<typeof vi.fn>
-    expect(await bridges.desktopFor(2)!.assistant!.setMcp(true)).toEqual({ on: false, command: null })
+    // Off screen: kept (not reported as off, so the setting doesn't flip back), applied once it's on screen.
+    expect(await bridges.desktopFor(2)!.assistant!.setMcp(true)).toEqual({ on: true, command: null })
     expect(setMcp).not.toHaveBeenCalled()
     state.active = 2
     bridges.ownerChanged()

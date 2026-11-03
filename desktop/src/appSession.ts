@@ -1,9 +1,8 @@
 // The app's origin and how its session loads things: the built web app on app://iskra/, and the fixes that let
 // YouTube and Twitch embeds play inside it. Shared by main.ts and the Electron check (embeds.check.ts).
 import { net, protocol, type Session } from 'electron'
-import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { appResponseHeaders, embedderHeaders, pageOrigin, TWITCH_EMBED_URLS, youTubeReferrer } from './platform'
+import { appFile, appResponseHeaders, embedderHeaders, pageOrigin, TWITCH_EMBED_URLS, youTubeReferrer } from './platform'
 
 export const APP_ORIGIN = 'app://iskra'
 
@@ -17,10 +16,8 @@ export function registerAppScheme(): void {
 export function configureAppSession(appSession: Session, clientDir: string, isAppUrl: (url: string) => boolean): void {
   // Serve the built web app from app://iskra/ (a secure, stable origin for IndexedDB and getUserMedia).
   appSession.protocol.handle('app', async (request) => {
-    const { pathname } = new URL(request.url)
-    const relative = decodeURIComponent(pathname) === '/' ? '/index.html' : decodeURIComponent(pathname)
-    const file = path.normalize(path.join(clientDir, relative))
-    if (!file.startsWith(clientDir + path.sep)) return new Response('Not found', { status: 404 })
+    const file = appFile(request.url, APP_ORIGIN, clientDir)
+    if (!file) return new Response('Not found', { status: 404 })
     const response = await net.fetch(pathToFileURL(file).toString())
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers: appResponseHeaders(response.headers) })
   })

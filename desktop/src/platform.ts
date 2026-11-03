@@ -330,6 +330,28 @@ export function devUrl(env: NodeJS.ProcessEnv, packaged: boolean): string | unde
   return /^http:\/\/(localhost|127\.0\.0\.1)(:\d{1,5})?\/?$/.test(url) ? url : undefined
 }
 
+/**
+ * The file of the built client an app:// request names, or null (404): only on the app's own host (any other would
+ * serve the app under an origin of its own), and never outside the client folder.
+ */
+export function appFile(url: string, appOrigin: string, clientDir: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== new URL(appOrigin).protocol || parsed.host !== new URL(appOrigin).host) return null
+  let pathname: string
+  try {
+    pathname = decodeURIComponent(parsed.pathname)
+  } catch {
+    return null
+  }
+  const file = path.normalize(path.join(clientDir, pathname === '/' ? '/index.html' : pathname))
+  return file.startsWith(clientDir + path.sep) ? file : null
+}
+
 /** A PublicUrl that is this machine's address on a home network (RFC 1918, or localhost), so it follows the LAN address. */
 export const isLanPublicUrl = (url: string | undefined): boolean =>
   !!url && /^http:\/\/(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|localhost[:/]|localhost$)/.test(url)

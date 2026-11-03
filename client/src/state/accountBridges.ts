@@ -327,7 +327,8 @@ export function createBridges(
           onMcp: on(hubs.mcp),
           setMcp: async (value: boolean) => {
             mcp.set(slot, value)
-            if (slot !== router.active()) return { on: false, command: null }
+            // Off screen: the choice is kept and applied once it's on screen (so it's reported as on, just not running yet).
+            if (slot !== router.active()) return { on: value, command: null }
             if (mcpOwner === slot) mcpApplied = null
             return (await applyMcp()) ?? { on: false, command: null }
           },
