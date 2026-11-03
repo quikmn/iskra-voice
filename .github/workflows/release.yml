@@ -206,7 +206,7 @@ jobs:
       # copy against. Only restored, never saved here: the entry is written by CI's livekit-mac job, which runs nothing but
       # get-livekit.sh (no npm install scripts), on main, where tags read it. A miss builds it here (~3 min).
       - id: livekit
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .tools/osx-${{ matrix.arch }}/livekit-server
           key: livekit-osx-${{ matrix.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
