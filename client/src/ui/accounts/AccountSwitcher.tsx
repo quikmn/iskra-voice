@@ -1,6 +1,8 @@
-// The account switcher at the bottom of the server rail (and so in the phone's drawer): who you are here, your other
-// accounts with their unread counts, and adding one (state/accounts.ts).
+// Several accounts: the accounts menu (who you are here, your other accounts with their unread counts, adding one;
+// state/accounts.ts), opened from the status menu of the me bar, or from a tile at the foot of the rail (and so in the
+// phone's drawer) once there are two or more accounts.
 import { useEffect, useMemo, useState } from 'react'
+import { create } from 'zustand'
 import { useTranslation } from 'react-i18next'
 import { t } from '../../i18n'
 import type { AccountView } from '../../platform/accountLink'
@@ -12,7 +14,7 @@ import { useVoice } from '../../state/voice'
 import type { AddMode } from '../../platform/accountSlots'
 import { SignOutDialog } from '../dialogs/SignOut'
 import { hueFor, initials } from '../format'
-import { ChevronDown, Lock, Mic, Plus } from '../icons'
+import { ChevronDown, Lock, LogOut, Mic, Plus, Smartphone, Sparkles } from '../icons'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from '../organize/OrgMenu'
 import './accounts.css'
 
@@ -44,45 +46,77 @@ function statusOf(account: AccountView): string {
   return account.slot === thisSlot ? t('accounts.switcher.current') : ''
 }
 
+type Page = 'list' | 'add'
+
+/** The accounts menu, wherever it was opened from (the rail tile, or the status menu of the me bar). */
+const useAccountMenu = create<{ open: { anchor: MenuAnchor | null; page: Page } | null }>(() => ({ open: null }))
+
+/** Opens the accounts menu at `anchor` (a sheet on phones). With only this account, it opens on "Add account". */
+export function openAccountMenu(anchor: MenuAnchor | null): void {
+  const { accounts } = useAccounts.getState()
+  useAccountMenu.setState({ open: { anchor, page: accounts.length > 1 ? 'list' : 'add' } })
+}
+
+/** For the status menu's row: "Switch account" (with the other accounts' unread) or, alone, "Add account". Null without accounts here. */
+export function useAccountsRow(): { label: string; unread: number } | null {
+  const { t } = useTranslation()
+  const accounts = useAccounts((s) => s.accounts)
+  if (!accounts.some((a) => a.slot === thisSlot)) return null
+  const unread = accounts.filter((a) => a.slot !== thisSlot).reduce((n, a) => n + a.unread, 0)
+  return { label: accounts.length > 1 ? t('accounts.switcher.switchAccount') : t('accounts.switcher.add'), unread }
+}
+
+/**
+ * The rail tile, only with two or more accounts: the account you'd switch to in front of yours, so it reads as
+ * "accounts" and never as a second "me" next to the me bar. Alone, the way in is the status menu (the me bar's
+ * avatar). Always holds the menu and the sign-out dialog, whichever opened them.
+ */
 export function AccountSwitcher({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useTranslation()
   const accounts = useAccounts((s) => s.accounts)
-  const [anchor, setAnchor] = useState<MenuAnchor | null>(null)
+  const open = useAccountMenu((s) => s.open)
   const [signingOut, setSigningOut] = useState(false)
   const me = accounts.find((a) => a.slot === thisSlot)
   if (!me) return null
   const others = accounts.filter((a) => a.slot !== thisSlot)
   const otherUnread = others.reduce((n, a) => n + a.unread, 0)
   const ringing = others.some((a) => a.ringing)
+  const next = others.find((a) => a.ringing) ?? others.find((a) => a.unread > 0) ?? others[0]
   const label = otherUnread > 0
     ? `${t('accounts.switcher.label', { name: accountName(me) })}. ${t('accounts.switcher.otherUnread', { count: otherUnread })}`
     : t('accounts.switcher.label', { name: accountName(me) })
+  const close = () => useAccountMenu.setState({ open: null })
   return (
     <>
-      <button
-        className={`server-icon account-switch ${ringing ? 'ringing' : ''}`}
-        title={t('accounts.switcher.title')}
-        aria-label={label}
-        aria-haspopup="dialog"
-        aria-expanded={!!anchor}
-        data-testid="account-switcher"
-        onClick={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect()
-          setAnchor({ x: rect.right + 8, y: rect.bottom })
-        }}
-      >
-        <AccountAvatar account={me} size={48} />
-        {otherUnread > 0 && <span className="badge" aria-hidden>{otherUnread > 99 ? '99+' : otherUnread}</span>}
-      </button>
-      {anchor && (
-        <AccountMenu anchor={anchor} accounts={accounts} onClose={() => setAnchor(null)}
+      {next && (
+        <button
+          className={`server-icon account-switch ${ringing ? 'ringing' : ''}`}
+          title={t('accounts.switcher.title')}
+          aria-label={label}
+          aria-haspopup="dialog"
+          aria-expanded={!!open}
+          data-testid="account-switcher"
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            useAccountMenu.setState({ open: { anchor: { x: rect.right + 8, y: rect.bottom }, page: 'list' } })
+          }}
+        >
+          <span className="account-stack" aria-hidden>
+            <AccountAvatar account={me} size={28} />
+            <AccountAvatar account={next} size={30} />
+          </span>
+          {otherUnread > 0 && <span className="badge" aria-hidden>{otherUnread > 99 ? '99+' : otherUnread}</span>}
+        </button>
+      )}
+      {open && (
+        <AccountMenu anchor={open.anchor} initialPage={open.page} accounts={accounts} onClose={close}
           onSwitch={(slot) => {
-            setAnchor(null)
+            close()
             onNavigate?.()
             switchAccount(slot)
           }}
           onSignOut={() => {
-            setAnchor(null)
+            close()
             void refreshDevices()
             setSigningOut(true)
           }} />
@@ -92,11 +126,11 @@ export function AccountSwitcher({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 
-function AccountMenu({ anchor, accounts, onClose, onSwitch, onSignOut }: {
-  anchor: MenuAnchor; accounts: AccountView[]; onClose: () => void; onSwitch: (slot: number) => void; onSignOut: () => void
+function AccountMenu({ anchor, initialPage, accounts, onClose, onSwitch, onSignOut }: {
+  anchor: MenuAnchor | null; initialPage: Page; accounts: AccountView[]; onClose: () => void; onSwitch: (slot: number) => void; onSignOut: () => void
 }) {
   const { t } = useTranslation()
-  const [page, setPage] = useState<'list' | 'add'>('list')
+  const [page, setPage] = useState<Page>(initialPage)
   const inVoice = useVoice((s) => !!s.session)
   const me = accounts.find((a) => a.slot === thisSlot)!
   const full = accounts.length >= maxAccounts
@@ -142,10 +176,8 @@ function AccountMenu({ anchor, accounts, onClose, onSwitch, onSignOut }: {
           </div>
           <div className="org-sep" />
           <div className="org-list" role="menu">
-            <MenuItem submenu disabled={full} onClick={() => setPage('add')}>
-              <span className="account-add-label"><Plus size={16} /> {t('accounts.switcher.add')}</span>
-            </MenuItem>
-            {me.ready && <MenuItem danger onClick={onSignOut}>{t('accounts.switcher.signOut', { name: accountName(me) })}</MenuItem>}
+            <MenuItem submenu icon={<Plus />} disabled={full} onClick={() => setPage('add')}>{t('accounts.switcher.add')}</MenuItem>
+            {me.ready && <MenuItem danger icon={<LogOut />} onClick={onSignOut}>{t('accounts.switcher.signOut', { name: accountName(me) })}</MenuItem>}
           </div>
           {full && <p className="muted account-menu-note">{t('accounts.switcher.full', { count: maxAccounts })}</p>}
         </>
@@ -154,12 +186,14 @@ function AccountMenu({ anchor, accounts, onClose, onSwitch, onSignOut }: {
           <MenuTitle onBack={() => setPage('list')}>{t('accounts.switcher.add')}</MenuTitle>
           <div className="org-list" role="menu">
             <button role="menuitem" className="org-item account-add-choice" onClick={() => add('new')}>
+              <span className="account-add-icon" aria-hidden><Sparkles size={18} /></span>
               <span className="account-item-text">
                 <strong>{t('accounts.switcher.addNew')}</strong>
                 <small>{t('accounts.switcher.addNewHint')}</small>
               </span>
             </button>
             <button role="menuitem" className="org-item account-add-choice" onClick={() => add('link')}>
+              <span className="account-add-icon" aria-hidden><Smartphone size={18} /></span>
               <span className="account-item-text">
                 <strong>{t('accounts.switcher.addExisting')}</strong>
                 <small>{t('accounts.switcher.addExistingHint')}</small>

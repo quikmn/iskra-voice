@@ -1,7 +1,7 @@
 // Join questions: the layer that shows them on their own (after joining, from the server menu, /roles), the menu item,
 // and Server settings → Join questions, where admins write the questions and pick the roles on join.
 // Answers only ever give roles members could pick themselves; the server checks that on every save and every answer.
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { RoleGroup, ServerRole } from '../../core/protocol'
 import { errorMessage } from '../../i18n/errors'
@@ -41,11 +41,11 @@ export function RolePickerLayer() {
 }
 
 /** "Change my answers" in a server's menu, when the server asks anything. */
-export function PickRolesItem({ server, onDone }: { server: ServerState; onDone: () => void }) {
+export function PickRolesItem({ server, onDone, icon }: { server: ServerState; onDone: () => void; icon?: ReactNode }) {
   const { t } = useTranslation()
   const groups = askableGroups(useServerRoleGroups(server.key), useServerRoles(server.key))
   if (groups.length === 0 || !server.me || server.me.bot) return null
-  return <MenuItem onClick={() => { onDone(); openRolePicker(server.key) }}>{t('joinQuestions.flow.menuItem')}</MenuItem>
+  return <MenuItem icon={icon} onClick={() => { onDone(); openRolePicker(server.key) }}>{t('joinQuestions.flow.menuItem')}</MenuItem>
 }
 
 // ── Settings → Join questions ───────────────────────────────────────────────

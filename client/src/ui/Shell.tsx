@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { activeChannelId, activeServerState, useApp } from '../state/store'
+import { activeChannelId, activeServerState, failedJoin, useApp, type ServerState } from '../state/store'
 import { ErrorBoundary } from './ErrorBoundary'
 import { ChannelSidebar } from './ChannelSidebar'
 import { ChatArea } from './chat/ChatArea'
@@ -49,8 +49,18 @@ import { PopoutLayer } from './popout/PopoutLayer'
 import { QuietDigestCard } from './quietDigest/QuietDigestCard'
 import { usePhoneNav } from './nav/PhoneNav'
 import { AssistantLayer } from './assistant/AssistantPanel'
+import { Spark } from './icons'
 
 export type Panel = 'none' | 'nav' | 'members'
+
+/**
+ * The members column only where there's a member list to show: not while a join waits for a moderator, couldn't reach
+ * its server, or was turned away (the main pane then is a card with what to do, and nothing beside it).
+ */
+function hasMembers(server: ServerState): boolean {
+  if (server.status.state === 'pending' || failedJoin(server)) return false
+  return !(server.status.state === 'rejected' && !server.me)
+}
 
 /** The main three-column layout. On phones the side columns become drawers. */
 export function Shell() {
@@ -66,6 +76,9 @@ export function Shell() {
   const isStageChannel = !!server?.channels.some((c) => c.id === stageChannel && c.kind === 'stage')
   const hasServers = useApp((s) => s.order.length > 0)
   const channelId = useApp(activeChannelId)
+  const members = !!server && hasMembers(server)
+  // The header's members button does nothing while there's no list (no empty drawer behind a scrim).
+  const toggle = (p: Panel) => setPanel(panel === p || (p === 'members' && !members) ? 'none' : p)
   // Escape (and back) closes an open drawer (phones and narrow windows).
   useEscapeLayer(() => setPanel('none'), panel !== 'none', { kind: panel === 'nav' ? 'nav' : undefined })
   // Phones: back opens the channels, swipes move the drawers.
@@ -73,7 +86,7 @@ export function Shell() {
   const dragging = usePhoneNav(shellRef, panel, setPanel, !!server)
 
   return (
-    <div ref={shellRef} className={`shell panel-${panel} ${server ? '' : 'no-members'} ${dragging ? `swiping swiping-${dragging}` : ''}`}>
+    <div ref={shellRef} className={`shell panel-${panel} ${members ? '' : 'no-members'} ${dragging ? `swiping swiping-${dragging}` : ''}`}>
       <button className="skip-link" onClick={() => document.getElementById('main-content')?.focus()}>{t('app.skipToContent')}</button>
       <div className="nav-column">
         <ServerRail onJoin={() => setJoining(true)} onNavigate={() => setPanel('none')} />
@@ -91,24 +104,24 @@ export function Shell() {
           {server && stage ? (
             <VoiceRoom server={server}>
               {isStageChannel
-                ? <StageView server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
-                : <VoiceStage server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />}
+                ? <StageView server={server} onToggle={toggle} />
+                : <VoiceStage server={server} onToggle={toggle} />}
             </VoiceRoom>
           ) : server ? (
-            <ChatArea server={server} onToggle={(p) => setPanel(panel === p ? 'none' : p)} />
+            <ChatArea server={server} onToggle={toggle} />
           ) : (
             // With no servers yet, the Friends page leads with how to join or start one.
             <HomeMain
-              onToggle={(p) => setPanel(panel === p ? 'none' : p)}
+              onToggle={toggle}
               start={hasServers ? undefined : <StartCard onJoin={() => setJoining(true)} onCreate={() => setCreating(true)} />}
             />
           )}
         </ErrorBoundary>
       </main>
 
-      {server && (
+      {server && members && (
         <aside className="members-column">
-          <MemberList server={server} />
+          <MemberList server={server} onClose={() => setPanel('none')} />
         </aside>
       )}
 
@@ -151,7 +164,7 @@ function StartCard({ onJoin, onCreate }: { onJoin: () => void; onCreate: () => v
   return (
     <section className="empty-state start-card" aria-labelledby="start-card-title">
       <span className="empty-icon" aria-hidden>
-        <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="currentColor" /></svg>
+        <Spark size={34} />
       </span>
       <h2 id="start-card-title">{t('app.empty.title')}</h2>
       {desktop ? (

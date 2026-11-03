@@ -56,12 +56,12 @@ export function GameNightItems({ server, channel, onClose }: { server: ServerSta
 }
 
 /** Server menu: "Notify me for LFG" (per server, off by default). */
-export function LfgNotifyItem({ server, run }: { server: ServerState; run: Run }) {
+export function LfgNotifyItem({ server, run, icon }: { server: ServerState; run: Run; icon?: boolean }) {
   const { t } = useTranslation()
   const on = useLfg((s) => s.notify[server.key])
   if (on === undefined) return null // an older server
   return (
-    <MenuItem onClick={run(() => setLfgNotify(server.key, !on))} hint={on ? t('lfg.notifyOn') : t('lfg.notifyOff')}>
+    <MenuItem icon={icon ? <Users /> : undefined} onClick={run(() => setLfgNotify(server.key, !on))} hint={on ? t('lfg.notifyOn') : t('lfg.notifyOff')}>
       {t('lfg.notifyMe')}
     </MenuItem>
   )

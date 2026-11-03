@@ -27,15 +27,26 @@ test('the server room belongs to one server; My settings has no server sections'
   await expect(host.locator('.server-header-button')).toContainText('Dungeon')
   const rail = (name: string) => host.locator('.server-rail').getByTitle(name, { exact: true })
 
-  // Dungeon is open; right-click Hangout in the rail: the common things flat, the rest under More settings.
+  // Dungeon is open; right-click Hangout in the rail: the server, you here, hide/leave; every section under More settings.
   await rail('Hangout').click({ button: 'right' })
   const menu = host.getByRole('dialog', { name: 'Hangout options' })
   await expect(menu.getByRole('menuitem')).toHaveText([
-    'Invite friends', 'Create channel…', 'Server settings', 'Members', 'Roles', 'Reports', 'More settings',
-    /^Notifications/, /^Mute server/, /^Sound/, /^Notify me for LFG/, 'Server nickname…', 'Mark as read', 'Move to folder', 'Hide server', 'Leave server',
+    'Invite friends', 'Create channel…', 'Server settings', 'More settings',
+    /^Notifications/, 'Server nickname…', 'Mark as read', 'Move to folder', 'Hide server', 'Leave server',
   ])
+  await expect(menu.getByRole('group')).toHaveCount(3)
   await settled(host)
   await host.screenshot({ path: join(SHOTS, 'server-room-menu.png') })
+  // One Notifications page holds the level, muting, the sound and LFG pings.
+  await menu.getByRole('menuitem', { name: /^Notifications/ }).click()
+  await expect(menu.getByRole('menuitemradio')).toHaveText(['All messages', 'Only @mentions', 'Nothing'])
+  await expect(menu.getByRole('menuitem')).toHaveText([/^Mute server/, /^Sound/, /^Notify me for LFG/])
+  await settled(host)
+  await host.screenshot({ path: join(SHOTS, 'server-menu-notifications.png') })
+  await menu.getByRole('button', { name: 'Back' }).click()
+  await menu.getByRole('menuitem', { name: 'More settings' }).click()
+  await settled(host)
+  await host.screenshot({ path: join(SHOTS, 'server-menu-more.png') })
   await menu.getByRole('menuitem', { name: 'Roles', exact: true }).click()
 
   // The room for THAT server: its name in the band, only its sections, Roles open.
@@ -110,7 +121,7 @@ test('the server room belongs to one server; My settings has no server sections'
   // A member with no admin rights: no Server settings at all, just their own things.
   await friend.locator('.server-rail').getByTitle('Hangout', { exact: true }).click({ button: 'right' })
   const theirs = friend.getByRole('dialog', { name: 'Hangout options' })
-  await expect(theirs.getByRole('menuitem')).toHaveText(['Invite friends', /^Notifications/, /^Mute server/, /^Sound/, /^Notify me for LFG/, 'Server nickname…', 'Mark as read', 'Move to folder', 'Hide server', 'Leave server'])
+  await expect(theirs.getByRole('menuitem')).toHaveText(['Invite friends', /^Notifications/, 'Server nickname…', 'Mark as read', 'Move to folder', 'Hide server', 'Leave server'])
   await settled(friend)
   await friend.screenshot({ path: join(SHOTS, 'server-room-member-menu.png') })
   await theirs.getByRole('menuitem', { name: 'Server nickname…' }).click()

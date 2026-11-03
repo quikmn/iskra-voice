@@ -1,11 +1,12 @@
 // A first join that didn't get through: say why, and offer to try again or remove it (it isn't kept otherwise).
-// A device restored from the recovery key whose account isn't on this server yet picks its name here.
+// A device restored from the recovery key whose account isn't on this server yet picks its name here. Both are one
+// centred card; the Shell hides the members column meanwhile.
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../i18n/errors'
 import { updateProfile } from '../state/profile'
 import { leaveServer, rejoinServer, retryServer, type ServerState } from '../state/store'
-import { WifiOff } from './icons'
+import { User, WifiOff } from './icons'
 
 export function JoinFailed({ server }: { server: ServerState }) {
   const { t } = useTranslation()
@@ -31,15 +32,18 @@ export function JoinFailed({ server }: { server: ServerState }) {
     }
     return (
       <form className="empty-state join-failed" onSubmit={pick}>
-        <h1>{t('chat.view.pickNameTitle')}</h1>
-        <p>{t('chat.view.pickNameHint')}</p>
-        <label className="field join-name">
-          <span>{t('app.onboarding.yourName')}</span>
-          <input autoFocus maxLength={32} value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <div className="join-failed-actions">
-          <button className="button primary" disabled={!name.trim() || busy}>{t('common.join')}</button>
-          <button type="button" className="button" onClick={() => leaveServer(server.key)}>{t('common.remove')}</button>
+        <div className="join-card">
+          <span className="empty-icon" aria-hidden><User size={30} /></span>
+          <h1>{t('chat.view.pickNameTitle')}</h1>
+          <p>{t('chat.view.pickNameHint')}</p>
+          <label className="field join-name">
+            <span>{t('app.onboarding.yourName')}</span>
+            <input autoFocus maxLength={32} value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <div className="join-failed-actions">
+            <button className="button primary" disabled={!name.trim() || busy}>{t('common.join')}</button>
+            <button type="button" className="button ghost" onClick={() => leaveServer(server.key)}>{t('common.remove')}</button>
+          </div>
         </div>
       </form>
     )
@@ -49,13 +53,15 @@ export function JoinFailed({ server }: { server: ServerState }) {
   const pausedInvites = status.state === 'rejected' && status.code === 'invites_paused'
   return (
     <div className="empty-state join-failed" role="alert">
-      <span className="empty-icon"><WifiOff size={32} /></span>
-      <h1>{t('chat.view.joinFailedTitle')}</h1>
-      <p>{status.state === 'rejected' ? errorMessage(status) : t('chat.view.joinFailed', { host })}</p>
-      <div className="join-failed-actions">
-        {status.state !== 'rejected' && <button className="button primary" onClick={() => retryServer(server.key)}>{t('common.tryAgain')}</button>}
-        {pausedInvites && <button className="button primary" onClick={() => void rejoinServer(server.key)}>{t('common.tryAgain')}</button>}
-        <button className="button" onClick={() => leaveServer(server.key)}>{t('common.remove')}</button>
+      <div className="join-card">
+        <span className="empty-icon" aria-hidden><WifiOff size={30} /></span>
+        <h1>{t('chat.view.joinFailedTitle')}</h1>
+        <p>{status.state === 'rejected' ? errorMessage(status) : t('chat.view.joinFailed', { host })}</p>
+        <div className="join-failed-actions">
+          {status.state !== 'rejected' && <button className="button primary" onClick={() => retryServer(server.key)}>{t('common.tryAgain')}</button>}
+          {pausedInvites && <button className="button primary" onClick={() => void rejoinServer(server.key)}>{t('common.tryAgain')}</button>}
+          <button className="button ghost" onClick={() => leaveServer(server.key)}>{t('common.remove')}</button>
+        </div>
       </div>
     </div>
   )

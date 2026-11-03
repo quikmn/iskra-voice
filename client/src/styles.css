@@ -225,20 +225,31 @@ input:focus, textarea:focus, select:focus { border-color: var(--focus); box-shad
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Onboarding ─────────────────────────────────────────────────────── */
+/* The card sits in the middle of the window; a long one (the terms on a small screen) scrolls instead of being cut. */
 .onboarding {
-  height: 100%; display: grid; place-items: center; padding: 16px;
+  height: 100%; display: grid; place-items: safe center; padding: var(--sp-4); overflow-y: auto;
   background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%), var(--bg);
 }
 .onboarding-card {
-  width: min(420px, 100%); background: var(--surface); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.6);
-  padding: 32px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  width: min(480px, 100%); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl);
+  padding: var(--sp-6); box-shadow: var(--shadow-modal);
 }
-.brand { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+.brand { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: var(--sp-2); }
 .brand-mark {
   background: linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.lead { color: var(--text-2); margin: 0 0 24px; }
-.fine-print { font-size: 12px; color: var(--muted); margin: 14px 0 0; text-align: center; }
+.lead { color: var(--text-2); margin: 0 0 var(--sp-5); }
+.fine-print { font-size: var(--fs-sm); color: var(--muted); margin: 14px 0 0; text-align: center; }
+@media (max-width: 760px) { .onboarding-card { padding: var(--sp-5) var(--sp-4); } }
+/* A choice that leads somewhere: an icon, the title over its hint, a chevron. */
+.choice.rich { grid-template-columns: 36px minmax(0, 1fr) 16px; column-gap: 14px; row-gap: 2px; align-items: center; transition: border-color var(--dur-fast), background var(--dur-fast); }
+.choice.rich > strong, .choice.rich > .muted { grid-column: 2; }
+.choice.rich:hover:not(:disabled) { background: var(--surface-2); }
+.choice-icon {
+  grid-row: 1 / span 2; display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--r-md);
+  background: var(--accent-subtle); color: var(--accent-2);
+}
+.choice-arrow { grid-column: 3; grid-row: 1 / span 2; display: inline-grid; color: var(--muted); }
 
 /* ── Shell layout ───────────────────────────────────────────────────── */
 /* The channel panel, the main column and the members list are rounded panels on the dark base (the rail's colour,
@@ -262,17 +273,25 @@ input:focus, textarea:focus, select:focus { border-color: var(--focus); box-shad
 .mobile-only { display: none; }
 
 .server-rail {
-  width: 72px; background: var(--rail); padding: 12px 0; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  width: 72px; background: var(--rail); padding: var(--sp-3) 0; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
   overflow-y: auto; scrollbar-width: none;
 }
 .server-icon {
   position: relative; width: 48px; height: 48px; border-radius: 50%; border: 0; flex: none;
-  background: var(--surface-2); font-weight: 700; font-size: 16px; transition: border-radius 0.2s, background 0.2s;
+  background: var(--surface-2); font-weight: var(--fw-bold); font-size: 16px; transition: border-radius var(--dur), background var(--dur), color var(--dur);
 }
-.server-icon:hover, .server-icon.active { border-radius: calc(var(--radius) * 1.6); background: var(--accent); color: var(--on-accent); }
+.server-icon:hover, .server-icon.active { border-radius: var(--r-xl); background: var(--accent); color: var(--on-accent); }
 .server-icon.active::before {
   content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 4px; border-radius: 0 4px 4px 0; background: var(--text);
 }
+/* The app's own tiles (Home, Inbox, Assistant) are icons, not servers: no tile until hovered, and never the accent. */
+.server-rail .server-icon:is(.home, .inbox-icon, .assistant-icon) { background: transparent; color: var(--text-2); }
+.server-rail .server-icon:is(.home, .inbox-icon, .assistant-icon):hover { background: var(--surface-2); color: var(--text); }
+.server-rail .server-icon.home { color: var(--accent-2); }
+.server-rail .server-icon.home.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--on-accent); }
+/* Join or create: a dashed ghost, so it never reads as one more server. */
+.server-rail .server-icon.add { background: transparent; color: var(--green); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--green) 45%, transparent); }
+.server-rail .server-icon.add:hover { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); box-shadow: inset 0 0 0 1.5px var(--green); }
 /* The active server sits on a tab of the channel panel's colour that reaches out of the panel, with curved inner
    corners where it meets it. Layers: rounded left corners, the tab itself, then the two curves at the rail's edge. */
 .server-rail { isolation: isolate; }
@@ -287,18 +306,17 @@ input:focus, textarea:focus, select:focus { border-color: var(--focus); box-shad
     linear-gradient(var(--s), var(--s)) var(--c) var(--r) / calc(100% - var(--c)) calc(100% - 2 * var(--r)) no-repeat,
     radial-gradient(circle at 0 0, #0000 calc(var(--r) - 0.5px), var(--s) var(--r)) right top / var(--r) var(--r) no-repeat,
     radial-gradient(circle at 0 100%, #0000 calc(var(--r) - 0.5px), var(--s) var(--r)) right bottom / var(--r) var(--r) no-repeat;
-  animation: rail-tab-in 0.18s ease-out;
+  animation: rail-tab-in var(--dur) ease-out;
 }
 @keyframes rail-tab-in { from { opacity: 0; transform: translateX(-8px); } }
 @media (prefers-reduced-motion: reduce) { .server-icon.active::after { animation: none; } }
 .server-icon.offline { opacity: 0.55; }
-.server-icon.add { color: var(--green); display: grid; place-items: center; }
-.server-icon.add:hover { background: var(--green); color: var(--bg); }
+.server-icon.add { display: grid; place-items: center; }
 .badge {
-  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--danger-solid); color: #fff;
-  font-size: 11px; font-weight: 700; display: inline-grid; place-items: center;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-pill); background: var(--danger-solid); color: #fff;
+  font-size: var(--fs-xs); font-weight: var(--fw-bold); display: inline-grid; place-items: center;
 }
-.server-icon .badge { position: absolute; right: -4px; bottom: -4px; border: 3px solid var(--rail); height: 22px; border-radius: 11px; }
+.server-icon .badge { position: absolute; right: -4px; bottom: -4px; border: 3px solid var(--rail); height: 22px; }
 
 /* The channel panel is the first of the rounded panels on the base; the me bar floats in it as a card like the composer. */
 .channel-sidebar {
@@ -306,71 +324,79 @@ input:focus, textarea:focus, select:focus { border-color: var(--focus); box-shad
   border-radius: var(--panel-radius);
 }
 .sidebar-header {
-  height: 52px; padding: 0 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); flex: none;
+  height: 52px; padding: 0 14px; display: flex; align-items: center; gap: var(--sp-2); border-bottom: 1px solid var(--border); flex: none;
 }
-.sidebar-header h2 { font-size: 15px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.sidebar-header h2 { font-size: var(--fs-base); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .sidebar-header:has(.server-header-button) { padding: 0 6px; }
 .server-header-button {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 8px; border: 0; background: transparent;
-  border-radius: calc(var(--radius) * 0.6); color: var(--text-strong); text-align: left; transition: background 0.12s;
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-2); height: 40px; padding: 0 var(--sp-2); border: 0; background: transparent;
+  border-radius: var(--r-sm); color: var(--text-strong); text-align: left; transition: background var(--dur-fast);
 }
-.server-header-button:hover { background: var(--sidebar-hover); }
-.server-header-button .server-name { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.server-header-button > svg { flex: none; color: var(--muted); }
+.server-header-button:hover, .server-header-button[aria-expanded='true'] { background: var(--sidebar-hover); }
+.server-header-button .server-name { flex: 1; min-width: 0; font-size: var(--fs-base); font-weight: var(--fw-bold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.server-header-button > svg { flex: none; color: var(--muted); transition: transform var(--dur) var(--ease); }
+.server-header-button[aria-expanded='true'] > svg { transform: rotate(180deg); }
 
 /* Server icon and banner (ServerPicture.tsx): the icon fills its tile or rail button; initials show without one. */
 .server-picture { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; user-select: none; }
 .server-icon:has(.server-picture) { background: var(--surface-2); padding: 0; }
-.server-header-icon { flex: none; width: 22px; height: 22px; border-radius: 6px; overflow: hidden; }
+.server-header-icon { flex: none; width: 22px; height: 22px; border-radius: var(--r-sm); overflow: hidden; }
 .server-header-icon:empty { display: none; }
 /* An inset card at the top of the channel panel, mirroring the me bar card at its bottom. */
 .server-banner {
-  flex: none; height: 96px; margin: 8px 8px 0; overflow: hidden; border-radius: var(--panel-radius); background: var(--surface-2);
-  transition: height 0.2s ease, opacity 0.2s ease, margin-top 0.2s ease;
+  flex: none; height: 96px; margin: var(--sp-2) var(--sp-2) 0; overflow: hidden; border-radius: var(--panel-radius); background: var(--surface-2);
+  transition: height var(--dur-slow) ease, opacity var(--dur-slow) ease, margin-top var(--dur-slow) ease;
 }
 .server-banner img { display: block; width: 100%; height: 100%; object-fit: cover; user-select: none; }
 .server-banner.collapsed { height: 0; margin-top: 0; opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .server-banner { transition: none; } }
-.pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--surface-2); color: var(--amber); white-space: nowrap; }
+.pill { font-size: var(--fs-xs); font-weight: var(--fw-medium); padding: 2px 8px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--amber); white-space: nowrap; }
 .pill.rejected { color: var(--red); }
-.channel-list { flex: 1; overflow-y: auto; padding: 10px 8px; }
-.invite-button {
-  width: 100%; border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); background: var(--accent-subtle); color: var(--text);
-  border-radius: calc(var(--radius) * 0.8); padding: 8px; font-weight: 600; margin-bottom: 12px;
+.channel-list { flex: 1; overflow-y: auto; padding: 10px var(--sp-2); }
+/* Invite friends: a row like Events; the prominent card (.hero) only while you're alone on the server. */
+.invite-button.hero {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  border: 1px dashed color-mix(in srgb, var(--accent) 40%, transparent); background: var(--accent-subtle); color: var(--text);
+  border-radius: var(--r-md); padding: var(--sp-2); font-weight: var(--fw-medium); margin: 2px 0 var(--sp-3);
 }
-.invite-button:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.invite-button.hero:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .channel-group {
-  display: flex; align-items: center; justify-content: space-between; padding: 6px 6px 4px;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; justify-content: space-between; min-height: 28px; padding: 6px 6px 4px;
+  font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
+}
+/* A heading's actions (new folder, new channel, ⋯) show while you point at it or are in it; always on touch screens. */
+@media (hover: hover) {
+  .channel-group > .icon-button, .channel-group .org-group-actions { opacity: 0; transition: opacity var(--dur-fast); }
+  .channel-group:hover > .icon-button, .channel-group:hover .org-group-actions,
+  .channel-group:focus-within > .icon-button, .channel-group:focus-within .org-group-actions { opacity: 1; }
 }
 .channel {
-  width: 100%; display: flex; align-items: center; gap: 6px; padding: 7px 8px; border: 0; border-radius: calc(var(--radius) * 0.6);
-  background: transparent; color: var(--muted); text-align: left; margin-bottom: 1px; transition: background 0.12s, color 0.12s;
+  width: 100%; display: flex; align-items: center; gap: 6px; padding: 7px var(--sp-2); border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--muted); text-align: left; margin-bottom: 1px; transition: background var(--dur-fast), color var(--dur-fast);
 }
 .channel:hover { background: var(--sidebar-hover); color: var(--text-2); }
 .channel.active { background: var(--surface-3); color: var(--text); }
-.channel.unread { color: var(--text); font-weight: 600; }
+.channel.unread { color: var(--text); font-weight: var(--fw-medium); }
 .channel .hash { opacity: 0.6; display: inline-grid; place-items: center; }
 .channel .lock { display: inline-grid; }
 .voice-flag { display: inline-grid; color: var(--red); }
-.invite-button { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .channel-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lock { font-size: 11px; opacity: 0.7; }
+.lock { font-size: var(--fs-xs); opacity: 0.7; }
 
 /* The same height and bottom edge as the composer across the gutter: 7px around its 36px row (the 32px avatar's
    button and the settings button) makes --bottom-bar, 16px above the panel's bottom like the composer. */
 .me-bar {
   display: flex; align-items: center; gap: 10px; min-height: var(--bottom-bar); padding: 7px 7px 7px 8px; background: var(--rail); flex: none;
-  margin: 0 8px 16px; border-radius: var(--panel-radius);
+  margin: 0 var(--sp-2) var(--sp-4); border-radius: var(--panel-radius);
 }
 .me-text { display: grid; min-width: 0; flex: 1; line-height: 1.2; }
-.me-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
-.me-text span { font-size: 12px; color: var(--muted); }
+.me-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-ui); }
+.me-text span { font-size: var(--fs-sm); color: var(--muted); }
 .me-text span::first-letter { text-transform: uppercase; } /* "Not joined", not "Not Joined" */
 
 .avatar {
   position: relative; border-radius: var(--avatar-radius); display: inline-grid; place-items: center; flex: none;
-  font-weight: 700; color: #fff; user-select: none;
+  font-weight: var(--fw-bold); color: #fff; user-select: none;
 }
 .presence { position: absolute; right: -2px; bottom: -2px; width: 34%; height: 34%; border-radius: 50%; border: 3px solid var(--sidebar); }
 .presence.on { background: var(--online); }
@@ -428,8 +454,7 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 }
 .chat-header .hash { color: var(--muted); display: inline-grid; }
 .spacer { flex: 1; }
-.banner { padding: 10px 16px; font-size: 14px; }
-.banner { display: flex; align-items: center; gap: 10px; flex: none; }
+.banner { display: flex; align-items: center; gap: 10px; flex: none; padding: 10px var(--sp-4); font-size: var(--fs-ui); }
 .banner > span:not([aria-hidden]) { flex: 1; min-width: 0; }
 .banner.warn { background: var(--warning-bg); color: var(--text); border-bottom: 1px solid color-mix(in srgb, var(--amber) 30%, transparent); }
 .banner.warn svg { color: var(--amber); flex: none; }
@@ -548,10 +573,9 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 .link-like:hover { color: var(--text); text-decoration: underline; }
 
 /* ── Home and DMs ───────────────────────────────────────────────────── */
-.server-icon.home { display: grid; place-items: center; color: var(--accent-2); }
-.server-icon.home.active, .server-icon.home:hover { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--on-accent); }
-.rail-divider { width: 32px; height: 2px; border-radius: 1px; background: var(--surface-3); flex: none; }
-.sidebar-hint { color: var(--muted); font-size: 13px; padding: 4px 8px; margin: 0; }
+.server-icon.home { display: grid; place-items: center; }
+.rail-divider { width: 32px; height: 2px; border-radius: 1px; background: var(--surface-3); flex: none; margin: 2px 0; }
+.sidebar-hint { color: var(--muted); font-size: var(--fs-md); padding: 4px var(--sp-2); margin: 0; }
 .dm-row { padding: 5px 8px; gap: 10px; }
 .friends { flex: 1; overflow-y: auto; padding: 12px 16px; }
 .friend-row { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: var(--radius); }
@@ -591,11 +615,22 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
   user-select: all;
 }
 .success-text { color: var(--green); }
+/* The recovery-key reminder: one slim line with its icon (the text ends in "…" on a phone rather than taking two lines). */
 .nudge {
-  display: flex; align-items: center; gap: 10px; padding: 8px 12px 8px 16px; flex: none; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 10px; padding: 6px var(--sp-2) 6px var(--sp-4); flex: none; min-height: 44px;
   background: var(--warning-bg); border-bottom: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
 }
-.nudge p { margin: 0; flex: 1; font-size: 14px; }
+.nudge p { margin: 0; flex: 1; min-width: 0; font-size: var(--fs-ui); }
+.nudge-icon { flex: none; display: inline-grid; color: var(--amber); }
+.nudge .button.small { flex: none; }
+.nudge-later-icon { display: none; }
+@media (max-width: 760px) {
+  .nudge { padding-left: var(--sp-3); gap: var(--sp-2); }
+  .nudge p { font-size: var(--fs-md); line-height: var(--lh-tight); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .nudge-later { width: 32px; padding: 0; }
+  .nudge-later-text { display: none; }
+  .nudge-later-icon { display: inline-grid; }
+}
 .onboarding-card textarea { font-family: var(--mono); resize: none; }
 
 /* ── Attachments, replies, reactions ─────────────────────────────────── */
@@ -712,22 +747,40 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
 .guide-option p + .guide-actions { margin-top: 10px; }
 
 /* ── Members ────────────────────────────────────────────────────────── */
-.member-list { padding: 14px 8px; }
-.member-list h2 { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 12px 8px 6px; }
-.member-list section:first-child h2 { margin-top: 0; }
+.member-list { padding: 0 var(--sp-2) 14px; }
+.member-list section h2 { font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: var(--sp-3) var(--sp-2) 6px; }
+.member-list-header + section h2, .member-list-none + section h2 { margin-top: 6px; }
+/* The list's own header: "Members 3" and a search that filters it; Close in the phone drawer. Same height as the
+   channel panel's header, so the top edges line up across the frame. */
+.member-list-header {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--sp-1); height: 52px; margin: 0 calc(-1 * var(--sp-2)) var(--sp-1);
+  padding: 0 var(--sp-2) 0 var(--sp-4); background: var(--sidebar); border-bottom: 1px solid var(--border);
+}
+.member-list-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-2); margin: 0; font-size: var(--fs-base); font-weight: var(--fw-bold); color: var(--text-strong); }
+.member-list-count {
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--text-2);
+  font-size: var(--fs-xs); font-weight: var(--fw-bold); display: inline-grid; place-items: center;
+}
+.member-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 2px 0 var(--sp-2); border-radius: var(--r-md); background: var(--bg); border: 1px solid var(--border); color: var(--muted); }
+.member-search:focus-within { border-color: var(--focus); }
+.member-search input { flex: 1; min-width: 0; min-height: 0; height: 100%; padding: 0; border: 0; background: transparent; font-size: var(--fs-md); box-shadow: none; }
+.member-search input:focus { box-shadow: none; }
+.member-search input::-webkit-search-cancel-button { display: none; }
+.member-list-none { margin: var(--sp-3) var(--sp-2); font-size: var(--fs-md); color: var(--muted); }
+@media (min-width: 1101px) { .member-list-close { display: none; } }
 /* A hoisted role's heading is a button (follow the role); it looks like the other headings. */
-.member-group-head { all: unset; cursor: pointer; border-radius: 4px; }
+.member-group-head { all: unset; cursor: pointer; border-radius: var(--r-sm); }
 .member-group-head:hover { color: var(--text); }
 .member-group-head:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .member {
-  width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 0; border-radius: calc(var(--radius) * 0.6);
-  background: transparent; text-align: left;
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px var(--sp-2); border: 0; border-radius: var(--r-sm);
+  background: transparent; text-align: left; transition: background var(--dur-fast);
 }
 .member:hover { background: var(--surface-2); }
 .member-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .offline .member { opacity: 0.45; }
-.member-card { display: flex; gap: 16px; align-items: center; margin-bottom: 8px; }
-.member-card-name { font-size: 18px; }
+.member-card { display: flex; gap: var(--sp-4); align-items: center; margin-bottom: var(--sp-2); }
+.member-card-name { font-size: var(--fs-lg); }
 
 /* ── Modals ─────────────────────────────────────────────────────────── */
 /* Desktop: a centred card. Phones: a bottom sheet (see below). Footer: primary right, the secondary (ghost) to its
@@ -799,10 +852,10 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
   .shell { grid-template-columns: auto minmax(0, 1fr); }
   .members-column {
     position: fixed; right: 0; top: 0; bottom: 0; width: min(280px, 85vw); z-index: var(--z-drawer); border-radius: 0;
-    transform: translateX(100%); transition: transform 0.22s var(--ease);
+    transform: translateX(100%); transition: transform var(--dur-slow) var(--ease);
   }
   .panel-members .members-column { transform: none; box-shadow: -20px 0 50px var(--shadow-color); }
-  .panel-members .scrim { display: block; position: fixed; inset: 0; background: var(--scrim); z-index: calc(var(--z-drawer) - 1); animation: fade 0.2s ease-out; }
+  .panel-members .scrim { display: block; position: fixed; inset: 0; background: var(--scrim); z-index: calc(var(--z-drawer) - 1); animation: fade var(--dur) ease-out; }
 }
 
 @media (min-width: 1101px) {
@@ -821,10 +874,15 @@ input[type='range']:disabled { opacity: 0.45; cursor: default; }
   .mobile-only { display: inline-grid; }
   .nav-column {
     position: fixed; left: 0; top: 0; bottom: 0; z-index: var(--z-drawer); max-width: 88vw;
-    transform: translateX(-100%); transition: transform 0.22s var(--ease);
+    transform: translateX(-100%); transition: transform var(--dur-slow) var(--ease);
   }
-  .panel-nav .nav-column { transform: none; box-shadow: 20px 0 50px var(--shadow-color); }
-  .panel-nav .scrim { display: block; position: fixed; inset: 0; background: var(--scrim); z-index: calc(var(--z-drawer) - 1); animation: fade 0.2s ease-out; }
+  /* The strip of chat beside the open drawer reads as "behind", not as a broken layout: a darker scrim, and the
+     drawer's edge casts a shadow onto it. */
+  .panel-nav .nav-column { transform: none; box-shadow: 1px 0 0 var(--border), 20px 0 50px var(--shadow-color); }
+  .panel-nav .scrim {
+    display: block; position: fixed; inset: 0; background: color-mix(in srgb, var(--scrim), #000 30%); z-index: calc(var(--z-drawer) - 1);
+    animation: fade var(--dur) ease-out;
+  }
   .chat-header { padding-left: 6px; }
   .message { padding-left: 10px; padding-right: 10px; gap: 10px; }
   .message-actions { right: 10px; }
@@ -1021,16 +1079,25 @@ input.confirm-code::placeholder { color: var(--placeholder); }
 .queued-send { margin: 0 16px; padding: 6px 12px; background: var(--surface-2); border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .queued-send:first-child { border-top: 0; border-radius: 10px 10px 0 0; }
 
-/* ── UX fixes: a first join that couldn't reach its server ── */
-.join-failed-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+/* ── UX fixes: a first join that couldn't reach its server (or waits, or needs a name): one centred card ── */
+.join-card {
+  display: grid; justify-items: center; gap: var(--sp-3); width: min(420px, 100%); padding: var(--sp-6) var(--sp-5);
+  background: var(--sidebar); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: var(--shadow-1);
+}
+.join-card h1 { margin: 0; font-size: var(--fs-xl); line-height: var(--lh-tight); }
+.join-card .field { margin: var(--sp-1) 0 0; }
+.join-failed-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; justify-content: center; margin-top: var(--sp-1); }
+/* The card has its own heading: the chat header above it doesn't repeat the server's address. */
+.chat:has(> .join-failed, > .join-pending) > .chat-header h1 { visibility: hidden; }
 /* Waiting for a moderator to let you in: the server's icon (or initials), nothing else of it. */
 .join-pending-icon {
-  display: grid; place-items: center; width: 72px; height: 72px; border-radius: 22px; overflow: hidden;
-  background: var(--surface-3); color: var(--text); font-weight: 700; font-size: 24px;
+  display: grid; place-items: center; width: 72px; height: 72px; border-radius: var(--r-xl); overflow: hidden;
+  background: var(--surface-3); color: var(--text); font-weight: var(--fw-bold); font-size: 24px;
 }
 .join-pending-icon img { width: 100%; height: 100%; object-fit: cover; }
-.join-pending-wait { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.join-pending-wait { display: inline-flex; align-items: center; gap: var(--sp-2); margin: 0; }
 .join-name { width: min(320px, 100%); text-align: left; }
+@media (max-width: 760px) { .join-card { padding: var(--sp-5) var(--sp-4); border: 0; background: transparent; box-shadow: none; } }
 
 /* ── UX fixes: call controls say what they do on phones (no hover tooltips there) ── */
 @media (max-width: 760px) {

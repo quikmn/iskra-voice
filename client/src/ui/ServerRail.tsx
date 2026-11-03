@@ -1,4 +1,5 @@
-// The server rail: DMs, then your servers and folders. Drag to reorder (onto another server to make a folder);
+// The server rail: the app's own tiles (Home, Inbox, Assistant: icons only, no tile until hovered), then your servers
+// and folders, then Join or create (a dashed ghost, so it isn't mistaken for a server). Drag to reorder (onto another server to make a folder);
 // right-click or press and hold for a menu (organize/ServerMenu.tsx for a server's). The layout syncs across your devices (state/rail.ts).
 import { useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +8,7 @@ import { openFriends } from '../state/dms'
 import { useIncomingCount } from '../state/friends'
 import { initials } from './format'
 import { ServerPicture } from './ServerPicture'
-import { Plus } from './icons'
+import { Plus, Spark } from './icons'
 import { useOrganize } from '../state/organize'
 import { newFolderId, setRail, useRail } from '../state/rail'
 import { moveFolder, moveServer, ungroup, updateFolder, visibleRail, type RailFolder } from '../state/railLogic'
@@ -182,7 +183,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
           onNavigate()
         }}
       >
-        <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="currentColor" /></svg>
+        <Spark size={24} />
         {dmUnread > 0 && active !== null && <span className="badge">{dmUnread > 99 ? '99+' : dmUnread}</span>}
       </button>
       <InboxButton onNavigate={onNavigate} />

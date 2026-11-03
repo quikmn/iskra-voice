@@ -126,9 +126,13 @@ test('categories, notification levels and nicknames', async ({ browser }) => {
   await expect(serverMenu).toHaveCount(0)
   await friend.locator('.server-header-button').click()
   await expect(serverMenu.getByRole('menuitem', { name: /^Notifications/ })).toContainText('All messages')
+  // Muting, the sound and LFG pings sit on the same Notifications page.
+  await serverMenu.getByRole('menuitem', { name: /^Notifications/ }).click()
   await serverMenu.getByRole('menuitem', { name: 'Mute server' }).click()
   await serverMenu.getByRole('menuitem', { name: 'For 8 hours' }).click()
   await friend.locator('.server-header-button').click()
+  await expect(serverMenu.getByRole('menuitem', { name: /^Notifications/ })).toContainText('Server is muted')
+  await serverMenu.getByRole('menuitem', { name: /^Notifications/ }).click()
   await expect(serverMenu.getByRole('menuitem', { name: /Unmute server/ })).toContainText(/Muted until/)
   await friend.keyboard.press('Escape')
   await expect(row(friend, 'general').locator('.channel')).toHaveClass(/muted/)

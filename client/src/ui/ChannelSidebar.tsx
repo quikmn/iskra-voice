@@ -28,6 +28,7 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
   const [dialog, setDialog] = useState<'invite' | 'channel' | null>(null)
   const isAdmin = has(server.me, useServerRoles(server.key), 'manageChannels') // may create channels
   const canInvite = baseAllows(useServerBaseRoles(server.key), server.me, 'invite')
+  const alone = Object.values(server.members).filter((m) => !m.bot).length <= 1
   const [createIn, setCreateIn] = useState<number | null>(null)
   const [menu, setMenu] = useState<MenuAnchor | null>(null)
   useThreads((s) => s.threads[server.key]) // thread mentions count on their channel
@@ -73,11 +74,17 @@ export function ChannelSidebar({ server, onNavigate }: { server: ServerState; on
         <ReportsButton server={server} onOpen={() => openServerSettings(server.key, 'reports')} />
         <RulesButton server={server} onNavigate={onNavigate} />
         <EventsButton server={server} onNavigate={onNavigate} />
-        {canInvite && (
-          <button className="invite-button" onClick={() => setDialog('invite')}>
+        {/* A quiet row like Events; the big card only while nobody else is here yet (the empty-server moment). */}
+        {canInvite && (alone ? (
+          <button className="invite-button hero" onClick={() => setDialog('invite')}>
             <UserPlus size={16} /> {t('app.sidebar.inviteFriends')}
           </button>
-        )}
+        ) : (
+          <button className="channel invite-button" onClick={() => setDialog('invite')}>
+            <span className="hash"><UserPlus size={16} /></span>
+            <span className="channel-name">{t('app.sidebar.inviteFriends')}</span>
+          </button>
+        ))}
         <ChannelList server={server} isAdmin={isAdmin} onNavigate={onNavigate} onCreateChannel={(categoryId) => {
           setCreateIn(categoryId)
           setDialog('channel')

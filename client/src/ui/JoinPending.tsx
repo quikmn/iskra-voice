@@ -12,15 +12,17 @@ export function JoinPending({ server }: { server: ServerState }) {
   const name = info?.name ?? server.name
   return (
     <div className="empty-state join-pending" role="status" data-testid="join-pending">
-      <span className="join-pending-icon" aria-hidden>
-        {info?.icon ? <img src={info.icon} alt="" draggable={false} /> : initials(name)}
-      </span>
-      <h1>{t('chat.view.pendingTitle', { name })}</h1>
-      <p>{t('chat.view.pendingBody')}</p>
-      <p className="muted join-pending-wait"><Spinner /> {t('chat.view.pendingWaiting')}</p>
-      <div className="join-failed-actions">
-        <button className="button" onClick={() => retryServer(server.key)}>{t('chat.view.tryNow')}</button>
-        <button className="button" onClick={() => leaveServer(server.key)}>{t('chat.view.pendingLeave')}</button>
+      <div className="join-card">
+        <span className="join-pending-icon" aria-hidden>
+          {info?.icon ? <img src={info.icon} alt="" draggable={false} /> : initials(name)}
+        </span>
+        <h1>{t('chat.view.pendingTitle', { name })}</h1>
+        <p>{t('chat.view.pendingBody')}</p>
+        <p className="muted join-pending-wait"><Spinner /> {t('chat.view.pendingWaiting')}</p>
+        <div className="join-failed-actions">
+          <button className="button" onClick={() => retryServer(server.key)}>{t('chat.view.tryNow')}</button>
+          <button className="button ghost" onClick={() => leaveServer(server.key)}>{t('chat.view.pendingLeave')}</button>
+        </div>
       </div>
     </div>
   )
