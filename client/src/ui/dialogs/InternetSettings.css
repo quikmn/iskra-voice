@@ -29,7 +29,7 @@
 .switch.on { background: var(--accent-strong); }
 .switch.on span { transform: translateX(20px); background: var(--on-accent); }
 .switch:disabled { opacity: 0.55; cursor: default; }
-.switch:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .checklist { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
 .checklist .step { display: flex; gap: 10px; align-items: flex-start; }

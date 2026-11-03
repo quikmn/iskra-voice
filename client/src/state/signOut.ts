@@ -10,7 +10,7 @@ import { connectionFor, leaveServer, useApp } from './store'
 import { accountSignedOut } from './accounts'
 
 /** Settings kept after signing out: they belong to the device, not the account. */
-const KEEP = new Set(['iskra.language', 'iskra.theme', 'iskra.audio'])
+const KEEP = new Set(['iskra.language', 'iskra.theme', 'iskra.font', 'iskra.audio'])
 
 /** Gives up on slow servers: signing out must never hang. */
 const within = <T,>(promise: Promise<T>, ms = 4000) =>

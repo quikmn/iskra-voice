@@ -1,8 +1,12 @@
 // Themes: a small JSON file of colours, radius, avatar shape and fonts.
 // Every value is checked against a strict pattern or allowlist and set one CSS variable at a time
-// (style.setProperty), so a theme can never inject CSS of its own.
-import { BUILT_IN_THEMES, DEFAULT_THEME_ID, RENAMED_THEME_IDS } from './themes'
+// (style.setProperty), so a theme can never inject CSS of its own. Fonts are applied by fonts.ts: the person's own
+// setting, which a theme's "fonts" overrides only while they allow it.
+import { BUILT_IN_THEMES, DEFAULT_THEME, DEFAULT_THEME_ID, RENAMED_THEME_IDS } from './themes'
+import { applyFonts, BODY_FONTS, FONT_STORAGE_KEY, loadFontPrefs, MONO_FONTS } from './fonts'
 import { t } from '../i18n'
+
+export { BODY_FONTS, MONO_FONTS }
 
 export const COLOR_KEYS = [
   'bgSurface', 'bgDeep', 'bgBody', 'bgFloat', 'bgSidebar', 'bgSidebarHover', 'bgChat', 'bgHover', 'bgButton', 'bgBorder', 'bgActive',
@@ -13,17 +17,6 @@ export const COLOR_KEYS = [
 ] as const
 export type ColorKey = (typeof COLOR_KEYS)[number]
 
-export const BODY_FONTS = {
-  inter: "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-  system: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif",
-  rounded: "ui-rounded, 'SF Pro Rounded', Nunito, 'Varela Round', 'Segoe UI', system-ui, sans-serif",
-  serif: "'Iowan Old Style', Charter, Georgia, 'Times New Roman', serif",
-  mono: "'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace",
-} as const
-export const MONO_FONTS = {
-  jetbrains: "'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace",
-  system: "ui-monospace, Menlo, Consolas, 'Courier New', monospace",
-} as const
 export const AVATAR_SHAPES = { circle: '50%', rounded: '30%', square: '12%' } as const
 
 export interface ThemeFile {
@@ -35,51 +28,62 @@ export interface ThemeFile {
   fonts?: { body?: keyof typeof BODY_FONTS; mono?: keyof typeof MONO_FONTS }
 }
 
-/** Which CSS variable each colour drives, and what it falls back to when a theme leaves it out. */
+/** The default look's own value for a key (themes.ts is the one source of the default). */
+const D = (key: ColorKey): string => DEFAULT_THEME.colors[key]!
+
+/**
+ * Which CSS variable each colour drives, and what it falls back to when a theme leaves it out: the default look's
+ * value, or another variable for keys that follow one (a theme that only sets buttons gets matching menus).
+ */
 const VARIABLES: { name: string; key: ColorKey; fallback: string }[] = [
-  { name: '--bg', key: 'bgDeep', fallback: '#0b0b14' },
+  { name: '--bg', key: 'bgDeep', fallback: D('bgDeep') },
   { name: '--rail', key: 'bgSurface', fallback: 'var(--bg)' },
   { name: '--stage', key: 'bgBody', fallback: 'var(--bg)' },
-  { name: '--sidebar', key: 'bgSidebar', fallback: '#10101c' },
+  { name: '--sidebar', key: 'bgSidebar', fallback: D('bgSidebar') },
   { name: '--sidebar-hover', key: 'bgSidebarHover', fallback: 'var(--surface-2)' },
-  { name: '--surface', key: 'bgChat', fallback: '#141424' },
+  { name: '--surface', key: 'bgChat', fallback: D('bgChat') },
   { name: '--float', key: 'bgFloat', fallback: 'var(--surface-2)' },
-  { name: '--surface-2', key: 'bgButton', fallback: '#1b1b30' },
+  { name: '--surface-2', key: 'bgButton', fallback: D('bgButton') },
   { name: '--hover', key: 'bgHover', fallback: 'var(--surface-3)' },
-  { name: '--surface-3', key: 'bgActive', fallback: '#24243d' },
-  { name: '--border', key: 'bgBorder', fallback: 'rgba(120, 100, 255, 0.14)' },
+  { name: '--surface-3', key: 'bgActive', fallback: D('bgActive') },
+  { name: '--border', key: 'bgBorder', fallback: D('bgBorder') },
   { name: '--text-strong', key: 'textHeading', fallback: 'var(--text)' },
-  { name: '--text', key: 'textNormal', fallback: '#e2e2f0' },
-  { name: '--text-2', key: 'textMuted', fallback: '#b4b4cc' },
-  { name: '--muted', key: 'textSubtle', fallback: '#8484a8' },
-  { name: '--faint', key: 'textFaint', fallback: '#4b4b66' },
-  { name: '--accent', key: 'accent', fallback: '#695bff' },
+  { name: '--text', key: 'textNormal', fallback: D('textNormal') },
+  { name: '--text-2', key: 'textMuted', fallback: D('textMuted') },
+  { name: '--muted', key: 'textSubtle', fallback: D('textSubtle') },
+  { name: '--faint', key: 'textFaint', fallback: D('textFaint') },
+  { name: '--accent', key: 'accent', fallback: D('accent') },
   { name: '--accent-strong', key: 'accentHover', fallback: 'var(--accent)' },
-  { name: '--accent-2', key: 'link', fallback: '#00cfff' },
-  { name: '--green', key: 'success', fallback: '#4ade80' },
+  { name: '--accent-2', key: 'link', fallback: D('link') },
+  { name: '--green', key: 'success', fallback: D('success') },
   { name: '--green-strong', key: 'successHover', fallback: 'var(--green)' },
-  { name: '--red', key: 'danger', fallback: '#f87171' },
-  { name: '--danger-solid', key: 'danger', fallback: '#b91c1c' },
-  { name: '--hangup', key: 'danger', fallback: '#dc2626' },
-  { name: '--hangup-hover', key: 'dangerHover', fallback: 'var(--danger-solid)' },
-  { name: '--amber', key: 'warning', fallback: '#fbbf24' },
+  { name: '--red', key: 'danger', fallback: D('danger') },
+  { name: '--red-strong', key: 'dangerHover', fallback: 'var(--red)' },
+  { name: '--amber', key: 'warning', fallback: D('warning') },
   { name: '--online', key: 'statusOnline', fallback: 'var(--green)' },
   { name: '--away', key: 'statusAway', fallback: 'var(--amber)' },
   { name: '--dnd', key: 'statusDnd', fallback: 'var(--red)' },
-  { name: '--mention-bg', key: 'mentionBg', fallback: 'color-mix(in srgb, var(--accent) 20%, transparent)' },
+  { name: '--mention-bg', key: 'mentionBg', fallback: 'color-mix(in srgb, var(--accent) 18%, transparent)' },
   { name: '--mention-text', key: 'mentionText', fallback: 'var(--text-strong)' },
-  { name: '--warning-bg', key: 'warningBg', fallback: 'color-mix(in srgb, var(--amber) 10%, transparent)' },
+  { name: '--warning-bg', key: 'warningBg', fallback: 'color-mix(in srgb, var(--amber) 12%, transparent)' },
   { name: '--danger-bg', key: 'dangerBg', fallback: 'color-mix(in srgb, var(--red) 12%, transparent)' },
-  { name: '--speaking-glow', key: 'speakingGlow', fallback: 'transparent' },
-  { name: '--accent-subtle', key: 'accentSubtle', fallback: 'color-mix(in srgb, var(--accent) 8%, transparent)' },
+  { name: '--speaking-glow', key: 'speakingGlow', fallback: 'color-mix(in srgb, var(--green) 35%, transparent)' },
+  { name: '--accent-subtle', key: 'accentSubtle', fallback: 'color-mix(in srgb, var(--accent) 10%, transparent)' },
   { name: '--on-accent', key: 'onAccent', fallback: '#ffffff' },
 ]
+/**
+ * Computed from the theme's colours, never set by a theme file: the solid fills white text and icons sit on (danger
+ * buttons, hang up, unread badges, accept and join), the text on a warning fill, and the one focus ring colour (the
+ * accent, nudged until it shows at 3:1 on every surface).
+ */
+const COMPUTED_VARIABLES = ['--danger-solid', '--danger-solid-hover', '--hangup', '--hangup-hover', '--success-solid', '--success-solid-hover', '--on-warning', '--focus'] as const
+type ComputedVariable = (typeof COMPUTED_VARIABLES)[number]
 /** Syntax colours in code blocks, from the theme's own colours, each nudged until it reads at 4.5:1 (codeColors). */
 const CODE_VARIABLES: [string, ColorKey][] = [
   ['--code-keyword', 'accent'], ['--code-string', 'success'], ['--code-number', 'warning'], ['--code-title', 'link'],
   ['--code-comment', 'textSubtle'], ['--code-meta', 'textMuted'], ['--code-removed', 'danger'],
 ]
-const OTHER_VARIABLES = ['--radius', '--avatar-radius', '--font', '--mono', '--name-l', '--placeholder', ...CODE_VARIABLES.map(([name]) => name)]
+const OTHER_VARIABLES = ['--radius', '--avatar-radius', '--name-l', '--placeholder', ...COMPUTED_VARIABLES, ...CODE_VARIABLES.map(([name]) => name)]
 
 // ── Validation ──────────────────────────────────────────────────────────────
 
@@ -284,15 +288,63 @@ export function placeholderColor(text: string, backgrounds: readonly string[], s
   return out
 }
 
-/** The colour, darkened just enough for white text on it to read at 4.5:1 (danger buttons). */
-export function solidUnderWhite(color: string): string {
+const toLinear = (c: number) => {
+  const s = c / 255
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+}
+const fromLinear = (c: number) => {
+  const s = c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055
+  return Math.round(Math.min(1, Math.max(0, s)) * 255)
+}
+
+/** OKLCH (perceptual lightness 0..1, chroma, hue in degrees) of a colour; null if it isn't a plain colour. */
+export function oklchOf(color: string): [number, number, number] | null {
   const rgb = rgbOf(color)
-  if (!rgb) return color
-  for (let f = 1; f > 0.2; f -= 0.02) {
-    const hex = `#${rgb.map((c) => Math.round(c * f).toString(16).padStart(2, '0')).join('')}`
+  if (!rgb) return null
+  const [r, g, b] = rgb.map(toLinear)
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  const a = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s
+  const bb = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
+  return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, Math.hypot(a, bb), ((Math.atan2(bb, a) * 180) / Math.PI + 360) % 360]
+}
+
+/** An OKLCH colour as #rrggbb (channels clipped to sRGB). */
+export function oklchHex(lightness: number, chroma: number, hue: number): string {
+  const a = chroma * Math.cos((hue * Math.PI) / 180)
+  const bb = chroma * Math.sin((hue * Math.PI) / 180)
+  const l = (lightness + 0.3963377774 * a + 0.2158037573 * bb) ** 3
+  const m = (lightness - 0.1055613458 * a - 0.0638541728 * bb) ** 3
+  const s = (lightness - 0.0894841775 * a - 1.291485548 * bb) ** 3
+  const rgb = [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ]
+  return `#${rgb.map((c) => fromLinear(c).toString(16).padStart(2, '0')).join('')}`
+}
+
+/**
+ * The colour, darkened just enough for white text on it to read at 4.5:1 (danger buttons, hang up, badges). It steps
+ * down in perceptual lightness and keeps the chroma, so a pastel red becomes a proper red rather than a dusty one.
+ */
+export function solidUnderWhite(color: string): string {
+  const lch = oklchOf(color)
+  if (!lch) return color
+  if (contrast('#ffffff', color) >= 4.5) return color
+  for (let l = lch[0]; l > 0.05; l -= 0.005) {
+    const hex = oklchHex(l, lch[1], lch[2])
     if (contrast('#ffffff', hex) >= 4.5) return hex
   }
   return '#000000'
+}
+
+/** The colour with each channel scaled by `f` (0..1), as #rrggbb: a darker shade of the same hue. */
+export function darken(color: string, f: number): string {
+  const rgb = rgbOf(color)
+  if (!rgb) return color
+  return `#${rgb.map((c) => Math.round(c * f).toString(16).padStart(2, '0')).join('')}`
 }
 
 function hslOf([r, g, b]: [number, number, number]): [number, number, number] {
@@ -337,8 +389,8 @@ export function readableColor(color: string, backgrounds: readonly string[], min
   return out
 }
 
-/** The backgrounds names sit on in the current theme: chat, sidebar (member list) and popovers. */
-export const DEFAULT_NAME_SURFACES = ['#141424', '#10101c', '#1b1b30'] as const
+/** The backgrounds names sit on in the default look: chat, sidebar (member list) and popovers. */
+export const DEFAULT_NAME_SURFACES: readonly string[] = [D('bgChat'), D('bgSidebar'), D('bgFloat')]
 let nameSurfaces: readonly string[] = DEFAULT_NAME_SURFACES
 const surfaceListeners = new Set<() => void>()
 export const getNameSurfaces = () => nameSurfaces
@@ -347,7 +399,7 @@ export function onNameSurfaces(listener: () => void): () => void {
   return () => surfaceListeners.delete(listener)
 }
 export function nameSurfacesOf(theme: ThemeFile | null): readonly string[] {
-  const c = theme?.colors ?? {}
+  const c = (theme ?? DEFAULT_THEME).colors
   const chat = c.bgChat ?? DEFAULT_NAME_SURFACES[0]
   const surfaces = [chat, c.bgSidebar ?? DEFAULT_NAME_SURFACES[1], c.bgFloat ?? c.bgButton ?? DEFAULT_NAME_SURFACES[2]]
   // A hovered message (styles.css: .message:hover mixes 3% of the text colour into the chat background).
@@ -412,48 +464,67 @@ export function contrastIssues(theme: ThemeFile, min = 4.5): ContrastIssue[] {
 
 // ── Applying ────────────────────────────────────────────────────────────────
 
-/** The CSS variables a theme sets (null for the default, which is plain styles.css). */
+/** The surfaces the focus ring must show on: chat, sidebar, menus and dialogs, inputs. */
+export const FOCUS_SURFACES = ['bgChat', 'bgSidebar', 'bgFloat', 'bgDeep'] as const
+
+/** The computed variables (COMPUTED_VARIABLES) of a theme. */
+export function computedColors(theme: ThemeFile): Record<ComputedVariable, string> {
+  const solid = solidUnderWhite(effectiveColor(theme, 'danger'))
+  // The theme's own darker red when it is clearly darker; otherwise a shade of the solid fill.
+  const own = solidUnderWhite(effectiveColor(theme, 'dangerHover'))
+  const hover = contrast('#ffffff', own) >= contrast('#ffffff', solid) * 1.1 ? own : darken(solid, 0.86)
+  const success = solidUnderWhite(effectiveColor(theme, 'success'))
+  return {
+    '--danger-solid': solid,
+    '--danger-solid-hover': hover,
+    '--hangup': solid,
+    '--hangup-hover': hover,
+    '--success-solid': success,
+    '--success-solid-hover': darken(success, 0.86),
+    '--on-warning': textOn(effectiveColor(theme, 'warning')),
+    '--focus': readableColor(effectiveColor(theme, 'accent'), FOCUS_SURFACES.map((k) => effectiveColor(theme, k)), 3),
+  }
+}
+
+/** The CSS variables a theme sets. The fonts are fonts.ts's (fontVariables). */
 export function themeVariables(theme: ThemeFile): Record<string, string> {
   const vars: Record<string, string> = {}
   for (const { name, key, fallback } of VARIABLES) vars[name] = theme.colors[key] ?? fallback
   if (!theme.colors.onAccent && theme.colors.accent) vars['--on-accent'] = textOn(theme.colors.accent)
-  if (theme.colors.danger) vars['--danger-solid'] = solidUnderWhite(theme.colors.danger)
+  Object.assign(vars, computedColors(theme))
   // Names sit on the chat, a hovered message, the member list and popovers.
-  if (theme.colors.bgChat) vars['--name-l'] = `${nameLightness(nameSurfacesOf(theme))}%`
+  vars['--name-l'] = `${nameLightness(nameSurfacesOf(theme))}%`
   vars['--placeholder'] = placeholderColor(effectiveColor(theme, 'textNormal'), INPUT_BACKGROUNDS.map((k) => effectiveColor(theme, k)), effectiveColor(theme, 'textSubtle'))
   vars['--radius'] = `${theme.radius ?? 10}px`
   vars['--avatar-radius'] = AVATAR_SHAPES[theme.avatarShape ?? 'circle']
-  vars['--font'] = BODY_FONTS[theme.fonts?.body ?? 'inter']
-  vars['--mono'] = MONO_FONTS[theme.fonts?.mono ?? 'jetbrains']
   Object.assign(vars, codeColors(theme))
   return vars
 }
 
 /** The code colours for a theme (null: the default look), readable on the code background (--bg). */
 export function codeColors(theme: ThemeFile | null): Record<string, string> {
-  const file = theme ?? ({ meta: { name: '' }, colors: {} } as unknown as ThemeFile)
+  const file = theme ?? DEFAULT_THEME
   const background = effectiveColor(file, 'bgDeep')
   return Object.fromEntries(CODE_VARIABLES.map(([name, key]) => [name, readableColor(effectiveColor(file, key), [background])]))
 }
 
+/** Sets a theme's variables (null: the default look), then the fonts: the person's, or the theme's when allowed. */
 export function applyTheme(theme: ThemeFile | null, root: HTMLElement = document.documentElement): void {
+  const look = theme ?? DEFAULT_THEME
   for (const { name } of VARIABLES) root.style.removeProperty(name)
   for (const name of OTHER_VARIABLES) root.style.removeProperty(name)
   root.style.removeProperty('color-scheme')
   // Lets the stylesheet adjust what can't be a theme colour (name colours, shadows) for light themes.
-  root.dataset.scheme = theme?.meta.scheme ?? 'dark'
-  const surfaces = nameSurfacesOf(theme)
+  root.dataset.scheme = look.meta.scheme ?? 'dark'
+  const surfaces = nameSurfacesOf(look)
   if (surfaces.join() !== nameSurfaces.join()) {
     nameSurfaces = surfaces
     for (const listener of surfaceListeners) listener()
   }
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme?.colors.bgDeep ?? '#0b0b14')
-  if (!theme) {
-    for (const [name, value] of Object.entries(codeColors(null))) root.style.setProperty(name, value)
-    return
-  }
-  for (const [name, value] of Object.entries(themeVariables(theme))) root.style.setProperty(name, value)
-  root.style.setProperty('color-scheme', theme.meta.scheme ?? 'dark')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', effectiveColor(look, 'bgDeep'))
+  for (const [name, value] of Object.entries(themeVariables(look))) root.style.setProperty(name, value)
+  root.style.setProperty('color-scheme', look.meta.scheme ?? 'dark')
+  applyFonts(look, loadFontPrefs(), root)
 }
 
 // ── Choosing and saving ─────────────────────────────────────────────────────
@@ -462,10 +533,12 @@ export type ThemeChoice = { id: string } | { custom: ThemeFile }
 
 const STORAGE_KEY = 'iskra.theme'
 
-export function themeFor(choice: ThemeChoice): ThemeFile | null {
+/** Storage keys whose change on another page of this device means "apply the look again". */
+export const isAppearanceKey = (key: string | null): boolean => key === STORAGE_KEY || key === FONT_STORAGE_KEY
+
+export function themeFor(choice: ThemeChoice): ThemeFile {
   if ('custom' in choice) return choice.custom
-  if (choice.id === DEFAULT_THEME_ID) return null
-  return BUILT_IN_THEMES.find((t) => t.id === choice.id)?.theme ?? null
+  return BUILT_IN_THEMES.find((t) => t.id === choice.id)?.theme ?? DEFAULT_THEME
 }
 
 /** What's saved, re-checked (storage is never trusted). Falls back to the default. */

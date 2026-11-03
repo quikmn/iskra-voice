@@ -24,7 +24,7 @@
   width: 100%; min-height: 180px; margin-top: 8px; resize: vertical; font: inherit; line-height: 1.5;
   background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px;
 }
-.rules-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.rules-input:focus { outline: 2px solid var(--focus); outline-offset: -1px; }
 .rules-preview { margin-top: 8px; min-height: 180px; }
 .rules-count { display: block; text-align: right; margin: 4px 0 12px; }
 .rules-count.over { color: var(--red); }

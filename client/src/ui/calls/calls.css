@@ -30,8 +30,8 @@
   50% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--accent) 0%, transparent); }
 }
 
-.call-button.accept { background: #16a34a; color: #fff; }
-.call-button.accept:hover { background: #15803d; }
+.call-button.accept { background: var(--success-solid); color: #fff; }
+.call-button.accept:hover { background: var(--success-solid-hover); }
 
 .incoming-call {
   position: fixed; inset: 0; z-index: var(--z-call); display: grid; place-items: center;

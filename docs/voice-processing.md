@@ -362,3 +362,17 @@ only when a message needs them, and their output is turned into React elements t
 | [lowlight](https://github.com/wooorm/lowlight) | 3.3.0 | syntax highlighting as a token tree | MIT |
 | [highlight.js](https://github.com/highlightjs/highlight.js) (grammars, through lowlight) | 11.11.2 | the common languages, and guessing one for untagged blocks | BSD-3-Clause |
 | [Temml](https://github.com/ronkok/Temml) (with its small `Temml.woff2` font and `Temml-Local.css`) | 0.13.5 | LaTeX to MathML | MIT |
+
+### Fonts
+
+The app's fonts (My settings → Appearance → Font) ship with it as variable woff2 files, Latin and Latin Extended
+only, so nothing is fetched from a font service and they work offline in the browser, desktop and phone apps. The
+licence texts are in the app at `/licenses/` (`client/public/licenses/`).
+
+| Font | Version | Used for | License |
+|---|---|---|---|
+| [Inter](https://github.com/rsms/inter) | 4.001 (the same files as iskra.foo) | the default text font | SIL Open Font License 1.1 (`Inter-OFL.txt`) |
+| [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) | 2.211 (the same files as iskra.foo) | code, and the Monospace font | SIL Open Font License 1.1 (`JetBrainsMono-OFL.txt`) |
+| [Nunito](https://github.com/googlefonts/nunito) via [Fontsource](https://fontsource.org/fonts/nunito) | npm `@fontsource-variable/nunito` 5.3.0 | the Rounded font | SIL Open Font License 1.1 (`Nunito-OFL.txt`) |
+
+System and Serif use the device's own fonts.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { codeColors, contrast, contrastIssues, effectiveColor, INPUT_BACKGROUNDS, placeholderColor, loadThemeChoice, nameLightness, nameSurfacesOf, readableColor, parseTheme, safeColor, solidUnderWhite, textOn, themeVariables, validateTheme } from './theme'
-import { BUILT_IN_THEMES } from './themes'
+import { codeColors, contrast, contrastIssues, effectiveColor, FOCUS_SURFACES, INPUT_BACKGROUNDS, oklchOf, placeholderColor, loadThemeChoice, nameLightness, nameSurfacesOf, readableColor, parseTheme, safeColor, solidUnderWhite, textOn, themeFor, themeVariables, validateTheme } from './theme'
+import { DEFAULT_FONT_PREFS, fontVariables } from './fonts'
+import { BUILT_IN_THEMES, DEFAULT_THEME } from './themes'
 import type { ThemeFile } from './theme'
 
 /** hsl(h 70% l) as #rrggbb, like the stylesheet's author names. */
@@ -13,11 +14,15 @@ function hslOf70(h: number, l: number): string {
   return `#${f(0)}${f(8)}${f(4)}`
 }
 
+// Read the stylesheet and the site page (Node's fs, loaded the way the audio tests do: src has no Node types).
+const fs = 'node:fs'
+const { readFileSync } = (await import(/* @vite-ignore */ fs)) as { readFileSync(path: URL, enc: 'utf8'): string }
+
 const valid = { meta: { name: 'Mine' }, colors: { accent: '#ff8800' } }
 
 describe('theme validation', () => {
   it('accepts every built-in look', () => {
-    expect(BUILT_IN_THEMES).toHaveLength(11)
+    expect(BUILT_IN_THEMES).toHaveLength(13)
     for (const { theme } of BUILT_IN_THEMES) expect(validateTheme(theme).ok).toBe(true)
   })
 
@@ -86,7 +91,7 @@ describe('applying themes', () => {
     const vars = themeVariables({ meta: { name: 'Lime' }, colors: { accent: '#39ff14' }, radius: 4 })
     expect(vars['--accent']).toBe('#39ff14')
     expect(vars['--on-accent']).toBe('#0b0b14')
-    expect(vars['--bg']).toBe('#0b0b14')
+    expect(vars['--bg']).toBe(DEFAULT_THEME.colors.bgDeep)
     expect(vars['--radius']).toBe('4px')
     expect(vars['--avatar-radius']).toBe('50%')
     expect(textOn('#695bff')).toBe('#ffffff')
@@ -123,11 +128,32 @@ describe('contrast', () => {
       }
       for (const t of ['textNormal', 'textMuted', 'link'] as const) check(c[t], c.bgButton, `${t} on bgButton`)
       check(c.textNormal, c.bgActive, 'textNormal on bgActive')
+      check(c.textMuted, c.bgActive, 'textMuted on bgActive')
       check(vars['--on-accent'], vars['--accent'], 'onAccent on accent')
-      check('#ffffff', vars['--danger-solid'], 'white on danger-solid')
+      check(vars['--on-accent'], vars['--accent-strong'], 'onAccent on accentHover')
+      // White text and icons on solid fills: danger buttons, hang up, unread badges, accept and join.
+      for (const fill of ['--danger-solid', '--danger-solid-hover', '--hangup', '--hangup-hover', '--success-solid', '--success-solid-hover']) check('#ffffff', vars[fill], `white on ${fill}`)
+      check(vars['--on-warning'], vars['--amber'], 'on-warning on warning')
       expect(low).toEqual([])
     })
   }
+
+  it('has one focus ring colour that shows at 3:1 on every surface, in every theme', () => {
+    for (const { id, theme } of BUILT_IN_THEMES) {
+      const focus = themeVariables(theme)['--focus']
+      for (const s of FOCUS_SURFACES) expect(contrast(focus, theme.colors[s]!), `${id} focus on ${s}`).toBeGreaterThanOrEqual(3)
+    }
+    // A custom theme whose accent can't carry a ring gets one that can.
+    const murky = { meta: { name: 'Murky' }, colors: { accent: '#303040', bgChat: '#202028' } }
+    expect(contrast(themeVariables(murky)['--focus'], '#202028')).toBeGreaterThanOrEqual(3)
+  })
+
+  it('makes the hang-up hover darker than the button', () => {
+    for (const { id, theme } of BUILT_IN_THEMES) {
+      const vars = themeVariables(theme)
+      expect(contrast('#ffffff', vars['--hangup-hover']), id).toBeGreaterThan(contrast('#ffffff', vars['--hangup']))
+    }
+  })
 
   it('makes author names light enough on every dark chat background', () => {
     expect(nameLightness('#141424')).toBe(72)
@@ -192,8 +218,8 @@ describe('readable role colours', () => {
   it('includes a hovered message, so a name stays readable under the mouse', () => {
     const graphite = BUILT_IN_THEMES.find((t) => t.theme.meta.name === 'Graphite')!.theme
     // What CI's axe run saw: the owner colour on a hovered message read 4.3:1.
-    expect(nameSurfacesOf(graphite)).toContain('#36383d')
-    expect(contrast(readableColor('#9793ec', nameSurfacesOf(graphite)), '#36383d')).toBeGreaterThanOrEqual(4.5)
+    expect(nameSurfacesOf(graphite)).toContain('#303136') // chat #2b2c31 with 3% of its text
+    expect(contrast(readableColor('#9793ec', nameSurfacesOf(graphite)), '#303136')).toBeGreaterThanOrEqual(4.5)
   })
 
   it('ignores what it cannot read', () => {
@@ -258,5 +284,95 @@ describe('code colours', () => {
     const colors = codeColors(theme)
     expect(Object.keys(colors).length).toBeGreaterThanOrEqual(7)
     for (const [name, color] of Object.entries(colors)) expect(contrast(color, background), `${name} ${color} on ${background}`).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+const oklch = (hex: string) => {
+  const [l, , h] = oklchOf(hex)!
+  return { l, h }
+}
+const hueDistance = (a: string, b: string) => {
+  const d = Math.abs(oklch(a).h - oklch(b).h) % 360
+  return d > 180 ? 360 - d : d
+}
+
+// The rules every built-in follows (themes.ts header): surfaces, states, text steps, accent and semantic colours.
+describe('built-in theme rules', () => {
+  for (const { id, theme } of BUILT_IN_THEMES) {
+    const c = theme.colors as Record<string, string>
+    const light = theme.meta.scheme === 'light'
+
+    it(`${id}: menus sit above the panel, and hover and selected show`, () => {
+      if (!light) {
+        expect(oklch(c.bgFloat).l, 'menus lighter than chat').toBeGreaterThan(oklch(c.bgChat).l)
+        expect(oklch(c.bgButton).l, 'buttons lighter than menus').toBeGreaterThan(oklch(c.bgFloat).l)
+        expect(oklch(c.bgChat).l, 'chat lighter than the sidebar').toBeGreaterThan(oklch(c.bgSidebar).l)
+        expect(oklch(c.bgSidebar).l, 'sidebar lighter than the rail').toBeGreaterThan(oklch(c.bgSurface).l)
+      }
+      expect(contrast(c.bgSidebarHover, c.bgSidebar), 'sidebar hover').toBeGreaterThanOrEqual(1.08)
+      expect(contrast(c.bgActive, c.bgSidebar), 'selected row').toBeGreaterThanOrEqual(light ? 1.15 : 1.35)
+      expect(contrast(c.bgButton, c.bgFloat), 'a button in a dialog').toBeGreaterThanOrEqual(1.07)
+      expect(contrast(c.bgHover, c.bgChat), 'row hover').toBeGreaterThanOrEqual(1.1)
+      expect(contrast(c.bgHover, c.bgFloat), 'hover in a menu').toBeGreaterThanOrEqual(1.1)
+    })
+
+    it(`${id}: text steps down from heading to subtle`, () => {
+      const [heading, normal, muted, subtle] = ['textHeading', 'textNormal', 'textMuted', 'textSubtle'].map((k) => contrast(c[k], c.bgChat))
+      expect(heading).toBeGreaterThanOrEqual(normal - 0.01)
+      expect(muted, 'muted at least 12% dimmer than normal').toBeLessThanOrEqual(normal * 0.88)
+      expect(subtle, 'subtle at least 12% dimmer than muted').toBeLessThanOrEqual(muted * 0.88)
+      expect(contrast(c.textFaint, c.bgChat), 'faint is decoration, dimmer than subtle').toBeLessThan(subtle)
+    })
+
+    it(`${id}: the accent never looks like danger, success or a warning`, () => {
+      expect(hueDistance(c.accent, c.danger), 'accent vs danger').toBeGreaterThanOrEqual(40)
+      expect(hueDistance(c.accent, c.success), 'accent vs success').toBeGreaterThanOrEqual(25)
+      expect(c.accent).not.toBe(c.warning)
+      expect(contrast(c.accent, c.bgChat), 'accent vs chat').toBeGreaterThanOrEqual(3)
+      expect(c.link).not.toBe(c.accent)
+    })
+
+    it(`${id}: names no font, shape or radius of its own, and sets every colour`, () => {
+      expect(theme.fonts).toBeUndefined()
+      expect(theme.avatarShape).toBeUndefined()
+      expect(theme.radius).toBe(10)
+      for (const key of Object.keys(DEFAULT_THEME.colors)) expect(c[key], key).toBeTruthy()
+    })
+  }
+})
+
+describe('the default look has one source', () => {
+  /** The custom properties in styles.css's first :root block. */
+  const rootBlock = () => {
+    const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
+    const block = /:root\s*\{([\s\S]*?)\n\}/.exec(css)![1]
+    return Object.fromEntries([...block.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]))
+  }
+  const norm = (v: string) => v.toLowerCase().replace(/\s+/g, '').replace(/^#fff$/, '#ffffff')
+
+  it('styles.css :root holds the Iskra theme, its computed colours and the default fonts', () => {
+    const root = rootBlock()
+    const expected = { ...themeVariables(DEFAULT_THEME), ...fontVariables(DEFAULT_FONT_PREFS) }
+    const wrong: string[] = []
+    for (const [name, value] of Object.entries(expected)) {
+      if (name.startsWith('--code-')) continue // the code colours have fallbacks in rich-text.css
+      if (!root[name]) wrong.push(`${name} missing (want ${value})`)
+      else if (norm(root[name]) !== norm(value)) wrong.push(`${name}: ${root[name]} (want ${value})`)
+    }
+    expect(wrong).toEqual([])
+  })
+
+  it('the default choice is the built-in Iskra theme', () => {
+    expect(themeFor({ id: 'iskra' })).toBe(DEFAULT_THEME)
+    expect(themeFor({ id: 'gone' })).toBe(DEFAULT_THEME)
+  })
+
+  it('iskra.foo shows the same built-in themes (node scripts/build-site-docs.mjs writes them)', () => {
+    const html = readFileSync(new URL('../../../site/index.html', import.meta.url), 'utf8')
+    const json = /\/\* THEMES:BEGIN \*\/\s*const T = ([\s\S]*?);\s*\/\* THEMES:END \*\//.exec(html)
+    expect(json, 'the theme block in site/index.html').toBeTruthy()
+    const site = JSON.parse(json![1]) as Record<string, { json: unknown }>
+    expect(Object.keys(site)).toEqual(BUILT_IN_THEMES.map((t) => t.id))
+    for (const { id, theme } of BUILT_IN_THEMES) expect(site[id].json, id).toEqual(theme)
   })
 })

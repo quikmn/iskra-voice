@@ -5,7 +5,7 @@ import { create } from 'zustand'
 import { t } from '../i18n'
 import { loadLanguageChoice, setLanguageChoice } from '../i18n'
 import { b64u } from '../core/crypto'
-import { applySavedTheme } from '../theme/theme'
+import { applySavedTheme, isAppearanceKey } from '../theme/theme'
 import { accountLink, bootSlot, rawLocalStorage } from '../platform/accountBoot'
 import { ACCOUNT_INPUT_EVENT, emptySummary, type AccountSummary, type AccountView } from '../platform/accountLink'
 import {
@@ -119,9 +119,9 @@ export function accountSignedOut(): boolean {
 /** How often input on this page is passed on to the other accounts' pages (idle is minutes). */
 const INPUT_EVERY_MS = 20_000
 
-/** The language and theme belong to the device: when another account's page changes them, follow. */
+/** The language, theme and font belong to the device: when another account's page changes them, follow. */
 function onStorage(event: StorageEvent): void {
-  if (event.key === 'iskra.theme') applySavedTheme()
+  if (isAppearanceKey(event.key)) applySavedTheme()
   if (event.key === 'iskra.language') setLanguageChoice(loadLanguageChoice())
 }
 

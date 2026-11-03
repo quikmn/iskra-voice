@@ -167,7 +167,7 @@ export const ORGANIZE_TOOLS: ToolDef[] = [
     category: 'organize',
     risk: 'low',
     needsServer: false,
-    description: `Makes a colour theme for Iskra on this device from a description and applies it after the user approves (they see a preview). Colours are #rrggbb. Keys: ${COLOR_KEYS.join(', ')}. Give at least bgDeep, bgChat, bgSidebar, textNormal, textMuted and accent, with readable contrast. Fonts: body ${Object.keys(BODY_FONTS).join('/')}, mono ${Object.keys(MONO_FONTS).join('/')}. The user can switch back in My settings → Appearance.`,
+    description: `Makes a colour theme for Iskra on this device from a description and applies it after the user approves (they see a preview). Colours are #rrggbb. Keys: ${COLOR_KEYS.join(', ')}. Give every bg and text key, with readable contrast (text at least 4.5:1 on its backgrounds). On dark themes the surfaces step up in lightness: bgSurface < bgDeep < bgSidebar < bgChat < bgFloat (menus, dialogs) < bgButton < bgHover < bgActive (selected); text steps down: textHeading >= textNormal > textMuted > textSubtle. Keep accent clearly apart from danger, success and warning. Fonts (optional; they apply only while the user allows theme fonts): body ${Object.keys(BODY_FONTS).join('/')}, mono ${Object.keys(MONO_FONTS).join('/')}. The user can switch back in My settings → Appearance.`,
     schema: {
       type: 'object',
       properties: {

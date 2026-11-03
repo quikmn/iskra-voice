@@ -61,8 +61,8 @@
 .group-rules { font-size: 13px; margin-bottom: 0; }
 
 /* Calls */
-.join-call { background: #16a34a; color: #fff; border-color: transparent; display: inline-flex; align-items: center; gap: 6px; }
-.join-call:hover:not(:disabled) { background: #15803d; }
+.join-call { background: var(--success-solid); color: #fff; border-color: transparent; display: inline-flex; align-items: center; gap: 6px; }
+.join-call:hover:not(:disabled) { background: var(--success-solid-hover); }
 .ongoing-call {
   display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); flex: none;
   background: color-mix(in srgb, var(--green) 8%, var(--surface));

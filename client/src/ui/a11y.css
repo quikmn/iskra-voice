@@ -18,17 +18,17 @@
 
 /* The message list: a ring only when Tab brought focus there (installRegionFocus), never after a click. */
 .messages:focus-visible { outline: none; }
-.messages[data-tabbed]:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.messages[data-tabbed]:focus { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 /* Messages: arrow keys move between them; the focused one shows its actions like a hovered one. */
 .message:focus { outline: none; }
 /* Only when the keyboard moved focus there (data-input from installRegionFocus); after a click, hover alone decides. */
-:root[data-input='keyboard'] .message:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--surface-2); }
+:root[data-input='keyboard'] .message:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; background: var(--surface-2); }
 :root[data-input='keyboard'] .message:focus-within .message-actions { display: flex; }
 :root[data-input='keyboard'] .message:focus-within .hover-time { opacity: 1; }
 
 /* Menu items and emoji cells get the same ring as everything else. */
-.org-item:focus-visible, .emoji-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.org-item:focus-visible, .emoji-cell:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 /* Less motion when the system asks for it: no animations or transitions, no smooth scrolling. */
 @media (prefers-reduced-motion: reduce) {
@@ -41,7 +41,7 @@
 
 /* Call tiles: the tile is a button under its label and full-screen button. */
 .tile-focus { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; background: none; cursor: pointer; border-radius: inherit; }
-.tile-focus:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+.tile-focus:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
 .video-tile .tile-fullscreen { z-index: 1; }
 .video-tile:focus-within .tile-fullscreen { opacity: 1; }
 

@@ -9,6 +9,10 @@
 // No network. Markdown via markdown-it (pinned in the root package.json, raw HTML off), heading ids as GitHub makes
 // them so the same #anchors work on both. Developer docs (development, ci-cd, compliance, releases) stay on GitHub:
 // links to them become explicit GitHub links. scripts/build-site-docs.test.mjs checks the pages are current.
+//
+// It also writes the theme section of site/index.html (the swatches and the theme files behind them) from the app's
+// built-in themes, client/src/theme/themes.ts, so the site always shows what the app ships (Node loads the .ts file
+// itself; it has only type imports).
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, posix, relative } from 'node:path'
@@ -358,9 +362,40 @@ ${body}
   return page({ path: '/license', title: 'License', description: 'Iskra is source-available under the PolyForm Noncommercial License 1.0.0: free for personal and noncommercial use.', kicker: 'License', body: html, current: '' })
 }
 
+const { BUILT_IN_THEMES } = await import('../client/src/theme/themes.ts')
+
+const hexRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',')
+
+/** site/index.html with its theme section (between the THEME-SWATCHES and THEMES markers) written from themes.ts. */
+export function siteIndex(html, themes = BUILT_IN_THEMES) {
+  const swatches = themes.map(({ id, theme }) => {
+    const c = theme.colors
+    const dots = [c.bgChat, c.accent, c.link].map((color) => `        <div class="swatch-dot" style="background:${color}"></div>`)
+    return [
+      `    <div class="theme-swatch${id === themes[0].id ? ' active' : ''}" data-theme="${id}" title="${esc(theme.meta.desc ?? '')}" style="--t-accent:${c.accent};--t-glow:rgba(${hexRgb(c.accent)},0.22)">`,
+      '      <div class="swatch-dots">',
+      ...dots,
+      '      </div>',
+      `      ${esc(theme.meta.name)}`,
+      '    </div>',
+    ].join('\n')
+  })
+  const T = Object.fromEntries(themes.map(({ id, theme }) => {
+    const c = theme.colors
+    return [id, { bg: c.bgDeep, c: { key: c.link, str: c.success, num: c.warning, bool: c.warning, comment: c.textSubtle }, json: theme }]
+  }))
+  const swatchBlock = /(<!-- THEME-SWATCHES:BEGIN[^>]*-->)[\s\S]*?(\s*<!-- THEME-SWATCHES:END -->)/
+  const themeBlock = /(\/\* THEMES:BEGIN \*\/)[\s\S]*?(\/\* THEMES:END \*\/)/
+  if (!swatchBlock.test(html) || !themeBlock.test(html)) throw new Error('site/index.html has lost its THEME-SWATCHES or THEMES markers')
+  return html
+    .replace(swatchBlock, (_, begin, end) => [begin, '  <div class="theme-swatches reveal" id="theme-swatches">', ...swatches, `  </div>${end}`].join('\n'))
+    .replace(themeBlock, (_, begin, end) => `${begin} const T = ${JSON.stringify(T)}; ${end}`)
+}
+
 /** Every generated page: Map<repo-relative output path, html>. */
 export function buildAll() {
   const out = new Map()
+  out.set('site/index.html', siteIndex(readFileSync(join(root, 'site/index.html'), 'utf8')))
   for (const p of PAGES) {
     const file = `docs/${p.slug}.md`
     out.set(`site/docs/${p.slug}.html`, docPage(p, file, readFileSync(join(root, file), 'utf8'), lastUpdated(file)))

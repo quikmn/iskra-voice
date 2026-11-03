@@ -15,8 +15,8 @@ export const MAX_ACCOUNTS = 5
 /** Phones keep fewer (memory and battery). */
 export const MAX_ACCOUNTS_PHONE = 3
 
-/** Settings of the device itself, shared by every account on it: the language and the theme. */
-export const DEVICE_KEYS: readonly string[] = ['iskra.language', 'iskra.theme']
+/** Settings of the device itself, shared by every account on it: the language, the theme and the font. */
+export const DEVICE_KEYS: readonly string[] = ['iskra.language', 'iskra.theme', 'iskra.font']
 
 /** Settings a new account starts with, copied from the account that added it (sound devices, keys, the terms). */
 export const SEED_KEYS: readonly string[] = ['iskra.audio', 'iskra.audio.aiSlow', 'iskra.voice', 'iskra.hotkeys', 'iskra.terms']

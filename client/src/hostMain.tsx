@@ -3,7 +3,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { i18nReady, loadLanguageChoice, setLanguageChoice, t } from './i18n'
-import { applySavedTheme } from './theme/theme'
+import { applySavedTheme, isAppearanceKey } from './theme/theme'
 import { startHost } from './state/accountHost'
 import { AccountHost } from './ui/accounts/AccountHost'
 
@@ -24,9 +24,9 @@ export function showUnsupported(): void {
 
 export function startHostPage(): void {
   applySavedTheme()
-  // The language and theme belong to the device: follow when an account's page changes them.
+  // The language, theme and font belong to the device: follow when an account's page changes them.
   window.addEventListener('storage', (event) => {
-    if (event.key === 'iskra.theme') applySavedTheme()
+    if (isAppearanceKey(event.key)) applySavedTheme()
     if (event.key === 'iskra.language') setLanguageChoice(loadLanguageChoice())
   })
   startHost()
