@@ -54,6 +54,7 @@ export const e2ee = {
     olderFormat: 'Older format',
     olderFormatHint: "Sent by an older version of Iskra: encrypted and signed, but not tied to this channel or thread.",
     afterRemoval: 'Sent after its writer lost access to this channel ({{date}}), so it may not really be from them.',
+    notEncrypted: "Not encrypted, so it can't be from a member: the server sent it. It isn't shown.",
   },
   search: {
     local: 'Encrypted channels are searched on this device only, in the messages it has decrypted.',
@@ -108,5 +109,7 @@ export const e2ee = {
     offline: "This server isn't connected right now.",
     tooMany: 'At most 50 people can be in an encrypted channel.',
     notEncrypted: 'Not an encrypted channel.',
+    downgraded: "The server says this channel isn't encrypted any more. It was, so this device keeps it encrypted and sends nothing in it.",
+    boardMismatch: "The server and this channel disagree about whether this board is encrypted, so nothing is sent to it.",
   },
 } as const

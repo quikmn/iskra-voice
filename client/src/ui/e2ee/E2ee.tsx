@@ -6,7 +6,7 @@ import type { Channel, Message } from '../../core/protocol'
 import { t } from '../../i18n'
 import { en } from '../../i18n/en'
 import { errorMessage } from '../../i18n/errors'
-import { BEFORE_YOU_JOINED, encryptedChannel, rekeyChannel, shownOf, slotOf, startOver, useE2ee, type ChannelCrypto } from '../../state/e2eeChannels'
+import { BEFORE_YOU_JOINED, DOWNGRADED, encryptedChannel, rekeyChannel, shownOf, slotOf, startOver, useE2ee, type ChannelCrypto } from '../../state/e2eeChannels'
 import { checkStartOver } from '../../state/e2eeStartOver'
 import { findingsAbout, useKt, type Finding } from '../../state/kt'
 import { resolveKey, sameAccount } from '../../state/keyMap'
@@ -44,7 +44,7 @@ export function EncryptionButton({ server, channel }: { server: ServerState; cha
   const { t } = useTranslation()
   const state = useE2ee((s) => (channel ? s.channels[slotOf(server.key, channel.id)] : undefined))
   if (!channel?.e2ee) return null
-  const warn = !!state?.problem
+  const warn = !!state?.problem || !!channel.e2ee.lost
   return (
     <>
       <button className={`icon-button e2ee-header ${warn ? 'warn' : ''}`} onClick={() => setOpen(true)} aria-label={t('e2ee.panel.open')} title={t('e2ee.badge')}
@@ -218,6 +218,8 @@ export function EncryptedWriteBlock({ server, channel, text }: { server: ServerS
 /** Under a message of an encrypted channel: its decrypted attachments, or why it can't be shown. */
 export function EncryptedBits({ message }: { message: Message }) {
   const shown = shownOf(message)
+  // A message without an envelope in an encrypted channel: said plainly, nothing of it shown.
+  if (shown?.plain) return <div className="e2ee-note e2ee-flag" data-testid="e2ee-not-encrypted" role="note"><Lock size={12} /> {t('e2ee.message.notEncrypted')}</div>
   if (!message.e2ee) return null
   if (!shown || shown.state === 'pending') return <div className="e2ee-note muted">{t('e2ee.message.pending')}</div>
   if (shown.state === 'error') {
@@ -245,6 +247,7 @@ export function useEncryptedWriteBlock(server: ServerState, channelId: number): 
   const channel = encryptedChannel(server.key, channelId)
   const state = useE2ee((s) => (channel ? s.channels[slotOf(server.key, channel.id)] : undefined))
   if (!channel) return null
+  if (channel.e2ee?.lost) return t('e2ee.panel.problem', { problem: e2eeText(DOWNGRADED) })
   if (state?.problem) return t('e2ee.panel.problem', { problem: e2eeText(state.problem) })
   if (!state || !state.members.includes(server.me?.accountKey ?? '') || !state.hasKey) return t('e2ee.waiting')
   return null

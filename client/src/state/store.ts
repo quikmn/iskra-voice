@@ -157,15 +157,26 @@ export function forgetChannels(key: string, channelIds: number[], how: ChannelsG
  * can't read them any more), or that are listed with a different createdAt (another channel under the same id), are
  * forgotten first.
  */
-export function applyChannels(key: string, channels: Channel[]): void {
+export function applyChannels(key: string, listed: Channel[]): void {
   const known = knownStamps(key)
-  rememberStamps(key, channels)
+  rememberStamps(key, listed)
   if (known) {
-    const { hidden, replaced } = classifyGone(known, channels)
+    const { hidden, replaced } = classifyGone(known, listed)
     forgetChannels(key, hidden, { replaced: false, createdAt: known })
     forgetChannels(key, replaced, { replaced: true, createdAt: known })
   }
+  const channels = channelsGuard(key, listed, useApp.getState().servers[key]?.channels ?? [])
   patchServer(key, () => ({ channels }))
+}
+
+type ChannelsGuard = (key: string, listed: Channel[], before: Channel[]) => Channel[]
+let channelsGuard: ChannelsGuard = (_key, listed) => listed
+/**
+ * state/e2eeChannels.ts keeps a channel this device knows is end-to-end encrypted marked so, whatever a new channel
+ * list says (security review R3-1: a server must not be able to turn the encryption off by leaving the flag out).
+ */
+export function setChannelsGuard(guard: ChannelsGuard): void {
+  channelsGuard = guard
 }
 const TYPING_MS = 6_000
 
@@ -477,7 +488,6 @@ function onWelcome(key: string, welcome: Welcome): void {
     name: welcome.server.name,
     joining: false,
     me: welcome.you,
-    channels: welcome.channels,
     members: Object.fromEntries(welcome.members.map((m) => [m.accountKey, m])),
     voice: Object.fromEntries(welcome.voice.map((v) => [v.channelId, v.participants])),
     voiceAvailable: welcome.voiceAvailable,
@@ -834,6 +844,13 @@ export function notifyTyping(key: string, channelId: number): void {
 export function connectionFor(key: string): Connection | undefined {
   return connections.get(key)
 }
+
+/** A stand-in connection for a server, and a way to hand it server events (tests). */
+export function setConnectionForTests(key: string, connection: Pick<Connection, 'request' | 'isOnline'> | null): void {
+  if (connection) connections.set(key, connection as Connection)
+  else connections.delete(key)
+}
+export const serverEventForTests = <K extends keyof Events>(key: string, type: K, body: Events[K]): void => onEvent(key, type, body)
 
 export async function renameMe(name: string): Promise<void> {
   const current = useApp.getState().profile
