@@ -239,7 +239,7 @@ public class SelfAssignRoleTests
     [InlineData("""{ "name": "x", "roles": [ { "name": "PC", "selfAssign": true, "permissions": ["kickMembers"] } ] }""", "can't have permissions")]
     [InlineData("""{ "name": "x", "roles": [ { "name": "PC" } ], "roleGroups": [ { "title": "P", "roles": ["PC"] } ] }""", "needs \"selfAssign\": true")]
     [InlineData("""{ "name": "x", "roles": [ { "name": "PC", "selfAssign": true } ], "roleGroups": [ { "title": "P", "roles": ["Xbox"] } ] }""", "isn't one of the template's roles")]
-    [InlineData("""{ "name": "x", "roles": [ { "name": "PC", "selfAssign": true } ], "roleGroups": [ { "title": "", "roles": ["PC"] } ] }""", "The title must be 1–60 characters")]
+    [InlineData("""{ "name": "x", "roles": [ { "name": "PC", "selfAssign": true } ], "roleGroups": [ { "title": "", "roles": ["PC"] } ] }""", "'title' must be 1–60 characters")]
     [InlineData("""{ "name": "x", "roles": [ { "name": "PC", "selfAssign": true } ], "roleGroups": [ { "title": "P", "roles": [] } ] }""", "'roles' needs 1–25")]
     public void Templates_with_bad_pick_groups_are_refused(string json, string problem)
     {
