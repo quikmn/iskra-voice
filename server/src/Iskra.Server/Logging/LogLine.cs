@@ -87,6 +87,8 @@ public static partial class LogLine
             sb.Append("name=").Append(Value(exception.GetType().Name));
             if (Frame(exception) is { } frame) sb.Append(" frame=").Append(Value(frame));
             if (exception.InnerException is { } inner) sb.Append(" inner=").Append(Value(inner.GetType().Name));
+            // The database library's own wrong-state messages are fixed text (never data): they say which rule broke.
+            if (exception is InvalidOperationException && exception.Source == "Microsoft.Data.Sqlite") sb.Append(" why=").Append(Value(exception.Message.Length > 160 ? exception.Message[..160] : exception.Message));
         }
         return sb.ToString();
     }

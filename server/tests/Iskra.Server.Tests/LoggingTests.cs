@@ -93,6 +93,20 @@ public class LoggingTests
     }
 
     [Fact]
+    public void The_database_librarys_own_wrong_state_errors_say_which_rule_broke()
+    {
+        // A command on a closed connection: the library's fixed text names the rule (FLAKES: restore drill).
+        using var db = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        using var cmd = db.CreateCommand();
+        cmd.CommandText = "SELECT 1;";
+        var caught = Assert.Throws<InvalidOperationException>(() => cmd.ExecuteScalar());
+        var line = LogLine.Format(T, LogLevel.Error, new LogEntry("srv", "sess", "failed", "SRV-910", [("op", "backup.create")]), caught);
+        Assert.Contains(" name=InvalidOperationException ", line);
+        Assert.Contains(" why=", line);
+        Assert.Contains("open", line[line.IndexOf(" why=", StringComparison.Ordinal)..]);
+    }
+
+    [Fact]
     public void Plain_ILogger_messages_become_one_scrubbed_line()
     {
         var lines = new List<string>();
