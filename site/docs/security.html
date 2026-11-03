@@ -73,7 +73,7 @@
 <main class="doc docs-main" id="top">
   <div class="doc-kicker">Docs</div>
   <h1>How Iskra keeps you safe</h1>
-  <p class="updated">Last updated <time datetime="2026-10-18">18 October 2026</time></p>
+  <p class="updated">Last updated <time datetime="2026-11-03">3 November 2026</time></p>
   <details class="mobile-toc">
     <summary>On this page</summary>
     <ul class="toc-list"><li class="l2"><a href="#your-account-is-a-key">Your account is a key</a></li><li class="l2"><a href="#replacing-your-account-key">Replacing your account key</a></li><li class="l2"><a href="#your-devices">Your devices</a></li><li class="l2"><a href="#your-keys-on-your-device">Your keys on your device</a></li><li class="l2"><a href="#key-transparency">Key transparency</a></li><li class="l2"><a href="#who-can-read-what">Who can read what</a></li><li class="l2"><a href="#what-servers-do-to-protect-members">What servers do to protect members</a></li><li class="l2"><a href="#limitations">Limitations</a></li><li class="l2"><a href="#the-desktop-app">The desktop app</a></li><li class="l2"><a href="#found-a-problem">Found a problem?</a></li></ul>
@@ -114,6 +114,7 @@
 <ul>
 <li><strong>the desktop app:</strong> your operating system's keychain (Windows DPAPI, macOS Keychain, or GNOME Keyring / KWallet on Linux). A copy of Iskra's data folder is useless on another computer or user account. On Linux without a keyring, the app says so and uses the browser method below.</li>
 <li><strong>the browser:</strong> a key the browser keeps for Iskra and never reveals to the page (a non-extractable WebCrypto key). That keeps your keys out of copies, exports and casual snooping of the stored data. It does <em>not</em> stop someone who can use your browser profile or run code in the app.</li>
+<li><strong>the phone apps (iPhone, Android):</strong> the browser method above, inside the app's web view, in the app's private storage; there's no extra Android Keystore or iOS Keychain wrapping. Android keeps it out of cloud backups and device transfers (backups are off for the app). On iPhone the app's storage isn't excluded from iPhone backups (iCloud or a computer) yet. The app's page can read the app's own files (that's how shared files reach it), so as in a browser, code running in the page could read the stored data; React-only rendering and the CSP are what stop that. With an app lock, a copy of the storage (a backup, say) is useless without your passphrase or passkey.</li>
 <li><strong>an app lock (optional, My settings → App lock):</strong> a passphrase, stretched with Argon2id, that Iskra asks for at every start. Without it, nobody can read your keys or messages from the device's storage, even with a full copy. Forget it and you'll need your recovery key.</li>
 <li><strong>passkeys (optional, My settings → App lock):</strong> unlock with your fingerprint, face, device PIN or a security key (Windows Hello, Touch ID and Face ID, Android, iCloud Keychain, Google Password Manager, security keys). This isn't just a screen in front of the app: Iskra asks the passkey for its PRF secret (the WebAuthn PRF extension, which only that passkey can produce, after it has checked it's you) and derives the key that unlocks your data from it (HKDF). Without the passkey or your passphrase, the stored keys stay encrypted. Passkeys that can't do PRF are refused with an explanation, and the passphrase is always there instead. You can add several (a laptop's Windows Hello and a security key, say), rename and remove them; your recovery key works as before.</li>
 </ul>
@@ -140,8 +141,12 @@
 <td>Recent versions, with security keys and passkeys that support PRF</td>
 </tr>
 <tr>
-<td>Android (Chrome, and the Iskra app, which runs in Chrome)</td>
+<td>Chrome on Android</td>
 <td>Yes, with Google Password Manager passkeys and security keys</td>
+</tr>
+<tr>
+<td>Android app</td>
+<td>Not yet. The app runs in Android's System WebView, and it doesn't turn WebView's passkey support on yet, so the app lock offers no passkey there (or says passkeys aren't supported) and you use a passphrase</td>
 </tr>
 <tr>
 <td>Desktop app on Windows</td>

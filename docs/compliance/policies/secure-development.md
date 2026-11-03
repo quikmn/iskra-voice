@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Owner | Viktor Lundgren — spark@iskra.foo |
-| Version | 1.0, 2026-10-11 |
+| Version | 1.1, 2026-11-03 |
 | Next review | 2027-10 |
 | Applies to | All code in this repository, by the maintainer, contributors and AI coding agents |
 
@@ -41,20 +41,35 @@
 | Interop (TS client ↔ .NET server) and Playwright end-to-end | `ci.yml` jobs `interop` and `end-to-end shard 1/4`…`4/4`, summed up by the job `end-to-end` | Every branch push and PR |
 | Release-script tests | `ci.yml` job `scripts-and-drill` | Every push and PR |
 | Backup → restore drill with integrity checks | `ci.yml` job `scripts-and-drill` (artifact `restore-drill-report`) | Every push and PR |
-| Static analysis (CodeQL: C#, JS/TS, workflows) | `.github/workflows/codeql.yml` | PRs, weekly on main |
+| Static analysis (CodeQL: C#, JS/TS, workflows, Android Java, Python) | `.github/workflows/codeql.yml` | PRs, weekly on main |
 | Secret scanning (gitleaks) | `.github/workflows/secrets.yml`, `.gitleaks.toml` | Every push and PR |
 | Supply-chain posture (OpenSSF Scorecard) | `.github/workflows/scorecard.yml` → code scanning | PRs, weekly on main |
-| Dependency updates (npm, NuGet, Actions) with a 7-day cooldown | `.github/dependabot.yml` | Weekly |
+| Dependency updates (npm, NuGet, pip, Actions) with a 7-day cooldown; Dependabot alerts | `.github/dependabot.yml`, repo settings | Weekly; alerts as advisories appear |
 
-Every bug gets a regression test. A change is done when all of CI is green.
+Every bug gets a regression test. A change is done when all of CI is green (checked after it lands, see Review).
 
 ## Review
 
-- Changes are reviewed in a pull request diff (or the commit diff for the solo maintainer) before merging to main;
-  CI must be green. Security-relevant changes (auth, permissions, crypto, file handling, workflows) get a second look
-  with the [ASVS self-assessment](../asvs-l2-self-assessment.md) in mind.
-- AI coding agents work on their own branch and worktree, cannot push, deploy or change GitHub settings, and their
-  work is reviewed before it's merged.
+What actually happens (solo maintainer working with AI coding agents):
+
+- Most changes land on main as local merges or direct commits, not through pull requests; the only regular PRs are
+  Dependabot's. `main` has no branch protection or ruleset yet, so nothing in GitHub forces a review or a green CI
+  before a change lands. The owner decides what is merged and looks at the change (the diff or the agent's report of
+  it) first; there is no second reviewer.
+- Before pushing to main, the full local set of checks is run (tests, type-check, gitleaks; the owner's standing rule),
+  and CI runs on every push. CI isn't a merge gate, but it is a release gate: `release-finalize.yml` refuses to
+  publish unless CI passed on the tagged commit.
+- Security-relevant changes (auth, permissions, crypto, file handling, workflows) get a second look with the
+  [ASVS self-assessment](../asvs-l2-self-assessment.md) in mind, often as a separate review pass by an agent.
+- AI coding agents work in their own branch and git worktree, following [CLAUDE.md](../../../CLAUDE.md). They run
+  with the owner's git and `gh` credentials, so they *can* push, release or change settings; they're told not to
+  unless the owner asks, and a `release-runner` agent ships releases when asked. That is an instruction, not a
+  technical control.
+- Releases go only through `scripts/release.ps1` or the Release button (the same checks): every check runs first and
+  any red stops it before anything changes ([docs/ci-cd.md](../../ci-cd.md)).
+- Planned to close the gap: a ruleset on main (no force-push or deletion; tags `v*` and `bots-sdk-v*` limited to the
+  owner) and, for agents, a token that can't push to main or change settings
+  ([owner-actions.md](../owner-actions.md) #6).
 
 ## Release integrity
 
@@ -68,3 +83,4 @@ builds are signed with the Developer ID and notarized ([docs/ci-cd.md](../../ci-
 | Date | Change |
 |---|---|
 | 2026-10-11 | First version |
+| 2026-11-03 | Review section describes the real process (direct commits, agents with the owner's credentials, no branch protection yet); CodeQL and Dependabot coverage |

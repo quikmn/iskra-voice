@@ -167,13 +167,13 @@ Gap: write a short STRIDE-style threat model per component (server, client, desk
 | Area | Evidence | Verdict |
 |---|---|---|
 | 14.1 Build and deploy | Reproducible CI builds, pinned actions, minimal permissions, `release` environment, attestations, SBOMs | met |
-| 14.2 Dependencies | Lock files, Dependabot with cooldown, SBOMs, Scorecard | met |
+| 14.2 Dependencies | Lock files, Dependabot version updates with cooldown (npm, NuGet, pip, Actions), Dependabot alerts (on since 2026-11-03), SBOMs, Scorecard. Not yet: triage of the open alerts (Scorecard lists known vulnerabilities, most in the DeepFilterNet build's `Cargo.lock`; nothing records yet which affect shipped code) and Dependabot security updates | partial |
 | 14.3 Unintended disclosure | No stack traces to clients; server returns only `{"iskra":1,"name":…}` at `/` | met |
 | 14.4 HTTP security headers (server) | `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `frame-ancestors 'none'` / `X-Frame-Options: DENY` except framed profile pages, HSTS on HTTPS; the public page (`GET /` in a browser) has no scripts and a CSP that allows only its own hashed stylesheet and this server's pictures | met |
 | 14.4 HTTP security headers (app.iskra.foo) | `_headers`: `X-Frame-Options: SAMEORIGIN` and `frame-ancestors 'self'` (only the app frames itself: one frame per account when several are signed in), `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, COOP ([client/public/_headers](../../client/public/_headers)). **No `Content-Security-Policy`** for the app itself yet | partial |
 | 14.5 HTTP request header validation | Kestrel defaults; Host-based redirects use the configured public URL | met |
 
-Gaps: add a Content-Security-Policy to app.iskra.foo (and the desktop app's `app://` origin) restricting
+Gaps: triage the Dependabot and code-scanning alerts and record accepted ones in the risk register (14.2); add a Content-Security-Policy to app.iskra.foo (and the desktop app's `app://` origin) restricting
 `script-src 'self'` and `connect-src` to server origins; write the V1 threat model.
 
 ## Mapping to ASVS 5.0

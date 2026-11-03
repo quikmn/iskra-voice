@@ -80,27 +80,27 @@ every push.
 |---|---|
 | JDK 21 (Capacitor 8 needs it) | `devtools\jdk-21`, else `JAVA_HOME`, else `C:\Program Files\Java\jdk-21`; or `ISKRA_ANDROID_JDK` |
 | Android SDK | `devtools\android-sdk` (platform 36, build-tools 36.1.0; see `docs/ci-cd.md` "Android"). Gradle (wrapper 8.14.3) downloads itself |
-| Release key | `devkeys\iskra-android.keystore` + `iskra-android-keystore.txt`. Same key as the old app: never replace it |
+| Release key | `devkeys\iskra-android.keystore` + `iskra-android-keystore.txt`. Same key as every earlier Android build: never replace it |
 
 ### Versions
 
 - iOS: `CFBundleShortVersionString` = the numeric part of `desktop/package.json`'s version (`2.0.0-alpha.10` → `2.0.0`);
   `CFBundleVersion` = `<code>.<run>.<attempt>`.
 - Android: `versionName` = the version, `versionCode` = `(major*10000 + minor*100 + patch)*1000` + 100+n (alpha.n),
-  200+n (beta.n), 300+n (rc.n) or 900 (final): the same scheme as the old app (last: 2.0.0-alpha.7 = 20000107), so
+  200+n (beta.n), 300+n (rc.n) or 900 (final): the same scheme as the earlier Android builds (last: 2.0.0-alpha.7 = 20000107), so
   every release updates the one before. Since 2.0.0-alpha.13 the code has one more digit, a rebuild number (`-Rebuild 0-9`: 2.0.0-alpha.13 = 200001130), so a version can be uploaded to Google Play again; every such code is above the older ones.
 
 ## How the web client runs inside the app
 
 The page is served by the app itself, from `capacitor://localhost` (iOS) or `http://localhost` (Android; still a
-secure context, and an http page may open `ws://` LAN servers). What depends on the page's origin:
+secure context). What depends on the page's origin:
 
 | Thing | In the app |
 |---|---|
 | Iskra servers (WebSocket, uploads, files) | No origin checks on the server; HTTP endpoints answer `Access-Control-Allow-Origin: *`. Nothing to allow |
 | Profile pages (framed) | The server's `frame-ancestors` lists `capacitor://localhost` and `http://localhost:*` (ProfilePages.cs, tested) |
 | CSP (`client/src/csp.ts`) | Unchanged: `'self'` is the app's origin; Capacitor's bridge script is injected by the web view |
-| LAN servers without HTTPS | Work, like the desktop app. Public hosts need HTTPS (they have it) |
+| LAN servers without HTTPS | **Android: don't work.** The app targets a recent Android and has no network security config, so Android blocks unencrypted connections (`ws://`, `http://`) from it; join over HTTPS. iOS: `NSAllowsLocalNetworking` is set, but it isn't confirmed on a device that WebKit lets `capacitor://localhost` open `ws://`. Public hosts need HTTPS (they have it). Making Android work would take a `network_security_config.xml` with `cleartextTrafficPermitted` (domain configs can't name private IP ranges), with the client's rule that only private addresses may be plain |
 | Invite and message links the app shares | Point at the server's web app or https://app.iskra.foo, never the app's own origin |
 | Invite links tapped elsewhere | iOS: Universal Links (`#/join/…`, `#/link/…`). Android: App Links for `https://app.iskra.foo/` (Android can't match the `#` part, so any root link opens the app). Both: `iskra://join/…` |
 | Microphone, camera | iOS: Info.plist texts. Android: runtime permissions when a page first asks (Capacitor's web view client) |
@@ -127,7 +127,7 @@ native side only keeps the app alive and tells the system.
 
 **Check on devices:** in a voice channel, lock the phone for 2 minutes: you still hear and are heard. In a call, the
 lock screen shows it (iOS: CallKit; Android: the "In voice" notification) and ending it there leaves. Android: install
-the APK over the old app (it must update in place, not install a second app).
+the APK over an earlier Android build (it must update in place, not install a second app).
 
 **Known limits:** WKWebView's microphone capture in the background depends on iOS keeping the web view's audio alive;
 it works with the audio mode and CallKit in testing elsewhere but verify on each new iOS version. The App Store doesn't
@@ -139,7 +139,7 @@ supported any more (Capacitor 8 needs 7).
 `client/public/.well-known/apple-app-site-association` is served at https://app.iskra.foo/.well-known/apple-app-site-association
 (`_headers` gives it `application/json`). It lists `BWX2M8XSNZ.foo.iskra.app` for `#/join/*` and `#/link/*` only.
 `client/public/.well-known/assetlinks.json` holds the release key's SHA-256 for `foo.iskra.app` (unchanged from the
-old app; add Play's app-signing fingerprint if Google Play ever signs the app). Deploy the web app (deploy.yml `webapp`)
+earlier Android builds; add Play's app-signing fingerprint if Google Play ever signs the app). Deploy the web app (deploy.yml `webapp`)
 after changing either. Check: `curl -sI https://app.iskra.foo/.well-known/apple-app-site-association` and
 `adb shell pm get-app-links foo.iskra.app` (Android: `verified`).
 

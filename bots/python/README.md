@@ -35,7 +35,7 @@ Start it once with `ISKRA_INVITE='<bot invite link>'`; it keeps its keys and the
 file the Node SDK uses, so a bot can switch languages). Keep that file private: it *is* the bot.
 
 Everything else (commands with options, buttons, forms, cards, files, polls, DMs, limits): the
-[bot guide](https://github.com/quikmn/iskra-voice/blob/main/docs/bots.md#python). The example Dice bot is in
+[bot guide](https://iskra.foo/docs/bots#python). The example Dice bot is in
 `examples/dice.py`.
 
 Tests: `pip install -e ".[test]"`, then `pytest`.

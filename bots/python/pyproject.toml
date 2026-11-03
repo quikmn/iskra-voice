@@ -23,7 +23,7 @@ dependencies = ["pynacl>=1.5", "websockets>=13"]
 test = ["pytest>=8"]
 
 [project.urls]
-Homepage = "https://github.com/quikmn/iskra-voice/blob/main/docs/bots.md"
+Homepage = "https://iskra.foo/docs/bots#python"
 Issues = "https://github.com/quikmn/iskra-voice/issues"
 
 [tool.setuptools.packages.find]

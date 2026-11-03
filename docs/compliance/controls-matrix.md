@@ -43,7 +43,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 | CC6.6 External threats at the boundary | Firewall (ufw) on the droplet; rate and size limits; LiveKit API on 127.0.0.1; HTTPS redirect | CICD §4 "The server", [RateLimiter.cs][rate] | met |
 | CC6.7 Data in transit | TLS 1.2+ with HSTS; E2EE for DMs/groups/calls; encrypted Web Push | [Program.cs][program], SEC | met |
 | CC6.8 Malicious software | Signed/notarized apps, attestations, CodeQL, gitleaks; owner device hardening | CICD §1, [secrets.yml][secretsyml], OA 15 | partial |
-| CC7.1 Detection of vulnerabilities and config changes | Dependabot, CodeQL, Scorecard, gitleaks; GitHub secret scanning to enable | [dependabot.yml][dependabot], OA 2–5 | owner-action |
+| CC7.1 Detection of vulnerabilities and config changes | Dependabot version updates and alerts, CodeQL, Scorecard, gitleaks, GitHub secret scanning and push protection; the open code-scanning and Dependabot alerts aren't triaged yet; Dependabot security updates off | [dependabot.yml][dependabot], OA 4–5 | partial |
 | CC7.2 Monitoring for anomalies | SecLog (auth failures, rate limits, new devices); no external uptime monitoring yet | SecLog, OA 10 | partial |
 | CC7.3 Evaluating security events | Severity levels and triage | POL/incident-response | met |
 | CC7.4 Incident response | Plan with containment steps, evidence, notification templates | POL/incident-response | met |
@@ -102,7 +102,7 @@ security log (`security_log` table, `security.log.list`, Settings → Security l
 | 5.14 Information transfer | TLS, E2EE, encrypted backups (passphrase sealed to the server key) | SEC | met |
 | 5.15 Access control | Policy and product access control | POL/access-control | met |
 | 5.16 Identity management | Accounts are keys; device certificates; signed per-server key log (key transparency) with client-side checks and gossip; admin accounts listed | POL/access-control, POL/asset-inventory | met |
-| 5.17 Authentication information | Recovery keys user-held; secrets in GitHub/devkeys; third-party keys a server holds (KLIPY key, the Feeds bot's Twitch app secret) stay in `iskra.db`, never sent to apps, removable by admins/the owner (docs/security.md, Feeds); MFA and old v1 secrets to handle | OA 1, OA 18 | owner-action |
+| 5.17 Authentication information | Recovery keys user-held; secrets in GitHub/devkeys; third-party keys a server holds (KLIPY key, the Feeds bot's Twitch app secret) stay in `iskra.db`, never sent to apps, removable by admins/the owner (docs/security.md, Feeds); MFA and old secrets in the public history to handle | OA 1, OA 18 | owner-action |
 | 5.18 Access rights | Yearly access review defined | POL/access-control "Access review" | owner-action |
 | 5.19 Supplier relationships | Vendor register with checks before adding | POL/vendor-register | met |
 | 5.20 Security in supplier agreements | DPAs to confirm and file | OA 12 | owner-action |
@@ -170,11 +170,11 @@ Hosted services run at Cloudflare and DigitalOcean, whose data-centre controls a
 | 8.5 Secure authentication | Ed25519 challenge-response, device certificates and revocation; passkey (biometric/PIN/security key) app unlock; key transparency against servers swapping keys; MFA on admin accounts | [Session.cs][session], [HandshakeTests.cs][handshake], OA 1 | partial |
 | 8.6 Capacity management | Limits and quotas; no capacity alerts | HOST, OA 10 | partial |
 | 8.7 Protection against malware | Uploads typed by content and served sandboxed; signed releases; CodeQL | [Uploads.cs][uploads], CICD | met |
-| 8.8 Management of technical vulnerabilities | Policy with SLAs, Dependabot, CodeQL, Scorecard; GitHub alert settings pending | POL/vulnerability-management, OA 2–5 | partial |
+| 8.8 Management of technical vulnerabilities | Policy with SLAs, Dependabot (alerts on since 2026-11-03), CodeQL, Scorecard; the alert backlog isn't triaged yet and Dependabot security updates are off | POL/vulnerability-management, OA 4–5 | partial |
 | 8.9 Configuration management | `server.json` documented; workflows and infrastructure steps in git/docs; droplet config documented, not code | HOST, CICD §4 | partial |
 | 8.10 Information deletion | Retention sweeper, upload sweeper, account deletion (moderators' notes about the account included), join requests pruned (7 days; refusals 1 day), empty voice rooms removed | POL/data-retention, [RetentionSweeper.cs][retention] | met |
 | 8.11 Data masking | Audit/report entries and the "people who left" entry keep actions with names removed after deletion; join requests show moderators the invite's last characters, never the code or an address; push DM notifications have no content; KLIPY gets a pseudonym | SEC, PRIV | met |
-| 8.12 Data leakage prevention | No analytics; link previews fetched by server; gitleaks in CI; push protection pending; old v1 secrets to revoke | [secrets.yml][secretsyml], OA 2, OA 18 | partial |
+| 8.12 Data leakage prevention | No analytics; link previews fetched by server; gitleaks in CI; GitHub secret scanning and push protection on (2026-11-03); old secrets in the public history to revoke | [secrets.yml][secretsyml], OA 2, OA 18 | partial |
 | 8.13 Information backup | Daily + encrypted backups; off-site to backup buddies (encrypted at the source, signed server-to-server requests, holder quota, versions, rate limits and grace period; [BuddyBackupTests.cs][buddytests]; the CI restore drill also restores the buddy copy); off-site copies for chat.iskra.foo pending | [BackupService.cs][backupsvc], [BuddyBackupService.cs][buddysvc], OA 9 | partial |
 | 8.14 Redundancy | Single droplet; static sites on Cloudflare's network | POL/risk-register R9 (accepted) | partial |
 | 8.15 Logging | SecLog + Audit (join approvals, refusals and invite pauses included), no content or secrets (moderators' notes never reach the audit log), configurable retention, owner export. The server's operational log: one UTC line per event with codes, a fixed field allowlist and scrubbing (no names, text, keys, tokens, IPs or paths), daily files trimmed by age and size; a canary test proves a busy session leaves nothing personal | [ComplianceFeature.cs][seclog], [ModerationFeature.cs][moderation], [ComplianceTests.cs][compliancetests], [LogLine.cs][logline], [LoggingTests.cs][loggingtests] | met |
@@ -192,7 +192,7 @@ Hosted services run at Cloudflare and DigitalOcean, whose data-centre controls a
 | 8.27 Secure architecture and engineering principles | Zero trust in clients, E2EE, least privilege, single writer | SEC, [CLAUDE.md][claude] | met |
 | 8.28 Secure coding | Rules in CLAUDE.md, CodeQL, React-only rendering, parameterised SQL | [codeql.yml][codeql] | met |
 | 8.29 Security testing in development and acceptance | Server permission/safety tests, interop, e2e, CodeQL; no external pen test | CI, [SafetyTests.cs][safetytests] | partial |
-| 8.30 Outsourced development | AI agents work on branches without push/deploy rights; reviewed before merge | POL/secure-development "Review" | met |
+| 8.30 Outsourced development | AI agents work in worktrees under CLAUDE.md rules, but with the owner's credentials (can push and deploy); the owner decides what merges; no branch protection or PR gate yet | POL/secure-development "Review", OA 6 | partial |
 | 8.31 Separation of dev, test and production | Local and CI test worlds (localhost only); production on the droplet; deploys only via `release` environment | POL/change-management | met |
 | 8.32 Change management | Release pipeline, approvals, rollback; ruleset pending | POL/change-management, OA 6–7 | partial |
 | 8.33 Test information | Tests generate synthetic data; production data never used | POL/change-management rule 6 | met |

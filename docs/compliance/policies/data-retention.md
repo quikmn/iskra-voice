@@ -116,6 +116,14 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 - Apps keep keys, decrypted DMs, settings and the server list on the device until the user signs out, deletes the
   account or removes the app. Disappearing messages are deleted from the device (screen, storage, notifications) when
   their time is up, also if the app was closed then (on its next start). "Download data on this device" (Settings → Privacy & data) exports it.
+  With several accounts in one app, each account keeps its own copy of all this (its own storage keys and databases);
+  removing one account from the device deletes that account's storage, databases and push registrations, and leaves
+  the other accounts' alone.
+- Share to Iskra (phone apps): the text and copies of the shared files wait in the app's private storage only until
+  they're sent or cancelled. Android: the app's cache folder (`cache/shared/`), replaced by the next share and cleared
+  when the app next starts without one. iPhone: the App Group's `Shares/<id>/` folder, removed once taken and at the
+  latest after a day. The last 8 servers or chats shared to ("recents") are kept per account on the device
+  (`localStorage`) until sign-out or the app's data is removed.
 - What an app keeps for a server channel (messages, its threads, drafts, read state, decrypted messages of an
   encrypted channel, docs, boards, forum markers) is dropped from the device as soon as the channel is deleted or the
   member can no longer read it, at the latest on the next connection. An encrypted channel's signed history and keys
@@ -171,3 +179,4 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
 | 2026-10-17 | Bots on this PC: the bots the desktop app runs, their settings, keys, data and logs on the user's computer |
 | 2026-10-17 | Personal assistant (bring your own AI): settings and key sealed on the device, conversation in memory, activity list on the device; nothing on servers |
 | 2026-10-18 | Who can message me and message requests: the setting and each person's request state |
+| 2026-11-03 | Share to Iskra on the phones (file copies, share recents); several accounts in one app (per-account storage, what removing one deletes) |

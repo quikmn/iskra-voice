@@ -31,7 +31,7 @@ export const compliance: Messages['compliance'] = {
     watch: {
       who: 'Videor i Titta tillsammans',
       when: 'När du trycker på Titta medan Titta tillsammans spelar upp från YouTube eller en annan webbplats (inte för videor som laddats upp till servern).',
-      off: 'Den webbplatsen ser din IP-adress. Du kan hoppa över den och stanna kvar i samtalet.',
+      off: 'Den webbplatsen ser din IP-adress (för YouTube även i.ytimg.com, som visar videons bild). Du kan hoppa över den och stanna kvar i samtalet.',
     },
     gifs: {
       who: 'KLIPY (GIF:ar)',

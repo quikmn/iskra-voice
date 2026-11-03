@@ -183,7 +183,7 @@ For the human: agents never touch Play Console (Never, rule 4). Everything to pa
 [docs/store/play](store/play): listing text (`en-US/`, `sv-SE/`), [app-content.md](store/play/app-content.md) (every
 other form), [data-safety.md](store/play/data-safety.md), [content-rating.md](store/play/content-rating.md).
 
-**Signing, decided once.** Every Android build so far (the old app and the GitHub APKs) is signed with the release key
+**Signing, decided once.** Every Android build so far (earlier releases and the GitHub APKs) is signed with the release key
 in `devkeys\iskra-android.keystore`, and `client/public/.well-known/assetlinks.json` lists its fingerprint for App
 Links. Play App Signing re-signs what you upload with an *app signing key*; what you upload is signed with the *upload
 key*. Choose **"Use a key from Java keystore"** (upload the existing key, encrypted by Google's PEPK tool) so Play

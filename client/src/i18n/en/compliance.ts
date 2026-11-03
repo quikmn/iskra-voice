@@ -29,7 +29,7 @@ export const compliance = {
     watch: {
       who: 'Watch-party videos',
       when: 'When you press Watch in a watch party that plays from YouTube or another website (not for videos uploaded to the server).',
-      off: 'That site sees your IP address. You can skip it and stay in the call.',
+      off: "That site sees your IP address (for YouTube also i.ytimg.com, which shows the video's picture). You can skip it and stay in the call.",
     },
     gifs: {
       who: 'KLIPY (GIFs)',

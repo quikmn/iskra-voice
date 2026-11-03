@@ -7,9 +7,9 @@ last column) and updating the matrix in the same commit. Menu names change over 
 | # | Action | Matrix rows | Done |
 |---|---|---|---|
 | 1 | MFA everywhere | ISO 5.17, 8.5; CC6.1 | |
-| 2 | GitHub secret scanning and push protection | ISO 8.12; CC6.1, CC7.1 | |
-| 3 | GitHub private vulnerability reporting | ISO 5.24, 8.8; CC2.3 | |
-| 4 | Dependabot alerts and security updates | ISO 8.8; CC7.1 | |
+| 2 | GitHub secret scanning and push protection | ISO 8.12; CC6.1, CC7.1 | 2026-11-03 (checked: both enabled) |
+| 3 | GitHub private vulnerability reporting | ISO 5.24, 8.8; CC2.3 | 2026-11-03 |
+| 4 | Dependabot alerts and security updates | ISO 8.8; CC7.1 | Alerts 2026-11-03; security updates still off |
 | 5 | Code scanning alerts (CodeQL, Scorecard) reviewed | ISO 8.8, 8.29; CC7.1 | |
 | 6 | Ruleset on `main` | ISO 8.4, 8.32; CC8.1 | |
 | 7 | `release` environment: reviewers, branches, environment secrets | ISO 8.2, 8.32; CC6.3, CC8.1 | |
@@ -43,7 +43,7 @@ backup (action 8).
 - **Certum / SimplySign:** a TOTP code per session (phone app, or the seed stored on the home PC for automatic
   logins); protect the Certum shop account with a strong unique password and MFA if offered.
 - **GitHub Actions (self-hosted runner):** Settings → Actions → General → fork pull request workflows → **Require
-  approval for all external contributors** (docs/ci-cd-playbook.md, O.1).
+  approval for all external contributors** (docs/ci-cd-playbook.md, O.1). Done 2026-11-03.
 - **Domain registrar** for iskra.foo: turn on 2FA and registrar lock; check auto-renew.
 - **Mailbox** that receives spark@iskra.foo (it can reset everything above): 2FA with a passkey.
 - **KLIPY, Resend (if used), Ko-fi, PayPal:** 2FA in each account's security settings.
@@ -172,7 +172,7 @@ it on (for example during an attack), update privacy.html §3 first and say for 
 
 ## 18. Old secrets in public git history
 
-gitleaks found possible secrets in the retired v1 code that is still in the public history (tags `v1-final`,
+gitleaks found possible secrets in an earlier codebase that is still in the public history (tags `v1-final`,
 `v1.0`). They are suppressed by fingerprint in `.gitleaksignore` so the scan stays green; history isn't rewritten.
 Treat them as public and make sure none still works:
 

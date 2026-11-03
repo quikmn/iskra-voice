@@ -304,7 +304,7 @@ Prefer to forward ports yourself? Set `"PortMapping": false` and your `Domain` i
 2. Opens your share link and presses **Accept**. They only see your computer, nothing else.
 3. Keeps Tailscale on, opens your Iskra invite in the Iskra app and joins. Chat, voice and video work as usual.
 
-**How Iskra handles it.** Iskra finds Tailscale on its own computer only from the network interfaces (an address in `100.64.0.0/10` on Tailscale's adapter: `Tailscale` on Windows, `tailscale0` on Linux, a `utun` interface on macOS); it never asks Tailscale's service or app. Friends who connect over a Tailscale address (or a MagicDNS name ending in `.ts.net`) get voice through that same address, and voice advertises this computer's own addresses, Tailscale's included, so voice and video work over it. Friends on your home network keep using the usual invite. The link is plain HTTP, which is fine here: Tailscale encrypts the whole path, and Iskra's own end-to-end encryption for DMs and private channels works as always. Browsers need HTTPS, so friends join with the Iskra app.
+**How Iskra handles it.** Iskra finds Tailscale on its own computer only from the network interfaces (an address in `100.64.0.0/10` on Tailscale's adapter: `Tailscale` on Windows, `tailscale0` on Linux, a `utun` interface on macOS); it never asks Tailscale's service or app. Friends who connect over a Tailscale address (or a MagicDNS name ending in `.ts.net`) get voice through that same address, and voice advertises this computer's own addresses, Tailscale's included, so voice and video work over it. Friends on your home network keep using the usual invite. The link is plain HTTP, which is fine here: Tailscale encrypts the whole path, and Iskra's own end-to-end encryption for DMs and private channels works as always. Browsers need HTTPS, so friends join with the Iskra desktop app (the Android app needs HTTPS too, and plain links on the iPhone app aren't confirmed yet).
 
 **If friends can't connect:** check that Tailscale is on for both of you, that your share link was accepted, and that your computer is awake. Windows may ask once to allow Iskra on the network: choose **Allow**. You can also put the address in `server.json` yourself, `"PublicUrl": "http://100.101.102.103:47070"` (your address, or your `.ts.net` name): then every invite uses it, and voice still works.
 
@@ -431,18 +431,16 @@ The GIF picker uses [KLIPY](https://docs.klipy.com) (Google closed Tenor's API i
 1. Go to [partner.klipy.com](https://partner.klipy.com) and sign up (free).
 2. Click **Add Platform**. Name: your server's name. Website: any, for example iskra.foo. Describe it as "GIF picker for a chat server", agree to the terms, submit.
 3. Click **Create API Key**, give it a name, and copy the key it shows.
-4. In Iskra: **Server settings → GIFs**, paste the key and click **Turn on**. Send a GIF to check.
+4. In Iskra: **Server settings → GIFs**, paste the key and click **Turn on**. Send a GIF to check. To turn GIFs off later, click **Turn off** there.
 
 The free key is a test key (KLIPY limits it to 100 searches an hour, shared by the whole server). For a busy server, click the **⋯** next to the key in KLIPY and choose **Request Production**.
 
 There are two modes:
 
 - **Through this server** (the default): your server searches KLIPY and passes the GIFs along, so members' devices never contact KLIPY: it only sees your server, and the key never leaves it. It uses your server's bandwidth for every GIF shown. KLIPY's standard terms describe apps calling KLIPY directly; if you want their written OK for proxying, ask developers@klipy.com.
-- **Straight from KLIPY** (only if you pick it): members' apps search KLIPY and load GIFs from KLIPY themselves, so KLIPY sees their IP addresses and searches. The key is shared with your members' apps, which is fine for a key made just for your server. GIFs in messages load when clicked, unless someone turned on auto-load for their device (My settings → Appearance).
+- **Straight from KLIPY** (only if you pick it): members' apps search KLIPY and load GIFs from KLIPY themselves, so KLIPY sees their IP addresses and searches. The key is shared with your members' apps, which is fine for a key made just for your server. GIFs in messages load when clicked, unless someone turned on auto-load for their device (My settings → Privacy & data).
 
 Everything else Iskra and your server talk to is listed in [Who Iskra talks to](privacy-connections.md).
-
-To turn GIFs off, click **Turn off** there.
 
 ### Live captions
 

@@ -20,8 +20,10 @@ const config: CapacitorConfig = {
     backgroundColor: '#0B0B14',
   },
   server: {
-    // http://localhost, not https://localhost: still a secure context (microphone, WebCrypto), and LAN servers without
-    // HTTPS keep working as in the desktop app (an https page may not open ws://). Matches the server's frame-ancestors.
+    // http://localhost, not https://localhost: still a secure context (microphone, WebCrypto), and an http page isn't
+    // barred from ws:// as mixed content. Android still blocks unencrypted connections itself (no cleartext permission:
+    // no network security config), so LAN servers without HTTPS don't work in the Android app (README.md). Matches the
+    // server's frame-ancestors.
     androidScheme: 'http',
   },
   plugins: {

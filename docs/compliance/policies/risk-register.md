@@ -25,7 +25,7 @@ Scale: likelihood and impact 1 (low) – 3 (high); score = L × I. Treatment: **
 | R12 | **Regulatory: personal data breach handled late** or a data-subject request missed | 1 | 2 | 2 | Reduce | Incident plan with 72 h steps and templates, data export and deletion in the app, records of processing | Done |
 | R13 | **Commercial use / sale blocked by licensing or missing contracts** | 2 | 2 | 4 | Avoid until decided | PolyForm Noncommercial licence; DPA/SLA templates and a legal entity needed before selling | Open (owner decision) |
 | R14 | **Self-hosters run outdated, vulnerable servers** | 3 | 2 | 6 | Reduce | Desktop apps auto-update their bundled server; release notes and advisories; consider an in-app "update available" notice for standalone servers | Open |
-| R15 | **Old secrets in public git history** (v1: Google API key, TURN credential, a password) could still be valid | 2 | 2 | 4 | Reduce | Revoke/rotate or confirm dead ([owner-actions.md](../owner-actions.md) §18); suppressed by fingerprint in `.gitleaksignore`; no history rewrite (public tags) | Open (owner action) |
+| R15 | **Old secrets in public git history** (an earlier codebase) could still be valid | 2 | 2 | 4 | Reduce | Revoke/rotate or confirm dead ([owner-actions.md](../owner-actions.md) §18); suppressed by fingerprint in `.gitleaksignore`; no history rewrite (public tags) | Open (owner action) |
 
 ## Change log
 
