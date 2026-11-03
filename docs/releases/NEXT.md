@@ -5,5 +5,6 @@
 - Calls look calmer: the controls sit on one row in three groups (you, together, the call), with watch together, whiteboard, activities and the soundboard in one "Together" popover and a little arrow by the mic and camera to pick a device. On phones it's five big buttons and a sheet for the rest. Video tiles fill the call screen, the voice card in the sidebar is tidier, and Draw & guess, the activity list and watch party controls got a cleaner layout.
 
 ### Fixes
+- Draw & guess: the drawing shows for everyone again, not only for the person drawing.
 
 ### Good to know
