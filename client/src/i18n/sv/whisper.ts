@@ -5,7 +5,7 @@ export const whisper = {
   server: 'Listor för',
   listN: 'Lista {{n}}',
   name: 'Namn',
-  namePlaceholder: 'Till exempel ”Laget” eller ”Ledare”',
+  namePlaceholder: 't.ex. Laget eller Ledare',
   to: 'Viska till',
   off: 'Ingen',
   people: 'Personer',
@@ -30,7 +30,7 @@ export const whisper = {
   incomingChannel: '{{name}} viskar till #{{channel}}',
   someone: 'Någon',
   errors: {
-    emptyList: 'Visklista {{n}} är tom. Ställ in den under Inställningar → Röst och ljud.',
+    emptyList: 'Visklista {{n}} är tom. Ställ in den under Mina inställningar → Röst och ljud.',
     muted: 'Du har stängt av mikrofonen. Slå på den för att viska.',
     start: 'Det gick inte att börja viska.',
   },

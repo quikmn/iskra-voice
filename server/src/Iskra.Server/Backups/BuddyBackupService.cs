@@ -111,7 +111,7 @@ public sealed class BuddyBackupService(World world, BackupService backups, Buddy
                 0 => RequestException.BadRequest("That server isn't the one the code was made on.", "buddy_wrong_server"),
                 404 => RequestException.BadRequest("That code was used already or has expired. Ask your friend for a new one.", "buddy_code_used"),
                 409 => RequestException.BadRequest("That server keeps backups for this one already.", "buddy_already"),
-                _ => RequestException.BadRequest($"Your friend's server said no ({ex.Status}).", "buddy_refused", new { status = ex.Status }),
+                _ => RequestException.BadRequest($"Your friend's server turned it down ({ex.Status}). Ask your friend for a new code.", "buddy_refused", new { status = ex.Status }),
             };
         }
         catch (Exception ex) when (FindLocal(ex))

@@ -18,7 +18,7 @@ export const buddies: Messages['buddies'] = {
   keeps_one: 'Sparar din senaste kopia, upp till {{quota}}.',
   keeps_other: 'Sparar dina {{count}} senaste kopior, upp till {{quota}}.',
   state: {
-    sending: 'Skickar den senaste säkerhetskopian … {{percent}} %',
+    sending: 'Skickar den senaste säkerhetskopian… {{percent}} %',
     ok: 'Aktuell: senaste kopian {{when}} ({{size}}).',
     waiting: 'Väntar på första kopian. Den skickas efter nästa dagliga säkerhetskopia, eller klicka på Säkerhetskopiera nu.',
     removed: 'Din vän har slutat spara säkerhetskopior åt den här servern. Ta bort den här.',
@@ -74,6 +74,6 @@ export const buddies: Messages['buddies'] = {
     address: 'Adress till din väns server',
     code: 'Återställningskod',
     restore: 'Återställ',
-    busy: 'Hämtar från din väns server och återställer … det kan ta några minuter.',
+    busy: 'Hämtar från din väns server och återställer… Det kan ta några minuter.',
   },
 }

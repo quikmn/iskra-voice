@@ -8,8 +8,8 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 |---|---|---|---|---|---|
 | AI-110 | WARN | app | ai | The assistant couldn't get an answer from the AI provider the user chose (why= auth, rate, network, http, timeout, bad_response or blocked; status= the provider's HTTP status). | Check the key, address and model in My settings → Assistant; a model on this computer may need to allow requests from Iskra (docs/assistant.md). |
 | AI-120 | WARN | desk | ai | A local MCP client couldn't connect to the desktop app (why= auth, off, busy or socket). | Turn on Allow local MCP clients in My settings → Assistant, keep Iskra open, and add the server again with the command shown there. |
-| BAK-110 | WARN | srv | backup | The daily backup failed. | Check free disk space and that the world folder's backups/ is writable; Settings → Backups shows the last result. |
-| BAK-120 | WARN | srv | backup | A backup couldn't be sent to a backup buddy (why= says what went wrong). | Usually the friend's server is offline; it retries on its own. Settings → Backups → Backup buddies shows the details. |
+| BAK-110 | WARN | srv | backup | The daily backup failed. | Check free disk space and that the world folder's backups/ is writable; Server settings → Backup & move shows the last result. |
+| BAK-120 | WARN | srv | backup | A backup couldn't be sent to a backup buddy (why= says what went wrong). | Usually the friend's server is offline; it retries on its own. Server settings → Backup & move → Backup buddies shows the details. |
 | BAK-130 | WARN | srv | backup | The daily backup couldn't be copied to the extra folder (Backups.CopyTo). | Check that the folder or drive is there and writable. |
 | BAK-140 | INFO | srv | backup | A removed backup buddy couldn't be told that it no longer keeps our backups. | Nothing: it deletes the copies after its grace period anyway. |
 | BAK-150 | WARN | srv | backup | Copies kept for a friend's server couldn't be deleted or swept yet. | Check the world folder's permissions; it tries again. |
@@ -26,7 +26,7 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | DSK-130 | WARN | desk | life | A server hosted in the desktop app couldn't start (why=). | Look at server.log and logs/ in that server's folder. |
 | DSK-140 | WARN | desk | store | The desktop app couldn't save its settings. | Check that the app's data folder is writable. |
 | DSK-150 | WARN | desk | ui | The app's window stopped responding for a while. | Nothing unless it repeats; then report it with the bug report. |
-| DSK-160 | WARN | desk | life | A bot run by the desktop app (My settings → Bots on this PC) stopped without being asked (exit= is its exit code). | Open the bot's log in Bots on this PC: its last lines say why. |
+| DSK-160 | WARN | desk | life | A bot run by the desktop app (My settings → Bots on this computer) stopped without being asked (exit= is its exit code). | Open the bot's log in Bots on this computer: its last lines say why. |
 | DSK-170 | WARN | desk | life | A bot run by the desktop app couldn't start (why=: no-entry, no-python, spawn, not-trusted: the person said no in the confirm dialog). | For your own folder: check it has a package.json main, bot.js or bot.py; Python bots need Python 3.11+ installed. |
 | DSK-900 | ERROR | desk | life | An uncaught error in the desktop app's main process. | Report it with the log lines around it. |
 | E2E-110 | WARN | app | e2ee | Decrypting encrypted voice failed. | Rejoin the channel; report it if it repeats. |
@@ -43,12 +43,12 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | LK-160 | ERROR | lk | voice | LiveKit reported an error (msg= is its own wording, scrubbed). | Report it with the log line if voice misbehaves. |
 | LOG-110 | WARN | srv | sweep | Trimming the log files failed. | Check that the world folder's logs/ is writable. |
 | MED-110 | WARN | app | media | The microphone's noise suppression fell back to RNNoise (why=: start-failed, slow; kind=cpu with count= the realtime load in percent, or kind=late when its frames kept coming back late). | Nothing; report it if the microphone sounds wrong. |
-| MED-120 | WARN | app | media | An audio or video device was lost or changed during a call. | Pick the device again in Settings → Voice. |
+| MED-120 | WARN | app | media | An audio or video device was lost or changed during a call. | Pick the device again in My settings → Voice & audio. |
 | MED-130 | WARN | app | media | Voice activity detection couldn't start; the microphone uses the volume threshold instead. | Nothing; report it if voice activity misbehaves. |
 | MED-140 | WARN | app | media | Cleaning incoming voices isn't available here (or fell back, why= says why). | Nothing; others' voices play as they come. |
 | MED-150 | WARN | app | media | Captions, a transcript or a translation couldn't start or stopped (what= says which). | Try again; on slow devices turn it off. |
 | MED-160 | WARN | app | media | The camera background effect couldn't start or was turned off (why= says why). | Nothing; the camera keeps working without it. |
-| MED-170 | WARN | app | media | The microphone couldn't be captured or sent; you stay muted. | Check the microphone permission and device in Settings → Voice. |
+| MED-170 | WARN | app | media | The microphone couldn't be captured or sent; you stay muted. | Check the microphone permission and device in My settings → Voice & audio. |
 | MOD-110 | WARN | srv | http | A captions or translation model from upstream failed its check and wasn't kept. | Nothing: it's fetched again on the next request. Report it if it repeats. |
 | NAT-110 | WARN | srv | nat | The router didn't open every port (UPnP / NAT-PMP), or couldn't be searched for. | Forward the ports by hand (docs/hosting.md) or turn on UPnP in the router. |
 | NAT-120 | INFO | srv | nat | The public address is shared with other customers (carrier-grade NAT): ports can't be opened. | Use "Let friends connect without port forwarding" (p2p), or ask the provider for a public IPv4 address. |
@@ -82,7 +82,7 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | UPD-110 | WARN | upd | update | The desktop app couldn't check for updates. | Nothing: it checks again later. |
 | UPD-120 | WARN | upd | update | Installing a desktop app update failed. | Download the app again from iskra.foo. |
 | UPS-110 | WARN | srv | update | Checking GitHub for server updates failed. | Nothing: it checks again in an hour. |
-| UPS-120 | WARN | srv | update | Installing a server update failed; the server keeps running its current version. | Try again from Settings → Updates; report it if it repeats. |
+| UPS-120 | WARN | srv | update | Installing a server update failed; the server keeps running its current version. | Try again from Server settings → Server updates; report it if it repeats. |
 | UPS-130 | WARN | srv | update | A server update didn't start and was undone (rolled back). | Report it with the version (to=). |
 | VOI-120 | WARN | app | voice | Joining voice failed (token, connect, timeout). | Check the server's LK lines around the same time. |
 | VOI-130 | INFO | app | voice | Voice's network route (ICE), on connect and whenever it changes: ice= our candidate type (host, srflx, prflx, relay), peer= the server's, proto= udp or tcp, via=turn when it goes through a TURN relay (turn= its protocol). As a WARN (why=no-route): no route was found. | Nothing for host/srflx over udp. via=turn or proto=tcp works but adds delay; no-route: check the voice ports (UDP and TCP) or the TURN relay. |

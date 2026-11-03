@@ -27,7 +27,7 @@ export const clips: Messages['clips'] = {
     save: 'Spara',
     share: 'Dela i chatten',
     sharing: 'Delar… {{percent}} %',
-    savedFile: 'Sparat.',
+    savedFile: 'Sparat',
     shared: 'Delat i chatten.',
     discard: 'Släng',
   },
@@ -37,7 +37,7 @@ export const clips: Messages['clips'] = {
     enable: 'Låt mig spara klipp',
     length: 'Klipplängd: {{seconds}} sekunder',
     lengthLabel: 'Klipplängd',
-    privacy: 'Så länge klipp är på ser alla i samtalet en röd prick vid ditt namn, och de får veta när du sparar ett klipp. Välj en tangent för det under Kortkommandon.',
+    privacy: 'Så länge klipp är på ser alla i samtalet en röd prick vid ditt namn, och de får veta när du sparar ett klipp. Välj en tangent för det under Tangentbindningar.',
   },
   chat: {
     title: 'Chatt',

@@ -4,7 +4,7 @@ import type { PendingMessage } from '../../state/store'
 import { messageTime } from '../format'
 import { t } from '../../i18n'
 
-/** "3m ago", "2h ago", or a date. */
+/** "3 min ago", "2 h ago", or a date. */
 export function relativeTime(ms: number, now = Date.now()): string {
   const minutes = Math.floor((now - ms) / 60_000)
   if (minutes < 1) return t('chat.time.justNow')

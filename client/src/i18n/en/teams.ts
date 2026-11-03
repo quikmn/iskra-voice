@@ -2,7 +2,7 @@
 export const teams = {
   title: 'Split into teams',
   heading: 'Teams from {{channel}}',
-  noPower: 'Splitting into teams moves people, so it takes the power to move members.',
+  noPower: 'Splitting into teams moves people, so it takes the Move members permission.',
   how: 'How to split',
   mode: {
     random: 'Random',

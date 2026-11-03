@@ -4,7 +4,7 @@ export const templates = {
     title: 'Save this server as a template',
     intro: 'A file with your channels, who can see and use them, roles, rules and settings, to start another server just like this one. Never members, messages, files or keys.',
     button: 'Save as template',
-    done: 'Saved.',
+    done: 'Saved',
   },
   file: {
     pick: 'From a template file…',
@@ -30,7 +30,7 @@ export const templates = {
     tags: 'Tags: {{tags}}',
     rolePermissions: '{{count}} permissions',
     noPermissions: 'No extra permissions',
-    builtinChanged: '{{role}}: own powers',
+    builtinChanged: '{{role}}: changed permissions',
     notifyDefault: 'Default notifications: {{level}}',
     notifyAuto: 'automatic',
     bots: 'Built-in bots: {{bots}}',

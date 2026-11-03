@@ -105,7 +105,7 @@ test('GIFs: off until an admin adds a key, through the server by default, or dir
   await expect(preview).toHaveAttribute('src', new RegExp(`^${server.url}/gifs/media\\?u=`))
   await expect.poll(() => preview.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(3)
   await picker.getByRole('listitem').filter({ hasText: 'Cats' }).click()
-  await expect(picker.getByRole('heading', { name: 'Results for “cat”' })).toBeVisible()
+  await expect(picker.getByRole('heading', { name: 'Results for "cat"' })).toBeVisible()
   await expect(picker.getByRole('button', { name: /^Send GIF:/ })).toHaveCount(2)
   await picker.getByRole('button', { name: 'Add A cat-2 GIF to favourites' }).click()
   await picker.getByRole('button', { name: /^Favourite GIFs/ }).click()

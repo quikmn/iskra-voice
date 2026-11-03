@@ -139,7 +139,7 @@ export const groups: Messages['groups'] = {
     notAGroup: 'Inte en gruppchatt.',
     historyMissing: 'Gruppchattens historik saknas.',
     noDevices: 'Ingen annan i gruppchatten har en enhet vi kan kryptera till än.',
-    unsupported: 'Meddelandeformatet stöds inte.',
+    unsupported: 'Meddelandet kommer från en nyare version av Iskra. Uppdatera Iskra för att läsa det.',
     otherConversation: 'Det här meddelandet hör till en annan konversation.',
     senderMismatch: 'Meddelandets avsändare eller version stämmer inte.',
     newerVersion: 'Det här meddelandet är för en nyare version av gruppchatten.',

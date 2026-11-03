@@ -178,7 +178,7 @@ test('rent a server on DigitalOcean: connect, create, become owner, save the doc
   try {
     const page = await appWindow(app)
     await agreeToTerms(page)
-    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Ada')
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Create a server' }).click()
@@ -258,7 +258,7 @@ test('rent a server on DigitalOcean: connect, create, become owner, save the doc
     await expect(dialog).toContainText('droplet (create, read, delete), firewall (create, read, delete), regions (read), sizes (read) and tag (create)')
     await dialog.getByLabel('Token').fill('dop_v1_' + 'e'.repeat(64))
     await dialog.getByRole('button', { name: 'Continue' }).click()
-    await expect(dialog.getByRole('alert')).toContainText('DigitalOcean didn’t accept that token')
+    await expect(dialog.getByRole('alert')).toContainText("DigitalOcean didn't accept that token")
     await dialog.getByLabel('Token').fill(PAT)
     await dialog.getByRole('button', { name: 'Continue' }).click()
     await expect(dialog.getByRole('heading', { name: 'Your server' })).toBeVisible()

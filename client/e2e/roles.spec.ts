@@ -72,7 +72,7 @@ test('custom roles: create, reorder, assign, moderate without admin, channel per
   // ── Mira moderates without being an admin.
   const nav = (await openServerSettings(mod)).getByRole('navigation', { name: 'Settings sections' })
   await expect(nav.getByRole('button', { name: 'Roles' })).toBeVisible()
-  await expect(nav.getByRole('button', { name: 'Activity log' })).toBeVisible()
+  await expect(nav.getByRole('button', { name: 'Audit log' })).toBeVisible()
   await expect(nav.getByRole('button', { name: 'Internet access' })).toHaveCount(0)
   await expect(nav.getByRole('button', { name: 'Overview' })).toHaveCount(0)
   await mod.keyboard.press('Escape')
@@ -80,7 +80,7 @@ test('custom roles: create, reorder, assign, moderate without admin, channel per
   await expect(dialog.getByRole('button', { name: 'Kick' })).toBeVisible()
   await expect(dialog.getByRole('checkbox', { name: 'Supporter' })).toBeEnabled()
   await expect(dialog.getByRole('checkbox', { name: 'Moderator' })).toBeDisabled() // her own role
-  await expect(dialog.getByLabel('Base role')).toHaveCount(0) // base roles stay with admins
+  await expect(dialog.getByLabel('Built-in role')).toHaveCount(0) // base roles stay with admins
   await mod.screenshot({ path: join(SHOTS, 'roles-moderator-dialog.png') })
   await mod.keyboard.press('Escape')
   dialog = await openMember(mod, 'Host')
@@ -99,7 +99,7 @@ test('custom roles: create, reorder, assign, moderate without admin, channel per
   await expect(member.getByText("You can't send messages in this channel.")).toBeVisible()
 
   // The audit log tells the story.
-  await openServerSettings(mod, 'Activity log')
+  await openServerSettings(mod, 'Audit log')
   const log = mod.locator('.audit-list')
   await expect(log).toContainText('Mira changed what Supporter can do in #general')
   await expect(log).toContainText('Host gave Mira Moderator')

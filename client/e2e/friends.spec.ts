@@ -59,7 +59,7 @@ test('two friends join with invite links and chat', async ({ browser }) => {
 test('a fresh browser starts at onboarding', async ({ browser }) => {
   const host = await (await browser.newContext()).newPage()
   await host.goto('/')
-  await expect(host.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible()
+  await expect(host.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible()
   await host.screenshot({ path: join(SHOTS, 'onboarding.png') })
 })
 
@@ -69,7 +69,7 @@ test('with no servers, you can find out how to start one and change your name', 
   const page = await (await browser.newContext({ userAgent: windows })).newPage()
   await page.goto('/')
   await agreeToTerms(page)
-  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Newbie')
   await page.getByRole('button', { name: 'Continue' }).click()
 
@@ -109,7 +109,7 @@ test('on a phone, starting a server says it needs a computer', async ({ browser 
   const page = await (await browser.newContext({ userAgent: iphone, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage()
   await page.goto('/')
   await agreeToTerms(page)
-  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Phone')
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByRole('heading', { name: 'No servers yet' })).toBeVisible()
@@ -137,7 +137,7 @@ test('a phone whose browser asks for desktop sites still gets the phone choices,
   expect(await page.evaluate(() => navigator.userAgent)).toContain('Windows')
   await page.goto('/')
   await agreeToTerms(page)
-  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Desktop site')
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('button', { name: 'Start your own server' }).click()

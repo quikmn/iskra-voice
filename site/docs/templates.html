@@ -73,7 +73,7 @@
 <main class="doc docs-main" id="top">
   <div class="doc-kicker">Docs</div>
   <h1>Server templates</h1>
-  <p class="updated">Last updated <time datetime="2026-10-17">17 October 2026</time></p>
+  <p class="updated">Last updated <time datetime="2026-11-03">3 November 2026</time></p>
   <details class="mobile-toc">
     <summary>On this page</summary>
     <ul class="toc-list"><li class="l2"><a href="#adding-a-template-to-a-server-in-use">Adding a template to a server in use</a></li><li class="l2"><a href="#the-format">The format</a></li><li class="l2"><a href="#the-built-in-templates">The built-in templates</a></li></ul>
@@ -107,7 +107,7 @@ iskra-server templates apply &lt;world-folder&gt; &lt;template.json&gt; --apply 
 </code></pre></div>
 <p>Stop the server first (the command refuses while it runs). This only <strong>adds</strong>: roles and categories the server doesn't
 have (by name), channels it doesn't have (by name and kind, anywhere on the server), and settings that are still at
-their defaults (a colour or powers for a built-in role nobody changed, rules if there are none, the AFK channel if none
+their defaults (a colour or permissions for a built-in role nobody changed, rules if there are none, the AFK channel if none
 is set, the default notifications, limits, built-in bots, the bug inbox, translation). A channel it already has gets
 the template's starting content only where it has none yet: a topic if it has none, the template's messages if the
 template never posted there, docs pages whose titles it doesn't have, and a disappearing-messages timer if none was ever
@@ -257,8 +257,8 @@ channels come from <code>overrides</code> on those roles (allow <code>view</code
 <code>abilities</code> and <code>permissions</code>, each the whole set (left out: the defaults, the same as in <strong>Server settings → Roles</strong>).
 Abilities: <code>invite</code>, <code>events</code>, <code>pin</code>, <code>mentionEveryone</code>, <code>uploadSounds</code>, <code>giveBaseRoles</code>, <code>bots</code>, <code>organize</code>, <code>rules</code>,
 <code>stickers</code>, <code>gifs</code>, <code>stageModerators</code>, <code>forumTags</code>, <code>profilePages</code>, <code>resolveDisputes</code>, <code>serverImages</code>. The same safety rules apply as in
-the app: the owner's powers never change, <code>runServer</code> and <code>transferOwnership</code> stay the owner's, and guests and members
-only get everyday powers (<code>invite</code>, <code>events</code>, <code>pin</code>, <code>mentionEveryone</code>, <code>uploadSounds</code>, and the permission
+the app: the owner's permissions never change, <code>runServer</code> and <code>transferOwnership</code> stay the owner's, and guests and members
+only get everyday permissions (<code>invite</code>, <code>events</code>, <code>pin</code>, <code>mentionEveryone</code>, <code>uploadSounds</code>, and the permission
 <code>mentionEveryone</code>).</p>
 <h3 id="rules-and-the-afk-channel">Rules and the AFK channel<a class="anchor" href="#rules-and-the-afk-channel" aria-hidden="true" tabindex="-1">#</a></h3>
 <ul>

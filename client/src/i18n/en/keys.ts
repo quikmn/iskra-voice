@@ -29,7 +29,7 @@ export const keys = {
   retired: {
     title: 'Your account key was replaced',
     body: "Your account was moved to a new key, by another of your devices or by someone who has your recovery key. This device wasn't given the new key, so it can't sign in with the old one.",
-    ifYou: '<b>If that was you</b> on another device, clear this device and link it again from there (Settings → Devices → Link a device).',
+    ifYou: '<b>If that was you</b> on another device, clear this device and link it again from there (My settings → Devices → Link a device).',
     claimHint: "Your servers will be asked to move your account to a new key from this device. Where someone else already took it, the server's admins decide who's really you, so tell them. You'll get a new recovery key.",
     claim: 'Take my account back',
     notMe: "That wasn't me",
@@ -42,7 +42,7 @@ export const keys = {
     warning: 'Anyone with this key can use your account. Never share it.',
   },
   dispute: {
-    body: "<b>{{name}}'s account is disputed.</b> Two different keys claimed it, so one of them may be someone with a stolen key. Ask {{name}} in person or on a call which key is theirs (Settings → Recovery key shows it), then keep that one.",
+    body: "<b>{{name}}'s account is disputed.</b> Two different keys claimed it, so one of them may be someone with a stolen key. Ask {{name}} in person or on a call which key is theirs (My settings → Recovery key shows it), then keep that one.",
     keep: 'Keep {{key}}',
     giveTo: 'Give it to {{key}}',
   },
@@ -106,14 +106,14 @@ export const keys = {
     problems: {
       unsupported: "This browser or app can't use passkeys here. Use a passphrase instead.",
       noPrf: "This passkey can't protect your keys: it doesn't support the PRF extension. Try another one (like your phone, Windows Hello, iCloud Keychain, Google Password Manager or a recent security key), or use a passphrase.",
-      cancelled: 'Cancelled.',
+      cancelled: 'Cancelled',
       exists: 'That passkey is already set up.',
       failed: "That didn't work. Try again.",
     },
   },
   kt: {
     title: 'Key transparency',
-    intro: "Each server keeps a signed log of every account key it has shown, where new entries are only ever added. Your app checks that the log only grows and that what the server shows matches it, and compares notes with your other servers and with your friends' apps (inside your encrypted DMs). So a server can't quietly hand someone a fake key without it showing up.",
+    intro: "Each server keeps a signed log of every account key it has shown, where new entries are only ever added. Your app checks that the log only grows and that what the server shows matches it, and compares notes with your other servers and with your friends' apps (inside your encrypted direct messages). So a server can't quietly hand someone a fake key without it showing up.",
     limits: "It can't stop a server from lying, only make it hard to do unnoticed. Comparing safety numbers with someone is still the surest check.",
     servers: 'Your servers',
     noServers: 'No servers yet.',

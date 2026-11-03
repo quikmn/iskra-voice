@@ -45,7 +45,7 @@ test('two accounts in the desktop app: the shell serves both, and both come back
   try {
     let page = await appWindow(app)
     await agreeToTerms(page)
-    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Dee')
     await page.getByRole('button', { name: 'Continue' }).click()
 

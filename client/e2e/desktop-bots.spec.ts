@@ -33,7 +33,7 @@ test('runs a gallery bot from My settings and it answers a command', async () =>
   try {
     const page = await appWindow(app)
     await agreeToTerms(page)
-    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Owner')
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'I have an invite link' }).click()
@@ -44,7 +44,7 @@ test('runs a gallery bot from My settings and it answers a command', async () =>
     // My settings → Bots on this PC: the gallery, and a warning before running a bot from a folder.
     await page.locator('.me-bar').getByRole('button', { name: 'My settings' }).click()
     const settings = page.getByRole('dialog', { name: 'Settings' })
-    await settings.getByRole('button', { name: 'Bots on this PC', exact: true }).click()
+    await settings.getByRole('button', { name: 'Bots on this computer', exact: true }).click()
     await expect(settings.getByText('No bots yet.')).toBeVisible()
     await expect(settings.getByText(/Only run bots you trust/)).toBeVisible()
     await expect(settings.getByRole('button', { name: 'Choose its folder…' })).toBeDisabled()
@@ -78,7 +78,7 @@ test('runs a gallery bot from My settings and it answers a command', async () =>
 
     // Stop it from the page; it goes offline on the server.
     await page.locator('.me-bar').getByRole('button', { name: 'My settings' }).click()
-    await settings.getByRole('button', { name: 'Bots on this PC', exact: true }).click()
+    await settings.getByRole('button', { name: 'Bots on this computer', exact: true }).click()
     await card.getByRole('button', { name: 'Stop' }).click()
     await expect(card.getByRole('status')).toHaveText('Stopped')
   } finally {

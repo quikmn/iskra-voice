@@ -225,7 +225,7 @@ public sealed class Session
                 AuthFailure.JoinDeclined => ("join_declined", "The moderators didn't let you in.", CloseCodes.Forbidden),
                 AuthFailure.InvitesPaused => ("invites_paused", "This server isn't taking new members right now. Try again later.", CloseCodes.AuthFailed),
                 AuthFailure.JoinQueueFull => ("join_queue_full", "Too many people are waiting to join this server right now. Try again later.", CloseCodes.AuthFailed),
-                _ => ("auth_failed", "Authentication failed.", CloseCodes.AuthFailed),
+                _ => ("auth_failed", "Couldn't sign you in. Try again, or link this device again.", CloseCodes.AuthFailed),
             };
             // A waiting app asks again every few seconds: its first ask is the event (join.pending), the rest aren't.
             if (!_stillWaiting) SecurityLog.Record(_world.Store, Now, "auth.failed", _provenAccount, LoggedIp, new { reason = code }, source: RemoteIp);

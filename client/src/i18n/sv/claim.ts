@@ -18,7 +18,7 @@ export const claim: Messages['claim'] = {
   join: 'Gå med som ägare',
   back: 'Ändra',
   errors: {
-    unreachable: 'Servern svarade inte. Kontrollera adressen, och ge en helt ny server några minuter att starta och skaffa sitt certifikat.',
+    unreachable: 'Servern svarade inte. Kolla adressen, och ge en helt ny server några minuter att starta och skaffa sitt certifikat.',
     noClaim: 'Den här servern väntar inte på något anspråk: den har redan en ägare, eller så gick koden ut efter 24 timmar. Starta om servern för att få en ny kod (i konsolen: sudo systemctl restart iskra) och titta igen.',
     wrongCode: 'Koden stämmer inte med den här servern. Jämför varje tecken med konsolen.',
     busy: 'För många försök härifrån. Vänta en minut och försök igen.',

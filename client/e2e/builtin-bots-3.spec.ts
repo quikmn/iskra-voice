@@ -53,7 +53,7 @@ test('Tags, Suggestions, Giveaways and Counting: set up by an admin, used by fri
   await tags.getByLabel('Text', { exact: true }).fill('**Be kind**, no spam. Hi @everyone!')
   await expect(tags.getByText('Post one with /tag rules')).toBeVisible()
   await tags.getByRole('button', { name: 'Add tag' }).click()
-  await expect(tags.getByRole('status')).toHaveText('Saved.')
+  await expect(tags.getByRole('status')).toHaveText('Saved')
   await expect(tags.locator('.bots3-tag-list li', { hasText: 'rules' })).toBeVisible()
   await host.screenshot({ path: join(SHOTS, 'bots3-tags-settings.png') })
 
@@ -62,7 +62,7 @@ test('Tags, Suggestions, Giveaways and Counting: set up by an admin, used by fri
   const suggestions = host.getByTestId('builtin-suggestions-settings')
   await expect(suggestions.getByLabel('Channel').locator('option:checked')).toHaveText('#suggestions')
   await suggestions.getByRole('button', { name: 'Post a Suggest button there' }).click()
-  await expect(suggestions.getByText('Posted.')).toBeVisible()
+  await expect(suggestions.getByText('Posted')).toBeVisible()
 
   // Counting: sums allowed.
   await host.getByRole('button', { name: 'Counting settings' }).click()
@@ -70,7 +70,7 @@ test('Tags, Suggestions, Giveaways and Counting: set up by an admin, used by fri
   await expect(counting.getByLabel('Channel').locator('option:checked')).toHaveText('#counting')
   await counting.getByLabel('Allow simple sums').check()
   await counting.getByRole('button', { name: 'Save' }).click()
-  await expect(counting.getByRole('status')).toHaveText('Saved.')
+  await expect(counting.getByRole('status')).toHaveText('Saved')
   await host.keyboard.press('Escape')
 
   const friend = await (await browser.newContext()).newPage()

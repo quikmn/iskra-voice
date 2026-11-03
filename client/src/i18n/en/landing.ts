@@ -13,7 +13,7 @@ export const landing = {
   noInvite: 'No Join button',
   inviteHint: 'Anyone who opens the page can use this invite, so pick one with a limit you are happy with. Only invites for members can go here.',
   inviteNone: 'Make an invite first (Invite friends), then pick it here to add a Join button.',
-  inviteGone: "The invite on the page doesn't work anymore, so the page has no Join button. Pick another one.",
+  inviteGone: "The invite on the page doesn't work any more, so the page has no Join button. Pick another one.",
   invitesPaused: 'Invites are paused, so the page says this server isn\'t taking new members right now.',
   neverExpires: 'never expires',
   expires: 'expires {{date}}',

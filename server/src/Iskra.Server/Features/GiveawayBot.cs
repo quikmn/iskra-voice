@@ -40,7 +40,7 @@ public static partial class GiveawayBot
     private static GiveawaysConfig Config(Store store) => MoreBuiltinBots.Config<GiveawaysConfig>(store, Id);
 
     private static Member RequireOn(Store store) =>
-        MoreBuiltinBots.BotIfOn(store, Id) ?? throw RequestException.BadRequest("Giveaways aren't on in this server.", "giveaways_off");
+        MoreBuiltinBots.BotIfOn(store, Id) ?? throw RequestException.BadRequest("Giveaways aren't on for this server.", "giveaways_off");
 
     private static void RequireStaff(Store store, Member me)
     {

@@ -460,7 +460,7 @@ public static partial class ServerTemplates
         var outside = BaseRoles.Names((abilities ^ defaults.Abilities) & ~adjustable).Concat(RoleFeature.PermList((perms ^ defaults.Perms) & ~adjustablePerms)).ToArray();
         if (outside.Length > 0)
             fail(role is Sessions.Roles.Guest or Sessions.Roles.Member
-                ? $"builtinRoles.{role}: guests and members can only get everyday powers (invite, events, pin, mentionEveryone, uploadSounds), not {string.Join(", ", outside)}."
+                ? $"builtinRoles.{role}: guests and members can only get everyday permissions (invite, events, pin, mentionEveryone, uploadSounds), not {string.Join(", ", outside)}."
                 : $"builtinRoles.{role}: {string.Join(", ", outside)} always stay with the owner.");
     }
 

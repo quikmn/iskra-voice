@@ -31,7 +31,7 @@ iskra-server templates apply <world-folder> <template.json> --apply   # adds it
 
 Stop the server first (the command refuses while it runs). This only **adds**: roles and categories the server doesn't
 have (by name), channels it doesn't have (by name and kind, anywhere on the server), and settings that are still at
-their defaults (a colour or powers for a built-in role nobody changed, rules if there are none, the AFK channel if none
+their defaults (a colour or permissions for a built-in role nobody changed, rules if there are none, the AFK channel if none
 is set, the default notifications, limits, built-in bots, the bug inbox, translation). A channel it already has gets
 the template's starting content only where it has none yet: a topic if it has none, the template's messages if the
 template never posted there, docs pages whose titles it doesn't have, and a disappearing-messages timer if none was ever
@@ -146,8 +146,8 @@ channels come from `overrides` on those roles (allow `view` for "PlayStation" on
 `abilities` and `permissions`, each the whole set (left out: the defaults, the same as in **Server settings → Roles**).
 Abilities: `invite`, `events`, `pin`, `mentionEveryone`, `uploadSounds`, `giveBaseRoles`, `bots`, `organize`, `rules`,
 `stickers`, `gifs`, `stageModerators`, `forumTags`, `profilePages`, `resolveDisputes`, `serverImages`. The same safety rules apply as in
-the app: the owner's powers never change, `runServer` and `transferOwnership` stay the owner's, and guests and members
-only get everyday powers (`invite`, `events`, `pin`, `mentionEveryone`, `uploadSounds`, and the permission
+the app: the owner's permissions never change, `runServer` and `transferOwnership` stay the owner's, and guests and members
+only get everyday permissions (`invite`, `events`, `pin`, `mentionEveryone`, `uploadSounds`, and the permission
 `mentionEveryone`).
 
 ### Rules and the AFK channel

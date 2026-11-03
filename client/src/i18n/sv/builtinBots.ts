@@ -48,7 +48,7 @@ export const builtinBots: Messages['builtinBots'] = {
   },
   reply: {
     roll: '🎲 {{name}} slog {{expression}}',
-    rollInvalid: '🎲 {{name}}, "{{input}}" är inte tärningsnotation. Testa /roll 2d6+3 eller /roll d20.',
+    rollInvalid: '🎲 {{name}}, ”{{input}}” är inte tärningsnotation. Testa /roll 2d6+3 eller /roll d20.',
     pollUsage: '📊 {{name}}, starta en omröstning så här: /poll Pizza eller tacos? | Pizza | Tacos',
     remind: '⏰ Okej {{name}}, jag påminner dig: {{when}}.',
     remindUsage: '⏰ {{name}}, lägg till en påminnelse så här: /remind mig om 10m ta ut pizzan (från 1 minut upp till ett år).',

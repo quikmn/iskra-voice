@@ -47,7 +47,7 @@ public static partial class RoleFeature
         var raw = body.OptionalString("title", MaxGroupTitleLength * 2);
         if (raw is null && fallback is not null) return fallback;
         return Text.Normalize(raw ?? "", MaxGroupTitleLength, allowNewlines: false)
-            ?? throw RequestException.BadRequest($"'title' must be 1–{MaxGroupTitleLength} characters.", "role_group_title", new { max = MaxGroupTitleLength });
+            ?? throw RequestException.BadRequest($"The title must be 1–{MaxGroupTitleLength} characters.", "role_group_title", new { max = MaxGroupTitleLength });
     }
 
     /// <summary>"" or absent (when creating) clears.</summary>
@@ -57,7 +57,7 @@ public static partial class RoleFeature
         var raw = body.OptionalString("question", MaxGroupQuestionLength * 2) ?? "";
         if (raw.Trim().Length == 0) return "";
         return Text.Normalize(raw, MaxGroupQuestionLength, allowNewlines: false)
-            ?? throw RequestException.BadRequest($"'question' can be up to {MaxGroupQuestionLength} characters.", "role_group_question", new { max = MaxGroupQuestionLength });
+            ?? throw RequestException.BadRequest($"The question can be up to {MaxGroupQuestionLength} characters.", "role_group_question", new { max = MaxGroupQuestionLength });
     }
 
     /// <summary>`roles`: 1–25 distinct ids of self-assignable roles, in the order shown.</summary>
@@ -65,7 +65,7 @@ public static partial class RoleFeature
     {
         var ids = Ids(body.Element("roles"), "roles");
         if (ids.Length > MaxGroupRoles)
-            throw RequestException.BadRequest($"'roles' must be a list of up to {MaxGroupRoles} ids.", "role_group_roles_max", new { max = MaxGroupRoles });
+            throw RequestException.BadRequest($"A question can give up to {MaxGroupRoles} roles.", "role_group_roles_max", new { max = MaxGroupRoles });
         if (ids.Length == 0) throw RequestException.BadRequest("A group needs at least one role.", "role_group_empty");
         CheckPickable(store, ids);
         return ids;

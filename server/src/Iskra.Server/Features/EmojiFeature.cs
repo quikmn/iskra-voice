@@ -90,7 +90,7 @@ public static partial class EmojiFeature
         var maxKb = s.World.Settings.Limits.EmojiMaxKb;
         if (maxKb > 0 && file.Size > maxKb * 1024L) throw RequestException.BadRequest($"Emoji can be up to {maxKb} KB on this server.", "emoji_kb", new { kb = maxKb });
         if (file.Width is not { } w || file.Height is not { } h || w < 1 || h < 1)
-            throw RequestException.BadRequest("Couldn't read that image's size.", "image_size_unreadable");
+            throw RequestException.BadRequest("Couldn't read that picture's size.", "image_size_unreadable");
         if (w > MaxSide || h > MaxSide) throw RequestException.BadRequest($"Emoji can be up to {MaxSide}×{MaxSide} pixels.", "emoji_pixels", new { side = MaxSide });
         return file;
     }

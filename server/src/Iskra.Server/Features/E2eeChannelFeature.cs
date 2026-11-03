@@ -329,7 +329,7 @@ public static class E2eeChannelFeature
         if (version != e.Version) throw new RequestException("conflict", "Who's in this channel changed in the meantime. Refresh and try again.", "e2ee_members_changed");
         if (!e.Members.Contains(me.AccountKey)) throw RequestException.Forbidden("You don't have this channel's key yet.");
         var raw = envelope.GetRawText();
-        if (raw.Length > MaxMessageEnvelopeBytes) throw RequestException.BadRequest("Message is too large.", "message_too_large");
+        if (raw.Length > MaxMessageEnvelopeBytes) throw RequestException.BadRequest("That message is too big. Split it into a few.", "message_too_large");
         DisappearFeature.EnvelopeExpires(envelope);
         var header = envelope.TryGetProperty("header", out var h) && h.ValueKind == JsonValueKind.Object ? new Body(h) : throw RequestException.BadRequest("Envelope without a header.");
         if (header.OptionalString("from", 64) != me.AccountKey || header.OptionalLong("version") != version || header.OptionalString("chain", 32) != e.ChainId)

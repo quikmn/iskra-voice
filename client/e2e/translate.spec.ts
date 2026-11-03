@@ -39,7 +39,7 @@ test('translate a message on the device, with models from your own server', asyn
   const swedish = await translateFromMenu(host, 'spelkvällen')
 
   // Off by default: the button explains why nothing happens.
-  await expect(swedish.getByTestId('translation-notice')).toContainText('don’t offer translation yet', { timeout: 30_000 })
+  await expect(swedish.getByTestId('translation-notice')).toContainText("don't offer translation yet", { timeout: 30_000 })
 
   // The owner offers it in Server settings → Translation, with what each language weighs.
   const room = await openServerSettings(host, 'Translation')

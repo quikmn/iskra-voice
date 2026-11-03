@@ -164,7 +164,7 @@ export const hosting = {
     name: 'Server name',
     template: 'Starting point',
     setup: 'Setup text (User data)',
-    setupHint: 'It installs the latest Iskra server (checked against its published checksum), keeps it running and updated, opens only the ports it needs and gets a free HTTPS address. It carries a one-time owner key so only this app can claim the server: don’t share it.',
+    setupHint: "It installs the latest Iskra server (checked against its published checksum), keeps it running and updated, opens only the ports it needs and gets a free HTTPS address. It carries a one-time owner key so only this app can claim the server: don't share it.",
     copy: 'Copy setup text',
     copied: 'Copied',
     ip: "The server's IPv4 address",

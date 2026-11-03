@@ -84,7 +84,7 @@ test('an admin exports a channel and reads it offline', async ({ browser }) => {
   const section = room.getByTestId('export-section')
   await expect(section.getByRole('button', { name: 'Export 1 channel' })).toBeDisabled()
   await section.getByRole('checkbox', { name: /general/ }).check()
-  await expect(section.getByRole('checkbox', { name: 'Include files and images' })).toBeChecked()
+  await expect(section.getByRole('checkbox', { name: 'Include files and pictures' })).toBeChecked()
   await section.getByRole('button', { name: 'Export 1 channel' }).click()
   const job = section.getByTestId('export-job').first()
   await expect(job).toContainText('#general')

@@ -5,7 +5,7 @@ export const moreBots = {
     channelNone: 'Nowhere (paused)',
     channelHint: 'The bot must be able to see this channel. It doesn\'t need to write there.',
     save: 'Save',
-    saved: 'Saved.',
+    saved: 'Saved',
     loading: 'Loading…',
     invalid: {
       threshold: 'Pick 1–50 reactions.',
@@ -56,7 +56,7 @@ export const moreBots = {
     month: 'Month',
     day: 'Day',
     save: 'Save birthday',
-    saved: 'Saved.',
-    removed: 'Removed.',
+    saved: 'Saved',
+    removed: 'Removed',
   },
 }

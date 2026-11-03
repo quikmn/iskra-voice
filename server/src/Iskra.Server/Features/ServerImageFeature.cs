@@ -105,13 +105,13 @@ public static class ServerImageFeature
         }
         catch (ImageMetadata.Refused)
         {
-            throw RequestException.BadRequest("Couldn't read that image's size.", "image_size_unreadable");
+            throw RequestException.BadRequest("Couldn't read that picture's size.", "image_size_unreadable");
         }
 
         var (width, height) = Size(clean, sniffed.Type);
         if (width is not { } w || height is not { } h || w < 1 || h < 1)
-            throw RequestException.BadRequest("Couldn't read that image's size.", "image_size_unreadable");
-        if (w > MaxSide || h > MaxSide) throw RequestException.BadRequest("That image is too large.", "image_too_large");
+            throw RequestException.BadRequest("Couldn't read that picture's size.", "image_size_unreadable");
+        if (w > MaxSide || h > MaxSide) throw RequestException.BadRequest("That picture is too big.", "image_too_large");
         if (isIcon)
         {
             if (w < MinIconSide || h < MinIconSide)

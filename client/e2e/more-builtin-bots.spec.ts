@@ -42,14 +42,14 @@ test('Starboard, Birthdays and Welcome: set up by an admin, then they do their t
   await star.getByRole('radio', { name: '🔥' }).click()
   await star.getByLabel('Reactions needed').fill('1')
   await star.getByRole('button', { name: 'Save' }).click()
-  await expect(star.getByRole('status')).toHaveText('Saved.')
+  await expect(star.getByRole('status')).toHaveText('Saved')
 
   // Birthdays: greetings from midnight, so today's birthday shows right away.
   await host.getByRole('button', { name: 'Birthdays settings' }).click()
   const birthdays = host.getByTestId('builtin-birthdays-settings')
   await birthdays.getByLabel('Time of day').fill('00:00')
   await birthdays.getByRole('button', { name: 'Save' }).click()
-  await expect(birthdays.getByRole('status')).toHaveText('Saved.')
+  await expect(birthdays.getByRole('status')).toHaveText('Saved')
 
   // Welcome: the admin's own words, previewed as they'll look.
   await host.getByRole('button', { name: 'Welcome settings' }).click()
@@ -58,7 +58,7 @@ test('Starboard, Birthdays and Welcome: set up by an admin, then they do their t
   await expect(welcome.locator('.welcome-preview')).toContainText('Hi @Host, welcome to Pizza Club!')
   await welcome.getByLabel('Private welcome (optional)').fill('Psst {name}, the pizza votes happen in #general.')
   await welcome.getByRole('button', { name: 'Save' }).click()
-  await expect(welcome.getByRole('status')).toHaveText('Saved.')
+  await expect(welcome.getByRole('status')).toHaveText('Saved')
   await host.screenshot({ path: join(SHOTS, 'more-bots-settings.png') })
   await host.keyboard.press('Escape')
   await expect(host.locator('.channel', { hasText: 'starboard' })).toBeVisible()
@@ -101,7 +101,7 @@ test('Starboard, Birthdays and Welcome: set up by an admin, then they do their t
   await expect(field.getByLabel('Day')).toHaveValue(String(today.getDate()))
   await expect(field.getByLabel('Month')).toHaveValue(String(today.getMonth() + 1))
   await field.getByRole('button', { name: 'Remove' }).click()
-  await expect(field.getByRole('status')).toHaveText('Removed.')
+  await expect(field.getByRole('status')).toHaveText('Removed')
   await friend.keyboard.press('Escape')
 
   // At phone width the settings fit the screen.

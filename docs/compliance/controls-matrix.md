@@ -9,7 +9,7 @@ on 2026-10-11; not audited. See [README.md](README.md) for scope and what the st
 Short names used below: **SEC** = [docs/security.md][sec] · **CICD** = [docs/ci-cd.md][cicd] · **HOST** =
 [docs/hosting.md][host] · **PRIV** = [site/privacy.html][priv] · **CI** = [ci.yml][ci] · **POL/x** =
 [policies/x.md](policies/) · **OA n** = [owner-actions.md](owner-actions.md) item n · **SecLog** = the server's
-security log (`security_log` table, `security.log.list`, Settings → Security log) · **Audit** = the admin audit log
+security log (`security_log` table, `security.log.list`, Server settings → Sign-ins & security) · **Audit** = the admin audit log
 (`audit.list`).
 
 ## 1. SOC 2 — Trust Services Criteria (2017, revised points of focus 2022)

@@ -12,16 +12,17 @@ exists.
 | Name | Namn | Your Iskra name, everywhere unless a server nickname is set |
 | Server nickname | Smeknamn på servern ("Smeknamn på {{server}}" when the server is named) | Optional, only on one server. Reset: "Use my name" / "Använd mitt namn" |
 | Owner, Admin, Moderator, Trusted, Member, Guest | Ägare, Admin, Moderator, Betrodd, Medlem, Gäst | Roles; plural "admins" in running text |
-| Role, base role | Roll, grundroll | Always "role", never "level"/"nivå". "Base role" only where the built-in one (Owner … Guest) must be told apart from custom roles |
-| Built-in role (badge "Built-in") | Inbyggd roll (badge "Inbyggd") | Settings → Roles: Owner … Guest, listed above custom ("egna") roles. Running text elsewhere still says "base role" |
+| Role | Roll | Always "role", never "level"/"nivå" |
+| Built-in role (badge "Built-in") | Inbyggd roll (badge "Inbyggd") | Server settings → Roles: Owner … Guest, listed above custom ("egna") roles. Never "base role"/"grundroll" |
+| Permission | Behörighet | What a role allows; never "power"/"befogenhet"/"rättighet" |
 | Bot, bots | Bot, bottar | |
 | Server | Server | |
 | Channel, text channel, voice channel | Kanal, textkanal, röstkanal | Never "room"/"rum" for a voice channel |
 | Stage | Scen | |
 | Thread | Tråd | |
 | Forum post | Inlägg | |
-| Direct messages | Direktmeddelanden | "DM" is fine in short UI text |
-| Group DM | Gruppchatt | |
+| Direct message(s) | Direktmeddelande(n) | "DMs" only as a short tab label where space is tight, never in sentences |
+| Group chat | Gruppchatt | Never "group DM" |
 | Device | Enhet | |
 | Account | Konto | |
 
@@ -45,7 +46,7 @@ exists.
 | Roles | Roller |
 | Reports | Anmälningar |
 | AutoMod (nav and heading) | AutoMod |
-| Activity log (who changed what; never "audit log") | Aktivitetslogg |
+| Audit log (who changed what; never "activity log", which is games) | Granskningslogg |
 | Sign-ins & security (never "security log" as a name) | Inloggningar och säkerhet |
 | Bots & webhooks | Bottar och webhooks |
 | Internet access (section) / Open to the internet (its switch) | Internetåtkomst / Öppna mot internet |
@@ -95,7 +96,7 @@ exists.
 | Watch party | Titta tillsammans (as a name, also in running text: "i Titta tillsammans") |
 | Clip | Klipp |
 | Catch up | Kom ikapp |
-| Passkey | Lösenordsnyckel |
+| Passkey | Lösennyckel |
 | Passphrase | Lösenfras |
 | End-to-end encrypted | Totalsträckskrypterad |
 | Decrypt | Dekryptera |

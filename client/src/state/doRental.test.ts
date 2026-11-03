@@ -61,7 +61,7 @@ describe('DigitalOcean rental', () => {
   it('writes the server document: every part, the facts, and no secrets', () => {
     const doc = serverDocument(SERVER)
     expect(doc.startsWith('# Game Night: your Iskra server\n')).toBe(true)
-    for (const heading of ['Address', 'How friends join', 'Your keys and recovery', 'What it costs, and how to cancel', 'Updates and backups', 'Moving it later', 'What Iskra can and can’t see', 'Help from an AI assistant']) {
+    for (const heading of ['Address', 'How friends join', 'Your keys and recovery', 'What it costs, and how to cancel', 'Updates and backups', 'Moving it later', "What Iskra can and can't see", 'Help from an AI assistant']) {
       expect(doc).toContain(`\n## ${heading}\n`)
     }
     expect(doc).toContain('https://203-0-113-7.sslip.io')

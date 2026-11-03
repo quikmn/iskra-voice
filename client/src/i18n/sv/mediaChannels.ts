@@ -69,7 +69,7 @@ export const mediaChannels: Messages['mediaChannels'] = {
     sensitive: 'Känsligt: suddigt tills någon väljer att titta',
     remove: 'Ta bort {{name}}',
     post: 'Publicera',
-    uploading: 'Laddar upp {{percent}} %…',
+    uploading: 'Laddar upp… {{percent}} %',
     posting: 'Publicerar…',
   },
 }

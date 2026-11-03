@@ -21,7 +21,7 @@ export const accounts = {
     addExistingHint: 'Link it from another device, or use its recovery key.',
     full: 'This device has {{count}} accounts signed in, the most it keeps.',
     restartNote: 'Iskra restarts once to add the account.',
-    restartVoiceNote: 'Iskra restarts once to add the account, so you’ll leave voice.',
+    restartVoiceNote: "Iskra restarts once to add the account, so you'll leave voice.",
     signOut: 'Sign out of {{name}}…',
     unnamed: 'New account',
   },
@@ -54,5 +54,5 @@ export const accounts = {
   },
   notifyTitle: '{{title}} · {{account}}',
   frameTitle: 'Iskra: {{name}}',
-  unsupported: 'This browser can’t keep your accounts apart. Use the desktop app, or keep one account in this browser.',
+  unsupported: "This browser can't keep your accounts apart. Use the desktop app, or keep one account in this browser.",
 } as const

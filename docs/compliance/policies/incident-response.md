@@ -74,14 +74,14 @@ server owner is the controller; the owner's role there is to fix the software an
 
 > **Security notice for chat.iskra.foo, <date>.** On <date> we found that <what happened in one sentence>. This
 > affected <what data> of <who>. Your direct messages and group chats are end-to-end encrypted and were <not> affected.
-> We have <what we did>. What you can do: <e.g. replace your account key in Settings → Recovery key, update the app>.
+> We have <what we did>. What you can do: <e.g. replace your account key in My settings → Recovery key, update the app>.
 > Questions: spark@iskra.foo.
 
 ### Template: advisory to self-hosters
 
 > **Iskra security update <version>.** A <severity> issue in <component> could let <who> <do what> on servers running
 > <affected versions>. Update to <version> (desktop apps update themselves; standalone servers: download the new
-> iskra-server, docs/hosting.md). If you run a server, check <what to look for, e.g. entries in Settings → Security
+> iskra-server, docs/hosting.md). If you run a server, check <what to look for, e.g. entries in Server settings → Sign-ins & security
 > log>. Details: GitHub security advisory <id>. Thanks to <reporter>.
 
 ## Incident log

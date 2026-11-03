@@ -79,7 +79,7 @@ export const expressions: Messages['expressions'] = {
     search: 'Sök ljud',
     empty: 'Inga ljud än. Betrodda medlemmar och admins kan lägga till några under Serverinställningar → Ljudbräda.',
     playTitle: 'Spela {{name}} för alla i samtalet',
-    mutedNote: 'Du har stängt av ljudbrädan för dig själv i Inställningar, så du hör inte de här.',
+    mutedNote: 'Du har stängt av ljudbrädan för dig själv i Mina inställningar, så du hör inte de här.',
     played: '<b>{{name}}</b> spelade {{sound}}',
   },
   settings: {

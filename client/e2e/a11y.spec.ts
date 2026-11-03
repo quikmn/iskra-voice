@@ -39,7 +39,7 @@ test('main screens have no serious accessibility problems', async ({ browser }) 
 
   // Onboarding: the invite screen before joining.
   await page.goto(server.ownerLink())
-  await expect(page.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible({ timeout: 15_000 })
   await audit(page, 'onboarding')
 
   await joinVia(page, server.ownerLink(), 'Host')

@@ -20,7 +20,7 @@ export const afk = {
     idleHint: 'Idle means no typing, clicking or touching (anywhere on the computer in the desktop app, in Iskra on the web and phones) and not speaking, for the whole time. Someone who is talking is never moved.',
     canTalk: 'Can talk here',
     canTalkHint: 'Everyone else in the AFK channel is muted and deafened by the server, whatever their own settings.',
-    baseRoles: 'Base roles',
+    baseRoles: 'Built-in roles',
     customRoles: 'Roles',
     saved: 'Saved',
   },

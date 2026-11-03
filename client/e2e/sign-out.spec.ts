@@ -19,7 +19,7 @@ test('signing out of the only device warns first, can leave the servers, and lan
   await temp.getByRole('button', { name: 'Sign out of this device' }).click()
   const dialog = temp.getByRole('dialog', { name: 'Sign out of this device' })
   // Only device, recovery key never saved: a strong warning, and leaving the servers is on.
-  await expect(dialog.getByRole('alert')).toContainText('You’ll lose this account for good')
+  await expect(dialog.getByRole('alert')).toContainText("You'll lose this account for good")
   await expect(dialog.getByRole('button', { name: 'Save recovery key first' })).toBeVisible()
   await expect(dialog.getByLabel(/Also leave my servers/)).toBeChecked()
   const confirm = dialog.getByRole('button', { name: 'Sign out', exact: true })
@@ -30,7 +30,7 @@ test('signing out of the only device warns first, can leave the servers, and lan
   await confirm.click()
 
   // A fresh start: both choices, side by side (leaving, wiping and reloading can be slow on a busy CI runner).
-  await expect(temp.getByRole('button', { name: /I’m new to Iskra/ })).toBeVisible({ timeout: 20_000 })
+  await expect(temp.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible({ timeout: 20_000 })
   await expect(temp.getByRole('button', { name: /I already use Iskra on another device/ })).toBeVisible()
   await temp.screenshot({ path: join(SHOTS, 'onboarding-choice.png') })
   // Temp left the server.
@@ -53,7 +53,7 @@ test('an invite link also offers "I already use Iskra" before making an account'
   await expect(page.getByRole('button', { name: /I already use Iskra on another device/ })).toBeVisible()
   await page.screenshot({ path: join(SHOTS, 'onboarding-choice-invite.png') })
   await agreeToTerms(page)
-  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Newcomer')
   await page.getByRole('button', { name: 'Join' }).click()
   await expect(page.getByRole('heading', { name: 'general' })).toBeVisible()

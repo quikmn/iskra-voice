@@ -68,7 +68,7 @@ test('join questions: admins ask, newcomers answer step by step, answers give ro
   const auto = host.getByTestId('auto-roles')
   await auto.getByRole('checkbox', { name: 'Newcomer', exact: true }).click()
   await auto.getByRole('button', { name: 'Save roles on join' }).click()
-  await expect(auto.getByRole('status')).toHaveText('Saved.')
+  await expect(auto.getByRole('status')).toHaveText('Saved')
   // Not retroactive, unless asked: "Give to everyone now" (only the host is here so far).
   host.once('dialog', (d) => void d.accept())
   await auto.getByRole('button', { name: 'Give to everyone now' }).click()
@@ -134,7 +134,7 @@ test('join questions: admins ask, newcomers answer step by step, answers give ro
   await rules.getByLabel('Rules').fill('1. Be kind.')
   await rules.getByRole('checkbox', { name: /Members must agree/ }).check()
   await rules.getByRole('button', { name: 'Save' }).click()
-  await expect(rules.getByRole('status')).toHaveText('Saved.')
+  await expect(rules.getByRole('status')).toHaveText('Saved')
   await host.keyboard.press('Escape')
 
   const kim = await (await browser.newContext()).newPage()

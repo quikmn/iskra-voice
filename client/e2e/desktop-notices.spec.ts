@@ -81,7 +81,7 @@ test('the tray’s "Check for updates" and About show inside the app, never as n
     await expect(aboutToast).toContainText(`Electron ${ELECTRON_VERSION}`)
     await aboutToast.getByRole('button', { name: 'Dismiss' }).click()
 
-    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Desk')
     await page.getByRole('button', { name: 'Continue' }).click()
     await expect(page.getByRole('button', { name: 'Create a server' })).toBeVisible()

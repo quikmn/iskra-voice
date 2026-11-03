@@ -43,9 +43,9 @@ public static class MemberAvatarFeature
         var file = store.GetFile(fileId);
         if (file is null || file.Uploader != me.AccountKey || store.GetDmFile(fileId) is not null) throw RequestException.BadRequest("Unknown avatar file.");
         if (file.Size > ProfileFeature.MaxAvatarBytes)
-            throw RequestException.BadRequest($"Avatars can be up to {ProfileFeature.MaxAvatarBytes / 1024} KB.", "avatar_size", new { kb = ProfileFeature.MaxAvatarBytes / 1024 });
+            throw RequestException.BadRequest($"Profile pictures can be up to {ProfileFeature.MaxAvatarBytes / 1024} KB.", "avatar_size", new { kb = ProfileFeature.MaxAvatarBytes / 1024 });
         var bytes = s.Uploads.ReadContent(file, ProfileFeature.MaxAvatarBytes)
-            ?? throw RequestException.BadRequest($"Avatars can be up to {ProfileFeature.MaxAvatarBytes / 1024} KB.", "avatar_size", new { kb = ProfileFeature.MaxAvatarBytes / 1024 });
+            ?? throw RequestException.BadRequest($"Profile pictures can be up to {ProfileFeature.MaxAvatarBytes / 1024} KB.", "avatar_size", new { kb = ProfileFeature.MaxAvatarBytes / 1024 });
         var sniffed = FileSniffer.Sniff(bytes.AsSpan(0, Math.Min(bytes.Length, 64 * 1024)));
         if (!Types.Contains(sniffed.Type)) throw RequestException.BadRequest("Server pictures must be PNG, JPEG or WebP images.", "server_image_type");
         byte[] clean;
@@ -59,11 +59,11 @@ public static class MemberAvatarFeature
         }
         catch (ImageMetadata.Refused)
         {
-            throw RequestException.BadRequest("Couldn't read that image's size.", "image_size_unreadable");
+            throw RequestException.BadRequest("Couldn't read that picture's size.", "image_size_unreadable");
         }
         var (width, height) = sniffed.Type == "image/jpeg" ? JpegSize(clean) : (FileSniffer.Sniff(clean.AsSpan(0, Math.Min(clean.Length, 64 * 1024))) is var k ? (k.Width, k.Height) : (null, null));
-        if (width is not { } w || height is not { } h || w < 1 || h < 1) throw RequestException.BadRequest("Couldn't read that image's size.", "image_size_unreadable");
-        if (w > ProfileFeature.MaxAvatarSide || h > ProfileFeature.MaxAvatarSide) throw RequestException.BadRequest("That image is too large.", "image_too_large");
+        if (width is not { } w || height is not { } h || w < 1 || h < 1) throw RequestException.BadRequest("Couldn't read that picture's size.", "image_size_unreadable");
+        if (w > ProfileFeature.MaxAvatarSide || h > ProfileFeature.MaxAvatarSide) throw RequestException.BadRequest("That picture is too big.", "image_too_large");
         var kept = s.Uploads.StoreCopy(file, clean, sniffed.Type, w, h);
         ProfileFeature.CheckAvatarImage(kept); // the profile picture's limits, on the clean copy
         return kept;

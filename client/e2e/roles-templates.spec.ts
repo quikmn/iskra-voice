@@ -32,7 +32,7 @@ test('the owner adjusts what Member can do, resets it, and saves the server as a
   await expect(powers.locator('[data-permission="kickMembers"]')).toHaveCount(0)
   await powers.locator('[data-ability="invite"]').uncheck()
   await powers.locator('[data-ability="pin"]').check()
-  await powers.getByRole('button', { name: 'Save powers' }).click()
+  await powers.getByRole('button', { name: 'Save permissions' }).click()
   await expect(powers.getByRole('status')).toHaveText('Saved')
   await expect(builtin.locator('[data-base-role="member"] .builtin-changed')).toHaveText('Changed')
   await expect(about).toContainText('Pin messages where they can post')
@@ -69,7 +69,7 @@ test('the owner adjusts what Member can do, resets it, and saves the server as a
   expect(names).toContain('general')
   expect(json).not.toContain('Sam')
   expect(json).not.toContain('Host')
-  await expect(save.getByRole('status')).toHaveText('Saved.')
+  await expect(save.getByRole('status')).toHaveText('Saved')
   await save.scrollIntoViewIfNeeded()
   await host.screenshot({ path: join(SHOTS, 'save-as-template.png') })
 

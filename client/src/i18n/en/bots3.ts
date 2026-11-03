@@ -14,7 +14,7 @@ export const bots3 = {
   tags: {
     managers: 'Who can change tags',
     managersHint: 'Admins, and members with this role. Everyone can post tags with /tag name.',
-    title: 'Tags ({{count}} of {{max}})',
+    title: 'Tags · {{count}} of {{max}}',
     none: 'No tags yet. Add the first one below.',
     search: 'Find a tag',
     name: 'Name',
@@ -28,8 +28,8 @@ export const bots3 = {
     cancel: 'Cancel',
     remove: 'Remove',
     removeConfirm: 'Remove the tag {{name}}?',
-    saved: 'Saved.',
-    removed: 'Removed.',
+    saved: 'Saved',
+    removed: 'Removed',
     usage: 'Post one with /tag {{name}}',
   },
   suggestions: {
@@ -38,7 +38,7 @@ export const bots3 = {
     channelHint: 'Where suggestion cards go. Members suggest with /suggest from any channel, or with the Suggest button.',
     staffHint: 'Staff mark suggestions accepted, declined or implemented. Admins always can.',
     prompt: 'Post a Suggest button there',
-    prompted: 'Posted.',
+    prompted: 'Posted',
   },
   giveaways: {
     hint: 'Start one in any channel: /giveaway 1h 2w Steam key (1h: how long, 2w: two winners; add a role mention so only members with that role can enter). Then /giveaway end, cancel or reroll.',

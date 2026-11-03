@@ -38,7 +38,7 @@ export const sounds: Messages['sounds'] = {
       tooBig: 'Filen är för stor. Välj en på högst 1 MB.',
       tooLong: 'Ljudet är för långt. Välj ett på högst 4 sekunder.',
       empty: 'Ljudet är tyst.',
-      unreadable: 'Ljudet gick inte att spela här. Prova en MP3-, OGG- eller WAV-fil.',
+      unreadable: 'Ljudet gick inte att spela här. Prova en MP3-, Ogg- eller WAV-fil.',
     },
   },
 }

@@ -108,8 +108,8 @@ export const productivity = {
       requests: 'Friend requests',
     },
     everyone: 'Include @everyone and @here',
-    markAll: 'Mark all read',
-    markRead: 'Mark read',
+    markAll: 'Mark all as read',
+    markRead: 'Mark as read',
     empty: "You're all caught up.",
     loadMore: 'Load older',
     kind: {

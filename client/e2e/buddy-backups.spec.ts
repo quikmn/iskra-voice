@@ -49,16 +49,16 @@ test('a friend keeps our encrypted backups, and the app restores the server from
     // Bo, in the desktop app, owns his server and pastes the code.
     const page = await appWindow(app)
     await agreeToTerms(page)
-    await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+    await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
     await page.getByLabel('Your name').fill('Bo')
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'I have an invite link' }).click()
     await page.getByLabel('Invite link').fill(source.ownerLink())
     await page.getByRole('button', { name: 'Join', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'general' })).toBeVisible()
-    await page.getByPlaceholder('Message #general').fill('kept safe at a friend’s')
+    await page.getByPlaceholder('Message #general').fill("kept safe at a friend's")
     await page.getByPlaceholder('Message #general').press('Enter')
-    await expect(page.locator('.message', { hasText: 'kept safe at a friend’s' })).toBeVisible()
+    await expect(page.locator('.message', { hasText: "kept safe at a friend's" })).toBeVisible()
 
     await page.locator('.server-header-button').click()
     await page.getByRole('menuitem', { name: 'More settings' }).click()
@@ -124,7 +124,7 @@ test('a friend keeps our encrypted backups, and the app restores the server from
     const folder = join(hostRoot, 'restored')
     expect(existsSync(join(folder, 'server.json'))).toBe(true)
     await source.stop()
-    await expect(page.locator('.message', { hasText: 'kept safe at a friend’s' })).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('.message', { hasText: "kept safe at a friend's" })).toBeVisible({ timeout: 30_000 })
     await expect(page.locator('.me-text')).toContainText('owner')
     await page.screenshot({ path: join(SHOTS, 'buddy-restored.png') })
   } finally {

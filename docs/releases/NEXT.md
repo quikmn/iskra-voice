@@ -6,6 +6,7 @@
 
 ### Fixes
 - White text and icons on red (hang up, unread badges, recording) and on green (accept, join) now read clearly in every theme, and the keyboard focus ring shows in every theme.
+- Clearer words across the app, in English and Swedish: one name for each thing (direct messages and group chats, permissions, built-in roles, the audit log, "My settings →" paths), error messages that say what to do next, and the same quotes, dashes and time formats everywhere.
 
 ### Good to know
 - Fonts are now their own setting: if a theme used to give you a different font (Graphite, Solarized, Synthwave, Cyber-Lime), you now see Inter; pick another in My settings → Appearance → Font.

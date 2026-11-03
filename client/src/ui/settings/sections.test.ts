@@ -58,7 +58,7 @@ describe('server settings', () => {
 
   it('uses the plain names', () => {
     const label = Object.fromEntries(serverSections('owner').map((s) => [s.id, s.label]))
-    expect(label.audit).toBe('Activity log')
+    expect(label.audit).toBe('Audit log')
     expect(label.internet).toBe('Internet access')
     expect(label.securityLog).toBe('Sign-ins & security')
     expect(label.emoji).toBe('Emoji & stickers')

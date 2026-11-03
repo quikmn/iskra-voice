@@ -61,7 +61,7 @@ describe('server update texts', () => {
 
   it('shows known errors in the app language and others as the server said', () => {
     expect(updateErrorText(base)).toBeNull()
-    expect(updateErrorText({ ...base, error: 'x', errorCode: 'checksum' })).toBe('The download doesn’t match its checksum in SHA256SUMS.txt.')
+    expect(updateErrorText({ ...base, error: 'x', errorCode: 'checksum' })).toBe("The download doesn't match its checksum in SHA256SUMS.txt.")
     expect(updateErrorText({ ...base, error: 'Something new', errorCode: 'brand_new' })).toBe('Something new')
   })
 

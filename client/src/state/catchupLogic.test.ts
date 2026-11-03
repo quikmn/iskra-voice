@@ -94,11 +94,11 @@ describe('catch-up overview line', () => {
   const o = { messages: 128, people: 6, start: T0, end: T0 + 3 * 60 * MIN, links: 4, images: 2, files: 0, polls: 1, mentions: 0 }
 
   it('reads naturally in English', () => {
-    expect(overviewText(o, en)).toBe('128 messages from 6 people over 3 h; 4 links, 2 images, 1 poll')
+    expect(overviewText(o, en)).toBe('128 messages from 6 people over 3 h; 4 links, 2 pictures, 1 poll')
     expect(overviewText({ ...o, messages: 1, people: 1, links: 1, images: 0, polls: 0, mentions: 1, end: T0 + 45 * MIN }, en))
       .toBe('1 message from 1 person over 45 min; 1 mention of you, 1 link')
     expect(overviewText({ ...o, links: 0, images: 0, polls: 0, end: T0 + 20_000 }, en)).toBe('128 messages from 6 people in under a minute')
-    expect(overviewText({ ...o, files: 3, end: T0 + 3 * 24 * 60 * MIN }, en)).toBe('128 messages from 6 people over 3 days; 4 links, 2 images, 3 files, 1 poll')
+    expect(overviewText({ ...o, files: 3, end: T0 + 3 * 24 * 60 * MIN }, en)).toBe('128 messages from 6 people over 3 days; 4 links, 2 pictures, 3 files, 1 poll')
   })
 
   it('reads naturally in Swedish, plurals included', () => {

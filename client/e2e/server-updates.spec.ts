@@ -44,7 +44,7 @@ test('the owner checks for updates, sees what is new and picks how updates happe
   await expect(section.getByText('Iskra 2.0.0-alpha.11')).toBeVisible()
   await section.getByRole('button', { name: 'Check now' }).click()
   await expect(section.getByText('Update available: 2.0.0-alpha.12')).toBeVisible()
-  await expect(section.getByRole('link', { name: 'What’s new' })).toHaveAttribute('href', 'https://github.com/quikmn/iskra-voice/releases/tag/v2.0.0-alpha.12')
+  await expect(section.getByRole('link', { name: "What's new" })).toHaveAttribute('href', 'https://github.com/quikmn/iskra-voice/releases/tag/v2.0.0-alpha.12')
   // Not on Linux with systemd: no "Update now", and "Install automatically" says why.
   await expect(section.getByRole('button', { name: 'Update now' })).toHaveCount(0)
   await expect(section.getByRole('radio', { name: 'Install automatically' })).toBeDisabled()

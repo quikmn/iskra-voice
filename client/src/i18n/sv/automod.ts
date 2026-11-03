@@ -11,10 +11,10 @@ export const automod: Messages['automod'] = {
   },
   problems: {
     tooMany: 'Högst {{max}} rader (den här har {{count}}).',
-    tooLong: '"{{start}}…" är längre än {{max}} tecken.',
-    noLetter: '"{{entry}}" behöver minst en bokstav eller siffra.',
-    wildcards: '"{{entry}}" har fler än {{max}} *.',
-    badDomain: '"{{domain}}" är ingen domän som example.com.',
+    tooLong: '”{{start}}…” är längre än {{max}} tecken.',
+    noLetter: '”{{entry}}” behöver minst en bokstav eller siffra.',
+    wildcards: '”{{entry}}” har fler än {{max}} *.',
+    badDomain: '”{{domain}}” är ingen domän som example.com.',
     tooManyDomains: 'Högst {{max}} tillåtna domäner.',
   },
   alert: {
@@ -131,7 +131,7 @@ export const automod: Messages['automod'] = {
   },
   unsaved: 'Du har osparade ändringar.',
   saveChanges: 'Spara ändringar',
-  saved: 'Sparat.',
+  saved: 'Sparat',
   action: {
     lead: 'Stoppa meddelandet, och',
     timeoutLabel: 'Timeout',

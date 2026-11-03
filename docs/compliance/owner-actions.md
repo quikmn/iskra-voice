@@ -109,7 +109,7 @@ plus a password-manager entry with the passwords. Keep the stick away from the P
 Daily backups stay on the droplet's disk. Pick one or both:
 
 - **DigitalOcean backups:** droplet → Backups → Enable (weekly or daily snapshots of the whole droplet; paid).
-- **Encrypted download:** in the app, Settings → Backup & move → Make backup (strong passphrase from the password
+- **Encrypted download:** in the app, Server settings → Backup & move → Make backup (strong passphrase from the password
   manager); store the file off the droplet (e.g. the encrypted USB stick or a cloud drive). At least weekly, or
   script it with `iskra-server backup` and `--passphrase-stdin` from a cron job that copies the file elsewhere.
 

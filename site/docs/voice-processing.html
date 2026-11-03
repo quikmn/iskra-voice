@@ -126,7 +126,7 @@ runs DeepFilterNet with the local SNR thresholds its own command line tool uses 
 every frame); libDF's WebAssembly defaults (-10, 30, 20) skipped stages frame by frame and turned clean speech down
 by about 9 dB, choppily (see &quot;How transparent it is&quot; below). Changes apply right away, in a call too.</li>
 <li><strong>Automatic gain.</strong> The browser's automatic gain control is off by default when Strong or AI runs (it pumps the
-level under the noise removal), and on with Standard or Off. Settings → Voice &amp; audio lets you choose either way.</li>
+level under the noise removal), and on with Standard or Off. My settings → Voice &amp; audio lets you choose either way.</li>
 <li><strong>Voice activity.</strong> With &quot;Set automatically&quot; on, Silero VAD (a small neural network, run in plain TypeScript in the
 same AudioWorklet) decides when you're speaking: the mic opens when it hears speech and stays open through pauses
 for 500 ms (hangover). It keeps the last 100 ms and sends them when it opens (pre-roll), so the start of a word
@@ -177,7 +177,7 @@ talk, at most ±12 dB, at most 3 dB per second, gliding sample by sample), then 
 <li>Your per-person volume, on top.</li>
 </ol>
 <h2 id="your-cameras-background">Your camera's background<a class="anchor" href="#your-cameras-background" aria-hidden="true" tabindex="-1">#</a></h2>
-<p>Settings → Camera: <strong>Off</strong> (default), <strong>Blur</strong>, or <strong>Replace</strong> with a built-in picture (Aurora, Sunset: soft gradients
+<p>My settings → Camera: <strong>Off</strong> (default), <strong>Blur</strong>, or <strong>Replace</strong> with a built-in picture (Aurora, Sunset: soft gradients
 drawn by the app, nothing to download) or a solid colour. The preview there runs exactly what calls run.</p>
 <ul>
 <li><strong>What runs.</strong> MediaPipe's Selfie Segmenter (a 256×256 person-segmentation network, run by MediaPipe Tasks in
@@ -198,7 +198,7 @@ developer console every 10 seconds.</li>
 which has none, and the workers that run on-device models can only fetch from the app's own address anyway.</li>
 </ul>
 <h2 id="live-captions">Live captions<a class="anchor" href="#live-captions" aria-hidden="true" tabindex="-1">#</a></h2>
-<p>Opt in per listener: the captions button in the call, or Settings → Voice &amp; audio → Captions (&quot;Show captions in
+<p>Opt in per listener: the captions button in the call, or My settings → Voice &amp; audio → Captions (&quot;Show captions in
 calls&quot;). Off by default. Each speaker's last words show under their name above the call controls (read out by screen
 readers as a polite live region); the × or the button turns them off again.</p>
 <ul>
@@ -242,13 +242,13 @@ it came from. Files from an older version are removed.</li>
 the call goes with it, and the workers that run the models can't fetch anything at all.</li>
 </ul>
 <h2 id="message-translation">Message translation<a class="anchor" href="#message-translation" aria-hidden="true" tabindex="-1">#</a></h2>
-<p><strong>Translate</strong> in a message's menu (channels, threads, DMs and group DMs; press and hold on a phone) shows the message
+<p><strong>Translate</strong> in a message's menu (channels, threads, direct messages and group chats; press and hold on a phone) shows the message
 in your language under the original: &quot;Translated from Swedish · Show original&quot;. The translation button in a
 conversation's header turns on <strong>Auto-translate messages not in my language</strong> there, and picks the language to
 translate into (your app language unless you choose another; also in My settings → Language).</p>
 <ul>
 <li><strong>On your device, after decryption.</strong> It runs in a Web Worker on the text your app already shows, so it works for
-end-to-end encrypted channels, DMs and groups too. No message text is sent anywhere: not to your server, not to any
+end-to-end encrypted channels, direct messages and group chats too. No message text is sent anywhere: not to your server, not to any
 translation service. Translations live only in the page's memory and are gone when the app closes.</li>
 <li><strong>Which language.</strong> <a href="https://github.com/nitotm/efficient-language-detector-js" target="_blank" rel="noopener">ELD</a> (n-grams, its smallest database,
 under 1 MB, bundled) tells the language on the device. Links, mentions, emoji, code and numbers don't count; a few
@@ -283,8 +283,8 @@ under a key that doesn't depend on the server: one download per language and dir
 older version are removed.</li>
 </ul>
 <h2 id="voice-message-transcripts">Voice message transcripts<a class="anchor" href="#voice-message-transcripts" aria-hidden="true" tabindex="-1">#</a></h2>
-<p><strong>Show transcript</strong> (the lines button on a voice message's player, in channels, encrypted channels, DMs and group
-DMs) shows what was said under the player. Settings → Voice &amp; audio → Speech → <strong>Transcribe voice messages
+<p><strong>Show transcript</strong> (the lines button on a voice message's player, in channels, encrypted channels, direct messages and group
+chats) shows what was said under the player. My settings → Voice &amp; audio → Speech → <strong>Transcribe voice messages
 automatically</strong> (off by default) does it for every voice message you see.</p>
 <ul>
 <li><strong>The captions model, on your device.</strong> It's the same Whisper base model and worker as <a href="#live-captions">live captions</a>,
@@ -303,7 +303,7 @@ off and on tries again). Browsers that can't run captions can't transcribe eithe
 <p><strong>Read aloud</strong> in a message's menu reads it with the device's own speech voices (<code>speechSynthesis</code>: Windows, macOS and
 iOS voices; speech-dispatcher on Linux). A channel's menu has <strong>Read new messages aloud</strong> (for gaming: a speaker button
 in the header shows it's on and turns it off). Messages sent with <code>/tts &lt;text&gt;</code> are read aloud for people who turned on
-Settings → Voice &amp; audio → Speech → <strong>Play /tts messages</strong> (off by default); sending them needs the <code>sendTts</code>
+My settings → Voice &amp; audio → Speech → <strong>Play /tts messages</strong> (off by default); sending them needs the <code>sendTts</code>
 permission (admins have it; others get it from a role).</p>
 <ul>
 <li><strong>What's read.</strong> The author's name and the message as plain words: mentions by name, custom emoji by name, links as

@@ -297,7 +297,7 @@ Connect and Play APIs (permissions, Apple's processing, review). Each ends with 
 nothing is published before finalize's CI gate passes.
 
 The user's own server updates through finalize. Other standalone servers look for new releases themselves (owner
-setting, Settings → Updates: off / tell me / install automatically on Linux with systemd; docs/hosting.md "Updating").
+setting, Server settings → Server updates: off / tell me / install automatically on Linux with systemd; docs/hosting.md "Updating").
 They read the same release: the `iskra-server-<v>-<rid>` package, `SHA256SUMS.txt`, GitHub's asset digests and the
 attestations, so every release needs SHA256SUMS.txt (finalize makes it) and the Linux tarball needs
 `iskra-update-guard` (release.yml adds it). Servers report their version at `/health`; release builds get it from

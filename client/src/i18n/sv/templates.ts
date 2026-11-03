@@ -4,7 +4,7 @@ export const templates = {
     title: 'Spara servern som mall',
     intro: 'En fil med dina kanaler, vem som kan se och använda dem, roller, regler och inställningar, så att du kan starta en likadan server. Aldrig medlemmar, meddelanden, filer eller nycklar.',
     button: 'Spara som mall',
-    done: 'Sparad.',
+    done: 'Sparat',
   },
   file: {
     pick: 'Från en mallfil…',
@@ -30,7 +30,7 @@ export const templates = {
     tags: 'Taggar: {{tags}}',
     rolePermissions: '{{count}} behörigheter',
     noPermissions: 'Inga extra behörigheter',
-    builtinChanged: '{{role}}: egna befogenheter',
+    builtinChanged: '{{role}}: ändrade behörigheter',
     notifyDefault: 'Standardaviseringar: {{level}}',
     notifyAuto: 'automatiskt',
     bots: 'Inbyggda bottar: {{bots}}',

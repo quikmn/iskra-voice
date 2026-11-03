@@ -16,7 +16,7 @@ test('inside the iPhone app: no Home Screen hints, notifications while the app i
   const page = await context.newPage()
   await page.goto('/')
   await agreeToTerms(page)
-  await page.getByRole('button', { name: /I’m new to Iskra/ }).click()
+  await page.getByRole('button', { name: /I'm new to Iskra/ }).click()
   await page.getByLabel('Your name').fill('Phone')
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByRole('complementary', { name: 'Get the Iskra app' })).toBeHidden()

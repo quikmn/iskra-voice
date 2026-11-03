@@ -156,7 +156,7 @@ public static class DmPrivacyFeature
     private static RequestException Closed(string what, Member? peer = null) => what switch
     {
         "call" => RequestException.Forbidden("This person isn't taking calls from you right now.", "call_closed"),
-        "group" => RequestException.Forbidden($"{peer?.Name} isn't taking group DMs from you right now.", "group_closed", new { name = peer?.Name }),
+        "group" => RequestException.Forbidden($"{peer?.Name} isn't taking group chats from you right now.", "group_closed", new { name = peer?.Name }),
         _ => RequestException.Forbidden("This person isn't taking new direct messages right now.", "dm_closed"),
     };
 }

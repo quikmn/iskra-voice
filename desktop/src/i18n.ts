@@ -75,7 +75,7 @@ This bot runs with your rights on this computer: it can read and change your fil
     ready: 'Ready',
     updatedTo: (version: string) => `Updated to ${version}`,
     updating: (version: string) => `Updating Iskra to ${version}…`,
-    updatingDetail: 'It’ll be back in a few seconds.',
+    updatingDetail: "It'll be back in a few seconds.",
   },
   assistant: {
     title: 'Iskra assistant',
@@ -86,7 +86,7 @@ This bot runs with your rights on this computer: it can read and change your fil
   },
   digitalOcean: {
     done: 'Connected to DigitalOcean. You can close this tab and go back to Iskra.',
-    denied: 'Iskra wasn’t connected to DigitalOcean. You can close this tab and go back to Iskra.',
+    denied: "Iskra wasn't connected to DigitalOcean. You can close this tab and go back to Iskra.",
   },
 }
 

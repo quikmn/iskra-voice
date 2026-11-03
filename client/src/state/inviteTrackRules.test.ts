@@ -15,17 +15,17 @@ const join = (accountKey: string, id: string, label: string | null, extra: Parti
 
 describe('invite tracking', () => {
   it('names an invite by its label, else the start of its id', () => {
-    expect(inviteName({ id: 'abcdefghijk', label: 'Reddit post' })).toBe('“Reddit post”')
+    expect(inviteName({ id: 'abcdefghijk', label: 'Reddit post' })).toBe('"Reddit post"')
     expect(inviteName({ id: 'abcdefghijk', label: null })).toBe('invite abcdef')
   })
 
   it('says who made it and who let them in, with current names first', () => {
     const names: Record<string, string> = { anna: 'Anna', mod: 'Mo' }
     const nameOf = (k: string) => names[k]
-    expect(joinedViaText(join('sam', 'i1', 'Reddit post'), nameOf)).toBe('Joined with “Reddit post” from Anna')
+    expect(joinedViaText(join('sam', 'i1', 'Reddit post'), nameOf)).toBe('Joined with "Reddit post" from Anna')
     expect(joinedViaText(join('sam', 'i1', null), () => undefined)).toBe('Joined with invite i1 from Anna (then)')
     expect(joinedViaText(join('sam', 'i1', 'Forum', { approvedBy: 'mod', approvedByName: 'Old' }), nameOf))
-      .toBe('Joined with “Forum” from Anna, let in by Mo')
+      .toBe('Joined with "Forum" from Anna, let in by Mo')
     const owner = join('o', 'i9', null)
     owner.invite.createdBy = 'server'
     expect(joinedViaText(owner, nameOf)).toBe('Joined with invite i9 from the setup link')
@@ -46,7 +46,7 @@ describe('invite tracking', () => {
       id: 1, at: 0, action: 'member.join', actor: 'k', actorName: 'Sam', target: 'k', targetName: 'Sam', reason: null,
       details: { role: 'member', invite: { id: 'abcdefghijk', label: 'Reddit post', createdBy: 'anna' } },
     }
-    expect(auditText(entry)).toBe('Sam joined with “Reddit post”')
+    expect(auditText(entry)).toBe('Sam joined with "Reddit post"')
     expect(auditText({ ...entry, details: { invite: { id: 'abcdefghijk', label: null } } })).toBe('Sam joined with invite abcdef')
   })
 })

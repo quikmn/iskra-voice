@@ -71,7 +71,7 @@ export const alerts = {
     gotIt: 'Got it',
     kind: {
       mentions: 'Mentions and replies',
-      messages: 'Direct messages and group DMs',
+      messages: 'Direct messages and group chats',
       keywords: 'Alert words',
       follows: 'People and roles you follow',
       events: 'Events',

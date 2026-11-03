@@ -44,7 +44,7 @@ test('share to Iskra: pick a channel or a person, with a message and files; canc
     await expect(picker).toBeVisible()
     await expect(picker.getByRole('img', { name: 'pancakes.png' })).toBeVisible()
     await expect(picker.getByText('shopping.txt')).toBeVisible()
-    await expect(picker.getByText('1 file couldn’t be added')).toBeVisible()
+    await expect(picker.getByText("1 file couldn't be added")).toBeVisible()
     await expect(picker.getByLabel('Message')).toHaveValue('Best pancakes\nhttps://example.invalid/recipe')
     // Nothing is chosen yet, so nothing can be sent.
     await expect(picker.getByRole('button', { name: 'Send', exact: true })).toBeDisabled()

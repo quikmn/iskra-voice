@@ -181,7 +181,7 @@ public static class ModerationFeature
 
     private static object ListAudit(Session s, Member me, Body body)
     {
-        if (!Permissions.Has(me, Perm.ViewAuditLog)) throw RequestException.Forbidden("You can't read the activity log on this server.", "read_activity_log");
+        if (!Permissions.Has(me, Perm.ViewAuditLog)) throw RequestException.Forbidden("You can't read the audit log on this server.", "read_activity_log");
         var action = body.OptionalString("action", 40);
         var person = body.OptionalString("person", 64);
         var before = body.OptionalLong("before", min: 1);

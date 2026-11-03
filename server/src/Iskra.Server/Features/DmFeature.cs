@@ -52,7 +52,7 @@ public static class DmFeature
         var envelope = body.Element("envelope");
         if (envelope.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'envelope' must be an object.");
         var raw = envelope.GetRawText();
-        if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("Message is too large.", "message_too_large");
+        if (raw.Length > MaxEnvelopeBytes) throw RequestException.BadRequest("That message is too big. Split it into a few.", "message_too_large");
         DisappearFeature.EnvelopeExpires(envelope); // a malformed expiry is refused before anything is stored
 
         var silent = body.OptionalBool("silent") == true;

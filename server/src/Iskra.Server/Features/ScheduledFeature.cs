@@ -69,7 +69,7 @@ public static class ScheduledFeature
         var envelope = body.Element("envelope");
         if (envelope.ValueKind != JsonValueKind.Object) throw RequestException.BadRequest("'envelope' must be an object.");
         var raw = envelope.GetRawText();
-        return raw.Length <= max ? raw : throw RequestException.BadRequest("Message is too large.", "message_too_large");
+        return raw.Length <= max ? raw : throw RequestException.BadRequest("That message is too big. Split it into a few.", "message_too_large");
     }
 
     private static ScheduledMessage Mine(Session s, Member me, Body body) =>

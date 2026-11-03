@@ -28,7 +28,7 @@ speech and translation models kept on the device so they're only downloaded once
   every frame); libDF's WebAssembly defaults (-10, 30, 20) skipped stages frame by frame and turned clean speech down
   by about 9 dB, choppily (see "How transparent it is" below). Changes apply right away, in a call too.
 - **Automatic gain.** The browser's automatic gain control is off by default when Strong or AI runs (it pumps the
-  level under the noise removal), and on with Standard or Off. Settings → Voice & audio lets you choose either way.
+  level under the noise removal), and on with Standard or Off. My settings → Voice & audio lets you choose either way.
 - **Voice activity.** With "Set automatically" on, Silero VAD (a small neural network, run in plain TypeScript in the
   same AudioWorklet) decides when you're speaking: the mic opens when it hears speech and stays open through pauses
   for 500 ms (hangover). It keeps the last 100 ms and sends them when it opens (pre-roll), so the start of a word
@@ -81,7 +81,7 @@ goes through:
 
 ## Your camera's background
 
-Settings → Camera: **Off** (default), **Blur**, or **Replace** with a built-in picture (Aurora, Sunset: soft gradients
+My settings → Camera: **Off** (default), **Blur**, or **Replace** with a built-in picture (Aurora, Sunset: soft gradients
 drawn by the app, nothing to download) or a solid colour. The preview there runs exactly what calls run.
 
 - **What runs.** MediaPipe's Selfie Segmenter (a 256×256 person-segmentation network, run by MediaPipe Tasks in
@@ -103,7 +103,7 @@ drawn by the app, nothing to download) or a solid colour. The preview there runs
 
 ## Live captions
 
-Opt in per listener: the captions button in the call, or Settings → Voice & audio → Captions ("Show captions in
+Opt in per listener: the captions button in the call, or My settings → Voice & audio → Captions ("Show captions in
 calls"). Off by default. Each speaker's last words show under their name above the call controls (read out by screen
 readers as a polite live region); the × or the button turns them off again.
 
@@ -148,13 +148,13 @@ readers as a polite live region); the × or the button turns them off again.
 
 ## Message translation
 
-**Translate** in a message's menu (channels, threads, DMs and group DMs; press and hold on a phone) shows the message
+**Translate** in a message's menu (channels, threads, direct messages and group chats; press and hold on a phone) shows the message
 in your language under the original: "Translated from Swedish · Show original". The translation button in a
 conversation's header turns on **Auto-translate messages not in my language** there, and picks the language to
 translate into (your app language unless you choose another; also in My settings → Language).
 
 - **On your device, after decryption.** It runs in a Web Worker on the text your app already shows, so it works for
-  end-to-end encrypted channels, DMs and groups too. No message text is sent anywhere: not to your server, not to any
+  end-to-end encrypted channels, direct messages and group chats too. No message text is sent anywhere: not to your server, not to any
   translation service. Translations live only in the page's memory and are gone when the app closes.
 - **Which language.** [ELD](https://github.com/nitotm/efficient-language-detector-js) (n-grams, its smallest database,
   under 1 MB, bundled) tells the language on the device. Links, mentions, emoji, code and numbers don't count; a few
@@ -190,8 +190,8 @@ translate into (your app language unless you choose another; also in My settings
 
 ## Voice message transcripts
 
-**Show transcript** (the lines button on a voice message's player, in channels, encrypted channels, DMs and group
-DMs) shows what was said under the player. Settings → Voice & audio → Speech → **Transcribe voice messages
+**Show transcript** (the lines button on a voice message's player, in channels, encrypted channels, direct messages and group
+chats) shows what was said under the player. My settings → Voice & audio → Speech → **Transcribe voice messages
 automatically** (off by default) does it for every voice message you see.
 
 - **The captions model, on your device.** It's the same Whisper base model and worker as [live captions](#live-captions),
@@ -211,7 +211,7 @@ automatically** (off by default) does it for every voice message you see.
 **Read aloud** in a message's menu reads it with the device's own speech voices (`speechSynthesis`: Windows, macOS and
 iOS voices; speech-dispatcher on Linux). A channel's menu has **Read new messages aloud** (for gaming: a speaker button
 in the header shows it's on and turns it off). Messages sent with `/tts <text>` are read aloud for people who turned on
-Settings → Voice & audio → Speech → **Play /tts messages** (off by default); sending them needs the `sendTts`
+My settings → Voice & audio → Speech → **Play /tts messages** (off by default); sending them needs the `sendTts`
 permission (admins have it; others get it from a role).
 
 - **What's read.** The author's name and the message as plain words: mentions by name, custom emoji by name, links as

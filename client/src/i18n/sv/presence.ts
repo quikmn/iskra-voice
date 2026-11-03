@@ -10,7 +10,7 @@ export const presence: Messages['presence'] = {
   },
   hints: {
     idle: 'Sätts också automatiskt när du är borta en stund',
-    dnd: 'Inga ljud, aviseringar eller pushnotiser',
+    dnd: 'Inga ljud eller aviseringar',
     invisible: 'Du ser offline ut, men kan använda Iskra som vanligt',
   },
   clearAfter: {

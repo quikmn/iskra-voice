@@ -136,7 +136,7 @@ export const organize = {
     hintTheirs: 'Server nickname on {{server}}. Only on this server. Leave empty to use their name ({{name}}).',
     useMine: 'Use my name',
     useTheirs: 'Use their name',
-    saved: 'Saved.',
+    saved: 'Saved',
   },
   avatar: {
     label: 'Picture on this server',
@@ -155,7 +155,7 @@ export const organize = {
     prevUnread: 'Previous unread channel',
     nextUnread: 'Next unread channel',
     markRead: 'Mark this conversation as read (or close what is open)',
-    markServerRead: 'Mark the whole server as read (at Home: every DM)',
+    markServerRead: 'Mark the whole server as read (at Home: every direct message)',
     show: 'Show these shortcuts',
     writing: 'Writing',
     send: 'Send',
@@ -168,7 +168,7 @@ export const organize = {
     voice: 'Voice',
     notSet: 'Not set',
     ptt: 'Push to talk (hold)',
-    pttUnset: 'Push to talk: pick a key in Settings → Voice & audio',
+    pttUnset: 'Push to talk: pick a key in My settings → Voice & audio',
     more: 'Right-click a channel, category or server (or press and hold on a phone) for more.',
   },
   unread: {

@@ -102,7 +102,7 @@ test('voice channels have their own chat, and clips save the last seconds with a
   const bytes = readFileSync((await file.path())!)
   expect(bytes.length).toBeGreaterThan(1000)
   expect([...bytes.subarray(0, 4)]).toEqual([0x1a, 0x45, 0xdf, 0xa3])
-  await expect(dialog.getByText('Saved.')).toBeVisible()
+  await expect(dialog.getByText('Saved')).toBeVisible()
 
   // Share it into the lounge's chat.
   await dialog.getByRole('button', { name: 'Share in chat' }).click()
