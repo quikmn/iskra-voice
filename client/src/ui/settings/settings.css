@@ -67,6 +67,7 @@
   /* Phones: iOS-style inset groups with headers, 20px icons, 48px rows. */
   .settings-nav { border-right: 0; background: transparent; padding: var(--sp-2) var(--sp-3) var(--sp-5); gap: var(--sp-5); }
   .settings-nav-title { padding: 0 var(--sp-4) 6px; }
+  .settings-nav-group { gap: 0; }
   .settings-nav-item { min-height: 48px; padding: 0 14px; gap: 14px; background: var(--surface-2); border-radius: 0; font-size: 16px; color: var(--text); box-shadow: none; }
   .settings-nav-item.active { box-shadow: none; }
   .settings-nav-icon svg { width: 20px; height: 20px; }

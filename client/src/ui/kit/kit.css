@@ -21,7 +21,7 @@
 .k-row + .k-row { border-top: 1px solid var(--border); }
 .k-row-main { display: flex; align-items: center; gap: var(--sp-4); }
 .k-row-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
-.k-row-title { font-size: var(--fs-ui); font-weight: var(--fw-medium); color: var(--text); }
+.k-row-title { font-size: var(--fs-ui); font-weight: 500; color: var(--text); }
 .k-row-help { font-size: var(--fs-md); color: var(--muted); line-height: var(--lh-body); }
 .k-row-control { flex: none; display: flex; align-items: center; gap: var(--sp-2); }
 .k-row-control select { width: auto; min-width: 160px; }

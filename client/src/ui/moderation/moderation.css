@@ -77,3 +77,11 @@
   .audit-filters .field { flex-basis: 100%; min-width: 0; }
   .timeout-form select, .timeout-form .button { flex: 1; }
 }
+
+/* The member sheet's tabs: the tab names the panel, so its own heading and divider go. */
+.mod-tabs { margin: 4px 0 12px; }
+.mod-tab-panel > .timeout-controls,
+.mod-tab-panel > .warn-controls,
+.mod-tab-panel > .mod-notes,
+.mod-tab-panel > .mod-history { margin-top: 0; padding-top: 0; border-top: 0; }
+.mod-tabs ~ .mod-tab-panel > div > strong:first-child { display: none; }

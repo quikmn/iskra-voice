@@ -9,4 +9,11 @@ export const kit: Messages['kit'] = {
     app: 'Appen',
     privacy: 'Integritet och säkerhet',
   },
+  modTabs: {
+    label: 'Moderatorverktyg',
+    timeout: 'Timeout',
+    warn: 'Varna',
+    notes: 'Anteckningar',
+    history: 'Historik',
+  },
 }

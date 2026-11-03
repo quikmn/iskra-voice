@@ -11,6 +11,7 @@ import { overrideAt, resolveSound, SOUND_IDS, SOUND_KINDS, type SoundId, type So
 import { MenuItem, MenuTitle } from '../organize/OrgMenu'
 import type { Run } from '../organize/Menus'
 import './sounds.css'
+import { Volume } from '../icons'
 
 const soundName = (id: SoundId) => translate(`sounds.names.${id}`)
 
@@ -151,5 +152,5 @@ export function SoundMenuRow({ server, channelId, open }: { server: ServerState;
   const { t } = useTranslation()
   const prefs = useSounds((s) => s.prefs)
   const playing = resolveSound(prefs, 'message', { serverKey: server.key, channelId })
-  return <MenuItem onClick={open} hint={soundName(playing)} submenu>{t('sounds.menuRow')}</MenuItem>
+  return <MenuItem icon={<Volume />} onClick={open} hint={soundName(playing)} submenu>{t('sounds.menuRow')}</MenuItem>
 }

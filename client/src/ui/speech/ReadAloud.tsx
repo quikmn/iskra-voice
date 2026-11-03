@@ -34,7 +34,7 @@ export function ReadAloudChannelItem({ server, channel }: { server: ServerState;
   const on = useReadAloudHere(server.key, channel.id)
   if (!speechSupported() || !['text', 'voice', 'stage'].includes(channel.kind)) return null
   return (
-    <MenuItem checked={on} onClick={() => setReadAloudHere(server.key, channel.id, !on)} hint={on ? t('speech.channel.on') : undefined}>
+    <MenuItem icon={<Volume />} toggle={on} onClick={() => setReadAloudHere(server.key, channel.id, !on)}>
       {t('speech.channel.toggle')}
     </MenuItem>
   )

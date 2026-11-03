@@ -93,7 +93,7 @@ test('voice message transcripts, read aloud, read new messages aloud and /tts', 
   // ── Read new messages aloud in #general: author and text, never your own.
   await host.locator('button.channel', { hasText: 'general' }).hover()
   await host.getByRole('button', { name: '#general options' }).click()
-  await host.getByRole('menuitemradio', { name: /Read new messages aloud/ }).click()
+  await host.getByRole('menuitemcheckbox', { name: /Read new messages aloud/ }).click()
   await host.keyboard.press('Escape')
   await expect(host.getByTestId('read-aloud-on')).toBeVisible()
   await send(friend, 'Pull up, the boss spawns in ```\nwait 5\n``` seconds')

@@ -47,6 +47,7 @@ test('moderators delete messages together, warn, keep notes, see history, and re
 
   // ── Warning, a note, and the history on Sam's sheet.
   let sheet = await openMemberSheet(host, 'Sam')
+  await sheet.getByRole('tab', { name: 'Warn' }).click()
   await sheet.getByLabel('Warning reason').fill('No spam, please')
   await sheet.getByRole('button', { name: 'Warn' }).click()
   await expect(sheet.getByRole('status')).toHaveText('Sam was warned.')
@@ -54,10 +55,12 @@ test('moderators delete messages together, warn, keep notes, see history, and re
   await expect(toast).toContainText('A warning from the moderators of Mod Pack Test')
   await expect(toast).toContainText('Host: No spam, please')
   await sam.screenshot({ path: join(SHOTS, 'warn-toast.png') })
+  await sheet.getByRole('tab', { name: 'Notes' }).click()
   await sheet.getByLabel('New note').fill('Second strike is a timeout')
   await sheet.getByRole('button', { name: 'Add note' }).click()
   await expect(sheet.getByTestId('mod-notes')).toContainText('Second strike is a timeout')
   await expect(sheet.getByTestId('mod-notes')).toContainText('By Host')
+  await sheet.getByRole('tab', { name: 'History' }).click()
   await expect(sheet.getByTestId('mod-history')).toContainText('Host warned Sam')
   await host.screenshot({ path: join(SHOTS, 'mod-sheet.png') })
   // Sam never sees notes or a history section.

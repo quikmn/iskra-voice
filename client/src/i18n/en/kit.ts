@@ -9,4 +9,12 @@ export const kit = {
     app: 'App',
     privacy: 'Privacy & safety',
   },
+  // The member sheet's moderation tabs.
+  modTabs: {
+    label: 'Moderation tools',
+    timeout: 'Timeout',
+    warn: 'Warn',
+    notes: 'Notes',
+    history: 'History',
+  },
 } as const
