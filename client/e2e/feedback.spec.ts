@@ -120,20 +120,23 @@ test('server menus: the rail icon and the server name lead to its settings; the 
   const settings = host.getByRole('dialog', { name: 'Menu Test · Server settings' })
   const current = settings.locator('.settings-nav-item[aria-current="page"]')
 
-  // Right-click the server in the rail: the common things flat, the rest one level down, for the owner.
+  // Right-click the server in the rail: three blocks (the server, you here, hide/leave), every section one level down.
   await host.locator('.server-icon[title="Menu Test"]').click({ button: 'right' })
   const menu = host.getByRole('dialog', { name: 'Menu Test options' })
-  for (const item of ['Invite friends', 'Create channel…', 'Server settings', 'Members', 'Roles', 'Reports', 'More settings', 'Server nickname…',
+  for (const item of ['Invite friends', 'Create channel…', 'Server settings', 'More settings', 'Server nickname…',
     'Mark as read', 'Move to folder', 'Hide server', 'Leave server']) {
     await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
   }
   await menu.getByRole('menuitem', { name: 'More settings' }).click()
-  for (const item of ['Channels', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Join questions', 'AutoMod', 'Audit log',
+  for (const group of ['Server', 'Members & safety', 'Apps', 'Hosting & data']) await expect(menu.getByRole('group', { name: group })).toBeVisible()
+  for (const item of ['Channels', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Join questions', 'Members', 'Roles', 'Reports', 'AutoMod', 'Audit log',
     'Sign-ins & security', 'Bots & webhooks', 'Internet access', 'Limits', 'Backup & move', 'Import from Discord', 'Server updates']) {
     await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
   }
   await host.screenshot({ path: join(SHOTS, 'server-menu-rail.png') })
   await menu.getByRole('button', { name: 'Back' }).click()
+  await expect(menu.getByRole('menuitem', { name: 'Server settings', exact: true })).toBeVisible()
+  await menu.getByRole('menuitem', { name: 'More settings' }).click()
   await menu.getByRole('menuitem', { name: 'Roles', exact: true }).click()
   await expect(current).toHaveText('Roles')
   await host.keyboard.press('Escape')

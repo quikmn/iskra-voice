@@ -1,7 +1,8 @@
 // A server's own menu (right-click or press and hold its icon in the rail, or the server name above the channels).
-// First the common things flat (Invite friends, Create channel, Server settings, Members, Roles, Reports), the
-// rest under "More settings" (or all flat when there are only a few, see serverMenuLayout), then the personal
-// per-server items, then Hide server (just off your list) and Leave server (really leaves). Every settings row opens the server room for THIS server at that section.
+// Three blocks: the server (Invite friends, Create channel, Server settings, More settings with every section grouped
+// like the room's nav, or all flat when there are only a few: see serverMenuLayout), you here (one Notifications
+// page, nickname, mark as read, folder), then Hide server (just off your list) and Leave server (really leaves).
+// Every settings row opens the server room for THIS server at that section.
 import { useState } from 'react'
 import { create } from 'zustand'
 import { useTranslation } from 'react-i18next'
@@ -21,20 +22,26 @@ import { InviteDialog } from '../dialogs/InviteDialog'
 import { ServerRulesItem } from '../rules/Rules'
 import { PickRolesItem } from '../roles/Onboarding'
 import { openServerSettings } from '../settings/open'
-import { serverSections, type ServerSectionId } from '../settings/sections'
+import { SERVER_GROUPS, serverSections, type ServerSectionId } from '../settings/sections'
 import { ServerTile } from '../settings/ServerTile'
 import { FolderDialog } from './FolderDialog'
-import { NotifyRows, NotifyViews, useRunner, type Run } from './Menus'
-import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgMenu'
+import { NotifyViews, useRunner, type Run } from './Menus'
+import { MenuGroup, MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgMenu'
 import { LfgNotifyItem } from '../teams/TeamsBits'
 import { NicknameField, ServerAvatarField } from './ServerSettings'
 import { BirthdayField } from './BirthdayField'
 import { serverMenuLayout } from './serverMenuLayout'
-import { AlertTriangle, CheckCheck, EyeOff, Folder, LogOut, Pencil, Plus, Settings, ShieldCheck, Sliders, UserPlus, Users } from '../icons'
+import { muteFor, setNotifyLevel, useNotifyFor, useOrganize } from '../../state/organize'
+import { levelLabel, muteLabel, notifyKey } from '../../state/organizeLogic'
+import { SoundMenuRow } from '../sounds/SoundSettings'
+import { AlertTriangle, Bell, BellOff, CheckCheck, ChevronDown, ChevronUp, EyeOff, Folder, LogOut, Pencil, Plus, Settings, ShieldCheck, Sliders, Sparkles, UserPlus, Users } from '../icons'
 
 export type ServerAction = { kind: 'invite' } | { kind: 'channel' } | { kind: 'nickname' } | { kind: 'hide' } | { kind: 'leave' } | { kind: 'folder'; folderId: string }
 
-type View = 'menu' | 'more' | 'levels' | 'mute' | 'sound' | 'move'
+type View = 'menu' | 'more' | 'notify' | 'mute' | 'sound' | 'move'
+
+const sectionIcon = (id: ServerSectionId) =>
+  id === 'members' ? <Users /> : id === 'reports' ? <AlertTriangle /> : id === 'roles' ? <ShieldCheck /> : <Sliders />
 
 export function ServerMenu({ server, anchor, onClose }: { server: ServerState; anchor: MenuAnchor | null; onClose: () => void }) {
   const { t } = useTranslation()
@@ -47,6 +54,7 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
   const bugInbox = useBugInbox((s) => !!s.accepts[server.key])
   const sections = serverSections(me?.role, (perm) => has(me, roles, perm, baseRoles), bugInbox)
   const label = new Map(sections.map((s) => [s.id, s.label]))
+  const groupOf = new Map(sections.map((s) => [s.id, s.group]))
   const { rows, more } = serverMenuLayout(sections.map((s) => s.id), {
     invite: baseAllows(baseRoles, me, 'invite'),
     createChannel: has(me, roles, 'manageChannels'),
@@ -64,13 +72,23 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
 
   return (
     <OrgMenu anchor={anchor} label={t('app.rail.options', { name: server.name })} onClose={onClose}>
-      {view === 'levels' || view === 'mute' || view === 'sound' ? (
-        <NotifyViews server={server} channelId={null} view={view} setView={back} run={run} />
+      {view === 'mute' || view === 'sound' ? (
+        <NotifyViews server={server} channelId={null} view={view} setView={() => setView('notify')} run={run} />
+      ) : view === 'notify' ? (
+        <NotifyPage server={server} onBack={back} setView={setView} run={run} />
       ) : view === 'more' ? (
         <>
-          <MenuTitle onBack={back}>{server.name}</MenuTitle>
-          <div className="org-list" role="menu">
-            {more.map((id) => <MenuItem key={id} onClick={open(id)}>{label.get(id)}</MenuItem>)}
+          <MenuTitle onBack={back}>{t('app.serverMenu.more')}</MenuTitle>
+          <div className="org-list server-menu-more" role="menu">
+            {SERVER_GROUPS.map((group) => {
+              const ids = more.filter((id) => groupOf.get(id) === group)
+              if (ids.length === 0) return null
+              return (
+                <MenuGroup key={group} label={t(`settings.room.groups.${group}`)}>
+                  {ids.map((id) => <MenuItem key={id} onClick={open(id)} hint={id === 'reports' && reports > 0 ? String(reports) : undefined}>{label.get(id)}</MenuItem>)}
+                </MenuGroup>
+              )
+            })}
           </div>
         </>
       ) : view === 'move' ? (
@@ -82,35 +100,84 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
         <>
           <MenuTitle><span className="server-menu-title"><ServerTile server={server} size="small" /><span>{server.name}</span></span></MenuTitle>
           <div className="org-list" role="menu">
-            {rows.map((row) => {
-              switch (row.kind) {
-                case 'invite': return <MenuItem key="invite" icon={<UserPlus />} onClick={pick({ kind: 'invite' })}>{t('app.sidebar.inviteFriends')}</MenuItem>
-                case 'channel': return <MenuItem key="channel" icon={<Plus />} onClick={pick({ kind: 'channel' })}>{t('app.serverMenu.createChannel')}</MenuItem>
-                case 'settings': return <MenuItem key="settings" icon={<Settings />} onClick={open()}>{t('app.serverMenu.settings')}</MenuItem>
-                case 'section': return (
-                  <MenuItem key={row.section} icon={row.section === 'members' ? <Users /> : row.section === 'reports' ? <AlertTriangle /> : row.section === 'roles' ? <ShieldCheck /> : <Sliders />} onClick={open(row.section)} hint={row.section === 'reports' && reports > 0 ? String(reports) : undefined}>
-                    {label.get(row.section)}
-                  </MenuItem>
-                )
-                case 'more': return <MenuItem key="more" icon={<Sliders />} onClick={() => setView('more')} submenu>{t('app.serverMenu.more')}</MenuItem>
-              }
-            })}
-            <ServerRulesItem serverKey={server.key} onDone={onClose} />
-            <PickRolesItem server={server} onDone={onClose} />
-            <div className="org-sep" role="separator" />
-            {me && <NotifyRows server={server} channelId={null} setView={setView} run={run} />}
-            {me && <LfgNotifyItem server={server} run={run} />}
-            {me && <MenuItem icon={<Pencil />} onClick={pick({ kind: 'nickname' })}>{t('app.serverMenu.nickname')}</MenuItem>}
-            <MenuItem icon={<CheckCheck />} onClick={run(() => markServerRead(server.key))}>{t('app.rail.markRead')}</MenuItem>
-            <MenuItem icon={<Folder />} onClick={() => setView('move')} submenu>{t('app.serverMenu.moveFolder')}</MenuItem>
-            <div className="org-sep" role="separator" />
-            <MenuItem icon={<EyeOff />} onClick={pick({ kind: 'hide' })}>{t('app.serverMenu.hide')}</MenuItem>
-            <MenuItem danger icon={<LogOut />} onClick={pick({ kind: 'leave' })}>{t('app.serverMenu.leave')}</MenuItem>
+            {/* The server: the shared things, for the people allowed to change them. */}
+            <MenuGroup>
+              {rows.map((row) => {
+                switch (row.kind) {
+                  case 'invite': return <MenuItem key="invite" icon={<UserPlus />} onClick={pick({ kind: 'invite' })}>{t('app.sidebar.inviteFriends')}</MenuItem>
+                  case 'channel': return <MenuItem key="channel" icon={<Plus />} onClick={pick({ kind: 'channel' })}>{t('app.serverMenu.createChannel')}</MenuItem>
+                  case 'settings': return <MenuItem key="settings" icon={<Settings />} onClick={open()}>{t('app.serverMenu.settings')}</MenuItem>
+                  case 'section': return (
+                    <MenuItem key={row.section} icon={sectionIcon(row.section)} onClick={open(row.section)} hint={row.section === 'reports' && reports > 0 ? String(reports) : undefined}>
+                      {label.get(row.section)}
+                    </MenuItem>
+                  )
+                  case 'more': return <MenuItem key="more" icon={<Sliders />} onClick={() => setView('more')} submenu>{t('app.serverMenu.more')}</MenuItem>
+                }
+              })}
+              <ServerRulesItem serverKey={server.key} onDone={onClose} icon />
+              <PickRolesItem server={server} onDone={onClose} icon={<Sparkles />} />
+            </MenuGroup>
+            {/* You here: how it reaches you and how it shows for you. */}
+            <MenuGroup>
+              {me && <NotifyRow server={server} onOpen={() => setView('notify')} />}
+              {me && <MenuItem icon={<Pencil />} onClick={pick({ kind: 'nickname' })}>{t('app.serverMenu.nickname')}</MenuItem>}
+              <MenuItem icon={<CheckCheck />} onClick={run(() => markServerRead(server.key))}>{t('app.rail.markRead')}</MenuItem>
+              <MenuItem icon={<Folder />} onClick={() => setView('move')} submenu>{t('app.serverMenu.moveFolder')}</MenuItem>
+            </MenuGroup>
+            <MenuGroup>
+              <MenuItem icon={<EyeOff />} onClick={pick({ kind: 'hide' })}>{t('app.serverMenu.hide')}</MenuItem>
+              <MenuItem danger icon={<LogOut />} onClick={pick({ kind: 'leave' })}>{t('app.serverMenu.leave')}</MenuItem>
+            </MenuGroup>
           </div>
         </>
       )}
       {error && <p className="error-text sheet-error" role="alert">{error}</p>}
     </OrgMenu>
+  )
+}
+
+/** "Notifications ›": the level it's on, or how long it's muted. */
+function NotifyRow({ server, onOpen }: { server: ServerState; onOpen: () => void }) {
+  const { t } = useTranslation()
+  const notify = useNotifyFor(server.key, null)
+  const own = useOrganize((s) => s.notify[server.key]?.[notifyKey(null)])
+  const clock = useOrganize((s) => s.clock)
+  const muted = muteLabel(own?.mutedUntil ?? null, clock)
+  return (
+    <MenuItem icon={muted ? <BellOff /> : <Bell />} submenu onClick={onOpen} hint={muted ? t('organize.menu.serverIsMuted') : levelLabel(notify.chosen)}>
+      {t('organize.menu.notifications')}
+    </MenuItem>
+  )
+}
+
+/** Everything about how this server reaches you, on one page: the level, muting, the sound, LFG pings. */
+function NotifyPage({ server, onBack, setView, run }: { server: ServerState; onBack: () => void; setView: (v: View) => void; run: Run }) {
+  const { t } = useTranslation()
+  const notify = useNotifyFor(server.key, null)
+  const own = useOrganize((s) => s.notify[server.key]?.[notifyKey(null)])
+  const clock = useOrganize((s) => s.clock)
+  const muted = muteLabel(own?.mutedUntil ?? null, clock)
+  return (
+    <>
+      <MenuTitle onBack={onBack}>{t('organize.menu.notifications')}</MenuTitle>
+      <div className="org-list" role="menu">
+        <MenuGroup label={t('organize.menu.notifyAbout')}>
+          {(['all', 'mentions', 'none'] as const).map((level) => (
+            <MenuItem key={level} checked={notify.chosen === level} onClick={run(() => setNotifyLevel(server.key, null, level))}>{levelLabel(level)}</MenuItem>
+          ))}
+        </MenuGroup>
+        <MenuGroup>
+          {muted ? (
+            <MenuItem icon={<BellOff />} onClick={run(() => muteFor(server.key, null, 0))} hint={muted}>{t('organize.menu.unmuteServer')}</MenuItem>
+          ) : (
+            <MenuItem icon={<BellOff />} submenu onClick={() => setView('mute')}>{t('organize.menu.mute.server')}</MenuItem>
+          )}
+          <SoundMenuRow server={server} channelId={null} open={() => setView('sound')} />
+          <LfgNotifyItem server={server} run={run} icon />
+        </MenuGroup>
+      </div>
+    </>
   )
 }
 
@@ -123,20 +190,20 @@ function MoveRows({ serverKey, run, onNewFolder }: { serverKey: string; run: Run
   const inFolder = folders.find((f) => f.servers.includes(serverKey))
   return (
     <div className="org-list" role="menu">
-      <MenuItem onClick={run(() => setRail(stepServer(layout, order, serverKey, -1)))}>{t('app.rail.moveUp')}</MenuItem>
-      <MenuItem onClick={run(() => setRail(stepServer(layout, order, serverKey, 1)))}>{t('app.rail.moveDown')}</MenuItem>
+      <MenuItem icon={<ChevronUp />} onClick={run(() => setRail(stepServer(layout, order, serverKey, -1)))}>{t('app.rail.moveUp')}</MenuItem>
+      <MenuItem icon={<ChevronDown />} onClick={run(() => setRail(stepServer(layout, order, serverKey, 1)))}>{t('app.rail.moveDown')}</MenuItem>
       {inFolder ? (
-        <MenuItem onClick={run(() => setRail(moveServer(layout, order, serverKey, { kind: 'after', target: inFolder.id }, newFolderId)))}>
+        <MenuItem icon={<Folder />} onClick={run(() => setRail(moveServer(layout, order, serverKey, { kind: 'after', target: inFolder.id }, newFolderId)))}>
           {t('app.rail.removeFromFolder')}
         </MenuItem>
       ) : (
         <>
           {folders.map((f) => (
-            <MenuItem key={f.id} onClick={run(() => setRail(moveServer(layout, order, serverKey, { kind: 'into', folder: f.id }, newFolderId)))}>
+            <MenuItem key={f.id} icon={<Folder />} onClick={run(() => setRail(moveServer(layout, order, serverKey, { kind: 'into', folder: f.id }, newFolderId)))}>
               {f.name ? t('app.rail.addTo', { name: f.name }) : t('app.rail.addToFolder')}
             </MenuItem>
           ))}
-          <MenuItem onClick={() => {
+          <MenuItem icon={<Plus />} onClick={() => {
             const id = newFolderId()
             setRail(newFolder(layout, order, serverKey, id))
             onNewFolder(id)

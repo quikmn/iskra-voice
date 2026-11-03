@@ -108,11 +108,11 @@ export function RulesButton({ server, onNavigate }: { server: ServerState; onNav
 }
 
 /** "Server rules" in a server's menu (server rail), when it has any. */
-export function ServerRulesItem({ serverKey, onDone }: { serverKey: string; onDone: () => void }) {
+export function ServerRulesItem({ serverKey, onDone, icon }: { serverKey: string; onDone: () => void; icon?: boolean }) {
   const { t } = useTranslation()
   const rules = useServerRules(serverKey)
   if (!hasRules(rules)) return null
-  return <MenuItem onClick={() => { onDone(); showRules(serverKey) }}>{t('rules.menuItem')}</MenuItem>
+  return <MenuItem icon={icon ? <BookIcon /> : undefined} onClick={() => { onDone(); showRules(serverKey) }}>{t('rules.menuItem')}</MenuItem>
 }
 
 /** Shown instead of the composer until you agree. */
