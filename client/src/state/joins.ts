@@ -44,8 +44,14 @@ function connection(serverKey: string) {
 export const usePendingJoins = (serverKey: string) => useJoins((s) => s.pending[serverKey] ?? 0)
 export const useInvitesPaused = (serverKey: string) => useJoins((s) => !!s.paused[serverKey])
 
+/** The whole waiting list, oldest first (the server sends at most 100 at a time and caps the list at 500). */
 export async function listJoinRequests(serverKey: string): Promise<JoinRequest[]> {
-  return (await connection(serverKey).request('join.list', {})).requests
+  const all: JoinRequest[] = []
+  for (;;) {
+    const { requests, more } = await connection(serverKey).request('join.list', { offset: all.length, limit: 100 })
+    all.push(...requests)
+    if (!more || requests.length === 0) return all
+  }
 }
 
 /** The queue updates when the server's `join.count` arrives, not here. */

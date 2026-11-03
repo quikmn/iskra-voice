@@ -70,6 +70,9 @@ test('a friend keeps our encrypted backups, and the app restores the server from
     await buddies.getByLabel('Pairing code from your friend').fill(code)
     await expect(buddies.getByText(`Backups will go to ${holder.url}.`)).toBeVisible()
     await buddies.getByRole('button', { name: 'Add backup buddy' }).click()
+    // Anna's server is on this machine, so Bo's server asks before contacting it.
+    await expect(buddies.getByRole('alert')).toContainText('an address on a local network')
+    await buddies.getByRole('button', { name: 'Pair anyway' }).click()
 
     // The recovery code, shown once: only Bo can open the copies.
     const recoveryBox = buddies.getByTestId('buddy-recovery')

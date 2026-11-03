@@ -1464,7 +1464,7 @@ export interface Events {
 }
 
 export interface Requests {
-  'join.list': [Record<string, never>, { requests: JoinRequest[] }]
+  'join.list': [{ offset?: number; limit?: number }, { requests: JoinRequest[]; more: boolean }]
   'join.count': [Record<string, never>, { pending: number }]
   'join.approve': [{ accountKey: string }, { member: Member }]
   'join.decline': [{ accountKey: string }, Record<string, never>]
@@ -2859,7 +2859,7 @@ export interface Events {
 export interface Requests {
   'buddy.status': [Record<string, never>, BuddyStatus]
   /** Pairs with a friend's spot. `recoveryCode` is set only when this made it (the first buddy). */
-  'buddy.add': [{ code: string }, BuddyStatus & { recoveryCode: string | null }]
+  'buddy.add': [{ code: string; allowLocal?: boolean }, BuddyStatus & { recoveryCode: string | null }]
   'buddy.remove': [{ id: string }, BuddyStatus]
   'buddy.backupNow': [Record<string, never>, BuddyStatus]
   'buddy.recoveryCode': [Record<string, never>, { recoveryCode: string }]
@@ -3167,7 +3167,7 @@ export interface Message {
 
 export interface Requests {
   'voice.record.start': [{ channelId: number }, { recording: CallRecording }]
-  'voice.record.stop': [{ channelId: number }, Record<string, never>]
+  'voice.record.stop': [{ channelId: number }, { stopped: boolean }]
   /** Without optOut: just what the server has. */
   'voice.record.optout': [{ optOut?: boolean }, { optOut: boolean }]
   'voice.record.consent': [{ channelId: number; agree: boolean }, Record<string, never>]

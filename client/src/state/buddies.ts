@@ -50,9 +50,11 @@ export async function loadBuddies(serverKey: string): Promise<BuddyStatus> {
   return status
 }
 
-/** Pairs with a friend's spot. Returns the recovery code when this made it (the first buddy): show it once. */
-export async function addBuddy(serverKey: string, code: string): Promise<string | null> {
-  const { recoveryCode, ...status } = await connection(serverKey).request('buddy.add', { code: code.trim() }, 90_000)
+/** Pairs with a friend's spot. Returns the recovery code when this made it (the first buddy): show it once.
+ * `allowLocal`: the owner said yes to a code that points at plain http or the local network (`buddy_address_local`). */
+export async function addBuddy(serverKey: string, code: string, allowLocal = false): Promise<string | null> {
+  const body = allowLocal ? { code: code.trim(), allowLocal: true } : { code: code.trim() }
+  const { recoveryCode, ...status } = await connection(serverKey).request('buddy.add', body, 90_000)
   setStatus(serverKey, status)
   return recoveryCode
 }

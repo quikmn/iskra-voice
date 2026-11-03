@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { errorMessage, translatedServerMessage } from '../../i18n/errors'
 import { formatBytes, formatDate, formatNumber } from '../../i18n/format'
 import { t as i18nT } from '../../i18n'
-import type { Buddy, BuddyProblem, BuddySpot } from '../../core/protocol'
+import { RequestError, type Buddy, type BuddyProblem, type BuddySpot } from '../../core/protocol'
 import {
   addBuddy, backupNow, buddyState, createSpot, loadBuddies, loadSpots, pairingCodeAddress, QUOTA_CHOICES_MB, removeBuddy,
   removeSpot, showRecoveryCode, spotUsage, useBuddies,
@@ -120,6 +120,8 @@ function Buddies({ server }: { server: ServerState }) {
   const [busy, setBusy] = useState<'add' | 'now' | 'code' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [recovery, setRecovery] = useState<string | null>(null)
+  // The server asked first: the code points at the local network or plain http (the code it was for).
+  const [local, setLocal] = useState<string | null>(null)
   const address = pairingCodeAddress(code)
 
   useEffect(() => {
@@ -151,10 +153,17 @@ function Buddies({ server }: { server: ServerState }) {
       <form className="buddy-add" onSubmit={(e) => {
         e.preventDefault()
         if (!address || busy) return
+        const allowLocal = local === code
+        setLocal(null)
         void run('add', async () => {
-          const made = await addBuddy(server.key, code)
-          setCode('')
-          if (made) setRecovery(made)
+          try {
+            const made = await addBuddy(server.key, code, allowLocal)
+            setCode('')
+            if (made) setRecovery(made)
+          } catch (e) {
+            if (e instanceof RequestError && e.key === 'buddy_address_local') setLocal(code)
+            throw e
+          }
         })
       }}>
         <label className="field">
@@ -166,7 +175,9 @@ function Buddies({ server }: { server: ServerState }) {
           {code.trim() && !address ? t('buddies.codeInvalid') : address ? t('buddies.codeLeadsTo', { address }) : t('buddies.codeHint')}
         </p>
         <div className="copy-row">
-          <button type="submit" className="button primary" disabled={!address || busy !== null}>{busy === 'add' ? <Spinner /> : t('buddies.add')}</button>
+          <button type="submit" className="button primary" disabled={!address || busy !== null} data-testid="buddy-add">
+            {busy === 'add' ? <Spinner /> : local === code ? t('buddies.addLocal') : t('buddies.add')}
+          </button>
           {status.buddies.length > 0 && (
             <button type="button" className="button" disabled={busy !== null || !status.autoEnabled} onClick={() => void run('now', () => backupNow(server.key))}>
               {busy === 'now' ? <Spinner /> : t('buddies.now')}

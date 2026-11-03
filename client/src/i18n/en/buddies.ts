@@ -6,6 +6,7 @@ export const buddies = {
   needsDaily: 'Daily backups are off. Turn them on above: those are what go to your backup buddies.',
   code: 'Pairing code from your friend',
   codeHint: 'It starts with iskra-buddy: and works once.',
+  addLocal: 'Pair anyway',
   codeInvalid: "That isn't a pairing code. It starts with iskra-buddy:.",
   codeLeadsTo: 'Backups will go to {{address}}.',
   add: 'Add backup buddy',

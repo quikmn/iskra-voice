@@ -6,6 +6,7 @@ export const buddies: Messages['buddies'] = {
   needsDaily: 'Dagliga säkerhetskopior är avstängda. Slå på dem ovan: det är de som skickas till dina backupkompisar.',
   code: 'Parkod från din vän',
   codeHint: 'Den börjar med iskra-buddy: och fungerar en gång.',
+  addLocal: 'Parkoppla ändå',
   codeInvalid: 'Det där är ingen parkod. Den börjar med iskra-buddy:.',
   codeLeadsTo: 'Säkerhetskopiorna skickas till {{address}}.',
   add: 'Lägg till backupkompis',
