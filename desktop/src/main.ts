@@ -21,7 +21,7 @@ import { DO_OAUTH_CLIENT_ID, oauthConfigured, oauthTestOverrides, oauthToken } f
 import { SaveStreams, suggestedName } from './saveStreams'
 import { Recordings } from './recordings'
 import {
-  badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, isAppPage, isKey43, isServerId, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
+  badgeText, DEEP_LINK_SCHEME, deepLinkFromArgv, devUrl, isAppPage, isHostedId, isKey43, isServerId, isWayland, MAC_SETTINGS, parseDeepLink, parseDesktopSettings,
   keychainKind, serversToStart, setKeepRunning, skipScreenPicker, spellcheckDownloadsDictionaries, trayMenu, type DesktopSettings, type SettingsPane, type TrayAction,
 } from './platform'
 import { parseNoticeAction, updateCheckNotice, type DesktopNotice } from './notices'
@@ -44,12 +44,12 @@ import { AssistantBase, sendAssistantRequest } from './assistantNet'
 import { pageAnswer } from './mcp'
 import { McpHost, mcpTokenPath } from './mcpPipe'
 import { registerBots } from './botsIpc'
-import { parsePopoutPatch } from './popouts'
+import { isGesture, parsePopoutPatch, WindowOpenGate } from './popouts'
 import { ceremonyScript, parseCreate, parseGet, PASSKEY_ORIGIN, PASSKEY_PAGE, passkeyPage, type CreateRequest, type GetRequest } from './passkeys'
 
 /** Chromium's media::AudioDeviceDescription::kLoopbackWithoutChromeId: system audio minus this app's own. */
 const LOOPBACK_WITHOUT_ISKRA = 'loopbackWithoutChrome'
-const DEV_URL = process.env.ISKRA_DEV_URL // e.g. http://localhost:5173 while developing
+const DEV_URL = devUrl(process.env, app.isPackaged) // e.g. http://localhost:5173 while developing (never in an installed app)
 const ASSETS = path.join(__dirname, '..', 'assets')
 const MAC = process.platform === 'darwin'
 const WAYLAND = isWayland(process.platform, process.env)
@@ -296,10 +296,14 @@ function createWindow(): void {
   void window.loadURL(DEV_URL ?? `${APP_ORIGIN}/index.html`)
 
   // Links open in the real browser; the app window never navigates away from the app. Its own pop-outs are the exception.
-  window.webContents.setWindowOpenHandler(({ url, frameName }) => {
+  // Embeds (YouTube, Twitch…) are frames in this window too, so who may do what is checked (WindowOpenGate, popouts.ts).
+  const opens = new WindowOpenGate()
+  window.webContents.on('input-event', (_event, input) => isGesture(input.type) && opens.gesture(Date.now()))
+  window.webContents.setWindowOpenHandler(({ url, frameName, referrer }) => {
     const popout = popouts.options(url, frameName)
-    if (popout) return { action: 'allow', overrideBrowserWindowOptions: popout, outlivesOpener: false }
-    if (/^https?:\/\//.test(url)) void shell.openExternal(url)
+    const decision = opens.decide({ url, referrer: referrer.url }, !!popout, isAppUrl, Date.now())
+    if (popout && decision === 'popout') return { action: 'allow', overrideBrowserWindowOptions: popout, outlivesOpener: false }
+    if (decision === 'external') void shell.openExternal(url)
     return { action: 'deny' }
   })
   window.webContents.on('did-create-window', (child, { frameName }) => popouts.adopt(child, frameName))
@@ -787,7 +791,9 @@ ipcMain.handle('iskra:host-pick-template', async (event) => {
   pickedTemplates.set(id, readFileSync(file, 'utf8'))
   return { fileName: path.basename(file), template: { ...checked.info, id } }
 })
-ipcMain.handle('iskra:host-start', async (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? withKeep(await host.start(id)) : null))
+// Only a server folder this app made (security review R3-4: never a path the page makes up).
+const hostedId = (id: unknown): id is string => isHostedId(id, host.list())
+ipcMain.handle('iskra:host-start', async (event, id: unknown) => (fromApp(event) && hostedId(id) ? withKeep(await host.start(id)) : null))
 // The owner switched "Let friends connect without port forwarding" on a server hosted here: the tunnel follows the world's files.
 ipcMain.handle('iskra:host-p2p-sync', async (event, id: unknown) => (fromApp(event) && isServerId(id) ? withKeep(await host.syncP2p(id)) : null))
 // Joining a server through its tunnel: a local address for the page, by server key and the secret from the invite.
@@ -809,7 +815,7 @@ ipcMain.handle('iskra:p2p-voice', (event, on: unknown) => {
   const policy = tunnelledVoice.set(on)
   if (policy) window?.webContents.setWebRTCIPHandlingPolicy(policy)
 })
-ipcMain.handle('iskra:host-stop', async (event, id: unknown) => (fromApp(event) && typeof id === 'string' ? withKeep(await host.stop(id)) : null))
+ipcMain.handle('iskra:host-stop', async (event, id: unknown) => (fromApp(event) && hostedId(id) ? withKeep(await host.stop(id)) : null))
 // "Keep my server running": Iskra starts with the computer, hidden in the tray, and starts this server.
 ipcMain.handle('iskra:host-keep-running', (event, id: unknown, on: unknown) => {
   if (!fromApp(event) || typeof id !== 'string' || typeof on !== 'boolean') return null

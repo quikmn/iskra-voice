@@ -313,6 +313,27 @@ export const MAX_KEEP_RUNNING = 50
 /** Hosted server ids are folder names made by the app (host.ts slug), nothing else. */
 export const isServerId = (v: unknown): v is string => typeof v === 'string' && /^[a-z0-9][a-z0-9-]{0,63}$/.test(v)
 
+/**
+ * A server id from the page names one of the server folders this app lists (security review R3-4): never a path of
+ * its own making ("../x"), and nothing outside the servers folder.
+ */
+export const isHostedId = (v: unknown, hosted: { id: string }[]): v is string =>
+  typeof v === 'string' && v.length > 0 && v.length <= 255 && !/[\\/]|^\.\.?$/.test(v) && hosted.some((s) => s.id === v)
+
+/**
+ * The Vite page to load instead of the built client while developing (ISKRA_DEV_URL), only in an unpackaged app and
+ * only on this computer (security review R3-8): an installed app always runs its own client.
+ */
+export function devUrl(env: NodeJS.ProcessEnv, packaged: boolean): string | undefined {
+  const url = env.ISKRA_DEV_URL
+  if (packaged || !url) return undefined
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d{1,5})?\/?$/.test(url) ? url : undefined
+}
+
+/** A PublicUrl that is this machine's address on a home network (RFC 1918, or localhost), so it follows the LAN address. */
+export const isLanPublicUrl = (url: string | undefined): boolean =>
+  !!url && /^http:\/\/(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|localhost[:/]|localhost$)/.test(url)
+
 /** Display names: 1–64 visible characters (the server checks again). */
 const cleanName = (v: unknown) =>
   typeof v === 'string' && v.trim().length > 0 && v.trim().length <= 64 && !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(v) ? v.trim() : null

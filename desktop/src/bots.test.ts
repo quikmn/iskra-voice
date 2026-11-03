@@ -389,5 +389,11 @@ test('invites and the environment', () => {
   assert.ok(!isInvite(42))
   const env = botEnv({ PATH: 'p', ELECTRON_RUN_AS_NODE: '1', ISKRA_LOCAL_ONLY: '1', ISKRA_BOT_STATE: 's' }, 'python', { BOT_NAME: 'X' })
   assert.deepEqual(env, { PATH: 'p', ISKRA_LOCAL_ONLY: '1', PYTHONUNBUFFERED: '1', FORCE_COLOR: '0', BOT_NAME: 'X' })
+  // Only what programs need from the app's environment (security review R3-6): no tokens, no app settings.
+  const windows = botEnv({
+    Path: 'p', SystemRoot: 'C:\Windows', TEMP: 't', USERPROFILE: 'u', APPDATA: 'a', LC_ALL: 'sv_SE', HTTPS_PROXY: 'x',
+    GITHUB_TOKEN: 'secret', ISKRA_DEV_URL: 'http://localhost:5173', NODE_OPTIONS: '--inspect', ELECTRON_ENABLE_LOGGING: '1', ISKRA_INVITE: 'old',
+  }, 'node', { BOT_NAME: 'Y' })
+  assert.deepEqual(Object.keys(windows).sort(), ['APPDATA', 'BOT_NAME', 'ELECTRON_RUN_AS_NODE', 'FORCE_COLOR', 'HTTPS_PROXY', 'LC_ALL', 'PYTHONUNBUFFERED', 'Path', 'SystemRoot', 'TEMP', 'USERPROFILE'])
   assert.deepEqual(readdirSync(root).filter((f) => f.endsWith('.json')), [])
 })

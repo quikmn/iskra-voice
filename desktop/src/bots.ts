@@ -183,11 +183,27 @@ export function defaultWhere(platform: NodeJS.Platform, cwd: string): (name: str
   }
 }
 
-/** The environment a bot gets: the app's, without what would change how Node runs it or who the bot is, plus its own settings. */
+/**
+ * What a bot may see of the app's environment (security review R3-6): what programs need to run and find their files,
+ * language, time zone, proxies and certificates. Nothing else (tokens in the shell that started the app, the app's own
+ * ISKRA_* settings) reaches a bot or its log. Names are compared ignoring case (Windows' are).
+ */
+const BOT_ENV = new Set([
+  'PATH', 'PATHEXT', 'SYSTEMROOT', 'WINDIR', 'SYSTEMDRIVE', 'COMSPEC', 'TEMP', 'TMP', 'TMPDIR', 'HOME', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH',
+  'APPDATA', 'LOCALAPPDATA', 'PROGRAMDATA', 'PROGRAMFILES', 'PROGRAMFILES(X86)', 'PROGRAMW6432', 'COMMONPROGRAMFILES', 'COMMONPROGRAMFILES(X86)',
+  'USERNAME', 'USER', 'LOGNAME', 'SHELL', 'LANG', 'LANGUAGE', 'TZ', 'OS', 'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE',
+  'XDG_RUNTIME_DIR', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'XDG_STATE_HOME',
+  'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'ALL_PROXY', 'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE', 'SSL_CERT_DIR', 'VIRTUAL_ENV',
+  // Development and tests: bots started from a local-only app stay local too.
+  'ISKRA_LOCAL_ONLY',
+])
+const botMaySee = (key: string) => BOT_ENV.has(key.toUpperCase()) || /^LC_[A-Z]+$/i.test(key)
+
+/** The environment a bot gets: the few things programs need from the app's (BOT_ENV), plus its own settings. */
 export function botEnv(base: NodeJS.ProcessEnv, runtime: 'node' | 'python', extra: Record<string, string>): Record<string, string> {
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(base)) {
-    if (value === undefined || key === 'NODE_OPTIONS' || key.startsWith('ELECTRON_') || key === 'ISKRA_INVITE' || key === 'ISKRA_BOT_STATE') continue
+    if (value === undefined || !botMaySee(key)) continue
     env[key] = value
   }
   if (runtime === 'node') env.ELECTRON_RUN_AS_NODE = '1'

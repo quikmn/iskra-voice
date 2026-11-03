@@ -7,7 +7,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, 
 import { connect, createServer } from 'node:net'
 import { networkInterfaces } from 'node:os'
 import path from 'node:path'
-import { defaultHostRoot, exeName } from './platform'
+import { defaultHostRoot, exeName, isLanPublicUrl } from './platform'
 import { text } from './i18n'
 import { adjustRestoredSettings } from './restore'
 import { farewellLine, UPDATE_RESTART_ETA_SECONDS, writeRestartMarker, type StopKind } from './restartMarker'
@@ -299,6 +299,7 @@ export class Host {
     const binary = serverBinary()
     if (!binary) throw new Error(text().host.noServer)
     const folder = path.join(this.root, id)
+    if (path.dirname(path.resolve(folder)) !== path.resolve(this.root)) throw new Error('Not a server folder of this app.') // never outside the servers folder
     this.refreshLanAddress(folder)
     const livekit = liveKitBinary()
     // The server keeps its own log in logs/ in its folder (daily files it trims itself). Only its error output (why it
@@ -375,7 +376,7 @@ export class Host {
     const settings = JSON.parse(readFileSync(file, 'utf8')) as { PublicUrl?: string; Port?: number; LocalOnly?: boolean }
     if (settings.LocalOnly) return // nobody else can connect: its address stays localhost
     const current = `http://${lanAddress()}:${settings.Port ?? 47070}`
-    if (settings.PublicUrl?.match(/^http:\/\/(10\.|192\.168\.|172\.|localhost)/) && settings.PublicUrl !== current) {
+    if (isLanPublicUrl(settings.PublicUrl) && settings.PublicUrl !== current) {
       writeFileSync(file, JSON.stringify({ ...settings, PublicUrl: current }, null, 2))
     }
   }
