@@ -660,7 +660,7 @@ button.e2e-badge:hover { background: color-mix(in srgb, var(--green) 18%, transp
 .reply-bar + .composer, .pending-uploads + .composer { border-top-left-radius: 0; border-top-right-radius: 0; margin-top: 0; }
 /* A waiting file: thumbnail · name over size (or progress, or the error) · spoiler eye · ✕, in one row. */
 .pending-upload {
-  display: flex; align-items: center; gap: var(--sp-2); width: 240px; flex: none; padding: 6px;
+  display: flex; align-items: center; gap: var(--sp-2); width: min(280px, 100%); flex: none; padding: 6px;
   border-radius: var(--r-md); background: var(--bg); border: 1px solid var(--border);
 }
 .upload-thumb {
