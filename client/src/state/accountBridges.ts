@@ -91,6 +91,27 @@ export interface Bridges {
  * The per-account bridges. `onLink` gets the links the shells open (the host asks which account they're for, then
  * calls deliverLink).
  */
+/** Which account (slot) made each server hosted here, in this device's storage (hosted server id → slot). */
+export const HOSTED_BY_KEY = 'iskra-hosted-by'
+
+function loadCreators(): Map<string, number> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HOSTED_BY_KEY) ?? '{}') as unknown
+    if (!raw || typeof raw !== 'object') return new Map()
+    return new Map(Object.entries(raw).filter((e): e is [string, number] => Number.isInteger(e[1]) && (e[1] as number) > 0).slice(0, 500))
+  } catch {
+    return new Map()
+  }
+}
+
+function saveCreators(creators: Map<string, number>): void {
+  try {
+    localStorage.setItem(HOSTED_BY_KEY, JSON.stringify(Object.fromEntries(creators)))
+  } catch {
+    /* storage blocked: kept for this run only */
+  }
+}
+
 export function createBridges(
   real: { desktop?: DesktopBridge; native?: NativeBridge },
   router: BridgeRouter,
@@ -201,17 +222,22 @@ export function createBridges(
   const tunnels = new Map<string, Set<number>>()
 
   // Servers hosted on this computer belong to the device; the owner invite of one made by an account here is only
-  // that account's (another account on the device sees the server, not its one-time owner link).
-  const createdBy = new Map<string, number>()
+  // that account's (another account on the device sees the server, not its one-time owner link). Who made which is
+  // kept on this device, so it holds after a restart too (security review R3-5); a server nobody here is known to have
+  // made (from before this was kept) shows its owner invite to the first account only.
+  const createdBy = loadCreators()
   function hostFor(slot: number): DesktopBridge['host'] {
     const real = desktop!.host
     const mine = (server: HostedServer | null): HostedServer | null => {
       if (!server) return server
-      const owner = createdBy.get(server.id)
-      return owner !== undefined && owner !== slot ? { ...server, ownerInvite: null } : server
+      const owner = createdBy.get(server.id) ?? 1
+      return owner !== slot ? { ...server, ownerInvite: null } : server
     }
     const made = (server: HostedServer | null): HostedServer | null => {
-      if (server) createdBy.set(server.id, slot)
+      if (server) {
+        createdBy.set(server.id, slot)
+        saveCreators(createdBy)
+      }
       return server
     }
     return {
