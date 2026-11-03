@@ -103,7 +103,11 @@ describe.skipIf(!PYTHON)('Python bot SDK ↔ server', () => {
       .find((b) => b && b.commands.length > 0 && b.interactions), 'bot.commands')
     expect(listed.commands.map((c) => c.name).sort()).toEqual(['coin', 'echo', 'help', 'pick', 'roll'])
     const botKey = listed.bot
-    const state = JSON.parse(readFileSync(stateFile, 'utf8'))
+    // The bot publishes its DM prekey after its commands, then saves it: wait for that save.
+    const state = await waitFor(() => {
+      const saved = JSON.parse(readFileSync(stateFile, 'utf8')) as { prekeys?: unknown[] }
+      return saved.prekeys?.length ? saved : null
+    }, 'the saved prekey')
     expect(state).toMatchObject({ v: 1, server: { url, key: welcome!.server.key } })
     expect(state.prekeys).toHaveLength(1)
 
