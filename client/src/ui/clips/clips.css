@@ -42,17 +42,7 @@
 }
 .clips-mark { width: 7px; height: 7px; margin-left: 6px; vertical-align: middle; }
 
-/* Above the composer and call controls, not over the channel header; dialogs cover them. */
-.clip-toasts {
-  position: fixed; bottom: calc(96px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
-  display: grid; gap: 6px; width: max-content; max-width: calc(100vw - 24px);
-}
-.clip-toast {
-  display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 99px; font-size: 14px;
-  background: var(--float); border: 1px solid var(--border); box-shadow: var(--shadow-pop); animation: clip-toast-in 0.2s ease-out;
-}
-.clip-toast.error { border-radius: 12px; padding: 8px 8px 8px 14px; }
-@keyframes clip-toast-in { from { opacity: 0; transform: translateY(-6px); } }
+/* "Saved a clip" notes are ui/kit ToastPill (the top lane). */
 
 .clip-dialog .clip-preview { width: 100%; max-height: 50vh; border-radius: 10px; background: #000; display: block; }
 .clip-dialog .clip-preview.audio-only { height: 54px; background: var(--surface-2); }

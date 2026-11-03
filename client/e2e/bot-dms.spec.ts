@@ -94,7 +94,7 @@ test('a member DMs a bot, uses its commands there, and can turn bot DMs off', as
 
   // Turned off in My settings → Privacy & data.
   await openSettings(host, 'Privacy & data')
-  const setting = host.getByRole('checkbox', { name: 'Bots on my servers can send me direct messages' })
+  const setting = host.getByRole('switch', { name: 'Bots on my servers can send me direct messages' })
   await expect(setting).toBeChecked()
   await setting.uncheck()
   await host.getByTestId('bot-dm-settings').screenshot({ path: join(SHOTS, 'bot-dms-setting.png') })

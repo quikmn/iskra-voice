@@ -17,14 +17,14 @@ test('when quiet hours end, a card sums up what came in, opens it, and goes away
   // ── Quiet hours all day, every day; the summary is on by default ──
   await openSettings(host, 'Notifications')
   const settings = host.getByRole('dialog', { name: 'Settings' })
-  await settings.getByRole('checkbox', { name: 'Quiet hours on a schedule' }).check()
+  await settings.getByRole('switch', { name: 'Quiet hours on a schedule' }).check()
   await settings.getByLabel('From', { exact: true }).fill('00:00')
   await settings.getByLabel('To', { exact: true }).fill('00:00')
   for (const day of ['Sun', 'Sat']) {
     const button = settings.locator('.quiet-day', { hasText: day })
     if ((await button.getAttribute('aria-pressed')) === 'false') await button.click()
   }
-  await expect(settings.getByRole('checkbox', { name: 'Summary when quiet hours end' })).toBeChecked()
+  await expect(settings.getByRole('switch', { name: 'Summary when quiet hours end' })).toBeChecked()
   await host.keyboard.press('Escape')
 
   // The host looks at another channel.
@@ -58,7 +58,7 @@ test('when quiet hours end, a card sums up what came in, opens it, and goes away
 
   // ── Quiet hours end (turned off by hand here; the schedule ending works the same) ──
   await openSettings(host, 'Notifications')
-  await settings.getByRole('checkbox', { name: 'Quiet hours on a schedule' }).uncheck()
+  await settings.getByRole('switch', { name: 'Quiet hours on a schedule' }).uncheck()
   await host.keyboard.press('Escape')
   await expect(card).toBeVisible()
   await expect(card.getByRole('heading', { name: 'While it was quiet' })).toBeVisible()

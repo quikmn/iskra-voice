@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { desktop, type DesktopSettings } from '../../platform/desktop'
+import { SwitchRow } from '../kit'
 
 export function DesktopSettingsSection() {
   const { t } = useTranslation()
@@ -32,27 +33,9 @@ export function DesktopSettingsSection() {
     <>
     <section className="settings-section">
       <h2>{t('settings.sections.desktop')}</h2>
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.openAtLogin} onChange={(e) => void update({ openAtLogin: e.target.checked })} />
-        <span>
-          {t('settings.desktop.openAtLogin')}
-          <br /><small className="muted">{t('settings.desktop.openAtLoginHint')}</small>
-        </span>
-      </label>
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.closeToTray} onChange={(e) => void update({ closeToTray: e.target.checked })} />
-        <span>
-          {t('settings.desktop.closeToTray')}
-          <br /><small className="muted">{t('settings.desktop.closeToTrayHint')}</small>
-        </span>
-      </label>
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.hardwareAcceleration} onChange={(e) => void update({ hardwareAcceleration: e.target.checked })} />
-        <span>
-          {t('settings.desktop.hardware')}
-          <br /><small className="muted">{t('settings.desktop.hardwareHint')}</small>
-        </span>
-      </label>
+      <SwitchRow title={t('settings.desktop.openAtLogin')} help={t('settings.desktop.openAtLoginHint')} checked={settings.openAtLogin} onChange={(on) => void update({ openAtLogin: on })} />
+      <SwitchRow title={t('settings.desktop.closeToTray')} help={t('settings.desktop.closeToTrayHint')} checked={settings.closeToTray} onChange={(on) => void update({ closeToTray: on })} />
+      <SwitchRow title={t('settings.desktop.hardware')} help={t('settings.desktop.hardwareHint')} checked={settings.hardwareAcceleration} onChange={(on) => void update({ hardwareAcceleration: on })} />
       {restartNeeded && (
         <div className="copy-row" role="status">
           <span className="muted">{t('settings.desktop.restartHint')}</span>
@@ -86,22 +69,10 @@ function ActivitySettings({ settings, update }: { settings: DesktopSettings; upd
   return (
     <section className="settings-section">
       <h2>{t('settings.desktop.activityTitle')}</h2>
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.activity} onChange={(e) => void update({ activity: e.target.checked })} />
-        <span>
-          {t('settings.desktop.activity')}
-          <br /><small className="muted">{t('settings.desktop.activityHint')}</small>
-        </span>
-      </label>
+      <SwitchRow title={t('settings.desktop.activity')} help={t('settings.desktop.activityHint')} checked={settings.activity} onChange={(on) => void update({ activity: on })} />
       {settings.activity && <p className="muted" role="status">{game ? t('settings.desktop.nowPlaying', { game }) : t('settings.desktop.noGame')}</p>}
       <h3 className="h4">{t('streamer.autoTitle')}</h3>
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.streamerAuto ?? false} onChange={(e) => void update({ streamerAuto: e.target.checked })} data-testid="streamer-auto" />
-        <span>
-          {t('streamer.auto')}
-          <br /><small className="muted">{t('streamer.autoHint')}</small>
-        </span>
-      </label>
+      <SwitchRow title={t('streamer.auto')} help={t('streamer.autoHint')} checked={settings.streamerAuto ?? false} testId="streamer-auto" onChange={(on) => void update({ streamerAuto: on })} />
       <p className="muted">{t('settings.desktop.addGameHint')}</p>
       {settings.customGames.length > 0 && (
         <ul className="custom-games">

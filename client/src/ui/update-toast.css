@@ -1,30 +1,4 @@
-/* ── Desktop update toast ──────────────────────────────────────────── */
-.update-toast {
-  position: fixed; right: 16px; bottom: calc(84px + var(--safe-bottom)); z-index: var(--z-toast); /* clear of the message box; under dialogs and calls */
-  display: flex; align-items: center; gap: 12px;
-  width: min(420px, calc(100vw - 32px));
-  padding: 12px 10px 12px 12px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: calc(var(--radius) * 1.2);
-  box-shadow: var(--shadow-pop);
-  animation: update-toast-in 0.25s ease-out;
-}
-.update-toast-mark {
-  flex: none; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
-  color: var(--on-accent); background: linear-gradient(135deg, var(--accent), var(--accent-2));
-}
-.update-toast-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
-.update-toast-text strong { font-size: 14px; }
-.update-toast-text span { font-size: 13px; color: var(--text-2); }
-.update-toast .button { padding: 7px 14px; text-decoration: none; }
-@keyframes update-toast-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-@media (max-width: 760px) {
-  .update-toast { right: 16px; left: 16px; width: auto; bottom: calc(76px + var(--safe-bottom)); }
-}
+/* The update toast is ui/kit Toast (kit.css). */
 
 /* ── The update button at the top of the server rail (never dismissed) ── */
 .server-icon.update-rail { display: grid; place-items: center; background: var(--green-strong, var(--green)); color: #04210f; text-decoration: none; }

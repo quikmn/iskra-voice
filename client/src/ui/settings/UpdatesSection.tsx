@@ -10,6 +10,7 @@ import {
 import { connectionFor, type ServerState } from '../../state/store'
 import { Spinner } from '../bits'
 import './updates.css'
+import { SwitchRow } from '../kit'
 
 const MODES: UpdateMode[] = ['off', 'notify', 'auto']
 const MODE_KEYS = {
@@ -178,14 +179,8 @@ function UpdateSettings({ status, onChange }: { status: ServerUpdateStatus; onCh
 
       {status.mode !== 'off' && (
         <>
-          <label className="checkbox">
-            <input type="checkbox" checked={status.channel === 'prerelease'} onChange={(e) => onChange({ channel: e.target.checked ? 'prerelease' : 'stable' })} />
-            {t('updates.prereleases')}
-          </label>
-          <label className="checkbox">
-            <input type="checkbox" checked={status.requireAttestation} onChange={(e) => onChange({ requireAttestation: e.target.checked })} />
-            {t('updates.requireAttestation')}
-          </label>
+          <SwitchRow title={t('updates.prereleases')} checked={status.channel === 'prerelease'} onChange={(on) => onChange({ channel: on ? 'prerelease' : 'stable' })} />
+          <SwitchRow title={t('updates.requireAttestation')} checked={status.requireAttestation} onChange={(on) => onChange({ requireAttestation: on })} />
           {!status.requireAttestation && <p className="warning-text update-attestation-off" role="note">{t('updates.attestationOff')}</p>}
         </>
       )}

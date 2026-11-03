@@ -7,6 +7,7 @@ import { useServerRoles } from '../../state/roles'
 import type { ServerState } from '../../state/store'
 import { canSplit, openTeams, splitOf, useSplits } from '../../state/teams'
 import { useVoice } from '../../state/voice'
+import { Users } from '../icons'
 import { MenuItem } from '../organize/OrgMenu'
 import type { Run } from '../organize/Menus'
 import './teams.css'
@@ -43,13 +44,13 @@ export function GameNightItems({ server, channel, onClose }: { server: ServerSta
     const here = server.voice[channel.id]?.length ?? 0
     if (!active && here < 2) return null
     return (
-      <MenuItem onClick={() => { openTeams(server.key, active?.channelId ?? channel.id); onClose() }}>
+      <MenuItem icon={<Users />} onClick={() => { openTeams(server.key, active?.channelId ?? channel.id); onClose() }}>
         {active ? t('teams.bringBack') : t('teams.menu')}
       </MenuItem>
     )
   }
   if (channel.kind === 'text' && !channel.e2ee) {
-    return <MenuItem onClick={() => { openLfg(server.key, channel.id); onClose() }}>{t('lfg.menu')}</MenuItem>
+    return <MenuItem icon={<Users />} onClick={() => { openLfg(server.key, channel.id); onClose() }}>{t('lfg.menu')}</MenuItem>
   }
   return null
 }

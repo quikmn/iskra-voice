@@ -577,7 +577,7 @@ test('screenshot tour', async ({ browser }) => {
   await part('translate', async () => {
     await serverSettings(host, 'Translation')
     await shot(host, '107-settings-translation-desktop')
-    await host.getByTestId('translate-section').getByRole('checkbox', { name: 'Offer translation to members' }).check()
+    await host.getByTestId('translate-section').getByRole('switch', { name: 'Offer translation to members' }).check()
     await host.keyboard.press('Escape')
     await send(small, 'Hej! Kommer du på spelkvällen ikväll? Jag tar med snacks.')
     const message = host.locator('.message', { hasText: 'spelkvällen' }).first()
@@ -601,7 +601,7 @@ test('screenshot tour', async ({ browser }) => {
     const dialog = phone.getByRole('dialog', { name: 'Settings' })
     await dialog.getByRole('textbox', { name: 'Alert me for these words' }).fill('raid night')
     await dialog.getByRole('button', { name: 'Add', exact: true }).click()
-    await dialog.getByRole('checkbox', { name: 'Quiet hours on a schedule' }).check()
+    await dialog.getByRole('switch', { name: 'Quiet hours on a schedule' }).check()
     await shot(phone, '110-settings-alerts-phone')
     await phone.locator('.quiet-settings').scrollIntoViewIfNeeded()
     await shot(phone, '110-settings-quiet-phone')

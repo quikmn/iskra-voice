@@ -29,7 +29,7 @@ test('AutoMod blocks a word, tells the sender why, alerts and audits', async ({ 
   await expect(section).toContainText('You have unsaved changes.')
   await host.screenshot({ path: join(SHOTS, 'automod-settings.png') })
   await section.getByRole('button', { name: 'Save changes' }).click()
-  await expect(section.getByRole('status')).toHaveText('Saved')
+  await expect(section.locator('.automod-save').getByRole('status')).toHaveText('Saved')
   await expect(section).toContainText('AutoMod is on')
   await host.keyboard.press('Escape')
 
@@ -57,7 +57,7 @@ test('AutoMod blocks a word, tells the sender why, alerts and audits', async ({ 
   await host.screenshot({ path: join(SHOTS, 'automod-alert.png') })
 
   // ── The audit log has it.
-  await openServerSettings(host, 'Audit log')
+  await openServerSettings(host, 'Activity log')
   await expect(serverRoom(host)).toContainText('AutoMod blocked a message by Friend in #general (blocked word)')
   await expect(serverRoom(host)).toContainText('Host changed the AutoMod settings')
   await host.keyboard.press('Escape')

@@ -1,7 +1,7 @@
 // The moderators' tool pack: selecting messages to delete together (the bar under the list, the tick boxes on rows),
 // warnings (giving one, and the notice when you get one), private notes about a person, their moderation history,
 // and the people who left. Everything shown comes from the server; the server checks every action again.
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AuditEntry, Channel, Departed, Member, ModNote } from '../../core/protocol'
 import { BAN_DELETE_WINDOWS } from '../../core/protocol'
@@ -17,8 +17,8 @@ import { useServerRoles } from '../../state/roles'
 import { useApp, type ServerState } from '../../state/store'
 import { Avatar, Modal } from '../bits'
 import { fullTime, messageTime } from '../format'
-import { Close, Trash } from '../icons'
-import '../update-toast.css'
+import { AlertTriangle, Trash } from '../icons'
+import { TabPanel, Tabs, Toast, type TabItem } from '../kit'
 import './moderation.css'
 import { JoinedViaLine } from './JoinedVia'
 
@@ -125,15 +125,10 @@ export function WarnToast() {
   const server = useApp((s) => (warning ? s.servers[warning.serverKey] : undefined))
   if (!warning) return null
   return (
-    <div className="update-toast warn-toast" role="alert" data-testid="warn-toast">
-      <div className="update-toast-text">
-        <strong>{t('moderation.warn.toastTitle', { server: server?.name ?? '' })}</strong>
-        <span>{t('moderation.warn.toastBody', { name: warning.byName, reason: warning.reason })}</span>
-      </div>
-      <button className="icon-button" onClick={() => dismissWarning(warning.at)} aria-label={t('app.dismiss')} title={t('app.dismiss')}>
-        <Close size={16} />
-      </button>
-    </div>
+    <Toast tone="warning" role="alert" icon={<AlertTriangle size={18} />} className="warn-toast" testId="warn-toast"
+      title={t('moderation.warn.toastTitle', { server: server?.name ?? '' })}
+      body={t('moderation.warn.toastBody', { name: warning.byName, reason: warning.reason })}
+      onClose={() => dismissWarning(warning.at)} closeLabel={t('app.dismiss')} />
   )
 }
 
@@ -221,19 +216,38 @@ export function ModHistory({ server, accountKey, refresh }: { server: ServerStat
   )
 }
 
-/** Notes, history and a warning, in the member dialog, for moderators. */
-export function ModTools({ server, member }: { server: ServerState; member: Member }) {
+type ModTab = 'timeout' | 'warn' | 'notes' | 'history'
+
+/**
+ * The member sheet's moderation tools as tabs: Timeout · Warn · Notes · History (each only when you may use it).
+ * `timeout` is the timeout form, given by the sheet when you may time this person out.
+ */
+export function ModTools({ server, member, timeout }: { server: ServerState; member: Member; timeout?: ReactNode }) {
+  const { t } = useTranslation()
   const roles = useServerRoles(server.key)
   const me = server.me
-  // A warning given here shows up in the history below right away (timeouts and the like arrive as member.updated).
+  // A warning given here shows up in the history right away (timeouts and the like arrive as member.updated).
   const [warned, setWarned] = useState(0)
-  if (!isModerator(me, roles) || me?.accountKey === member.accountKey) return null
+  const moderator = isModerator(me, roles) && me?.accountKey !== member.accountKey
+  const tabs: TabItem<ModTab>[] = [
+    ...(timeout ? [{ id: 'timeout' as const, label: t('kit.modTabs.timeout') }] : []),
+    ...(moderator && outranks(me, member, roles) ? [{ id: 'warn' as const, label: t('kit.modTabs.warn') }] : []),
+    ...(moderator ? [{ id: 'notes' as const, label: t('kit.modTabs.notes') }, { id: 'history' as const, label: t('kit.modTabs.history') }] : []),
+  ]
+  const [picked, setPicked] = useState<ModTab | null>(null)
+  if (tabs.length === 0) return null
+  const tab = tabs.find((x) => x.id === picked)?.id ?? tabs[0].id
+  const prefix = `mod-${member.accountKey.slice(0, 12)}`
   return (
     <section className="settings-section mod-tools">
-      {outranks(me, member, roles) && <WarnControls server={server} member={member} onWarned={() => setWarned((n) => n + 1)} />}
-      <JoinedViaLine server={server} accountKey={member.accountKey} />
-      <ModNotes server={server} accountKey={member.accountKey} />
-      <ModHistory server={server} accountKey={member.accountKey} refresh={`${warned}:${member.timedOutUntil ?? ''}`} />
+      {moderator && <JoinedViaLine server={server} accountKey={member.accountKey} />}
+      {tabs.length > 1 && <Tabs items={tabs} value={tab} onChange={setPicked} label={t('kit.modTabs.label')} idPrefix={prefix} className="mod-tabs" />}
+      <TabPanel idPrefix={prefix} id={tab} className="mod-tab-panel">
+        {tab === 'timeout' && timeout}
+        {tab === 'warn' && <WarnControls server={server} member={member} onWarned={() => setWarned((n) => n + 1)} />}
+        {tab === 'notes' && <ModNotes server={server} accountKey={member.accountKey} />}
+        {tab === 'history' && <ModHistory server={server} accountKey={member.accountKey} refresh={`${warned}:${member.timedOutUntil ?? ''}`} />}
+      </TabPanel>
     </section>
   )
 }

@@ -92,7 +92,7 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
       <MemberRolesEditor server={server} member={member} />
       <VoiceModControls server={server} member={member} />
 
-      {(canModerate || canKick || canBan || canTimeout) && connection && (
+      {(canModerate || canKick || canBan) && connection && (
         <section className="settings-section">
           <h3>{t('settings.member.moderation')}</h3>
           {canModerate && <label className="field inline">
@@ -134,10 +134,9 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
             </div>
           )}
           {error && <p className="error-text">{error}</p>}
-          {canTimeout && <TimeoutControls server={server} member={member} />}
         </section>
       )}
-      <ModTools server={server} member={member} />
+      <ModTools server={server} member={member} timeout={canTimeout && connection ? <TimeoutControls server={server} member={member} /> : undefined} />
     </Modal>
   )
 }

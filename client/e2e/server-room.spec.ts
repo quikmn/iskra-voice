@@ -7,7 +7,7 @@ import { createInviteLink, joinVia, longPress, openSettings, serverRoom, SHOTS, 
 /** Lets the open/slide animations finish, so screenshots show the settled view. */
 const settled = (page: Page) => page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => null))))
 
-const MINE = ['Profile', 'Appearance', 'Language', 'Devices', 'Recovery key', 'App lock', 'Notifications', 'Streamer mode', 'Voice & audio', 'Camera', 'Blocked people', 'Account', 'Assistant', 'Privacy & data', 'About & legal']
+const MINE = ['Profile', 'Account', 'Devices', 'Recovery key', 'App lock', 'Appearance', 'Language', 'Notifications', 'Voice & audio', 'Camera', 'Streamer mode', 'Assistant', 'Blocked people', 'Privacy & data', 'About & legal']
 const SERVER_SECTIONS = [
   'Overview', 'Channels', 'Voice', 'Emoji & stickers', 'GIFs', 'Soundboard', 'Profile pages', 'Server rules', 'Join questions', 'Translation',
   'Members', 'Roles', 'Reports', 'AutoMod', 'Audit log', 'Sign-ins & security',

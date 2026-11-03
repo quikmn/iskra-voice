@@ -12,6 +12,7 @@ import { createMicPipeline, type MicPipeline } from '../../state/micPipeline'
 import { maxVolume, micPipelineActive, onMicLevel, useVoice } from '../../state/voice'
 import { playTone } from '../../state/notify'
 import '../audio.css'
+import { SwitchRow } from '../kit'
 
 // ── Devices ──────────────────────────────────────────────────────────────
 
@@ -192,11 +193,7 @@ export function InputSettingsSection() {
 
       <div className="field">
         <span>{t('settings.audio.sensitivity')}</span>
-        <label className="checkbox">
-          <input type="checkbox" checked={settings.threshold === null}
-            onChange={(e) => updateAudio({ threshold: e.target.checked ? null : AUTO_SPEAKING_DB })} />
-          {t('settings.audio.auto')}
-        </label>
+        <SwitchRow title={t('settings.audio.auto')} checked={settings.threshold === null} onChange={(on) => updateAudio({ threshold: on ? null : AUTO_SPEAKING_DB })} />
         <LevelMeter testing={testing} hearSelf={hearSelf} onError={setError} />
         <small className="muted">
           {settings.threshold === null ? t('settings.audio.autoHint') : t('settings.audio.manualHint')}
@@ -208,10 +205,7 @@ export function InputSettingsSection() {
           <button className={`button ${testing ? '' : 'primary'}`} onClick={() => setTesting(!testing)} aria-pressed={testing}>
             {testing ? t('settings.audio.stopTest') : t('settings.audio.test')}
           </button>
-          <label className="checkbox">
-            <input type="checkbox" checked={hearSelf} onChange={(e) => setHearSelf(e.target.checked)} />
-            {t('settings.audio.hearSelf')}
-          </label>
+          <SwitchRow title={t('settings.audio.hearSelf')} checked={hearSelf} onChange={(on) => setHearSelf(on)} />
         </div>
       )}
       {error && testing && <p className="muted" role="status">{error}</p>}
@@ -306,20 +300,9 @@ export function ProcessingSettingsSection() {
           <p className="muted">{t('settings.audio.aiStrengthHint')}</p>
         </>
       )}
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.echoCancellation} onChange={(e) => updateAudio({ echoCancellation: e.target.checked })} />
-        {t('settings.audio.echo')}
-      </label>
-      <label className="checkbox">
-        <input type="checkbox" checked={agcOn(settings, plannedEngine(mode))} onChange={(e) => updateAudio({ autoGainControl: e.target.checked })} />
-        {t('settings.audio.agc')}
-      </label>
-      <p className="muted">{t('settings.audio.agcHint')}</p>
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.hifi} onChange={(e) => updateAudio({ hifi: e.target.checked })} />
-        {t('settings.audio.hifi')}
-      </label>
-      <p className="muted">{t('settings.audio.hifiHint')}</p>
+      <SwitchRow title={t('settings.audio.echo')} checked={settings.echoCancellation} onChange={(on) => updateAudio({ echoCancellation: on })} />
+      <SwitchRow title={t('settings.audio.agc')} help={t('settings.audio.agcHint')} checked={agcOn(settings, plannedEngine(mode))} onChange={(on) => updateAudio({ autoGainControl: on })} />
+      <SwitchRow title={t('settings.audio.hifi')} help={t('settings.audio.hifiHint')} checked={settings.hifi} onChange={(on) => updateAudio({ hifi: on })} />
       {settings.hifi && <p className="audio-warning" role="note">{t('settings.audio.headphones')}</p>}
     </section>
   )
@@ -335,15 +318,8 @@ function IncomingSettings() {
   const available = engineCaps().worklet && canBoost()
   return (
     <>
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.leveling} disabled={!available} onChange={(e) => updateAudio({ leveling: e.target.checked })} />
-        {t('settings.audio.leveling')}
-      </label>
-      <p className="muted">{t('settings.audio.levelingHint')}</p>
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.cleanIncoming} disabled={!available} onChange={(e) => updateAudio({ cleanIncoming: e.target.checked })} />
-        {t('settings.audio.cleanIncoming')}
-      </label>
+      <SwitchRow title={t('settings.audio.leveling')} help={t('settings.audio.levelingHint')} checked={settings.leveling} disabled={!available} onChange={(on) => updateAudio({ leveling: on })} />
+      <SwitchRow title={t('settings.audio.cleanIncoming')} checked={settings.cleanIncoming} disabled={!available} onChange={(on) => updateAudio({ cleanIncoming: on })} />
       <p className="muted">
         {t('settings.audio.cleanIncomingHint')}
         {inCall && processing && settings.cleanIncoming && cleaning && ` ${t('settings.audio.cleaningWith', { engine: t(ENGINE[cleaning === 'ai' ? 'ai' : 'rnnoise']) })}`}
@@ -372,13 +348,10 @@ export function OutputSettingsSection() {
       </label>
       <p className="muted">{t('settings.audio.perPerson')}</p>
       <IncomingSettings />
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.voiceSounds} onChange={(e) => {
-          updateAudio({ voiceSounds: e.target.checked })
-          if (e.target.checked) playTone('join')
+      <SwitchRow title={t('settings.audio.voiceSounds')} checked={settings.voiceSounds} onChange={(on) => {
+          updateAudio({ voiceSounds: on })
+          if (on) playTone('join')
         }} />
-        {t('settings.audio.voiceSounds')}
-      </label>
     </section>
   )
 }

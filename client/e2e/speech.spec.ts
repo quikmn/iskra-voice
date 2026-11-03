@@ -93,7 +93,7 @@ test('voice message transcripts, read aloud, read new messages aloud and /tts', 
   // ── Read new messages aloud in #general: author and text, never your own.
   await host.locator('button.channel', { hasText: 'general' }).hover()
   await host.getByRole('button', { name: '#general options' }).click()
-  await host.getByRole('menuitemradio', { name: /Read new messages aloud/ }).click()
+  await host.getByRole('menuitemcheckbox', { name: /Read new messages aloud/ }).click()
   await host.keyboard.press('Escape')
   await expect(host.getByTestId('read-aloud-on')).toBeVisible()
   await send(friend, 'Pull up, the boss spawns in ```\nwait 5\n``` seconds')
@@ -115,7 +115,7 @@ test('voice message transcripts, read aloud, read new messages aloud and /tts', 
 
   // The friend turns on "Play /tts messages" (off by default) and hears the host's.
   await openSettings(friend, 'Voice & audio')
-  const play = friend.getByRole('checkbox', { name: 'Play /tts messages' })
+  const play = friend.getByRole('switch', { name: 'Play /tts messages' })
   await expect(play).not.toBeChecked()
   await play.check()
   await friend.getByRole('dialog', { name: 'Settings' }).getByRole('heading', { name: 'Speech' }).scrollIntoViewIfNeeded()

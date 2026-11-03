@@ -9,6 +9,7 @@ import { P2pSection } from './P2pSettings'
 import type { ServerState } from '../../state/store'
 import { Spinner } from '../bits'
 import './InternetSettings.css'
+import { Switch } from '../kit'
 
 function StepIcon({ state }: { state: Step['state'] }) {
   if (state === 'working') return <span className="step-icon working" aria-hidden><Spinner /></span>
@@ -65,16 +66,7 @@ export function InternetSection({ server }: { server: ServerState }) {
           <strong>{t('settings.internet.letFriends')}</strong>
           <p className={`internet-summary ${summary.tone}`}>{summary.text}</p>
         </div>
-        <button
-          className={`switch ${status.enabled ? 'on' : ''}`}
-          role="switch"
-          aria-checked={status.enabled}
-          aria-label={t('settings.internetSwitch')}
-          disabled={!isOwner || busy}
-          onClick={() => void change(!status.enabled)}
-        >
-          <span />
-        </button>
+        <Switch checked={status.enabled} label={t('settings.internetSwitch')} disabled={!isOwner || busy} onChange={() => void change(!status.enabled)} />
       </div>
       {!isOwner && <p className="muted">{t('settings.internet.ownerOnly')}</p>}
       {!status.enabled && isOwner && (
@@ -82,9 +74,6 @@ export function InternetSection({ server }: { server: ServerState }) {
       )}
       {isOwner && <p className="muted small-print" data-testid="internet-third-parties">{t('settings.internet.thirdParties')}</p>}
       {error && <p className="error-text">{error}</p>}
-
-      {/* Friends without port forwarding: the desktop app that hosts the server runs the tunnel, or the server's own iskra-p2p. */}
-      {(isOwner || server.p2p) && <P2pSection server={server} here={here} />}
 
       {status.enabled && (
         <ol className="checklist" aria-label={t('settings.internet.progress')}>
@@ -140,6 +129,10 @@ export function InternetSection({ server }: { server: ServerState }) {
         </p>
       )}
       {tailscaleOpen && <InviteDialog server={server} via="tailscale" onClose={() => setTailscaleOpen(false)} />}
+
+      {/* The advanced way, after the switch and its checklist: friends without port forwarding (the desktop app that
+          hosts the server runs the tunnel, or the server's own iskra-p2p). */}
+      {(isOwner || server.p2p) && <P2pSection server={server} here={here} />}
 
       {here && isOwner && (
         <div className="internet-here">

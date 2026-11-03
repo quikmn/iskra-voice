@@ -29,7 +29,7 @@ describe('the desktop shell’s notices, in the app’s words', () => {
   it('renders as the app’s toast: a status with a close button, no raw HTML', () => {
     const html = renderToStaticMarkup(<DesktopNoticeToast notice={{ kind: 'update-check', result: 'up-to-date', version: '2.0.0' }} />)
     expect(html).toContain('role="status"')
-    expect(html).toContain('class="update-toast desktop-notice-toast"')
+    expect(html).toContain('class="toast tone-neutral desktop-notice-toast"')
     expect(html).toContain('<strong>You&#x27;re up to date</strong>')
     expect(html).toContain('<span>Iskra 2.0.0 is the newest version.</span>')
     expect(html).toContain('aria-label="Dismiss"')

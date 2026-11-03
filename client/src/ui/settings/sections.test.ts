@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mySections, serverSections } from './sections'
 
 const ids = (role: Parameters<typeof serverSections>[0], can?: Parameters<typeof serverSections>[1]) => serverSections(role, can).map((s) => s.id)
-const mine = ['profile', 'appearance', 'language', 'devices', 'recovery', 'security', 'notifications', 'streamer', 'voice', 'video', 'blocked', 'account', 'assistant', 'privacy', 'about']
+const mine = ['profile', 'account', 'devices', 'recovery', 'security', 'appearance', 'language', 'notifications', 'voice', 'video', 'streamer', 'assistant', 'blocked', 'privacy', 'about']
 const admin = ['overview', 'channels', 'serverVoice', 'emoji', 'gifs', 'sounds', 'pages', 'rules', 'onboarding', 'members', 'roles', 'reports', 'automod', 'audit', 'integrations', 'activities', 'internet', 'export']
 
 describe('My settings', () => {
@@ -12,7 +12,7 @@ describe('My settings', () => {
   })
 
   it('shows Desktop app and Bots on this PC only in the desktop app', () => {
-    expect(mySections(true).map((s) => s.id)).toEqual([...mine.slice(0, 11), 'desktop', 'pcBots', ...mine.slice(11)])
+    expect(mySections(true).map((s) => s.id)).toEqual([...mine.slice(0, 12), 'desktop', 'pcBots', ...mine.slice(12)])
   })
 })
 

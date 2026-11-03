@@ -8,6 +8,7 @@ import { checkBaseUrl, isLocalUrl, providerHost } from '../../state/assistant/ur
 import { PRESETS, type ProviderPreset } from '../../state/assistant/types'
 import { desktop } from '../../platform/desktop'
 import './assistant.css'
+import { Switch, SwitchRow } from '../kit'
 
 const PRESET_IDS = Object.keys(PRESETS) as ProviderPreset[]
 
@@ -72,10 +73,7 @@ function Settings() {
         <p className="muted">{t('assistant.settingsSection.intro')}</p>
         <div className="internet-head">
           <strong>{t('assistant.settingsSection.enable')}</strong>
-          <button className={`switch ${config.enabled ? 'on' : ''}`} role="switch" aria-checked={config.enabled}
-            aria-label={t('assistant.settingsSection.enable')} onClick={() => save({ enabled: !config.enabled })}>
-            <span />
-          </button>
+          <Switch checked={config.enabled} label={t('assistant.settingsSection.enable')} onChange={() => save({ enabled: !config.enabled })} />
         </div>
 
         <label className="field">
@@ -149,25 +147,15 @@ function Settings() {
       <section className="settings-section">
         <h2>{t('assistant.settingsSection.toolsTitle')}</h2>
         <p className="muted">{t('assistant.settingsSection.toolsIntro')}</p>
-        <label className="checkbox">
-          <input type="checkbox" checked={config.moderation} onChange={(e) => void saveConfig({ moderation: e.target.checked })} />
-          {t('assistant.settingsSection.moderation')}
-        </label>
-        <label className="checkbox">
-          <input type="checkbox" checked={config.admin} onChange={(e) => void saveConfig({ admin: e.target.checked })} />
-          {t('assistant.settingsSection.admin')}
-        </label>
-        <p className="muted">{t('assistant.settingsSection.toolsNote')}</p>
+        <SwitchRow title={t('assistant.settingsSection.moderation')} checked={config.moderation} onChange={(on) => void saveConfig({ moderation: on })} />
+        <SwitchRow title={t('assistant.settingsSection.admin')} help={t('assistant.settingsSection.toolsNote')} checked={config.admin} onChange={(on) => void saveConfig({ admin: on })} />
       </section>
 
       {desktop?.assistant && (
         <section className="settings-section" data-testid="assistant-mcp">
           <h2>{t('assistant.settingsSection.mcpTitle')}</h2>
           <p className="muted">{t('assistant.settingsSection.mcpIntro')}</p>
-          <label className="checkbox">
-            <input type="checkbox" checked={config.mcp} disabled={!config.enabled} onChange={(e) => void saveConfig({ mcp: e.target.checked })} />
-            {t('assistant.settingsSection.mcp')}
-          </label>
+          <SwitchRow title={t('assistant.settingsSection.mcp')} checked={config.mcp} disabled={!config.enabled} onChange={(on) => void saveConfig({ mcp: on })} />
           {claudeCode && claudeDesktop && (
             <>
               <p className="muted">{t('assistant.settingsSection.mcpCommand')}</p>

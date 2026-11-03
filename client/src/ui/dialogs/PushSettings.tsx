@@ -3,6 +3,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { useNotify } from '../../state/notify'
 import { currentPushSupport, disablePush, enablePush, installApp, pushPermission, useInstall, usePush } from '../../state/push'
 import { useApp } from '../../state/store'
+import { SwitchRow } from '../kit'
 
 /** Push notifications while Iskra is closed, and installing the web app. Not shown in the desktop app; the phone apps say how they notify. */
 export function PushSettings() {
@@ -35,10 +36,7 @@ export function PushSettings() {
     <div className="push-settings">
       {support === 'supported' && (
         <>
-          <label className="checkbox">
-            <input type="checkbox" checked={on} disabled={busy || permission === 'denied'} onChange={(e) => void toggle(e.target.checked)} />
-            {t('settings.push.toggle')}
-          </label>
+          <SwitchRow title={t('settings.push.toggle')} checked={on} disabled={busy || permission === 'denied'} onChange={(on) => void toggle(on)} />
           {on && active > 0 && (
             <p className="muted push-status">
               {t('settings.push.onFor', { count: active })}

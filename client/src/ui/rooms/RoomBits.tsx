@@ -8,7 +8,7 @@ import { openRoomSettings } from '../../state/rooms'
 import { hostsRoom, isLobby } from '../../state/roomsLogic'
 import { useApp, type ServerState } from '../../state/store'
 import { useVoice } from '../../state/voice'
-import { Lock, Sliders } from '../icons'
+import { Lock, Settings, Sliders } from '../icons'
 import { MenuItem } from '../organize/OrgMenu'
 import './rooms.css'
 
@@ -17,7 +17,7 @@ export function RoomMenuItem({ server, channel, onClose }: { server: ServerState
   const { t } = useTranslation()
   const roles = useServerRoles(server.key)
   if (!hostsRoom(channel, server.me, has(server.me, roles, 'manageChannels'))) return null
-  return <MenuItem onClick={() => { openRoomSettings(server.key, channel.id); onClose() }}>{t('rooms.settings.menu')}</MenuItem>
+  return <MenuItem icon={<Settings />} onClick={() => { openRoomSettings(server.key, channel.id); onClose() }}>{t('rooms.settings.menu')}</MenuItem>
 }
 
 /** Voice bar: opens your room's settings while you host the room you're in. */

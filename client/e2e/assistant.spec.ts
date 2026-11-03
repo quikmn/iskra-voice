@@ -76,7 +76,7 @@ test('the assistant creates a channel after approval, and moderation stays off u
   await settings.getByRole('button', { name: 'Test connection' }).click()
   await expect(settings.getByRole('status')).toHaveText('Connected. 1 model available.')
   await expect(settings.getByTestId('assistant-privacy-line')).toHaveText(`What you send goes to the model on this computer (127.0.0.1:${port}). Iskra never sees it.`)
-  await expect(host.getByRole('checkbox', { name: 'Moderation: time out, warn, kick, ban, delete messages' })).not.toBeChecked()
+  await expect(host.getByRole('switch', { name: 'Moderation: time out, warn, kick, ban, delete messages' })).not.toBeChecked()
   await host.screenshot({ path: join(SHOTS, 'assistant-settings.png') })
   await host.keyboard.press('Escape')
 

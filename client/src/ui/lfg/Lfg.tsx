@@ -13,8 +13,8 @@ import type { ServerState } from '../../state/store'
 import { useApp } from '../../state/store'
 import { joinVoice, useVoice } from '../../state/voice'
 import { Avatar, Modal } from '../bits'
-import { Close } from '../icons'
-import '../update-toast.css'
+import { Users } from '../icons'
+import { Toast } from '../kit'
 import './lfg.css'
 
 function useNow(active: boolean): number {
@@ -217,22 +217,15 @@ export function LfgToast() {
     : notice.kind === 'full' ? t('lfg.notify.fullTitle', { game: notice.game })
     : t('lfg.notify.postedTitle', { name: who, game: notice.game })
   return (
-    <div className="update-toast lfg-toast" role="status" aria-live="polite" data-testid="lfg-toast">
-      <div className="update-toast-text">
-        <strong>{title}</strong>
-        <span>{notice.kind === 'full' ? t('lfg.notify.fullBody') : notice.kind === 'posted' ? t('lfg.notify.postedBody') : server.name}</span>
-      </div>
-      {notice.kind === 'full' && voice && (
+    <Toast tone="accent" icon={<Users size={18} />} className="lfg-toast" testId="lfg-toast" title={title}
+      body={notice.kind === 'full' ? t('lfg.notify.fullBody') : notice.kind === 'posted' ? t('lfg.notify.postedBody') : server.name}
+      action={notice.kind === 'full' ? (voice && (
         <button className="button primary small" disabled={!server.voiceAvailable} onClick={() => { void joinVoice(server.key, voice.id); dismissLfgNotice(notice.at) }}>
           {t('lfg.joinVoice')}
         </button>
-      )}
-      {notice.kind !== 'full' && (
+      )) : (
         <button className="button small" onClick={() => { openPost(notice.serverKey, notice.channelId, notice.id)(); dismissLfgNotice(notice.at) }}>{t('lfg.notify.open')}</button>
       )}
-      <button className="icon-button" onClick={() => dismissLfgNotice(notice.at)} aria-label={t('app.dismiss')} title={t('app.dismiss')}>
-        <Close size={16} />
-      </button>
-    </div>
+      onClose={() => dismissLfgNotice(notice.at)} closeLabel={t('app.dismiss')} />
   )
 }

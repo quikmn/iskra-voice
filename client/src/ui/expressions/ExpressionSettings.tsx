@@ -13,6 +13,7 @@ import { errorMessage } from '../../i18n/errors'
 import { formatNumber } from '../../i18n/format'
 import { useServerBaseRoles } from '../../state/baseRoles'
 import { baseAllows } from '../../state/permissions'
+import { SwitchRow } from '../kit'
 
 const MAX_EMOJIS = 200
 
@@ -30,10 +31,7 @@ export function SoundboardSettingsSection() {
           onChange={(e) => updateSoundboardSettings({ volume: Number(e.target.value) / 100 })}
         />
       </label>
-      <label className="checkbox">
-        <input type="checkbox" checked={muted} onChange={(e) => updateSoundboardSettings({ muted: e.target.checked })} />
-        {t('expressions.settings.mute')}
-      </label>
+      <SwitchRow title={t('expressions.settings.mute')} checked={muted} onChange={(on) => updateSoundboardSettings({ muted: on })} />
     </section>
   )
 }

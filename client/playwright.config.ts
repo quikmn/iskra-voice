@@ -15,7 +15,9 @@ export default defineConfig({
   // One dot per test locally (agents read less); CI passes its own reporters on the command line.
   reporter: process.env.CI ? [['list']] : [['dot']],
   // English (US) whatever the machine's language: the specs match the English text.
-  use: { baseURL: `http://localhost:${APP_PORT}`, trace: 'retain-on-failure', locale: 'en-US' },
+  // Less motion: screenshots never catch a dialog mid-fade (ui/a11y.css turns animations off). A spec that tests motion
+  // itself asks for 'no-preference' on its own context.
+  use: { baseURL: `http://localhost:${APP_PORT}`, trace: 'retain-on-failure', locale: 'en-US', reducedMotion: 'reduce' },
   projects: [
     {
       name: 'chromium',

@@ -30,6 +30,7 @@ import { LfgNotifyItem } from '../teams/TeamsBits'
 import { NicknameField, ServerAvatarField } from './ServerSettings'
 import { BirthdayField } from './BirthdayField'
 import { serverMenuLayout } from './serverMenuLayout'
+import { AlertTriangle, CheckCheck, EyeOff, Folder, LogOut, Pencil, Plus, Settings, ShieldCheck, Sliders, UserPlus, Users } from '../icons'
 
 export type ServerAction = { kind: 'invite' } | { kind: 'channel' } | { kind: 'nickname' } | { kind: 'hide' } | { kind: 'leave' } | { kind: 'folder'; folderId: string }
 
@@ -83,15 +84,15 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
           <div className="org-list" role="menu">
             {rows.map((row) => {
               switch (row.kind) {
-                case 'invite': return <MenuItem key="invite" onClick={pick({ kind: 'invite' })}>{t('app.sidebar.inviteFriends')}</MenuItem>
-                case 'channel': return <MenuItem key="channel" onClick={pick({ kind: 'channel' })}>{t('app.serverMenu.createChannel')}</MenuItem>
-                case 'settings': return <MenuItem key="settings" onClick={open()}>{t('app.serverMenu.settings')}</MenuItem>
+                case 'invite': return <MenuItem key="invite" icon={<UserPlus />} onClick={pick({ kind: 'invite' })}>{t('app.sidebar.inviteFriends')}</MenuItem>
+                case 'channel': return <MenuItem key="channel" icon={<Plus />} onClick={pick({ kind: 'channel' })}>{t('app.serverMenu.createChannel')}</MenuItem>
+                case 'settings': return <MenuItem key="settings" icon={<Settings />} onClick={open()}>{t('app.serverMenu.settings')}</MenuItem>
                 case 'section': return (
-                  <MenuItem key={row.section} onClick={open(row.section)} hint={row.section === 'reports' && reports > 0 ? String(reports) : undefined}>
+                  <MenuItem key={row.section} icon={row.section === 'members' ? <Users /> : row.section === 'reports' ? <AlertTriangle /> : row.section === 'roles' ? <ShieldCheck /> : <Sliders />} onClick={open(row.section)} hint={row.section === 'reports' && reports > 0 ? String(reports) : undefined}>
                     {label.get(row.section)}
                   </MenuItem>
                 )
-                case 'more': return <MenuItem key="more" onClick={() => setView('more')} submenu>{t('app.serverMenu.more')}</MenuItem>
+                case 'more': return <MenuItem key="more" icon={<Sliders />} onClick={() => setView('more')} submenu>{t('app.serverMenu.more')}</MenuItem>
               }
             })}
             <ServerRulesItem serverKey={server.key} onDone={onClose} />
@@ -99,12 +100,12 @@ export function ServerMenu({ server, anchor, onClose }: { server: ServerState; a
             <div className="org-sep" role="separator" />
             {me && <NotifyRows server={server} channelId={null} setView={setView} run={run} />}
             {me && <LfgNotifyItem server={server} run={run} />}
-            {me && <MenuItem onClick={pick({ kind: 'nickname' })}>{t('app.serverMenu.nickname')}</MenuItem>}
-            <MenuItem onClick={run(() => markServerRead(server.key))}>{t('app.rail.markRead')}</MenuItem>
-            <MenuItem onClick={() => setView('move')} submenu>{t('app.serverMenu.moveFolder')}</MenuItem>
+            {me && <MenuItem icon={<Pencil />} onClick={pick({ kind: 'nickname' })}>{t('app.serverMenu.nickname')}</MenuItem>}
+            <MenuItem icon={<CheckCheck />} onClick={run(() => markServerRead(server.key))}>{t('app.rail.markRead')}</MenuItem>
+            <MenuItem icon={<Folder />} onClick={() => setView('move')} submenu>{t('app.serverMenu.moveFolder')}</MenuItem>
             <div className="org-sep" role="separator" />
-            <MenuItem onClick={pick({ kind: 'hide' })}>{t('app.serverMenu.hide')}</MenuItem>
-            <MenuItem danger onClick={pick({ kind: 'leave' })}>{t('app.serverMenu.leave')}</MenuItem>
+            <MenuItem icon={<EyeOff />} onClick={pick({ kind: 'hide' })}>{t('app.serverMenu.hide')}</MenuItem>
+            <MenuItem danger icon={<LogOut />} onClick={pick({ kind: 'leave' })}>{t('app.serverMenu.leave')}</MenuItem>
           </div>
         </>
       )}

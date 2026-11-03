@@ -1,0 +1,233 @@
+/* ── UI kit (ui/kit): built only on the tokens in styles.css :root ──────────────────────────────────────────── */
+
+/* Switch: 40×24, the thumb slides; on = accent. */
+.switch {
+  flex: none; position: relative; width: 40px; height: 24px; padding: 0; border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); background: var(--surface-3);
+  transition: background var(--dur-fast), border-color var(--dur-fast);
+}
+.switch > span {
+  position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--text-2);
+  box-shadow: 0 1px 2px var(--shadow-color); transition: transform var(--dur) var(--ease), background var(--dur-fast);
+}
+.switch:hover:not(:disabled) { border-color: color-mix(in srgb, var(--text) 26%, transparent); }
+.switch.on { background: var(--accent); border-color: transparent; }
+.switch.on > span { transform: translateX(16px); background: var(--on-accent); }
+.switch:disabled { opacity: 0.5; cursor: default; }
+.switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* A setting row: title and help left, the control right; more of the setting under it. */
+.k-row { padding: var(--sp-3) 0; }
+.k-row + .k-row { border-top: 1px solid var(--border); }
+.k-row-main { display: flex; align-items: center; gap: var(--sp-4); }
+.k-row-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.k-row-title { font-size: var(--fs-ui); font-weight: 500; color: var(--text); }
+.k-row-help { font-size: var(--fs-md); color: var(--muted); line-height: var(--lh-body); }
+.k-row-control { flex: none; display: flex; align-items: center; gap: var(--sp-2); }
+.k-row-control select { width: auto; min-width: 160px; }
+.k-row-more { margin-top: var(--sp-3); }
+.k-row-more:empty { display: none; }
+@media (max-width: 480px) {
+  /* A wide control (a select) drops under the text on narrow phones; a switch stays at the end. */
+  .k-row-main:has(.k-row-control select) { flex-wrap: wrap; }
+  .k-row-main:has(.k-row-control select) .k-row-control { flex-basis: 100%; }
+  .k-row-control select { flex: 1; }
+}
+
+/* "✓ Saved": quiet, next to the control that saved. */
+.k-saved {
+  display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--green);
+  opacity: 0; transition: opacity var(--dur);
+}
+.k-saved.shown { opacity: 1; }
+.k-saved:empty { width: 0; }
+
+/* Field help and error lines (the label style is .field > span / label in styles.css). */
+.field > label:not(.k-field-label, .checkbox) { font-size: var(--fs-md); font-weight: var(--fw-medium); color: var(--text-2); }
+.k-field-label { display: grid; gap: 6px; }
+.k-field-help { font-size: var(--fs-sm); color: var(--muted); line-height: var(--lh-body); }
+.k-field-error { font-size: var(--fs-sm); color: var(--red); }
+
+/* The unsaved-changes bar, docked to the bottom of the settings pane. */
+.k-savebar {
+  position: sticky; bottom: 0; z-index: 2; margin-top: var(--sp-5); display: none; align-items: center; justify-content: space-between;
+  gap: var(--sp-3); flex-wrap: wrap; padding: 10px 10px 10px var(--sp-4); background: var(--float);
+  border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-pop); font-size: var(--fs-ui);
+}
+.k-savebar.show, .k-savebar.saved { display: flex; }
+.k-savebar.saved { box-shadow: none; background: transparent; border-color: transparent; padding-left: 0; }
+.k-savebar-note { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.k-savebar.saved .k-savebar-note { color: var(--green); font-weight: var(--fw-medium); }
+.k-savebar-actions { display: flex; gap: var(--sp-2); margin-left: auto; }
+
+/* Badge: a small status tag. */
+.k-badge {
+  display: inline-flex; align-items: center; gap: 4px; flex: none; white-space: nowrap; vertical-align: middle;
+  font-size: var(--fs-sm); font-weight: var(--fw-medium); line-height: 1; padding: 4px 8px; border-radius: var(--r-pill);
+  color: var(--text-2); background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+.k-badge.size-xs { font-size: var(--fs-xs); padding: 3px 6px; }
+.k-badge.system { text-transform: uppercase; letter-spacing: 0.04em; font-weight: var(--fw-bold); }
+.k-badge svg { width: 12px; height: 12px; }
+.k-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.k-badge.tone-accent { color: var(--mention-text); background: var(--mention-bg); }
+.k-badge.tone-success { color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); }
+.k-badge.tone-warning { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+.k-badge.tone-danger { color: var(--red); background: var(--danger-bg); }
+
+/* Chip: a filter that turns on and off. */
+.k-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 30px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: var(--r-pill); background: transparent; color: var(--text-2);
+  font-size: var(--fs-md); font-weight: var(--fw-medium); transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+}
+.k-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.k-chip:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.k-chip.on { background: var(--accent-subtle); border-color: var(--accent); color: var(--text-strong); }
+.k-chip:disabled { opacity: 0.45; cursor: default; }
+
+/* ListRow: leading · title over sub · trailing actions. */
+.k-list-row { position: relative; display: flex; align-items: center; gap: var(--sp-2); border-radius: var(--r-md); transition: background var(--dur-fast); }
+.k-list-row:hover, .k-list-row.active { background: var(--surface-2); }
+.k-list-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-3); min-height: 56px;
+  border: 0; background: none; color: inherit; text-align: left; font: inherit; border-radius: inherit;
+}
+.k-list-row.compact .k-list-main { min-height: 36px; gap: var(--sp-2); padding: 0 var(--sp-2); }
+.k-list-lead { flex: none; display: inline-grid; place-items: center; color: var(--text-2); }
+.k-list-text { flex: 1; min-width: 0; display: grid; line-height: var(--lh-tight); gap: 2px; }
+.k-list-title { font-weight: var(--fw-medium); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.k-list-sub { font-size: var(--fs-md); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.k-list-actions { flex: none; display: flex; align-items: center; gap: 2px; padding-right: var(--sp-2); opacity: 0; transition: opacity var(--dur-fast); }
+.k-list-row:hover .k-list-actions, .k-list-row:focus-within .k-list-actions, .k-list-row.actions-always .k-list-actions { opacity: 1; }
+@media (hover: none) { .k-list-actions { opacity: 1; } }
+
+/* EmptyState: page (a whole view), panel (a side panel or a section), inline (one muted line). */
+.k-empty { display: grid; justify-items: center; text-align: center; gap: var(--sp-2); padding: var(--sp-5) var(--sp-4); color: var(--muted); }
+.k-empty-icon {
+  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--text-2);
+  margin-bottom: var(--sp-1);
+}
+.k-empty-title { margin: 0; font-size: var(--fs-base); font-weight: var(--fw-medium); color: var(--text); }
+.k-empty-body { margin: 0; font-size: var(--fs-md); max-width: 360px; line-height: var(--lh-body); }
+.k-empty-action { margin-top: var(--sp-2); }
+.k-empty.page { padding: var(--sp-6) var(--sp-4); gap: var(--sp-3); }
+.k-empty.page .k-empty-icon { width: 72px; height: 72px; color: var(--accent); }
+.k-empty.page .k-empty-title { font-size: var(--fs-xl); font-weight: var(--fw-bold); color: var(--text-strong); }
+.k-empty.page .k-empty-body { font-size: var(--fs-base); color: var(--text-2); max-width: 400px; }
+.k-empty.inline { display: flex; align-items: center; justify-content: flex-start; gap: var(--sp-2); text-align: left; padding: var(--sp-2) var(--sp-3); margin: 0; font-size: var(--fs-md); }
+.k-empty.inline .k-empty-icon { width: auto; height: auto; background: none; margin: 0; color: var(--muted); }
+
+/* Tabs: an underline bar for switching views. */
+.k-tabs { display: flex; gap: var(--sp-1); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.k-tabs > button {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 40px; padding: 0 var(--sp-3);
+  border: 0; background: none; color: var(--muted); font-weight: var(--fw-medium); font-size: var(--fs-ui); border-radius: var(--r-sm) var(--r-sm) 0 0;
+  transition: color var(--dur-fast);
+}
+.k-tabs > button:hover:not(:disabled) { color: var(--text); }
+.k-tabs > button.on { color: var(--text-strong); }
+.k-tabs > button.on::after {
+  content: ''; position: absolute; left: var(--sp-2); right: var(--sp-2); bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--accent);
+}
+.k-tabs > button:focus-visible { outline-offset: -2px; }
+.k-tab-count {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-pill); display: inline-grid; place-items: center;
+  font-size: var(--fs-xs); font-weight: var(--fw-bold); background: var(--surface-3); color: var(--text-2);
+}
+
+/* ── Toasts: two lanes (ui/kit/Toast.tsx) ───────────────────────────────────────────────────────────────────── */
+.toast-lane { position: fixed; display: flex; gap: var(--sp-2); pointer-events: none; }
+.toast-lane:empty { display: none; }
+.toast-lane > * { pointer-events: auto; }
+/* Bottom right, clear of the message box; newest on top. Under dialogs and calls. */
+.toast-lane.corner {
+  right: 16px; bottom: calc(84px + var(--safe-bottom)); z-index: var(--z-toast);
+  flex-direction: column-reverse; align-items: flex-end; width: min(380px, calc(100vw - 32px));
+}
+/* Passing notes: centred just above the message box and the call controls, never over the channel header.
+   A view whose bottom bar is taller (call controls that wrap) can set --notes-lane-bottom on :root. */
+.toast-lane.notes {
+  bottom: calc(var(--notes-lane-bottom, 96px) + var(--safe-bottom)); left: 50%; transform: translateX(-50%); z-index: var(--z-notice);
+  flex-direction: column-reverse; align-items: center; width: max-content; max-width: calc(100vw - 24px);
+}
+@media (max-width: 760px) {
+  /* Phones: the passing notes keep the bottom; the cards that want a reaction drop in under the header. */
+  .toast-lane.corner { left: 8px; right: 8px; width: auto; bottom: auto; top: calc(60px + var(--safe-top)); flex-direction: column; align-items: stretch; }
+}
+.toast {
+  position: relative; display: flex; align-items: center; gap: var(--sp-3); width: 100%; padding: 12px 8px 12px 14px;
+  background: var(--float); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-pop);
+  overflow: hidden; animation: k-toast-in var(--dur-slow) var(--ease);
+}
+/* The tone: a 3px bar at the start and the icon's colour. */
+.toast::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; }
+.toast.tone-accent::before { background: var(--accent); }
+.toast.tone-success::before { background: var(--green); }
+.toast.tone-warning::before { background: var(--amber); }
+.toast.tone-danger::before { background: var(--red); }
+.toast-icon { flex: none; display: inline-grid; color: var(--text-2); }
+.toast.tone-accent .toast-icon, .toast-pill.tone-accent .toast-icon { color: var(--accent); }
+.toast.tone-success .toast-icon, .toast-pill.tone-success .toast-icon { color: var(--green); }
+.toast.tone-warning .toast-icon, .toast-pill.tone-warning .toast-icon { color: var(--amber); }
+.toast.tone-danger .toast-icon, .toast-pill.tone-danger .toast-icon { color: var(--red); }
+.toast-mark {
+  flex: none; width: 34px; height: 34px; border-radius: var(--r-md); display: grid; place-items: center;
+  color: var(--on-accent); background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+.toast-text { flex: 1; min-width: 0; display: grid; gap: 2px; line-height: var(--lh-tight); }
+.toast-text strong { font-size: var(--fs-ui); color: var(--text-strong); overflow-wrap: anywhere; }
+.toast-text span { font-size: var(--fs-md); color: var(--text-2); overflow-wrap: anywhere; }
+.toast-actions { flex: none; display: flex; align-items: center; gap: var(--sp-2); }
+.toast-actions .button { min-height: 32px; padding: 0 var(--sp-3); font-size: var(--fs-md); }
+.toast-close { flex: none; width: 32px; height: 32px; align-self: flex-start; margin: -4px 0; }
+.toast-pill {
+  display: inline-flex; align-items: center; gap: var(--sp-2); padding: 8px 16px; max-width: 100%; border-radius: var(--r-pill);
+  font-size: var(--fs-ui); background: var(--float); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow-pop);
+  animation: k-toast-in var(--dur-slow) var(--ease);
+}
+.toast-pill.has-action { padding: 4px 4px 4px 14px; }
+.toast-pill.tone-danger { border-color: color-mix(in srgb, var(--red) 45%, var(--border)); }
+.toast-pill-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes k-toast-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } }
+
+/* ── Menus (organize/OrgMenu.tsx): [icon] label … [value] [› or ✓] ──────────────────────────────────────────── */
+.org-item-icon { flex: none; width: 16px; display: inline-grid; place-items: center; color: var(--text-2); }
+.org-item-icon svg { width: 16px; height: 16px; }
+.org-item.danger .org-item-icon { color: inherit; }
+/* Rows without an icon line up with the ones that have one. */
+.org-menu :is(.org-list, .org-group):has(.org-item-icon) > .org-item:not(:has(.org-item-icon, .org-radio)) .org-item-text { padding-left: 26px; }
+.org-item-check { flex: none; width: 16px; display: inline-grid; place-items: center; color: var(--accent); }
+.org-item-arrow { display: inline-grid; }
+.org-group { display: grid; gap: 1px; }
+.org-group + .org-group { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border); }
+.org-group-label {
+  padding: 6px 10px 2px; font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+}
+.org-sheet .org-group { background: var(--surface-2); border-radius: var(--r-lg); overflow: hidden; gap: 0; }
+.org-sheet .org-group + .org-group { margin-top: var(--sp-2); padding-top: 0; border-top: 0; }
+.org-sheet .org-group-label { background: var(--float); padding: 4px 4px 6px; }
+
+/* ── Scroll shadows: a hint that a list goes on (menus, sheets, the settings nav). ── */
+.scroll-shadow {
+  background:
+    linear-gradient(var(--scroll-bg, var(--float)) 30%, transparent) center top / 100% 24px no-repeat local,
+    linear-gradient(transparent, var(--scroll-bg, var(--float)) 70%) center bottom / 100% 24px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, var(--shadow-color), transparent) center top / 100% 8px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, var(--shadow-color), transparent) center bottom / 100% 8px no-repeat scroll,
+    var(--scroll-bg, var(--float));
+}
+
+/* ── Touch: 44px tap targets ───────────────────────────────────────────
+   Small controls keep their look; an invisible ::before grows what a finger can hit to --tap tall. Only up and down:
+   wider would spill past a pane's right edge and make it scroll sideways. `position: relative` is zero-specificity,
+   so a button placed absolutely elsewhere stays where it is. */
+@media (pointer: coarse) {
+  :where(.icon-button, .switch, .k-chip, .button.small) { position: relative; }
+  .icon-button::before, .switch::before, .k-chip::before, .button.small::before {
+    content: ''; position: absolute; inset: min(0px, calc((100% - var(--tap)) / 2)) 0;
+  }
+  .k-row-main { min-height: 48px; }
+  .org-item { min-height: var(--tap); }
+  .k-tabs > button { min-height: var(--tap); }
+}

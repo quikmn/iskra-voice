@@ -5,8 +5,8 @@
 .buddy-row + .buddy-row { border-top: 1px solid var(--border); }
 .buddy-main { display: grid; gap: 3px; min-width: 0; flex: 1; }
 .buddy-name { overflow-wrap: anywhere; }
-.buddy-url, .buddy-detail { font-size: 13px; overflow-wrap: anywhere; }
-.buddy-state { font-size: 14px; overflow-wrap: anywhere; }
+.buddy-url, .buddy-detail { font-size: var(--fs-md); overflow-wrap: anywhere; }
+.buddy-state { font-size: var(--fs-ui); overflow-wrap: anywhere; }
 .buddy-state.ok, .buddy-state.active { color: var(--green-strong, var(--text)); }
 .buddy-state.problem, .buddy-state.removed { color: var(--red, var(--text)); }
 .buddy-state.waiting, .buddy-state.removing { color: var(--muted); }
@@ -15,15 +15,15 @@
   background: var(--surface-3, var(--surface-2)); overflow: hidden;
 }
 .buddy-row progress::-webkit-progress-bar { background: var(--surface-3, var(--surface-2)); }
-.buddy-row progress::-webkit-progress-value { background: var(--accent); border-radius: 99px; transition: width 0.2s; }
+.buddy-row progress::-webkit-progress-value { background: var(--accent); border-radius: 99px; transition: width var(--dur-slow); }
 .buddy-row progress::-moz-progress-bar { background: var(--accent); border-radius: 99px; }
-.buddy-usage { display: grid; gap: 4px; font-size: 13px; margin-top: 4px; }
+.buddy-usage { display: grid; gap: 4px; font-size: var(--fs-md); margin-top: 4px; }
 .buddy-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; flex: none; max-width: 50%; }
-.buddy-actions .muted { font-size: 13px; }
+.buddy-actions .muted { font-size: var(--fs-md); }
 .buddy-add, .buddy-spot-form { display: grid; max-width: 520px; }
-.buddy-add input { font-family: var(--mono); font-size: 14px; }
-.buddy-hint { margin: -8px 0 12px; font-size: 13px; overflow-wrap: anywhere; }
-.buddy-note { margin: 0; padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); font-size: 14px; }
+.buddy-add input { font-family: var(--mono); font-size: var(--fs-ui); }
+.buddy-hint { margin: -8px 0 12px; font-size: var(--fs-md); overflow-wrap: anywhere; }
+.buddy-note { margin: 0; padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); font-size: var(--fs-ui); }
 .buddy-spot-options { display: flex; flex-wrap: wrap; gap: 0 16px; }
 .buddy-spot-options .field { flex: 1 1 140px; }
 .buddy-spot-form > .button { justify-self: start; min-width: 140px; }
@@ -33,9 +33,9 @@
 .buddy-recovery p { margin: 0; }
 .buddy-code-text {
   display: block; padding: 10px 12px; border-radius: calc(var(--radius) * 0.6); background: var(--bg); font-family: var(--mono);
-  font-size: 18px; letter-spacing: 0.04em; overflow-wrap: anywhere; user-select: all;
+  font-size: var(--fs-lg); letter-spacing: 0.04em; overflow-wrap: anywhere; user-select: all;
 }
-.buddy-code-text.pairing { font-size: 13px; letter-spacing: 0; word-break: break-all; }
+.buddy-code-text.pairing { font-size: var(--fs-md); letter-spacing: 0; word-break: break-all; }
 
 @media (max-width: 760px) {
   .buddy-row { flex-direction: column; }

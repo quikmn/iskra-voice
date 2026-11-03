@@ -6,26 +6,26 @@
 .update-card.has-update { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 .update-card-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .update-card-text { display: grid; gap: 2px; min-width: 0; }
-.update-card-text .muted { font-size: 13px; }
-.update-version { font-family: var(--mono); font-size: 15px; overflow-wrap: anywhere; }
+.update-card-text .muted { font-size: var(--fs-md); }
+.update-version { font-family: var(--mono); font-size: var(--fs-base); overflow-wrap: anywhere; }
 .update-available {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px;
   border-radius: calc(var(--radius) * 0.7); background: var(--bg);
 }
 .update-available .update-card-text { flex: 1; }
-.update-available a { font-size: 13px; }
+.update-available a { font-size: var(--fs-md); }
 .update-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
-.update-line { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
-.update-progress { display: grid; gap: 6px; font-size: 13px; }
+.update-line { margin: 0; font-size: var(--fs-md); overflow-wrap: anywhere; }
+.update-progress { display: grid; gap: 6px; font-size: var(--fs-md); }
 .update-progress progress { width: 100%; height: 8px; }
 .update-settings .h4 { margin: 0 0 8px; }
 .update-settings .segmented { max-width: 520px; margin-bottom: 8px; }
 .update-settings .checkbox { margin-top: 10px; }
-.update-why { font-size: 13px; }
+.update-why { font-size: var(--fs-md); }
 .update-window { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0 4px; }
 .update-window > span { margin: 0; }
 .update-window input { width: auto; }
-.update-note { margin-top: 16px; font-size: 13px; }
+.update-note { margin-top: 16px; font-size: var(--fs-md); }
 .nudge.update-nudge a { font-weight: 600; }
 @media (max-width: 520px) {
   .update-settings .segmented { flex-direction: column; }

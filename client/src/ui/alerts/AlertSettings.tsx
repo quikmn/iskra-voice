@@ -10,6 +10,7 @@ import { useApp, type ServerState } from '../../state/store'
 import { Close } from '../icons'
 import { openMySettings } from '../settings/open'
 import './alerts.css'
+import { SwitchRow } from '../kit'
 
 /** "Alice in #general" / "@Raiders anywhere", for a follow on `server` (which may be gone). */
 export function followWords(follow: Follow, server: ServerState | undefined, roles: { id: number; name: string }[]): { who: string; where: string } {
@@ -163,10 +164,7 @@ export function AlertWordsSettings() {
       <p className="muted alert-privacy">{t('alerts.words.local')}</p>
       {pushable && (
         <>
-          <label className="checkbox">
-            <input type="checkbox" checked={settings.closed} onChange={(e) => updateAlerts({ closed: e.target.checked })} />
-            {t('alerts.words.closed')}
-          </label>
+          <SwitchRow title={t('alerts.words.closed')} checked={settings.closed} onChange={(on) => updateAlerts({ closed: on })} />
           <p className="muted alert-privacy">{t('alerts.words.closedHint')}</p>
         </>
       )}
@@ -206,11 +204,7 @@ export function QuietHoursSettings() {
   return (
     <div className="alert-settings quiet-settings" role="group" aria-labelledby="quiet-title">
       <h3 className="h4" id="quiet-title">{t('alerts.quiet.title')}</h3>
-      <label className="checkbox">
-        <input type="checkbox" checked={settings.quietOn} onChange={(e) => updateAlerts({ quietOn: e.target.checked })} />
-        {t('alerts.quiet.toggle')}
-      </label>
-      <p className="muted">{t('alerts.quiet.hint')}</p>
+      <SwitchRow title={t('alerts.quiet.toggle')} help={t('alerts.quiet.hint')} checked={settings.quietOn} onChange={(on) => updateAlerts({ quietOn: on })} />
       {settings.quietOn && (
         <div className="quiet-body">
           <div className="quiet-times">
@@ -248,14 +242,8 @@ export function QuietHoursSettings() {
           {quiet.timeZone !== here && (
             <button className="button ghost quiet-here" onClick={() => setQuiet({ timeZone: here })}>{t('alerts.quiet.useHere', { zone: here.replaceAll('_', ' ') })}</button>
           )}
-          <label className="checkbox">
-            <input type="checkbox" checked={quiet.mentions} onChange={(e) => setQuiet({ mentions: e.target.checked })} />
-            {t('alerts.quiet.mentions')}
-          </label>
-          <label className="checkbox">
-            <input type="checkbox" checked={quiet.digest !== false} onChange={(e) => setQuiet({ digest: e.target.checked })} />
-            {t('alerts.quiet.digest')}
-          </label>
+          <SwitchRow title={t('alerts.quiet.mentions')} checked={quiet.mentions} onChange={(on) => setQuiet({ mentions: on })} />
+          <SwitchRow title={t('alerts.quiet.digest')} checked={quiet.digest !== false} onChange={(on) => setQuiet({ digest: on })} />
           <p className="muted quiet-note">{t('alerts.quiet.digestHint')}</p>
           {pushOn && <p className="muted alert-privacy">{t('alerts.quiet.pushNote')}</p>}
         </div>

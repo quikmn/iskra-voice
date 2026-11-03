@@ -4,8 +4,8 @@
 
 .role-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; }
 .role-chip-custom {
-  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px;
-  background: var(--surface-3); color: var(--text); font-size: 12px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--surface-3); color: var(--text); font-size: var(--fs-sm); font-weight: 500;
 }
 
 /* Settings → Roles */
@@ -14,14 +14,17 @@
 .role-row + .role-row { border-top: 1px solid var(--border); }
 .role-row.selected { background: var(--surface-3); }
 .role-row.dragging { opacity: 0.5; }
-.drag-handle { color: var(--muted); cursor: grab; letter-spacing: -3px; padding: 0 4px; user-select: none; }
+.drag-handle { display: inline-flex; color: var(--muted); cursor: grab; padding: 0 2px; user-select: none; }
 .drag-handle.locked { cursor: default; opacity: 0.3; }
 .role-pick {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 8px 6px; border: 0; background: transparent;
   color: var(--text); text-align: left; font-weight: 500;
 }
 .role-pick .role-name, .role-pick .builtin-role-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.role-move { display: flex; gap: 2px; }
+.role-move { display: flex; gap: 2px; opacity: 0; transition: opacity var(--dur-fast); }
+/* The arrows are the keyboard's way to reorder: shown on hover and focus, always on touch. */
+.role-row:hover .role-move, .role-row:focus-within .role-move { opacity: 1; }
+@media (hover: none) { .role-move { opacity: 1; } }
 .role-editor { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); display: grid; gap: 10px; }
 .role-editor-fields { display: flex; flex-wrap: wrap; gap: 12px; }
 .role-editor-fields .field { flex: 1; min-width: 140px; margin-bottom: 0; }
@@ -31,7 +34,7 @@
 .role-perms { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; }
 .role-perms .checkbox { align-items: flex-start; }
 .role-perms .checkbox > span { display: grid; gap: 1px; }
-.role-perms small { font-size: 12px; }
+.role-perms small { font-size: var(--fs-sm); }
 .role-editor-actions .spacer { flex: 1; }
 
 /* Member dialog */
@@ -41,11 +44,11 @@
 
 /* Channel settings: permissions by role */
 .channel-overrides { display: grid; gap: 10px; margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--border); }
-.channel-overrides p { margin: 0; font-size: 13px; }
+.channel-overrides p { margin: 0; font-size: var(--fs-md); }
 .override-row { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); }
 .override-role { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
-.override-perm { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; }
-.tri { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex: none; }
+.override-perm { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--fs-ui); }
+.tri { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; flex: none; }
 .tri button { width: 34px; height: 28px; border: 0; background: transparent; color: var(--muted); font-weight: 700; }
 .tri button + button { border-left: 1px solid var(--border); }
 .tri button.on.tri-deny { background: var(--danger-bg); color: var(--red); }
@@ -53,7 +56,7 @@
 .tri button.on.tri-inherit { background: var(--surface-3); color: var(--text); }
 
 /* Member list: role icon, and a moderator's mute in voice */
-.member-role-icon { font-size: 13px; flex: none; }
+.member-role-icon { font-size: var(--fs-md); flex: none; }
 .voice-flag.server-muted { color: var(--red); }
 
 @media (max-width: 760px) {
@@ -64,7 +67,7 @@
 /* Role mentions and their autocomplete */
 .mention.role-mention { font-weight: 600; }
 .mention-role-icon { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-3); font-weight: 700; color: var(--muted); }
-.mention-kind { margin-left: auto; font-size: 12px; }
+.mention-kind { margin-left: auto; font-size: var(--fs-sm); }
 
 /* Settings → Roles: built-in roles above the custom ones */
 .settings-section .roles-subhead { margin-top: 22px; }
@@ -78,11 +81,11 @@
 /* Pick your roles */
 .role-picker { display: grid; gap: 12px; }
 .role-picker-group { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; min-width: 0; display: grid; gap: 8px; }
-.role-picker-group h3 { margin: 0; font-size: 15px; }
+.role-picker-group h3 { margin: 0; font-size: var(--fs-base); }
 .role-picker-group p { margin: 0; }
 .role-picker-options { display: flex; flex-wrap: wrap; gap: 8px; }
 .role-option {
-  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border);
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: var(--r-pill); border: 1px solid var(--border);
   background: var(--surface); color: var(--text); font-weight: 500; min-height: 36px;
 }
 .role-option.on { border-color: var(--accent); background: var(--accent-subtle); }
@@ -93,7 +96,7 @@
 .onboarding-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); flex-wrap: wrap; }
 .onboarding-text { min-width: 0; flex: 1 1 220px; }
 .onboarding-title { font-weight: 600; }
-.onboarding-roles { font-size: 13px; }
+.onboarding-roles { font-size: var(--fs-md); }
 .onboarding-row .spacer { flex: 1; }
 .onboarding-form { display: grid; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
 .onboarding-form .field { margin-bottom: 0; }

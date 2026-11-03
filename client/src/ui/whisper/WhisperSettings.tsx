@@ -10,6 +10,7 @@ import { keysAreGlobal } from '../../state/hotkeys'
 import { HotkeyRows } from '../dialogs/HotkeySettings'
 import { Close } from '../icons'
 import './whisper.css'
+import { SwitchRow } from '../kit'
 
 function ListEditor({ server, list }: { server: ServerState; list: WhisperList }) {
   const { t } = useTranslation()
@@ -124,11 +125,7 @@ export function WhisperSettingsSection() {
         <h2>{t('whisper.priority.title')}</h2>
         <p className="muted">{t('whisper.priority.intro')}</p>
         {server && <p>{t(isPriority ? 'whisper.priority.youAre' : 'whisper.priority.youAreNot', { server: server.name })}</p>}
-        <label className="checkbox">
-          <input type="checkbox" checked={priority.always} onChange={(e) => setPrioritySettings({ always: e.target.checked })} />
-          <span>{t('whisper.priority.always')}</span>
-        </label>
-        <p className="muted">{t('whisper.priority.alwaysHint')}</p>
+        <SwitchRow title={t('whisper.priority.always')} help={t('whisper.priority.alwaysHint')} checked={priority.always} onChange={(on) => setPrioritySettings({ always: on })} />
         <HotkeyRows actions={['priority']} />
         <label className="whisper-field">
           <span>{t('whisper.priority.duck')}</span>

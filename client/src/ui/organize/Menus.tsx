@@ -19,6 +19,7 @@ import { ClearVoiceStatusItem } from '../voiceStatus/VoiceStatus'
 import { SoundMenuRow, SoundMenuView } from '../sounds/SoundSettings'
 import { MAX_FAVORITES } from '../../state/favoritesLogic'
 import { setFavorite, useIsFavorite } from '../../state/favorites'
+import { Bell, BellOff, CheckCheck, ChevronDown, ChevronUp, Folder, Pencil, Plus, Star, Trash } from '../icons'
 
 export type Run = (action: () => Promise<unknown> | void) => () => void
 
@@ -90,11 +91,11 @@ export function NotifyRows({ server, channelId, setView, run }: { server: Server
   const isServer = channelId === null
   return (
     <>
-      <MenuItem onClick={() => setView('levels')} hint={levelLabel(notify.chosen)}>{t('organize.menu.notifications')}</MenuItem>
+      <MenuItem icon={<Bell />} submenu onClick={() => setView('levels')} hint={levelLabel(notify.chosen)}>{t('organize.menu.notifications')}</MenuItem>
       {ownMuted ? (
-        <MenuItem onClick={run(() => muteFor(server.key, channelId, 0))} hint={ownMuted}>{isServer ? t('organize.menu.unmuteServer') : t('organize.menu.unmuteChannel')}</MenuItem>
+        <MenuItem icon={<BellOff />} onClick={run(() => muteFor(server.key, channelId, 0))} hint={ownMuted}>{isServer ? t('organize.menu.unmuteServer') : t('organize.menu.unmuteChannel')}</MenuItem>
       ) : (
-        <MenuItem onClick={() => setView('mute')} hint={notify.muted ? t('organize.menu.serverIsMuted') : undefined}>{isServer ? t('organize.menu.mute.server') : t('organize.menu.mute.channel')}</MenuItem>
+        <MenuItem icon={<BellOff />} submenu onClick={() => setView('mute')} hint={notify.muted ? t('organize.menu.serverIsMuted') : undefined}>{isServer ? t('organize.menu.mute.server') : t('organize.menu.mute.channel')}</MenuItem>
       )}
       <SoundMenuRow server={server} channelId={channelId} open={() => setView('sound')} />
     </>
@@ -108,7 +109,7 @@ function FavoriteItem({ server, channel, run }: { server: ServerState; channel: 
   const [full, setFull] = useState(false)
   return (
     <>
-      <MenuItem onClick={on ? run(() => { setFavorite({ server: server.key, channel: channel.id }, false) }) : () => {
+      <MenuItem icon={<Star filled={on} size={18} />} onClick={on ? run(() => { setFavorite({ server: server.key, channel: channel.id }, false) }) : () => {
         if (setFavorite({ server: server.key, channel: channel.id }, true)) run(() => undefined)()
         else setFull(true)
       }}>
@@ -159,7 +160,7 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
           <MenuTitle>{label}</MenuTitle>
           <div className="org-list" role="menu">
             {unread > 0 && (
-              <MenuItem onClick={run(() => markChannelRead(server.key, channel.id))}>
+              <MenuItem icon={<CheckCheck />} onClick={run(() => markChannelRead(server.key, channel.id))}>
                 {t('organize.menu.markRead')}
               </MenuItem>
             )}
@@ -172,10 +173,10 @@ export function ChannelMenu({ server, channel, anchor, isAdmin, onEdit, onClose 
             {isAdmin && (
               <>
                 <div className="org-sep" role="separator" />
-                {up && <MenuItem onClick={run(() => moveChannel(server.key, channel.id, up.categoryId, up.before))}>{t('organize.menu.moveUp')}</MenuItem>}
-                {down && <MenuItem onClick={run(() => moveChannel(server.key, channel.id, down.categoryId, down.before))}>{t('organize.menu.moveDown')}</MenuItem>}
-                <MenuItem onClick={() => setView('move')} hint={categories.find((c) => c.id === channel.categoryId)?.name ?? t('common.none')}>{t('organize.menu.moveToCategory')}</MenuItem>
-                <MenuItem onClick={() => { onEdit(); onClose() }}>{t('organize.menu.editChannel')}</MenuItem>
+                {up && <MenuItem icon={<ChevronUp />} onClick={run(() => moveChannel(server.key, channel.id, up.categoryId, up.before))}>{t('organize.menu.moveUp')}</MenuItem>}
+                {down && <MenuItem icon={<ChevronDown />} onClick={run(() => moveChannel(server.key, channel.id, down.categoryId, down.before))}>{t('organize.menu.moveDown')}</MenuItem>}
+                <MenuItem icon={<Folder />} submenu onClick={() => setView('move')} hint={categories.find((c) => c.id === channel.categoryId)?.name ?? t('common.none')}>{t('organize.menu.moveToCategory')}</MenuItem>
+                <MenuItem icon={<Pencil />} onClick={() => { onEdit(); onClose() }}>{t('organize.menu.editChannel')}</MenuItem>
               </>
             )}
           </div>
@@ -215,15 +216,15 @@ export function CategoryMenu({ server, category, anchor, isAdmin, onCreateChanne
         <>
           <MenuTitle>{category.name}</MenuTitle>
           <div className="org-list" role="menu">
-            <MenuItem onClick={run(() => toggleCollapsed(server.key, category.id))}>{collapsed ? t('organize.menu.expand') : t('organize.menu.collapse')}</MenuItem>
+            <MenuItem icon={collapsed ? <ChevronDown /> : <ChevronUp />} onClick={run(() => toggleCollapsed(server.key, category.id))}>{collapsed ? t('organize.menu.expand') : t('organize.menu.collapse')}</MenuItem>
             {isAdmin && (
               <>
                 <div className="org-sep" role="separator" />
-                <MenuItem onClick={() => { onCreateChannel(); onClose() }}>{t('organize.menu.createHere')}</MenuItem>
-                <MenuItem onClick={() => { onRename(); onClose() }}>{t('organize.menu.renameCategory')}</MenuItem>
-                {up && <MenuItem onClick={run(() => moveCategory(server.key, category.id, up.before))}>{t('organize.menu.moveUp')}</MenuItem>}
-                {down && <MenuItem onClick={run(() => moveCategory(server.key, category.id, down.before))}>{t('organize.menu.moveDown')}</MenuItem>}
-                <MenuItem danger onClick={() => setView('delete')}>{t('organize.menu.deleteCategory')}</MenuItem>
+                <MenuItem icon={<Plus />} onClick={() => { onCreateChannel(); onClose() }}>{t('organize.menu.createHere')}</MenuItem>
+                <MenuItem icon={<Pencil />} onClick={() => { onRename(); onClose() }}>{t('organize.menu.renameCategory')}</MenuItem>
+                {up && <MenuItem icon={<ChevronUp />} onClick={run(() => moveCategory(server.key, category.id, up.before))}>{t('organize.menu.moveUp')}</MenuItem>}
+                {down && <MenuItem icon={<ChevronDown />} onClick={run(() => moveCategory(server.key, category.id, down.before))}>{t('organize.menu.moveDown')}</MenuItem>}
+                <MenuItem danger icon={<Trash />} onClick={() => setView('delete')}>{t('organize.menu.deleteCategory')}</MenuItem>
               </>
             )}
           </div>

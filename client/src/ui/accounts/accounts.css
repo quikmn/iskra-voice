@@ -26,7 +26,7 @@
 .server-icon.account-switch { margin-bottom: calc(16px + var(--bottom-bar) / 2 - 12px - 24px); }
 @media (max-width: 760px) { .server-icon.account-switch { margin-bottom: calc(8px + var(--bottom-bar) / 2 - 12px - 24px); } }
 .server-icon.account-switch:hover { background: var(--surface-3); }
-.server-icon.account-switch .avatar { display: grid; place-items: center; width: 100% !important; height: 100% !important; border-radius: inherit; transition: border-radius 0.2s; }
+.server-icon.account-switch .avatar { display: grid; place-items: center; width: 100% !important; height: 100% !important; border-radius: inherit; transition: border-radius var(--dur-slow); }
 .server-icon.account-switch.ringing { animation: account-ring 1s ease-in-out infinite; }
 @keyframes account-ring { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 60%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .server-icon.account-switch.ringing { animation: none; box-shadow: 0 0 0 3px var(--green); } }
@@ -38,8 +38,8 @@
 .account-row.current { background: var(--accent-subtle); }
 .account-item { flex: 1; min-width: 0; }
 .account-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
-.account-item-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
-.account-item-text small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-item-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-ui); }
+.account-item-text small { color: var(--muted); font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-item-text small.unread { color: var(--text-2); font-weight: 600; }
 .account-item > svg { flex: none; color: var(--muted); }
 .account-item .badge { flex: none; }
@@ -49,23 +49,16 @@
 .account-add-label { display: inline-flex; align-items: center; gap: 8px; }
 .account-add-choice { align-items: flex-start; }
 .account-add-choice small { white-space: normal; }
-.account-menu-note { font-size: 12px; margin: 6px 10px 4px; max-width: 260px; }
+.account-menu-note { font-size: var(--fs-sm); margin: 6px 10px 4px; max-width: 260px; }
 .org-sheet .account-list { min-width: 0; }
 .org-sheet .account-row.current { background: var(--accent-subtle); }
 
-/* Notes about the other accounts (left voice as one, a call for one), stacked where the update toast sits. */
-.account-toasts {
-  position: fixed; right: 16px; bottom: calc(84px + var(--safe-bottom)); z-index: var(--z-toast);
-  display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
-}
-.account-toasts .update-toast { position: static; }
-.account-toast.ringing { border-color: color-mix(in srgb, var(--green) 50%, var(--border)); }
 
 /* While an account is being added: the way back to the others, above its first-run screen. */
 .account-adding-bar {
   position: fixed; top: calc(8px + var(--safe-top)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
   display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 14px; border-radius: 99px;
-  background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; color: var(--text-2);
+  background: var(--surface-2); border: 1px solid var(--border); font-size: var(--fs-md); color: var(--text-2);
 }
 
 /* Voice moved away (another device, another account here): the note with "Join here". */

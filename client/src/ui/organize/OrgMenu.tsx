@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { focusFirstItem } from '../a11y'
-import { ChevronLeft, ChevronRight } from '../icons'
+import { Check, ChevronLeft, ChevronRight } from '../icons'
 
 export interface MenuAnchor {
   x: number
@@ -39,8 +39,9 @@ export function OrgMenu({ anchor, label, onClose, children }: { anchor: MenuAnch
   useLayoutEffect(() => {
     if (sheet || !anchor || !ref.current) return
     const { offsetWidth: w, offsetHeight: h } = ref.current
-    const left = Math.max(8, Math.min(anchor.x, window.innerWidth - w - 8))
-    const top = Math.max(8, Math.min(anchor.y, window.innerHeight - h - 8))
+    // Stays on screen: opens leftward or upward from the pointer when there's no room, else slides to fit.
+    const left = anchor.x + w + 8 > window.innerWidth && anchor.x - w >= 8 ? anchor.x - w : Math.max(8, Math.min(anchor.x, window.innerWidth - w - 8))
+    const top = anchor.y + h + 8 > window.innerHeight && anchor.y - h >= 8 ? anchor.y - h : Math.max(8, Math.min(anchor.y, window.innerHeight - h - 8))
     setPosition((p) => (p && p.left === left && p.top === top ? p : { left, top }))
   }, [anchor, sheet, children])
 
@@ -65,32 +66,54 @@ export function OrgMenu({ anchor, label, onClose, children }: { anchor: MenuAnch
   )
 }
 
-/** One row of a menu. */
-export function MenuItem({ children, onClick, danger, checked, disabled, hint, submenu }: {
+/**
+ * One row of a menu: [icon] label … [value] [› or ✓]. `checked` makes it one of a set (a radio dot at the start);
+ * `toggle` makes it an on/off row (a check at the end when on); `submenu` opens another page of the menu.
+ */
+export function MenuItem({ children, onClick, danger, checked, toggle, disabled, hint, submenu, icon, testId }: {
   children: ReactNode
   onClick: () => void
   danger?: boolean
   /** Shows as a radio choice. */
   checked?: boolean
+  /** On/off: a check at the end while on. */
+  toggle?: boolean
   disabled?: boolean
-  hint?: string
+  /** A value at the end, muted ("Muted until 14:00", "Classic"). */
+  hint?: ReactNode
   /** Opens another page of the menu: a chevron at the end. */
   submenu?: boolean
+  /** A 16px icon in the leading column. */
+  icon?: ReactNode
+  testId?: string
 }) {
-  const radio = checked !== undefined
+  const radio = checked !== undefined && toggle === undefined
   return (
     <button
-      role={radio ? 'menuitemradio' : 'menuitem'}
-      aria-checked={radio ? checked : undefined}
-      className={`org-item ${danger ? 'danger' : ''} ${checked ? 'checked' : ''}`}
+      role={radio ? 'menuitemradio' : toggle !== undefined ? 'menuitemcheckbox' : 'menuitem'}
+      aria-checked={radio ? checked : toggle !== undefined ? toggle : undefined}
+      className={`org-item ${danger ? 'danger' : ''} ${(radio && checked) || toggle ? 'checked' : ''}`}
       disabled={disabled}
       onClick={onClick}
+      data-testid={testId}
     >
       {radio && <span className="org-radio" aria-hidden />}
+      {icon && <span className="org-item-icon" aria-hidden>{icon}</span>}
       <span className="org-item-text">{children}</span>
       {hint && <span className="org-item-hint">{hint}</span>}
-      {submenu && <span className="org-item-hint" aria-hidden><ChevronRight size={14} /></span>}
+      {toggle !== undefined && <span className="org-item-check" aria-hidden>{toggle && <Check size={16} />}</span>}
+      {submenu && <span className="org-item-hint org-item-arrow" aria-hidden><ChevronRight size={14} /></span>}
     </button>
+  )
+}
+
+/** A block of rows, with an optional small heading; blocks are set apart by a line. */
+export function MenuGroup({ label, children }: { label?: string; children: ReactNode }) {
+  return (
+    <div className="org-group" role="group" aria-label={label}>
+      {label && <div className="org-group-label" aria-hidden>{label}</div>}
+      {children}
+    </div>
   )
 }
 

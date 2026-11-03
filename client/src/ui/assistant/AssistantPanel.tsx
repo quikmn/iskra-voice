@@ -122,7 +122,7 @@ function Chat() {
             <p className="muted">{t('assistant.empty')}</p>
             <div className="assistant-examples">
               {(['summarize', 'channel', 'bot'] as const).map((x) => (
-                <button key={x} className="chip" onClick={() => submit(t(`assistant.examples.${x}`))}>{t(`assistant.examples.${x}`)}</button>
+                <button key={x} className="k-chip" onClick={() => submit(t(`assistant.examples.${x}`))}>{t(`assistant.examples.${x}`)}</button>
               ))}
             </div>
             <p className="muted small">{t('assistant.pasteHint')}</p>

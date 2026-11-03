@@ -2,8 +2,8 @@
 import { useTranslation } from 'react-i18next'
 import { dismissAfkNotice, useAfk } from '../../state/afk'
 import { useApp } from '../../state/store'
-import { Close } from '../icons'
-import '../update-toast.css'
+import { Toast } from '../kit'
+import { Moon } from '../icons'
 
 export function AfkToast() {
   const { t } = useTranslation()
@@ -13,14 +13,9 @@ export function AfkToast() {
   const channel = server?.channels.find((c) => c.id === notice.channelId)?.name ?? t('afk.badge')
   const name = server?.name ?? ''
   return (
-    <div className="update-toast afk-toast" role="status" aria-live="polite" data-testid="afk-toast">
-      <div className="update-toast-text">
-        <strong>{t('afk.movedTitle', { channel })}</strong>
-        <span>{notice.minutes ? t('afk.movedBody', { minutes: notice.minutes, server: name }) : t('afk.movedBodyShort', { server: name })}</span>
-      </div>
-      <button className="icon-button" onClick={() => dismissAfkNotice(notice.at)} aria-label={t('app.dismiss')} title={t('app.dismiss')}>
-        <Close size={16} />
-      </button>
-    </div>
+    <Toast icon={<Moon size={18} />} className="afk-toast" testId="afk-toast"
+      title={t('afk.movedTitle', { channel })}
+      body={notice.minutes ? t('afk.movedBody', { minutes: notice.minutes, server: name }) : t('afk.movedBodyShort', { server: name })}
+      onClose={() => dismissAfkNotice(notice.at)} closeLabel={t('app.dismiss')} />
   )
 }

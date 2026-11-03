@@ -18,6 +18,7 @@ import { messageTime } from '../format'
 import { Avatar } from '../bits'
 import { Close } from '../icons'
 import './quiet-digest.css'
+import { ToastPortal } from '../kit'
 
 export function QuietDigestCard() {
   const { t } = useTranslation()
@@ -33,6 +34,7 @@ export function QuietDigestCard() {
     dismissQuietDigest()
   }
   return (
+    <ToastPortal>
     <section className="quiet-digest" role="region" aria-labelledby={titleId} data-testid="quiet-digest" onKeyDown={onKeyDown}>
       <div className="quiet-digest-head">
         <span className="quiet-digest-mark" aria-hidden>☾</span>
@@ -54,6 +56,7 @@ export function QuietDigestCard() {
         <button className="button primary" onClick={dismissQuietDigest}>{t('alerts.digest.gotIt')}</button>
       </div>
     </section>
+    </ToastPortal>
   )
 }
 

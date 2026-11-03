@@ -14,7 +14,7 @@ import { has } from '../../state/permissions'
 import { useReports } from '../../state/reports'
 import { usePendingJoins } from '../../state/joins'
 import { Avatar } from '../bits'
-import { ChevronLeft, ChevronRight, Close } from '../icons'
+import { Ban, Bell, Bot, Camera, ChevronLeft, ChevronRight, Close, EyeOff, Headphones, Info, Key, Languages, Lock, Monitor, Palette, Settings, ShieldCheck, Smartphone, Sparkles, User } from '../icons'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { serverColor } from '../serverColor'
 import { desktop } from '../../platform/desktop'
@@ -68,7 +68,7 @@ import { MembersSection } from './MembersSection'
 import { ServerTile } from './ServerTile'
 import { ChannelsSection } from './ChannelsSection'
 import { closeSettings, useSettingsView } from './open'
-import { mySections, SERVER_GROUPS, serverSections, type MySectionId, type SectionInfo, type ServerSectionId } from './sections'
+import { MY_GROUPS, mySections, SERVER_GROUPS, serverSections, type MySectionId, type SectionInfo, type ServerSectionId } from './sections'
 import { SaveAsTemplate } from '../templates/SaveAsTemplate'
 import { ServerImagesSection } from './ServerImagesSection'
 import { PublicPageSection } from './PublicPageSection'
@@ -113,7 +113,15 @@ function useTitle(title: string) {
 interface NavGroup<Id extends string> {
   id: string
   title: string | null
-  items: (SectionInfo & { id: Id; count?: number })[]
+  items: (SectionInfo & { id: Id; count?: number; icon?: ReactNode })[]
+}
+
+/** My settings: one line icon per section (the nav on wide screens, the list on phones). */
+const MY_ICONS: Record<MySectionId, () => ReactNode> = {
+  profile: () => <User />, account: () => <Settings />, devices: () => <Smartphone />, recovery: () => <Key />, security: () => <Lock />,
+  appearance: () => <Palette />, language: () => <Languages />, notifications: () => <Bell />, voice: () => <Headphones />,
+  video: () => <Camera />, streamer: () => <EyeOff />, assistant: () => <Sparkles />, desktop: () => <Monitor />, pcBots: () => <Bot />,
+  blocked: () => <Ban />, privacy: () => <ShieldCheck />, about: () => <Info />,
 }
 
 /** The shared frame: a band, then the grouped nav beside the section (wide) or a page stack (phones). */
@@ -157,7 +165,8 @@ function Takeover<Id extends string>({ kind, label, style, band, crumb, groups, 
               aria-current={current?.id === s.id ? 'page' : undefined}
               onClick={() => setPicked(s.id)}
             >
-              <span>{s.label}</span>
+              {s.icon && <span className="settings-nav-icon" aria-hidden>{s.icon}</span>}
+              <span className="settings-nav-label">{s.label}</span>
               {!!s.count && <span className="settings-nav-count" aria-label={t('settings.room.count', { n: s.count })}>{s.count}</span>}
               {phone && <ChevronRight size={16} />}
             </button>
@@ -215,7 +224,7 @@ export function MySettings({ section, onClose }: { section?: MySectionId; onClos
       label={t('common.settings')}
       band={
         <div className="room-identity">
-          {accountKey && <Avatar name={name} accountKey={accountKey} size={56} />}
+          {accountKey && <Avatar name={name} accountKey={accountKey} size={48} />}
           <div className="room-titles">
             <h1 className="room-name">{t('settings.room.mine')}</h1>
             <p className="room-sub">{name}</p>
@@ -223,7 +232,11 @@ export function MySettings({ section, onClose }: { section?: MySectionId; onClos
         </div>
       }
       crumb={{ icon: accountKey ? <Avatar name={name} accountKey={accountKey} size={24} /> : null, name: t('settings.room.mine') }}
-      groups={[{ id: 'mine', title: null, items: mySections(!!desktop) }]}
+      groups={MY_GROUPS.map((group) => ({
+        id: group,
+        title: group === 'about' ? null : t(`kit.myGroups.${group}`), // "About" over "About" says nothing
+        items: mySections(!!desktop).filter((s) => s.group === group).map((s) => ({ ...s, icon: MY_ICONS[s.id]() })),
+      }))}
       initial={section}
       onClose={onClose}
       render={(id) => <MySection id={id} />}

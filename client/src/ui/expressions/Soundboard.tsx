@@ -6,6 +6,7 @@ import { useApp } from '../../state/store'
 import { useVoice } from '../../state/voice'
 import { SoundboardIcon } from './icons'
 import { usePopoverPosition } from './popover'
+import { ToastPill } from '../kit'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
@@ -110,16 +111,13 @@ export function SoundToasts() {
   const servers = useApp((s) => s.servers)
   if (played.length === 0) return null
   return (
-    <div className="sound-toasts" aria-live="polite">
+    <>
       {played.map((p) => (
-        <div key={p.key} className="sound-toast">
-          <span aria-hidden>{p.sound.emoji ?? '🔊'}</span>
-          <span>
-            <Trans i18nKey="expressions.soundboard.played" components={{ b: <strong /> }}
-              values={{ name: servers[p.serverKey]?.members[p.accountKey]?.name ?? t('common.someone'), sound: p.sound.name }} />
-          </span>
-        </div>
+        <ToastPill key={p.key} className="sound-toast" icon={<span>{p.sound.emoji ?? '🔊'}</span>}>
+          <Trans i18nKey="expressions.soundboard.played" components={{ b: <strong /> }}
+            values={{ name: servers[p.serverKey]?.members[p.accountKey]?.name ?? t('common.someone'), sound: p.sound.name }} />
+        </ToastPill>
       ))}
-    </div>
+    </>
   )
 }

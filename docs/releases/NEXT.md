@@ -3,6 +3,7 @@
 ### What's new
 - Themes: all of them reworked so menus sit above the panel they open from, hover and selected rows show, text steps down clearly, and red only ever means danger. New: Iskra Light and Midnight (true black for OLED screens). Theme cards show a small picture of the app in that look.
 - Fonts are now their own setting (My settings → Appearance → Font): Inter, System, Rounded, Serif or Monospace, plus a code font. Inter, Nunito and JetBrains Mono ship with the app, so the text looks the same on every device. Built-in themes no longer change your font; a theme file that names one does while "Use the theme's font when it names one" is on.
+- A tidier look across settings and dialogs: real switches for things that take effect at once, an unsaved-changes bar for forms, My settings in groups with icons, one place for notices, menus with icons and submenus, the member sheet's moderation in tabs, and bigger touch targets on phones.
 
 ### Fixes
 - White text and icons on red (hang up, unread badges, recording) and on green (accept, join) now read clearly in every theme, and the keyboard focus ring shows in every theme.

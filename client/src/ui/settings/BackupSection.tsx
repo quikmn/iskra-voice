@@ -11,6 +11,7 @@ import { MoveServerDialog } from './MoveServerDialog'
 import { BuddySection } from './BuddySection'
 import '../dialogs/InternetSettings.css'
 import './backup.css'
+import { Switch, SwitchRow } from '../kit'
 
 const STRENGTH = {
   'too-short': 'settings.backup.strength.tooShort',
@@ -136,10 +137,7 @@ function AutoBackups({ server }: { server: ServerState }) {
           <strong>{t('settings.backup.daily')}</strong>
           <p className="muted">{t('settings.backup.dailyHint')}</p>
         </div>
-        <button className={`switch ${status.auto.enabled ? 'on' : ''}`} role="switch" aria-checked={status.auto.enabled}
-          aria-label={t('settings.backup.daily')} onClick={() => void change({ enabled: !status.auto.enabled })}>
-          <span />
-        </button>
+        <Switch checked={status.auto.enabled} label={t('settings.backup.daily')} onChange={() => void change({ enabled: !status.auto.enabled })} />
       </div>
       {status.auto.enabled && (
         <div className="backup-options">
@@ -149,10 +147,7 @@ function AutoBackups({ server }: { server: ServerState }) {
               {[...new Set([3, 7, 14, 30, status.auto.keep])].sort((a, b) => a - b).map((n) => <option key={n} value={n}>{t('settings.invite.days', { count: n })}</option>)}
             </select>
           </label>
-          <label className="checkbox">
-            <input type="checkbox" checked={status.auto.includeUploads} onChange={(e) => void change({ includeUploads: e.target.checked })} />
-            {t('settings.backup.includeUploads')}
-          </label>
+          <SwitchRow title={t('settings.backup.includeUploads')} checked={status.auto.includeUploads} onChange={(on) => void change({ includeUploads: on })} />
         </div>
       )}
       {status.local.length > 0 ? (

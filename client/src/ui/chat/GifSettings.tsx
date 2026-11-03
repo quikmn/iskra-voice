@@ -7,6 +7,7 @@ import { configureGifs, setGifAutoLoad, useGifs, useGifStatus } from '../../stat
 import type { ServerState } from '../../state/store'
 import { LINKS } from '../../links'
 import './gifs.css'
+import { SwitchRow } from '../kit'
 
 /** `heading: false` when the section around it already says GIFs. */
 export function GifSettings({ server, heading = true }: { server: ServerState; heading?: boolean }) {
@@ -114,10 +115,7 @@ export function GifViewerSettings() {
   return (
     <section className="settings-section">
       <h2>{t('chat.gifSettings.viewerTitle')}</h2>
-      <label className="checkbox">
-        <input type="checkbox" checked={autoLoad} onChange={(e) => setGifAutoLoad(e.target.checked)} />
-        {t('chat.gifSettings.autoLoad')}
-      </label>
+      <SwitchRow title={t('chat.gifSettings.autoLoad')} checked={autoLoad} onChange={(on) => setGifAutoLoad(on)} />
     </section>
   )
 }

@@ -25,7 +25,8 @@ const settle = (page: Page) => page.waitForTimeout(350)
 test('phone: back and swipes move between the chat, the channels and the members', async ({ browser }) => {
   const server = await startServer('Pocket Nav')
   try {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+    // Full motion (the config asks for less): the drawer follows the finger.
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'no-preference' })
     const page = await context.newPage()
     await joinVia(page, server.ownerLink(), 'Host')
     await send(page, 'hello from the phone')

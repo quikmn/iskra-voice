@@ -4,7 +4,7 @@ import { useApp, type ServerState } from '../../state/store'
 import { closeEvents, dismissReminder, showEvents, useEvents } from '../../state/events'
 import { openEvents, startsIn } from '../../state/eventTime'
 import { joinVoice } from '../../state/voice'
-import { Close } from '../icons'
+import { Toast } from '../kit'
 import { CalendarIcon } from '../forums/icons'
 import { EventsDialog } from './EventsDialog'
 import { useNow } from './useNow'
@@ -58,28 +58,24 @@ function EventToasts() {
   const servers = useApp((s) => s.servers)
   if (reminders.length === 0) return null
   return (
-    <div className="event-toasts" role="status" aria-live="polite">
+    <>
       {reminders.map((r) => {
         const server = servers[r.serverKey]
         const voice = r.event.location.kind === 'voice' && r.event.location.channelId !== null
           ? server?.channels.find((c) => c.id === (r.event.location as { channelId: number }).channelId)
           : undefined
         return (
-          <div key={r.id} className="event-toast">
-            <span className="event-toast-icon"><CalendarIcon size={18} /></span>
-            <div className="event-toast-text">
-              <strong>{r.kind === 'live' ? t('events.notifyLive', { title: r.event.title }) : t('events.notifySoon', { title: r.event.title })}</strong>
-              <span>{server?.name}{voice ? ` · ${voice.name}` : r.event.location.kind === 'place' ? ` · ${r.event.location.text}` : ''}</span>
-            </div>
-            {voice && r.kind === 'live' ? (
+          <Toast key={r.id} tone="accent" icon={<CalendarIcon size={18} />} className="event-toast"
+            title={r.kind === 'live' ? t('events.notifyLive', { title: r.event.title }) : t('events.notifySoon', { title: r.event.title })}
+            body={`${server?.name ?? ''}${voice ? ` · ${voice.name}` : r.event.location.kind === 'place' ? ` · ${r.event.location.text}` : ''}`}
+            action={voice && r.kind === 'live' ? (
               <button className="button primary small" onClick={() => { void joinVoice(r.serverKey, voice.id); dismissReminder(r.id) }}>{t('common.join')}</button>
             ) : (
               <button className="button small" onClick={() => { showEvents(r.serverKey, r.event.id); dismissReminder(r.id) }}>{t('events.toast.view')}</button>
             )}
-            <button className="icon-button small" aria-label={t('events.toast.dismiss')} onClick={() => dismissReminder(r.id)}><Close size={14} /></button>
-          </div>
+            onClose={() => dismissReminder(r.id)} closeLabel={t('events.toast.dismiss')} />
         )
       })}
-    </div>
+    </>
   )
 }

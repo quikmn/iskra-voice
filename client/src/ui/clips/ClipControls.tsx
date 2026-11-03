@@ -11,6 +11,7 @@ import {
 import { callPlace, clipsOnIn, clipTime } from '../../state/clipsLogic'
 import { clampTrim, trimDraft } from '../../state/clips/ring'
 import { Modal } from '../bits'
+import { ToastPill } from '../kit'
 import { Close, Send } from '../icons'
 import { ClipIcon, DownloadIcon } from './clipIcons'
 import './clips.css'
@@ -83,21 +84,18 @@ export function ClipLayer() {
 
   return (
     <>
-      {(notices.length > 0 || error) && (
-        <div className="clip-toasts" aria-live="polite">
-          {notices.map((n) => (
-            <div key={n.id} className="clip-toast"><ClipIcon size={15} /> {t('clips.saved', { name: nameOf(n.accountKey) })}</div>
-          ))}
-          {error && (
-            <div className="clip-toast error" role="alert">
-              <span>{typeof error === 'string' ? error : t(error.key)}</span>
-              {!enabled && inCall && canClip() && (
-                <button className="button small primary" onClick={() => setClipSettings({ enabled: true })}>{t('clips.turnOn')}</button>
-              )}
-              <button className="icon-button small" onClick={clearClipError} aria-label={t('common.close')}><Close size={14} /></button>
-            </div>
+      {notices.map((n) => (
+        <ToastPill key={n.id} icon={<ClipIcon size={15} />} className="clip-toast">{t('clips.saved', { name: nameOf(n.accountKey) })}</ToastPill>
+      ))}
+      {error && (
+        <ToastPill tone="danger" role="alert" className="clip-toast error" action={<>
+          {!enabled && inCall && canClip() && (
+            <button className="button small primary" onClick={() => setClipSettings({ enabled: true })}>{t('clips.turnOn')}</button>
           )}
-        </div>
+          <button className="icon-button small" onClick={clearClipError} aria-label={t('common.close')}><Close size={14} /></button>
+        </>}>
+          {typeof error === 'string' ? error : t(error.key)}
+        </ToastPill>
       )}
       {draft && <ClipDialog key={draft.at} />}
     </>
