@@ -1,12 +1,16 @@
-/* ── Message "More" menu, reactions list, "New" divider ─────────────── */
-.more-menu-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); }
-.more-menu {
-  position: fixed; min-width: 200px; padding: 6px; background: var(--float); border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: var(--shadow-pop); display: grid; outline: none; animation: fade 0.12s ease-out;
+/* ── Message menu bits, reactions list, "New" divider ─────────────── */
+/* A message's press-and-hold sheet: the reactions stay put and the list scrolls inside the sheet's padding, so no row
+   slides under the navigation bar. */
+.org-sheet:has(> .message-menu) { overflow: hidden; }
+.org-sheet > .message-menu { background: none; border-radius: 0; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+/* The delete confirmation quotes the message, so it's clear which one goes. */
+.delete-message-dialog .modal-body > p { margin: 0 0 var(--sp-3); }
+.delete-message-quote {
+  margin: 0; padding: var(--sp-2) var(--sp-3); border-left: 3px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface-2); color: var(--text-2); font-size: var(--fs-ui); line-height: var(--lh-body); max-height: 6em; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; white-space: pre-wrap; overflow-wrap: anywhere;
 }
-.more-menu button { border: 0; background: none; color: var(--text); text-align: left; padding: 8px 10px; border-radius: calc(var(--radius) * 0.6); font-size: 14px; }
-.more-menu button:hover { background: var(--hover); }
-.more-done { padding: 8px 10px; color: var(--green); font-size: 14px; }
 
 .reactions-dialog { display: grid; gap: 10px; }
 .reaction-tabs { display: flex; gap: 6px; flex-wrap: wrap; }

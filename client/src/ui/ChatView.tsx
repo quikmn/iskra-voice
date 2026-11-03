@@ -24,14 +24,13 @@ import { matchesAlert } from '../state/alertsLogic'
 import './alerts/alerts.css'
 import { clockTime, fullTime, hueFor, messageTime } from './format'
 import type { Panel } from './Shell'
-import { Close, Hash, Pencil, Reply, Send, Smile, Trash, WifiOff } from './icons'
+import { Close, Hash, Pencil, Reply, Send, Smile, WifiOff } from './icons'
 import { ChannelHeader } from './chat/HeaderTools'
 import { TranslationBlock } from './translate/Translate'
 import { parseTtsCommand, ttsBlocked } from '../state/speech'
 import { channelItem } from './translate/items'
 import { EncryptedBits, EncryptedWriteBlock, StartOverRecordLine, e2eeText, useEncryptedWriteBlock } from './e2ee/E2ee'
 import { editEncrypted, isEncrypted, uploadFor } from '../state/e2eeChannels'
-import { MessageActionSheet } from './chat/MessageActionSheet'
 import { useLongPress } from './chat/useLongPress'
 import { JumpToPresent, MessageMenuExtras, PinnedMark, PinNoteRow, ThreadSummary } from './chat/PinThreadBits'
 import { withPinNotes } from './chat/pinThreadHelpers'
@@ -52,14 +51,14 @@ import { BlockGate, SlowmodeChip, TimedOutBar } from './moderation/Moderation'
 import { useSlowmodeWait, useTimedOut } from './moderation/hooks'
 import { RulesBar } from './rules/Rules'
 import { useMustAgree } from '../state/rules'
-import { ForwardDialog, ForwardedLine, ForwardIcon } from './organize/ForwardDialog'
+import { ForwardDialog, ForwardedLine } from './organize/ForwardDialog'
 import { UnreadBar, UnreadDivider } from './organize/UnreadBits'
 import { channelConv, dividerOf, dividerTarget, useRead } from '../state/readState'
 import { useRoleLookup, useServerRoles } from '../state/roles'
 import { useServerBaseRoles } from '../state/baseRoles'
 import { canDeleteMessage, canMentionRole, canSendIn, has, nameColor } from '../state/permissions'
 import { draftKey, setDraft, useDraft } from '../state/drafts'
-import { MessageMoreButton } from './chat/MessageMore'
+import { MessageMenu, MessageMoreButton } from './chat/MessageMore'
 import { StickerMessage } from './chat/Stickers'
 import { ExpressionPicker, GifMessage, type ExpressionTab } from './chat/ExpressionPicker'
 import { sendGif } from '../state/gifs'
@@ -321,7 +320,6 @@ function MessageRow({
   const baseRoles = useServerBaseRoles(server.key)
   const roleColor = useReadableColor(message.webhook ? null : nameColor(author, roles, baseRoles))
   const authorColor = roleColor || `hsl(${hueFor(message.author)} 70% var(--name-l))`
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const [picking, setPicking] = useState(false)
   const [sheet, setSheet] = useState(false)
   const [forwarding, setForwarding] = useState(false)
@@ -331,7 +329,6 @@ function MessageRow({
   // Selecting messages to delete together (moderators): the row becomes a tick box.
   const selecting = useSelectingIn(server.key, message.channelId)
   const selected = useIsSelected(message.id)
-  const [error, setError] = useState<string | null>(null)
   const emojiLookup = useEmojiLookup(server.key)
   const alerts = useAlertPattern(server.key)
   const alerted = !mine && !message.forwarded && matchesAlert(alerts, message.text)
@@ -342,14 +339,6 @@ function MessageRow({
     void jumpToMessage(server.key, message.channelId, id)
   }
 
-  async function remove() {
-    try {
-      await connectionFor(server.key)?.request('chat.delete', { id: message.id })
-    } catch (e) {
-      setError(errorMessage(e))
-    }
-    setConfirmDelete(false)
-  }
 
   return (
     <>
@@ -444,33 +433,21 @@ function MessageRow({
             <button className="link" onClick={() => discardFailed(server.key, message.channelId, message.tempId!)}>{t('chat.message.discard')}</button>
           </div>
         )}
-        {error && <div className="message-failed">{error}</div>}
       </div>
       {!editing && !message.tempId && !selecting && (
         <div className={`message-actions ${picking ? 'open' : ''}`} role="toolbar" aria-label={t('chat.a11y.actions')}>
-          {confirmDelete ? (
-            <>
-              <span>{t('chat.message.deleteConfirm')}</span>
-              <button className="danger" onClick={() => void remove()}>{t('common.yes')}</button>
-              <button onClick={() => setConfirmDelete(false)}>{t('common.no')}</button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => setPicking((p) => !p)} title={t('chat.message.addReaction')} aria-label={t('chat.message.addReaction')}><Smile size={15} /></button>
-              <button onClick={() => setReply(server.key, message.channelId, message)} title={t('chat.message.reply')} aria-label={t('chat.message.reply')}><Reply size={15} /></button>
-              <MessageMenuExtras server={server} message={message} />
-              {canForward && <button onClick={() => setForwarding(true)} title={t('chat.message.forward')} aria-label={t('chat.message.forward')}><ForwardIcon /></button>}
-              <MessageMoreButton server={server} message={message} />
-              {canEdit && <button onClick={() => onEdit(true)} title={t('common.edit')} aria-label={t('common.edit')}><Pencil size={15} /></button>}
-              {canDelete && <button onClick={() => setConfirmDelete(true)} title={t('common.delete')} aria-label={t('common.delete')}><Trash size={15} /></button>}
-            </>
-          )}
+          <button onClick={() => setPicking((p) => !p)} title={t('chat.message.addReaction')} aria-label={t('chat.message.addReaction')}><Smile size={15} /></button>
+          <button onClick={() => setReply(server.key, message.channelId, message)} title={t('chat.message.reply')} aria-label={t('chat.message.reply')}><Reply size={15} /></button>
+          {canEdit && <button onClick={() => onEdit(true)} title={t('common.edit')} aria-label={t('common.edit')}><Pencil size={15} /></button>}
+          <MessageMenuExtras server={server} message={message} />
+          <MessageMoreButton server={server} message={message} canEdit={canEdit} canDelete={canDelete} onEdit={() => onEdit(true)}
+            onForward={canForward ? () => setForwarding(true) : undefined} />
           {picking && <ReactionPicker server={server} message={message} onClose={() => setPicking(false)} />}
         </div>
       )}
       {sheet && (
-        <MessageActionSheet server={server} message={message} canEdit={canEdit} canDelete={canDelete} onEdit={() => onEdit(true)} onClose={() => setSheet(false)}
-          onForward={canForward ? () => setForwarding(true) : undefined} />
+        <MessageMenu server={server} message={message} canEdit={canEdit} canDelete={canDelete} onEdit={() => onEdit(true)} onClose={() => setSheet(false)}
+          onForward={canForward ? () => setForwarding(true) : undefined} anchor={null} />
       )}
       {forwarding && <ForwardDialog server={server} message={message} onClose={() => setForwarding(false)} />}
     </div>

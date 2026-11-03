@@ -95,7 +95,7 @@ test('settings, Escape, quick switcher and phone message actions', async ({ brow
   const own = host.locator('.message', { hasText: 'press and hold me' })
   await longPress(host, own.locator('.message-body'))
   const ownSheet = host.getByRole('dialog', { name: 'Message actions' })
-  await expect(ownSheet.getByRole('menuitem')).toHaveText(['Reply', 'Start a thread', 'Pin message', 'Forward', 'Edit message', 'Copy text', 'Copy message link', 'Mark as unread', 'Save message', 'Remind me about this', 'Translate', 'Read aloud', 'Delete message', 'Select messages…'])
+  await expect(ownSheet.getByRole('menuitem')).toHaveText(['Reply', 'Start a thread', 'Forward', 'Pin message', 'Edit message', 'Copy text', 'Copy message link', 'Save message', 'Remind me about this', 'Mark as unread', 'Translate', 'Read aloud', 'Select messages…', 'Delete message'])
   await host.keyboard.press('Escape')
   await expect(ownSheet).toHaveCount(0)
 })

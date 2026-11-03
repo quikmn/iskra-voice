@@ -23,7 +23,10 @@ async function markUnread(page: Page, text: string) {
   const message = page.locator('.message', { hasText: text }).last()
   await message.hover()
   await message.getByRole('button', { name: 'More', exact: true }).click()
-  await page.getByRole('menu', { name: 'Message options' }).getByRole('menuitem', { name: 'Mark as unread' }).click()
+  const menu = page.getByRole('menu', { name: 'Message options' })
+  await expect(menu).toBeVisible()
+  await page.screenshot({ path: join(SHOTS, 'message-menu-desktop.png') })
+  await menu.getByRole('menuitem', { name: 'Mark as unread' }).click()
 }
 
 test('badges and the New messages divider follow one read state', async ({ browser }) => {

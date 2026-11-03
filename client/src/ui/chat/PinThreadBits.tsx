@@ -32,6 +32,9 @@ export function MessageMenuExtras({ server, message }: { server: ServerState; me
   const { pinnable, threadable } = pinThreadAbilities(server, message)
   return (
     <>
+      {threadable && (
+        <button onClick={() => setNaming(true)} title={t('chat.threads.start')} aria-label={t('chat.threads.start')}><ThreadIcon size={15} /></button>
+      )}
       {pinnable && (
         <button
           onClick={() => {
@@ -46,9 +49,6 @@ export function MessageMenuExtras({ server, message }: { server: ServerState; me
         >
           {message.pinned ? <PinOffIcon size={15} /> : <PinIcon size={15} />}
         </button>
-      )}
-      {threadable && (
-        <button onClick={() => setNaming(true)} title={t('chat.threads.start')} aria-label={t('chat.threads.start')}><ThreadIcon size={15} /></button>
       )}
       {error && <span className="action-error" role="alert">{error}</span>}
       {naming && createPortal(<NewThreadDialog server={server} message={message} onClose={() => setNaming(false)} />, document.body)}

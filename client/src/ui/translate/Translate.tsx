@@ -10,7 +10,7 @@ import {
 } from '../../state/translate'
 import { languageName, TRANSLATE_LANGUAGES } from '../../state/translate/languages'
 import { Popover } from '../chat/HeaderTools'
-import { SwitchRow } from '../kit'
+import { MenuItem, SwitchRow } from '../kit'
 import './translate.css'
 
 type Wrap = (doneLabel: string | null, action: () => void | Promise<unknown>) => () => void
@@ -24,15 +24,15 @@ export const TranslateIcon = ({ size = 18 }: { size?: number }) => (
 )
 
 /** "Translate" (or "Show original") for a message menu; `wrap` is the menu's own click wrapper. */
-export function TranslateMenuItem({ item, wrap, icon }: { item: TranslateItem | null; wrap: Wrap; icon?: boolean }) {
+export function TranslateMenuItem({ item, wrap }: { item: TranslateItem | null; wrap: Wrap }) {
   const { t } = useTranslation()
   const { key, entry } = useMessageTranslation(item)
   if (!item) return null
   const showing = entry?.shown && entry.status === 'done'
   return (
-    <button role="menuitem" onClick={wrap(null, () => (showing ? hideTranslation(key) : translateMessage(item)))}>
-      {icon && <TranslateIcon />}{showing ? t('translate.showOriginal') : t('translate.menu')}
-    </button>
+    <MenuItem icon={<TranslateIcon />} onClick={wrap(null, () => (showing ? hideTranslation(key) : translateMessage(item)))}>
+      {showing ? t('translate.showOriginal') : t('translate.menu')}
+    </MenuItem>
   )
 }
 

@@ -17,14 +17,14 @@ import { SwitchRow } from '../kit'
 type Wrap = (doneLabel: string | null, action: () => void | Promise<unknown>) => () => void
 
 /** "Read aloud" / "Stop reading" in a message's menu (nothing without speech synthesis or text). */
-export function ReadAloudMenuItem({ server, message, wrap, icon }: { server: ServerState; message: Message; wrap: Wrap; icon?: boolean }) {
+export function ReadAloudMenuItem({ server, message, wrap }: { server: ServerState; message: Message; wrap: Wrap }) {
   const { t } = useTranslation()
   const reading = useSpeech((s) => s.speaking === speechKey(server.key, message))
   if (!speechSupported() || !message.text?.trim()) return null
   return (
-    <button role="menuitem" onClick={wrap(null, () => readMessageAloud(server, message))}>
-      {icon && <Volume size={18} />}{reading ? t('speech.read.stop') : t('speech.read.menu')}
-    </button>
+    <MenuItem icon={<Volume />} onClick={wrap(null, () => readMessageAloud(server, message))}>
+      {reading ? t('speech.read.stop') : t('speech.read.menu')}
+    </MenuItem>
   )
 }
 
