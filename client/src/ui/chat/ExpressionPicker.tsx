@@ -10,6 +10,7 @@ import type { ServerState } from '../../state/store'
 import { LINKS } from '../../links'
 import { openServerSettings } from '../settings/open'
 import { Spinner } from '../bits'
+import { Star } from '../icons'
 import { EmojiPicker } from '../expressions/EmojiPicker'
 import { Lightbox } from './media'
 import { StickerPanel } from './Stickers'
@@ -132,7 +133,7 @@ function GifPanel({ server, onPick, onClose }: { server: ServerState; onPick: (g
       <div className="gif-top">
         <input className="gif-search" value={query} onChange={(e) => { setQuery(e.target.value); setView('browse') }} placeholder={t('chat.picker.searchGifs')} aria-label={t('chat.picker.searchGifs')} maxLength={100} />
         <button className={`gif-fav-toggle ${view === 'favourites' ? 'on' : ''}`} aria-pressed={view === 'favourites'} onClick={() => setView(view === 'favourites' ? 'browse' : 'favourites')} title={t('chat.picker.favourites')} aria-label={t('chat.picker.favouriteCount', { n: favourites?.length ?? 0 })}>
-          ★ <span>{favourites?.length ?? 0}</span>
+          <Star size={14} filled={view === 'favourites'} /> <span>{favourites?.length ?? 0}</span>
         </button>
       </div>
       {view === 'browse' && !debounced && categories.length > 0 && (
@@ -158,7 +159,7 @@ function GifPanel({ server, onPick, onClose }: { server: ServerState; onPick: (g
                 aria-label={isFavourite(favourites, gif) ? t('chat.picker.unfavourite', { title: gif.title }) : t('chat.picker.favourite', { title: gif.title })}
                 aria-pressed={isFavourite(favourites, gif)}
               >
-                ★
+                <Star size={14} filled={isFavourite(favourites, gif)} />
               </button>
             </div>
           ))}

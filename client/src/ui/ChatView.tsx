@@ -244,9 +244,12 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
     })
   }, [messages])
   // The "New messages" divider goes above the first unread message, once it's loaded (older ones may still be on the server).
-  const firstUnread = divider && messages && (!hasMore || messages.some((m) => !m.tempId && m.id <= (divider.from.id as number)))
+  const target = divider && messages && (!hasMore || messages.some((m) => !m.tempId && m.id <= (divider.from.id as number)))
     ? dividerTarget(messages, divider.from, (m) => (m.tempId ? null : { id: m.id, at: m.createdAt }))?.id ?? null
     : null
+  // In a thread or a voice channel's chat, a divider above everything says nothing: it only shows with older messages above.
+  const quiet = thread && !hasMore && target !== null && target === messages?.find((m) => !m.tempId)?.id
+  const firstUnread = quiet ? null : target
 
   if (!rendered) {
     return (
@@ -260,9 +263,11 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
     <>
     <div className="messages" ref={scroller} onScroll={onScroll} onKeyDown={messageListKeys} tabIndex={0}
       role="region" aria-label={t('chat.a11y.messages', { name: conversationLabel(server, channelId) })}>
-      <UnreadBar conv={conv} scroller={scroller} onJump={() => (stickToBottom.current = false)}
-        catchUp={{ spec: { kind: 'channel', serverKey: server.key, channelId }, title: conversationLabel(server, channelId) }}
-        loadOlder={() => loadHistory(server.key, channelId, true).then(() => !!useApp.getState().servers[server.key]?.hasMore[channelId])} />
+      {!quiet && (
+        <UnreadBar conv={conv} scroller={scroller} onJump={() => (stickToBottom.current = false)}
+          catchUp={{ spec: { kind: 'channel', serverKey: server.key, channelId }, title: conversationLabel(server, channelId) }}
+          loadOlder={() => loadHistory(server.key, channelId, true).then(() => !!useApp.getState().servers[server.key]?.hasMore[channelId])} />
+      )}
       {!hasMore && (header ?? (
         <div className="channel-start">
           <span className="channel-start-icon" aria-hidden><Hash size={32} /></span>

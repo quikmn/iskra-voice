@@ -2,10 +2,11 @@
 .code-wrap { position: relative; max-width: 100%; }
 .code-wrap .code-block { padding-right: 44px; }
 .code-copy {
-  position: absolute; top: 12px; right: 6px; min-width: 28px; height: 26px; padding: 0 6px; display: grid; place-items: center;
-  border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.6); background: var(--surface-2); color: var(--text-2);
-  font-size: 12px; opacity: 0; transition: opacity 0.12s;
+  position: absolute; top: 12px; right: 6px; width: 28px; height: 26px; padding: 0; display: grid; place-items: center;
+  border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface-2); color: var(--text-2);
+  opacity: 0; transition: opacity 0.12s, color 0.12s;
 }
+.code-copy.copied { color: var(--green); border-color: color-mix(in srgb, var(--green) 50%, var(--border)); opacity: 1; }
 .code-wrap:hover .code-copy, .code-copy:focus-visible { opacity: 1; }
 @media (hover: none) { .code-copy { opacity: 1; } }
 /* Code colours come from the theme (theme.ts codeColors: readable at 4.5:1 on --bg in every built-in theme). */
