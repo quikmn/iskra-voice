@@ -247,18 +247,19 @@ public static class IskraSimplySignWin {
   static List<IntPtr> Children(IntPtr w) { var r = new List<IntPtr>(); EnumChildWindows(w, (c, l) => { r.Add(c); return true; }, IntPtr.Zero); return r; }
   static int MidY(IntPtr h) { RECT r; GetWindowRect(h, out r); return (r.Top + r.Bottom) / 2; }
 
-  // [window, id box, token box, ok button], or null.
+  // [window, id box, token box, ok button, cancel button (or zero)], or null.
   public static IntPtr[] FindLogin(int[] pids) {
     IntPtr[] found = null;
     EnumWindows((h, l) => {
       uint pid; GetWindowThreadProcessId(h, out pid);
       if (Array.IndexOf(pids, (int)pid) < 0 || !IsWindowVisible(h)) return true;
-      IntPtr idLabel = IntPtr.Zero, tokenLabel = IntPtr.Zero, ok = IntPtr.Zero; var edits = new List<IntPtr>();
+      IntPtr idLabel = IntPtr.Zero, tokenLabel = IntPtr.Zero, ok = IntPtr.Zero, cancel = IntPtr.Zero; var edits = new List<IntPtr>();
       foreach (var c in Children(h)) {
         string k = Cls(c), t = Text(c);
         if (k.Contains(".STATIC.") && t == "ID:") idLabel = c;
         else if (k.Contains(".STATIC.") && t == "Token:") tokenLabel = c;
         else if (k.Contains(".BUTTON.") && t.Replace("&", "") == "Ok") ok = c;
+        else if (k.Contains(".BUTTON.") && t.Replace("&", "") == "Cancel") cancel = c;
         else if (k.Contains(".EDIT.")) edits.Add(c);
       }
       if (idLabel == IntPtr.Zero || tokenLabel == IntPtr.Zero || ok == IntPtr.Zero || edits.Count != 2) return true;
@@ -268,10 +269,28 @@ public static class IskraSimplySignWin {
         if (Math.Abs(y - MidY(idLabel)) < Math.Abs(y - MidY(tokenLabel))) idBox = e; else tokenBox = e;
       }
       if (idBox == IntPtr.Zero || tokenBox == IntPtr.Zero) return true;
-      found = new[] { h, idBox, tokenBox, ok };
+      found = new[] { h, idBox, tokenBox, ok, cancel };
       return false;
     }, IntPtr.Zero);
     return found;
+  }
+  // SimplySign's "New version of SimplySign Desktop found. Do you want to download new version?" box: its "No" button,
+  // or zero. It shows on every start once Certum has a newer version out, and the login dialog waits behind it.
+  public static IntPtr FindUpdateNo(int[] pids) {
+    IntPtr no = IntPtr.Zero;
+    EnumWindows((h, l) => {
+      uint pid; GetWindowThreadProcessId(h, out pid);
+      if (Array.IndexOf(pids, (int)pid) < 0 || !IsWindowVisible(h)) return true;
+      bool update = false; IntPtr b = IntPtr.Zero;
+      foreach (var c in Children(h)) {
+        string t = Text(c);
+        if (t.Contains("New version of SimplySign Desktop")) update = true;
+        else if (Cls(c) == "Button" && t.Replace("&", "") == "No") b = c;
+      }
+      if (update && b != IntPtr.Zero) { no = b; return false; }
+      return true;
+    }, IntPtr.Zero);
+    return no;
   }
   public static void SetText(IntPtr h, string t) { SendMessage(h, WM_SETTEXT, IntPtr.Zero, t); }
   public static void Click(IntPtr h) { PostMessage(h, BM_CLICK, IntPtr.Zero, IntPtr.Zero); }
@@ -290,26 +309,53 @@ function Find-LoginForm {
   if (-not $ids.Count) { return $null }
   $h = [IskraSimplySignWin]::FindLogin($ids)
   if (-not $h) { return $null }
-  [pscustomobject]@{ Window = $h[0]; IdBox = $h[1]; TokenBox = $h[2]; Ok = $h[3] }
+  [pscustomobject]@{ Window = $h[0]; IdBox = $h[1]; TokenBox = $h[2]; Ok = $h[3]; Cancel = $h[4] }
+}
+
+# Answers "No" to SimplySign's update offer when it shows (docs/ci-cd.md: decline updates until a new version is
+# checked). $true when it did.
+function Close-UpdatePrompt {
+  Initialize-Win32
+  $ids = [int[]]@(Get-Process SimplySignDesktop -ErrorAction SilentlyContinue | ForEach-Object Id)
+  if (-not $ids.Count) { return $false }
+  $no = [IskraSimplySignWin]::FindUpdateNo($ids)
+  if ($no -eq [IntPtr]::Zero) { return $false }
+  [IskraSimplySignWin]::Click($no)
+  $true
 }
 
 # Opens the login dialog: it shows when SimplySign Desktop starts ("show the login dialog on start", its default),
 # and when a program asks SimplySign to sign while it isn't logged in. SimplySign isn't logged in when this runs, so
-# restarting it loses nothing.
+# restarting it loses nothing. Since Certum put out a newer version (2026-11), SimplySign first asks whether to
+# download it, and the login dialog waits behind that question: it's answered "No" here. If the dialog still doesn't
+# show, -Request runs once (simplysign-login.ps1 passes a hidden test signature, which makes SimplySign ask to log
+# in). -FindForm, -DeclineUpdate and -Restart replace the real ones (tests).
 function Open-LoginForm {
-  param([int]$TimeoutSeconds = 40)
-  $form = Find-LoginForm
+  param(
+    [int]$TimeoutSeconds = 40, [double]$PollSeconds = 1, [double]$RequestAfterSeconds = 8,
+    [scriptblock]$FindForm = { Find-LoginForm },
+    [scriptblock]$DeclineUpdate = { Close-UpdatePrompt },
+    [scriptblock]$Restart = {
+      $exe = Get-SimplySignExe
+      if (-not (Test-Path -LiteralPath $exe)) { throw "SimplySign Desktop isn't installed ($exe)." }
+      Get-Process SimplySignDesktop -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+      Start-Sleep -Seconds 2
+      Start-Process -FilePath $exe | Out-Null
+    },
+    [scriptblock]$Request = { $null }
+  )
+  $form = & $FindForm
   if ($form) { return $form }
-  $exe = Get-SimplySignExe
-  if (-not (Test-Path -LiteralPath $exe)) { throw "SimplySign Desktop isn't installed ($exe)." }
-  Get-Process SimplySignDesktop -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-  Start-Sleep -Seconds 2
-  Start-Process -FilePath $exe | Out-Null
-  $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+  & $Restart
+  $start = Get-Date
+  $deadline = $start.AddSeconds($TimeoutSeconds)
+  $requested = $false
   while ((Get-Date) -lt $deadline) {
-    Start-Sleep -Seconds 1
-    $form = Find-LoginForm
+    Start-Sleep -Seconds $PollSeconds
+    if (& $DeclineUpdate) { Write-Host "SimplySign login: declined SimplySign's update offer (it hides the login dialog)" }
+    $form = & $FindForm
     if ($form) { return $form }
+    if (-not $requested -and ((Get-Date) - $start).TotalSeconds -ge $RequestAfterSeconds) { $null = & $Request; $requested = $true }
   }
   throw "SimplySign Desktop's login dialog didn't open within $TimeoutSeconds s (SimplySign → options: tick 'show the login dialog on start')."
 }
@@ -324,12 +370,13 @@ function Submit-LoginForm {
   [IskraSimplySignWin]::Click($Form.Ok)
 }
 
-# Closes the login dialog (like its close button). Used when the dialog can't be filled automatically, so a signature
-# waiting for it fails at once instead of waiting for someone to look at it.
+# Closes the login dialog with its Cancel button. Used when the dialog can't be filled automatically, so a signature
+# waiting for it fails at once instead of waiting for someone to look at it. (SimplySign ignores a plain WM_CLOSE: the
+# dialog stays open.)
 function Close-LoginForm {
   param([Parameter(Mandatory)]$Form)
   Initialize-Win32
-  [IskraSimplySignWin]::Close($Form.Window)
+  if ($Form.Cancel -and $Form.Cancel -ne [IntPtr]::Zero) { [IskraSimplySignWin]::Click($Form.Cancel) } else { [IskraSimplySignWin]::Close($Form.Window) }
 }
 
 # Fills the login dialog SimplySign Desktop opened by itself: a program asked it to sign after its session ended (a
@@ -387,10 +434,12 @@ function Watch-LoginDialog {
     [int]$ParentPid = 0, [double]$PollSeconds = 1, [int]$MaxPolls = 0,
     [scriptblock]$FindForm = { Find-LoginForm },
     [scriptblock]$Login = { Invoke-OpenDialogLogin },
-    [scriptblock]$CloseForm = { param($form) Close-LoginForm -Form $form }
+    [scriptblock]$CloseForm = { param($form) Close-LoginForm -Form $form },
+    [scriptblock]$DeclineUpdate = { Close-UpdatePrompt }
   )
   for ($n = 1; ; $n++) {
     if ($ParentPid -and -not (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue)) { return }
+    if (& $DeclineUpdate) { Write-Host "SimplySign login: declined SimplySign's update offer (it hides the login dialog)" }
     if (& $FindForm) {
       $r = & $Login
       Write-Host "SimplySign login: SimplySign asked to log in; $($r.Line)"
@@ -407,4 +456,4 @@ function Watch-LoginDialog {
 Export-ModuleMember -Function Get-SimplySignFolder, Get-SimplySignSeedPath, Get-SimplySignLedgerPath, ConvertFrom-Base32, Get-Totp,
   Get-TotpSecondsLeft, ConvertFrom-SeedInput, Save-SimplySignSeed, Read-SimplySignSeed, Remove-SimplySignSeed, Get-LoginRunKey,
   Test-LoginAllowed, Write-LoginAttempt, Get-SimplySignExe, Find-LoginForm, Open-LoginForm, Submit-LoginForm, Close-LoginForm,
-  Invoke-OpenDialogLogin, Watch-LoginDialog
+  Invoke-OpenDialogLogin, Watch-LoginDialog, Close-UpdatePrompt

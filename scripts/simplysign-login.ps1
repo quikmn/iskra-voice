@@ -51,7 +51,15 @@ if (-not $allowed.Ok) { Done 3 "$($allowed.Reason). Log in to SimplySign Desktop
 Write-LoginAttempt -Result started
 $sent = $false
 try {
-  $form = Open-LoginForm
+  # If SimplySign doesn't show its login dialog on start (it may ask about an update first and then stay in the tray),
+  # a hidden test signature makes it ask to log in; that signature ends once the login worked, or with this script.
+  $requester = $null
+  $form = Open-LoginForm -Request {
+    $module = (Join-Path $PSScriptRoot 'release-checks.psm1').Replace("'", "''")
+    $child = "Import-Module '$module' -Force; `$null = Test-Signing"
+    $script:requester = Start-Process -FilePath (Get-Process -Id $PID).Path -WindowStyle Hidden -PassThru -ArgumentList @(
+      '-NoProfile', '-NonInteractive', '-EncodedCommand', [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($child)))
+  }
   # A code with at least 8 seconds left, so it doesn't change on the way.
   $code = {
     $left = Get-TotpSecondsLeft -Period $seed.Period
@@ -68,6 +76,7 @@ try {
 # The certificate shows up in CurrentUser\My once SimplySign is connected; then a real test signature.
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 while (-not (Find-SigningCertificate) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
+if ($requester -and -not $requester.HasExited) { $null = $requester.WaitForExit(30000); if (-not $requester.HasExited) { try { $requester.Kill($true) } catch { $null = $_ } } }
 $after = Invoke-SigningProbe -NoLogin
 if ($after.Ok) {
   Write-LoginAttempt -Result ok

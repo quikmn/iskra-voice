@@ -181,11 +181,23 @@ test('the open dialog login: no seed is code 2; a dialog that stays open is a fa
 test('the build watcher fills the dialog when it shows, and closes it when the login is not possible', { skip }, () => {
   // The dialog opens on the second look; a login that works closes it, closing it closes it.
   const run = (code) => JSON.parse(ps(`$script:looks = 0; $script:closed = 0; $script:logins = 0; $script:open = $false
-$null = Watch-LoginDialog -MaxPolls 5 -PollSeconds 0.05 -FindForm { if (++$script:looks -eq 2) { $script:open = $true }; if ($script:open) { 'dialog' } } -Login { $script:logins++; if (${code} -eq 0) { $script:open = $false }; @{ Code = ${code}; Line = 'x' } } -CloseForm { param($f) $script:closed++; $script:open = $false } 6>$null
+$null = Watch-LoginDialog -MaxPolls 5 -PollSeconds 0.05 -FindForm { if (++$script:looks -eq 2) { $script:open = $true }; if ($script:open) { 'dialog' } } -Login { $script:logins++; if (${code} -eq 0) { $script:open = $false }; @{ Code = ${code}; Line = 'x' } } -CloseForm { param($f) $script:closed++; $script:open = $false } -DeclineUpdate { $false } 6>$null
 [pscustomobject]@{ Logins = $script:logins; Closed = $script:closed } | ConvertTo-Json -Compress`))
   assert.deepEqual(run(0), { Logins: 1, Closed: 0 })
   assert.deepEqual(run(3), { Logins: 1, Closed: 1 })
   assert.deepEqual(run(2), { Logins: 1, Closed: 1 }, 'no seed: closed too, so the build fails instead of waiting')
+})
+
+test('opening the login dialog: the update offer is declined, and a signature request opens it when it stays hidden', { skip }, () => {
+  // SimplySign asks about a new version first (looks 1-2); the dialog then only shows after a signature request.
+  const run = (requestAfter) => JSON.parse(ps(`$script:looks = 0; $script:declined = 0; $script:requested = 0; $script:restarts = 0
+$f = Open-LoginForm -TimeoutSeconds 3 -PollSeconds 0.05 -RequestAfterSeconds ${requestAfter} -Restart { $script:restarts++ } -FindForm { $script:looks++; if ($script:requested) { 'dialog' } } -DeclineUpdate { if ($script:looks -lt 2) { $script:declined++; $true } else { $false } } -Request { $script:requested++ } 6>$null
+[pscustomobject]@{ Form = $f; Declined = $script:declined; Requested = $script:requested; Restarts = $script:restarts } | ConvertTo-Json -Compress`))
+  assert.deepEqual(run(0.2), { Form: 'dialog', Declined: 1, Requested: 1, Restarts: 1 })
+  // A dialog that is already open is used as it is: no restart, no request.
+  const open = JSON.parse(ps(`$script:r = 0; $f = Open-LoginForm -FindForm { 'dialog' } -Restart { $script:r++ } -Request { $script:r++ } -DeclineUpdate { $false }
+[pscustomobject]@{ Form = $f; Other = $script:r } | ConvertTo-Json -Compress`))
+  assert.deepEqual(open, { Form: 'dialog', Other: 0 })
 })
 
 test('the login and setup scripts parse, and never write the seed or a code to output', { skip }, () => {

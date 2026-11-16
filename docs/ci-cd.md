@@ -386,6 +386,11 @@ On the home PC, releases log SimplySign Desktop in by themselves, so nobody type
   - When the dialog can't be filled (no seed, the ledger says no, the login failed), the release closes it, so the
     signature fails at once and the release stops with the usual "Log in to SimplySign Desktop ..." line. No window
     is left waiting.
+- **SimplySign's update offer** ("New version of SimplySign Desktop found. Do you want to download new version?")
+  shows on every start once Certum has a newer version out (since 2026-11), and the login dialog waits behind it: every
+  automatic login from then on found no dialog and gave up. The login script and the build watcher now answer "No"
+  (`Close-UpdatePrompt`); when SimplySign then stays in the tray, a hidden test signature makes it ask to log in, and
+  that dialog is filled. Failed logins close the dialog with its Cancel button (SimplySign ignores WM_CLOSE).
 - **The login** (`scripts/simplysign-login.ps1`, called by `Confirm-Signing` when a test signature fails because
   SimplySign isn't logged in at all, e.g. no certificate in the store):
   - TOTP per RFC 6238 with .NET's HMAC (tested against the RFC's vectors), a code with at least 8 seconds left.
