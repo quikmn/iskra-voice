@@ -327,6 +327,8 @@ table as always.
 | `no home PC runner` / `home PC offline` (release.ps1 -GitHub) or the run's "The home PC didn't pick up its job in 10 minutes" | Tell the human: switch the home PC on and log in to Windows (or do O.2 if there's no runner). Nothing was changed |
 | `Actions setting` (release.ps1 -GitHub) | Tell the human: O.1 |
 | "SimplySign isn't logged in and the automatic login didn't help (...)" | Tell the human the line; they log in by hand. "last SimplySign login failed": also tell them to check the seed (O.3). Never run the login or setup scripts yourself |
+| "declined SimplySign's update offer (it hides the login dialog)" | Nothing to do: expected while Certum has a newer SimplySign out (updates are declined until a new version is checked). The login carries on |
+| "SimplySign Desktop's login dialog didn't open within 40 s" | Tell the human the line. Usually a SimplySign window the script doesn't know yet sits in front (a new prompt or version): they look at SimplySign and say what it shows; that new case gets a fix in `scripts/simplysign.psm1` (with a test), not a retry |
 | A home PC job fails at "Set up runner" with "Refused: ..." | The run wasn't started by the owner on main with Run workflow. Start it with A0 (or the owner presses the button) |
 | `N thing(s) to fix before ...` (check phase) | Nothing was changed. Each `- [case]` line is a row below; fix what you may, report the rest to the human, then run the same command again |
 | `STOP [<case>]` from release.ps1 | The row below whose text matches the case; then `-Resume` once the cause is fixed (if the tag is pushed) |
