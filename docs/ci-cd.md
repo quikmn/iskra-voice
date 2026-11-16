@@ -391,6 +391,9 @@ On the home PC, releases log SimplySign Desktop in by themselves, so nobody type
   automatic login from then on found no dialog and gave up. The login script and the build watcher now answer "No"
   (`Close-UpdatePrompt`); when SimplySign then stays in the tray, a hidden test signature makes it ask to log in, and
   that dialog is filled. Failed logins close the dialog with its Cancel button (SimplySign ignores WM_CLOSE).
+  After the code goes in, the check is a test signature repeated every few seconds for up to 90 s: SimplySign needs
+  time to connect, and its certificate is listed even while disconnected, so a single early check failed logins
+  that worked.
 - **The login** (`scripts/simplysign-login.ps1`, called by `Confirm-Signing` when a test signature fails because
   SimplySign isn't logged in at all, e.g. no certificate in the store):
   - TOTP per RFC 6238 with .NET's HMAC (tested against the RFC's vectors), a code with at least 8 seconds left.

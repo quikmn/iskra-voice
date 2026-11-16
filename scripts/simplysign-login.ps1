@@ -73,11 +73,17 @@ try {
   Done 1 "couldn't log in: $($_.Exception.Message)"
 }
 
-# The certificate shows up in CurrentUser\My once SimplySign is connected; then a real test signature.
+# SimplySign takes a while to connect after the code went in, and its certificate stays listed in CurrentUser\My even
+# while it's disconnected, so the list proves nothing: a real test signature, again every few seconds until it works
+# or the time is up. (Checking once, straight away, failed with "No provider was specified" while the login was
+# still connecting, and a login that worked was recorded as failed: 2026-11-16.)
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-while (-not (Find-SigningCertificate) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-if ($requester -and -not $requester.HasExited) { $null = $requester.WaitForExit(30000); if (-not $requester.HasExited) { try { $requester.Kill($true) } catch { $null = $_ } } }
-$after = Invoke-SigningProbe -NoLogin
+do {
+  $after = Invoke-SigningProbe -NoLogin -TimeoutSeconds 30
+  if ($after.Ok -or (Get-Date) -ge $deadline) { break }
+  Start-Sleep -Seconds 5
+} while ($true)
+if ($requester -and -not $requester.HasExited) { $null = $requester.WaitForExit(10000); if (-not $requester.HasExited) { try { $requester.Kill($true) } catch { $null = $_ } } }
 if ($after.Ok) {
   Write-LoginAttempt -Result ok
   Done 0 "logged in; $($after.Message)"
