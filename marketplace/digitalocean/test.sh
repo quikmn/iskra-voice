@@ -153,6 +153,7 @@ echo "Claim screen OK (console, login message, /root/iskra-claim.txt)."
 # Services and the firewall the image sets up.
 ssh_do 'systemctl is-active --quiet iskra' || fail "iskra.service isn't running"
 ssh_do 'systemctl is-active --quiet iskra-claim-screen.timer' || fail "the claim screen's timer isn't running"
+ssh_do 'systemctl is-active --quiet rsyslog' || fail "rsyslog isn't running (the image build stops it; boot starts it again)"
 ufw="$(ssh_do 'ufw status')"
 echo "$ufw"
 grep -q '^Status: active' <<<"$ufw" || fail "ufw isn't active"

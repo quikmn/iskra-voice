@@ -1,7 +1,9 @@
 #!/bin/bash
 # After DigitalOcean's cleanup (90-cleanup.sh), whose disk zeroing writes to the kernel log: empty the logs again so the
-# image check (99-img-check.sh) finds none.
+# image check (99-img-check.sh) finds none. rsyslog is stopped first: otherwise a line written between here and the
+# check (ufw logging a blocked internet scanner to kern.log, say) fails it. It starts again on the droplet's first boot.
 set -euo pipefail
+systemctl stop rsyslog.service syslog.socket
 find /var/log -type f -name '*.log' -exec truncate -s 0 {} +
 
 # Each droplet gets its own machine ID. The build droplet's ID would otherwise ship in the image: journald starts with
