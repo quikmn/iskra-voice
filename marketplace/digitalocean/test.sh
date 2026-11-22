@@ -174,6 +174,7 @@ echo "HTTPS OK: $health"
 
 # Logs: the droplet has its own machine ID, the image holds no other machine's journal, and the command the login
 # message names (journalctl -u iskra) shows the server's log.
+# shellcheck disable=SC2016 # expands on the droplet
 ssh_do 'id="$(cat /etc/machine-id)"; [ -n "$id" ] && [ -d "/var/log/journal/$id" ] && [ "$(ls /var/log/journal | wc -l)" -eq 1 ]' ||
   fail "the journal isn't under this droplet's machine ID (or the image still has another machine's journal)"
 ssh_do 'journalctl -u iskra --no-pager -q -n 1 | grep -q .' || fail "journalctl -u iskra shows nothing"
