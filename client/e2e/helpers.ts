@@ -310,11 +310,23 @@ export async function recordSeen(page: Page, selector: string): Promise<() => Pr
   return () => page.evaluate((selector) => !!(window as unknown as { __seen?: Record<string, boolean> }).__seen?.[selector], selector)
 }
 
-/** The first-run screen asks to agree to the terms before either choice (once per device and terms version). */
+const newHere = (page: Page) => page.getByRole('button', { name: /I'm new to Iskra/ })
+const termsBox = (page: Page) => page.getByRole('checkbox', { name: /I agree to the Terms of Use/ })
+
+/** The first-run card, at whichever step it opens on: the terms (a device that hasn't agreed yet) or the two choices. */
+export const firstRun = (page: Page): Locator => termsBox(page).or(newHere(page))
+
+/**
+ * First run, step 1: agree to the terms (once per device and terms version) and continue to the two choices. Does
+ * nothing on a device that already agreed. Ends with "I'm new to Iskra" and "I already use Iskra" in view.
+ */
 export async function agreeToTerms(page: Page) {
-  await expect(page.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible({ timeout: 15_000 })
-  const box = page.getByRole('checkbox', { name: /I agree to the Terms of Use/ })
-  if (await box.isVisible()) await box.check()
+  await expect(firstRun(page)).toBeVisible({ timeout: 15_000 })
+  if (await termsBox(page).isVisible()) {
+    await termsBox(page).check()
+    await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  }
+  await expect(newHere(page)).toBeVisible()
 }
 
 /**

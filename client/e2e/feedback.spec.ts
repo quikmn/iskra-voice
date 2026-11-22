@@ -2,7 +2,7 @@ import { closeSync, ftruncateSync, mkdtempSync, openSync, rmSync } from 'node:fs
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
+import { agreeToTerms, createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
 
@@ -81,6 +81,7 @@ test('an invite on a fresh device says a new account is a new person, and offers
   const fresh = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage()
   await fresh.goto(link)
   await expect(fresh.getByText("You've been invited")).toBeVisible()
+  await agreeToTerms(fresh)
   await expect(fresh.getByText(/A new account shows up as a new person on the server/)).toBeVisible()
   await expect(fresh.getByRole('button', { name: /I already use Iskra on another device/ })).toBeVisible()
   await fresh.screenshot({ path: join(SHOTS, 'invite-fresh-device.png') })

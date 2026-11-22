@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import { Bot } from '../../bots/sdk/src/index'
-import { agreeToTerms, callTool, createInviteLink, hasLiveKit, joinVia, longPress, send, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, callTool, createInviteLink, hasLiveKit, joinVia, longPress, send, SHOTS, startServer, type TestServer, firstRun } from './helpers'
 
 test.skip(!process.env.ISKRA_TOUR, 'screenshot tour: set ISKRA_TOUR=1')
 test.use({ actionTimeout: 8000 })
@@ -159,9 +159,10 @@ test('screenshot tour', async ({ browser }) => {
   for (const [page, size] of [[fresh, 'desktop'], [freshPhone, 'phone']] as const) {
     await part(`onboarding ${size}`, async () => {
       await page.goto('/')
-      await expect(page.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible()
+      await expect(firstRun(page)).toBeVisible()
       await shot(page, `01-onboarding-${size}`)
       await agreeToTerms(page)
+      await shot(page, `01b-onboarding-choice-${size}`)
       await page.getByRole('button', { name: /I already use Iskra/ }).click()
       await shot(page, `02-onboarding-existing-${size}`)
       await page.getByRole('button', { name: /Link with my other device/ }).click()

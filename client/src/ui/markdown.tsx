@@ -10,6 +10,7 @@ import { t } from '../i18n'
 import { resolveKey } from '../state/keyMap'
 import { userMenuProps } from './people/userMenuProps'
 import { CUSTOM_EMOJI_SOURCE, isEmojiOnly } from './expressions/emoji'
+import { CustomEmojiImage } from './expressions/CustomEmoji'
 import { CodeBlock, MaskedLink, MathTex, Timestamp } from './chat/RichText'
 import { parseTable } from './chat/mdTable'
 import { inlineMathAt, splitDisplayMath } from './chat/mathRules'
@@ -152,12 +153,8 @@ function inline(text: string, ctx: MarkdownContext, depth = 0, links = true): Re
     const emoji = EMOJI_PATTERN.exec(text)
     if (emoji) {
       flush()
-      const url = ctx.emoji?.(emoji[2])
-      out.push(
-        url
-          ? <img key={key++} className="custom-emoji" src={url} alt={`:${emoji[1]}:`} title={`:${emoji[1]}:`} draggable={false} />
-          : <span key={key++} className="custom-emoji-missing">:{emoji[1]}:</span>,
-      )
+      // The picture, or a ":name:" chip while it loads or when the emoji is gone.
+      out.push(<CustomEmojiImage key={key++} src={ctx.emoji?.(emoji[2]) ?? null} name={emoji[1]} />)
       i += emoji[0].length
       continue
     }

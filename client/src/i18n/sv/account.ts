@@ -5,6 +5,7 @@ export const account: Messages['account'] = {
   welcome: {
     lead: 'Röst- och textchatt med dina vänner, på servrar du själv äger.',
     question: 'Har du använt Iskra förut?',
+    step: 'Steg {{step}} av {{of}}',
     new: 'Jag är ny på Iskra',
     newHint: 'Välj ett namn så är du igång. Ingen e-post, inget lösenord.',
     existing: 'Jag använder redan Iskra på en annan enhet',

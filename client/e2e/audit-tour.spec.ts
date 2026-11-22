@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test'
 import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
-import { composerAction, agreeToTerms, callTool, createInviteLink, hasLiveKit, joinVia, send, SHOTS, startServer, type TestServer } from './helpers'
+import { composerAction, agreeToTerms, callTool, createInviteLink, hasLiveKit, joinVia, send, SHOTS, startServer, type TestServer, firstRun } from './helpers'
 
 test.skip(!process.env.AUDIT, 'UX audit tour: set AUDIT=1')
 test.use({ actionTimeout: 8000 })
@@ -228,7 +228,7 @@ test('UX audit tour (browser)', async ({ browser }) => {
   await part('onboarding', async () => {
     const page = await (await context(browser)).newPage()
     await page.goto('/')
-    await expect(page.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible()
+    await expect(firstRun(page)).toBeVisible()
     await snap(page, '01-welcome-terms')
     await page.getByRole('link', { name: /Terms of Use/ }).first().click().catch(() => undefined)
     await page.waitForTimeout(300)
@@ -823,7 +823,7 @@ test('UX audit tour (desktop app)', async () => {
     pages.push(page)
     await app.evaluate(({ BrowserWindow }, sz) => BrowserWindow.getAllWindows()[0].setContentSize(sz.width, sz.height), DESKTOP)
     await part('desktop-welcome', async () => {
-      await expect(page.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible()
+      await expect(firstRun(page)).toBeVisible()
       await shoot(page, '90-desktop-welcome')
     })
     await agreeToTerms(page)

@@ -2,7 +2,7 @@
 // the Reports queue), and deleting an account.
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
-import { createInviteLink, joinVia, openServerSettings, openSettings, send, serverRoom, SHOTS, startServer, type TestServer } from './helpers'
+import { createInviteLink, joinVia, openServerSettings, openSettings, send, serverRoom, SHOTS, startServer, type TestServer, firstRun } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -22,26 +22,32 @@ test('the terms are agreed on first run, and again when they change', async ({ b
   await page.goto('/')
   const isNew = page.getByRole('button', { name: /I'm new to Iskra/ })
   const already = page.getByRole('button', { name: /I already use Iskra/ })
-  await expect(isNew).toBeDisabled()
-  await expect(already).toBeDisabled()
+  const agree = page.getByRole('checkbox', { name: /I agree to the Terms of Use/ })
+  const go = page.getByRole('button', { name: 'Continue', exact: true })
+  // Step 1 of 2: the terms. The choices come after.
+  await expect(agree).toBeVisible()
+  await expect(page.getByText('Step 1 of 2')).toBeVisible()
+  await expect(isNew).toHaveCount(0)
+  await expect(go).toBeDisabled()
   await expect(page.getByText(/Zero tolerance for abuse/)).toBeVisible()
   await expect(page.getByRole('link', { name: 'Terms of Use and Community guidelines' })).toHaveAttribute('href', 'https://iskra.foo/terms')
-  await page.waitForTimeout(350) // let the dialog finish appearing
+  // Why Continue is off: said under it, and read out with it.
+  await expect(go).toHaveAccessibleDescription('Tick the box above to continue.')
+  await expect(page.getByText('Tick the box above to continue.')).toBeInViewport()
   await page.screenshot({ path: join(SHOTS, 'safety-terms-first-run.png') })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.waitForTimeout(350) // let the dialog finish appearing
-  await page.screenshot({ path: join(SHOTS, 'safety-terms-first-run-phone.png') })
-  // Why the choices are greyed out: said right above them, and read out with them.
-  await expect(isNew).toHaveAccessibleDescription('Tick the box above to continue.')
-  await isNew.scrollIntoViewIfNeeded()
   await expect(page.getByText('Tick the box above to continue.')).toBeInViewport()
+  await page.screenshot({ path: join(SHOTS, 'safety-terms-first-run-phone.png') })
   await page.setViewportSize({ width: 1280, height: 720 })
 
-  // "I already use Iskra" needs it too; going back shows the choices without asking again.
-  await page.getByRole('checkbox', { name: /I agree to the Terms of Use/ }).check()
+  // Agreeing leads to step 2; "I already use Iskra" and back shows the choices without asking again.
+  await agree.check()
+  await go.click()
+  await expect(page.getByText('Step 2 of 2')).toBeVisible()
+  await expect(isNew).toBeFocused()
   await already.click()
   await page.getByRole('button', { name: 'Back' }).click()
-  await expect(page.getByRole('checkbox', { name: /I agree to the Terms of Use/ })).toHaveCount(0)
+  await expect(agree).toHaveCount(0)
   await expect(isNew).toBeEnabled()
   await isNew.click()
   await page.getByLabel('Your name').fill('Reader')
@@ -200,7 +206,7 @@ test('deleting an account removes it from the server and wipes the device', asyn
 
     // The device starts over, and the server forgot the account and its messages.
     await expect(leaver.getByText('Your account was deleted, and everything it had on this device is gone.')).toBeVisible({ timeout: 15_000 })
-    await expect(leaver.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible()
+    await expect(firstRun(leaver)).toBeVisible()
     await leaver.waitForTimeout(350) // let the dialog finish appearing
     await leaver.screenshot({ path: join(SHOTS, 'safety-account-deleted.png') })
     await expect(owner.locator('.message-text', { hasText: 'goodbye everyone' })).toHaveCount(0)

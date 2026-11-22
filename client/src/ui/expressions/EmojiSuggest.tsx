@@ -2,6 +2,7 @@
 import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { serverFileUrl, useOwnEmojis } from '../../state/expressions'
 import { completeEmoji, emojiQueryAt, searchEmoji, type EmojiResult } from './emoji'
+import { CustomEmojiImage } from './CustomEmoji'
 import { useTranslation } from 'react-i18next'
 
 export function useEmojiSuggest(
@@ -55,7 +56,7 @@ export function useEmojiSuggest(
             }}
           >
             <span className="suggest-glyph">
-              {r.kind === 'custom' ? <img className="custom-emoji" src={serverFileUrl(serverKey, r.emoji.url) ?? undefined} alt="" /> : r.char}
+              {r.kind === 'custom' ? <CustomEmojiImage src={serverFileUrl(serverKey, r.emoji.url)} name={r.emoji.name} decorative /> : r.char}
             </span>
             :{label}:
           </button>

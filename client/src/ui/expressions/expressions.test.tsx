@@ -58,11 +58,15 @@ describe('custom emoji rendering', () => {
   const ctx = { nameOf: () => null, emoji: (id: string) => (id === blob.id ? 'https://srv/files/x/blob.png' : null) }
   const html = (text: string) => renderToStaticMarkup(<>{renderMarkdown(text, ctx)}</>)
 
-  it('renders known emoji as images and unknown ones as text', () => {
+  it('renders known emoji as images behind a :name: chip until they load, and unknown ones as a chip', () => {
+    // Not loaded yet: the chip is what shows and what's read; the picture waits out of sight.
     expect(html(`hi <:blob:${blob.id}>`)).toContain(
-      'hi <img class="custom-emoji" src="https://srv/files/x/blob.png" alt=":blob:" title=":blob:" draggable="false"/>',
+      'hi <span class="emoji-chip" role="img" aria-label=":blob:" title=":blob:" data-emoji-state="loading">:blob:</span>'
+      + '<img class="custom-emoji loading" src="https://srv/files/x/blob.png" alt="" aria-hidden="true" title=":blob:" draggable="false"/>',
     )
-    expect(html('hi <:gone:AAAAAAAAAAAA>')).toBe('hi <span class="custom-emoji-missing">:gone:</span>')
+    expect(html('hi <:gone:AAAAAAAAAAAA>')).toBe(
+      'hi <span class="emoji-chip" role="img" aria-label=":gone: (emoji not available)" title=":gone: (emoji not available)" data-emoji-state="missing">:gone:</span>',
+    )
     expect(html(`\`<:blob:${blob.id}>\``)).toBe(`<code>&lt;:blob:${blob.id}&gt;</code>`)
   })
 

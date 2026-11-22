@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 import { BUILT_IN_THEMES } from '../src/theme/themes'
-import { callTool, createInviteLink, hasLiveKit, joinVia, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer } from './helpers'
+import { callTool, createInviteLink, hasLiveKit, joinVia, openServerSettings, openSettings, send, SHOTS, startServer, type TestServer, firstRun } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -39,7 +39,7 @@ test('main screens have no serious accessibility problems', async ({ browser }) 
 
   // Onboarding: the invite screen before joining.
   await page.goto(server.ownerLink())
-  await expect(page.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible({ timeout: 15_000 })
+  await expect(firstRun(page)).toBeVisible({ timeout: 15_000 })
   await audit(page, 'onboarding')
 
   await joinVia(page, server.ownerLink(), 'Host')

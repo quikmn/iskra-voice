@@ -1,6 +1,6 @@
 // The Terms of Use and Community guidelines: a short summary with links to the full texts on iskra.foo.
 // Agreed on first run (both "I'm new" and "I already use Iskra") and again when TERMS_VERSION changes.
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { acceptTerms, LEGAL_LINKS, useTermsAccepted } from '../../state/terms'
 import { useApp } from '../../state/store'
@@ -42,16 +42,21 @@ export function TermsAgreement({ agreed, onChange }: { agreed: boolean; onChange
   )
 }
 
-/** First run reached through a device-link QR code: agree, then link. */
+/**
+ * The first step of first run (and of a device-link QR code opened on a new device): agree, then go on to `children`.
+ * The button says why it's off, in view and to screen readers; the line keeps its place so nothing moves on ticking.
+ */
 export function TermsFirst({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation()
   const accepted = useTermsAccepted()
   const [agreed, setAgreed] = useState(false)
+  const hint = useId()
   if (accepted) return <>{children}</>
   return (
     <div className="terms-first">
       <TermsAgreement agreed={agreed} onChange={setAgreed} />
-      <button className="button primary wide" disabled={!agreed} onClick={() => acceptTerms()}>{t('common.continue')}</button>
+      <button className="button primary wide" disabled={!agreed} aria-describedby={agreed ? undefined : hint} onClick={() => acceptTerms()}>{t('common.continue')}</button>
+      <p className={`terms-hint ${agreed ? 'done' : ''}`} id={hint} aria-hidden={agreed || undefined}>{t('safety.terms.tickFirst')}</p>
     </div>
   )
 }
