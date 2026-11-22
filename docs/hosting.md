@@ -1,6 +1,6 @@
 # Hosting an Iskra server
 
-> **Your server, your choice.** Iskra charges nothing; this is just a guide. The one exception: the app's DigitalOcean sign-up link is Iskra's referral link (Iskra gets a little DigitalOcean credit, you pay nothing extra), and the app says so.
+> **Your server, your choice.** Iskra charges nothing; this is just a guide. The one exception: the DigitalOcean links (the app's sign-up link and the Marketplace deploy link below) are Iskra's referral links (Iskra gets a little DigitalOcean credit, you pay nothing extra), and we say so where they appear.
 
 An Iskra server is **a folder**. Everything lives in it: settings, members, messages, files and keys. Back it up from the app with one click and restore it on any machine (see [Backups, moving and importing](#backups-moving-and-importing)).
 
@@ -111,9 +111,9 @@ The desktop app can rent and set up the server in **your own DigitalOcean accoun
 
 Started on DigitalOcean's website rather than in the app? The Iskra 1-Click image makes the same kind of server without a terminal. You pay DigitalOcean directly (about $6 a month for the 1 GB droplet); Iskra charges nothing and never sees the server. DigitalOcean doesn't build or support Iskra.
 
-> Iskra isn't in the DigitalOcean Marketplace yet. Until it is, [Rent a server on DigitalOcean](#rent-a-server-on-digitalocean-one-click) in the desktop app does the same in one go.
+> **[Deploy Iskra on DigitalOcean](https://marketplace.digitalocean.com/apps/iskra?refcode=5ed476bab2ca&action=deploy)** (the [listing](https://marketplace.digitalocean.com/apps/iskra) without the deploy step). This is Iskra's referral link: Iskra gets a little DigitalOcean credit that helps pay for its own server, and it costs you nothing extra.
 
-1. Open Iskra in the DigitalOcean Marketplace and press **Create Iskra Droplet**.
+1. Open Iskra in the DigitalOcean Marketplace (the link above) and press **Create Iskra Droplet**.
 2. Pick a region near your group and the $6 size (1 GB). DigitalOcean asks for a password or an SSH key: pick either, you won't need it for Iskra. Create the droplet; it's ready in about a minute.
 3. Open the droplet's **Console** in DigitalOcean. It shows the server's address and a **claim code**:
 
