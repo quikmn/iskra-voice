@@ -4,7 +4,6 @@
 // chats ONLY through the friend side of the tunnel. Then a new secret, and the server stopping takes the tunnel with
 // it. Run with `npm run test:interop`.
 /// <reference path="../../desktop/src/p2p/modules.d.ts" />
-import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -21,8 +20,8 @@ import { createIdentity } from '../src/core/identity'
 import { parseInvite, type InviteLink } from '../src/core/invite'
 import type { Events, P2pStatus, Welcome } from '../src/core/protocol'
 import { freePort } from './ports'
+import { answers as answering, spawnServer, type Kept } from './spawned'
 
-const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 const LOCAL = '127.0.0.1'
 const desktopRequire = createRequire(resolve(__dirname, '../../desktop/package.json'))
 const HyperDHT = desktopRequire('hyperdht') as typeof DHT
@@ -64,8 +63,7 @@ class User {
 
 describe('a standalone server through its iskra-p2p sidecar', () => {
   let world: string
-  let proc: ChildProcess
-  let serverLog = ''
+  let server: Kept
   let directUrl: string
   let testnet: Testnet
   let friendDht: DHT
@@ -111,23 +109,16 @@ describe('a standalone server through its iskra-p2p sidecar', () => {
     }))
     const env = { ...process.env, ISKRA_STOP_ON_STDIN_CLOSE: '1' }
     delete env.ISKRA_P2P_TUNNEL // a standalone server: it runs the tunnel itself
-    proc = spawn('dotnet', [SERVER_DLL, world], { stdio: ['pipe', 'pipe', 'pipe'], env })
-    proc.stdout?.on('data', (d) => (serverLog += d))
-    proc.stderr?.on('data', (d) => (serverLog += d))
+    server = spawnServer(world, { stdin: 'pipe', env })
     directUrl = `http://${LOCAL}:${port}`
-    await waitFor(() => answers(directUrl, 1000), 'the server')
+    await server.ready('the server', answering(`${directUrl}/`))
   }, 120_000)
 
   afterAll(async () => {
     owner?.connection.stop()
     friend?.connection.stop()
     for (const t of tunnels) t.close()
-    if (proc && proc.exitCode === null) {
-      await new Promise<void>((done) => {
-        proc.once('exit', () => done())
-        proc.kill()
-      })
-    }
+    await server?.stop()
     await friendDht?.destroy()
     await testnet?.destroy()
     rmSync(world, { recursive: true, force: true })
@@ -142,10 +133,11 @@ describe('a standalone server through its iskra-p2p sidecar', () => {
     expect(secret).toHaveLength(43)
 
     // The server's own tunnel comes up and says so to the owner.
-    const up = await waitFor(async () => {
+    // The sidecar's lines come through the server's output; the server starts it again if it stops.
+    const up = await server.ready('the sidecar to be ready', async () => {
       const s = await status()
       return s.tunnel?.state === 'ready' && s
-    }, `the sidecar to be ready (server log:\n${serverLog})`)
+    })
     expect(up.tunnel!.nat).not.toBeNull()
 
     // A friend reaches the server only through the tunnel and joins with an invite.
@@ -170,8 +162,8 @@ describe('a standalone server through its iskra-p2p sidecar', () => {
     expect(await waitFor(() => answers(nextUrl), 'an answer with the new secret')).toBe(true)
 
     // Stopping the server (as the desktop app or a service manager does) stops its tunnel too.
-    const exited = new Promise<number | null>((done) => proc.once('exit', (code) => done(code)))
-    proc.stdin?.end()
+    const exited = new Promise<number | null>((done) => server.proc.once('exit', (code) => done(code)))
+    server.proc.stdin?.end()
     expect(await exited).toBe(0)
     // Nobody accepts the friend key any more: the sidecar left the DHT (not merely a dead server behind it).
     const key = parseSecret(next)!

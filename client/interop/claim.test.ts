@@ -5,7 +5,6 @@
 //     npx vitest run --config vitest.interop.config.ts interop/claim.test.ts
 //                                              a real droplet (marketplace/digitalocean/test.sh); voice is required
 // Never prints the claim code or anything derived from it.
-import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -17,8 +16,8 @@ import { createIdentity } from '../src/core/identity'
 import type { Events, Welcome } from '../src/core/protocol'
 import { claimAddress, ClaimFailed, claimServer } from '../src/state/claimServer'
 import { freePort, freeUdpPort } from './ports'
+import { answers, spawnServer, type Kept } from './spawned'
 
-const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 const LIVEKIT = process.env.ISKRA_LIVEKIT ?? resolve(__dirname, '../../.tools', process.platform === 'win32' ? 'livekit-server.exe' : 'livekit-server')
 const DROPLET = process.env.ISKRA_DROPLET_URL
 
@@ -39,6 +38,8 @@ interface Target {
   address: string
   code: string
   voice: boolean
+  /** The local server (its output goes into a failed wait); null for a droplet. */
+  server: Kept | null
   stop: () => Promise<void>
 }
 
@@ -53,26 +54,20 @@ async function localServer(): Promise<Target> {
       ? { Enabled: true, Port: await freePort(), RtcTcpPort: await freePort(), RtcUdpPort: await freeUdpPort(), LiveKitPath: LIVEKIT }
       : { Enabled: false },
   }))
-  const proc = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
+  const server = spawnServer(world)
   const stop = async () => {
-    if (proc.exitCode === null) await new Promise<void>((done) => {
-      proc.once('exit', () => done())
-      proc.kill()
-    })
+    await server.stop()
     rmSync(world, { recursive: true, force: true })
   }
   try {
     // The same file the droplet's claim screen reads: code=, expires=, address=.
     const file = join(world, 'owner-claim-code.txt')
-    const text = await waitFor(() => existsSync(file) && readFileSync(file, 'utf8'), 'owner-claim-code.txt', 30_000)
+    const text = await server.ready('owner-claim-code.txt', () => existsSync(file) && readFileSync(file, 'utf8'))
     const field = (name: string) => new RegExp(`^${name}=(.+)$`, 'm').exec(text)?.[1]?.trim() ?? ''
     expect(field('code')).toMatch(/^[0-9A-Z]{4}(-[0-9A-Z]{4}){3}$/)
     expect(Date.parse(field('expires')) - Date.now()).toBeGreaterThan(23 * 60 * 60 * 1000)
-    for (let i = 0; !(await fetch(`http://localhost:${port}/health`).catch(() => null))?.ok; i++) {
-      if (i > 300) throw new Error('Server did not start')
-      await new Promise((r) => setTimeout(r, 100))
-    }
-    return { address: field('address'), code: field('code'), voice, stop }
+    await server.ready('the server', answers(`http://localhost:${port}/health`))
+    return { address: field('address'), code: field('code'), voice, server, stop }
   } catch (e) {
     await stop()
     throw e
@@ -89,7 +84,7 @@ describe(DROPLET ? 'claiming the droplet' : 'claiming a generated code (local se
     await ready()
     if (DROPLET) {
       const code = process.env.ISKRA_DROPLET_CODE ?? ''
-      target = { address: DROPLET, code, voice: true, stop: async () => undefined }
+      target = { address: DROPLET, code, voice: true, server: null, stop: async () => undefined }
     } else {
       target = await localServer()
     }
@@ -135,8 +130,8 @@ describe(DROPLET ? 'claiming the droplet' : 'claiming a generated code (local se
   it('the owner gets a voice token and joins the LiveKit room', async (context) => {
     if (!target.voice) context.skip()
     expect(welcome, 'not joined').not.toBeNull()
-    await waitFor(() => welcome!.voiceAvailable || events.some((e) => e.type === 'voice.available' && (e.body as Events['voice.available']).available),
-      'voice available', 60_000)
+    const voiceUp = () => welcome!.voiceAvailable || events.some((e) => e.type === 'voice.available' && (e.body as Events['voice.available']).available)
+    await (target.server ? target.server.ready('voice available', voiceUp, 60_000) : waitFor(voiceUp, 'voice available', 60_000))
     const channel = welcome!.channels.find((c) => c.kind === 'voice')!
     const { url, token } = await owner!.request('voice.join', { channelId: channel.id })
     expect(token.length).toBeGreaterThan(20)

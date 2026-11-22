@@ -28,7 +28,8 @@ public class P2pSidecarTests : IDisposable
         note('fake-runs', 'x')
         const runs = fs.readFileSync(path.join(world, 'fake-runs'), 'utf8').length
         fs.writeFileSync(path.join(world, 'fake-env'), JSON.stringify({ local: process.env.ISKRA_LOCAL_ONLY ?? null,
-          bootstrap: process.env.ISKRA_P2P_BOOTSTRAP ?? null, port: process.env.ISKRA_P2P_PORT ?? null, pid: process.pid }))
+          bootstrap: process.env.ISKRA_P2P_BOOTSTRAP ?? null, port: process.env.ISKRA_P2P_PORT ?? null, pid: process.pid,
+          tunnelPort: fs.existsSync(path.join(world, 'p2p.port')) ? fs.readFileSync(path.join(world, 'p2p.port'), 'utf8').trim() : null }))
         if (fs.existsSync(path.join(world, 'fake-crash')) && runs === 1) {
           console.log(JSON.stringify({ status: { state: 'starting', hostKey: null, nat: null, connections: 0 } }))
           process.exit(3)
@@ -180,6 +181,27 @@ public class P2pSidecarTests : IDisposable
         await Until(() => sidecar.Starts == 2 && sidecar.Current.State == "ready", "ready again");
         await sidecar.StopAsync(CancellationToken.None);
         Assert.Equal("cleanclean", Read(world, "fake-stopped"));
+    }
+
+    [Fact]
+    public async Task Starts_only_once_this_runs_tunnel_port_is_written()
+    {
+        // The program reads p2p.port once, when it starts. It used to be started before the server wrote the file:
+        // on a busy machine it found none and stayed "off" (interop p2p-sidecar on CI), or the last run's port.
+        Assert.SkipUnless(HasNode(), "node isn't installed");
+        using var world = NewWorld("port", p => p with { Enabled = true, SidecarPath = Fake() });
+        File.WriteAllText(Path.Combine(world.Path, TunnelListener.PortFile), "1\n"); // left by the last run
+        var tunnel = new TunnelListener();
+        using var sidecar = new P2pSidecar(world, NullLogger<P2pSidecar>.Instance, tunnel, hostedByApp: false);
+        await sidecar.StartAsync(CancellationToken.None);
+        await Task.Delay(300);
+        Assert.Equal(0, sidecar.Starts); // the server doesn't listen yet
+
+        tunnel.Started(world.Path, 4321);
+        await Until(() => Read(world, "fake-env") is not null && sidecar.Current.State == "ready", "ready");
+        Assert.Equal("4321", JsonDocument.Parse(Read(world, "fake-env")!).RootElement.GetProperty("tunnelPort").GetString());
+        Assert.Equal(1, sidecar.Starts);
+        await sidecar.StopAsync(CancellationToken.None);
     }
 
     [Fact]

@@ -25,10 +25,27 @@ public sealed class TunnelListener
 
     public int Port => Options?.IPEndPoint?.Port ?? 0;
 
-    /// <summary>Once the server listens: tell the desktop app which port the tunnel should reach.</summary>
-    public void Started(string worldPath)
+    private readonly TaskCompletionSource _listening = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// Done once the server listens and p2p.port holds this run's port. The tunnel program reads that file when it
+    /// starts, so <see cref="P2pSidecar"/> waits for this, not for "application started" by itself.
+    /// </summary>
+    public Task Listening => _listening.Task;
+
+    /// <summary>Once the server listens: tell the tunnel (the desktop app's, or iskra-p2p) which port to reach.</summary>
+    public void Started(string worldPath) => Started(worldPath, Port);
+
+    internal void Started(string worldPath, int port)
     {
-        if (Port > 0) Storage.AtomicFile.WriteAllText(Path.Combine(worldPath, PortFile), $"{Port}\n");
+        try
+        {
+            if (port > 0) Storage.AtomicFile.WriteAllText(Path.Combine(worldPath, PortFile), $"{port}\n");
+        }
+        finally
+        {
+            _listening.TrySetResult();
+        }
     }
 
     public static ConnectionDelegate Middleware(ConnectionDelegate next) => async context =>

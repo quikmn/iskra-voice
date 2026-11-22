@@ -1,9 +1,8 @@
 // Bot DMs: a person and a bot (the SDK) message each other end-to-end encrypted through the real .NET server, commands
 // typed in a DM reach the bot's handlers, and a bot opens an encrypted attachment. Run with `npm run test:interop`.
-import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Bot, loadState, type IncomingDm } from '../../bots/sdk/src/index'
 import { Connection } from '../src/core/connection'
@@ -14,8 +13,8 @@ import { createIdentity, type Identity } from '../src/core/identity'
 import { buildInviteLink, parseInvite } from '../src/core/invite'
 import type { Events, Welcome, WireDm } from '../src/core/protocol'
 import { freePort } from './ports'
+import { answers, spawnServer } from './spawned'
 
-const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 
 async function waitFor<T>(check: () => T | undefined | null | false, what: string, timeoutMs = 15_000): Promise<T> {
   const deadline = Date.now() + timeoutMs
@@ -66,20 +65,10 @@ describe('bot DMs ↔ server', () => {
     world = mkdtempSync(join(tmpdir(), 'iskra-botdms-'))
     const port = await freePort()
     writeFileSync(join(world, 'server.json'), JSON.stringify({ Name: 'Bot DMs', Port: port, LocalOnly: true, Voice: { Enabled: false } }))
-    const proc = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
+    const server = spawnServer(world)
     url = `http://localhost:${port}`
-    stop = () => new Promise((done) => {
-      proc.once('exit', () => done())
-      proc.kill()
-    })
-    await waitFor(() => existsSync(join(world, 'owner-invite.txt')), 'server start', 30_000)
-    for (;;) {
-      try {
-        if ((await fetch(url)).ok) break
-      } catch {
-        await new Promise((r) => setTimeout(r, 100))
-      }
-    }
+    stop = server.stop
+    await server.ready('the server', answers(url))
     const link = parseInvite(readFileSync(join(world, 'owner-invite.txt'), 'utf8'))!
     owner = await connect(link.code, link.serverUrl, link.serverKey, 'Host')
   })

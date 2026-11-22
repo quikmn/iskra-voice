@@ -1,7 +1,6 @@
 // Whisper against a real server and LiveKit: the target hears the whisperer, someone else in the same voice channel
 // gets no token and no audio, and a listener who is no longer reached is thrown out of the whisper room by the server
 // even with a token they still hold. Run with `npm run test:interop` (LiveKit from .tools: scripts/get-livekit.*).
-import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -13,8 +12,8 @@ import { createIdentity } from '../src/core/identity'
 import { buildInviteLink, parseInvite } from '../src/core/invite'
 import type { Events, Welcome } from '../src/core/protocol'
 import { freePort, freeUdpPort } from './ports'
+import { answers, spawnServer } from './spawned'
 
-const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 const LIVEKIT = resolve(__dirname, '../../.tools', process.platform === 'win32' ? 'livekit-server.exe' : 'livekit-server')
 
 async function waitFor<T>(check: () => T | undefined | null | false, what: string, timeoutMs = 15_000): Promise<T> {
@@ -104,27 +103,14 @@ describe.skipIf(!existsSync(LIVEKIT))('whisper ↔ server ↔ LiveKit', () => {
       Name: 'Whisper', Port: port, LocalOnly: true,
       Voice: { Enabled: true, Port: voicePort, RtcTcpPort: await freePort(), RtcUdpPort: await freeUdpPort(), LiveKitPath: LIVEKIT },
     }))
-    const proc = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
+    const server = spawnServer(world)
     url = `http://localhost:${port}`
-    stop = () => new Promise((done) => {
-      proc.once('exit', () => done())
-      proc.kill()
-    })
-    await waitFor(() => existsSync(join(world, 'owner-invite.txt')), 'server start', 30_000)
-    for (const target of [url, `http://127.0.0.1:${voicePort}`]) {
-      for (let i = 0; ; i++) {
-        try {
-          if ((await fetch(target)).ok) break
-        } catch {
-          if (i > 300) throw new Error(`${target} did not start`)
-          await new Promise((r) => setTimeout(r, 100))
-        }
-      }
-    }
+    stop = server.stop
+    await server.ready('the server', answers(url))
+    await server.ready('LiveKit', answers(`http://127.0.0.1:${voicePort}`))
     const ownerLink = parseInvite(readFileSync(join(world, 'owner-invite.txt'), 'utf8'))!
     const owner = await connect('Owner', ownerLink)
-    await waitFor(() => owner.welcome!.voiceAvailable || owner.events.some((e) => e.type === 'voice.available' && (e.body as Events['voice.available']).available),
-      'voice available', 30_000)
+    await server.ready('voice available', () => owner.welcome!.voiceAvailable || owner.events.some((e) => e.type === 'voice.available' && (e.body as Events['voice.available']).available))
   }, 120_000)
 
   afterAll(async () => {
