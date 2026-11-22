@@ -38,7 +38,7 @@ async function joinCinema(page: Page) {
 }
 
 test('a watch party stays in step for everyone, late joiners included', async ({ browser }) => {
-  test.setTimeout(120_000)
+  test.setTimeout(180_000)
   const host = await (await browser.newContext()).newPage()
   await joinVia(host, server.ownerLink(), 'Host')
   await host.getByRole('button', { name: 'Create voice channel' }).click()
@@ -66,6 +66,19 @@ test('a watch party stays in step for everyone, late joiners included', async ({
   }
   // Only the host controls it for now.
   await expect(friend.locator('.watch-controls').getByRole('button', { name: 'Play' })).toHaveCount(0)
+  // The controls lie over the video, End is in the panel's header (the host's only), and nothing sits under the player.
+  const frameBox = (await host.locator('.watch-frame').boundingBox())!
+  const controlsBox = (await host.getByRole('toolbar', { name: 'Watch party controls' }).boundingBox())!
+  expect(controlsBox.y).toBeGreaterThan(frameBox.y)
+  expect(controlsBox.y + controlsBox.height).toBeLessThanOrEqual(frameBox.y + frameBox.height + 1)
+  await expect(host.locator('.watch-head').getByRole('button', { name: 'End watch party' })).toBeVisible()
+  await expect(friend.getByRole('button', { name: 'End watch party' })).toHaveCount(0)
+  await expect(friend.getByRole('button', { name: 'Watch party settings' })).toHaveCount(0)
+  await expect(host.locator('.watch-bar')).toHaveCount(0)
+  // Paused: they stay, however long the pointer rests.
+  await host.mouse.move(5, 5)
+  await host.waitForTimeout(3600)
+  await expect(host.locator('.watch-frame')).not.toHaveClass(/idle/)
 
   // Play: the friend's copy plays too, and they stay together.
   await host.locator('.watch-controls').getByRole('button', { name: 'Play' }).click()
@@ -95,9 +108,20 @@ test('a watch party stays in step for everyone, late joiners included', async ({
 
   // Anyone can control: now the friend can press play.
   await host.getByRole('button', { name: 'Watch party settings' }).click()
+  const hostMenu = host.getByRole('dialog', { name: 'Watch party settings' })
+  await expect(hostMenu.getByRole('menuitemradio', { name: '1×', exact: true })).toBeChecked()
+  await expect(hostMenu.getByRole('menuitemcheckbox', { name: 'Audio only' })).not.toBeChecked()
   await host.getByRole('menuitemcheckbox', { name: 'Anyone can control' }).click() // applied once the server confirms
   await expect(host.getByRole('menuitemcheckbox', { name: 'Anyone can control' })).toBeChecked()
+  await host.waitForTimeout(300)
+  await host.screenshot({ path: join(SHOTS, 'watch-party-settings.png') })
   await host.keyboard.press('Escape')
+  // Now the friend's gear has the speed, but not the host's switches.
+  await friend.getByRole('button', { name: 'Watch party settings' }).click()
+  const friendMenu = friend.getByRole('dialog', { name: 'Watch party settings' })
+  await expect(friendMenu.getByRole('menuitemradio', { name: '1×', exact: true })).toBeChecked()
+  await expect(friendMenu.getByRole('menuitemcheckbox')).toHaveCount(0)
+  await friend.keyboard.press('Escape')
   await friend.locator('.watch-controls').getByRole('button', { name: 'Play' }).click()
   await expect.poll(() => paused(host), { timeout: 10_000 }).toBe(false)
   await expect(party(host)).toContainText('anyone can control')
@@ -107,7 +131,40 @@ test('a watch party stays in step for everyone, late joiners included', async ({
   await friend.getByLabel('Message the party').press('Enter')
   await expect(host.locator('.watch-chat')).toContainText('popcorn ready?')
   await expect(late.locator('.watch-chat')).toContainText('popcorn ready?')
+  const hostOver = (await host.locator('.watch-frame').boundingBox())!
+  await host.mouse.move(hostOver.x + hostOver.width / 2, hostOver.y + hostOver.height / 2)
+  await expect(host.locator('.watch-frame')).not.toHaveClass(/idle/)
+  await host.waitForTimeout(300)
   await host.screenshot({ path: join(SHOTS, 'watch-party.png') })
+
+  // While it plays the controls step aside once the pointer rests, and come back when it moves over the video.
+  const hostFrame = host.locator('.watch-frame')
+  const hostControls = host.getByRole('toolbar', { name: 'Watch party controls' })
+  // (Escape left keyboard focus on the settings button, which keeps them up: focus goes elsewhere first.)
+  await expect(hostFrame).not.toHaveClass(/idle/)
+  await host.getByLabel('Message the party').click()
+  await host.mouse.move(5, 5)
+  await expect(hostFrame).toHaveClass(/idle/, { timeout: 6_000 })
+  await expect(hostControls).toHaveCSS('opacity', '0')
+  await host.screenshot({ path: join(SHOTS, 'watch-party-idle.png') })
+  const over = (await hostFrame.boundingBox())!
+  await host.mouse.move(over.x + over.width / 2, over.y + over.height / 2)
+  await expect(hostFrame).not.toHaveClass(/idle/)
+  await expect(hostControls).toHaveCSS('opacity', '1')
+  // A keyboard on one of them keeps them up.
+  await host.mouse.move(5, 5)
+  await host.keyboard.press('Tab')
+  await host.getByRole('slider', { name: 'Position' }).focus()
+  await host.waitForTimeout(3600)
+  await expect(hostFrame).not.toHaveClass(/idle/)
+  await expect(hostControls).toHaveCSS('opacity', '1')
+  await host.getByRole('slider', { name: 'Position' }).blur()
+  await expect(hostFrame).toHaveClass(/idle/, { timeout: 6_000 })
+
+  // A finger has no hover to bring them back: after a touch they stay while it plays.
+  await late.locator('.watch-frame').dispatchEvent('pointerdown', { pointerType: 'touch', bubbles: true })
+  await late.waitForTimeout(3600)
+  await expect(late.locator('.watch-frame')).not.toHaveClass(/idle/)
 
   // A wide player shows mute and the volume slider right in the bar.
   await friend.setViewportSize({ width: 1920, height: 1080 })
@@ -121,6 +178,14 @@ test('a watch party stays in step for everyone, late joiners included', async ({
   await friend.waitForTimeout(500)
   await expect(video(friend)).toBeVisible()
   await expect(friend.locator('.watch-chat')).toBeVisible()
+  // Still over the video, in one piece, and nothing wider than the screen.
+  const phoneFrame = (await friend.locator('.watch-frame').boundingBox())!
+  const phoneControls = (await bar.boundingBox())!
+  expect(phoneControls.y + phoneControls.height).toBeLessThanOrEqual(phoneFrame.y + phoneFrame.height + 1)
+  expect(await friend.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await friend.mouse.move(phoneFrame.x + phoneFrame.width / 2, phoneFrame.y + 20)
+  await expect(friend.locator('.watch-frame')).not.toHaveClass(/idle/)
+  await friend.waitForTimeout(300)
   await friend.screenshot({ path: join(SHOTS, 'watch-party-phone.png') })
 
   // Volume on a narrow player: the speaker button opens a vertical slider (arrow keys work), only for this viewer.

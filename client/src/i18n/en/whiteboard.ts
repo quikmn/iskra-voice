@@ -7,6 +7,10 @@ export const whiteboard = {
   canvasLabel: 'Whiteboard {{name}}',
   tools: 'Whiteboard tools',
   toolGroup: 'Tool',
+  shapes: 'Shapes',
+  style: 'Colour and size',
+  actions: 'Colour, undo and clear',
+  view: 'View',
   tool: {
     select: 'Select and move (V)',
     pan: 'Move around (H)',

@@ -19,25 +19,54 @@ button.watch-overlay { cursor: pointer; }
 .watch-gate .checkbox input { margin: 0; }
 .watch-overlay-play { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--accent); color: var(--on-accent); }
 
-.watch-bar { display: grid; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3) var(--sp-3); }
-/* What's on and who hosts it; the host's settings and End at the end of the same row. */
-.watch-head { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; min-height: 32px; }
-.watch-head .button.small { flex: none; }
-/* A narrow player: the title gets its own line, the host's buttons go under it on the right. */
-@container (max-width: 440px) {
-  .watch-head { flex-wrap: wrap; justify-content: flex-end; }
-  .watch-head .watch-title { flex-basis: 100%; }
+/* The panel's header: what's on and who hosts it, and End for the host (the same place as an activity's Leave). */
+.watch-head {
+  display: flex; align-items: center; gap: var(--sp-2); min-width: 0; min-height: 44px; padding: var(--sp-1) var(--sp-2) var(--sp-1) var(--sp-3);
+  border-bottom: 1px solid var(--border);
 }
+.watch-head > svg { flex: none; color: var(--text-2); }
+.watch-head .button.small { flex: none; }
 .watch-title { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex: 1; }
-.watch-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-strong); }
-.watch-title .muted { font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.watch-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; min-width: 0; }
-.watch-controls .spacer { flex: 1; }
-.watch-controls .icon-button.on { color: var(--accent); }
+.watch-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-strong); font-size: var(--fs-ui); }
+/* The title keeps its room; who hosts it gives way first. */
+.watch-title .muted { flex: 1 1 0; min-width: 0; font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.watch-title .muted:empty { display: none; }
+
+/* The controls: the seek bar with the time, then one row of buttons. */
+.watch-controls { display: grid; gap: 2px; min-width: 0; }
+.watch-seek-row { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; padding: 0 var(--sp-1); }
+.watch-seek { flex: 1; min-width: 0; margin: 0; }
 .watch-time { font-size: var(--fs-sm); font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; }
-.watch-seek { order: -1; flex: 1 0 100%; margin: 0; }
+.watch-buttons { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.watch-buttons .spacer { flex: 1; }
+.watch-buttons .icon-button.on { color: var(--accent); }
 .watch-volume { width: 80px; flex: none; }
-.watch-rate { width: auto; flex: none; padding: 4px 6px; font-size: 13px; }
+/* Under the player when there's no picture to lie over (audio only, before the video loads from another site). */
+.watch-bar { padding: var(--sp-2) var(--sp-2) var(--sp-2); }
+.watch-error { margin: 0; padding: 0 var(--sp-3) var(--sp-2); }
+
+/* Over the picture: white on a shade that fades up, whatever the theme. They step aside while the video plays and
+   nothing moves (ui/watch/idle.ts), and are back at once for a keyboard. */
+.watch-frame .watch-controls {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: var(--sp-5) var(--sp-2) var(--sp-1); color: #fff;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.5) 55%, transparent);
+  transition: opacity var(--dur-slow) var(--ease);
+}
+.watch-frame .watch-controls .watch-time { color: #fff; }
+.watch-frame .watch-controls .icon-button { color: #fff; }
+.watch-frame .watch-controls .icon-button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.18); color: #fff; }
+.watch-frame .watch-controls .icon-button.on { background: rgba(255, 255, 255, 0.24); color: #fff; }
+.watch-frame .watch-controls :focus-visible { outline-color: #fff; }
+.watch-frame.idle { cursor: none; }
+.watch-frame.idle .watch-controls { opacity: 0; }
+.watch-frame.idle .watch-controls:has(:focus-visible) { opacity: 1; }
+@media (hover: none) {
+  .watch-frame.idle { cursor: auto; }
+  .watch-frame.idle .watch-controls { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .watch-frame .watch-controls { transition: none; } }
+/* Full screen shows only the player: what opens outside it (settings, queue, chat) waits. */
+.watch-frame:fullscreen .watch-out { display: none; }
 .watch-settings-note { margin: 4px 10px 6px; max-width: 240px; font-size: var(--fs-sm); line-height: var(--lh-body); }
 
 .watch-chat {
@@ -110,8 +139,9 @@ button.watch-overlay { cursor: pointer; }
 
 @media (max-width: 760px) {
   .watch-frame { max-height: 40vh; }
-  .watch-bar { padding: 8px; }
+  .watch-head { padding-left: var(--sp-2); }
   .watch-title { flex-direction: column; gap: 0; }
+  .watch-title .muted { flex: none; max-width: 100%; }
   .watch-chat { max-height: 34vh; }
   .watch-queue-add { grid-template-columns: 1fr 1fr; }
   .watch-queue-add .button { justify-content: center; }

@@ -60,7 +60,8 @@ button.activity-choice:disabled { cursor: default; opacity: 0.6; }
 .activity-upload { margin-top: 4px; }
 .activity-settings-list li { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-lg); background: var(--surface-2); }
 .activity-settings-list .activity-choice-text { flex: 1; }
-.activity-channels { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.activity-channel-name { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; overflow-wrap: anywhere; }
+.activity-channel-name svg { flex: none; color: var(--text-2); }
 
 @media (max-width: 720px) {
   .activity-call { min-height: 65vh; }

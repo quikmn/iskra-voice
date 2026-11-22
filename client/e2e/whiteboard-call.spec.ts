@@ -43,6 +43,7 @@ test('a call opens a whiteboard, both draw on it, and it stays until cleared', a
   for (let i = 1; i <= 10; i++) await host.mouse.move(box.x + box.width * (0.2 + i * 0.05), box.y + box.height * (0.3 + (i % 3) * 0.05))
   await host.mouse.up()
   await expect(friend.locator('.wb-canvas')).toHaveAttribute('data-count', '1')
+  await friend.getByRole('button', { name: 'Shapes' }).click()
   await friend.getByRole('radio', { name: 'Ellipse (O)' }).click()
   const fbox = (await friend.locator('.wb-canvas').boundingBox())!
   await friend.mouse.move(fbox.x + fbox.width * 0.5, fbox.y + fbox.height * 0.5)
@@ -52,6 +53,30 @@ test('a call opens a whiteboard, both draw on it, and it stays until cleared', a
   await expect(host.locator('.wb-canvas')).toHaveAttribute('data-count', '2')
   await host.waitForTimeout(300)
   await host.screenshot({ path: join(SHOTS, 'whiteboard-call.png') })
+
+  // In the call the bars float over the board too, at phone width as well: all on the page, none over another.
+  for (const [page, name] of [[host, 'desktop'], [friend, 'phone']] as const) {
+    if (name === 'phone') {
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.waitForTimeout(500)
+    }
+    const canvas = (await page.locator('.wb-canvas').boundingBox())!
+    const pills = await Promise.all(['.wb-pill-tools', '.wb-pill-actions', '.wb-pill-view'].map(async (pill) => (await page.locator(pill).boundingBox())!))
+    for (const box of pills) {
+      expect(box.x, name).toBeGreaterThanOrEqual(canvas.x)
+      expect(box.x + box.width, name).toBeLessThanOrEqual(canvas.x + canvas.width)
+      expect(box.y, name).toBeGreaterThanOrEqual(canvas.y)
+      expect(box.y + box.height, name).toBeLessThanOrEqual(canvas.y + canvas.height)
+    }
+    expect(await page.locator('.wb-pill-tools').evaluate((el) => el.scrollWidth - el.clientWidth), name).toBeLessThanOrEqual(0)
+  }
+  expect(await friend.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await friend.getByRole('button', { name: 'Undo (Ctrl+Z)' }).click()
+  await expect(host.locator('.wb-canvas')).toHaveAttribute('data-count', '1')
+  await friend.getByRole('button', { name: 'Redo (Ctrl+Shift+Z)' }).click()
+  await expect(host.locator('.wb-canvas')).toHaveAttribute('data-count', '2')
+  await friend.screenshot({ path: join(SHOTS, 'whiteboard-call-phone.png') })
+  await friend.setViewportSize({ width: 1280, height: 720 })
 
   // Hidden and shown again: still there. Whoever opened it can clear it, which closes it for everyone.
   await host.getByRole('button', { name: 'Hide the whiteboard' }).first().click()

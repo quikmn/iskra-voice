@@ -38,6 +38,20 @@
 .recording-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; font-weight: 600; }
 .recording-left { color: var(--muted); }
 .recording-strip .link-like { color: var(--text-2); text-decoration: underline; flex: none; }
+/* Stop, for whoever records: in the strip and in the voice bar. */
+.recording-stop {
+  display: inline-flex; align-items: center; gap: var(--sp-1); flex: none; height: 24px; margin-right: -6px; padding: 0 10px 0 6px; border: 0;
+  border-radius: 99px; font-size: 12px; font-weight: 700; color: #fff; background: var(--danger-solid);
+}
+.recording-stop:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 85%, #000); }
+.recording-stop:disabled { opacity: 0.6; }
+.icon-button.recording-stop-icon { color: var(--red); }
+.icon-button.recording-stop-icon:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
+@media (hover: none) { .recording-stop { height: 32px; padding: 0 12px 0 8px; } }
+@media (max-width: 760px) {
+  /* One more button in the drawer's voice bar: they all give a little so the row still fits. */
+  .voice-bar .voice-controls:has(.recording-stop-icon) .icon-button { width: 34px; height: 36px; }
+}
 @media (max-width: 520px) {
   .recording-strip { flex-wrap: wrap; white-space: normal; border-radius: 12px; justify-content: center; text-align: center; }
 }

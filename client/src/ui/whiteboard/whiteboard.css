@@ -3,29 +3,55 @@
 .wb { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .wb-center { align-items: center; justify-content: center; gap: 8px; }
 
-.wb-toolbar {
-  display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--border);
-  background: var(--surface); flex-wrap: wrap; flex: none;
+/* The canvas with its bars floating over it. */
+.wb-stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; container-type: inline-size; }
+.wb-float {
+  position: absolute; z-index: 3; top: var(--sp-2); left: var(--sp-2); right: var(--sp-2); display: flex; justify-content: center;
+  align-items: flex-start; gap: var(--sp-2); pointer-events: none;
 }
-.wb-group { display: flex; align-items: center; gap: 2px; padding-right: 6px; border-right: 1px solid var(--border); flex: none; }
-.wb-group:last-child { border-right: 0; padding-right: 0; }
+.wb-pill {
+  display: flex; align-items: center; gap: 2px; padding: var(--sp-1); flex: none; pointer-events: auto;
+  background: var(--float); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-pop);
+}
+.wb-pill-tools { min-width: 0; flex: 0 1 auto; overflow-x: auto; scrollbar-width: none; }
+.wb-pill-tools::-webkit-scrollbar { display: none; }
+.wb-pill-view { position: absolute; z-index: 3; right: var(--sp-2); bottom: var(--sp-2); }
+.wb-sep { width: 1px; height: 20px; margin: 0 var(--sp-1); background: var(--border); flex: none; }
 .wb-spacer { flex: 1; min-width: 4px; }
 .wb-tool {
-  width: 34px; height: 34px; border-radius: calc(var(--radius) * 0.8); border: 0; background: none; color: var(--text-2);
+  position: relative; width: 34px; height: 34px; border-radius: var(--r-md); border: 0; background: none; color: var(--text-2);
   display: grid; place-items: center; flex: none;
 }
 .wb-tool:hover:not(:disabled) { background: var(--hover); color: var(--text); }
-.wb-tool.on { background: var(--accent); color: var(--on-accent); }
+.wb-tool.on, .wb-tool.on:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
 .wb-tool:disabled { opacity: 0.4; }
 .wb-tool.danger:hover { color: var(--red); }
+/* Opens more of its kind: a small corner mark. */
+.wb-has-more::after {
+  content: ''; position: absolute; right: 4px; bottom: 4px; border: 3px solid transparent; border-right-color: currentColor;
+  border-bottom-color: currentColor; opacity: 0.7;
+}
+.wb-style-dot { display: block; border-radius: 50%; box-shadow: 0 0 0 2px var(--float), 0 0 0 3px var(--text-2); }
 .wb-size span { display: block; border-radius: 50%; background: currentColor; }
-.wb-colors { gap: 4px; }
+
+/* Shapes, and colour and size: small panels under the bar. */
+.wb-pop {
+  position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: var(--sp-1);
+  pointer-events: auto; background: var(--float); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-pop);
+  animation: wb-pop var(--dur-fast) var(--ease);
+}
+@keyframes wb-pop { from { opacity: 0; } }
+.wb-pop-style { display: grid; gap: var(--sp-2); padding: var(--sp-3); }
+.wb-pop-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.wb-colors { display: grid; grid-template-columns: repeat(4, auto); gap: var(--sp-2); justify-content: start; }
+.wb-sizes { display: flex; gap: 2px; }
 .wb-swatch {
-  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); padding: 0; flex: none;
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border); padding: 0; flex: none;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
 .wb-swatch.on { outline: 2px solid var(--focus); outline-offset: 2px; }
 .wb-zoom { min-width: 46px; text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .wb-pop { animation: none; } }
 
 .wb-canvas {
   flex: 1; min-height: 0; position: relative; overflow: hidden; touch-action: none; outline: none;
@@ -66,24 +92,28 @@
 .wb-call-head > svg { flex: none; color: var(--text-2); }
 .wb-call-head strong { font-size: var(--fs-ui); color: var(--text-strong); white-space: nowrap; }
 /* The page sits in the panel with its own rounded edge, not cut off square. */
-.wb-call .wb-canvas { margin: var(--sp-2); border-radius: var(--r-lg); box-shadow: 0 0 0 1px var(--border); }
-.wb-compact .wb-tool { width: 32px; height: 32px; }
+.wb-call .wb-stage { margin: var(--sp-2); }
+.wb-call .wb-canvas { border-radius: var(--r-lg); box-shadow: 0 0 0 1px var(--border); }
 .call-button.wb-waiting { box-shadow: 0 0 0 2px var(--accent); }
 
+/* A narrow board (a phone, a call beside its chat): the tools keep the top row; colour, undo and clear go to the
+   bottom left, and the view stands upright in the bottom right. */
+@container (max-width: 620px) {
+  .wb-float { position: static; }
+  .wb-pill-tools { position: absolute; z-index: 3; top: var(--sp-2); left: 50%; transform: translateX(-50%); max-width: calc(100% - 2 * var(--sp-2)); gap: 0; }
+  .wb-pill-actions { position: absolute; z-index: 3; left: var(--sp-2); bottom: var(--sp-2); }
+  .wb-pill-view { flex-direction: column; }
+  .wb-zoom { display: none; }
+  .wb-pop { z-index: 4; }
+  .wb-pop-shapes { top: calc(var(--sp-2) + 52px); }
+  .wb-pop-style { top: auto; bottom: calc(var(--sp-2) + 52px); left: var(--sp-2); transform: none; }
+}
+/* Fingers: bigger buttons. */
+@media (hover: none), (max-width: 720px) {
+  .wb-tool { width: 36px; height: 36px; }
+  .wb-swatch { width: 32px; height: 32px; }
+}
 @media (max-width: 720px) {
-  /* One row that scrolls sideways; a shadow at either end says there are more tools that way. */
-  .wb-toolbar {
-    padding: 4px 6px; gap: 4px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
-    background:
-      linear-gradient(to right, var(--surface) 30%, transparent) left / 32px 100% no-repeat local,
-      linear-gradient(to left, var(--surface) 30%, transparent) right / 32px 100% no-repeat local,
-      radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--text) 30%, transparent), transparent) left / 12px 100% no-repeat scroll,
-      radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--text) 30%, transparent), transparent) right / 12px 100% no-repeat scroll,
-      var(--surface);
-  }
-  .wb-toolbar::-webkit-scrollbar { display: none; }
-  .wb-tool { width: 38px; height: 38px; }
-  .wb-swatch { width: 26px; height: 26px; }
   .wb-call { min-height: 60vh; }
   .wb-viewers { display: none; }
 }

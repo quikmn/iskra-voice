@@ -12,7 +12,7 @@ import './afk/afk.css'
 import { WhisperControls } from './whisper/WhisperControls'
 import { RoomButton } from './rooms/RoomBits'
 import { EncryptedVoiceBadge } from './e2ee/E2eeVoice'
-import { VoiceBarRecordingMark } from './recording/Recording'
+import { VoiceBarRecordingMark, VoiceBarStopRecording } from './recording/Recording'
 
 /** Shown above your name while you're in voice (or when joining failed). */
 export function VoiceBar() {
@@ -101,6 +101,7 @@ export function VoiceBar() {
         <SoundboardButton variant="bar" />
         <RoomButton />
         <VoicePopoutButton />
+        <VoiceBarStopRecording />
         <span className="voice-controls-gap" />
         <button
           className="icon-button hang-up"

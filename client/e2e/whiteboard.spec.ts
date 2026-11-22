@@ -45,11 +45,34 @@ test('two people draw on a whiteboard channel together, live', async ({ browser 
   await expect(hostCanvas).toHaveAttribute('data-count', '1')
   await expect(friendCanvas).toHaveAttribute('data-count', '1')
 
+  // The tools float over the canvas in one row; colour, undo and clear beside them, the view in the corner.
+  const canvasBox = (await hostCanvas.boundingBox())!
+  for (const pill of ['.wb-pill-tools', '.wb-pill-actions', '.wb-pill-view']) {
+    const box = (await host.locator(pill).boundingBox())!
+    expect(box.x, pill).toBeGreaterThanOrEqual(canvasBox.x)
+    expect(box.y, pill).toBeGreaterThanOrEqual(canvasBox.y)
+    expect(box.x + box.width, pill).toBeLessThanOrEqual(canvasBox.x + canvasBox.width)
+    expect(box.y + box.height, pill).toBeLessThanOrEqual(canvasBox.y + canvasBox.height)
+    expect(box.height, pill).toBeLessThan(60)
+  }
+
   // The friend draws a red rectangle and an arrow at the same time as the host highlights.
+  const style = friend.getByRole('button', { name: 'Colour and size' })
+  await style.click()
   await friend.getByRole('radio', { name: 'Red' }).click()
+  await expect(friend.getByRole('radio', { name: 'Red' })).toBeChecked()
+  await friend.getByRole('radio', { name: 'Thick' }).click()
+  await friend.waitForTimeout(200)
+  await friend.screenshot({ path: join(SHOTS, 'whiteboard-style.png') })
+  await friend.keyboard.press('Escape')
+  await expect(friend.getByRole('radio', { name: 'Red' })).toHaveCount(0)
+  await expect(style).toBeFocused()
+  await friend.getByRole('button', { name: 'Shapes' }).click()
   await friend.getByRole('radio', { name: 'Rectangle (R)' }).click()
+  await expect(friend.getByRole('radio', { name: 'Rectangle (R)' })).toHaveCount(0) // picked: the shapes close
   await host.getByRole('radio', { name: 'Highlighter (M)' }).click()
   await Promise.all([drag(friend, [0.55, 0.2], [0.8, 0.5]), drag(host, [0.15, 0.6], [0.6, 0.62])])
+  await friend.getByRole('button', { name: 'Shapes' }).click()
   await friend.getByRole('radio', { name: 'Arrow (A)' }).click()
   await drag(friend, [0.3, 0.75], [0.6, 0.7])
   await expect(hostCanvas).toHaveAttribute('data-count', '4')
@@ -89,6 +112,23 @@ test('two people draw on a whiteboard channel together, live', async ({ browser 
   await expect(friend.getByTestId('whiteboard')).toBeVisible()
   const width = await friend.evaluate(() => document.documentElement.scrollWidth)
   expect(width).toBeLessThanOrEqual(390)
+  // Every bar is on the screen: the tools on top, colour/undo bottom left, the view bottom right, none overlapping.
+  const phoneCanvas = (await friendCanvas.boundingBox())!
+  const boxes = await Promise.all(['.wb-pill-tools', '.wb-pill-actions', '.wb-pill-view'].map(async (pill) => (await friend.locator(pill).boundingBox())!))
+  for (const box of boxes) {
+    expect(box.x).toBeGreaterThanOrEqual(phoneCanvas.x)
+    expect(box.x + box.width).toBeLessThanOrEqual(phoneCanvas.x + phoneCanvas.width)
+    expect(box.y + box.height).toBeLessThanOrEqual(phoneCanvas.y + phoneCanvas.height)
+  }
+  const [toolsBox, actionsBox, viewBox] = boxes
+  expect(toolsBox.y + toolsBox.height).toBeLessThan(actionsBox.y)
+  expect(actionsBox.x + actionsBox.width).toBeLessThan(viewBox.x)
+  expect(await friend.locator('.wb-pill-tools').evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  await friend.getByRole('button', { name: 'Colour and size' }).click()
+  await friend.getByRole('radio', { name: 'Blue' }).click()
+  await friend.waitForTimeout(200)
+  await friend.screenshot({ path: join(SHOTS, 'whiteboard-phone-style.png') })
+  await friend.keyboard.press('Escape')
   await friend.getByRole('radio', { name: 'Pen (P)' }).click()
   await drag(friend, [0.2, 0.2], [0.7, 0.3])
   await expect(hostCanvas).toHaveAttribute('data-count', '5')
@@ -129,6 +169,7 @@ test('an end-to-end encrypted whiteboard syncs between members', async ({ browse
   await expect(friend.getByTestId('whiteboard')).toBeVisible()
   await drag(host, [0.2, 0.3], [0.6, 0.4])
   await expect(friend.locator('.wb-canvas')).toHaveAttribute('data-count', '1', { timeout: 15_000 })
+  await friend.getByRole('button', { name: 'Shapes' }).click()
   await friend.getByRole('radio', { name: 'Rectangle (R)' }).click()
   await drag(friend, [0.5, 0.5], [0.8, 0.8])
   await expect(host.locator('.wb-canvas')).toHaveAttribute('data-count', '2', { timeout: 15_000 })
