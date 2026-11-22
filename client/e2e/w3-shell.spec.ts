@@ -130,15 +130,10 @@ test('a message\'s "⋯" menu stays in the chat pane and on screen; on a phone i
 
   async function openMenu(text: string) {
     const message = host.locator('.message', { hasText: text }).last()
-    // Hover only once the list has settled: a message that just arrived still moves (scroll to the end), and a hover
-    // during that lands on the row above it (seen on CI).
-    let last = ''
-    await expect.poll(async () => {
-      const b = JSON.stringify(await message.boundingBox())
-      const still = b === last
-      last = b
-      return still
-    }, { intervals: [100] }).toBe(true)
+    // Hover only once the server has confirmed it: a message still sending has no actions, and when it's confirmed it
+    // joins the group above and gets shorter, so a hover made before lands on the row above it (CI trace: the row
+    // still had class "sending" when hovered).
+    await expect(message).not.toHaveClass(/\bsending\b/)
     await message.hover()
     const more = message.getByRole('button', { name: 'More', exact: true })
     await expect(more).toBeVisible()
