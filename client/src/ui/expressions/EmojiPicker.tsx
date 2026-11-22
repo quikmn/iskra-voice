@@ -11,6 +11,7 @@ import { useApp } from '../../state/store'
 import { parseCustomEmoji, searchEmoji, type EmojiResult } from './emoji'
 import { EMOJI_CATEGORIES } from './emojiData'
 import { usePopoverPosition } from './popover'
+import { CustomEmojiImage } from './CustomEmoji'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { moveInGrid } from '../a11y'
 import './expressions.css'
@@ -42,10 +43,7 @@ export function EmojiGlyph({ serverKey, emoji, className }: { serverKey: string;
   const emojis = useServerEmojis(serverKey)
   if (!custom) return <span className={className}>{emoji}</span>
   const found = emojis.find((e) => e.id === custom.id)
-  const url = serverFileUrl(serverKey, found?.url ?? null)
-  return url
-    ? <img className={`custom-emoji ${className ?? ''}`} src={url} alt={`:${custom.name}:`} title={`:${found?.name ?? custom.name}:`} draggable={false} />
-    : <span className={className}>:{custom.name}:</span>
+  return <CustomEmojiImage src={serverFileUrl(serverKey, found?.url ?? null)} name={found?.name ?? custom.name} className={className} />
 }
 
 type Category = keyof typeof en.expressions.picker.categories
@@ -153,7 +151,7 @@ export function EmojiPicker({
 
   const glyph = (item: Item) =>
     item.custom
-      ? <img className="custom-emoji" src={serverFileUrl(item.source ?? serverKey, item.custom.url) ?? undefined} alt={item.label} loading="lazy" draggable={false} />
+      ? <CustomEmojiImage src={serverFileUrl(item.source ?? serverKey, item.custom.url)} name={item.custom.name} decorative lazy />
       : item.value
   const describe = (item: Item) => (item.source ? t('expressions.picker.fromServer', { name: item.label, server: servers[item.source]?.name ?? '' }) : item.label)
 
@@ -197,7 +195,7 @@ export function EmojiPicker({
               >
                 {typeof section.icon === 'string'
                   ? section.icon
-                  : <img className="custom-emoji" src={serverFileUrl(section.source ?? serverKey, section.icon.url) ?? undefined} alt="" />}
+                  : <CustomEmojiImage src={serverFileUrl(section.source ?? serverKey, section.icon.url)} name={section.icon.name} decorative />}
               </button>
             ))}
           </nav>

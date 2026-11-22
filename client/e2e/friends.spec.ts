@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { agreeToTerms, createInviteLink, joinVia, send, SHOTS, startServer, type TestServer } from './helpers'
+import { agreeToTerms, createInviteLink, joinVia, send, SHOTS, startServer, type TestServer, firstRun } from './helpers'
 
 let server: TestServer
 test.beforeAll(async () => {
@@ -59,7 +59,7 @@ test('two friends join with invite links and chat', async ({ browser }) => {
 test('a fresh browser starts at onboarding', async ({ browser }) => {
   const host = await (await browser.newContext()).newPage()
   await host.goto('/')
-  await expect(host.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible()
+  await expect(firstRun(host)).toBeVisible()
   await host.screenshot({ path: join(SHOTS, 'onboarding.png') })
 })
 

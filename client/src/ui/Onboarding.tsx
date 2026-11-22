@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { decodeRecoveryKey } from '../core/recovery'
 import { usePendingLink } from '../state/link'
@@ -8,9 +8,9 @@ import { useServerInfo } from '../state/serverName'
 import { InviteIcon } from './dialogs/JoinDialog'
 import { OpenInApp } from './OpenInApp'
 import { LinkJoin } from './LinkJoin'
-import { acceptTerms, needsAcceptance, useTerms, useTermsAccepted } from '../state/terms'
+import { needsAcceptance, useTerms, useTermsAccepted } from '../state/terms'
 import { takeDeletedNotice } from '../state/accountDeletion'
-import { TermsAgreement, TermsFirst } from './safety/Terms'
+import { TermsFirst } from './safety/Terms'
 import { addingMode, inHost } from '../state/accounts'
 import { ChevronRight, Key, Smartphone, Sparkles, User } from './icons'
 
@@ -37,14 +37,18 @@ export function Onboarding() {
   const trimmed = name.trim()
   const seed = restoring ? decodeRecoveryKey(recoveryKey) : null
   const keyProblem = restoring && recoveryKey.trim().length > 20 && !seed
-  // The terms are agreed on the first screen, whichever way people go from there.
+  // First run is two steps in one card: agree to the terms, then say whether you're new. A device that has agreed
+  // (an account added later, or back from another screen) only sees the second.
   const accepted = useTermsAccepted()
-  const [agreed, setAgreed] = useState(false)
+  const [twoSteps] = useState(() => !accepted)
   const [deleted] = useState(takeDeletedNotice)
-  const pick = (next: Mode) => () => {
-    if (!accepted) acceptTerms()
-    setMode(next)
-  }
+  // Agreeing swaps the step under the keyboard: carry on at the first choice.
+  const choices = useRef<HTMLDivElement>(null)
+  const wasAccepted = useRef(accepted)
+  useEffect(() => {
+    if (accepted && !wasAccepted.current) choices.current?.querySelector('button')?.focus()
+    wasAccepted.current = accepted
+  }, [accepted])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -96,29 +100,31 @@ export function Onboarding() {
   if (mode === 'choose') {
     return (
       <div className="onboarding">
-        <div className="onboarding-card">
-          {brand}
+        <div className="onboarding-card" data-step={accepted ? 'choice' : 'terms'}>
+          <div className="onboarding-head">
+            {brand}
+            {twoSteps && <p className="onboarding-step">{t('account.welcome.step', { step: accepted ? 2 : 1, of: 2 })}</p>}
+          </div>
           {deleted && <p className="account-deleted-note" role="status">{t('safety.deleteAccount.doneNotice')}</p>}
           {invited || <p className="lead">{t('account.welcome.lead')}</p>}
-          {!accepted && <TermsAgreement agreed={agreed} onChange={setAgreed} />}
-          <p className="onboarding-question">{t('account.welcome.question')}</p>
-          {/* Right above the greyed-out choices, so it shows on a phone too. */}
-          {!accepted && !agreed && <p className="terms-hint" id="terms-hint">{t('safety.terms.tickFirst')}</p>}
-          <div className="choice-list equal">
-            <button type="button" className="choice rich" disabled={!accepted && !agreed} aria-describedby={!accepted && !agreed ? 'terms-hint' : undefined} onClick={pick('new')}>
-              <span className="choice-icon" aria-hidden><Sparkles size={18} /></span>
-              <strong>{t('account.welcome.new')}</strong>
-              <span className="muted">{t('account.welcome.newHint')}</span>
-              <span className="choice-arrow" aria-hidden><ChevronRight size={16} /></span>
-            </button>
-            <button type="button" className="choice rich" disabled={!accepted && !agreed} aria-describedby={!accepted && !agreed ? 'terms-hint' : undefined} onClick={pick('existing')}>
-              <span className="choice-icon" aria-hidden><User size={18} /></span>
-              <strong>{t('account.welcome.existing')}</strong>
-              <span className="muted">{t('account.welcome.existingHint')}</span>
-              <span className="choice-arrow" aria-hidden><ChevronRight size={16} /></span>
-            </button>
-          </div>
-          {pendingInvite && <p className="onboarding-note muted">{t('account.welcome.invitedTwice')}</p>}
+          <TermsFirst>
+            <p className="onboarding-question">{t('account.welcome.question')}</p>
+            <div className="choice-list equal" ref={choices}>
+              <button type="button" className="choice rich" onClick={() => setMode('new')}>
+                <span className="choice-icon" aria-hidden><Sparkles size={18} /></span>
+                <strong>{t('account.welcome.new')}</strong>
+                <span className="muted">{t('account.welcome.newHint')}</span>
+                <span className="choice-arrow" aria-hidden><ChevronRight size={16} /></span>
+              </button>
+              <button type="button" className="choice rich" onClick={() => setMode('existing')}>
+                <span className="choice-icon" aria-hidden><User size={18} /></span>
+                <strong>{t('account.welcome.existing')}</strong>
+                <span className="muted">{t('account.welcome.existingHint')}</span>
+                <span className="choice-arrow" aria-hidden><ChevronRight size={16} /></span>
+              </button>
+            </div>
+            {pendingInvite && <p className="onboarding-note muted">{t('account.welcome.invitedTwice')}</p>}
+          </TermsFirst>
         </div>
       </div>
     )

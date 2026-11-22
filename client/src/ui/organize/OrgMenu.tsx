@@ -5,11 +5,9 @@ import { createPortal } from 'react-dom'
 import { useEscapeLayer, useFocusTrap } from '../layers'
 import { focusFirstItem } from '../a11y'
 import { Check, ChevronLeft, ChevronRight } from '../icons'
+import { placeMenu, type MenuAnchor } from './menuPlacement'
 
-export interface MenuAnchor {
-  x: number
-  y: number
-}
+export type { MenuAnchor } from './menuPlacement'
 
 const PHONE = '(max-width: 760px), (pointer: coarse)'
 const phoneLike = () => window.matchMedia(PHONE).matches
@@ -39,9 +37,8 @@ export function OrgMenu({ anchor, label, onClose, children }: { anchor: MenuAnch
   useLayoutEffect(() => {
     if (sheet || !anchor || !ref.current) return
     const { offsetWidth: w, offsetHeight: h } = ref.current
-    // Stays on screen: opens leftward or upward from the pointer when there's no room, else slides to fit.
-    const left = anchor.x + w + 8 > window.innerWidth && anchor.x - w >= 8 ? anchor.x - w : Math.max(8, Math.min(anchor.x, window.innerWidth - w - 8))
-    const top = anchor.y + h + 8 > window.innerHeight && anchor.y - h >= 8 ? anchor.y - h : Math.max(8, Math.min(anchor.y, window.innerHeight - h - 8))
+    // Stays on screen (and in its pane, when the anchor names one): flips to the other side, else slides to fit.
+    const { left, top } = placeMenu(anchor, { w, h }, { w: window.innerWidth, h: window.innerHeight })
     setPosition((p) => (p && p.left === left && p.top === top ? p : { left, top }))
   }, [anchor, sheet, children])
 

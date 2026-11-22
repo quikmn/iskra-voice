@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { _electron as electron, expect, test } from '@playwright/test'
 import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
-import { appWindow, agreeToTerms, SHOTS, startServer, type TestServer } from './helpers'
+import { appWindow, agreeToTerms, SHOTS, startServer, type TestServer, firstRun } from './helpers'
 /** The bits of Electron's BrowserWindow these checks use (Electron's types aren't part of the client project). */type AppWin = { webContents: { getURL(): string; send(channel: string, ...args: unknown[]): void }; isVisible(): boolean }
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -33,7 +33,7 @@ test('the desktop app runs the web app on app:// and can join a server', async (
   })
   try {
     const page = await appWindow(app)
-    await expect(page.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible()
+    await expect(firstRun(page)).toBeVisible()
     expect(page.url()).toMatch(/^app:\/\/iskra\//)
 
     // The window title always names the build: version and short commit ("dev" without git), after the page's own title.

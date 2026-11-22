@@ -14,6 +14,7 @@ import { formatNumber } from '../../i18n/format'
 import { useServerBaseRoles } from '../../state/baseRoles'
 import { baseAllows } from '../../state/permissions'
 import { SwitchRow } from '../kit'
+import { CustomEmojiImage } from './CustomEmoji'
 
 const MAX_EMOJIS = 200
 
@@ -127,7 +128,7 @@ function EmojiRow({ server, emoji }: { server: ServerState; emoji: CustomEmoji }
 
   return (
     <li className="expression-row">
-      <img className="custom-emoji big" src={serverFileUrl(server.key, emoji.url) ?? undefined} alt={`:${emoji.name}:`} />
+      <CustomEmojiImage src={serverFileUrl(server.key, emoji.url)} name={emoji.name} className="big" />
       <div className="expression-fields">
         <input
           value={name} maxLength={32} aria-label={t('expressions.settings.nameOf', { name: `:${emoji.name}:` })}

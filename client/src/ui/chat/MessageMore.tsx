@@ -21,6 +21,7 @@ import { SmilePlus } from '../expressions/icons'
 import { Copy, Flag, Link, ListChecks, MessageDot, MoreHorizontal, Pencil, Reply, Trash } from '../icons'
 import { Menu, MenuGroup, MenuItem, type MenuAnchor } from '../kit'
 import { ForwardIcon } from '../organize/ForwardDialog'
+import { paneOf } from '../organize/menuPlacement'
 import { plainText } from '../markdown'
 import { ChannelSaveRemind, flashDone } from '../productivity/MessageTools'
 import { TranslateMenuItem } from '../translate/Translate'
@@ -62,7 +63,8 @@ export function MessageMoreButton(props: MessageMenuProps) {
         onClick={(e) => {
           if (anchor) return setAnchor(null)
           const r = e.currentTarget.getBoundingClientRect()
-          setAnchor({ x: r.right, y: r.bottom + 4 })
+          // Opens leftward from the button and stays inside the chat pane, so it never lies over the member list.
+          setAnchor({ x: r.right, y: r.bottom + 4, above: r.top - 4, align: 'end', within: paneOf(e.currentTarget) ?? undefined })
         }}
         title={t('common.more')} aria-label={t('common.more')} aria-haspopup="menu" aria-expanded={!!anchor}
       >

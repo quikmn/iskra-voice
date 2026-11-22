@@ -1,6 +1,7 @@
 import type { Messages } from '../types'
 
 export const expressions: Messages['expressions'] = {
+  emoji: { missing: '{{name}} (emojin finns inte)' },
   picker: {
     thisServer: 'Den här servern',
     results: 'Resultat',

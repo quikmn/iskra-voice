@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ROLES, roleRank, type Member, type Role } from '../core/protocol'
+import type { Member, Role } from '../core/protocol'
 import type { ServerState } from '../state/store'
 import { Avatar } from './bits'
 import { BotBadge } from './chat/BotBits'
@@ -12,7 +12,8 @@ import { CustomStatusLine } from './presence/Presence'
 import { TimeoutBadge } from './moderation/Moderation'
 import { useServerRoles } from '../state/roles'
 import { useServerBaseRoles } from '../state/baseRoles'
-import { hoistedRole, nameColor, rolesOf } from '../state/permissions'
+import { nameColor, rolesOf } from '../state/permissions'
+import { memberGroups } from '../state/memberOrder'
 import { userMenuProps } from './people/userMenuProps'
 import { useReadableColor } from '../theme/useReadable'
 import { useApp } from '../state/store'
@@ -34,13 +35,9 @@ export function MemberList({ server, onClose }: { server: ServerState; onClose?:
   const [query, setQuery] = useState<string | null>(null)
   const needle = query?.trim().toLocaleLowerCase() ?? ''
   const everyone = Object.values(server.members)
-  const members = everyone
-    .filter((m) => !needle || m.name.toLocaleLowerCase().includes(needle))
-    .sort((a, b) => a.name.localeCompare(b.name))
-  const online = members.filter((m) => m.online)
-  const offline = members.filter((m) => !m.online)
-  // Online people with a hoisted role are grouped under their highest one; the rest by level.
-  const hoisted = new Map(online.map((m) => [m.accountKey, hoistedRole(m, roles)]))
+  const members = everyone.filter((m) => !needle || m.name.toLocaleLowerCase().includes(needle))
+  // One order for the column and the phone drawer: hoisted roles, then levels, offline last (state/memberOrder.ts).
+  const groups = memberGroups(members, roles)
   const row = (m: Member) => (
     <MemberRow key={m.accountKey} serverKey={server.key} member={m} color={nameColor(m, roles, baseRoles)} icon={rolesOf(m, roles).find((r) => r.icon)?.icon ?? null}
       onClick={(e) => openProfileCard(server.key, m.accountKey, e.currentTarget)} />
@@ -89,34 +86,24 @@ export function MemberList({ server, onClose }: { server: ServerState; onClose?:
         )}
       </header>
       {needle && members.length === 0 && <p className="member-list-none">{t('shell.members.none', { query: (query ?? '').trim() })}</p>}
-      {roles.filter((r) => r.hoist).map((role) => {
-        const group = online.filter((m) => hoisted.get(m.accountKey)?.id === role.id)
-        if (group.length === 0) return null
-        return (
-          <section key={`role-${role.id}`}>
-            <RoleHeading server={server} role={role} count={group.length} />
-            {group.map(row)}
-          </section>
-        )
-      })}
-      {[...ROLES].reverse().map((role) => {
-        const group = online.filter((m) => m.role === role && !hoisted.get(m.accountKey))
-        if (group.length === 0) return null
-        return (
-          <section key={role}>
-            <h2>
-              {roleTitle(role)} — {group.length}
-            </h2>
-            {group.map(row)}
-          </section>
-        )
-      })}
-      {offline.length > 0 && (
-        <section className="offline">
-          <h2>{t('presence.status.offline')} — {offline.length}</h2>
-          {offline.sort((a, b) => roleRank(b.role) - roleRank(a.role)).map(row)}
+      {groups.map((group) => group.kind === 'role' ? (
+        <section key={`role-${group.role.id}`} data-group={`role-${group.role.id}`}>
+          <RoleHeading server={server} role={group.role} count={group.members.length} />
+          {group.members.map(row)}
         </section>
-      )}
+      ) : group.kind === 'level' ? (
+        <section key={group.level} data-group={group.level}>
+          <h2>
+            {roleTitle(group.level)} — {group.members.length}
+          </h2>
+          {group.members.map(row)}
+        </section>
+      ) : (
+        <section key="offline" className="offline" data-group="offline">
+          <h2>{t('presence.status.offline')} — {group.members.length}</h2>
+          {group.members.map(row)}
+        </section>
+      ))}
     </div>
   )
 }

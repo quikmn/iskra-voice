@@ -3,6 +3,8 @@ export const account = {
   welcome: {
     lead: 'Voice and text chat with your friends, on servers you own.',
     question: 'Have you used Iskra before?',
+    /** First run: agreeing to the terms is step 1, new or returning is step 2. */
+    step: 'Step {{step}} of {{of}}',
     new: "I'm new to Iskra",
     newHint: "Pick a name and you're in. No email, no password.",
     existing: 'I already use Iskra on another device',

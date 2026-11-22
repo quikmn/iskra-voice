@@ -1179,3 +1179,13 @@ input[type='checkbox'], input[type='radio'] { width: auto; padding: 0; flex: non
 /* ── Media channels: seven channel kinds wrap onto two rows in "Create channel" ── */
 .segmented.wrap { flex-wrap: wrap; }
 .segmented.wrap button { flex: 1 1 auto; }
+
+/* ── First run: two steps in one card (terms, then new or returning), so it fits 1280×720 without scrolling ── */
+.onboarding-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
+.onboarding-step { margin: 0; flex: none; font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+.terms-first { gap: var(--sp-2); }
+.terms-first .terms-agreement { margin-bottom: var(--sp-1); }
+/* Why Continue is off: under it, and still taking its line once the box is ticked, so the card doesn't jump. */
+.terms-first .terms-hint { margin: 0; text-align: center; }
+.terms-hint.done { visibility: hidden; }
+.onboarding-question { margin-bottom: var(--sp-3); }

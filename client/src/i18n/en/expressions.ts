@@ -1,5 +1,7 @@
 // expressions text (English). Keep in step with ../sv/expressions.ts.
 export const expressions = {
+  /** A server emoji whose picture can't be shown (deleted, or its file is gone); {{name}} is ":name:". */
+  emoji: { missing: '{{name}} (emoji not available)' },
   picker: {
     thisServer: 'This server',
     results: 'Results',

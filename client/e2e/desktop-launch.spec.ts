@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test'
 import { DESKTOP_SKIP, desktopBuilt } from './desktopBuild'
-import { appWindow, SHOTS } from './helpers'
+import { appWindow, SHOTS, firstRun } from './helpers'
 /** The bits of Electron's BrowserWindow these checks use (Electron's types aren't part of the client project). */type AppWin = { webContents: { getURL(): string; send(channel: string, ...args: unknown[]): void }; isVisible(): boolean }
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -67,7 +67,7 @@ test('the splash shows first, then fades into the app', async () => {
     expect(log.filter((e) => e.startsWith('splash view')).at(-1)).toBe('splash view Iskra | Ready')
     expect(log.some((e) => e.includes('Updated to'))).toBe(false)
     expect(await splashWindows(app)).toBe(0)
-    await expect(page.getByRole('button', { name: /I'm new to Iskra/ })).toBeVisible()
+    await expect(firstRun(page)).toBeVisible()
     // This version is remembered, for "Updated to X" next time.
     expect(JSON.parse(readFileSync(join(userData, 'desktop.json'), 'utf8')).lastRunVersion).toBe(VERSION)
 
