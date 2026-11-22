@@ -27,10 +27,7 @@ public class FeedTests
 
         public Site()
         {
-            var port = new TcpListener(IPAddress.Loopback, 0);
-            port.Start();
-            var number = ((IPEndPoint)port.LocalEndpoint).Port;
-            port.Stop();
+            var number = Ports.Free();
             Url = $"http://127.0.0.1:{number}";
             _listener.Prefixes.Add(Url + "/");
             _listener.Start();
@@ -915,10 +912,7 @@ public class FeedTests
         Assert.Equal("feeds_url", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = "http://127.0.0.1:22/feed", channelId = server.General })));
         // A redirect to a closed port, to a refused port and to a private address all read the same.
         Assert.Equal("feeds_unreachable", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = site.Url + "/go", channelId = server.General })));
-        var closed = new TcpListener(IPAddress.Loopback, 0);
-        closed.Start();
-        var port = ((IPEndPoint)closed.LocalEndpoint).Port;
-        closed.Stop();
+        var port = Ports.Free(); // nothing listens on it
         Assert.Equal("feeds_unreachable", ErrorKey(await admin.RequestAsync("feeds.add", new { kind = "rss", source = $"http://127.0.0.1:{port}/feed", channelId = server.General })));
     }
 }

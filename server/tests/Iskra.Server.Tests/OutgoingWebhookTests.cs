@@ -25,10 +25,7 @@ public class OutgoingWebhookTests
 
         public Receiver()
         {
-            var port = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
-            port.Start();
-            var number = ((IPEndPoint)port.LocalEndpoint).Port;
-            port.Stop();
+            var number = Ports.Free();
             Url = $"http://127.0.0.1:{number}/hook";
             _listener.Prefixes.Add($"http://127.0.0.1:{number}/");
             _listener.Start();

@@ -68,10 +68,7 @@ public class PreviewTests
 
         public Site(Func<HttpListenerContext, Task> handle)
         {
-            var port = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
-            port.Start();
-            var number = ((IPEndPoint)port.LocalEndpoint).Port;
-            port.Stop();
+            var number = Ports.Free();
             Url = $"http://127.0.0.1:{number}/";
             _listener.Prefixes.Add(Url);
             _listener.Start();

@@ -292,10 +292,8 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
         _process = process;
         StopIfOutdated(); // the settings changed while it was starting
         // LiveKit's own lines can carry participant identities and addresses: only its level and a scrubbed message pass.
-        process.OutputDataReceived += (_, e) => { if (e.Data is not null) LiveKitLines.Relay(_log, e.Data); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) LiveKitLines.Relay(_log, e.Data); };
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+        // Read on threads of its own: BeginOutputReadLine would hold two thread-pool threads for as long as LiveKit runs (Windows).
+        _ = Hosting.ChildOutput.Read(process, line => LiveKitLines.Relay(_log, line), line => LiveKitLines.Relay(_log, line));
 
         try
         {
