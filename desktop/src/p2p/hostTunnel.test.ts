@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { HostTunnels, readWorldP2p } from './hostTunnel'
+import { hostKeyHex } from './keys'
 import { P2pNode } from './node'
 
 const secret = Buffer.from(Array.from({ length: 32 }, (_, i) => i + 1)).toString('base64url')
@@ -43,5 +44,26 @@ test('without a network to join the tunnel says so instead of starting', async (
   writeFileSync(join(dir, 'server.json'), JSON.stringify({ P2p: { Enabled: false } }))
   assert.equal((await tunnels.sync('living-room', dir)).state, 'off')
   assert.equal(tunnels.status('nothing').state, 'off')
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('a new secret replaces the tunnel without ever saying off', async () => {
+  const changes: string[] = []
+  const tunnels = new HostTunnels(new P2pNode({ unavailable: 'no-network' }), (_, s) => changes.push(`${s.state}:${s.hostKey}`))
+  const dir = world({ 'server.json': JSON.stringify({ P2p: { Enabled: true } }), 'p2p.key': `${secret}\n`, 'p2p.port': '51234\n' })
+  await tunnels.sync('living-room', dir)
+  changes.length = 0
+  // The server wrote a new p2p.key (p2p.rotate): the status is "starting" with the new host key at once. An "off" in
+  // between was what the owner's panel showed, for up to 15 s, when the rotate reply caught it.
+  const next = Buffer.alloc(32, 9)
+  writeFileSync(join(dir, 'p2p.key'), `${next.toString('base64url')}\n`)
+  const syncing = tunnels.sync('living-room', dir)
+  assert.equal(tunnels.status('living-room').state, 'starting')
+  await syncing
+  assert.deepEqual(changes, [`starting:${hostKeyHex(next)}`, `unavailable:${hostKeyHex(next)}`])
+  // Switched off: that is the one "off".
+  writeFileSync(join(dir, 'server.json'), JSON.stringify({ P2p: { Enabled: false } }))
+  await tunnels.sync('living-room', dir)
+  assert.equal(changes.at(-1), 'off:null')
   rmSync(dir, { recursive: true, force: true })
 })

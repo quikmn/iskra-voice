@@ -83,10 +83,14 @@ export class HostTunnels {
     const key = `${world.secret.toString('hex')}:${world.tunnelPort}:${world.turnPort}`
     const current = this.running.get(id)
     if (current && current.key === key) return current.status
-    await this.stop(id)
+    // A new secret or port: the tunnel is replaced, and from now it is "starting". Never "off" in between: the owner's
+    // panel took that for the answer (p2p.rotate's reply could carry it) and showed a switched-on tunnel as off.
+    if (current) current.stopped = true
     const run: Running = { key, tunnel: null, status: { state: 'starting', hostKey: hostKeyHex(world.secret), nat: null, connections: 0 }, stopped: false }
     this.running.set(id, run)
     this.onChange(id, run.status)
+    await current?.tunnel?.close().catch(() => undefined)
+    if (run.stopped) return this.status(id)
     try {
       const dht = await this.node.get()
       if (run.stopped) return this.status(id)

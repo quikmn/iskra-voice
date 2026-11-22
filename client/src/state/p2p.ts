@@ -34,6 +34,16 @@ export async function loadP2pStatus(key: string): Promise<P2pStatus> {
   return status
 }
 
+/**
+ * How often the owner's panel asks a standalone server about its own tunnel (ms), or null for never. Quickly until
+ * the tunnel has settled: while it starts, and while the switch is on but the server still says "off" (a p2p.set
+ * reply from before the tunnel program started, or an older tunnel program that says "off" while it changes keys).
+ */
+export function tunnelPollMs(enabled: boolean, state: string | undefined): number | null {
+  if (!enabled || !state) return null
+  return state === 'starting' || state === 'off' ? 1500 : 15_000
+}
+
 /** Turns the feature on or off (owner). The desktop app hosting the server starts or stops its tunnel to match. */
 export async function setP2p(key: string, enabled: boolean): Promise<void> {
   const connection = connectionFor(key)
