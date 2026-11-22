@@ -202,7 +202,8 @@ public class RestoreDrillTests
         var sealedPassphrase = Ed25519.ToB64u(Sodium.SealToEd25519(Ed25519.Payload(Features.BackupFeature.PassphraseContext,
             server.World.ServerPublicKey, System.Text.Encoding.UTF8.GetBytes(Passphrase)), server.World.ServerPublicKey));
         var before = TableCounts(Path.Combine(server.WorldPath, "iskra.db"), out _);
-        var made = await owner.RequestAsync("backup.create", new { sealedPassphrase });
+        // The drill keeps the real key derivation cost, so the answer takes its time.
+        var made = await owner.RequestAsync("backup.create", new { sealedPassphrase }, TestClient.HeavyWork);
         Assert.Equal("result", made.Type());
         var bytes = await server.CreateClient().GetByteArrayAsync(made.Body().GetProperty("url").GetString());
         Assert.True(BackupFile.LooksEncrypted(bytes));

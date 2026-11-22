@@ -30,29 +30,19 @@ public class HttpsTests : IDisposable
         return null;
     }
 
-    private static int FreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
-
     private Process Start(string file, string arguments, Dictionary<string, string>? env = null)
     {
         var info = new ProcessStartInfo(file, arguments) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (var (k, v) in env ?? []) info.Environment[k] = v;
         var process = Process.Start(info)!;
         var tag = Path.GetFileNameWithoutExtension(file);
-        process.OutputDataReceived += (_, e) => { if (e.Data is not null) _log.Enqueue($"[{tag}] {e.Data}"); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log.Enqueue($"[{tag}!] {e.Data}"); };
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+        Hosting.ChildOutput.Read(process, line => _log.Enqueue($"[{tag}] {line}"), line => _log.Enqueue($"[{tag}!] {line}"));
         _processes.Add(process);
         return process;
     }
 
-    /// <summary>Starts Pebble validating HTTP-01 on <paramref name="httpPort"/>; returns its ACME directory URL.</summary>
-    private string StartPebble(int httpPort)
+    /// <summary>Starts Pebble validating HTTP-01 on <paramref name="httpPort"/>; returns its ACME directory URL once it answers.</summary>
+    private async Task<string> StartPebbleAsync(int httpPort)
     {
         var pebble = Pebble();
         Assert.SkipWhen(pebble is null, "Pebble isn't installed in .tools");
@@ -71,7 +61,7 @@ public class HttpsTests : IDisposable
             File.WriteAllText(Path.Combine(_dir, "pebble-key.pem"), rsa.ExportPkcs8PrivateKeyPem());
         }
 
-        int acmePort = FreePort(), managementPort = FreePort(), tlsAlpn = FreePort();
+        int acmePort = Ports.Free(), managementPort = Ports.Free(), tlsAlpn = Ports.Free();
         File.WriteAllText(Path.Combine(_dir, "pebble.json"), JsonSerializer.Serialize(new
         {
             pebble = new
@@ -86,8 +76,9 @@ public class HttpsTests : IDisposable
                 externalAccountBindingRequired = false,
             },
         }));
-        Start(pebble!, $"-config \"{Path.Combine(_dir, "pebble.json")}\"",
+        var process = Start(pebble!, $"-config \"{Path.Combine(_dir, "pebble.json")}\"",
             new() { ["PEBBLE_VA_NOSLEEP"] = "1", ["PEBBLE_WFE_NONCEREJECT"] = "0" });
+        await Ports.ListeningAsync(acmePort, process, "Pebble");
         return $"https://127.0.0.1:{acmePort}/dir";
     }
 
@@ -121,8 +112,8 @@ public class HttpsTests : IDisposable
     [Fact]
     public async Task Gets_a_certificate_and_serves_https_with_a_redirect()
     {
-        int httpPort = FreePort(), httpsPort = FreePort(), port = FreePort();
-        var directory = StartPebble(httpPort);
+        int httpPort = Ports.Free(), httpsPort = Ports.Free(), port = Ports.Free();
+        var directory = await StartPebbleAsync(httpPort);
 
         var world = Path.Combine(_dir, "world");
         Directory.CreateDirectory(world);
@@ -163,8 +154,8 @@ public class HttpsTests : IDisposable
     [Fact]
     public async Task Internet_hosting_gets_a_certificate_and_serves_it_on_the_same_port()
     {
-        var port = FreePort();
-        var directory = StartPebble(port); // Pebble's "port 80" check lands on the server's one port
+        var port = Ports.Free();
+        var directory = await StartPebbleAsync(port); // Pebble's "port 80" check lands on the server's one port
 
         var world = Path.Combine(_dir, "world");
         Directory.CreateDirectory(world);

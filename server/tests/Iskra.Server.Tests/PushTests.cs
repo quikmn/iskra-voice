@@ -446,10 +446,7 @@ public class PushTests
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Push:AllowLoopbackForTests"] = "true" }).Build();
         using var sender = new WebPushSender(server.World, keys, config);
 
-        var port = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
-        port.Start();
-        var url = $"http://127.0.0.1:{((IPEndPoint)port.LocalEndpoint).Port}/";
-        port.Stop();
+        var url = $"http://127.0.0.1:{Ports.Free()}/";
         using var listener = new HttpListener();
         listener.Prefixes.Add(url);
         listener.Start();

@@ -212,7 +212,7 @@ public sealed class FakeVoiceBackend : IVoiceBackend
 public sealed record User(TestIdentity Identity, TestClient Client, JsonElement Welcome) : IDisposable
 {
     public string Key => Identity.AccountKey;
-    public Task<JsonElement> RequestAsync(string type, object? body = null) => Client.RequestAsync(type, body);
+    public Task<JsonElement> RequestAsync(string type, object? body = null, TimeSpan? wait = null) => Client.RequestAsync(type, body, wait);
     public Task<JsonElement> EventAsync(string type) => Client.EventAsync(type);
     public Task NoEventAsync(string type) => Client.NoEventAsync(type);
 
@@ -288,6 +288,13 @@ public sealed class TestIdentity : IDisposable
 public sealed class TestClient : IDisposable
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// How long to wait for the answer to a request that works for seconds before it answers: a backup at the real
+    /// Argon2id cost (256 MB, three passes) takes about a second alone and several on a busy CI runner. Only for those;
+    /// everything else answers at once and keeps the short wait.
+    /// </summary>
+    public static readonly TimeSpan HeavyWork = TimeSpan.FromSeconds(60);
     private readonly WebSocket _ws;
     private readonly Channel<JsonElement> _frames = System.Threading.Channels.Channel.CreateUnbounded<JsonElement>();
     private readonly List<JsonElement> _stash = [];
@@ -338,7 +345,7 @@ public sealed class TestClient : IDisposable
         _ws.SendAsync(Encoding.UTF8.GetBytes(text), WebSocketMessageType.Text, true, CancellationToken.None);
 
     /// <summary>The next frame, whatever it is.</summary>
-    public async Task<JsonElement> ReceiveAsync()
+    public async Task<JsonElement> ReceiveAsync(TimeSpan? wait = null)
     {
         if (_stash.Count > 0)
         {
@@ -346,7 +353,7 @@ public sealed class TestClient : IDisposable
             _stash.RemoveAt(0);
             return first;
         }
-        using var cts = new CancellationTokenSource(Timeout);
+        using var cts = new CancellationTokenSource(wait ?? Timeout);
         try
         {
             return await _frames.Reader.ReadAsync(cts.Token);
@@ -366,7 +373,7 @@ public sealed class TestClient : IDisposable
     }
 
     /// <summary>Sends a request and returns its result or error frame. Events that arrive meanwhile are kept for <see cref="EventAsync"/>.</summary>
-    public async Task<JsonElement> RequestAsync(string type, object? body = null)
+    public async Task<JsonElement> RequestAsync(string type, object? body = null, TimeSpan? wait = null)
     {
         var id = $"r{++_nextId}";
         var frame = new JsonObject { ["type"] = type, ["id"] = id };
@@ -378,7 +385,7 @@ public sealed class TestClient : IDisposable
         {
             while (true)
             {
-                var next = await ReceiveAsync();
+                var next = await ReceiveAsync(wait);
                 if (next.TryGetProperty("id", out var replyId) && replyId.GetString() == id) return next;
                 skipped.Add(next);
             }

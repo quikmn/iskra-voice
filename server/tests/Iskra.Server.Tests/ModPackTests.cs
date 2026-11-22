@@ -26,6 +26,15 @@ public class ModPackTests
         return mod;
     }
 
+    /// <summary>Every property name and string value in <paramref name="element"/>, at any depth.</summary>
+    private static IEnumerable<string> Strings(JsonElement element) => element.ValueKind switch
+    {
+        JsonValueKind.Object => element.EnumerateObject().SelectMany(p => Strings(p.Value).Prepend(p.Name)),
+        JsonValueKind.Array => element.EnumerateArray().SelectMany(Strings),
+        JsonValueKind.String => [element.GetString()!],
+        _ => [],
+    };
+
     private static async Task<List<string?>> Actions(User by, string? action = null) =>
         (await by.RequestAsync("audit.list", new { action, limit = 100 })).Body().GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("action").GetString()).ToList();
 
@@ -191,8 +200,11 @@ public class ModPackTests
         var resolution = seen.Single(e => e.GetProperty("action").GetString() == "report.resolve");
         Assert.Equal(JsonValueKind.Null, resolution.GetProperty("reason").ValueKind);
         Assert.False(resolution.GetProperty("details").TryGetProperty("reason", out _));
-        Assert.DoesNotContain("hr-complaints", string.Join("", seen.Select(e => e.GetRawText())));
-        Assert.DoesNotContain("HR", string.Join("", seen.Select(e => e.GetRawText())));
+        // Every name and text in the entries, without the account keys: random base64 holds "HR" now and then.
+        var keys = new[] { owner.Key, admin.Key, mod.Key, sam.Key, tia.Key };
+        var words = seen.SelectMany(Strings).Where(text => !keys.Contains(text)).ToList();
+        Assert.DoesNotContain(words, text => text.Contains("hr-complaints", StringComparison.Ordinal));
+        Assert.DoesNotContain(words, text => text.Contains("HR", StringComparison.Ordinal));
 
         // An admin with the activity log sees it all.
         var full = (await admin.RequestAsync("member.history", new { accountKey = sam.Key })).Body().GetProperty("entries").EnumerateArray().ToList();

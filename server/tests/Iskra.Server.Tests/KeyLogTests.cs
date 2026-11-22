@@ -105,7 +105,7 @@ public class KeyLogTests
         Assert.Equal("Bob", entries[1].CheckedName());
         // The hashed data only commits to the name (older apps read an empty one).
         Assert.Equal("", entries[1].Json.GetProperty("name").GetString());
-        Assert.DoesNotContain("Bob", entries[1].Data);
+        Assert.DoesNotContain("\"Bob\"", entries[1].Data); // quoted: the keys and hashes next to it are random base64
 
         // keylog.head is the same signed head; a forged signature wouldn't check out.
         var again = (await bob.RequestAsync("keylog.head")).Body().GetProperty("head");

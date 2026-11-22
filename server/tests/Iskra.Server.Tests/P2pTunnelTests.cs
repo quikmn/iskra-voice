@@ -22,13 +22,6 @@ public class P2pTunnelTests : IDisposable
     private readonly List<Process> _processes = [];
     private readonly System.Collections.Concurrent.ConcurrentQueue<string> _log = new();
 
-    private static int FreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
-
     /// <summary>The pinned livekit-server in .tools (scripts/get-livekit), or null.</summary>
     private static string? LiveKit()
     {
@@ -46,10 +39,7 @@ public class P2pTunnelTests : IDisposable
         var dll = Path.Combine(AppContext.BaseDirectory, "iskra-server.dll");
         var info = new ProcessStartInfo("dotnet", $"\"{dll}\" \"{world}\"") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
         var process = Process.Start(info)!;
-        process.OutputDataReceived += (_, e) => { if (e.Data is not null) _log.Enqueue(e.Data); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log.Enqueue(e.Data); };
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+        Hosting.ChildOutput.Read(process, line => _log.Enqueue(line), line => _log.Enqueue(line));
         _processes.Add(process);
         return process;
     }
@@ -180,7 +170,7 @@ public class P2pTunnelTests : IDisposable
     [Fact]
     public async Task Tunnelled_connections_are_remote_friends_with_the_address_the_tunnel_names()
     {
-        var port = FreePort();
+        var port = Ports.Free();
         var world = Path.Combine(_dir, "world");
         Directory.CreateDirectory(world);
         File.WriteAllText(Path.Combine(world, "server.json"), JsonSerializer.Serialize(new
@@ -256,8 +246,8 @@ public class P2pTunnelTests : IDisposable
     {
         var livekit = LiveKit();
         Assert.SkipWhen(livekit is null, "livekit-server isn't in .tools");
-        int port = FreePort(), voicePort = FreePort(), rtcTcp = FreePort();
-        var rtcUdp = 40000 + Random.Shared.Next(20000);
+        int port = Ports.Free(), voicePort = Ports.Free(), rtcTcp = Ports.Free();
+        var rtcUdp = Ports.FreeRun(2); // TURN goes on the one after it
         var world = Path.Combine(_dir, "voice");
         Directory.CreateDirectory(world);
         File.WriteAllText(Path.Combine(world, "server.json"), JsonSerializer.Serialize(new
@@ -299,12 +289,12 @@ public class P2pTunnelTests : IDisposable
     {
         var binary = LiveKit();
         Assert.SkipWhen(binary is null, "livekit-server isn't in .tools");
-        var rtcUdp = 40300 + Random.Shared.Next(15000);
+        var rtcUdp = Ports.FreeRun(2);
         using var world = World.OpenOrCreate(Path.Combine(_dir, "starting"));
         world.UpdateSettings(s => s with
         {
             LocalOnly = true,
-            Voice = s.Voice with { LiveKitPath = binary, Port = FreePort(), RtcTcpPort = FreePort(), RtcUdpPort = rtcUdp },
+            Voice = s.Voice with { LiveKitPath = binary, Port = Ports.Free(), RtcTcpPort = Ports.Free(), RtcUdpPort = rtcUdp },
         });
         var livekit = new LiveKitHost(world, NullLogger<LiveKitHost>.Instance);
         var flipped = 0;

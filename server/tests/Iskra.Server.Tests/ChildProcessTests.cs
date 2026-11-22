@@ -22,6 +22,23 @@ public class ChildProcessTests
         }
     }
 
+    /// <summary>
+    /// Regression: Process.BeginOutputReadLine reads on the thread pool, and on Windows each pipe then holds one of its
+    /// threads in a blocking read for as long as the child lives. Two children took every pool thread of a 4-core CI
+    /// runner, and tests in other classes timed out waiting for replies.
+    /// </summary>
+    [Fact]
+    public async Task A_childs_output_is_read_off_the_thread_pool()
+    {
+        var info = new System.Diagnostics.ProcessStartInfo("dotnet", "--version") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        using var child = System.Diagnostics.Process.Start(info)!;
+        var lines = new System.Collections.Concurrent.ConcurrentQueue<(string Text, bool OnPool)>();
+        void Keep(string line) => lines.Enqueue((line, Thread.CurrentThread.IsThreadPoolThread));
+        await ChildOutput.Read(child, Keep, Keep).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
+        Assert.Contains(lines, l => l.Text.Length > 0 && char.IsAsciiDigit(l.Text[0])); // the version, so every line was read
+        Assert.DoesNotContain(lines, l => l.OnPool);
+    }
+
     [Fact]
     public void Closing_stdin_stops_the_server_gracefully()
     {

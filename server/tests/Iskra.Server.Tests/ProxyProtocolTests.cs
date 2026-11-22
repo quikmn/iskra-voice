@@ -168,23 +168,13 @@ public class ProxyProtocolTests : IDisposable
 
     // --- the real server ---
 
-    private static int FreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
-
     private Process Start(string file, string arguments, Dictionary<string, string>? env = null)
     {
         var info = new ProcessStartInfo(file, arguments) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (var (k, v) in env ?? []) info.Environment[k] = v;
         var process = Process.Start(info)!;
         var tag = Path.GetFileNameWithoutExtension(file);
-        process.OutputDataReceived += (_, e) => { if (e.Data is not null) _log.Enqueue($"[{tag}] {e.Data}"); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log.Enqueue($"[{tag}!] {e.Data}"); };
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+        ChildOutput.Read(process, line => _log.Enqueue($"[{tag}] {line}"), line => _log.Enqueue($"[{tag}!] {line}"));
         _processes.Add(process);
         return process;
     }
@@ -322,13 +312,13 @@ public class ProxyProtocolTests : IDisposable
     public async Task Behind_the_proxy_the_header_names_the_client_everywhere()
     {
         var (cert, key) = Certificate();
-        int port = FreePort(), httpsPort = FreePort(), httpPort = FreePort();
+        int port = Ports.Free(), httpsPort = Ports.Free(), httpPort = Ports.Free();
         var world = World(new
         {
             Mode = "files", Domain = "localhost", CertFile = cert, KeyFile = key, Port = httpsPort, HttpPort = httpPort,
             ProxyProtocol = true, HttpProxyProtocol = true,
         }, new { Port = port });
-        var process = StartServer(world);
+        var process = StartServer(world, "--Claim:RefillPerSecond=0"); // the claim limit below is then an exact count
         await WaitForServerAsync(process, port);
 
         // v1 (nginx) and v2 (HAProxy send-proxy-v2), over IPv4 and IPv6: HTTPS works behind the header.
@@ -367,11 +357,8 @@ public class ProxyProtocolTests : IDisposable
         const string claim = "/.well-known/iskra-claim?nonce=abcdefghijklmnop";
         for (var i = 0; i < Features.OwnerSetup.ClaimBurst; i++)
             Assert.Equal(404, (await HttpAsync(await ConnectAsync(httpsPort, V2(IPAddress.Parse("198.51.100.7"), 1000 + i), tls: true), "GET", claim)).Status);
-        // The bucket refills 0.5 a second, so a slow run may get one or two more before the refusal.
-        var refused = false;
-        for (var i = 0; i < 5 && !refused; i++)
-            refused = (await HttpAsync(await ConnectAsync(httpsPort, V2(IPAddress.Parse("198.51.100.7"), 990 + i), tls: true), "GET", claim)).Status == 429;
-        Assert.True(refused);
+        // This server's bucket doesn't refill (Claim:RefillPerSecond=0), so the next one is refused however slow the run.
+        Assert.Equal(429, (await HttpAsync(await ConnectAsync(httpsPort, V2(IPAddress.Parse("198.51.100.7"), 990), tls: true), "GET", claim)).Status);
         Assert.Equal(404, (await HttpAsync(await ConnectAsync(httpsPort, V1(IPAddress.Parse("198.51.100.8")), tls: true), "GET", claim)).Status);
 
         // The security log records the address in the header.
@@ -391,7 +378,7 @@ public class ProxyProtocolTests : IDisposable
     public async Task A_header_from_an_address_that_isnt_trusted_is_refused()
     {
         var (cert, key) = Certificate();
-        int port = FreePort(), httpsPort = FreePort(), httpPort = FreePort();
+        int port = Ports.Free(), httpsPort = Ports.Free(), httpPort = Ports.Free();
         var world = World(new
         {
             Mode = "files", Domain = "localhost", CertFile = cert, KeyFile = key, Port = httpsPort, HttpPort = httpPort,
@@ -412,7 +399,7 @@ public class ProxyProtocolTests : IDisposable
     public async Task With_the_option_off_nothing_changes()
     {
         var (cert, key) = Certificate();
-        int port = FreePort(), httpsPort = FreePort(), httpPort = FreePort();
+        int port = Ports.Free(), httpsPort = Ports.Free(), httpPort = Ports.Free();
         var world = World(new { Mode = "files", Domain = "localhost", CertFile = cert, KeyFile = key, Port = httpsPort, HttpPort = httpPort }, new { Port = port });
         var process = StartServer(world);
         await WaitForServerAsync(process, port);
@@ -430,7 +417,7 @@ public class ProxyProtocolTests : IDisposable
     public async Task Bound_to_loopback_without_the_header_the_server_warns_and_runs()
     {
         var (cert, key) = Certificate();
-        int port = FreePort(), httpsPort = FreePort(), httpPort = FreePort();
+        int port = Ports.Free(), httpsPort = Ports.Free(), httpPort = Ports.Free();
         var world = World(new { Mode = "files", Domain = "localhost", CertFile = cert, KeyFile = key, Port = httpsPort, HttpPort = httpPort, BindAddress = "127.0.0.1" }, new { Port = port });
         var process = StartServer(world);
         await WaitForServerAsync(process, port);
@@ -463,7 +450,7 @@ public class ProxyProtocolTests : IDisposable
         var pebble = Pebble();
         Assert.SkipWhen(pebble is null, "Pebble isn't installed in .tools");
         Directory.CreateDirectory(_dir);
-        int port = FreePort(), httpsPort = FreePort(), httpPort = FreePort();
+        int port = Ports.Free(), httpsPort = Ports.Free(), httpPort = Ports.Free();
         using (var rsa = RSA.Create(2048))
         {
             var request = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -475,7 +462,7 @@ public class ProxyProtocolTests : IDisposable
             File.WriteAllText(Path.Combine(_dir, "pebble-cert.pem"), cert.ExportCertificatePem());
             File.WriteAllText(Path.Combine(_dir, "pebble-key.pem"), rsa.ExportPkcs8PrivateKeyPem());
         }
-        int acmePort = FreePort(), managementPort = FreePort(), tlsAlpn = FreePort();
+        int acmePort = Ports.Free(), managementPort = Ports.Free(), tlsAlpn = Ports.Free();
         File.WriteAllText(Path.Combine(_dir, "pebble.json"), JsonSerializer.Serialize(new
         {
             pebble = new
@@ -490,7 +477,8 @@ public class ProxyProtocolTests : IDisposable
                 externalAccountBindingRequired = false,
             },
         }));
-        Start(pebble!, $"-config \"{Path.Combine(_dir, "pebble.json")}\"", new() { ["PEBBLE_VA_NOSLEEP"] = "1", ["PEBBLE_WFE_NONCEREJECT"] = "0" });
+        var acme = Start(pebble!, $"-config \"{Path.Combine(_dir, "pebble.json")}\"", new() { ["PEBBLE_VA_NOSLEEP"] = "1", ["PEBBLE_WFE_NONCEREJECT"] = "0" });
+        await Ports.ListeningAsync(acmePort, acme, "Pebble");
 
         var world = World(new
         {
