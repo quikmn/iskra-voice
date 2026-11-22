@@ -9,6 +9,8 @@
 - Stop a recording straight from the call screen or the voice bar; activities are turned on or off per voice channel with a switch.
 
 ### Fixes
+- Voice: the first person to join after a server starts no longer waits on "Connecting…" on a busy or small machine, and a server whose voice took long to start no longer stays without voice.
+- Server settings → Internet access: making a new tunnel key no longer shows the tunnel as off while it restarts.
 - Encrypted channels: hiding a channel moments after it was set up no longer lets a new key be accepted later without the "started over" warning.
 - Voice clips: in direct and group calls, everyone now sees that your clips are on, even if they connected after you.
 - Standalone servers with the peer-to-peer tunnel: the tunnel could start before the server was ready and stay off; it now waits.
