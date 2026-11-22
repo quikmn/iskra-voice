@@ -14,7 +14,7 @@ import { createIdentity } from '../src/core/identity'
 import { buildInviteLink, parseInvite } from '../src/core/invite'
 import type { Events, Welcome } from '../src/core/protocol'
 import { freePort, freeUdpPort } from './ports'
-import { answers, spawnServer } from './spawned'
+import { answers, spawnServer, voiceUp } from './spawned'
 
 const LIVEKIT = resolve(__dirname, '../../.tools', process.platform === 'win32' ? 'livekit-server.exe' : 'livekit-server')
 
@@ -150,7 +150,7 @@ describe.skipIf(!existsSync(LIVEKIT))('voice bot ↔ server ↔ LiveKit', () => 
     url = `http://localhost:${port}`
     stop = server.stop
     await server.ready('the server', answers(url))
-    await server.ready('LiveKit', answers(`http://127.0.0.1:${voicePort}`))
+    await server.ready('voice', voiceUp(url))
     // A web server on this computer, standing in for an internet radio and an ordinary web page.
     files = createHttpServer((req, res) => {
       if (req.url === '/radio.mp3') res.writeHead(200, { 'content-type': 'audio/mpeg' }).end(readFileSync(join(__dirname, 'fixtures', 'tone.mp3')))

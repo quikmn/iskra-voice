@@ -12,7 +12,7 @@ import { createIdentity } from '../src/core/identity'
 import { buildInviteLink, parseInvite } from '../src/core/invite'
 import type { Events, Welcome } from '../src/core/protocol'
 import { freePort, freeUdpPort } from './ports'
-import { answers, spawnServer } from './spawned'
+import { answers, spawnServer, voiceUp } from './spawned'
 
 const LIVEKIT = resolve(__dirname, '../../.tools', process.platform === 'win32' ? 'livekit-server.exe' : 'livekit-server')
 
@@ -107,7 +107,7 @@ describe.skipIf(!existsSync(LIVEKIT))('whisper ↔ server ↔ LiveKit', () => {
     url = `http://localhost:${port}`
     stop = server.stop
     await server.ready('the server', answers(url))
-    await server.ready('LiveKit', answers(`http://127.0.0.1:${voicePort}`))
+    await server.ready('voice', voiceUp(url))
     const ownerLink = parseInvite(readFileSync(join(world, 'owner-invite.txt'), 'utf8'))!
     const owner = await connect('Owner', ownerLink)
     await server.ready('voice available', () => owner.welcome!.voiceAvailable || owner.events.some((e) => e.type === 'voice.available' && (e.body as Events['voice.available']).available))

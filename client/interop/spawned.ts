@@ -122,3 +122,20 @@ export const answers = (url: string) => async (): Promise<boolean> => {
     throw new Error(`${url}: ${cause?.code ?? cause?.message ?? (e as Error).message}`)
   }
 }
+
+/**
+ * A check for `ready`: the server says voice can be joined (GET /health, voice "up"). That is what `voice.join` goes
+ * by, and it comes a moment after LiveKit's own port answers (the server warms LiveKit up first).
+ */
+export const voiceUp = (serverUrl: string) => async (): Promise<boolean> => {
+  const url = `${serverUrl.replace(/\/$/, '')}/health`
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    const voice = ((await response.json()) as { voice?: string }).voice
+    if (voice !== 'up') throw new Error(`voice is ${voice}`)
+    return true
+  } catch (e) {
+    const cause = (e as { cause?: { code?: string; message?: string } }).cause
+    throw new Error(`${url}: ${cause?.code ?? cause?.message ?? (e as Error).message}`)
+  }
+}
