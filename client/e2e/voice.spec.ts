@@ -106,10 +106,11 @@ test('friends talk in a voice channel', async ({ browser }) => {
 
   // On a phone the round buttons say what they do underneath (there are no hover tooltips), and nothing overflows.
   await friend.setViewportSize({ width: 390, height: 844 })
-  const labels = await friend.locator('.call-controls .call-button').evaluateAll((buttons) =>
+  // The phone layout is a class the app sets when the width's media query changes: a render after the resize.
+  const labels = () => friend.locator('.call-controls .call-button').evaluateAll((buttons) =>
     buttons.map((b) => getComputedStyle(b, '::after').content.replace(/^"|"$/g, '')))
-  expect(labels).toContain('Mute')
-  expect(labels).toContain('Leave call')
+  await expect.poll(labels).toContain('Mute')
+  expect(await labels()).toContain('Leave call')
   expect(await friend.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   const tops = await friend.locator('.call-controls .call-button').evaluateAll((buttons) => buttons.map((b) => b.getBoundingClientRect().bottom))
   expect(Math.max(...tops)).toBeLessThanOrEqual(844)

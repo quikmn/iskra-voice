@@ -31,6 +31,13 @@ export type ClipData = { clips: boolean } | { saved: true }
 
 export const encodeClipData = (data: ClipData): Uint8Array<ArrayBuffer> => new TextEncoder().encode(JSON.stringify({ v: 1, ...data }))
 
+/**
+ * DM and group calls: whether to tell `from` now that our clips are on. A message for someone whose connection isn't up
+ * yet is lost, and a call can take longer to connect than any wait we'd pick. Whatever they say on this topic (everyone
+ * says whether their clips are on once connected) shows they can hear us: answer it, once each.
+ */
+export const answerMark = (announced: boolean | null, answered: ReadonlySet<string>, from: string): boolean => announced === true && !answered.has(from)
+
 /** A message from someone in the call; anything malformed is ignored (null). */
 export function parseClipData(payload: Uint8Array): ClipData | null {
   if (payload.length > MAX_DATA_BYTES) return null

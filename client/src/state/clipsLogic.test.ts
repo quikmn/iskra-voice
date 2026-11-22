@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Channel, Member } from '../core/protocol'
 import {
-  callPlace, clipFileName, clipsOnIn, clipTime, encodeClipData, flagToSend, parseClipData, parseClipSettings,
+  answerMark, callPlace, clipFileName, clipsOnIn, clipTime, encodeClipData, flagToSend, parseClipData, parseClipSettings,
 } from './clipsLogic'
 import { canSendIn, channelAccess } from './permissions'
 
@@ -15,6 +15,12 @@ describe('clip settings', () => {
 })
 
 describe('the call data channel', () => {
+  it('someone heard from for the first time is told our clips are on, once', () => {
+    expect(answerMark(true, new Set(), 'friend')).toBe(true) // they connected after our announcement went out
+    expect(answerMark(true, new Set(['friend']), 'friend')).toBe(false)
+    expect(answerMark(false, new Set(), 'friend')).toBe(false) // off: nothing to mark
+    expect(answerMark(null, new Set(), 'friend')).toBe(false) // not announced yet: the announcement itself reaches them
+  })
   it('round-trips the two messages and ignores anything else', () => {
     expect(parseClipData(encodeClipData({ clips: true }))).toEqual({ clips: true })
     expect(parseClipData(encodeClipData({ clips: false }))).toEqual({ clips: false })
