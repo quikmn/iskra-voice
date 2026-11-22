@@ -12,7 +12,7 @@ import { ClipRecorder, clipsSupported } from './clips/recorder'
 import type { ClipDraft } from './clips/ring'
 import { muxWebm } from './clips/webm'
 import {
-  callPlace, CLIP_TOPIC, clipFileName, encodeClipData, flagToSend, parseClipData, parseClipSettings, type CallPlace, type ClipData,
+  answerMark, callPlace, CLIP_TOPIC, clipFileName, encodeClipData, flagToSend, parseClipData, parseClipSettings, type CallPlace, type ClipData,
   type ClipSettings,
 } from './clipsLogic'
 import { connectionFor, onServerEvent, sendMessage, useApp } from './store'
@@ -114,6 +114,8 @@ let bound: Room | null = null
 let unbind: (() => void) | null = null
 /** DM and group calls: what we last told the room (null: nothing yet). */
 let announced: boolean | null = null
+/** DM and group calls: people we told again after hearing from them (see answerMark). */
+const answered = new Set<string>()
 
 const wanted = (): boolean => useClips.getState().settings.enabled && clipsSupported()
 
@@ -156,6 +158,11 @@ function bindRoom(room: Room): () => void {
     if (topic !== CLIP_TOPIC || !participant) return
     const data = parseClipData(payload)
     if (!data) return
+    if (answerMark(announced, answered, participant.identity)) {
+      const to = participant.identity
+      answered.add(to)
+      void publish(room, { clips: true }, [to]).catch(() => answered.delete(to))
+    }
     if ('saved' in data) {
       addNotice(participant.identity)
       return
@@ -171,6 +178,7 @@ function bindRoom(room: Room): () => void {
     if (announced) void publish(room, { clips: true }, [participant.identity]).catch(() => undefined)
   }
   const onLeft = (participant: RemoteParticipant) => {
+    answered.delete(participant.identity)
     useClips.setState((s) => {
       if (!s.roomClips[participant.identity]) return s
       const roomClips = { ...s.roomClips }
@@ -249,6 +257,7 @@ function sync(): void {
     stopRecorder()
     bound = room
     announced = null
+    answered.clear()
     useClips.setState({ roomClips: {}, watched: null })
     if (room) unbind = bindRoom(room)
   }

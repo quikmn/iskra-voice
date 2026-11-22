@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { readWebm } from '../src/state/clips/webm'
 import { callTool, createInviteLink, hasLiveKit, joinVia, openSettings, SHOTS, startServer, type TestServer, VOICE_JOIN } from './helpers'
 
 test.skip(!hasLiveKit(), 'needs .tools/livekit-server (see scripts/get-livekit.ps1)')
@@ -100,8 +101,13 @@ test('voice channels have their own chat, and clips save the last seconds with a
   const file = await download
   expect(file.suggestedFilename()).toMatch(/^iskra-clip-\d{4}-\d{2}-\d{2}-\d{6}\.webm$/)
   const bytes = readFileSync((await file.path())!)
-  expect(bytes.length).toBeGreaterThan(1000)
   expect([...bytes.subarray(0, 4)]).toEqual([0x1a, 0x45, 0xdf, 0xa3])
+  // The last seconds are in it: over 4 s heard, 1 s trimmed off. By the frames' times, not the file's size: the friend's
+  // fake mic is beeps, and whenever voice detection kept it shut the clip was 3 s of 8-byte silent frames (942 bytes).
+  const clip = readWebm(new Uint8Array(bytes))
+  expect(clip.tracks.map((t) => t.type)).toEqual(['audio'])
+  const times = clip.frames.map((f) => f.frame.time)
+  expect(Math.max(...times) - Math.min(...times)).toBeGreaterThan(2000)
   await expect(dialog.getByText('Saved')).toBeVisible()
 
   // Share it into the lounge's chat.
