@@ -222,10 +222,9 @@ public sealed partial class P2pSidecar : BackgroundService
         ChildProcesses.Bind(process); // dies with us, even if we're killed (Windows); elsewhere its stdin closes
         lock (_gate) _process = process;
         Starts++;
-        process.OutputDataReceived += (_, e) => { if (e.Data is not null) OnLine(e.Data); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) _log.Write(LogLevel.Information, "p2p", null, "tunnel", "output", null, ("msg", e.Data.Length > 500 ? e.Data[..500] : e.Data)); };
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+        // Read on threads of its own: BeginOutputReadLine would hold two thread-pool threads for as long as the tunnel runs (Windows).
+        _ = ChildOutput.Read(process, OnLine,
+            line => _log.Write(LogLevel.Information, "p2p", null, "tunnel", "output", null, ("msg", line.Length > 500 ? line[..500] : line)));
         _log.Info("tunnel", "start", ("what", "sidecar"), ("n", Starts));
         try
         {

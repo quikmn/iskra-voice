@@ -292,12 +292,7 @@ public class P2pSidecarTests : IDisposable
         Assert.SkipUnless(HasNode(), "node isn't installed");
         var world = Path.Combine(_dir, "killed");
         Directory.CreateDirectory(world);
-        int port;
-        using (var probe = new TcpListener(IPAddress.Loopback, 0))
-        {
-            probe.Start();
-            port = ((IPEndPoint)probe.LocalEndpoint).Port;
-        }
+        var port = Support.Ports.Free();
         File.WriteAllText(Path.Combine(world, "server.json"), JsonSerializer.Serialize(new
         {
             Name = "Sidecar",
@@ -313,10 +308,7 @@ public class P2pSidecarTests : IDisposable
         info.Environment.Remove("ISKRA_P2P_TUNNEL");
         var server = Process.Start(info)!;
         _processes.Add(server);
-        server.OutputDataReceived += (_, _) => { };
-        server.ErrorDataReceived += (_, _) => { };
-        server.BeginOutputReadLine();
-        server.BeginErrorReadLine();
+        _ = Iskra.Server.Hosting.ChildOutput.Read(server, _ => { }, _ => { });
 
         var envFile = Path.Combine(world, "fake-env");
         await Until(() => File.Exists(envFile) && File.ReadAllText(envFile).Length > 0, "the sidecar to start", 60_000);
