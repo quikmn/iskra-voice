@@ -172,6 +172,13 @@ for i in $(seq 1 72); do
 done
 echo "HTTPS OK: $health"
 
+# Logs: the droplet has its own machine ID, the image holds no other machine's journal, and the command the login
+# message names (journalctl -u iskra) shows the server's log.
+ssh_do 'id="$(cat /etc/machine-id)"; [ -n "$id" ] && [ -d "/var/log/journal/$id" ] && [ "$(ls /var/log/journal | wc -l)" -eq 1 ]' ||
+  fail "the journal isn't under this droplet's machine ID (or the image still has another machine's journal)"
+ssh_do 'journalctl -u iskra --no-pager -q -n 1 | grep -q .' || fail "journalctl -u iskra shows nothing"
+echo "Logs OK (journalctl -u iskra)."
+
 # The claim, with the app's own code (a new identity; it never sends the code anywhere).
 echo "Claiming $address with the app's claim code path..."
 (cd "$here/../../client" && ISKRA_DROPLET_URL="$address" ISKRA_DROPLET_CODE="$code" \
