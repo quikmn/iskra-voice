@@ -25,7 +25,7 @@ public sealed partial class P2pSidecar : BackgroundService
 
     private readonly World _world;
     private readonly ILogger<P2pSidecar> _log;
-    private readonly IHostApplicationLifetime? _lifetime;
+    private readonly TunnelListener? _tunnel;
     private readonly SemaphoreSlim _wake = new(0);
     private readonly object _gate = new();
     private Process? _process;
@@ -40,14 +40,14 @@ public sealed partial class P2pSidecar : BackgroundService
     /// <summary>Times the program was started (tests).</summary>
     public int Starts { get; private set; }
 
-    public P2pSidecar(World world, ILogger<P2pSidecar> log, IHostApplicationLifetime? lifetime = null) :
-        this(world, log, lifetime, Environment.GetEnvironmentVariable("ISKRA_P2P_TUNNEL") == "app") { }
+    public P2pSidecar(World world, ILogger<P2pSidecar> log, TunnelListener? tunnel = null) :
+        this(world, log, tunnel, Environment.GetEnvironmentVariable("ISKRA_P2P_TUNNEL") == "app") { }
 
-    internal P2pSidecar(World world, ILogger<P2pSidecar> log, IHostApplicationLifetime? lifetime, bool hostedByApp)
+    internal P2pSidecar(World world, ILogger<P2pSidecar> log, TunnelListener? tunnel, bool hostedByApp)
     {
         _world = world;
         _log = log;
-        _lifetime = lifetime;
+        _tunnel = tunnel;
         HostedByApp = hostedByApp;
     }
 
@@ -126,13 +126,20 @@ public sealed partial class P2pSidecar : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stopping)
     {
         if (HostedByApp) return;
-        // The tunnel listener's port (p2p.port) is written once the server listens.
-        if (_lifetime is not null)
+        // The program reads the tunnel listener's port from p2p.port once, when it starts: so not before the server
+        // listens and has written it. (Waiting for "application started" here was not enough: those callbacks run
+        // newest first, so the program was started before the file was written. On a busy machine it read the file
+        // too early and stayed "off"; after a restart it could read the last run's port.)
+        if (_tunnel is not null)
         {
-            var started = new TaskCompletionSource();
-            using (_lifetime.ApplicationStarted.Register(() => started.TrySetResult()))
-            using (stopping.Register(() => started.TrySetResult()))
-                await started.Task;
+            try
+            {
+                await _tunnel.Listening.WaitAsync(stopping);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
         }
         var failures = 0;
         var warnedMissing = false;
