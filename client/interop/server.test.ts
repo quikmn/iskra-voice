@@ -1,9 +1,8 @@
 // The TypeScript client against the real .NET server, over real WebSockets.
 // Run with `npm run test:interop` (builds the server first).
-import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Connection, type ConnectionStatus } from '../src/core/connection'
 import { ready } from '../src/core/crypto'
@@ -29,8 +28,8 @@ import { compareStamps, nextStamp, parseSynced, PROFILE_PREF, toSynced, wireStam
 import type { Profile } from '../src/core/storage'
 import type { Events, Message, Welcome } from '../src/core/protocol'
 import { freePort } from './ports'
+import { answers, spawnServer } from './spawned'
 
-const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 
 interface RunningServer {
   url: string
@@ -51,41 +50,16 @@ async function waitFor<T>(check: () => T | undefined | null | false, what: strin
 async function startServer(world: string, port: number): Promise<RunningServer> {
   if (!existsSync(join(world, 'server.json')))
     writeFileSync(join(world, 'server.json'), JSON.stringify({ Name: 'Interop', Port: port, LocalOnly: true }))
-  const proc: ChildProcess = spawn('dotnet', [SERVER_DLL, world], { stdio: ['ignore', 'pipe', 'pipe'] })
-  // The server's own output, so a start that fails says why (the last 40 lines go into the error).
-  const output: string[] = []
-  const keep = (chunk: Buffer) => {
-    output.push(...chunk.toString().split('\n').map((line) => line.trimEnd()).filter(Boolean))
-    output.splice(0, Math.max(0, output.length - 40))
-  }
-  proc.stdout?.on('data', keep)
-  proc.stderr?.on('data', keep)
-  let exited: number | null | undefined
-  proc.once('exit', (code) => (exited = code))
+  // The server's own output is kept, so a start that fails says why (spawned.ts).
+  const server = spawnServer(world)
   const url = `http://localhost:${port}`
-  const deadline = Date.now() + 30_000
-  for (;;) {
-    try {
-      if ((await fetch(url)).ok) break
-    } catch {
-      /* not up yet */
-    }
-    if (exited !== undefined || Date.now() > deadline) {
-      if (exited === undefined) proc.kill()
-      const why = exited !== undefined ? `exited with code ${exited}` : `not answering on port ${port} after 30 s`
-      throw new Error(`Server did not start (${why}). Its last lines:\n${output.join('\n')}`)
-    }
-    await new Promise((r) => setTimeout(r, 100))
+  try {
+    await server.ready(`the server on port ${port}`, answers(url))
+  } catch (e) {
+    await server.stop()
+    throw e
   }
-  return {
-    url,
-    world,
-    stop: () =>
-      new Promise((done) => {
-        proc.once('exit', () => done())
-        proc.kill()
-      }),
-  }
+  return { url, world, stop: server.stop }
 }
 
 class TestUser {

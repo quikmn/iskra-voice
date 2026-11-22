@@ -1,6 +1,5 @@
 // Voice bots: the SDK's audio pipeline, and a bot that joins a voice channel on a real server with LiveKit and plays
 // audio that a member receives. Run with `npm run test:interop` (LiveKit from .tools: scripts/get-livekit.*).
-import { spawn } from 'node:child_process'
 import { createServer as createHttpServer, type Server } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -15,8 +14,8 @@ import { createIdentity } from '../src/core/identity'
 import { buildInviteLink, parseInvite } from '../src/core/invite'
 import type { Events, Welcome } from '../src/core/protocol'
 import { freePort, freeUdpPort } from './ports'
+import { answers, spawnServer } from './spawned'
 
-const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 const LIVEKIT = resolve(__dirname, '../../.tools', process.platform === 'win32' ? 'livekit-server.exe' : 'livekit-server')
 
 async function waitFor<T>(check: () => T | undefined | null | false, what: string, timeoutMs = 15_000): Promise<T> {
@@ -147,23 +146,11 @@ describe.skipIf(!existsSync(LIVEKIT))('voice bot ↔ server ↔ LiveKit', () => 
       Name: 'Voice bots', Port: port, LocalOnly: true,
       Voice: { Enabled: true, Port: voicePort, RtcTcpPort: await freePort(), RtcUdpPort: await freeUdpPort(), LiveKitPath: LIVEKIT },
     }))
-    const proc = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
+    const server = spawnServer(world)
     url = `http://localhost:${port}`
-    stop = () => new Promise((done) => {
-      proc.once('exit', () => done())
-      proc.kill()
-    })
-    await waitFor(() => existsSync(join(world, 'owner-invite.txt')), 'server start', 30_000)
-    for (const target of [url, `http://127.0.0.1:${voicePort}`]) {
-      for (let i = 0; ; i++) {
-        try {
-          if ((await fetch(target)).ok) break
-        } catch {
-          if (i > 300) throw new Error(`${target} did not start`)
-          await new Promise((r) => setTimeout(r, 100))
-        }
-      }
-    }
+    stop = server.stop
+    await server.ready('the server', answers(url))
+    await server.ready('LiveKit', answers(`http://127.0.0.1:${voicePort}`))
     // A web server on this computer, standing in for an internet radio and an ordinary web page.
     files = createHttpServer((req, res) => {
       if (req.url === '/radio.mp3') res.writeHead(200, { 'content-type': 'audio/mpeg' }).end(readFileSync(join(__dirname, 'fixtures', 'tone.mp3')))
@@ -179,8 +166,7 @@ describe.skipIf(!existsSync(LIVEKIT))('voice bot ↔ server ↔ LiveKit', () => 
     })
     owner.start()
     await waitFor(() => welcome, 'owner online')
-    await waitFor(() => welcome!.voiceAvailable || events.some((e) => e.type === 'voice.available' && (e.body as Events['voice.available']).available),
-      'voice available', 30_000)
+    await server.ready('voice available', () => welcome!.voiceAvailable || events.some((e) => e.type === 'voice.available' && (e.body as Events['voice.available']).available))
   }, 120_000)
 
   afterAll(async () => {

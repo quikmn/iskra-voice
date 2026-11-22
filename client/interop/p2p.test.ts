@@ -2,7 +2,6 @@
 // app's peer-to-peer tunnel (desktop/src/p2p) over a private HyperDHT testnet on 127.0.0.1: the client is given
 // http://127.0.0.1:<friend tunnel port>, never the server's own port. Run with `npm run test:interop`.
 /// <reference path="../../desktop/src/p2p/modules.d.ts" />
-import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -20,8 +19,8 @@ import { createIdentity } from '../src/core/identity'
 import { buildInviteLink, parseInvite, type InviteLink } from '../src/core/invite'
 import type { Events, Welcome } from '../src/core/protocol'
 import { freePort, freeUdpPort } from './ports'
+import { answers, spawnServer, type Kept } from './spawned'
 
-const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 const LIVEKIT = resolve(__dirname, '../../.tools', process.platform === 'win32' ? 'livekit-server.exe' : 'livekit-server')
 const hasLiveKit = existsSync(LIVEKIT)
 const LOCAL = '127.0.0.1'
@@ -68,7 +67,7 @@ class User {
 
 describe('Iskra through the peer-to-peer tunnel', () => {
   let world: string
-  let proc: ChildProcess
+  let server: Kept
   let directUrl: string
   let tunnelUrl: string
   let testnet: Testnet
@@ -99,27 +98,12 @@ describe('Iskra through the peer-to-peer tunnel', () => {
       Name: 'P2P interop', Port: port, LocalOnly: true, P2p: { Enabled: true }, Retention: { SecurityLogIps: true },
       Voice: { Enabled: hasLiveKit, LiveKitPath: hasLiveKit ? LIVEKIT : null, Port: voicePort, RtcTcpPort: rtcTcp, RtcUdpPort: rtcUdp },
     }))
-    proc = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
+    server = spawnServer(world)
     directUrl = `http://${LOCAL}:${port}`
-    const deadline = Date.now() + 30_000
-    for (;;) {
-      try {
-        if ((await fetch(`${directUrl}/`)).ok) break
-      } catch { /* starting */ }
-      if (Date.now() > deadline) throw new Error('server did not start')
-      await new Promise((r) => setTimeout(r, 100))
-    }
+    await server.ready('the server', answers(`${directUrl}/`))
     const portFile = join(world, 'p2p.port')
-    await waitFor(() => existsSync(portFile), 'p2p.port')
-    if (hasLiveKit) {
-      for (let i = 0; ; i++) {
-        try {
-          if ((await fetch(`http://${LOCAL}:${voicePort}/`)).ok) break
-        } catch { /* starting */ }
-        if (i > 300) throw new Error('LiveKit did not start')
-        await new Promise((r) => setTimeout(r, 100))
-      }
-    }
+    await server.ready('p2p.port', () => existsSync(portFile))
+    if (hasLiveKit) await server.ready('LiveKit', answers(`http://${LOCAL}:${voicePort}/`))
     const tunnelPort = Number(readFileSync(portFile, 'utf8').trim())
     secret = parseSecret(readFileSync(join(world, 'p2p.key'), 'utf8').trim())!
     expect(secret).toBeTruthy()
@@ -144,12 +128,7 @@ describe('Iskra through the peer-to-peer tunnel', () => {
     await host?.close()
     await Promise.all([hostDht?.destroy(), friendDht?.destroy(), strangerDht?.destroy()])
     await testnet?.destroy()
-    if (proc) {
-      await new Promise<void>((done) => {
-        proc.once('exit', () => done())
-        proc.kill()
-      })
-    }
+    await server?.stop()
     rmSync(world, { recursive: true, force: true })
     console.log(`p2p interop: ${JSON.stringify(report)}`)
   })
@@ -232,7 +211,7 @@ describe('Iskra through the peer-to-peer tunnel', () => {
   async function voiceThroughTunnel(label: string, open: (pageUrl: string) => Promise<{ page: Page; close(): Promise<void> }>) {
     // The owner (front door) makes a voice channel; the friend (through the tunnel) asks to join it.
     const { channel } = await owner.connection.request('channel.create', { name: `lounge-${label}`, kind: 'voice' })
-    await waitFor(() => friendUser.welcome?.voiceAvailable || friendUser.events.some((e) => e.type === 'voice.available'), 'voice available')
+    await server.ready('voice available', () => friendUser.welcome?.voiceAvailable || friendUser.events.some((e) => e.type === 'voice.available'))
     const joined = await friendUser.connection.request('voice.join', { channelId: channel.id })
     expect(joined.url).toBe(`${tunnelUrl.replace('http', 'ws')}/livekit`)
 

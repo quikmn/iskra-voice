@@ -3,7 +3,6 @@
 // the Node SDK takes over the same <name>.bot.json, as a bot that switches languages would. And the any-language bridge
 // (bots/sdk/src/bridge.ts) with a plain Python program (bots/examples/bridge/roll.py).
 // Needs Python with the SDK installed: bots/python/.venv (see docs/bots.md → Python), or ISKRA_PYTHON. Skipped without.
-import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -17,8 +16,8 @@ import { createIdentity } from '../src/core/identity'
 import { buildInviteLink, parseInvite } from '../src/core/invite'
 import type { Events, Message, Welcome } from '../src/core/protocol'
 import { freePort } from './ports'
+import { answers, spawnKept, spawnServer, type Kept } from './spawned'
 
-const SERVER_DLL = resolve(__dirname, '../../server/src/Iskra.Server/bin/Debug/net10.0/iskra-server.dll')
 const PYTHON_DIR = resolve(__dirname, '../../bots/python')
 const PYTHON = process.env.ISKRA_PYTHON
   ?? [join(PYTHON_DIR, '.venv/Scripts/python.exe'), join(PYTHON_DIR, '.venv/bin/python')].find((p) => existsSync(p))
@@ -41,8 +40,7 @@ describe.skipIf(!PYTHON)('Python bot SDK ↔ server', () => {
   const identity = createIdentity()
   const events: { type: keyof Events; body: unknown }[] = []
   let welcome: Welcome | null = null
-  let python: ChildProcess | null = null
-  const output: string[] = []
+  let python: Kept | null = null
   const bots: Bot[] = []
 
   beforeAll(async () => {
@@ -50,20 +48,10 @@ describe.skipIf(!PYTHON)('Python bot SDK ↔ server', () => {
     world = mkdtempSync(join(tmpdir(), 'iskra-pybot-'))
     const port = await freePort()
     writeFileSync(join(world, 'server.json'), JSON.stringify({ Name: 'Python', Port: port, LocalOnly: true, Voice: { Enabled: false } }))
-    const proc = spawn('dotnet', [SERVER_DLL, world], { stdio: 'ignore' })
+    const server = spawnServer(world)
     url = `http://localhost:${port}`
-    stop = () => new Promise((done) => {
-      proc.once('exit', () => done())
-      proc.kill()
-    })
-    await waitFor(() => existsSync(join(world, 'owner-invite.txt')), 'server start', 30_000)
-    for (;;) {
-      try {
-        if ((await fetch(url)).ok) break
-      } catch {
-        await new Promise((r) => setTimeout(r, 100))
-      }
-    }
+    stop = server.stop
+    await server.ready('the server', answers(url))
     const link = parseInvite(readFileSync(join(world, 'owner-invite.txt'), 'utf8'))!
     owner = new Connection({
       serverUrl: link.serverUrl, expectedServerKey: link.serverKey, invite: link.code, identity,
@@ -75,7 +63,7 @@ describe.skipIf(!PYTHON)('Python bot SDK ↔ server', () => {
   })
 
   afterAll(async () => {
-    python?.kill()
+    await python?.stop()
     bots.forEach((b) => b.stop())
     owner?.stop()
     await stop?.()
@@ -90,13 +78,10 @@ describe.skipIf(!PYTHON)('Python bot SDK ↔ server', () => {
     const { invite } = await owner.request('bot.invite', {})
     const link = buildInviteLink('http://localhost:5173', { serverUrl: url, serverKey: welcome!.server.key, code: invite.code })
     const stateFile = join(world, 'dice.bot.json')
-    python = spawn(PYTHON!, [join(PYTHON_DIR, 'examples/dice.py')], {
+    python = spawnKept('The Python bot', PYTHON!, [join(PYTHON_DIR, 'examples/dice.py')], {
       cwd: world, env: { ...process.env, ISKRA_INVITE: link, ISKRA_BOT_STATE: stateFile, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
-      stdio: ['ignore', 'pipe', 'pipe'],
     })
-    python.stdout!.on('data', (d: Buffer) => output.push(d.toString()))
-    python.stderr!.on('data', (d: Buffer) => output.push(d.toString()))
-    await waitFor(() => output.join('').includes('Online in "Python" as Dice (member)'), `the Python bot online (${output.join('')})`, 30_000)
+    await python.ready('the Python bot online', () => python!.lines().some((l) => l.includes('Online in "Python" as Dice (member)')))
 
     // It registered its commands, with interactions, like the Node SDK does.
     const listed = await waitFor(() => events.map((e) => (e.type === 'bot.commands' ? e.body as Events['bot.commands'] : null))
@@ -152,8 +137,7 @@ describe.skipIf(!PYTHON)('Python bot SDK ↔ server', () => {
     expect(answer).toContain('**🎲 3d6**') // the card, as text
 
     // The same keys in Node: no invite needed, the same account.
-    python.kill()
-    await new Promise((r) => python!.once('exit', r))
+    await python.stop()
     const node = new Bot({ name: 'Dice', stateFile, log: () => undefined })
     bots.push(node)
     await node.start()
@@ -178,8 +162,13 @@ describe.skipIf(!PYTHON)('Python bot SDK ↔ server', () => {
       await bot.start()
       markStarted()
       const botKey = bot.me!.accountKey
-      await waitFor(() => events.some((e) => e.type === 'bot.commands' && (e.body as Events['bot.commands']).bot === botKey
-        && (e.body as Events['bot.commands']).commands.some((c) => c.name === 'roll')), 'the program registered /roll')
+      // The program's stderr goes to this run's own output (spawnProgram); if it stops early, say so at once.
+      const stoppedEarly = program.exited.then((code) => {
+        throw new Error(`The bridge program exited with code ${code} before it registered /roll (its output is above). Bridge log: ${logs.join(' | ')}`)
+      })
+      await Promise.race([stoppedEarly, waitFor(() => events.some((e) => e.type === 'bot.commands' && (e.body as Events['bot.commands']).bot === botKey
+        && (e.body as Events['bot.commands']).commands.some((c) => c.name === 'roll')), 'the program registered /roll')])
+      stoppedEarly.catch(() => undefined) // it is killed below
 
       const general = welcome!.channels.find((c) => c.name === 'general')!
       await owner.request('interaction.invoke', { bot: botKey, channelId: general.id, command: 'roll', options: { dice: '3d6' } })
