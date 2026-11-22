@@ -422,6 +422,10 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
  */
 function forgetSlot(serverKey: string, channelId: number, replaced: boolean, createdAt: number): Promise<void> {
   const slot = slotOf(serverKey, channelId)
+  // What this device holds right now: newer than what's stored while a save is still waiting (see persist), and the
+  // only copy if none ran yet. Without it a chain taken moments ago would be gone, and a substitute accepted later.
+  const held = records.get(slot)
+  const latest = held?.chain && !held.hidden ? storedOf(held) : undefined
   forgets.set(slot, generationOf(slot) + 1)
   records.delete(slot)
   loading.delete(slot)
@@ -435,7 +439,7 @@ function forgetSlot(serverKey: string, channelId: number, replaced: boolean, cre
   if (replaced) return wipeStored(slot)
   const now = Date.now()
   return queueWrite(slot, async () => {
-    const stored = await storage.loadE2ee<Stored>(slot)
+    const stored = latest ?? await storage.loadE2ee<Stored>(slot)
     if (!stored) {
       // Nothing kept but the knowledge that it was encrypted: that goes with the tombstones (after 30 days).
       if (known.has(slot)) void markTombstone(slot, now)
@@ -456,6 +460,16 @@ onChannelsGone((serverKey, channelIds, how) => {
   for (const id of channelIds) void forgetSlot(serverKey, id, how.replaced, how.createdAt[id] ?? 0)
 })
 
+/** A record as it's kept on this device. */
+function storedOf(r: Rec): Stored {
+  const messages = [...r.messages.values()].filter((m) => !expired(m)).sort((a, b) => a.id - b.id).slice(-MAX_LOCAL)
+  return {
+    chain: r.chain!, changes: r.changes, keys: keysOut(r.keys), messages, restarts: r.restarts,
+    past: r.past.map((p) => ({ chain: p.chain, changes: p.changes, keys: keysOut(p.keys), endedAt: p.endedAt, startedOver: p.startedOver })),
+    ...(r.createdAt ? { createdAt: r.createdAt } : {}),
+  }
+}
+
 function persist(rec: Rec): void {
   if (rec.hidden) return
   dirty.add(rec.slot)
@@ -465,12 +479,7 @@ function persist(rec: Rec): void {
       dirty.delete(slot)
       const r = records.get(slot)
       if (!r?.chain || r.hidden) continue
-      const messages = [...r.messages.values()].filter((m) => !expired(m)).sort((a, b) => a.id - b.id).slice(-MAX_LOCAL)
-      const stored: Stored = {
-        chain: r.chain, changes: r.changes, keys: keysOut(r.keys), messages, restarts: r.restarts,
-        past: r.past.map((p) => ({ chain: p.chain, changes: p.changes, keys: keysOut(p.keys), endedAt: p.endedAt, startedOver: p.startedOver })),
-        ...(r.createdAt ? { createdAt: r.createdAt } : {}),
-      }
+      const stored = storedOf(r)
       // Not if the channel went since (checked when the write's turn comes, after any write before it).
       const generation = generationOf(slot)
       void queueWrite(slot, async () => {

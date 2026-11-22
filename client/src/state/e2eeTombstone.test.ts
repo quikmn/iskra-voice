@@ -4,7 +4,7 @@ import { newChainId, signChannelChange, verifyChannelChain } from '../core/chann
 import { createIdentity, type Identity } from '../core/identity'
 import type { Channel } from '../core/protocol'
 import { rememberStamps, resetStampsForTests } from './channelGone'
-import { e2eeWritesSettled, localMessages, sweepTombstones, useE2ee } from './e2eeChannels'
+import { e2eeWritesSettled, localMessages, sweepTombstones, syncChannel, useE2ee } from './e2eeChannels'
 import { CHAIN_REPLACED, receiveChain, type ChainState } from './e2eeStartOver'
 import { hideStored, loadVerdict, TOMBSTONE_MS, tombstonesToWipe } from './e2eeTombstone'
 import { applyChannels, useApp, type ServerState } from './store'
@@ -23,6 +23,10 @@ vi.mock('../core/storage', async (original) => ({
   loadPrekeys: async () => [],
   savePrekeys: async () => undefined,
 }))
+
+// The server, for the tests that fetch a chain (null: offline).
+const net = vi.hoisted(() => ({ connection: null as { isOnline: boolean; request: (type: string) => Promise<unknown> } | null }))
+vi.mock('./store', async (original) => ({ ...(await original<typeof import('./store')>()), connectionFor: () => net.connection }))
 
 const DAY = 24 * 60 * 60 * 1000
 const SLOT = 'srv:7'
@@ -133,6 +137,38 @@ describe('an encrypted channel that stops being listed', () => {
     await sweepTombstones()
     await e2eeWritesSettled()
     expect(stored()).toBeUndefined()
+  })
+
+  it('hidden before the chain was saved (saves wait 500 ms): the chain in memory is kept, so a substitute is still refused', async () => {
+    const mine = b64u(me.account.publicKey)
+    const serve = (id: string, first: ReturnType<typeof signChannelChange>) => {
+      const view = verifyChannelChain(id, [first])
+      net.connection = {
+        isOnline: true,
+        request: async (type) => (type === 'echan.get'
+          ? { e2ee: { chain: id, version: view.version, head: view.head, members: view.members }, changes: [first], want: { add: [], remove: [], full: false } }
+          : { keys: [], hasMore: false }),
+      }
+    }
+    try {
+      const both = [channel(70), { ...channel(80), id: 8 }]
+      applyChannels('srv', both)
+      serve(chain, create)
+      await syncChannel('srv', 8) // the chain arrives; nothing is on disk yet
+      expect(disk.data.get('e2ee:srv:8')).toBeUndefined()
+      applyChannels('srv', [channel(70)]) // hidden right away
+      await e2eeWritesSettled()
+      expect(disk.data.get('e2ee:srv:8')).toMatchObject({ chain, hidden: { createdAt: 80 } })
+
+      // Listed again, and the server shows another chain: only ever an offer.
+      const other = newChainId()
+      serve(other, signChannelChange(createIdentity(), null, other, 'create', [mine]))
+      applyChannels('srv', both)
+      await syncChannel('srv', 8)
+      expect(useE2ee.getState().channels['srv:8']).toMatchObject({ problem: CHAIN_REPLACED, offer: { chain: other } })
+    } finally {
+      net.connection = null
+    }
   })
 
   it('a save still on its way never lands after the channel was wiped', async () => {
