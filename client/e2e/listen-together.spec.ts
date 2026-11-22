@@ -82,7 +82,12 @@ test('a queue plays on by itself, the host can make it audio only, and phones ge
   await host.screenshot({ path: join(SHOTS, 'listen-audio-only.png') })
 
   // Play at double speed: the 20 s track ends in about 10, and the party moves on to Track 2 for everyone.
-  await host.getByRole('combobox', { name: 'Speed' }).selectOption('2')
+  // No picture to lie over: the controls sit under the now-playing bar, always there.
+  await expect(host.locator('.watch-bar').getByRole('toolbar', { name: 'Watch party controls' })).toBeVisible()
+  await host.getByRole('button', { name: 'Watch party settings' }).click()
+  await host.getByRole('menuitemradio', { name: '2×', exact: true }).click() // applied once the server confirms
+  await expect(host.getByRole('menuitemradio', { name: '2×', exact: true })).toBeChecked()
+  await host.keyboard.press('Escape')
   await host.locator('.watch-controls').getByRole('button', { name: 'Play' }).click()
   for (const page of [host, friend]) {
     await expect(page.getByTestId('watch-now-playing')).toContainText('Now playing', { timeout: 5_000 })

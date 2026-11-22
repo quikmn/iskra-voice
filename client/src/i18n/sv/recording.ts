@@ -20,6 +20,7 @@ export const recording = {
     left: 'Du är inte med i inspelningen',
     dontRecord: 'Spela inte in mig',
     recordMe: 'Spela in mig igen',
+    stop: 'Stoppa',
   },
   notice: {
     joined: '{{name}} spelar in samtalet. Du gick med mikrofonen avstängd, så inget du säger spelas in förrän du slår på mikrofonen.',

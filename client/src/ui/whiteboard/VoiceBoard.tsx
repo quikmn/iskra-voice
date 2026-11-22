@@ -68,7 +68,7 @@ export function VoiceBoardPanel({ server, channel }: { server: ServerState; chan
           <Close size={16} />
         </button>
       </header>
-      <Whiteboard key={board.id} server={server} channel={channel} canDraw={canDraw} canClear={canClear} compact />
+      <Whiteboard key={board.id} server={server} channel={channel} canDraw={canDraw} canClear={canClear} />
     </section>
   )
 }

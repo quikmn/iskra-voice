@@ -146,10 +146,22 @@ test('recording a call: per-person files on the recorder, a mark for everyone, m
   await expect.poll(async () => (await files(host))['Friend (2).webm']?.closed, { timeout: 10_000 }).toBe(true)
   await expect(friend.getByTestId('recording-strip')).toContainText("You're not in the recording")
   await expect(friend.getByTestId('recording-strip').getByRole('button', { name: 'Record me again' })).toBeVisible()
+  // Stop is in reach for the recorder without opening anything: in the strip above the call controls and in the
+  // voice bar. Nobody else gets one.
+  const stripStop = host.getByTestId('recording-strip').getByRole('button', { name: 'Stop recording' })
+  await expect(stripStop).toBeVisible()
+  await expect(host.locator('.voice-bar').getByRole('button', { name: 'Stop recording' })).toBeVisible()
+  await expect(friend.getByRole('button', { name: 'Stop recording' })).toHaveCount(0)
   await host.screenshot({ path: join(SHOTS, 'recording-host.png') })
+  await host.setViewportSize({ width: 390, height: 844 })
+  await expect(stripStop).toBeInViewport()
+  expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await host.waitForTimeout(500) // the panels settle at phone width
+  await host.screenshot({ path: join(SHOTS, 'recording-host-phone.png') })
+  await host.setViewportSize({ width: 1280, height: 720 })
 
-  // The host stops: the mark goes for everyone, the files are finished, info.txt says who and when.
-  await (await callTool(host, 'More', 'Stop recording')).click()
+  // The host stops from the strip: the mark goes for everyone, the files are finished, info.txt says who and when.
+  await stripStop.click()
   await expect(friend.getByTestId('recording-strip')).toHaveCount(0)
   await expect(studio(friend).getByRole('img', { name: 'This call is being recorded' })).toHaveCount(0)
   const saved = host.getByRole('status').filter({ hasText: 'Recording saved.' })
@@ -184,4 +196,26 @@ test('recording a call: per-person files on the recorder, a mark for everyone, m
   await host.getByRole('dialog', { name: 'Record this call' }).getByRole('button', { name: 'Start recording' }).click()
   await expect(studio(host).locator('li', { hasText: 'Friend' }).getByRole('img', { name: 'Not in the recording' })).toBeVisible()
   await expect(friend.getByTestId('recording-strip').getByRole('button', { name: 'Record me again' })).toBeVisible()
+
+  // Stopped from the voice bar while looking at another channel: the same end for everyone.
+  await host.locator('.channel', { hasText: 'general' }).first().click()
+  await expect(host.getByTestId('recording-strip')).toHaveCount(0) // the call screen is out of sight
+  await expect(host.locator('.voice-bar').getByRole('img', { name: 'Host is recording this call' })).toBeVisible()
+  await host.waitForTimeout(300)
+  await host.screenshot({ path: join(SHOTS, 'recording-voice-bar.png') })
+  // On a phone the voice bar is in the channel drawer: its buttons, Stop included, still fit in one row.
+  await host.setViewportSize({ width: 390, height: 844 })
+  await host.getByRole('button', { name: 'Open channels' }).click()
+  const barStop = host.locator('.voice-bar').getByRole('button', { name: 'Stop recording' })
+  await expect(barStop).toBeInViewport()
+  await expect(host.locator('.voice-bar').getByRole('button', { name: 'Leave voice' })).toBeInViewport()
+  expect(await host.locator('.voice-controls').evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0)
+  await host.waitForTimeout(400)
+  await host.screenshot({ path: join(SHOTS, 'recording-voice-bar-phone.png') })
+  await barStop.click()
+  await host.setViewportSize({ width: 1280, height: 720 })
+  await expect(friend.getByTestId('recording-strip')).toHaveCount(0)
+  await expect(studio(friend).getByRole('img', { name: 'This call is being recorded' })).toHaveCount(0)
+  await expect(host.locator('.voice-bar').getByRole('button', { name: 'Stop recording' })).toHaveCount(0)
+  await expect(host.getByRole('status').filter({ hasText: 'Recording saved.' })).toBeVisible()
 })

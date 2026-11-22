@@ -20,6 +20,7 @@ export const recording = {
     left: "You're not in the recording",
     dontRecord: "Don't record me",
     recordMe: 'Record me again',
+    stop: 'Stop',
   },
   notice: {
     joined: "{{name}} is recording this call. You joined muted, so nothing you say is recorded until you unmute.",

@@ -17,22 +17,16 @@ import {
 import { errorMessage } from '../../i18n/errors'
 import { formatNumber } from '../../i18n/format'
 import { Modal, Spinner } from '../bits'
-import { Trash } from '../icons'
-import {
-  ArrowIcon, ClearIcon, DownloadIcon, EllipseIcon, EraserIcon, FitIcon, HandIcon, HighlighterIcon, ImageIcon, LineIcon, NoteIcon, PenIcon, RectIcon,
-  RedoIcon, SelectIcon, TextIcon, UndoIcon, ZoomInIcon, ZoomOutIcon,
-} from './icons'
+import { BoardToolbar, BoardViewBar } from './BoardBars'
+import { COLORS, SIZES, type Tool } from './boardTools'
 import {
   applyCamera, boundsOf, contentBounds, drawInk, drawObject, drawObjects, drawPaper, exportPng, fitCamera, FONT_FAMILY, NOTE_TEXT, type Camera,
 } from './render'
 import './whiteboard.css'
 
-export type Tool = 'select' | 'pan' | 'pen' | 'hl' | 'eraser' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'text' | 'note'
+export type { Tool } from './boardTools'
 
-const COLORS = ['#1f2328', '#e5484d', '#f76b15', '#f5d90a', '#30a46c', '#0090ff', '#8e4ec6', '#ffffff'] as const
-const COLOR_NAMES = ['black', 'red', 'orange', 'yellow', 'green', 'blue', 'purple', 'white'] as const
 const NOTE_COLORS: Record<string, string> = { '#1f2328': '#fde68a', '#ffffff': '#f3f4f6', '#e5484d': '#fecaca', '#f76b15': '#fed7aa', '#f5d90a': '#fde68a', '#30a46c': '#bbf7d0', '#0090ff': '#bfdbfe', '#8e4ec6': '#e9d5ff' }
-const SIZES: Record<'stroke' | 'hl' | 'text', [number, number, number]> = { stroke: [2, 4, 8], hl: [12, 20, 32], text: [18, 28, 44] }
 const KEYS: Record<string, Tool> = { v: 'select', h: 'pan', p: 'pen', m: 'hl', e: 'eraser', l: 'line', a: 'arrow', r: 'rect', o: 'ellipse', t: 'text', n: 'note' }
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 8
@@ -58,14 +52,12 @@ type Gesture =
   | { kind: 'marquee'; start: Point; end: Point }
   | { kind: 'pan'; last: { x: number; y: number } }
 
-export function Whiteboard({ server, channel, canDraw, canClear, compact }: {
+export function Whiteboard({ server, channel, canDraw, canClear }: {
   server: ServerState
   channel: Channel
   /** May draw (the server checks too). */
   canDraw: boolean
   canClear: boolean
-  /** In a call: a smaller toolbar. */
-  compact?: boolean
 }) {
   const { t } = useTranslation()
   const key = boardKey(server.key, channel.id)
@@ -657,20 +649,16 @@ export function Whiteboard({ server, channel, canDraw, canClear, compact }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, zoom])
 
-  const sizeTool: Tool = tool === 'hl' ? 'hl' : tool === 'text' || tool === 'note' ? 'text' : 'pen'
-  const tools: { id: Tool; icon: React.ReactNode; draw?: boolean }[] = [
-    { id: 'select', icon: <SelectIcon /> },
-    { id: 'pan', icon: <HandIcon /> },
-    { id: 'pen', icon: <PenIcon />, draw: true },
-    { id: 'hl', icon: <HighlighterIcon />, draw: true },
-    { id: 'eraser', icon: <EraserIcon />, draw: true },
-    { id: 'line', icon: <LineIcon />, draw: true },
-    { id: 'arrow', icon: <ArrowIcon />, draw: true },
-    { id: 'rect', icon: <RectIcon />, draw: true },
-    { id: 'ellipse', icon: <EllipseIcon />, draw: true },
-    { id: 'text', icon: <TextIcon />, draw: true },
-    { id: 'note', icon: <NoteIcon />, draw: true },
-  ]
+  /** A colour for what comes next, and for what's selected. */
+  function pickColor(c: string) {
+    setColor(c)
+    if (!selection.size || !session) return
+    send([...selection].flatMap((id) => {
+      const o = session.state.get(id)
+      if (!o || o.kind === 'image') return []
+      return [{ id, p: { color: o.kind === 'note' ? (NOTE_COLORS[c] ?? '#fde68a') : c } }]
+    }))
+  }
 
   if (!board || board.status === 'loading') {
     return <div className="wb wb-center"><Spinner /><p className="muted">{t('whiteboard.loading')}</p></div>
@@ -680,68 +668,7 @@ export function Whiteboard({ server, channel, canDraw, canClear, compact }: {
   }
 
   return (
-    <div className={`wb ${compact ? 'wb-compact' : ''}`} data-testid="whiteboard">
-      <div className="wb-toolbar" role="toolbar" aria-label={t('whiteboard.tools')}>
-        <div className="wb-group" role="radiogroup" aria-label={t('whiteboard.toolGroup')}>
-          {tools.filter((x) => !x.draw || drawing).map((x) => (
-            <button key={x.id} role="radio" aria-checked={tool === x.id} className={`wb-tool ${tool === x.id ? 'on' : ''}`}
-              aria-label={t(`whiteboard.tool.${x.id}`)} title={t(`whiteboard.tool.${x.id}`)} onClick={() => setTool(x.id)}>
-              {x.icon}
-            </button>
-          ))}
-          {drawing && !encrypted && (
-            <button className="wb-tool" aria-label={t('whiteboard.tool.image')} title={t('whiteboard.tool.image')} onClick={() => fileRef.current?.click()}>
-              <ImageIcon />
-            </button>
-          )}
-        </div>
-        {drawing && (
-          <>
-            <div className="wb-group wb-colors" role="radiogroup" aria-label={t('whiteboard.colour')}>
-              {COLORS.map((c, i) => (
-                <button key={c} role="radio" aria-checked={color === c} className={`wb-swatch ${color === c ? 'on' : ''}`} style={{ background: c }}
-                  aria-label={t(`whiteboard.colours.${COLOR_NAMES[i]}`)} title={t(`whiteboard.colours.${COLOR_NAMES[i]}`)}
-                  onClick={() => {
-                    setColor(c)
-                    if (selection.size && session) {
-                      send([...selection].flatMap((id) => {
-                        const o = session.state.get(id)
-                        if (!o || o.kind === 'image') return []
-                        return [{ id, p: { color: o.kind === 'note' ? (NOTE_COLORS[c] ?? '#fde68a') : c } }]
-                      }))
-                    }
-                  }} />
-              ))}
-            </div>
-            <div className="wb-group" role="radiogroup" aria-label={t('whiteboard.size')}>
-              {(['s', 'm', 'l'] as const).map((s2, i) => (
-                <button key={s2} role="radio" aria-checked={sizeIndex === i} className={`wb-tool wb-size ${sizeIndex === i ? 'on' : ''}`}
-                  aria-label={t(`whiteboard.sizes.${s2}`)} title={t(`whiteboard.sizes.${s2}`)} onClick={() => setSizeIndex(i)}>
-                  <span style={{ width: Math.min(18, 3 + (sizeTool === 'pen' ? SIZES.stroke[i] : i * 5 + 4)), height: Math.min(18, 3 + (sizeTool === 'pen' ? SIZES.stroke[i] : i * 5 + 4)) }} />
-                </button>
-              ))}
-            </div>
-            <div className="wb-group">
-              <button className="wb-tool" disabled={!board.canUndo} aria-label={t('whiteboard.undo')} title={t('whiteboard.undo')} onClick={() => session && undo(session)}><UndoIcon /></button>
-              <button className="wb-tool" disabled={!board.canRedo} aria-label={t('whiteboard.redo')} title={t('whiteboard.redo')} onClick={() => session && redo(session)}><RedoIcon /></button>
-              {selection.size > 0 && (
-                <button className="wb-tool" aria-label={t('whiteboard.deleteSelected')} title={t('whiteboard.deleteSelected')} onClick={deleteSelection}><Trash /></button>
-              )}
-            </div>
-          </>
-        )}
-        <span className="wb-spacer" />
-        <div className="wb-group">
-          <button className="wb-tool" aria-label={t('whiteboard.zoomOut')} title={t('whiteboard.zoomOut')} onClick={() => zoomAt(0.8)}><ZoomOutIcon /></button>
-          <span className="wb-zoom" aria-live="polite">{t('whiteboard.zoom', { percent: formatNumber(Math.round(zoom * 100)) })}</span>
-          <button className="wb-tool" aria-label={t('whiteboard.zoomIn')} title={t('whiteboard.zoomIn')} onClick={() => zoomAt(1.25)}><ZoomInIcon /></button>
-          <button className="wb-tool" aria-label={t('whiteboard.fit')} title={t('whiteboard.fit')} onClick={fit}><FitIcon /></button>
-          <button className="wb-tool" aria-label={t('whiteboard.export')} title={t('whiteboard.export')} onClick={() => void savePng()}><DownloadIcon /></button>
-          {canClear && (
-            <button className="wb-tool danger" aria-label={t('whiteboard.clear')} title={t('whiteboard.clear')} onClick={() => setConfirmClear(true)}><ClearIcon /></button>
-          )}
-        </div>
-      </div>
+    <div className="wb" data-testid="whiteboard">
       {(error || board.error) && (
         <div className="banner error wb-banner" role="alert">
           <span>{error ?? board.error}</span>
@@ -750,48 +677,60 @@ export function Whiteboard({ server, channel, canDraw, canClear, compact }: {
       )}
       {board.unreadable > 0 && <p className="wb-note muted small-text">{t('whiteboard.unreadable', { count: board.unreadable })}</p>}
       {busy && <p className="wb-note muted small-text" role="status">{busy}</p>}
-      <div
-        ref={wrapRef}
-        className={`wb-canvas tool-${drawing ? tool : 'view'}`}
-        data-count={count}
-        tabIndex={0}
-        role="application"
-        aria-label={t('whiteboard.canvasLabel', { name: channel.name })}
-        aria-roledescription={t('whiteboard.board')}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onPointerLeave={() => session && !gesture.current && setLive(session, null)}
-        onDoubleClick={onDoubleClick}
-        onKeyDown={onKeyDown}
-      >
-        <canvas ref={baseRef} className="wb-layer" />
-        <canvas ref={overRef} className="wb-layer" />
-        {empty && !editing && (
-          <p className="wb-empty muted">{drawing ? t('whiteboard.empty') : t('whiteboard.emptyReadOnly')}</p>
-        )}
-        {editing && (
-          <textarea
-            className={`wb-editor ${editing.kind}`}
-            style={editorStyle}
-            value={editing.text}
-            maxLength={2000}
-            autoFocus
-            aria-label={editing.kind === 'note' ? t('whiteboard.noteText') : t('whiteboard.text')}
-            placeholder={t('whiteboard.typeHere')}
-            onPointerDown={(e) => e.stopPropagation()}
-            onChange={(e) => setEditing({ ...editing, text: e.target.value })}
-            onBlur={commitText}
-            onKeyDown={(e) => {
-              e.stopPropagation()
-              if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
-                e.preventDefault()
-                commitText()
-              }
-            }}
-          />
-        )}
+      <div className="wb-stage">
+        <BoardToolbar
+          drawing={drawing} tool={tool} onTool={setTool} onPicture={encrypted ? undefined : () => fileRef.current?.click()}
+          color={color} onColor={pickColor} sizeIndex={sizeIndex} onSize={setSizeIndex}
+          canUndo={!!board.canUndo} canRedo={!!board.canRedo} onUndo={() => session && undo(session)} onRedo={() => session && redo(session)}
+          hasSelection={selection.size > 0} onDelete={deleteSelection} canClear={canClear} onClear={() => setConfirmClear(true)}
+        />
+        <div
+          ref={wrapRef}
+          className={`wb-canvas tool-${drawing ? tool : 'view'}`}
+          data-count={count}
+          tabIndex={0}
+          role="application"
+          aria-label={t('whiteboard.canvasLabel', { name: channel.name })}
+          aria-roledescription={t('whiteboard.board')}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onPointerLeave={() => session && !gesture.current && setLive(session, null)}
+          onDoubleClick={onDoubleClick}
+          onKeyDown={onKeyDown}
+        >
+          <canvas ref={baseRef} className="wb-layer" />
+          <canvas ref={overRef} className="wb-layer" />
+          {empty && !editing && (
+            <p className="wb-empty muted">{drawing ? t('whiteboard.empty') : t('whiteboard.emptyReadOnly')}</p>
+          )}
+          {editing && (
+            <textarea
+              className={`wb-editor ${editing.kind}`}
+              style={editorStyle}
+              value={editing.text}
+              maxLength={2000}
+              autoFocus
+              aria-label={editing.kind === 'note' ? t('whiteboard.noteText') : t('whiteboard.text')}
+              placeholder={t('whiteboard.typeHere')}
+              onPointerDown={(e) => e.stopPropagation()}
+              onChange={(e) => setEditing({ ...editing, text: e.target.value })}
+              onBlur={commitText}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) {
+                  e.preventDefault()
+                  commitText()
+                }
+              }}
+            />
+          )}
+        </div>
+        <BoardViewBar
+          zoomLabel={t('whiteboard.zoom', { percent: formatNumber(Math.round(zoom * 100)) })}
+          onZoomIn={() => zoomAt(1.25)} onZoomOut={() => zoomAt(0.8)} onFit={fit} onExport={() => void savePng()}
+        />
       </div>
       {!canDraw && <p className="wb-note muted small-text">{t('whiteboard.readOnly')}</p>}
       <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onChange={(e) => {

@@ -136,6 +136,7 @@ export function RecordingStrip() {
   const { session, server, mark, participants, me } = useHere()
   const optOut = useOptOut(session?.serverKey)
   const time = useElapsed(mark?.live ? (mark.liveAt ?? mark.startedAt) : null)
+  const busy = useRecording((s) => s.busy)
   if (!mark) return null
   const mine = mark.by === me
   const name = nameIn(server, mark.by, t('common.someone'))
@@ -153,6 +154,12 @@ export function RecordingStrip() {
       {!mine && (
         <button className="link-like" onClick={() => void setOptOut(session!.serverKey, !optOut)} aria-pressed={optOut}>
           {optOut ? t('recording.strip.recordMe') : t('recording.strip.dontRecord')}
+        </button>
+      )}
+      {mine && (
+        // Always in reach for whoever records: no need to open "More" to stop.
+        <button className="recording-stop" onClick={() => void stopRecording()} disabled={busy} aria-label={t('recording.stop')} title={t('recording.stop')} data-testid="recording-strip-stop">
+          <StopIcon size={14} />{t('recording.strip.stop')}
         </button>
       )}
     </div>
@@ -184,6 +191,19 @@ export function MemberRecordingMark({ serverKey, accountKey }: { serverKey: stri
   const { t } = useTranslation()
   if (!useRecordingBy(serverKey, accountKey)) return null
   return <span className="recording-dot member-rec" role="img" aria-label={t('recording.memberMark')} title={t('recording.memberMark')} />
+}
+
+/** In the voice bar's buttons: stop your own recording from anywhere in the app. */
+export function VoiceBarStopRecording() {
+  const { t } = useTranslation()
+  const { mark, me } = useHere()
+  const busy = useRecording((s) => s.busy)
+  if (!mark || mark.by !== me) return null
+  return (
+    <button className="icon-button recording-stop-icon" onClick={() => void stopRecording()} disabled={busy} aria-label={t('recording.stop')} title={t('recording.stop')} data-testid="voice-bar-stop-recording">
+      <StopIcon />
+    </button>
+  )
 }
 
 /** In the voice bar under the channel list: "REC" while the call you're in is recorded. */

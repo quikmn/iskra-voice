@@ -10,7 +10,8 @@ import { formatBytes } from '../../i18n/format'
 import { Modal, Spinner } from '../bits'
 import { ActivityIcon, BuiltinIcon } from './icons'
 import './activities.css'
-import { Switch } from '../kit'
+import { Switch, SwitchRow } from '../kit'
+import { Volume } from '../icons'
 
 const START_ROLES = ['guest', 'member', 'trusted', 'admin'] as const
 
@@ -113,17 +114,20 @@ export function ActivitiesSection({ server }: { server: ServerState }) {
           <h3>{t('activities.settings.channels')}</h3>
           <p className="muted small-print">{t('activities.settings.channelsHint')}</p>
           {voice.length === 0 ? <p className="muted">{t('activities.settings.noVoice')}</p> : (
-            <ul className="activity-channels">
+            // One switch per voice channel, on while activities can be started there (encrypted ones never).
+            <div className="activity-channels" data-testid="activity-channels">
               {voice.map((c) => (
-                <li key={c.id}>
-                  <label className="checkbox">
-                    <input type="checkbox" checked={catalog.off.includes(c.id) || !!c.e2ee} disabled={!!c.e2ee}
-                      onChange={(e) => void run(() => configureActivities(server.key, { channelId: c.id, off: e.target.checked }))} />
-                    {c.name}{c.e2ee ? ` (${t('activities.settings.encrypted')})` : ''}
-                  </label>
-                </li>
+                <SwitchRow
+                  key={c.id}
+                  title={<span className="activity-channel-name"><Volume size={16} />{c.name}</span>}
+                  help={c.e2ee ? t('activities.settings.encryptedHelp') : undefined}
+                  label={t('activities.settings.channelOn', { name: c.name })}
+                  checked={!c.e2ee && !catalog.off.includes(c.id)}
+                  disabled={!!c.e2ee}
+                  onChange={(on) => void run(() => configureActivities(server.key, { channelId: c.id, off: !on }))}
+                />
               ))}
-            </ul>
+            </div>
           )}
         </>
       )}

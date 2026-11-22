@@ -96,6 +96,11 @@ test('two play Four in a row, a late joiner sees the board, and added activities
     }),
   })
   await expect(settings.getByTestId('activity-settings-list')).toContainText('Tiny test')
+  // Voice channels: a row with a switch each, like the other settings pages (no checkboxes).
+  const channelRows = settings.getByTestId('activity-channels')
+  await expect(channelRows.getByRole('switch', { name: 'Activities in games' })).toBeChecked()
+  await expect(channelRows.getByRole('checkbox')).toHaveCount(0)
+  await channelRows.scrollIntoViewIfNeeded()
   await host.screenshot({ path: join(SHOTS, 'activities-settings.png') })
 
   await host.keyboard.press('Escape')
@@ -164,5 +169,25 @@ test('two play Four in a row, a late joiner sees the board, and added activities
   await expect(frame(friend).getByRole('status')).toHaveText(`The word was: ${word}`)
   await expect(frame(friend).locator('.guesses')).not.toContainText(word)
   await friend.screenshot({ path: join(SHOTS, 'activities-draw.png') })
+
+  // Turned off for the channel with its switch: the game ends for everyone and can't be started there.
+  const again2 = await openServerSettings(host, 'Activities')
+  const games = again2.getByTestId('activity-channels').getByRole('switch', { name: 'Activities in games' })
+  await games.click()
+  await expect(games).not.toBeChecked()
+  await expect(friend.getByTestId('activity-panel')).toHaveCount(0)
+  await host.setViewportSize({ width: 390, height: 844 })
+  await games.scrollIntoViewIfNeeded()
+  await host.waitForTimeout(400)
+  await host.screenshot({ path: join(SHOTS, 'activities-settings-phone.png') })
+  await host.setViewportSize({ width: 1280, height: 720 })
+  await host.keyboard.press('Escape')
+  await (await callToolById(friend, 'Together', 'activity-button')).click()
+  await expect(friend.getByRole('dialog', { name: 'Start an activity' })).toContainText('Activities are turned off in this channel.')
+  await friend.keyboard.press('Escape')
+  // And back on.
+  const again3 = await openServerSettings(host, 'Activities')
+  await again3.getByTestId('activity-channels').getByRole('switch', { name: 'Activities in games' }).click()
+  await expect(again3.getByTestId('activity-channels').getByRole('switch', { name: 'Activities in games' })).toBeChecked()
 })
 

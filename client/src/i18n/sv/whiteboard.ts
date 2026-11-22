@@ -9,6 +9,10 @@ export const whiteboard: Messages['whiteboard'] = {
   canvasLabel: 'Whiteboard {{name}}',
   tools: 'Verktyg för whiteboard',
   toolGroup: 'Verktyg',
+  shapes: 'Former',
+  style: 'Färg och storlek',
+  actions: 'Färg, ångra och töm',
+  view: 'Vy',
   tool: {
     select: 'Markera och flytta (V)',
     pan: 'Flytta runt (H)',
