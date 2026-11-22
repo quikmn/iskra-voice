@@ -177,6 +177,14 @@ public static class OwnerSetup
     /// <summary>Requests to the claim endpoint per client address: a burst of 30, then one every 2 seconds.</summary>
     private static readonly ConditionalWeakTable<World, Hosting.BoundedTable<IPAddress, WebhookIngress.TokenBucket>> Limits = new();
     public const int ClaimBurst = 30;
+    private const double ClaimPerSecond = 0.5;
+
+    /// <summary>
+    /// The refill rate. "Claim:RefillPerSecond" can only lower it: tests set 0 (one request in 11 days), so the
+    /// burst is an exact count however slowly the requests arrive.
+    /// </summary>
+    private static double ClaimRefill(IConfiguration config) =>
+        Math.Clamp(config.GetValue("Claim:RefillPerSecond", ClaimPerSecond), 0.000001, ClaimPerSecond);
 
     /// <summary>
     /// GET /.well-known/iskra-claim?nonce=…: while a claim is pending, the server's key and a proof that this server
@@ -187,8 +195,9 @@ public static class OwnerSetup
         context.Response.Headers.AccessControlAllowOrigin = "*";
         context.Response.Headers.CacheControl = "no-store";
         var time = context.RequestServices.GetRequiredService<TimeProvider>();
+        var refill = ClaimRefill(context.RequestServices.GetRequiredService<IConfiguration>());
         var buckets = Limits.GetValue(world, _ => new Hosting.BoundedTable<IPAddress, WebhookIngress.TokenBucket>(10_000, b => b.Available));
-        var bucket = buckets.GetOrAdd(BugInbox.LimitKey(context.Connection.RemoteIpAddress), _ => new WebhookIngress.TokenBucket(ClaimBurst, 0.5, time));
+        var bucket = buckets.GetOrAdd(BugInbox.LimitKey(context.Connection.RemoteIpAddress), _ => new WebhookIngress.TokenBucket(ClaimBurst, refill, time));
         if (!bucket.TryTake(out var wait))
         {
             context.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(wait.TotalSeconds)).ToString(CultureInfo.InvariantCulture);

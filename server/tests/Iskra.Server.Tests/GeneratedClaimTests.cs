@@ -11,7 +11,8 @@ namespace Iskra.Server.Tests;
 /// <summary>Server images ("OwnerClaim": "generate"): the server makes its own claim code for whoever opens its console.</summary>
 public class GeneratedClaimTests : IDisposable
 {
-    private readonly IskraServer _server = new();
+    // No refill: the rate limit test then counts exactly, however slow the run.
+    private readonly IskraServer _server = new() { Settings = { ["Claim:RefillPerSecond"] = "0" } };
 
     public GeneratedClaimTests()
     {

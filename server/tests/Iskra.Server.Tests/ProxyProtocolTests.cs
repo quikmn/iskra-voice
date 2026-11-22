@@ -318,7 +318,7 @@ public class ProxyProtocolTests : IDisposable
             Mode = "files", Domain = "localhost", CertFile = cert, KeyFile = key, Port = httpsPort, HttpPort = httpPort,
             ProxyProtocol = true, HttpProxyProtocol = true,
         }, new { Port = port });
-        var process = StartServer(world);
+        var process = StartServer(world, "--Claim:RefillPerSecond=0"); // the claim limit below is then an exact count
         await WaitForServerAsync(process, port);
 
         // v1 (nginx) and v2 (HAProxy send-proxy-v2), over IPv4 and IPv6: HTTPS works behind the header.
@@ -357,11 +357,8 @@ public class ProxyProtocolTests : IDisposable
         const string claim = "/.well-known/iskra-claim?nonce=abcdefghijklmnop";
         for (var i = 0; i < Features.OwnerSetup.ClaimBurst; i++)
             Assert.Equal(404, (await HttpAsync(await ConnectAsync(httpsPort, V2(IPAddress.Parse("198.51.100.7"), 1000 + i), tls: true), "GET", claim)).Status);
-        // The bucket refills 0.5 a second, so a slow run may get one or two more before the refusal.
-        var refused = false;
-        for (var i = 0; i < 5 && !refused; i++)
-            refused = (await HttpAsync(await ConnectAsync(httpsPort, V2(IPAddress.Parse("198.51.100.7"), 990 + i), tls: true), "GET", claim)).Status == 429;
-        Assert.True(refused);
+        // This server's bucket doesn't refill (Claim:RefillPerSecond=0), so the next one is refused however slow the run.
+        Assert.Equal(429, (await HttpAsync(await ConnectAsync(httpsPort, V2(IPAddress.Parse("198.51.100.7"), 990), tls: true), "GET", claim)).Status);
         Assert.Equal(404, (await HttpAsync(await ConnectAsync(httpsPort, V1(IPAddress.Parse("198.51.100.8")), tls: true), "GET", claim)).Status);
 
         // The security log records the address in the header.
