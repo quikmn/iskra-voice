@@ -297,14 +297,16 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
 
         try
         {
-            for (var i = 0; i < 100 && !process.HasExited && !Available; i++)
+            // Up once LiveKit answers and has its first join's slow part behind it (WarmUpAsync), however long that
+            // takes on a small or busy machine: as long as the process runs, this keeps asking.
+            var warm = false;
+            while (!process.HasExited && !Available)
             {
-                try
-                {
-                    Available = (await _http.GetAsync(ApiUrl, stopping)).IsSuccessStatusCode;
-                }
-                catch (HttpRequestException) { }
-                if (!Available) await Task.Delay(100, stopping);
+                using var health = new HttpRequestMessage(HttpMethod.Get, ApiUrl);
+                var up = await AskAsync(health, stopping) is { } status && (int)status is >= 200 and < 300;
+                if (up && !warm) warm = await WarmUpAsync(stopping) is not null;
+                if (up && warm) Available = true;
+                else await Task.Delay(100, stopping);
             }
             if (Available) _log.Info("voice", "start", ("what", "livekit"), ("port", Settings.Port), ("took", DateTime.UtcNow - startedAt));
             await process.WaitForExitAsync(stopping);
@@ -315,6 +317,43 @@ public sealed class LiveKitHost : BackgroundService, IVoiceBackend
             if (!process.HasExited) process.Kill(entireProcessTree: true);
             _process = null;
         }
+    }
+
+    /// <summary>One request to LiveKit: its status, or null when it didn't answer (not listening yet, or nothing within the client's 5 s).</summary>
+    private async Task<System.Net.HttpStatusCode?> AskAsync(HttpRequestMessage request, CancellationToken stopping)
+    {
+        try
+        {
+            using var response = await _http.SendAsync(request, stopping);
+            return response.StatusCode;
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+        catch (TaskCanceledException) when (!stopping.IsCancellationRequested)
+        {
+            return null; // too slow this time, not gone: it's asked again
+        }
+    }
+
+    /// <summary>A room name no voice channel, call or whisper has: the warm-up asks about it and nobody ever joins it.</summary>
+    internal const string WarmUpRoom = "iskra-warm-up";
+
+    /// <summary>
+    /// LiveKit builds its user-agent parser (a long list of regular expressions) while it validates the first join
+    /// after it starts: about 70 ms on an idle PC, but 10 to 22 s was measured on a starved one, and the app's signal
+    /// connection gives up after 15 s ("Connecting…", then a second try). So that work happens here, before voice is
+    /// said to be available: LiveKit is asked "may this token join?" (/rtc/validate) for a room nobody is in, which
+    /// makes no room and no participant. Returns its status (200), or null when it didn't answer.
+    /// </summary>
+    internal async Task<System.Net.HttpStatusCode?> WarmUpAsync(CancellationToken stopping)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{ApiUrl}/rtc/validate");
+        var grant = new System.Text.Json.Nodes.JsonObject { ["room"] = WarmUpRoom, ["roomJoin"] = true, ["canPublish"] = false, ["canSubscribe"] = false, ["canPublishData"] = false };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer",
+            LiveKitTokens.Create(ApiKey, ApiSecret, "iskra-server", "Iskra", grant, TimeSpan.FromMinutes(1), DateTimeOffset.UtcNow));
+        return await AskAsync(request, stopping);
     }
 
     public async Task RemoveParticipantAsync(string room, string identity)

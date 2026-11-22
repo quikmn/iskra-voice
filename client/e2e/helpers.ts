@@ -174,11 +174,11 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
   const startError = (what: string, last: string, run: { exited: boolean }) =>
     new Error(`${what} did not start in 30 s (last answer: ${last}; the server ${run.exited ? 'exited' : 'is running'}). Its last output:\n${tail.join('\n')}`)
   /** One look at a URL, never longer than 5 s (a stalled connection must not eat the test). */
-  const probe = async (target: string): Promise<{ ok: boolean; body: { iskra?: number; name?: string }; said: string }> => {
+  const probe = async (target: string): Promise<{ ok: boolean; body: { iskra?: number; name?: string; voice?: string }; said: string }> => {
     try {
       const response = await fetch(target, { signal: AbortSignal.timeout(5_000) })
-      const body = (await response.json().catch(() => ({}))) as { iskra?: number; name?: string }
-      return { ok: response.ok, body, said: `${response.status}${body.name ? ` from "${body.name}"` : ''}` }
+      const body = (await response.json().catch(() => ({}))) as { iskra?: number; name?: string; voice?: string }
+      return { ok: response.ok, body, said: `${response.status}${body.name ? ` from "${body.name}"` : ''}${body.voice ? `, voice ${body.voice}` : ''}` }
     } catch (e) {
       return { ok: false, body: {}, said: (e as Error).name === 'TimeoutError' ? 'no answer in 5 s' : 'refused' }
     }
@@ -195,12 +195,13 @@ async function startIn(world: string, name: string, voice: boolean, env: Record<
       await new Promise((r) => setTimeout(r, 100))
     }
     if (voice) {
-      // LiveKit starts a moment after the server.
+      // LiveKit starts a moment after the server. The server says when voice can be joined (/health): later than
+      // LiveKit's own port answering, by the warm-up the server does first (LiveKitHost.WarmUpAsync).
       const lkUntil = Date.now() + 30_000
       for (let last = 'none'; ; ) {
-        const { ok, said } = await probe(`http://127.0.0.1:${voicePort}`)
+        const { ok, body, said } = await probe(`${url}/health`)
         last = said
-        if (ok) break
+        if (ok && body.voice === 'up') break
         if (Date.now() > lkUntil) throw startError('LiveKit', last, run)
         await new Promise((r) => setTimeout(r, 100))
       }

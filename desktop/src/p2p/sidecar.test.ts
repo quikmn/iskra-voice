@@ -102,8 +102,11 @@ test('the sidecar serves a world on a testnet, follows a new secret and stops wi
 
     // A rotated secret: the server writes p2p.key and says "sync"; the new host key is announced.
     writeFileSync(join(world, 'p2p.key'), `${second.toString('base64url')}\n`)
+    const before = run.statuses.length
     run.stdin.write('sync\n')
     await run.until((s) => s.state === 'ready' && s.hostKey === hostKeyHex(second))
+    // Starting, then ready: no "off" while the tunnel is replaced (the server would pass it on as the state).
+    assert.deepEqual([...new Set(run.statuses.slice(before).map((s) => `${s.state}:${s.hostKey === hostKeyHex(second)}`))], ['starting:true', 'ready:true'])
     assert.equal(await reach(second), 'hello from the world')
 
     sidecarRun.stdin.end()

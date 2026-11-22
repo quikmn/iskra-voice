@@ -19,7 +19,7 @@ import { createIdentity } from '../src/core/identity'
 import { buildInviteLink, parseInvite, type InviteLink } from '../src/core/invite'
 import type { Events, Welcome } from '../src/core/protocol'
 import { freePort, freeUdpPort } from './ports'
-import { answers, spawnServer, type Kept } from './spawned'
+import { answers, spawnServer, voiceUp, type Kept } from './spawned'
 
 const LIVEKIT = resolve(__dirname, '../../.tools', process.platform === 'win32' ? 'livekit-server.exe' : 'livekit-server')
 const hasLiveKit = existsSync(LIVEKIT)
@@ -103,7 +103,7 @@ describe('Iskra through the peer-to-peer tunnel', () => {
     await server.ready('the server', answers(`${directUrl}/`))
     const portFile = join(world, 'p2p.port')
     await server.ready('p2p.port', () => existsSync(portFile))
-    if (hasLiveKit) await server.ready('LiveKit', answers(`http://${LOCAL}:${voicePort}/`))
+    if (hasLiveKit) await server.ready('voice', voiceUp(directUrl))
     const tunnelPort = Number(readFileSync(portFile, 'utf8').trim())
     secret = parseSecret(readFileSync(join(world, 'p2p.key'), 'utf8').trim())!
     expect(secret).toBeTruthy()

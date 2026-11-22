@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import type { HostedServer } from '../../platform/desktop'
-import { loadP2pStatus, rotateP2p, setP2p, useP2p } from '../../state/p2p'
+import { loadP2pStatus, rotateP2p, setP2p, tunnelPollMs, useP2p } from '../../state/p2p'
 import type { ServerState } from '../../state/store'
 import { Spinner } from '../bits'
 import { Badge, Switch } from '../kit'
@@ -26,13 +26,13 @@ export function P2pSection({ server, here }: { server: ServerState; here: Hosted
     if (isOwner) loadP2pStatus(server.key).catch((e: Error) => setError(errorMessage(e)))
   }, [server.key, isOwner])
 
-  // The server's own tunnel starts after the switch: follow it (quickly while it starts, then now and then).
-  const ownState = enabled ? own?.state : undefined
+  // The server's own tunnel starts after the switch: follow it (quickly until it has settled, then now and then).
+  const pollMs = tunnelPollMs(enabled, own?.state)
   useEffect(() => {
-    if (!isOwner || !ownState) return
-    const timer = setInterval(() => void loadP2pStatus(server.key).catch(() => undefined), ownState === 'starting' ? 1500 : 15_000)
+    if (!isOwner || !pollMs) return
+    const timer = setInterval(() => void loadP2pStatus(server.key).catch(() => undefined), pollMs)
     return () => clearInterval(timer)
-  }, [server.key, isOwner, ownState])
+  }, [server.key, isOwner, pollMs])
 
   async function run(action: () => Promise<void>) {
     setBusy(true)

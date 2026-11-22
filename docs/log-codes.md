@@ -36,11 +36,11 @@ Generated from [protocol/log-codes.json](../protocol/log-codes.json) by the serv
 | HOK-120 | WARN | hook | http | An outgoing webhook was turned off after failing again and again. | Fix the receiving end, then turn the webhook back on in Server settings → Webhooks. |
 | HOK-130 | WARN | hook | http | Queueing or running an outgoing webhook delivery failed unexpectedly. | Report it with the log line. |
 | LK-110 | WARN | srv | voice | LiveKit (voice) stopped; it's started again after a pause (exit= is its exit code). | If it keeps happening, check that the voice ports are free (Voice.Port, RtcTcpPort, RtcUdpPort). |
-| LK-120 | WARN | lk | voice | LiveKit reported a warning (msg= is its own wording, scrubbed). | Usually harmless; report it if voice misbehaves at the same time. |
+| LK-120 | WARN | lk | voice | LiveKit reported a warning (msg= is its own wording and why= its error text, both scrubbed). | Usually harmless; report it if voice misbehaves at the same time. |
 | LK-130 | WARN | srv | voice | A request to LiveKit (remove someone, change permissions, close a room) failed. | Usually LiveKit was restarting; check for LK-110 around it. |
 | LK-140 | WARN | srv | voice | livekit-server wasn't found, so voice is off. | Put livekit-server next to iskra-server, or set Voice.LiveKitPath or ISKRA_LIVEKIT. |
 | LK-150 | ERROR | srv | voice | Starting or running LiveKit failed. | Check that livekit-server can run on this machine; report it with the log line. |
-| LK-160 | ERROR | lk | voice | LiveKit reported an error (msg= is its own wording, scrubbed). | Report it with the log line if voice misbehaves. |
+| LK-160 | ERROR | lk | voice | LiveKit reported an error (msg= is its own wording and why= its error text, both scrubbed). | Report it with the log line if voice misbehaves. |
 | LOG-110 | WARN | srv | sweep | Trimming the log files failed. | Check that the world folder's logs/ is writable. |
 | MED-110 | WARN | app | media | The microphone's noise suppression fell back to RNNoise (why=: start-failed, slow; kind=cpu with count= the realtime load in percent, or kind=late when its frames kept coming back late). | Nothing; report it if the microphone sounds wrong. |
 | MED-120 | WARN | app | media | An audio or video device was lost or changed during a call. | Pick the device again in My settings → Voice & audio. |
