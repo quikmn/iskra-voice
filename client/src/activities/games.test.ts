@@ -8,7 +8,7 @@ import {
 } from './draw/logic'
 import { threeWords, WORDS } from './draw/words'
 import { QUESTIONS } from './trivia/questions'
-import { fmt, fnv1a, forLocale, normalizeGuess } from './util'
+import { byLanguageFolder, fmt, fnv1a, forLocale, normalizeGuess } from './util'
 import { LANGUAGES } from '../i18n/languages'
 import { en } from '../i18n/en'
 
@@ -264,5 +264,16 @@ describe('shared helpers', () => {
 
   it('have the games’ texts in English (the catalog test holds every other language to the same keys)', () => {
     expect(Object.keys(en.activities.games.draw).length).toBeGreaterThan(5)
+  })
+})
+
+describe('game texts', () => {
+  // The same glob as kit.ts: keyed by the catalog folder, so every language (English first of all) is found.
+  const strings = byLanguageFolder(import.meta.glob<{ games: unknown }>('../i18n/*/activities.ts', { eager: true, import: 'activities' }))
+
+  it('are found for every language by its code', () => {
+    expect(Object.keys(strings).sort()).toEqual([...LANGUAGES].sort())
+    for (const code of LANGUAGES) expect(strings[code]?.games, code).toBeTruthy()
+    expect(forLocale(strings, 'de-AT')).toBe(strings.de)
   })
 })

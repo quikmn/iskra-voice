@@ -3,7 +3,7 @@
 // Games are a reducer: (state, message, sender) → state, pure, so every player ends up with the same state.
 import '../../../protocol/activity-sdk.js'
 import { activities as en } from '../i18n/en/activities'
-import { byLanguage, fnv1a, forLocale } from './util'
+import { byLanguageFolder, fnv1a, forLocale } from './util'
 export { fmt, fnv1a, forLocale, isId, isInt, isObject, isText, normalizeGuess } from './util'
 
 export interface Player {
@@ -37,7 +37,7 @@ const sdk = (globalThis as unknown as { iskra: Sdk }).iskra
 export type Games = typeof en.games
 
 // The games' texts in every language that has them: src/i18n/<code>/activities.ts.
-const STRINGS = byLanguage(import.meta.glob<{ games: unknown }>('../i18n/*/activities.ts', { eager: true, import: 'activities' }))
+const STRINGS = byLanguageFolder(import.meta.glob<{ games: unknown }>('../i18n/*/activities.ts', { eager: true, import: 'activities' }))
 
 export interface Ctx<S> {
   root: HTMLElement

@@ -30,6 +30,11 @@ export function byLanguage<T>(files: Record<string, T>): Record<string, T> {
   return Object.fromEntries(Object.entries(files).map(([file, content]) => [file.replace(/^.*\/([^/]+)\.ts$/, '$1'), content]))
 }
 
+/** Per-language content keyed by code, from a glob of `.../<code>/<name>.ts` files (the i18n catalogs). */
+export function byLanguageFolder<T>(files: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(Object.entries(files).map(([file, content]) => [file.replace(/^.*\/([^/]+)\/[^/]+\.ts$/, '$1'), content]))
+}
+
 /** The content for a locale ("pt-BR" gives `pt`), or English where the language has none. */
 export function forLocale<T>(table: Record<string, T>, locale: string | null | undefined): T {
   const code = String(locale ?? '').toLowerCase().split(/[-_]/)[0]
