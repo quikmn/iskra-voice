@@ -1,0 +1,60 @@
+import type { Messages } from '../types'
+
+export const accounts: Messages['accounts'] = {
+  switcher: {
+    label: 'Contas. Você entrou como {{name}}',
+    title: 'Contas',
+    current: 'Na tela',
+    unread_one: '{{count}} não lida',
+    unread_other: '{{count}} não lidas',
+    otherUnread_one: '{{count}} não lida nas suas outras contas',
+    otherUnread_other: '{{count}} não lidas nas suas outras contas',
+    inVoice: 'Em voz',
+    locked: 'Bloqueada',
+    settingUp: 'Sendo adicionada',
+    switchTo: 'Trocar para {{name}}',
+    moveUp: 'Mover {{name}} para cima',
+    moveDown: 'Mover {{name}} para baixo',
+    add: 'Adicionar conta',
+    switchAccount: 'Trocar de conta',
+    addNew: 'Criar uma conta nova',
+    addNewHint: 'Uma conta separada, com nome, servidores e mensagens próprios.',
+    addExisting: 'Usar uma conta que já tenho',
+    addExistingHint: 'Vincule a partir de outro dispositivo, ou use a chave de recuperação dela.',
+    full: 'Este dispositivo tem {{count}} contas com login feito, o máximo que ele guarda.',
+    restartNote: 'O Iskra reinicia uma vez para adicionar a conta.',
+    restartVoiceNote: 'O Iskra reinicia uma vez para adicionar a conta, então você vai sair da voz.',
+    signOut: 'Sair da conta {{name}}…',
+    unnamed: 'Nova conta',
+  },
+  adding: {
+    cancelPlain: 'Cancelar',
+  },
+  chooser: {
+    title: 'Qual conta?',
+    invite: 'Você abriu um convite. Qual conta deve entrar?',
+    open: 'Qual conta deve abrir este link?',
+    cancel: 'Cancelar',
+  },
+  linking: {
+    title: 'Vincular este dispositivo a outra conta?',
+    body: 'Um link de dispositivo abriu o Iskra. Continue só se foi você quem começou a vincular uma conta a este dispositivo: isso adiciona essa conta aqui, ao lado da sua.',
+    add: 'Adicionar a conta',
+    cancel: 'Cancelar',
+  },
+  duplicate: {
+    title: 'Login já feito aqui',
+    body: 'Esta conta já está com login feito neste dispositivo. O Iskra guarda uma cópia de cada conta.',
+    switch: 'Ir para ela',
+  },
+  voice: {
+    leftAs: 'Você saiu da voz como {{name}}: só uma conta pode estar em voz por vez.',
+  },
+  ringing: {
+    title: '{{caller}} está ligando para {{account}}',
+    switch: 'Trocar',
+  },
+  notifyTitle: '{{title}} · {{account}}',
+  frameTitle: 'Iskra: {{name}}',
+  unsupported: 'Este navegador não consegue manter suas contas separadas. Use o app para computador, ou mantenha uma conta só neste navegador.',
+}
