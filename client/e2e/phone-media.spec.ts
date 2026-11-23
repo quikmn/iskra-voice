@@ -67,6 +67,8 @@ test.describe('calls on a phone', () => {
       for (const page of [phone, host]) {
         const tile = '.video-tile.camera.portrait'
         await expect(page.locator(tile)).toBeVisible({ timeout: 20_000 })
+        // The tile knows it's portrait from the track; the video element has its size once the first frame is decoded.
+        await expect.poll(() => page.locator(`${tile} video`).evaluate((v: HTMLVideoElement) => v.videoHeight)).toBeGreaterThan(0)
         const box = await tileBoxes(page, tile)
         expect(box.size[1]).toBeGreaterThan(box.size[0])
         expect(box.fit).toBe('contain')
