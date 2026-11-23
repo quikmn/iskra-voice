@@ -1,8 +1,8 @@
 import type { Messages } from '../types'
 
-// Actualizaciones del servidor (español): Ajustes del servidor → Actualizaciones del servidor y los avisos sobre el chat.
+// Actualizaciones del servidor (español): Ajustes del servidor → Actualizaciones y los avisos sobre el chat.
 export const updates: Messages['updates'] = {
-  title: 'Actualizaciones del servidor',
+  title: 'Actualizaciones',
   runs: 'Este servidor usa',
   version: 'Iskra {{version}}',
   checkNow: 'Buscar ahora',

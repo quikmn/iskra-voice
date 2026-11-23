@@ -21,7 +21,7 @@ export const compliance: Messages['compliance'] = {
     servers: {
       who: 'Tus servidores',
       when: 'Siempre: los mensajes, la voz, los archivos, las vistas previas de enlaces, los GIFs (normalmente) y el modelo de subtítulos vienen de los servidores a los que te unes.',
-      off: 'Cada servidor ve tu dirección IP mientras estás conectado. Sal de un servidor para que deje de verla.',
+      off: 'Cada servidor ve tu dirección IP mientras tienes conexión con él. Sal de un servidor para que deje de verla.',
     },
     embeds: {
       who: 'YouTube, Twitch, X y Reddit',
@@ -138,7 +138,7 @@ export const compliance: Messages['compliance'] = {
     messagesDays: 'Mensajes de canales, mensajes directos y chats de grupo',
     uploadsDays: 'Archivos en mensajes y mensajes directos',
     auditDays: 'Registro de auditoría',
-    securityLogDays: 'Inicios de sesión y seguridad',
+    securityLogDays: 'Sesiones y seguridad',
     days: 'días',
     forever: 'Se guarda para siempre',
     ips: 'Registrar direcciones IP en el registro de seguridad',

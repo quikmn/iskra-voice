@@ -3,7 +3,7 @@ import type { Messages } from '../types'
 // Claves (español).
 export const keys: Messages['keys'] = {
   notice: {
-    changed: 'La clave de la cuenta de {{name}} cambió <time>{{when}}</time>, así que su número de seguridad contigo cambió.',
+    changed: 'La clave de la cuenta de {{name}} cambió <time>{{when}}</time>, así que cambió el número de seguridad entre ustedes.',
     disputed: 'Alguien más también reclamó la misma clave antigua.',
     verify: 'Verificar',
     twoKeys: 'Dos claves distintas dicen ser {{name}}: una de ellas puede ser de alguien que robó su clave antigua. Antes de compartir algo privado, comprueba el número de seguridad con esa persona, en persona o en una llamada.',

@@ -1,10 +1,10 @@
 import type { Messages } from '../types'
 
-// Compañeros de copias (español): Ajustes → Copia de seguridad y traslado, y restaurar desde el servidor de un amigo
+// Compañeros de copias (español): Ajustes → Copias y traslado, y restaurar desde el servidor de un amigo
 // en la app de escritorio.
 export const buddies: Messages['buddies'] = {
   title: 'Compañeros de copias',
-  intro: 'Tus copias de seguridad diarias también pueden ir al servidor de Iskra de un amigo. Se cifran aquí antes de salir, con un código de recuperación que solo tú recibes: tu amigo las guarda, pero no puede leerlas. Tu amigo crea un espacio para ti en sus Ajustes del servidor → Copia de seguridad y traslado, y te envía un código de emparejamiento.',
+  intro: 'Tus copias de seguridad diarias también pueden ir al servidor de Iskra de un amigo. Se cifran aquí antes de salir, con un código de recuperación que solo tú recibes: tu amigo las guarda, pero no puede leerlas. Tu amigo crea un espacio para ti en sus Ajustes del servidor → Copias y traslado, y te envía un código de emparejamiento.',
   needsDaily: 'Las copias de seguridad diarias están desactivadas. Actívalas arriba: son las que van a tus compañeros de copias.',
   code: 'Código de emparejamiento de tu amigo',
   codeHint: 'Empieza con iskra-buddy: y sirve una sola vez.',
@@ -52,7 +52,7 @@ export const buddies: Messages['buddies'] = {
     removeNowConfirm: '¿Eliminar ahora este espacio y sus copias?',
     deleteNow: 'Eliminar ahora',
     codeTitle: 'Código de emparejamiento para {{label}}',
-    codeHint: 'Envíaselo a tu amigo. Lo pega en sus Ajustes del servidor → Copia de seguridad y traslado → Compañeros de copias. Sirve una sola vez, durante 24 horas.',
+    codeHint: 'Envíaselo a tu amigo. Lo pega en sus Ajustes del servidor → Copias y traslado → Compañeros de copias. Sirve una sola vez, durante 24 horas.',
     codeLabel: 'Código de emparejamiento',
     copyCode: 'Copiar código',
     done: 'Listo',

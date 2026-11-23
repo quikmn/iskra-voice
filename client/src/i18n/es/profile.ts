@@ -73,7 +73,7 @@ export const profile: Messages['profile'] = {
   },
   theme: {
     label: 'Tema',
-    defaultName: '{{name}} (predeterminado)',
+    defaultName: '{{name}} (estándar)',
     closeEditor: 'Cerrar editor',
     writeOwn: 'Escribir el tuyo',
     import: 'Importar',

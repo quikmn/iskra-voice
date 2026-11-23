@@ -138,14 +138,14 @@ export const rental: Messages['rental'] = {
     cost:
       '- {{price}} al mes, que DigitalOcean cobra por hora. Lo ves en Billing: {{billing}}. Iskra no cobra nada.\n' +
       '- Para dejar de pagar: en DigitalOcean abre Droplets ({{droplets}}), elige "{{droplet}}" y luego Destroy → Destroy this Droplet. Un droplet que solo está apagado sigue costando dinero; destruirlo lo detiene. Después elimina el firewall "{{droplet}}-firewall" en Networking → Firewalls (es gratis, pero así queda ordenado).\n' +
-      '- ¿Quieres conservar el historial de tu servidor? Primero haz una copia de seguridad (Ajustes del servidor → Copia de seguridad y traslado).',
+      '- ¿Quieres conservar el historial de tu servidor? Primero haz una copia de seguridad (Ajustes del servidor → Copias y traslado).',
     updatesTitle: 'Actualizaciones y copias de seguridad',
     updates:
-      '- Iskra se actualiza solo a las versiones nuevas por la noche (alrededor de las 04:00, hora del servidor, comprobando las sumas de comprobación publicadas). Ajustes del servidor → Actualizaciones del servidor muestra la versión y te permite cambiar esto.\n' +
+      '- Iskra se actualiza solo a las versiones nuevas por la noche (alrededor de las 04:00, hora del servidor, comprobando las sumas de comprobación publicadas). Ajustes del servidor → Actualizaciones muestra la versión y te permite cambiar esto.\n' +
       '- Ubuntu instala por su cuenta sus propias actualizaciones de seguridad.\n' +
-      '- Cada día se hace una copia de seguridad en el servidor (se conservan las últimas 7). Como están en el mismo servidor, descarga una de vez en cuando: Ajustes del servidor → Copia de seguridad y traslado → Hacer copia de seguridad (cifrada con una frase de contraseña que tú eliges). Las copias de seguridad de pago de DigitalOcean están desactivadas.',
+      '- Cada día se hace una copia de seguridad en el servidor (se conservan las últimas 7). Como están en el mismo servidor, descarga una de vez en cuando: Ajustes del servidor → Copias y traslado → Hacer copia de seguridad (cifrada con una frase de contraseña que tú eliges). Las copias de seguridad de pago de DigitalOcean están desactivadas.',
     moveTitle: 'Trasladarlo más adelante',
-    move: 'Todo tu servidor es una carpeta. Haz una copia de seguridad en Ajustes del servidor → Copia de seguridad y traslado, restáurala en la computadora o el servidor nuevo (app de escritorio: Crear un servidor → Restaurar desde una copia de seguridad) y luego usa **Trasladar este servidor** para que la app de todos siga a la dirección nueva. Guía: {{guide}}',
+    move: 'Todo tu servidor es una carpeta. Haz una copia de seguridad en Ajustes del servidor → Copias y traslado, restáurala en la computadora o el servidor nuevo (app de escritorio: Crear un servidor → Restaurar desde una copia de seguridad) y luego usa **Trasladar este servidor** para que la app de todos siga a la dirección nueva. Guía: {{guide}}',
     seesTitle: 'Qué puede ver Iskra y qué no',
     sees:
       'El proyecto Iskra no administra nada de tu servidor y no ve nada: ni tu servidor, ni tus mensajes, ni tu cuenta de DigitalOcean, ni tu token, ni tu tarjeta. La app habló con DigitalOcean solo durante la instalación, con tu token, y ya lo olvidó. ' +

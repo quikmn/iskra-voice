@@ -75,13 +75,13 @@ terms as [`docs/i18n-glossary.md`](../i18n-glossary.md); rules in [translating.m
 | Reports | Reportes | |
 | AutoMod (nav and heading) | AutoMod | |
 | Audit log | Registro de auditoría | Never "registro de actividad" |
-| Sign-ins & security | Inicios de sesión y seguridad | |
+| Sign-ins & security | Sesiones y seguridad | Short for the nav; a sign-in is "inicio de sesión" |
 | Bots & webhooks | Bots y webhooks | |
 | Internet access (section) / Open to the internet (its switch) | Acceso desde internet / Abrir a internet | "internet" in lower case |
 | Limits | Límites | |
-| Backup & move | Copia de seguridad y traslado | |
+| Backup & move | Copias y traslado | Short for the nav; a backup is still "copia de seguridad" |
 | Import from Discord | Importar desde Discord | |
-| Server updates | Actualizaciones del servidor | |
+| Server updates | Actualizaciones | "Actualizaciones del servidor" in running text |
 | Notifications | Notificaciones | |
 | Recovery key | Clave de recuperación | |
 | App lock | Bloqueo de la app | |
@@ -206,3 +206,36 @@ terms as [`docs/i18n-glossary.md`](../i18n-glossary.md); rules in [translating.m
 | Someone, nobody, everyone | Alguien, nadie, todos | |
 | You (label next to your own name) | tú | |
 | Email, password | Correo, contraseña | |
+| Setup (of a server, a bot) | Configuración, configurar | Only for setting something up; settings are always "ajustes" |
+| System Settings (macOS) | Configuración del Sistema | As macOS names it in Latin American Spanish |
+| Tag (forum, media, the Tags bot) | Etiqueta | |
+| Giveaway | Sorteo | Reroll: "volver a sortear" |
+| Suggestion | Sugerencia | |
+| Counting (bot), streak | Conteo, racha | |
+| Starboard (bot) | Destacados | |
+| Built-in bots: Dice, Polls, Reminders, Birthdays, Welcome, Feeds | Dados, Encuestas, Recordatorios, Cumpleaños, Bienvenida, Fuentes | |
+| Four in a row | Cuatro en línea | |
+| Quizmaster | (reworded) | "{{name}} dirige la trivia": no gendered noun |
+| Staff (of a server) | El equipo del servidor | |
+| Video call, voice call, voice message | Videollamada, llamada de voz, mensaje de voz | |
+| Live (stage, stream, event) | En vivo (stage, stream); en curso (event) | |
+| Hi-fi audio | Audio de alta fidelidad | |
+| Read aloud | Leer en voz alta | |
+| Lock (a post, a room) | Bloquear | Same verb as Block; the object makes it clear |
+| Prompt (for an AI assistant) | Instrucción | |
+| Checksum, build attestation | Suma de comprobación, atestación de compilación | |
+| Key transparency, key log | Transparencia de claves, registro de claves | |
+| Keychain (of the system) | Llavero | |
+
+## Notes for whoever edits these texts
+
+- **"You" inside a sentence.** Some texts get either a name or the word for "you" in `{{who}}` (group chat system
+  lines: `groups.change.*`, `groups.namedGroup`, `groups.startedVideo`). A Spanish verb would have to agree
+  ("Ana agregó" / "Tú agregaste"), so these lines have no verb that agrees with the person:
+  "Ana · Miembros nuevos: Bo y tú", "Tú · Salida del grupo".
+- **Bot commands.** The built-in bots only understand English (and Swedish) keywords and month names:
+  `set`, `remove`, `list`, `end`, `cancel`, `reroll`, "14 March". The Spanish examples use what works:
+  `/birthday set 14/3`, `/remind 10m sacar la pizza`, `/tag list`.
+- **Names the server writes in English** and that the catalog can't change: the rooms made from a lobby
+  ("alice's-room"), the "Bug reports" author of bug inbox messages.
+- **Captions and transcripts** are English or Swedish only; the texts say so.

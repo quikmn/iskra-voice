@@ -76,6 +76,6 @@ export const friends: Messages['friends'] = {
     manageRoles: 'Gestionar roles…',
     moveTo: 'Mover a…',
     disconnect: 'Desconectar de la voz',
-    you: 'Tú',
+    you: 'tú',
   },
 }

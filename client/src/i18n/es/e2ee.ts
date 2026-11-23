@@ -10,7 +10,7 @@ export const e2ee: Messages['e2ee'] = {
     kinds: 'Solo se pueden cifrar los canales de texto, de voz y de pizarra.',
     count_one: '{{count}} persona podrá leerlo.',
     count_other: '{{count}} personas podrán leerlo.',
-    tooMany: '{{count}} personas podrían ver este canal, y en un canal cifrado caben {{max}}. Elige un nivel más alto en “Quién puede verlo”.',
+    tooMany: '{{count}} personas podrían ver este canal, y en un canal cifrado caben {{max}}. Elige un rol más alto en “Quién puede verlo”.',
   },
   panel: {
     open: 'Cifrado',

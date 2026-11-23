@@ -100,7 +100,7 @@ export const hosting: Messages['hosting'] = {
     isp: '<b>Pídele a tu proveedor una dirección IPv4 pública.</b> Suele ser gratis y se hace una sola vez; a veces tiene un pequeño costo. La banda ancha móvil (4G/5G) casi nunca la ofrece.',
     tailscale: '<b>Usa Tailscale (gratis).</b> Una app gratuita que conecta los dispositivos de tu grupo como si estuvieran en una misma red. Cada persona la instala una vez; no hay que abrir puertos.',
     tailscaleButton: 'Mostrar cómo',
-    friend: '<b>Deja que aloje alguien de tu grupo con una conexión abierta.</b> Todo el servidor es una carpeta: trasládalo con Ajustes del servidor → Copia de seguridad y traslado, y todo va con él.',
+    friend: '<b>Deja que aloje alguien de tu grupo con una conexión abierta.</b> Todo el servidor es una carpeta: trasládalo con Ajustes del servidor → Copias y traslado, y todo va con él.',
     p2p: '<b>Permite que tus amigos se conecten sin redirigir puertos (experimental).</b> Es el interruptor de arriba: tu computadora y tus amigos se encuentran mediante una red pública entre pares, sin nada que abrir ni instalar.',
   },
   p2p: {

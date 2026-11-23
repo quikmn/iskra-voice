@@ -11,7 +11,7 @@ export const invitetrack: Messages['invitetrack'] = {
   via: 'Se unió con {{invite}}',
   viaFrom: 'Se unió con {{invite}} de {{name}}',
   approved: '{{text}}, con el visto bueno de {{name}}',
-  setupLink: 'el enlace de configuración',
+  setupLink: 'la instalación',
   someone: 'alguien',
   notTracked: 'Se unió antes de que se registraran las invitaciones',
   filter: 'Se unió con',
