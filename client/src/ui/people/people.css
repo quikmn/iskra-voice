@@ -9,6 +9,8 @@
 .friends-tab:hover { background: var(--hover); color: var(--text); }
 .friends-tab.on { background: var(--surface-3); color: var(--text); }
 .friends-tab .badge { position: static; }
+/* Touch: the strip scrolls sideways, so it cuts the tabs' taller tap area (ui/kit/kit.css); it gets the room itself. */
+@media (pointer: coarse) { .friends-tabs { padding-block: 4px; margin-block: -4px; } }
 .friend-chip {
   display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 3px 8px; border-radius: 999px;
   background: var(--surface-3); color: var(--muted); font-size: var(--fs-sm); font-weight: var(--fw-medium);

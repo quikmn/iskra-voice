@@ -945,6 +945,10 @@ button.e2e-badge:hover { background: color-mix(in srgb, var(--green) 18%, transp
 .shell { height: calc(100dvh - var(--safe-top)); }
 .main-column { padding-bottom: var(--safe-bottom); }
 .nav-column, .members-column { padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
+/* Full-screen layers lie outside #root, so they keep the sides clear themselves (a phone held sideways has the notch
+   on one side). A transparent border, not padding: the layer's own background still reaches the screen edge, and
+   what is placed absolutely inside (the viewers' arrows) moves in with the rest. */
+.settings-room, .lightbox, .media-viewer { border-left: var(--safe-left) solid transparent; border-right: var(--safe-right) solid transparent; }
 @media (max-width: 760px) { .nav-column { padding-left: var(--safe-left); } }
 @media (max-width: 1100px) { .members-column { padding-right: var(--safe-right); } }
 @media (max-width: 760px) { .nav-column { background: var(--rail); } }

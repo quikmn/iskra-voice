@@ -145,7 +145,7 @@
 .toast-lane > * { pointer-events: auto; }
 /* Bottom right, clear of the message box; newest on top. Under dialogs and calls. */
 .toast-lane.corner {
-  right: 16px; bottom: calc(84px + var(--safe-bottom)); z-index: var(--z-toast);
+  right: calc(16px + var(--safe-right)); bottom: calc(84px + var(--safe-bottom)); z-index: var(--z-toast);
   flex-direction: column-reverse; align-items: flex-end; width: min(380px, calc(100vw - 32px));
 }
 /* Passing notes: centred just above the message box and the call controls, never over the channel header.
@@ -226,11 +226,14 @@
    wider would spill past a pane's right edge and make it scroll sideways. `position: relative` is zero-specificity,
    so a button placed absolutely elsewhere stays where it is. */
 @media (pointer: coarse) {
-  :where(.icon-button, .switch, .k-chip, .button.small) { position: relative; }
-  .icon-button::before, .switch::before, .k-chip::before, .button.small::before {
+  :where(.icon-button, .switch, .k-chip, .button, .segmented button, .friends-tab, .vstatus-chip, .pin-actions .link) { position: relative; }
+  .icon-button::before, .switch::before, .k-chip::before, .button::before, .segmented button::before, .friends-tab::before,
+  .vstatus-chip::before, .pin-actions .link::before {
     content: ''; position: absolute; inset: min(0px, calc((100% - var(--tap)) / 2)) 0;
   }
   .k-row-main { min-height: 48px; }
   .org-item { min-height: var(--tap); }
   .k-tabs > button { min-height: var(--tap); }
+  /* Lists of rows with nothing between them can't borrow room from a neighbour: the rows themselves are taller. */
+  .channel-list .channel { min-height: var(--tap); }
 }
