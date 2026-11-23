@@ -39,6 +39,7 @@ import { usePrivateMessageTools } from './productivity/MessageTools'
 import { dmTarget, privateRowId } from '../state/messageRefs'
 import { KeyHistory } from './keys/KeyTransparency'
 import { messageListKeys, useAnnounceNew } from './a11y'
+import { useFollowNewest } from './chat/messageBox'
 import { useBotPeer } from '../state/botDms'
 import { BotBadge } from './chat/BotBits'
 import { TranslationBlock, useAutoTranslateTool } from './translate/Translate'
@@ -156,6 +157,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
     const el = scroller.current
     if (el) el.scrollTop = el.scrollHeight
   }, [messages.length])
+  useFollowNewest(scroller, peer)
 
   const divider = dividerOf(useRead(dmConv(peer)))
   const firstNew = divider && dividerTarget(messages, divider.from, (m) => (m.pending || m.notice || m.friend || m.from === myKey ? null : { id: m.id, at: m.sentAt }))

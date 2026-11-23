@@ -1,5 +1,5 @@
 // End-to-end encrypted attachments in DMs: the composer (attach, paste, drop, voice) and how attachments show.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { t as translate } from '../../i18n'
 import { formatNumber } from '../../i18n/format'
@@ -22,6 +22,7 @@ import { useQueuedSend } from '../chat/QueuedSend'
 import { useBotDmCommands } from './BotDmCommands'
 import { ComposerMenu } from '../chat/ComposerMenu'
 import { UploadChip } from '../chat/UploadChip'
+import { fitMessageBox } from '../chat/messageBox'
 import './dm-files.css'
 
 /** Decrypted automatically when small enough; bigger files wait for a click. */
@@ -53,6 +54,10 @@ export function DmComposer({ peer, placeholder, group, bot = false }: {
   const [uploads, setUploads] = useState<PendingUpload[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
   const box = useRef<HTMLTextAreaElement>(null)
+  // The box grows with its text, as in a channel.
+  useLayoutEffect(() => {
+    if (box.current) fitMessageBox(box.current)
+  }, [text])
   const caret = useRef<number | null>(null)
   const [picker, setPicker] = useState<HTMLElement | null>(null)
   const [caretAt, setCaretAt] = useState(0)

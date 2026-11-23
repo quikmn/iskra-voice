@@ -72,6 +72,7 @@ import { ClipNoticeRow } from './clips/ClipNotice'
 import { RecordNoticeRow } from './recording/RecordNotice'
 import { conversationLabel } from '../state/threads'
 import { messageListKeys, useAnnounceNew } from './a11y'
+import { fitMessageBox } from './chat/messageBox'
 import { useQueuedSend } from './chat/QueuedSend'
 import { JoinFailed } from './JoinFailed'
 import { JoinPending } from './JoinPending'
@@ -174,6 +175,8 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
   const notes = usePinNotes(pinNotesFor(server.key, channelId))
   const scroller = useRef<HTMLDivElement>(null)
   const stickToBottom = useRef(true)
+  /** The list's height when the size observer last ran (null before it has). */
+  const listHeight = useRef<number | null>(null)
   const restore = useRef<{ height: number; top: number } | null>(null)
   const [editing, setEditing] = useState<number | null>(null)
   const conv = channelConv(server.key, channelId)
@@ -210,7 +213,10 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
   useEffect(() => {
     const el = scroller.current
     if (!el || detached || typeof ResizeObserver === 'undefined') return
-    const follow = () => { if (stickToBottom.current && !restore.current) el.scrollTop = el.scrollHeight }
+    const follow = () => {
+      listHeight.current = el.clientHeight
+      if (stickToBottom.current && !restore.current) el.scrollTop = el.scrollHeight
+    }
     const sizes = new ResizeObserver(follow)
     sizes.observe(el)
     for (const child of el.children) sizes.observe(child)
@@ -227,7 +233,9 @@ export function MessageList({ server, channelId, header, thread }: { server: Ser
   function onScroll() {
     const el = scroller.current
     if (!el) return
-    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+    // A scroll event that comes while the list has just changed height (the message box grew, the keyboard opened) is
+    // the browser fitting the position, not the person scrolling away: the observer above decides that one.
+    if (listHeight.current === null || el.clientHeight === listHeight.current) stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
     if (el.scrollTop < 200 && hasMore && !restore.current) {
       restore.current = { height: el.scrollHeight, top: el.scrollTop }
       void loadHistory(server.key, channelId, true)
@@ -855,8 +863,7 @@ function AutoTextarea({
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 240)}px`
+    fitMessageBox(el)
   }, [value])
   return (
     <textarea

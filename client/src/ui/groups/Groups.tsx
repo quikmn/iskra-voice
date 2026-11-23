@@ -34,6 +34,7 @@ import { groupText } from './groupText'
 import { errorMessage } from '../../i18n/errors'
 import { userMenuProps } from '../people/userMenuProps'
 import { messageListKeys, useAnnounceNew } from '../a11y'
+import { useFollowNewest } from '../chat/messageBox'
 import { TranslationBlock, useAutoTranslateTool } from '../translate/Translate'
 import { groupItem } from '../translate/items'
 import { convKey } from '../../state/translate'
@@ -415,6 +416,7 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
     const el = scroller.current
     if (el) el.scrollTop = el.scrollHeight
   }, [items.length])
+  useFollowNewest(scroller, `${groupKey}:${g ? 1 : 0}`) // the list is only drawn once the group is known
 
   const divider = dividerOf(useRead(groupConv(groupKey)))
   const firstNew = divider && dividerTarget(g?.messages ?? [], divider.from, (m) => (m.pending || m.from === me ? null : { id: m.id, at: m.sentAt }))

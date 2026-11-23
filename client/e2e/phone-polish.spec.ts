@@ -166,3 +166,61 @@ test.describe('in a call', () => {
     }
   })
 })
+
+/** How far the message list is from its newest message, in px. */
+const fromBottom = (page: Page) => page.locator('.messages').evaluate((el) => Math.round(el.scrollHeight - el.scrollTop - el.clientHeight))
+
+test('small phone: the newest message stays in view while a long message is typed, sent, and when the keyboard opens', async ({ browser }) => {
+  const server = await startServer('Newest')
+  try {
+    const phone = await (await browser.newContext(small)).newPage()
+    await joinVia(phone, server.ownerLink(), 'Host')
+    const lines = ['one', 'two', 'three', 'four', 'five'].join(String.fromCharCode(10))
+
+    // A channel: the message box grows by four lines; the list follows, and the sent message shows.
+    for (let i = 0; i < 12; i++) await send(phone, `message ${i} with enough words to wrap on a small phone screen`)
+    await expect(phone.locator('.message', { hasText: 'message 11' })).toBeVisible()
+    const channelBox = phone.getByPlaceholder('Message #general')
+    await channelBox.fill(lines)
+    await expect.poll(() => fromBottom(phone)).toBeLessThanOrEqual(2)
+    await channelBox.press('Enter')
+    await expect(phone.locator('.message', { hasText: 'five' })).toBeVisible()
+    await expect.poll(() => fromBottom(phone)).toBeLessThanOrEqual(2)
+    await expect(phone.locator('.message', { hasText: 'five' })).toBeInViewport({ ratio: 1 })
+
+    // A direct message: the same box grows there too, and the list follows it and the keyboard.
+    const friend = await (await browser.newContext()).newPage()
+    await phone.getByRole('button', { name: 'Open channels' }).click()
+    await joinVia(friend, await createInviteLink(phone), 'Friend')
+    await phone.locator('.scrim').click({ position: { x: 350, y: 300 } })
+    await friend.locator('.member-list').getByRole('button', { name: 'Host' }).click()
+    await friend.getByRole('dialog').getByRole('button', { name: 'Message', exact: true }).click()
+    const friendBox = friend.getByPlaceholder('Message Host')
+    for (let i = 0; i < 10; i++) {
+      await friendBox.fill(`direct ${i} with enough words to wrap on a small phone screen`)
+      await friendBox.press('Enter')
+      await expect(friendBox).toHaveValue('')
+    }
+    await phone.getByRole('button', { name: 'Open channels' }).click()
+    await phone.getByRole('button', { name: 'Direct messages' }).click()
+    await phone.getByRole('button', { name: 'Open menu' }).click()
+    await phone.locator('.dm-row', { hasText: 'Friend' }).click()
+    await expect(phone.getByRole('article').filter({ hasText: 'direct 9' })).toBeVisible()
+    await expect.poll(() => fromBottom(phone)).toBeLessThanOrEqual(2)
+    const dmBox = phone.getByPlaceholder('Message Friend')
+    const oneLine = (await dmBox.boundingBox())!.height
+    await dmBox.fill(lines)
+    expect((await dmBox.boundingBox())!.height, 'the box shows all five lines').toBeGreaterThan(oneLine * 3)
+    await expect.poll(() => fromBottom(phone)).toBeLessThanOrEqual(2)
+    await phone.screenshot({ path: join(SHOTS, 'phone-polish-dm-typing.png'), animations: 'disabled' })
+    // The keyboard opens: the web view gets shorter.
+    await phone.setViewportSize({ width: 360, height: 380 })
+    await expect.poll(() => fromBottom(phone)).toBeLessThanOrEqual(2)
+    await dmBox.press('Enter')
+    await expect(phone.getByRole('article').filter({ hasText: 'five' })).toBeVisible()
+    await expect.poll(() => fromBottom(phone)).toBeLessThanOrEqual(2)
+    expect((await dmBox.boundingBox())!.height, 'back to one line').toBeLessThanOrEqual(oneLine + 1)
+  } finally {
+    await server.stop()
+  }
+})
