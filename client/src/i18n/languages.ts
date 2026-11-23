@@ -19,6 +19,7 @@ export const LANGUAGE_REGISTRY = [
   { code: 'es', name: 'Español', locale: 'es-ES', shipped: true },
   { code: 'fr', name: 'Français', locale: 'fr-FR', shipped: true },
   { code: 'it', name: 'Italiano', locale: 'it-IT', shipped: true },
+  { code: 'pl', name: 'Polski', locale: 'pl-PL', shipped: true },
   { code: 'pt', name: 'Português (Brasil)', locale: 'pt-BR', shipped: true },
   { code: 'ru', name: 'Русский', locale: 'ru-RU', shipped: true },
   { code: 'sv', name: 'Svenska', locale: 'sv-SE', shipped: true },

@@ -1,0 +1,43 @@
+import type { Messages } from '../types'
+
+export const templates: Messages['templates'] = {
+  save: {
+    title: 'Zapisz ten serwer jako szablon',
+    intro: 'Plik z twoimi kanałami, tym, kto je widzi i może ich używać, rolami, zasadami i ustawieniami, żeby uruchomić kolejny taki sam serwer. Nigdy nie zawiera członków, wiadomości, plików ani kluczy.',
+    button: 'Zapisz jako szablon',
+    done: 'Zapisano',
+  },
+  file: {
+    pick: 'Z pliku szablonu…',
+    hint: 'Szablon .json, np. zapisany z innego serwera.',
+    invalid: 'Ten plik nie jest szablonem, którego Iskra może użyć: {{error}}',
+    from: 'Z pliku {{file}}',
+  },
+  preview: {
+    title: 'Co zostanie utworzone',
+    channels: 'Kanały',
+    roles: 'Role',
+    builtinRoles: 'Role wbudowane',
+    settings: 'Ustawienia',
+    kinds: { text: 'Tekstowy', voice: 'Głosowy', forum: 'Forum', stage: 'Scena', docs: 'Dokumenty' },
+    whoRead: 'Widzi: {{role}} i wyżej',
+    whoWrite: 'Pisze: {{role}} i wyżej',
+    hifi: 'Hi-fi',
+    slowmode: 'Tryb powolny {{seconds}} s',
+    override: '{{role}}: {{changes}}',
+    allow: 'może: {{what}}',
+    deny: 'nie może: {{what}}',
+    perms: { view: 'widzieć', send: 'pisać', connect: 'dołączać', speak: 'mówić' },
+    tags: 'Tagi: {{tags}}',
+    rolePermissions: 'Uprawnienia: {{count}}',
+    noPermissions: 'Bez dodatkowych uprawnień',
+    builtinChanged: '{{role}}: zmienione uprawnienia',
+    notifyDefault: 'Domyślne powiadomienia: {{level}}',
+    notifyAuto: 'automatycznie',
+    bots: 'Wbudowane boty: {{bots}}',
+    limits: 'Limity przesyłania, emoji, naklejek i dźwięków',
+    bugInbox: 'Zgłoszenia błędów trafiają na kanał {{channel}}',
+    afk: 'Kanał AFK: {{channel}} po {{minutes}} min',
+    rules: 'Zasady serwera',
+  },
+}
