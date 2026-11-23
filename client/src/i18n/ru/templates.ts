@@ -1,0 +1,43 @@
+import type { Messages } from '../types'
+
+export const templates: Messages['templates'] = {
+  save: {
+    title: 'Сохранить этот сервер как шаблон',
+    intro: 'Файл с вашими каналами, тем, кто их видит и может ими пользоваться, ролями, правилами и настройками, чтобы запустить ещё один такой же сервер. Без участников, сообщений, файлов и ключей.',
+    button: 'Сохранить как шаблон',
+    done: 'Сохранено',
+  },
+  file: {
+    pick: 'Из файла шаблона…',
+    hint: 'Шаблон в формате .json, например сохранённый с другого сервера.',
+    invalid: 'Iskra не может использовать этот файл как шаблон: {{error}}',
+    from: 'Из файла {{file}}',
+  },
+  preview: {
+    title: 'Что будет настроено',
+    channels: 'Каналы',
+    roles: 'Роли',
+    builtinRoles: 'Встроенные роли',
+    settings: 'Настройки',
+    kinds: { text: 'Текстовый', voice: 'Голосовой', forum: 'Форум', stage: 'Трибуна', docs: 'Документы' },
+    whoRead: 'Видят: {{role}} и выше',
+    whoWrite: 'Пишут: {{role}} и выше',
+    hifi: 'Hi-Fi',
+    slowmode: 'Медленный режим: {{seconds}} с',
+    override: '{{role}}: {{changes}}',
+    allow: 'можно {{what}}',
+    deny: 'нельзя {{what}}',
+    perms: { view: 'видеть', send: 'писать', connect: 'подключаться', speak: 'говорить' },
+    tags: 'Теги: {{tags}}',
+    rolePermissions: 'Прав: {{count}}',
+    noPermissions: 'Без дополнительных прав',
+    builtinChanged: '{{role}}: права изменены',
+    notifyDefault: 'Уведомления по умолчанию: {{level}}',
+    notifyAuto: 'автоматически',
+    bots: 'Встроенные боты: {{bots}}',
+    limits: 'Лимиты на загрузки, эмодзи и стикеры',
+    bugInbox: 'Сообщения об ошибках приходят в {{channel}}',
+    afk: 'AFK-канал: {{channel}} через {{minutes}} мин',
+    rules: 'Правила сервера',
+  },
+}
