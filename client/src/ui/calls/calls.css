@@ -69,6 +69,10 @@
 
 @media (max-width: 760px) {
   .call-panel, .call-panel.has-video { max-height: 58vh; }
+  /* A short screen, or the keyboard open: the call gives way (its tiles get smaller, then its buttons are cut) before
+     the conversation does, so the last lines and the message box stay on screen. */
+  .chat > .call-panel { flex-shrink: 1; min-height: 0; overflow: hidden; }
+  .chat > .call-panel ~ .messages { min-height: 64px; }
   .call-panel.has-video { height: 58vh; }
   .call-top { padding: 8px 10px 0; }
   .call-top .e2e-badge, .incoming-card .e2e-badge { display: inline-flex; }

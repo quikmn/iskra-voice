@@ -127,8 +127,8 @@ export function CallPanel({ peer }: { peer: string }) {
   )
 }
 
-/** Full-screen on phones, a card elsewhere: someone is calling you. */
-export function IncomingCall() {
+/** Full-screen on phones, a card elsewhere: someone is calling you. `onAnswer`: Accept was pressed. */
+export function IncomingCall({ onAnswer }: { onAnswer?: () => void }) {
   const { t } = useTranslation()
   const call = useCalls((s) => s.call)
   useApp((s) => s.servers)
@@ -151,7 +151,7 @@ export function IncomingCall() {
             <span>{t('calls.decline')}</span>
           </label>
           <label className="incoming-action">
-            <button className="call-button accept" onClick={() => void acceptCall()} aria-label={t('calls.accept')} autoFocus={ringsFullScreen()}>
+            <button className="call-button accept" onClick={() => { onAnswer?.(); void acceptCall() }} aria-label={t('calls.accept')} autoFocus={ringsFullScreen()}>
               {call.video ? <Video /> : <Phone />}
             </button>
             <span>{t('calls.accept')}</span>

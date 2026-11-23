@@ -174,7 +174,7 @@ export function GroupCallPanel({ groupKey }: { groupKey: string }) {
 }
 
 /** Someone started a call in one of your groups. */
-export function IncomingGroupCall() {
+export function IncomingGroupCall({ onAnswer }: { onAnswer?: () => void }) {
   const { t } = useTranslation()
   const ringing = useGroupCalls((s) => s.ringing)
   const g = useGroups((s) => (ringing ? s.groups[ringing.key] : undefined))
@@ -195,7 +195,7 @@ export function IncomingGroupCall() {
             <span>{t('calls.decline')}</span>
           </label>
           <label className="incoming-action">
-            <button className="call-button accept" onClick={() => { openGroup(ringing.key); void joinOngoingCall(ringing.key, ringing.video) }} aria-label={t('common.join')} autoFocus={ringsFullScreen()}>
+            <button className="call-button accept" onClick={() => { onAnswer?.(); openGroup(ringing.key); void joinOngoingCall(ringing.key, ringing.video) }} aria-label={t('common.join')} autoFocus={ringsFullScreen()}>
               {ringing.video ? <Video /> : <Phone />}
             </button>
             <span>{t('common.join')}</span>

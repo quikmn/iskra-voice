@@ -137,8 +137,9 @@ export function Shell() {
       <StreamerPill floating />
       <LfgLayer />
       {(panel !== 'none' || dragging) && <div className="scrim" style={dragging && panel === 'none' ? { opacity: 0 } : undefined} onClick={() => setPanel('none')} />}
-      <IncomingCall />
-      <IncomingGroupCall />
+      {/* Answering opens the call's conversation: on a phone the channels drawer must not stay open over it. */}
+      <IncomingCall onAnswer={() => setPanel('none')} />
+      <IncomingGroupCall onAnswer={() => setPanel('none')} />
       <ProfileLayer />
       <UserMenuLayer />
       <ServerActionLayer />
