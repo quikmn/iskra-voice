@@ -5,7 +5,7 @@ import { i18next, intlLocale, loadLanguageChoice, resolveLanguage, systemLanguag
 import { errorMessage, translatedError } from './errors'
 import { formatBytes } from './format'
 import {
-  englishName, LANGUAGE_REGISTRY, LANGUAGES, languageOfTag, PLURAL_SUFFIX, pluralForms, requiredPluralForms, SHIPPED_LANGUAGES, withPluralForms,
+  englishName, LANGUAGE_REGISTRY, languageInfo, LANGUAGES, languageOfTag, PLURAL_SUFFIX, pluralForms, requiredPluralForms, SHIPPED_LANGUAGES, withPluralForms,
 } from './languages'
 import { RequestError } from '../core/protocol'
 
@@ -219,11 +219,14 @@ describe('language', () => {
     expect(t('common.cancel')).toBe('Cancel')
   })
 
-  it('follows the system: Swedish for Swedish, else English', () => {
+  it('follows the system: the first of its languages we ship, else English', () => {
+    // "xx" and "yy" stand for languages the app doesn't have.
     expect(systemLanguage(['sv-SE', 'en-US'])).toBe('sv')
     expect(systemLanguage(['sv'])).toBe('sv')
-    expect(systemLanguage(['de-DE', 'sv-SE'])).toBe('sv')
-    expect(systemLanguage(['de-DE', 'fr-FR'])).toBe('en')
+    expect(systemLanguage(['xx-XX', 'sv-SE'])).toBe('sv')
+    expect(systemLanguage(['xx-XX', 'yy-YY'])).toBe('en')
+    expect(systemLanguage(['SV_se'])).toBe('sv')
+    for (const language of SHIPPED_LANGUAGES) expect(systemLanguage([languageInfo(language).locale, 'en-US'])).toBe(language)
     expect(systemLanguage(['en-GB'])).toBe('en')
     expect(systemLanguage([])).toBe('en')
     expect(resolveLanguage('auto', ['sv-FI'])).toBe('sv')
@@ -233,6 +236,8 @@ describe('language', () => {
   it('reads a saved choice, and anything else is automatic', () => {
     expect(loadLanguageChoice({ getItem: () => 'sv' })).toBe('sv')
     expect(loadLanguageChoice({ getItem: () => 'xx' })).toBe('auto')
+    expect(loadLanguageChoice({ getItem: () => 'constructor' })).toBe('auto')
+    for (const language of LANGUAGES) expect(loadLanguageChoice({ getItem: () => language })).toBe(language)
     expect(loadLanguageChoice({ getItem: () => null })).toBe('auto')
     expect(loadLanguageChoice({ getItem: () => { throw new Error('blocked') } })).toBe('auto')
   })
@@ -241,7 +246,8 @@ describe('language', () => {
     expect(intlLocale('en', ['en-GB', 'sv-SE'])).toBe('en-GB')
     expect(intlLocale('sv', ['en-GB', 'sv-SE'])).toBe('sv-SE')
     expect(intlLocale('sv', ['en-US'])).toBe('sv-SE')
-    expect(intlLocale('en', ['de-DE'])).toBe('en-US')
+    expect(intlLocale('en', ['xx-XX'])).toBe('en-US')
+    for (const language of LANGUAGES) expect(intlLocale(language, [])).toBe(languageInfo(language).locale)
   })
 
   it('formats sizes in the language', async () => {

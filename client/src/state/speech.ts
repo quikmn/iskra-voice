@@ -7,7 +7,7 @@
 // from a web page) so nothing is heard twice.
 import { create } from 'zustand'
 import type { Message } from '../core/protocol'
-import { currentLanguage, t } from '../i18n'
+import { intlLocale, t } from '../i18n'
 import { plainText } from '../ui/markdown'
 import { heardHooks, quietRules } from './notify'
 import { notifyFor } from './organize'
@@ -99,7 +99,7 @@ function next(): void {
   const utterance = new SpeechSynthesisUtterance(line.text)
   const voice = settings.voice ? window.speechSynthesis.getVoices().find((v) => v.voiceURI === settings.voice) : undefined
   if (voice) utterance.voice = voice
-  utterance.lang = voice?.lang ?? (currentLanguage() === 'sv' ? 'sv-SE' : 'en-US')
+  utterance.lang = voice?.lang ?? intlLocale()
   utterance.rate = settings.rate
   utterance.volume = settings.volume
   const done = () => {

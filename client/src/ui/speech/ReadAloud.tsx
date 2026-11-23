@@ -2,6 +2,7 @@
 // channel (with a header button to stop it while it's on), and Settings → Voice & audio → Speech.
 import { useTranslation } from 'react-i18next'
 import type { Channel, Message } from '../../core/protocol'
+import { currentLanguage } from '../../i18n'
 import { formatNumber } from '../../i18n/format'
 import { captionsSupported } from '../../state/captions'
 import {
@@ -63,8 +64,13 @@ export function SpeechSettingsSection() {
   const slow = useTranscripts((s) => s.slow)
   const speech = speechSupported()
   const transcripts = captionsSupported()
-  // The app's languages first, then the rest.
-  const sorted = [...voices].sort((a, b) => Number(!/^(en|sv)\b/i.test(a.lang)) - Number(!/^(en|sv)\b/i.test(b.lang)) || a.name.localeCompare(b.name))
+  // Voices in the app's language first, then English, then the rest.
+  const language = currentLanguage()
+  const rank = (voice: { lang: string }) => {
+    const base = voice.lang.toLowerCase().split(/[-_]/)[0]
+    return base === language ? 0 : base === 'en' ? 1 : 2
+  }
+  const sorted = [...voices].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
 
   return (
     <section className="settings-section speech-settings">
