@@ -14,6 +14,7 @@ export interface LanguageInfo {
 
 // One line per language, sorted by code.
 export const LANGUAGE_REGISTRY = [
+  { code: 'de', name: 'Deutsch', locale: 'de-DE', shipped: true },
   { code: 'en', name: 'English', locale: 'en-US', shipped: true },
   { code: 'fr', name: 'Français', locale: 'fr-FR', shipped: true },
   { code: 'it', name: 'Italiano', locale: 'it-IT', shipped: true },

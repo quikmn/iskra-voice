@@ -1,0 +1,60 @@
+import type { Messages } from '../types'
+
+export const accounts: Messages['accounts'] = {
+  switcher: {
+    label: 'Konten. Angemeldet als {{name}}',
+    title: 'Konten',
+    current: 'Aktiv',
+    unread_one: '{{count}} ungelesen',
+    unread_other: '{{count}} ungelesen',
+    otherUnread_one: '{{count}} ungelesen in deinen anderen Konten',
+    otherUnread_other: '{{count}} ungelesen in deinen anderen Konten',
+    inVoice: 'Im Sprachchat',
+    locked: 'Gesperrt',
+    settingUp: 'Wird hinzugefügt',
+    switchTo: 'Zu {{name}} wechseln',
+    moveUp: '{{name}} nach oben',
+    moveDown: '{{name}} nach unten',
+    add: 'Konto hinzufügen',
+    switchAccount: 'Konto wechseln',
+    addNew: 'Neues Konto erstellen',
+    addNewHint: 'Ein eigenes Konto mit eigenem Namen, eigenen Servern und Nachrichten.',
+    addExisting: 'Ein Konto nutzen, das ich schon habe',
+    addExistingHint: 'Verknüpfe es von einem anderen Gerät oder nimm den Wiederherstellungsschlüssel.',
+    full: 'Auf diesem Gerät sind {{count}} Konten angemeldet. Mehr gehen nicht.',
+    restartNote: 'Iskra startet einmal neu, um das Konto hinzuzufügen.',
+    restartVoiceNote: 'Iskra startet einmal neu, um das Konto hinzuzufügen. Dabei verlässt du den Sprachchat.',
+    signOut: '{{name}} abmelden…',
+    unnamed: 'Neues Konto',
+  },
+  adding: {
+    cancelPlain: 'Abbrechen',
+  },
+  chooser: {
+    title: 'Welches Konto?',
+    invite: 'Du hast eine Einladung geöffnet. Welches Konto soll beitreten?',
+    open: 'Welches Konto soll diesen Link öffnen?',
+    cancel: 'Abbrechen',
+  },
+  linking: {
+    title: 'Dieses Gerät mit einem weiteren Konto verknüpfen?',
+    body: 'Ein Geräte-Link hat Iskra geöffnet. Mach nur weiter, wenn du selbst gerade ein Konto mit diesem Gerät verknüpfen wolltest: Das Konto kommt hier neben deinem dazu.',
+    add: 'Konto hinzufügen',
+    cancel: 'Abbrechen',
+  },
+  duplicate: {
+    title: 'Hier schon angemeldet',
+    body: 'Dieses Konto ist auf diesem Gerät schon angemeldet. Iskra behält von jedem Konto nur eine Kopie.',
+    switch: 'Dorthin wechseln',
+  },
+  voice: {
+    leftAs: 'Sprachchat als {{name}} verlassen: Nur ein Konto kann gleichzeitig im Sprachchat sein.',
+  },
+  ringing: {
+    title: '{{caller}} ruft {{account}} an',
+    switch: 'Wechseln',
+  },
+  notifyTitle: '{{title}} · {{account}}',
+  frameTitle: 'Iskra: {{name}}',
+  unsupported: 'Dieser Browser kann deine Konten nicht getrennt halten. Nutze die Desktop-App oder bleib in diesem Browser bei einem Konto.',
+}

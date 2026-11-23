@@ -1,0 +1,43 @@
+import type { Messages } from '../types'
+
+export const templates: Messages['templates'] = {
+  save: {
+    title: 'Diesen Server als Vorlage speichern',
+    intro: 'Eine Datei mit deinen Kanälen, wer sie sehen und nutzen darf, Rollen, Regeln und Einstellungen, um einen weiteren Server genau wie diesen zu starten. Nie Mitglieder, Nachrichten, Dateien oder Schlüssel.',
+    button: 'Als Vorlage speichern',
+    done: 'Gespeichert',
+  },
+  file: {
+    pick: 'Aus einer Vorlagendatei…',
+    hint: 'Eine .json-Vorlage, zum Beispiel eine, die von einem anderen Server gespeichert wurde.',
+    invalid: 'Diese Datei ist keine Vorlage, die Iskra nutzen kann: {{error}}',
+    from: 'Aus {{file}}',
+  },
+  preview: {
+    title: 'Was damit eingerichtet wird',
+    channels: 'Kanäle',
+    roles: 'Rollen',
+    builtinRoles: 'Feste Rollen',
+    settings: 'Einstellungen',
+    kinds: { text: 'Text', voice: 'Sprache', forum: 'Forum', stage: 'Bühne', docs: 'Doku' },
+    whoRead: 'Sichtbar ab {{role}}',
+    whoWrite: 'Posten ab {{role}}',
+    hifi: 'Hi-Fi',
+    slowmode: 'Slow-Modus {{seconds}} s',
+    override: '{{role}}: {{changes}}',
+    allow: 'darf {{what}}',
+    deny: 'darf nicht {{what}}',
+    perms: { view: 'sehen', send: 'posten', connect: 'beitreten', speak: 'sprechen' },
+    tags: 'Tags: {{tags}}',
+    rolePermissions: '{{count}} Berechtigungen',
+    noPermissions: 'Keine zusätzlichen Berechtigungen',
+    builtinChanged: '{{role}}: geänderte Berechtigungen',
+    notifyDefault: 'Standard-Benachrichtigungen: {{level}}',
+    notifyAuto: 'automatisch',
+    bots: 'Integrierte Bots: {{bots}}',
+    limits: 'Limits für Uploads, Emojis und Sounds',
+    bugInbox: 'Fehlerberichte gehen an {{channel}}',
+    afk: 'AFK-Kanal: {{channel}} nach {{minutes}} Min.',
+    rules: 'Serverregeln',
+  },
+}
