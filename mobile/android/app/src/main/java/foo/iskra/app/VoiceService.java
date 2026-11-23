@@ -31,7 +31,9 @@ public class VoiceService extends Service {
 
     /** A new title (a channel renamed, a name loaded): the shown notification changes; the service isn't started again. */
     static void update(Context context, String title) {
-        if (!running) {
+        // Not running, or started before the microphone was allowed (as a playback service): started (again) from the
+        // open app, so the microphone keeps working with the screen off (Android 14 wants the microphone type for that).
+        if (!running || (!microphone && micAllowed(context))) {
             start(context, title);
             return;
         }
@@ -46,6 +48,12 @@ public class VoiceService extends Service {
 
     /** True while the service is in the foreground (its notification showing). */
     private static volatile boolean running;
+    /** Whether it runs as a microphone service (the microphone was allowed when it started). */
+    private static volatile boolean microphone;
+
+    private static boolean micAllowed(Context context) {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -56,8 +64,10 @@ public class VoiceService extends Service {
         }
         String title = intent != null ? intent.getStringExtra(EXTRA_TITLE) : null;
         try {
-            ServiceCompat.startForeground(this, Notifications.VOICE_ID, notification(this, title), serviceType());
+            boolean mic = micAllowed(this);
+            ServiceCompat.startForeground(this, Notifications.VOICE_ID, notification(this, title), serviceType(mic));
             running = true;
+            microphone = mic;
         } catch (RuntimeException e) {
             // Not allowed right now (Android 12+ background start, or no microphone permission yet): voice still works in front.
             stopSelf();
@@ -66,9 +76,8 @@ public class VoiceService extends Service {
     }
 
     /** Microphone once the person allowed it (Android 14 requires that), else playback: listening keeps working. */
-    private int serviceType() {
+    private int serviceType(boolean mic) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return 0;
-        boolean mic = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         return mic ? ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE : ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK;
     }
 
@@ -112,6 +121,7 @@ public class VoiceService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        microphone = false;
         super.onDestroy();
     }
 

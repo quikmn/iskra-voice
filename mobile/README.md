@@ -117,7 +117,7 @@ secure context). What depends on the page's origin:
 
 | | iOS | Android |
 |---|---|---|
-| In a voice channel, app in the background or screen locked | Background mode `audio`, audio session `playAndRecord`/`voiceChat` | Foreground service with a notification "Iskra · In voice: lounge" and a Leave button; audio focus (music ducks). Android 13+ asks once for notification permission so that notification shows; voice works either way |
+| In a voice channel, app in the background or screen locked | Background mode `audio`, audio session `playAndRecord`/`voiceChat` | Foreground service with a notification "Iskra · In voice: lounge" and a Leave button; audio focus (music ducks). Android 13+ asks once for notification permission so that notification shows (after the microphone has been allowed: Android shows one permission question at a time, and a second request made meanwhile comes back unanswered); voice works either way |
 | In a DM or group call | A CallKit call (lock screen, Dynamic Island, system mute and end) | The same foreground service ("Call with Alex") |
 | Incoming calls | Ring in the app while it's open | The same |
 
