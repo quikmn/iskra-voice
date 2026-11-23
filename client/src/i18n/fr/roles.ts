@@ -22,7 +22,7 @@ export const roles: Messages['roles'] = {
   },
   base: {
     title: 'Rôles intégrés',
-    intro: 'Chaque serveur les a. Chaque personne en a exactement un ; les réglages « Qui peut » des salons s’appuient dessus.',
+    intro: 'Chaque serveur les a. Chaque personne en a exactement un ; les paramètres « Qui peut » des salons s’appuient dessus.',
     customTitle: 'Rôles personnalisés',
     badge: 'Intégré',
     names: { owner: 'Propriétaire', admin: 'Admin', trusted: 'De confiance', member: 'Membre', guest: 'Invité' },
@@ -34,7 +34,7 @@ export const roles: Messages['roles'] = {
       member: 'Toutes les personnes qui rejoignent avec une invitation normale.',
       guest: 'Des visiteurs qui ne voient que les salons ouverts aux invités.',
     },
-    channels: 'Voit les salons dont les réglages « Qui peut » incluent {{role}}, et peut y écrire.',
+    channels: 'Voit les salons dont les paramètres « Qui peut » incluent {{role}}, et peut y écrire.',
     everythingOf: 'Tout ce que peut faire {{role}}, plus :',
     nothingMore: 'Rien de plus.',
     everyPermission: 'Toutes les permissions :',

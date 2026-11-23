@@ -17,7 +17,7 @@ export const teams: Messages['teams'] = {
   game: 'Jeu (facultatif)',
   gamePlaceholder: 'Valheim',
   skills: 'Niveau',
-  skillsHint: 'Donne à chacun un nombre de {{min}} à {{max}} pour ce soir (toi seul le vois, et il est oublié à la fermeture d’Iskra). Sans nombre, une personne compte comme moyenne.',
+  skillsHint: 'Donne à chacun un nombre de {{min}} à {{max}} pour ce soir (visible uniquement par toi, et il est oublié à la fermeture d’Iskra). Sans nombre, une personne compte comme moyenne.',
   skillFor: 'Niveau de {{name}}',
   pickCaptains_one: 'Choisis {{count}} capitaine ({{picked}} de choisi)',
   pickCaptains_other: 'Choisis {{count}} capitaines ({{picked}} de choisis)',

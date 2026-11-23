@@ -44,7 +44,7 @@ export const speech: Messages['speech'] = {
     title: 'Parole',
     transcripts: 'Transcription des messages vocaux',
     autoTranscribe: 'Transcrire automatiquement les messages vocaux',
-    transcriptsHint: 'Ou utilise « Afficher la transcription » sur n’importe quel message vocal. Les transcriptions sont faites sur cet appareil avec le modèle vocal des sous-titres en direct (anglais ou suédois, selon le réglage des sous-titres) et ne sont jamais envoyées ailleurs. Les messages vocaux chiffrés sont transcrits uniquement en mémoire.',
+    transcriptsHint: 'Ou utilise « Afficher la transcription » sur n’importe quel message vocal. Les transcriptions sont faites sur cet appareil avec le modèle vocal des sous-titres en direct (anglais ou suédois, selon le paramètre des sous-titres) et ne sont jamais envoyées ailleurs. Les messages vocaux chiffrés sont transcrits uniquement en mémoire.',
     tooSlow: 'Cet appareil était trop lent pour les transcriptions automatiques, elles sont donc en pause. Désactive puis réactive cette option pour réessayer.',
     readAloud: 'Lecture à voix haute',
     readAloudHint: 'Utilise « Lire à voix haute » sur un message, ou « Lire les nouveaux messages à voix haute » dans le menu d’un salon (pratique en jeu). Ce sont les voix de ton appareil qui les lisent ; rien n’est envoyé ailleurs. Les nouveaux messages ne sont lus que dans le salon ouvert, et pas quand il est en sourdine, pendant les heures calmes ou en mode Ne pas déranger.',

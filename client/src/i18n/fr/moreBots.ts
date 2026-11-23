@@ -50,7 +50,7 @@ export const moreBots: Messages['moreBots'] = {
     welcomeBatch: '👋 {{count}} personnes sont arrivées : {{names}}. Bienvenue !',
     more_one: '{{count}} de plus',
     more_other: '{{count}} de plus',
-    onlyYou: 'Toi seul peux voir ceci',
+    onlyYou: 'Visible uniquement par toi',
   },
   profile: {
     label: 'Anniversaire',

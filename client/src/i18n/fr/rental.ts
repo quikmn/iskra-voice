@@ -137,14 +137,14 @@ export const rental: Messages['rental'] = {
     cost:
       '- {{price}} par mois, facturé à l’heure par DigitalOcean. À voir sous Billing : {{billing}}. Iskra ne facture rien.\n' +
       '- Pour arrêter de payer : dans DigitalOcean, ouvre Droplets ({{droplets}}), choisis « {{droplet}} », puis Destroy → Destroy this Droplet. Un droplet simplement éteint coûte toujours de l’argent ; le détruire y met fin. Supprime ensuite le pare-feu « {{droplet}}-firewall » sous Networking → Firewalls (gratuit, mais plus propre).\n' +
-      '- Tu veux garder l’historique de ton serveur ? Crée d’abord une sauvegarde (Paramètres du serveur → Sauvegarde et déménagement).',
+      '- Tu veux garder l’historique de ton serveur ? Crée d’abord une sauvegarde (Paramètres du serveur → Sauvegarde et transfert).',
     updatesTitle: 'Mises à jour et sauvegardes',
     updates:
       '- Iskra se met à jour tout seul vers les nouvelles versions pendant la nuit (vers 04:00, heure du serveur, avec vérification des sommes de contrôle publiées). Paramètres du serveur → Mises à jour du serveur affiche la version et te permet de changer ça.\n' +
       '- Ubuntu installe tout seul ses propres mises à jour de sécurité.\n' +
-      '- Une sauvegarde est créée chaque jour sur le serveur (les 7 dernières sont conservées). Comme elles sont sur le même serveur, télécharges-en aussi une de temps en temps : Paramètres du serveur → Sauvegarde et déménagement → Créer une sauvegarde (chiffrée avec une phrase secrète de ton choix). Les sauvegardes payantes de DigitalOcean sont désactivées.',
+      '- Une sauvegarde est créée chaque jour sur le serveur (les 7 dernières sont conservées). Comme elles sont sur le même serveur, télécharges-en aussi une de temps en temps : Paramètres du serveur → Sauvegarde et transfert → Créer une sauvegarde (chiffrée avec une phrase secrète de ton choix). Les sauvegardes payantes de DigitalOcean sont désactivées.',
     moveTitle: 'Le déménager plus tard',
-    move: 'Tout ton serveur tient dans un dossier. Crée une sauvegarde dans Paramètres du serveur → Sauvegarde et déménagement, restaure-la sur le nouvel ordinateur ou serveur (appli de bureau : Créer un serveur → Restaurer depuis une sauvegarde), puis utilise **Déménager ce serveur** pour que les applis de tout le monde suivent vers la nouvelle adresse. Guide : {{guide}}',
+    move: 'Tout ton serveur tient dans un dossier. Crée une sauvegarde dans Paramètres du serveur → Sauvegarde et transfert, restaure-la sur le nouvel ordinateur ou serveur (appli de bureau : Créer un serveur → Restaurer depuis une sauvegarde), puis utilise **Déménager ce serveur** pour que les applis de tout le monde suivent vers la nouvelle adresse. Guide : {{guide}}',
     seesTitle: 'Ce qu’Iskra peut voir ou non',
     sees:
       'Le projet Iskra ne fait rien tourner pour ton serveur et ne voit rien : ni ton serveur, ni tes messages, ni ton compte DigitalOcean, ni ton jeton, ni ta carte. L’appli n’a parlé à DigitalOcean que pendant l’installation, avec ton jeton, et l’a oublié. ' +

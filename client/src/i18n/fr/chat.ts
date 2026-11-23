@@ -110,7 +110,7 @@ export const chat: Messages['chat'] = {
     thinking: '{{bot}} réfléchit…',
     noAnswer: '{{bot}} n’a pas répondu. Réessaie dans un instant.',
     failed: '{{bot}} n’a pas pu traiter ça : {{error}}',
-    onlyYou: 'Toi seul peux voir ceci',
+    onlyYou: 'Visible uniquement par toi',
     dismiss: 'Ignorer',
     e2eeNote: 'Les commandes sont envoyées au bot sans chiffrement, sans passer par ce salon. Tu seras la seule personne à voir la réponse.',
     missing: 'Ajoute {{option}} ({{type}}) : {{description}}',

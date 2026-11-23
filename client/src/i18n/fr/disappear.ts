@@ -28,7 +28,7 @@ export const disappear: Messages['disappear'] = {
   newOnly: 'Changer le délai ne concerne que les messages envoyés après le changement.',
   deleted: 'Une fois leur délai écoulé, les messages et leurs fichiers sont supprimés du serveur et des appareils de tout le monde. Les sauvegardes du serveur ne les incluent jamais.',
   honest: 'Les gens peuvent toujours faire des captures d’écran, copier du texte ou enregistrer des fichiers avant qu’un message disparaisse.',
-  managersOnly: 'Seules les personnes qui peuvent gérer les salons peuvent changer ce réglage.',
+  managersOnly: 'Seules les personnes qui peuvent gérer les salons peuvent changer ce paramètre.',
   saving: 'Enregistrement…',
   line: {
     on: '{{name}} a réglé les nouveaux messages pour qu’ils disparaissent après {{duration}}.',

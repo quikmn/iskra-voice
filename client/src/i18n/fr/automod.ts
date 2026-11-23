@@ -43,7 +43,7 @@ export const automod: Messages['automod'] = {
   rulesOn_other: '{{count}} règles activées.',
   noRules: 'Aucune règle n’est encore activée.',
   offSummary: 'Rien n’est vérifié tant que tu ne l’as pas activé.',
-  suggested: 'Utiliser les réglages suggérés',
+  suggested: 'Utiliser les paramètres suggérés',
   suggestedHint: 'Active la protection anti-spam et bloque les invitations vers d’autres serveurs. Enregistre pour appliquer.',
   e2eeNote: 'Les messages privés et les groupes sont chiffrés de bout en bout, le serveur ne peut donc pas les lire et AutoMod ne s’y applique pas.',
   words: {

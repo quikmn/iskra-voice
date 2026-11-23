@@ -98,7 +98,7 @@ export const hosting: Messages['hosting'] = {
     isp: '<b>Demander une adresse IPv4 publique à ton fournisseur.</b> C’est souvent gratuit et fait une fois pour toutes, parfois moyennant un petit supplément. L’Internet mobile (4G/5G) n’en obtient presque jamais.',
     tailscale: '<b>Utiliser Tailscale (gratuit).</b> Une appli gratuite qui relie les appareils de ton groupe comme s’ils étaient sur un même réseau. Chacun l’installe une fois ; aucun port à ouvrir.',
     tailscaleButton: 'Montre-moi comment',
-    friend: '<b>Laisser héberger quelqu’un de ton groupe qui a une connexion ouverte.</b> Tout le serveur tient dans un dossier : déménage-le avec Paramètres du serveur → Sauvegarde et déménagement, et tout suit.',
+    friend: '<b>Laisser héberger quelqu’un de ton groupe qui a une connexion ouverte.</b> Tout le serveur tient dans un dossier : déménage-le avec Paramètres du serveur → Sauvegarde et transfert, et tout suit.',
     p2p: '<b>Laisser tes amis se connecter sans redirection de port (expérimental).</b> L’interrupteur ci-dessus : ton ordinateur et tes amis se trouvent via un réseau pair-à-pair public, sans rien à ouvrir ni à installer.',
   },
   p2p: {

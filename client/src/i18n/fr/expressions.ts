@@ -108,7 +108,7 @@ export const expressions: Messages['expressions'] = {
     soundName: 'Nom du son',
     uploadSound: 'Importer un son',
     preview: 'Écouter {{name}}',
-    previewTitle: 'Écouter (toi seul l’entends)',
+    previewTitle: 'Écouter (audible uniquement par toi)',
     emojiFor: 'Émoji pour {{name}}',
     seconds: '{{seconds}} s',
   },

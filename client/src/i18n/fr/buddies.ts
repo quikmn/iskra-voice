@@ -3,7 +3,7 @@ import type { Messages } from '../types'
 // Backup buddies: Settings → Backup & move, and restoring from a friend's server in the desktop app.
 export const buddies: Messages['buddies'] = {
   title: 'Amis de sauvegarde',
-  intro: 'Tes sauvegardes quotidiennes peuvent aussi partir sur le serveur Iskra d’un ami. Elles sont chiffrées ici avant de partir, avec un code de récupération que toi seul reçois : ton ami les conserve mais ne peut pas les lire. Ton ami te crée un emplacement dans ses Paramètres du serveur → Sauvegarde et déménagement et t’envoie un code d’association.',
+  intro: 'Tes sauvegardes quotidiennes peuvent aussi partir sur le serveur Iskra d’un ami. Elles sont chiffrées ici avant de partir, avec un code de récupération que tu es la seule personne à recevoir : ton ami les conserve mais ne peut pas les lire. Ton ami te crée un emplacement dans ses Paramètres du serveur → Sauvegarde et transfert et t’envoie un code d’association.',
   needsDaily: 'Les sauvegardes quotidiennes sont désactivées. Active-les ci-dessus : ce sont elles qui partent chez tes amis de sauvegarde.',
   code: 'Code d’association de ton ami',
   codeHint: 'Il commence par iskra-buddy: et fonctionne une seule fois.',
@@ -51,7 +51,7 @@ export const buddies: Messages['buddies'] = {
     removeNowConfirm: 'Supprimer maintenant cet emplacement et ses copies ?',
     deleteNow: 'Supprimer maintenant',
     codeTitle: 'Code d’association pour {{label}}',
-    codeHint: 'Envoie-le à ton ami. Il le colle dans ses Paramètres du serveur → Sauvegarde et déménagement → Amis de sauvegarde. Il fonctionne une fois, pendant 24 heures.',
+    codeHint: 'Envoie-le à ton ami. Il le colle dans ses Paramètres du serveur → Sauvegarde et transfert → Amis de sauvegarde. Il fonctionne une fois, pendant 24 heures.',
     codeLabel: 'Code d’association',
     copyCode: 'Copier le code',
     done: 'Terminé',

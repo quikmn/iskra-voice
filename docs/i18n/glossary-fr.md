@@ -90,7 +90,7 @@ terms decided for French. Rules: [translating.md](../translating.md).
 | Bots & webhooks | Bots et webhooks | |
 | Internet access (section) / Open to the internet (its switch) | Accès Internet / Ouvrir à Internet | |
 | Limits | Limites | |
-| Backup & move | Sauvegarde et déménagement | To move a server: "déménager le serveur" |
+| Backup & move | Sauvegarde et transfert | The section's name, short enough for the settings list. To move a server: "déménager le serveur", "le déménagement" |
 | Import from Discord | Importer depuis Discord | |
 | Server updates | Mises à jour du serveur | |
 | Notifications | Notifications | |
@@ -252,5 +252,13 @@ terms decided for French. Rules: [translating.md](../translating.md).
 | Key (encryption) | Clé | |
 | Port forwarding | Redirection de port | |
 | Firewall, router | Pare-feu, routeur (box) | "box" is France-only: write "routeur" |
-| Computer / phone | Ordinateur / téléphone | Never "PC" except in the name "Bots sur ce PC" |
+| Computer / phone | Ordinateur / téléphone | Never "PC": "Bots sur cet ordinateur" |
+| Link a device | Associer un appareil | "Association", "code d’association" (also the backup buddies' pairing code) |
+| Privacy & data (section) | Vie privée et données | Elsewhere "confidentialité": "Politique de confidentialité", "Confidentialité et sécurité" (group) |
+| About & legal (section) | À propos | The longer "À propos et mentions légales" doesn't fit the settings list |
+| Message request | Demande de message | |
+| Safety number | Numéro de sécurité | |
+| Voice message | Message vocal | |
+| Screenshot | Capture d’écran | |
+| Starter template | Modèle de départ | |
 | Folder / file | Dossier / fichier | |

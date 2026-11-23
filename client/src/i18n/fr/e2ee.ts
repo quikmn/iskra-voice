@@ -37,7 +37,7 @@ export const e2ee: Messages['e2ee'] = {
     trustNew: 'nouveau pour toi',
     members: 'Qui peut le lire maintenant : {{names}}',
     lookalike: '{{name}} a une clé différente de celle de {{name}} qui était dans ce salon avec toi auparavant.',
-    notListed: 'Personne ne t’a encore ajouté au nouveau chiffrement. Ça se fait automatiquement quand l’un de ses membres est en ligne.',
+    notListed: 'Personne ne t’a encore fait entrer dans le nouveau chiffrement. Ça se fait automatiquement quand l’un de ses membres est en ligne.',
     keyWarning: 'Il y a une alerte de clé concernant l’une des personnes qui l’ont signé, tu ne peux donc pas recommencer à zéro avec.',
     confirm: 'J’ai comparé les numéros de sécurité avec les personnes qui l’ont signé',
     button: 'Recommencer à zéro',

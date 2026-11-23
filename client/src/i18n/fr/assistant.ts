@@ -44,7 +44,7 @@ export const assistant: Messages['assistant'] = {
   },
   secret: {
     botInvite: 'Invitation de bot pour {{server}}',
-    botInviteHint: 'Fonctionne une fois, pendant 7 jours. Toi seul vois ce lien ; l’assistant, jamais. Lance ton bot avec ce lien dans ISKRA_INVITE.',
+    botInviteHint: 'Fonctionne une fois, pendant 7 jours. Ce lien n’est visible que par toi ; l’assistant ne le voit jamais. Lance ton bot avec ce lien dans ISKRA_INVITE.',
     copy: 'Copier',
     copied: 'Copié',
     dismiss: 'Masquer',

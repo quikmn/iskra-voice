@@ -21,7 +21,7 @@ export const rooms: Messages['rooms'] = {
     name: 'Nom',
     nameHint: 'Affiché sous la forme {{slug}}.',
     locked: 'Verrouiller la salle',
-    lockedHint: 'Seuls toi, les personnes que tu invites et les modérateurs pouvez la rejoindre tant qu’elle est verrouillée. Personne à l’intérieur n’est retiré.',
+    lockedHint: 'Toi, les personnes que tu invites et les modérateurs êtes les seuls à pouvoir la rejoindre tant qu’elle est verrouillée. Personne à l’intérieur n’est retiré.',
     invite: 'Qui peut la rejoindre quand elle est verrouillée',
     invited: 'Invités',
     search: 'Rechercher des membres',

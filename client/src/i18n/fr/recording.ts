@@ -24,7 +24,7 @@ export const recording: Messages['recording'] = {
     stop: 'Arrêter',
   },
   notice: {
-    joined: '{{name}} enregistre cet appel. Tu es arrivé avec le micro coupé, rien de ce que tu dis n’est donc enregistré tant que tu ne le réactives pas.',
+    joined: '{{name}} enregistre cet appel. Ton micro était coupé à ton arrivée, rien de ce que tu dis n’est donc enregistré tant que tu ne le réactives pas.',
     joinedListening: '{{name}} enregistre cet appel.',
     started: '{{name}} a commencé à enregistrer cet appel.',
     unmute: 'OK, réactiver le micro',

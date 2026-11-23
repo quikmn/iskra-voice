@@ -3,7 +3,7 @@ import type { Messages } from '../types'
 // Error messages by server error code, by request, and the server's own messages by key.
 export const errors: Messages['errors'] = {
   codes: {
-    kicked: 'Tu as été retiré de ce serveur.',
+    kicked: 'Tu ne fais plus partie de ce serveur.',
     account_deleted: 'Ce compte a été supprimé.',
     server_key_mismatch: 'L’identité de ce serveur ne correspond pas au lien d’invitation. Il s’agit peut-être d’un imposteur.',
     insecure_server: 'Ce serveur n’utilise pas HTTPS, les navigateurs ne s’y connectent donc pas. Utilise l’appli de bureau Iskra, ou demande à l’hébergeur d’activer HTTPS.',
@@ -19,7 +19,7 @@ export const errors: Messages['errors'] = {
     invites_paused: 'Ce serveur n’accepte pas de nouveaux membres pour le moment. Réessaie plus tard.',
     join_queue_full: 'Trop de personnes attendent d’entrer en ce moment. Réessaie plus tard.',
     name_required: 'Choisis un nom avant de rejoindre ce serveur.',
-    banned: 'Tu es banni de ce serveur.',
+    banned: 'Tu fais l’objet d’un bannissement sur ce serveur.',
     voice_unavailable: 'Le vocal n’est pas disponible sur ce serveur pour le moment.',
     busy: 'Cette personne est occupée pour le moment.',
     device_revoked: 'Cet appareil a été retiré de ton compte.',
@@ -74,8 +74,8 @@ export const errors: Messages['errors'] = {
   },
   /** The server's own messages by their key (error body `key`, PROTOCOL.md → Errors), with its `args` as {{variables}}. */
   server: {
-    kicked_removed: 'Tu as été retiré de ce serveur.',
-    kicked_banned: 'Tu as été banni de ce serveur.',
+    kicked_removed: 'Tu ne fais plus partie de ce serveur.',
+    kicked_banned: 'Ce serveur vient de te bannir.',
     kicked_left: 'Tu as quitté ce serveur.',
     kicked_deleted: 'Ton compte a été supprimé.',
     kicked_device: 'Cet appareil a été retiré de son compte.',
@@ -189,7 +189,7 @@ export const errors: Messages['errors'] = {
     whisper_not_in_voice: 'Rejoins un salon vocal pour chuchoter.',
     whisper_stage: 'Le chuchotement est désactivé sur les scènes.',
     whisper_e2ee: 'Les chuchotements ne sont pas chiffrés de bout en bout, ils sont donc désactivés dans les salons vocaux chiffrés.',
-    whisper_muted: 'Tu es muet sur le serveur, tu ne peux donc pas chuchoter.',
+    whisper_muted: 'Le serveur a coupé ton micro, tu ne peux donc pas chuchoter.',
     whisper_voice_only: 'Chuchote à un salon vocal.',
     whisper_channel: 'Tu ne peux pas chuchoter à ce salon.',
     whisper_no_targets: 'Choisis à qui chuchoter.',

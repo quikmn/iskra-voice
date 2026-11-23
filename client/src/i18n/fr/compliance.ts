@@ -20,7 +20,7 @@ export const compliance: Messages['compliance'] = {
     servers: {
       who: 'Tes serveurs',
       when: 'Toujours : les messages, le vocal, les fichiers, les aperçus de liens, les GIF (normalement) et le modèle de sous-titres viennent tous des serveurs que tu rejoins.',
-      off: 'Chaque serveur voit ton adresse IP pendant que tu y es connecté. Quitte un serveur pour que ça s’arrête.',
+      off: 'Chaque serveur voit ton adresse IP pendant ta connexion. Quitte un serveur pour que ça s’arrête.',
     },
     embeds: {
       who: 'YouTube, Twitch, X et Reddit',
@@ -115,7 +115,7 @@ export const compliance: Messages['compliance'] = {
     forgetSite: 'Oublier {{site}}',
   },
   securityLog: {
-    intro: 'Échecs de connexion, nouveaux membres et appareils, changements de clé de compte, sauvegardes et téléchargements de données sur ce serveur. Les actions des modérateurs sont dans le journal d’audit. Toi seul, en tant que propriétaire, peux voir ceci.',
+    intro: 'Échecs de connexion, nouveaux membres et appareils, changements de clé de compte, sauvegardes et téléchargements de données sur ce serveur. Les actions des modérateurs sont dans le journal d’audit. Visible uniquement par toi, en tant que propriétaire.',
     event: 'Événement',
     allEvents: 'Tous les événements',
     refresh: 'Actualiser',

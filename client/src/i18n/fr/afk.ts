@@ -7,8 +7,8 @@ export const afk: Messages['afk'] = {
   channelHint: 'Salon AFK',
   participantForced: 'Micro et son coupés (salon AFK)',
   movedTitle: 'Déplacement vers {{channel}}',
-  movedBody: 'Tu es resté inactif en vocal pendant {{minutes}} minutes, {{server}} t’a donc déplacé vers son salon AFK. Rejoins n’importe quel salon vocal pour revenir.',
-  movedBodyShort: 'Tu es resté inactif en vocal, {{server}} t’a donc déplacé vers son salon AFK. Rejoins n’importe quel salon vocal pour revenir.',
+  movedBody: 'Après {{minutes}} minutes d’inactivité en vocal, {{server}} t’a fait passer dans son salon AFK. Rejoins n’importe quel salon vocal pour revenir.',
+  movedBodyShort: 'Après un moment d’inactivité en vocal, {{server}} t’a fait passer dans son salon AFK. Rejoins n’importe quel salon vocal pour revenir.',
   settings: {
     intro: 'Donne un endroit où aller aux personnes qui s’absentent. Toute personne inactive un certain temps dans un salon vocal est déplacée vers le salon AFK, où son micro et son son sont coupés.',
     channel: 'Salon AFK',
