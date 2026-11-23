@@ -1,0 +1,5 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="channel_voice">En vocal</string>
+    <string name="voice_leave">Quitter</string>
+</resources>

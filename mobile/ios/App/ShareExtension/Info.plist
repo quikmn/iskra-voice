@@ -22,7 +22,14 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CFBundleLocalizations</key>
 	<array>
+		<string>de</string>
 		<string>en</string>
+		<string>es</string>
+		<string>fr</string>
+		<string>it</string>
+		<string>pl</string>
+		<string>pt-BR</string>
+		<string>ru</string>
 		<string>sv</string>
 	</array>
 	<!-- "Share to Iskra" (ShareViewController.swift): text, one web link, and up to 10 photos, videos or files, as on

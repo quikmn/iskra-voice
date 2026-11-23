@@ -15,6 +15,8 @@ For a language with the code `<code>` (two or three lower-case letters: `de`, `p
 | Push notification texts | `client/public/push-text/<code>.js` | English |
 | Quiz questions | `client/src/activities/trivia/questions/<code>.ts` | English |
 | Words for Draw & guess | `client/src/activities/draw/words/<code>.ts` | English |
+| The phone apps' language list | `CFBundleLocalizations` in `mobile/ios/App/App/Info.plist` and `mobile/ios/App/ShareExtension/Info.plist` | Required once the language is shipped: "Automatic" never picks it on an iPhone |
+| The Android voice notification | `mobile/android/app/src/main/res/values-<code>/strings.xml` | Required once the language is shipped |
 | Glossary | `docs/i18n/glossary-<code>.md` | See [Glossary](#glossary) |
 
 The line in `languages.ts` is the only edit to a file that other languages share. Everything else is a new file that is
@@ -185,6 +187,7 @@ What the checks cover, for every language in the list:
 - Push texts: the same names and variables as `en.js`, the plural forms the language needs.
 - Questions and words: the counts and limits in step 5.
 - The list itself: a known locale, a catalog folder for every line and a line for every folder.
+- The phone apps: both `Info.plist` files list every shipped language, and Android has its two texts in each.
 
 The checks can't tell whether a translation is right or reads well. Read your texts in the app.
 
