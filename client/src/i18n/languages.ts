@@ -81,6 +81,16 @@ export function requiredPluralForms(language: string): PluralForm[] {
   return PLURAL_FORMS.filter((form) => used.has(form))
 }
 
+/**
+ * Whether the language's `one` form is only ever used for the number 1, so its text may say "one file" without
+ * {{count}}. Not in Russian (`one` is also 21, 31, 101) nor in French and Portuguese (`one` is also 0).
+ */
+export function oneMeansOne(language: string): boolean {
+  const rules = new Intl.PluralRules(language)
+  for (let n = 0; n <= 200; n++) if (n !== 1 && rules.select(n) === 'one') return false
+  return true
+}
+
 type Tree = { [key: string]: string | Tree }
 
 /**

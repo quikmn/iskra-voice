@@ -5,7 +5,7 @@ import { i18next, intlLocale, loadLanguageChoice, resolveLanguage, systemLanguag
 import { errorMessage, translatedError } from './errors'
 import { formatBytes } from './format'
 import {
-  englishName, LANGUAGE_REGISTRY, languageInfo, LANGUAGES, languageOfTag, PLURAL_SUFFIX, pluralForms, requiredPluralForms, SHIPPED_LANGUAGES, withPluralForms,
+  englishName, LANGUAGE_REGISTRY, languageInfo, LANGUAGES, languageOfTag, oneMeansOne, PLURAL_SUFFIX, pluralForms, requiredPluralForms, SHIPPED_LANGUAGES, withPluralForms,
 } from './languages'
 import { RequestError } from '../core/protocol'
 
@@ -112,6 +112,16 @@ describe('catalogs', () => {
     expect(mismatched).toEqual([])
   })
 
+  it('keep {{count}} in `_one` where that form is used for more than the number 1 (Russian 21, French 0)', () => {
+    const missing: string[] = []
+    for (const lang of others.filter((code) => !oneMeansOne(code))) {
+      for (const [key, text] of Object.entries(catalogs[lang])) {
+        if (key.endsWith('_one') && variables(source[`${baseOf(key)}_other`] ?? '').includes('count') && !variables(text).includes('count')) missing.push(`${lang}:${key}`)
+      }
+    }
+    expect(missing).toEqual([])
+  })
+
   it('use no i18next nesting ($t), which English does not use either', () => {
     const bad: string[] = []
     for (const [lang, catalog] of Object.entries(catalogs)) {
@@ -161,6 +171,9 @@ describe('plural rules', () => {
     // Newer browsers ask for `many` at a million in these; a catalog may leave it out (it is filled from `other`).
     for (const lang of ['es', 'fr', 'it', 'pt']) expect(pluralForms(lang).filter((f) => f !== 'many'), lang).toEqual(['one', 'other'])
     for (const lang of ['en', 'sv', 'de']) expect(pluralForms(lang), lang).toEqual(['one', 'other'])
+    // Where `one` is only the number 1, its text may leave out {{count}}.
+    for (const lang of ['en', 'sv', 'de', 'es', 'it', 'pl']) expect(oneMeansOne(lang), lang).toBe(true)
+    for (const lang of ['ru', 'fr', 'pt']) expect(oneMeansOne(lang), lang).toBe(false)
   })
 
   // Languages that aren't registered, on their own i18next with the app's options.
