@@ -153,7 +153,7 @@ test('phone: the server room is a page stack under the server band', async ({ br
   await settled(phone)
   await phone.screenshot({ path: join(SHOTS, 'server-room-phone-list.png') })
 
-  // A section page keeps a slim band: "[tile] Pocket Place › Roles". Back goes up a level.
+  // A section page keeps a slim band: "[tile] Roles" (the heading still reads "Pocket Place › Roles"). Back goes up a level.
   await nav.getByRole('button', { name: 'Roles', exact: true }).click()
   await expect(room.getByRole('heading', { name: /^Pocket Place.*Roles$/ })).toBeVisible()
   await expect(nav).toHaveCount(0)

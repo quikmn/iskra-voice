@@ -183,9 +183,10 @@ function Takeover<Id extends string>({ kind, label, style, band, crumb, groups, 
         <header className="room-slim">
           <button className="icon-button" onClick={() => setPicked(null)} aria-label={t('common.back')}><ChevronLeft /></button>
           {crumb.icon}
+          {/* Only the section on a phone: the back button and icon say where it is, and with both names long
+              languages cut each in half. Screen readers still hear the whole path. */}
           <h2 className="room-crumb">
-            <span className="room-crumb-name">{crumb.name}</span>
-            <span className="room-crumb-sep" aria-hidden>›</span>
+            <span className="sr-only">{crumb.name} › </span>
             <span>{current.label}</span>
           </h2>
           {closeButton}

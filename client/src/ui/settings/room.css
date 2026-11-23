@@ -50,8 +50,6 @@
 .room-mine .room-slim { background: var(--surface-2); color: var(--text-strong); border-bottom: 1px solid var(--border); }
 .room-crumb { margin: 0; flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 700; white-space: nowrap; }
 .room-crumb > span { overflow: hidden; text-overflow: ellipsis; }
-.room-crumb-name { opacity: 0.8; flex-shrink: 2; }
-.room-crumb-sep { opacity: 0.6; flex: none; }
 
 @media (max-width: 760px) {
   .room-band { min-height: 76px; padding: var(--sp-3) var(--sp-2) var(--sp-3) var(--sp-4); }
