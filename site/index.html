@@ -128,25 +128,6 @@
     padding: 120px 24px 80px;
   }
 
-  .hero-news {
-    display: inline-block;
-    text-align: center;
-    line-height: 1.45;
-    padding: 6px 14px;
-    border-radius: 999px;
-    border: 1px solid rgba(52,211,153,0.35);
-    background: rgba(52,211,153,0.08);
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: #6ee7b7;
-    text-decoration: none;
-    margin-bottom: 14px;
-    animation: fadeUp 0.6s ease both;
-    transition: background 0.15s, border-color 0.15s;
-  }
-  .hero-news:hover { background: rgba(52,211,153,0.16); border-color: rgba(52,211,153,0.6); }
-  .hero-news strong { color: #fff; font-weight: 600; }
-
   .hero-badge {
     display: inline-flex;
     align-items: center;
@@ -219,6 +200,48 @@
     padding: 14px 32px;
     font-size: 1rem;
     border-radius: 10px;
+  }
+
+  .hero-news {
+    display: inline-block;
+    text-align: center;
+    line-height: 1.45;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(52,211,153,0.35);
+    background: rgba(52,211,153,0.08);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #6ee7b7;
+    text-decoration: none;
+    margin-bottom: 14px;
+    animation: fadeUp 0.6s ease both;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .hero-news:hover { background: rgba(52,211,153,0.16); border-color: rgba(52,211,153,0.6); }
+  .hero-news strong { color: #fff; font-weight: 600; }
+
+  .hero-do {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    max-width: 760px;
+    margin-top: 36px;
+    padding: 20px 24px;
+    border-radius: 16px;
+    border: 1px solid rgba(52,211,153,0.3);
+    background: linear-gradient(135deg, rgba(52,211,153,0.10), rgba(124,111,255,0.06));
+    text-align: left;
+    animation: fadeUp 0.6s 0.5s ease both;
+  }
+  .hero-do-text { flex: 1; }
+  .hero-do-text strong { display: block; color: #fff; font-size: 1.05rem; margin-bottom: 4px; }
+  .hero-do-text p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.55; }
+  .hero-do-text small { display: block; margin-top: 8px; color: var(--muted); font-size: 0.75rem; opacity: 0.8; }
+  .hero-do .btn { flex-shrink: 0; white-space: nowrap; }
+  @media (max-width: 640px) {
+    .hero-do { flex-direction: column; align-items: stretch; text-align: center; gap: 16px; padding: 18px; }
   }
 
   .hero-note {
@@ -1226,7 +1249,7 @@
 <!-- HERO -->
 <div class="hero">
   <a class="hero-news" href="https://marketplace.digitalocean.com/apps/iskra?refcode=5ed476bab2ca" target="_blank" rel="noopener" title="Our referral link: Iskra gets a little DigitalOcean credit that helps pay for our own server. You pay DigitalOcean directly.">
-    <strong>New:</strong> one-click install on the DigitalOcean Marketplace →
+    <strong>New:</strong> Iskra is on the DigitalOcean Marketplace →
   </a>
   <div class="hero-badge">
     <span class="dot"></span>
@@ -1259,6 +1282,15 @@
   </div>
 
   <p class="hero-note"><span>v2.0.0-alpha.44</span> · Apps for Windows, Mac &amp; Linux · Web app for PC and phones · Servers for Windows, Linux &amp; Mac</p>
+
+  <div class="hero-do">
+    <div class="hero-do-text">
+      <strong>We're happy to say Iskra is now on the DigitalOcean Marketplace</strong>
+      <p>One-click install: DigitalOcean sets up a server with Iskra on it, and you open it in the app as its owner. It stays up when your PC is off.</p>
+      <small>Our referral link: Iskra gets a little DigitalOcean credit that helps pay for our own server. You pay DigitalOcean directly.</small>
+    </div>
+    <a class="btn btn-primary" href="https://marketplace.digitalocean.com/apps/iskra?refcode=5ed476bab2ca&amp;action=deploy" target="_blank" rel="noopener">Deploy on DigitalOcean</a>
+  </div>
 
   <div class="scroll-hint">
     <div class="scroll-line"></div>
