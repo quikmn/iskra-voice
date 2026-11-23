@@ -1,0 +1,45 @@
+import type { Messages } from '../types'
+
+// Mensajes directos (español).
+export const dms: Messages['dms'] = {
+  errors: {
+    noDevices: 'Esta persona aún no tiene dispositivos para los que podamos cifrar.',
+    length: 'Los mensajes deben tener de 1 a {{max}} caracteres.',
+    oldKey: 'Este mensaje se cifró con una clave más antigua que este dispositivo ya eliminó, así que no se puede leer aquí.',
+    notDecrypted: 'No se pudo descifrar este mensaje.',
+    unsupportedFormat: 'Este mensaje viene de una versión más nueva de Iskra. Actualiza Iskra para leerlo.',
+    mismatch: 'El remitente o el destinatario de este mensaje no coincide.',
+    notForYou: 'Este mensaje no es para ti.',
+    unverified: 'No se pudo verificar el dispositivo del remitente.',
+    notForDevice: 'Este mensaje no se cifró para este dispositivo.',
+    tampered: 'Este mensaje fue alterado.',
+    unsupportedContent: 'Este mensaje tiene algo que esta versión de Iskra no puede mostrar. Actualiza Iskra.',
+    fileMismatch: 'Este archivo no coincide con el que se envió.',
+    fileDamaged: 'Este archivo está dañado.',
+    unreadable: 'No se pudo leer este mensaje.',
+    noAccount: 'No hay ninguna cuenta en este dispositivo.',
+    noSharedServer: 'Ahora no compartes ningún servidor en línea con esta persona.',
+  },
+  bot: {
+    start: 'Aquí empieza tu conversación con {{name}}, un bot. Los mensajes se cifran de extremo a extremo para el bot, así que quien lo administra puede leerlos. Escribe / para ver qué puede hacer.',
+    builtin: 'Los bots integrados no reciben mensajes directos. Usa sus comandos en un canal.',
+    settingTitle: 'Mensajes directos de bots',
+    settingLabel: 'Los bots de mis servidores pueden enviarme mensajes directos',
+    settingHint: 'Desactivado: los bots solo pueden responder cuando tú les escribes primero. Para detener a un bot, bloquéalo. Se aplica en todos tus servidores.',
+  },
+  files: {
+    tooBigForServer: 'Ese archivo es demasiado grande para este servidor.',
+    uploadFailedStatus: 'No se pudo subir ({{status}}).',
+    uploadFailed: 'No se pudo subir. Revisa tu conexión.',
+    uploadCancelled: 'Subida cancelada.',
+    serverOffline: 'El servidor que tiene este archivo no está conectado ahora.',
+    downloadFailed: 'No se pudo descargar este archivo.',
+    openFailed: 'No se pudo abrir este archivo.',
+    attachTitle: 'Adjuntar archivos (cifrados de extremo a extremo)',
+    saveFailed: 'No se pudo guardar este archivo. No se conservó nada.',
+    saving: 'Guardando…',
+    saved: 'Guardado',
+    inMemory: 'Archivo grande: este navegador lo mantiene completo en memoria mientras lo descifra. La app de escritorio, Chrome y Edge lo guardan directamente en el disco.',
+    decrypting: 'Descifrando…',
+  },
+}

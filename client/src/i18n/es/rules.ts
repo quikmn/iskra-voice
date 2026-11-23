@@ -1,0 +1,61 @@
+import type { Messages } from '../types'
+
+// Reglas (español).
+export const rules: Messages['rules'] = {
+  problems: {
+    rulesTooLong: 'Las reglas pueden tener hasta {{max}} caracteres.',
+    welcomeTooLong: 'El mensaje de bienvenida puede tener hasta {{max}} caracteres.',
+    writeFirst: 'Escribe las reglas antes de pedirle a la gente que las acepte.',
+  },
+  notConnected: 'Sin conexión con este servidor.',
+  screen: {
+    welcome: 'Te damos la bienvenida a {{server}}',
+    title: 'Reglas de {{server}}',
+    notNow: 'Ahora no',
+    agree: 'Acepto',
+    lead: 'Antes de chatear, reaccionar o unirte a la voz aquí, lee las reglas y acéptalas.',
+    none: 'Este servidor aún no tiene reglas.',
+    agreed: 'Aceptaste estas reglas.',
+  },
+  button: {
+    needsLabel: 'Reglas del servidor: acéptalas para participar',
+    label: 'Reglas del servidor',
+    name: 'Reglas',
+    agree: 'Aceptar',
+  },
+  menuItem: 'Reglas del servidor',
+  bar: {
+    text: 'Acepta las reglas del servidor para chatear, reaccionar y unirte a la voz aquí.',
+    read: 'Leer las reglas',
+  },
+  settings: {
+    title: 'Reglas del servidor',
+    intro: 'Se muestran a los miembros nuevos cuando se unen, y desde Reglas en la lista de canales. El formato funciona como en los mensajes (**negrita**, listas, enlaces).',
+    welcome: 'Mensaje de bienvenida (opcional)',
+    welcomePlaceholder: 'p. ej. ¡Te damos la bienvenida a {{server}}!',
+    welcomeLabel: 'Mensaje de bienvenida',
+    rules: 'Reglas',
+    mode: 'Editar o vista previa',
+    write: 'Escribir',
+    preview: 'Vista previa',
+    nothingToPreview: 'Aún no hay nada que mostrar.',
+    rulesLabel: 'Reglas',
+    placeholder: 'Por ejemplo:\n1. Sé amable.\n2. Nada de spam ni autopromoción.\n3. Pon los spoilers en ||etiquetas de spoiler||.',
+    required: 'Los miembros deben aceptarlas antes de poder participar',
+    requiredHint: 'Hasta que las acepten pueden leer, pero no enviar mensajes, reaccionar ni unirse a la voz. Tú y los bots nunca tienen que hacerlo.',
+    existing: 'Quienes ya están aquí también deben aceptarlas',
+    existingHint: 'Si no, solo se les pide a quienes se unan de ahora en adelante.',
+    again: 'Pedir a todos que las acepten de nuevo',
+    againHint: 'Para cambios importantes. Las correcciones pequeñas no lo necesitan.',
+    agreedCount: '{{agreed}} de {{members}} miembros aceptaron las reglas actuales.',
+    seeAsMember: 'Ver lo que ven los miembros',
+    saved: 'Guardado',
+  },
+  userLimit: {
+    label: 'Límite de personas',
+    people_one: 'Límite de personas · {{count}} persona',
+    people_other: 'Límite de personas · {{count}} personas',
+    none: 'Límite de personas · sin límite',
+    hint: 'Cuando está lleno, nadie más puede unirse. Quienes pueden mover miembros sí pueden.',
+  },
+}

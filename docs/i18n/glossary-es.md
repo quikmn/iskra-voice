@@ -1,0 +1,208 @@
+# Glosario: español (`es`)
+
+One word per thing in the Spanish texts: the catalog (`client/src/i18n/es/`), the desktop app
+(`desktop/src/text/es.ts`), the push texts (`client/public/push-text/es.js`) and the activities. Same sections and
+terms as [`docs/i18n-glossary.md`](../i18n-glossary.md); rules in [translating.md](../translating.md).
+
+## Decisions for the whole language
+
+- **Variety.** Neutral Latin American Spanish that also reads naturally in Spain. No regional slang, no "vosotros".
+  Where the regions differ, the word understood in both wins, and otherwise the Latin American one:
+  "computadora" (not "ordenador"), "teléfono" (not "móvil"/"celular"), "archivo" (not "fichero"), "enlace" (not
+  "link"), "altavoz" (not "parlante"/"bocina"), "auriculares" (not "audífonos"/"cascos"), "ícono" (with accent),
+  "video" (no accent), "mouse" (not "ratón"), "presionar" a key (not "pulsar"), "tocar" on a phone, "hacer clic"
+  with a mouse, "app" (feminine: "la app").
+- **Form of address.** Informal "tú" for the reader ("Elige un nombre", "tus mensajes"). Plural you is "ustedes"
+  ("Solo ustedes dos pueden leer estos mensajes"). Never "usted", "vos" or "vosotros".
+- **Buttons, menu items, tabs, titles of actions:** infinitive ("Guardar", "Invitar amigos", "Crear canal…").
+  Instructions and hints to the reader: imperative in "tú" ("Pega tu clave", "Vuelve a intentarlo").
+- **Gender.** No wording that assumes the reader's or another person's gender. Reword instead of "bienvenido",
+  "conectado", "invitado/a", "¿Estás seguro?": "Te damos la bienvenida", "en línea", "Te invitaron a…",
+  "¿Seguro que quieres…?". With `{{name}}`: "{{name}} se unió", "{{name}} está hablando", never a participle or
+  adjective that agrees with the person ("{{name}} fue expulsado" → "Se expulsó a {{name}}"). Role names and
+  generic plurals stay in the usual generic form ("Propietario", "Miembros", "amigos", "Invitado" as a role).
+- **Case.** Sentence case everywhere: only the first word and proper names are capitalised ("Mis ajustes",
+  "Invitar amigos"). Lower case after a colon. Days, months and languages in lower case.
+- **Typography.** Opening marks always: "¿…?", "¡…!". Quotation marks: “…” (not «…», not "…"); inside code they are
+  the characters U+201C and U+201D. The ellipsis is one character (…). No space before "%" in the interface
+  ("{{percent}}%"). No dash for an aside: use a colon, a comma or parentheses, as English does. Numbers: no thousands
+  separator in four digits ("1440"). Units and short forms as in English: "min", "h", "s", "MB".
+- **Past tense.** Simple past for what just happened ("Se copió", "{{name}} se unió"), natural in both regions.
+- **Tone.** Plain and warm, short sentences. "No se pudo…" for a failure, then what to do. No "por favor" on every
+  line, no exclamation marks that English doesn't have.
+- **Not translated.** Iskra, brand names, AutoMod, LFG as a tag, AFK, webhook, bot, emoji, sticker, GIF, clip,
+  slash commands, key names (Ctrl, Esc, Enter), file names and formats.
+
+## People and places
+
+| English | Español | Notes |
+|---|---|---|
+| Name | Nombre | "Tu nombre" |
+| Server nickname | Apodo en el servidor ("Apodo en {{server}}" when the server is named) | Reset: "Usar mi nombre" |
+| Owner, Admin, Moderator, Trusted, Member, Guest | Propietario, Admin, Moderador, De confianza, Miembro, Invitado | Roles. Plural: propietarios, admins, moderadores, de confianza, miembros, invitados |
+| Role | Rol | Never "nivel" or "rango" |
+| Built-in role (badge "Built-in") | Rol integrado (badge "Integrado") | Custom roles: "roles personalizados" |
+| Permission | Permiso | Never "derecho" or "privilegio" |
+| Bot, bots | Bot, bots | |
+| Server | Servidor | |
+| Channel, text channel, voice channel | Canal, canal de texto, canal de voz | Never "sala" for a voice channel |
+| Stage | Escenario | |
+| Thread | Hilo | |
+| Forum post | Publicación | Forum: "foro". Never "post" |
+| Direct message(s) | Mensaje(s) directo(s) | "MD" only as a short tab label |
+| Group chat | Chat de grupo | Never "MD de grupo" |
+| Device | Dispositivo | |
+| Account | Cuenta | |
+
+## Settings
+
+| English | Español | Notes |
+|---|---|---|
+| My settings | Mis ajustes | Settings: "ajustes", never "configuración" or "preferencias" |
+| Language (section) | Idioma | |
+| Server settings | Ajustes del servidor | |
+| Server, Members & safety, Apps, Hosting & data (groups) | Servidor, Miembros y seguridad, Apps, Alojamiento y datos | |
+| Overview | Vista general | |
+| Server icon, banner | Ícono del servidor, banner | |
+| Channels | Canales | |
+| Emoji & stickers | Emojis y stickers | |
+| GIFs | GIFs | |
+| Soundboard | Panel de sonidos | |
+| Profile pages | Páginas de perfil | |
+| Server rules | Reglas del servidor | |
+| Members | Miembros | |
+| Roles | Roles | |
+| Reports | Reportes | |
+| AutoMod (nav and heading) | AutoMod | |
+| Audit log | Registro de auditoría | Never "registro de actividad" |
+| Sign-ins & security | Inicios de sesión y seguridad | |
+| Bots & webhooks | Bots y webhooks | |
+| Internet access (section) / Open to the internet (its switch) | Acceso desde internet / Abrir a internet | "internet" in lower case |
+| Limits | Límites | |
+| Backup & move | Copia de seguridad y traslado | |
+| Import from Discord | Importar desde Discord | |
+| Server updates | Actualizaciones del servidor | |
+| Notifications | Notificaciones | |
+| Recovery key | Clave de recuperación | |
+| App lock | Bloqueo de la app | |
+
+## Actions
+
+| English | Español | Notes |
+|---|---|---|
+| Invite friends | Invitar amigos | |
+| Invite link | Enlace de invitación | Invite (noun): "invitación" |
+| Hide server (only off your list) | Ocultar servidor | Show again: "Volver a mostrar" |
+| Leave server (really leaves) | Salir del servidor | Leave voice / a call: "Salir de la voz", "Salir de la llamada" |
+| Sign out | Cerrar sesión | Sign in: "Iniciar sesión" |
+| Kick | Expulsar | Noun: "expulsión" |
+| Ban, unban | Banear, quitar el baneo | Noun: "baneo". The established word in chat apps; "bloquear" is Block |
+| Time out / timeout | Suspender / suspensión | "Suspender 10 min", "Quitar la suspensión". Never "aislar" |
+| Slowmode | Modo lento | |
+| Mute (yourself) / Deafen | Silenciar micrófono / Desactivar audio | Undo: "Activar micrófono" / "Activar audio". States: "micrófono silenciado" (short: "en silencio"), "audio desactivado" (short: "sin audio") |
+| Mute (someone else, for you) / Server mute | Silenciar / Silenciar en el servidor | "Silenciar para mí". Mute a channel or server (notifications): also "Silenciar" |
+| Push to talk | Presionar para hablar | |
+| Pin, unpin | Fijar, desfijar | "Mensajes fijados" |
+| Report (noun) | Reporte | Verb: "reportar" |
+| Upload | Subir | Download: "Descargar" |
+| Preview | Vista previa | Also for the button |
+| Delete / Remove | Eliminar / Quitar | "Eliminar" destroys; "Quitar" takes off a list. Never "borrar" (except Clear: "Borrar" a field, "Vaciar") |
+| Optional | Opcional | |
+| e.g. (example placeholders) | p. ej. ("p. ej. noche-de-juegos") | |
+
+## Features
+
+| English | Español | Notes |
+|---|---|---|
+| Mention | Mención (verb: mencionar) | |
+| Poll | Encuesta | Vote: "voto", "votar" |
+| Teams (team splitter; one team, "Team 1") | Equipos (reparto en equipos; un equipo, "Equipo 1") | |
+| Looking for group (LFG post) | Busco grupo ("publicación LFG" only where short) | Tag stays "LFG" |
+| Event | Evento | |
+| Sticker | Sticker | Plural "stickers" |
+| Emoji | Emoji | Plural "emojis" |
+| Watch party | Ver juntos (as a name, also in running text: "en Ver juntos") | |
+| Clip | Clip | Plural "clips" |
+| Catch up | Ponerse al día (button: "Ponte al día") | |
+| Passkey | Llave de acceso | Never "clave de acceso" (too close to the recovery key) |
+| Passphrase | Frase de contraseña | Password: "contraseña" |
+| End-to-end encrypted | Cifrado de extremo a extremo | Adjective agrees: "mensajes cifrados de extremo a extremo". Never "encriptado" |
+| Decrypt | Descifrar | Encrypt: "cifrar" |
+| Backup | Copia de seguridad | Verb: "hacer una copia de seguridad". Never "respaldo" or "backup" |
+
+## Terms decided for Spanish
+
+| English | Español | Notes |
+|---|---|---|
+| Friend, friends | Amigo, amigos | Friend request: "solicitud de amistad". Add friend: "Agregar a amigos" |
+| Block, blocked people | Bloquear, personas bloqueadas | Unblock: "Desbloquear" |
+| Ignore | Ignorar | |
+| Message request | Solicitud de mensaje | |
+| Online, Idle, Do not disturb, Invisible, Offline | En línea, Ausente, No molestar, Invisible, Sin conexión | Status: "estado"; custom status: "estado personalizado" |
+| Unread | Sin leer | Mark as read: "Marcar como leído" |
+| Reply | Responder (noun: respuesta) | |
+| Reaction, react | Reacción, reaccionar | |
+| Edit | Editar | "(editado)" on a message |
+| Attachment | Archivo adjunto | Short: "adjunto" |
+| File, folder | Archivo, carpeta | Server folder in the rail: "carpeta" |
+| Category | Categoría | |
+| Spoiler | Spoiler | |
+| Link, link preview | Enlace, vista previa del enlace | |
+| Search | Buscar (noun: búsqueda) | |
+| Inbox | Bandeja de entrada | Bug inbox: "Buzón de errores" |
+| Saved messages, bookmark | Mensajes guardados, guardar | |
+| Reminder, remind me | Recordatorio, recordarme | |
+| Scheduled message, schedule | Mensaje programado, programar | |
+| Draft | Borrador | |
+| Disappearing messages | Mensajes temporales | |
+| Alert words | Palabras de alerta | |
+| Follow (a person, a thread) | Seguir | |
+| Quiet hours | Horas de silencio | Digest: "resumen" |
+| Voice, in voice | Voz, en voz | "Unirse a la voz", "Conectado a voz" → "Voz conectada" |
+| Call, group call | Llamada, llamada grupal | Hang up: "Colgar". Calling: "Llamando…" |
+| Microphone, speaker, earpiece, headphones | Micrófono, altavoz, auricular, auriculares | |
+| Camera | Cámara | |
+| Screen share | Compartir pantalla | Noun: "pantalla compartida" |
+| Noise suppression, echo cancellation | Supresión de ruido, cancelación de eco | |
+| Captions, transcript | Subtítulos, transcripción | |
+| Recording, record | Grabación, grabar | |
+| Whisper, priority speaker | Susurro (verb: susurrar), orador prioritario | |
+| Speaker, audience, raise hand (stage) | Orador, público, levantar la mano | Listener: "oyente" |
+| AFK channel | Canal AFK | |
+| Lobby, room, host (join-to-create rooms) | Lobby, sala, anfitrión | "Sala" only for these rooms. Host as a role in a room: reword where gender shows ("{{name}} dirige esta sala") |
+| Activities, Together | Actividades, Juntos | Draw & guess: "Dibuja y adivina". Quiz/trivia: "Trivia" |
+| Whiteboard | Pizarra | |
+| Docs (channel kind), document | Documentos, documento | |
+| Media (channel kind) | Multimedia | |
+| Feed (RSS and the like) | Fuente | "Fuentes" |
+| Template | Plantilla | |
+| Theme, appearance | Tema, apariencia | |
+| Streamer mode | Modo streamer | |
+| Keybind, shortcut | Atajo de teclado | Short: "atajo" |
+| Desktop app, tray | App de escritorio, bandeja del sistema | |
+| Computer, phone, browser | Computadora, teléfono, navegador | |
+| Home Screen (phone) | Pantalla de inicio | |
+| Host, hosting (a server) | Alojar, alojamiento | "Create a server": "Crear un servidor" |
+| Rent a server | Alquilar un servidor | Droplet, DigitalOcean: unchanged |
+| Claim (a rented or 1-Click server), claim code | Reclamar, código de reclamación | |
+| Backup buddy, pairing code | Compañero de copias, código de emparejamiento | |
+| Recovery code | Código de recuperación | Not the account's "clave de recuperación" |
+| Safety number, verify | Número de seguridad, verificar | |
+| Link a device | Vincular un dispositivo | |
+| Join (a server, a call) | Unirse ("Unirme" where the button speaks for the reader) | "Join a server": "Unirse a un servidor" |
+| Join questions | Preguntas de ingreso | |
+| Warn, note, history (moderation) | Advertir (noun: advertencia), nota, historial | |
+| Assistant | Asistente | |
+| Translation, translate | Traducción, traducir | |
+| Bug report | Informe de error | "Reportar un error" as the action |
+| Update, restart, quit | Actualización, reiniciar, salir | "Salir de Iskra" |
+| Sandbox | Entorno aislado | |
+| Tunnel, relay | Túnel, repetidor | |
+| Limit, rate limit | Límite | "Vas muy rápido. Espera un momento." |
+| Try again / Retry | Volver a intentar / Reintentar | In a sentence: "Vuelve a intentarlo." |
+| Couldn't … | No se pudo … | |
+| Something went wrong | Algo salió mal | |
+| Welcome / Welcome back | Te damos la bienvenida / ¡Hola de nuevo! | |
+| Someone, nobody, everyone | Alguien, nadie, todos | |
+| You (label next to your own name) | tú | |
+| Email, password | Correo, contraseña | |
