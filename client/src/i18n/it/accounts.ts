@@ -1,0 +1,60 @@
+import type { Messages } from '../types'
+
+export const accounts: Messages['accounts'] = {
+  switcher: {
+    label: 'Account. Accesso effettuato come {{name}}',
+    title: 'Account',
+    current: 'Sullo schermo',
+    unread_one: '{{count}} non letto',
+    unread_other: '{{count}} non letti',
+    otherUnread_one: '{{count}} non letto sugli altri tuoi account',
+    otherUnread_other: '{{count}} non letti sugli altri tuoi account',
+    inVoice: 'In vocale',
+    locked: 'Bloccato',
+    settingUp: 'In fase di aggiunta',
+    switchTo: 'Passa a {{name}}',
+    moveUp: 'Sposta {{name}} su',
+    moveDown: 'Sposta {{name}} giù',
+    add: 'Aggiungi account',
+    switchAccount: 'Cambia account',
+    addNew: 'Crea un nuovo account',
+    addNewHint: 'Un account separato con il suo nome, i suoi server e i suoi messaggi.',
+    addExisting: 'Usa un account che ho già',
+    addExistingHint: 'Collegalo da un altro dispositivo, oppure usa la sua chiave di recupero.',
+    full: 'Su questo dispositivo ci sono {{count}} account con accesso effettuato, il massimo consentito.',
+    restartNote: "Iskra si riavvia una volta per aggiungere l'account.",
+    restartVoiceNote: "Iskra si riavvia una volta per aggiungere l'account, quindi abbandonerai il vocale.",
+    signOut: 'Esci da {{name}}…',
+    unnamed: 'Nuovo account',
+  },
+  adding: {
+    cancelPlain: 'Annulla',
+  },
+  chooser: {
+    title: 'Quale account?',
+    invite: 'Hai aperto un invito. Con quale account vuoi entrare?',
+    open: 'Quale account deve aprire questo link?',
+    cancel: 'Annulla',
+  },
+  linking: {
+    title: 'Collegare questo dispositivo a un altro account?',
+    body: 'Un collegamento di dispositivo ha aperto Iskra. Continua solo se hai avviato tu il collegamento di un account a questo dispositivo: aggiunge qui quell\'account, accanto al tuo.',
+    add: "Aggiungi l'account",
+    cancel: 'Annulla',
+  },
+  duplicate: {
+    title: 'Accesso già effettuato qui',
+    body: "Questo account ha già effettuato l'accesso su questo dispositivo. Iskra tiene una sola copia di ogni account.",
+    switch: "Vai all'account",
+  },
+  voice: {
+    leftAs: 'Hai abbandonato il vocale come {{name}}: può essere in vocale un solo account alla volta.',
+  },
+  ringing: {
+    title: '{{caller}} sta chiamando {{account}}',
+    switch: 'Passa',
+  },
+  notifyTitle: '{{title}} · {{account}}',
+  frameTitle: 'Iskra: {{name}}',
+  unsupported: "Questo browser non riesce a tenere separati i tuoi account. Usa l'app desktop, oppure tieni un solo account in questo browser.",
+}

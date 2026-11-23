@@ -1,0 +1,153 @@
+// Italiano. Same keys as ../en; the compiler flags anything missing or extra.
+import type { Messages } from '../types'
+import { common } from './common'
+import { errors } from './errors'
+import { app } from './app'
+import { voice } from './voice'
+import { presence } from './presence'
+import { chat } from './chat'
+import { dms } from './dms'
+import { settings } from './settings'
+import { profile } from './profile'
+import { keys } from './keys'
+import { organize } from './organize'
+import { moderation } from './moderation'
+import { roles } from './roles'
+import { rules } from './rules'
+import { automod } from './automod'
+import { events } from './events'
+import { forums } from './forums'
+import { calls } from './calls'
+import { groups } from './groups'
+import { stage } from './stage'
+import { watch } from './watch'
+import { expressions } from './expressions'
+import { friends } from './friends'
+import { account } from './account'
+import { accounts } from './accounts'
+import { safety } from './safety'
+import { productivity } from './productivity'
+import { docs } from './docs'
+import { catchup } from './catchup'
+import { favorites } from './favorites'
+import { compliance } from './compliance'
+import { updates } from './updates'
+import { clips } from './clips'
+import { e2ee } from './e2ee'
+import { media } from './media'
+import { hosting } from './hosting'
+import { outhooks } from './outhooks'
+import { builtinBots } from './builtinBots'
+import { moreBots } from './moreBots'
+import { rental } from './rental'
+import { bugReport } from './bugReport'
+import { afk } from './afk'
+import { whatsNew } from './whatsNew'
+import { claim } from './claim'
+import { templates } from './templates'
+import { popout } from './popout'
+import { alerts } from './alerts'
+import { whisper } from './whisper'
+import { teams } from './teams'
+import { lfg } from './lfg'
+import { rooms } from './rooms'
+import { buddies } from './buddies'
+import { streamer } from './streamer'
+import { disappear } from './disappear'
+import { translate } from './translate'
+import { whiteboard } from './whiteboard'
+import { landing } from './landing'
+import { activities } from './activities'
+import { speech } from './speech'
+import { sounds } from './sounds'
+import { voiceStatus } from './voiceStatus'
+import { invitetrack } from './invitetrack'
+import { joinQuestions } from './joinQuestions'
+import { mediaChannels } from './mediaChannels'
+import { channelExport } from './channelExport'
+import { feeds } from './feeds'
+import { bots3 } from './bots3'
+import { assistant } from './assistant'
+import { pcBots } from './pcBots'
+import { dmRequests } from './dmRequests'
+import { share } from './share'
+import { recording } from './recording'
+import { kit } from './kit'
+import { shell } from './shell'
+
+export const it: Messages = {
+  common,
+  errors,
+  app,
+  voice,
+  presence,
+  chat,
+  dms,
+  settings,
+  profile,
+  keys,
+  organize,
+  moderation,
+  roles,
+  rules,
+  automod,
+  events,
+  forums,
+  calls,
+  groups,
+  stage,
+  watch,
+  expressions,
+  friends,
+  account,
+  accounts,
+  safety,
+  productivity,
+  docs,
+  catchup,
+  favorites,
+  compliance,
+  updates,
+  clips,
+  e2ee,
+  media,
+  hosting,
+  outhooks,
+  builtinBots,
+  rental,
+  bugReport,
+  afk,
+  whatsNew,
+  claim,
+  templates,
+  popout,
+  alerts,
+  whisper,
+  teams,
+  lfg,
+  rooms,
+  buddies,
+  streamer,
+  disappear,
+  translate,
+  whiteboard,
+  landing,
+  activities,
+  speech,
+  mediaChannels,
+  moreBots,
+  sounds,
+  voiceStatus,
+  invitetrack,
+  joinQuestions,
+  channelExport,
+  feeds,
+  bots3,
+  assistant,
+  pcBots,
+  dmRequests,
+  share,
+  recording,
+  kit,
+  shell,
+}

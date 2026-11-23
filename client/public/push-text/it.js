@@ -1,0 +1,52 @@
+// Italiano. Same names and {{variables}} as ./en.js.
+self.ISKRA_PUSH_TEXT = {
+  generic: 'Hai nuove attività.',
+  title: {
+    mention: '{{name}} in #{{channel}}',
+    reply: '{{name}} ha risposto in #{{channel}}',
+    encrypted: 'Nuovo messaggio in #{{channel}}',
+    dm: 'Nuovo messaggio da {{name}}',
+    calling: '{{name}} ti sta chiamando',
+    groupCall: '{{name}} ha avviato una chiamata di gruppo',
+    reminder: 'Promemoria',
+    scheduledFailed: 'Il tuo messaggio programmato non è stato inviato',
+    eventLive: '{{title}} inizia adesso',
+    eventSoon: 'Inizia tra poco: {{title}}',
+    lfgJoined: '{{name}} è nel tuo gruppo per {{game}}',
+    lfgFull: 'Il tuo gruppo per {{game}} è al completo',
+    lfgPosted: '{{name}} cerca gente per {{game}} (posti: {{slots}})',
+    digest: 'Durante il silenzio',
+  },
+  body: {
+    openToRead: 'Apri Iskra per leggerlo.',
+    groupOpenToRead: 'In un gruppo. Apri Iskra per leggerlo.',
+    attachment: 'Ha inviato un allegato',
+    tapToAnswer: 'Tocca per rispondere.',
+    tapToJoin: 'Tocca per entrare.',
+    reminderGeneric: 'Hai chiesto un promemoria per un messaggio.',
+    happeningChannel: 'In corso in {{channel}}',
+    happeningVoice: 'In corso in vocale',
+    happeningAt: 'In corso: {{place}}',
+    happening: 'In corso adesso',
+    inMinutesChannel: 'Tra {{minutes}} min, in {{channel}}',
+    inMinutesVoice: 'Tra {{minutes}} min, in vocale',
+    inMinutesAt: 'Tra {{minutes}} min, {{place}}',
+    inMinutes: 'Tra {{minutes}} min',
+    lfgIn: 'In #{{channel}}',
+    lfgTime: 'Si gioca!',
+  },
+  // Several unread at once ({{count}} is 2 or more).
+  dmCount: '{{count}} nuovi messaggi da {{from}}',
+  groupCount: '{{count}} nuovi messaggi in una chat di gruppo',
+  // Added after a message's text when more arrived ({{n}} is 1 or more). Keep the space in front.
+  more: { one: ' (+{{n}} altro)', other: ' (+altri {{n}})' },
+  // The quiet hours summary, built from its counts and joined with commas: "2 menzioni, 1 messaggio".
+  digest: {
+    mentions: { one: '{{n}} menzione', other: '{{n}} menzioni' },
+    messages: { one: '{{n}} messaggio', other: '{{n}} messaggi' },
+    keywords: { one: '{{n}} parola chiave', other: '{{n}} parole chiave' },
+    follows: { one: '{{n}} post di qualcuno che segui', other: '{{n}} post di persone che segui' },
+    events: { one: '{{n}} evento', other: '{{n}} eventi' },
+    reminders: { one: '{{n}} promemoria', other: '{{n}} promemoria' },
+  },
+}

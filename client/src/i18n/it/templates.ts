@@ -1,0 +1,43 @@
+import type { Messages } from '../types'
+
+export const templates: Messages['templates'] = {
+  save: {
+    title: 'Salva questo server come modello',
+    intro: 'Un file con i tuoi canali, chi può vederli e usarli, ruoli, regole e impostazioni, per avviare un altro server uguale a questo. Mai membri, messaggi, file o chiavi.',
+    button: 'Salva come modello',
+    done: 'Salvato',
+  },
+  file: {
+    pick: 'Da un file modello…',
+    hint: 'Un modello .json, per esempio uno salvato da un altro server.',
+    invalid: 'Quel file non è un modello che Iskra può usare: {{error}}',
+    from: 'Da {{file}}',
+  },
+  preview: {
+    title: 'Cosa viene configurato',
+    channels: 'Canali',
+    roles: 'Ruoli',
+    builtinRoles: 'Ruoli integrati',
+    settings: 'Impostazioni',
+    kinds: { text: 'Testuale', voice: 'Vocale', forum: 'Forum', stage: 'Palco', docs: 'Documenti' },
+    whoRead: 'Lo vede {{role}} e superiori',
+    whoWrite: 'Ci scrive {{role}} e superiori',
+    hifi: 'Hi-fi',
+    slowmode: 'Modalità lenta {{seconds}} s',
+    override: '{{role}}: {{changes}}',
+    allow: 'può {{what}}',
+    deny: 'non può {{what}}',
+    perms: { view: 'vedere', send: 'scrivere', connect: 'entrare', speak: 'parlare' },
+    tags: 'Tag: {{tags}}',
+    rolePermissions: '{{count}} permessi',
+    noPermissions: 'Nessun permesso in più',
+    builtinChanged: '{{role}}: permessi modificati',
+    notifyDefault: 'Notifiche predefinite: {{level}}',
+    notifyAuto: 'automatiche',
+    bots: 'Bot integrati: {{bots}}',
+    limits: 'Limiti per caricamenti, emoji, sticker e suoni',
+    bugInbox: 'Le segnalazioni di bug vanno in {{channel}}',
+    afk: 'Canale AFK: {{channel}} dopo {{minutes}} min',
+    rules: 'Regole del server',
+  },
+}
