@@ -1,5 +1,5 @@
 // A small menu: a popover at the pointer on desktop, a sheet from the bottom on phones.
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { useEscapeLayer, useFocusTrap } from '../layers'
@@ -23,7 +23,9 @@ export function OrgMenu({ anchor, label, onClose, children }: { anchor: MenuAnch
     setMoreBelow(!!el && sheet && el.scrollHeight - el.scrollTop - el.clientHeight > 4)
   }
   useLayoutEffect(checkMore)
-  useEscapeLayer(onClose)
+  // The phone's back button goes up from a second page of the menu (its MenuTitle's back arrow), then closes.
+  const pageBack = useRef<(() => void) | null>(null)
+  useEscapeLayer(onClose, true, { back: () => (pageBack.current ?? onClose)() })
   useFocusTrap(ref)
   // Keyboards start on the first item (arrow keys move on); touch screens keep focus on the sheet.
   useEffect(() => {
@@ -55,7 +57,7 @@ export function OrgMenu({ anchor, label, onClose, children }: { anchor: MenuAnch
         onScroll={sheet ? checkMore : undefined}
       >
         {sheet && <span className="sheet-grabber" aria-hidden />}
-        {children}
+        <PageBack.Provider value={pageBack}>{children}</PageBack.Provider>
         {moreBelow && <span className="sheet-more" aria-hidden />}
       </div>
     </div>,
@@ -114,8 +116,19 @@ export function MenuGroup({ label, children }: { label?: string; children: React
   )
 }
 
+/** The back arrow of the menu page that's showing, for the phone's back button. */
+const PageBack = createContext<{ current: (() => void) | null } | null>(null)
+
 export function MenuTitle({ children, onBack }: { children: ReactNode; onBack?: () => void }) {
   const { t } = useTranslation()
+  const pageBack = useContext(PageBack)
+  useEffect(() => {
+    if (!pageBack || !onBack) return
+    pageBack.current = onBack
+    return () => {
+      if (pageBack.current === onBack) pageBack.current = null
+    }
+  })
   return (
     <div className="org-menu-title">
       {onBack && <button className="icon-button small" onClick={onBack} aria-label={t('common.back')}><ChevronLeft size={16} /></button>}

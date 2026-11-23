@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { Spinner } from '../bits'
 import { Check } from '../icons'
 import { Switch } from './Switch'
+import { useUnsavedGuard } from './unsaved'
 
 /**
  * True for a moment after `value` changes (never on the first render). The value is what the app holds (the server's
@@ -167,9 +168,22 @@ export function SaveBar({ dirty, busy, problem, error, savedNote, onUndo, onSave
     }
     wasBusy.current = !!busy
   }, [busy, dirty, error])
+  // Someone tried to leave with changes unsaved: the bar stands out for a moment and takes focus.
+  const [nudged, setNudged] = useState(false)
+  const bar = useRef<HTMLDivElement>(null)
+  useUnsavedGuard(dirty, () => {
+    setNudged(true)
+    const buttons = bar.current
+    ;(buttons?.querySelector<HTMLElement>('button.primary:not(:disabled)') ?? buttons?.querySelector<HTMLElement>('button:not(:disabled)'))?.focus()
+  })
+  useEffect(() => {
+    if (!nudged) return
+    const timer = setTimeout(() => setNudged(false), 1500)
+    return () => clearTimeout(timer)
+  }, [nudged])
   const show = dirty || !!problem || !!error
   return (
-    <div className={`k-savebar ${show ? 'show' : ''} ${(justSaved || savedNote) && !show ? 'saved' : ''} ${className ?? ''}`} data-testid={testId}>
+    <div ref={bar} className={`k-savebar ${show ? 'show' : ''} ${nudged && dirty ? 'nudge' : ''} ${(justSaved || savedNote) && !show ? 'saved' : ''} ${className ?? ''}`} data-testid={testId}>
       <span className="k-savebar-note" role="status">
         {problem ? <span className="error-text">{problem}</span>
           : error ? <span className="error-text">{error}</span>
