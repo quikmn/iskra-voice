@@ -1,0 +1,43 @@
+import type { Messages } from '../types'
+
+export const templates: Messages['templates'] = {
+  save: {
+    title: 'Enregistrer ce serveur comme modèle',
+    intro: 'Un fichier avec tes salons, qui peut les voir et les utiliser, les rôles, les règles et les paramètres, pour créer un autre serveur identique à celui-ci. Jamais les membres, les messages, les fichiers ni les clés.',
+    button: 'Enregistrer comme modèle',
+    done: 'Enregistré',
+  },
+  file: {
+    pick: 'Depuis un fichier modèle…',
+    hint: 'Un modèle .json, par exemple enregistré depuis un autre serveur.',
+    invalid: 'Ce fichier n’est pas un modèle utilisable par Iskra : {{error}}',
+    from: 'Depuis {{file}}',
+  },
+  preview: {
+    title: 'Ce que ce modèle met en place',
+    channels: 'Salons',
+    roles: 'Rôles',
+    builtinRoles: 'Rôles intégrés',
+    settings: 'Paramètres',
+    kinds: { text: 'Textuel', voice: 'Vocal', forum: 'Forum', stage: 'Scène', docs: 'Documents' },
+    whoRead: '{{role}} et au-dessus peuvent le voir',
+    whoWrite: '{{role}} et au-dessus peuvent écrire',
+    hifi: 'Hi-fi',
+    slowmode: 'Mode lent {{seconds}} s',
+    override: '{{role}} : {{changes}}',
+    allow: 'peut {{what}}',
+    deny: 'ne peut pas {{what}}',
+    perms: { view: 'voir', send: 'écrire', connect: 'rejoindre', speak: 'parler' },
+    tags: 'Étiquettes : {{tags}}',
+    rolePermissions: '{{count}} permissions',
+    noPermissions: 'Aucune permission supplémentaire',
+    builtinChanged: '{{role}} : permissions modifiées',
+    notifyDefault: 'Notifications par défaut : {{level}}',
+    notifyAuto: 'automatique',
+    bots: 'Bots intégrés : {{bots}}',
+    limits: 'Limites des fichiers et des expressions',
+    bugInbox: 'Les rapports de bugs arrivent dans {{channel}}',
+    afk: 'Salon AFK : {{channel}} après {{minutes}} min',
+    rules: 'Règles du serveur',
+  },
+}

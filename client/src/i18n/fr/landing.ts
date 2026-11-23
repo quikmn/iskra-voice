@@ -1,0 +1,33 @@
+import type { Messages } from '../types'
+
+// Server settings → Overview → Public page (the page a browser sees at the server's address).
+export const landing: Messages['landing'] = {
+  title: 'Page publique',
+  intro: 'Quand quelqu’un ouvre l’adresse de ce serveur dans un navigateur, une page s’affiche. Tant qu’elle est désactivée, la page indique seulement qu’il s’agit d’un serveur Iskra et où obtenir Iskra : ni nom, ni image, ni rien d’autre sur ce serveur.',
+  enabled: 'Afficher une page publique',
+  enabledOn: 'La page affiche le nom, l’icône et la bannière de ce serveur, plus ce que tu choisis ci-dessous.',
+  enabledOff: 'Désactivé : la page n’indique pas de quel serveur il s’agit.',
+  description: 'Description',
+  descriptionPlaceholder: 'De quoi parle ce serveur, en une phrase ou deux',
+  descriptionHint: '{{length}} / {{max}} caractères. Texte brut, visible par toute personne qui ouvre la page.',
+  saved: 'Description enregistrée.',
+  invite: 'Bouton Rejoindre',
+  noInvite: 'Pas de bouton Rejoindre',
+  inviteHint: 'Toute personne qui ouvre la page peut utiliser cette invitation, choisis-en donc une avec une limite qui te convient. Seules les invitations pour les membres peuvent figurer ici.',
+  inviteNone: 'Crée d’abord une invitation (Inviter des amis), puis choisis-la ici pour ajouter un bouton Rejoindre.',
+  inviteGone: 'L’invitation de la page ne fonctionne plus, la page n’a donc pas de bouton Rejoindre. Choisis-en une autre.',
+  invitesPaused: 'Les invitations sont en pause, la page indique donc que ce serveur n’accepte pas de nouveaux membres pour le moment.',
+  neverExpires: 'n’expire jamais',
+  expires: 'expire le {{date}}',
+  usesOpen_one: '{{count}} utilisation',
+  usesOpen_other: '{{count}} utilisations',
+  usesOf_one: '{{count}} utilisée sur {{max}}',
+  usesOf_other: '{{count}} utilisées sur {{max}}',
+  approve: 'approbation requise',
+  showRules: 'Afficher les règles',
+  showCounts: 'Afficher le nombre approximatif de membres et de personnes en ligne',
+  showCountsHint: 'Arrondi, pour que la page ne révèle jamais exactement qui va et vient.',
+  indexable: 'Laisser les moteurs de recherche référencer cette page',
+  indexableHint: 'Désactivé : la page demande aux moteurs de recherche de ne pas la référencer.',
+  open: 'Ouvrir la page',
+}
