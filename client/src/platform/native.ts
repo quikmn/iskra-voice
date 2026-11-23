@@ -2,6 +2,7 @@
 // The Capacitor packages are only imported inside the app, so the web build doesn't load them.
 
 import { accountLink, bootMode } from './accountBoot'
+import { withPlugin, type PluginListener } from './nativePlugin'
 
 export type NativePlatform = 'ios' | 'android'
 
@@ -88,33 +89,11 @@ function blobToBase64(blob: Blob): Promise<string> {
   })
 }
 
-interface Listener {
-  remove(): Promise<void>
-}
-
-/** The app's own plugin (mobile/ios/App/App/IskraNative.swift, mobile/android/…/IskraNativePlugin.java). */
-interface IskraNativePlugin {
-  voiceStart(options: { title: string; call: boolean; video: boolean }): Promise<void>
-  voiceUpdate(options: { title: string }): Promise<void>
-  voiceStop(): Promise<void>
-  voiceSpeaker(options: { on: boolean }): Promise<{ headset?: unknown }>
-  keepAwake(options: { on: boolean }): Promise<void>
-  addListener(event: 'voiceEnded', callback: () => void): Promise<Listener>
-  addListener(event: 'voiceMuted', callback: (data: { muted?: unknown }) => void): Promise<Listener>
-  /** The newest share from another app, once (none when there's none). */
-  takeShare(): Promise<{ share?: unknown }>
-  shareDone(options: { id: string }): Promise<void>
-}
-
-let pluginPromise: Promise<IskraNativePlugin> | null = null
-const plugin = () => (pluginPromise ??= import('@capacitor/core').then(({ registerPlugin }) => registerPlugin<IskraNativePlugin>('IskraNative')))
-
 /** Adds a plugin listener; the returned function removes it (also if it's called before the listener is in place). */
 function listen<T>(event: string, callback: (data: T) => void): () => void {
   let stopped = false
-  let handle: Listener | null = null
-  void plugin()
-    .then((p) => (p.addListener as (e: string, cb: (data: T) => void) => Promise<Listener>)(event, callback))
+  let handle: PluginListener | null = null
+  void withPlugin((p) => p.addListener(event, callback as (data: never) => void))
     .then((h) => {
       if (stopped) void h.remove()
       else handle = h
@@ -189,8 +168,7 @@ function bridge(platform: NativePlatform): NativeBridge {
     },
     onShare(callback) {
       let stopped = false
-      const take = () => void plugin()
-        .then((p) => p.takeShare())
+      const take = () => void withPlugin((p) => p.takeShare())
         .then((result) => { if (!stopped && result?.share) callback(result.share) })
         .catch(() => undefined)
       // The listener first, then whatever is already waiting (a cold start by a share).
@@ -202,13 +180,13 @@ function bridge(platform: NativePlatform): NativeBridge {
       }
     },
     shareDone(id) {
-      void plugin().then((p) => p.shareDone({ id })).catch(() => undefined)
+      void withPlugin((p) => p.shareDone({ id })).catch(() => undefined)
     },
     voice: {
-      start: async (options) => (await plugin()).voiceStart(options),
-      update: async (options) => (await plugin()).voiceUpdate(options),
-      stop: async () => (await plugin()).voiceStop(),
-      keepAwake: async (on) => (await plugin()).keepAwake({ on }),
+      start: (options) => withPlugin((p) => p.voiceStart(options)),
+      update: (options) => withPlugin((p) => p.voiceUpdate(options)),
+      stop: () => withPlugin((p) => p.voiceStop()),
+      keepAwake: (on) => withPlugin((p) => p.keepAwake({ on })),
       onEnd: (callback) => listen('voiceEnded', () => callback()),
       onMute: (callback) =>
         listen<{ muted?: unknown }>('voiceMuted', (data) => {
@@ -216,7 +194,7 @@ function bridge(platform: NativePlatform): NativeBridge {
         }),
       // The iPhone app plays on the speaker by itself (and the system's route picker chooses others).
       ...(platform === 'android' && {
-        speaker: async (on: boolean) => ({ headset: (await (await plugin()).voiceSpeaker({ on })).headset === true }),
+        speaker: async (on: boolean) => ({ headset: (await withPlugin((p) => p.voiceSpeaker({ on }))).headset === true }),
         onRoute: (callback: (headset: boolean) => void) =>
           listen<{ headset?: unknown }>('voiceRoute', (data) => callback(data.headset === true)),
       }),

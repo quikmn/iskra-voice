@@ -72,6 +72,9 @@ export function startNativeVoice(): () => void {
   const stopVoice = useVoice.subscribe((s, prev) => {
     if (s.session !== prev.session) sync()
     if (s.session !== prev.session || s.camera !== prev.camera) stayAwake()
+    // Android: the microphone just came on (allowed a moment ago, on a first call). The service becomes a microphone
+    // one, and the question about notifications, held back so it couldn't hide the microphone's, comes now.
+    if (bridge.platform === 'android' && active && s.micEngine && !prev.micEngine) void bridge.voice.update({ title: lastTitle }).catch(() => undefined)
   })
   const stopEnd = bridge.voice.onEnd(() => {
     if (useVoice.getState().session) void leaveVoice('system')

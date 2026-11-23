@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceCallback;
 import android.media.AudioDeviceInfo;
@@ -13,6 +14,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.WindowManager;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
@@ -125,8 +127,7 @@ public class IskraNativePlugin extends Plugin {
 
     @PluginMethod
     public void voiceStart(PluginCall call) {
-        // Android 13+: asked once, so the "In voice" notification (with its Leave button) shows. Voice works either way.
-        if (Build.VERSION.SDK_INT >= 33 && getPermissionState("notifications") == PermissionState.PROMPT) {
+        if (shouldAskForNotifications()) {
             requestPermissionForAlias("notifications", call, "afterNotificationPermission");
             return;
         }
@@ -136,6 +137,17 @@ public class IskraNativePlugin extends Plugin {
     @PermissionCallback
     private void afterNotificationPermission(PluginCall call) {
         startVoice(call);
+    }
+
+    /**
+     * Android 13+: asked once, so the "In voice" notification (with its Leave button) shows. Voice works either way.
+     * Not while the microphone hasn't been allowed yet: the page is about to ask for it, Android shows one permission
+     * question at a time, and the second request comes back unanswered (the microphone then fails to open). The
+     * question comes with voiceUpdate once the microphone is on, or at the next call.
+     */
+    private boolean shouldAskForNotifications() {
+        return Build.VERSION.SDK_INT >= 33 && getPermissionState("notifications") == PermissionState.PROMPT
+            && ContextCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
     }
 
     private void startVoice(PluginCall call) {
@@ -149,7 +161,17 @@ public class IskraNativePlugin extends Plugin {
 
     @PluginMethod
     public void voiceUpdate(PluginCall call) {
+        if (shouldAskForNotifications()) {
+            requestPermissionForAlias("notifications", call, "afterNotificationPermissionUpdate");
+            return;
+        }
         // Only the notification's text: no second service start, which Android 12+ can refuse in the background.
+        VoiceService.update(getContext(), call.getString("title", ""));
+        call.resolve();
+    }
+
+    @PermissionCallback
+    private void afterNotificationPermissionUpdate(PluginCall call) {
         VoiceService.update(getContext(), call.getString("title", ""));
         call.resolve();
     }

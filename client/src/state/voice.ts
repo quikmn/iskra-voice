@@ -20,6 +20,7 @@ import { tunnelFor } from './p2p'
 import { routeVoiceThroughTunnel } from './p2pVoice'
 import { leftReasonOf, type VoiceLeftReason } from './voiceLeft'
 import { log, logError } from '../core/log'
+import { mediaErrorText } from './mediaErrors'
 
 export interface VoiceSession {
   serverKey: string
@@ -799,7 +800,7 @@ async function publishMic(current: Room): Promise<boolean> {
     await applyMic()
   } catch (e) {
     logError('media', 'publish-mic', e, 'MED-170')
-    useVoice.setState({ muted: true, error: t('voice.errors.mic') })
+    useVoice.setState({ muted: true, error: mediaErrorText('mic', e, !!native) })
   }
   return room === current
 }
@@ -940,8 +941,9 @@ export async function toggleCamera(): Promise<void> {
     const options = next ? (await import('./background')).cameraCaptureOptions() : undefined
     await room.localParticipant.setCameraEnabled(next, options)
     useVoice.setState({ camera: next })
-  } catch {
-    useVoice.setState({ camera: false, error: t('voice.errors.camera') })
+  } catch (e) {
+    logError('media', 'camera', e, 'MED-171')
+    useVoice.setState({ camera: false, error: mediaErrorText('camera', e, !!native) })
   }
   refreshTiles()
 }
@@ -956,7 +958,7 @@ export async function flipCamera(): Promise<void> {
     useVoice.setState({ facing })
   } catch (e) {
     logError('voice', 'flip-camera', e)
-    useVoice.setState({ error: t('voice.errors.camera') })
+    useVoice.setState({ error: mediaErrorText('camera', e, !!native) })
   }
   refreshTiles()
 }
