@@ -5,9 +5,11 @@ import i18next, { type BackendModule } from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import { create } from 'zustand'
 import { en } from './en'
-import { LANGUAGES, type Language, type LanguageChoice } from './types'
+import { isLanguage, languageInfo, languageOfTag, LANGUAGES, SHIPPED_LANGUAGES, SOURCE_LANGUAGE, withPluralForms, type Language } from './languages'
+import type { LanguageChoice, Messages } from './types'
 
-export { LANGUAGES, LANGUAGE_NAMES, type Language, type LanguageChoice } from './types'
+export { englishName, LANGUAGES, LANGUAGE_NAMES, SHIPPED_LANGUAGES, type Language } from './languages'
+export type { LanguageChoice } from './types'
 
 const STORAGE_KEY = 'iskra.language'
 
@@ -19,19 +21,20 @@ function browserLanguages(): readonly string[] {
   }
 }
 
-/** The first of the system's languages we have, else English. */
+/** The first of the system's languages we ship, else English. */
 export function systemLanguage(languages: readonly string[] = browserLanguages()): Language {
   for (const tag of languages) {
-    const base = tag?.toLowerCase().split('-')[0]
-    if ((LANGUAGES as readonly string[]).includes(base)) return base as Language
+    const language = languageOfTag(tag, SHIPPED_LANGUAGES)
+    if (language) return language
   }
-  return 'en'
+  return SOURCE_LANGUAGE
 }
 
 export function loadLanguageChoice(storage?: Pick<Storage, 'getItem'>): LanguageChoice {
   try {
     const value = (storage ?? localStorage).getItem(STORAGE_KEY)
-    return value && (LANGUAGES as readonly string[]).includes(value) ? (value as Language) : 'auto'
+    // Any registered language, so one that isn't shipped yet can be tried by its code.
+    return isLanguage(value) ? value : 'auto'
   } catch {
     return 'auto'
   }
@@ -52,7 +55,7 @@ export function onLanguage(listener: (language: Language) => void): () => void {
   return () => listeners.delete(listener)
 }
 
-export const currentLanguage = (): Language => (i18next.language === 'sv' ? 'sv' : 'en')
+export const currentLanguage = (): Language => (isLanguage(i18next.language) ? i18next.language : SOURCE_LANGUAGE)
 
 export function setLanguageChoice(choice: LanguageChoice): void {
   try {
@@ -78,16 +81,20 @@ export function intlLocale(language: Language = currentLanguage(), languages: re
       // A malformed tag: use the default below.
     }
   }
-  return language === 'sv' ? 'sv-SE' : 'en-US'
+  return languageInfo(language).locale
 }
 
-/** Fetches a language's catalog the first time it's used (each is about 100 KB of code). */
+/**
+ * Fetches a language's catalog the first time it's used (each is about 100 KB of code): ./<code>/index.ts, which
+ * exports the catalog under its code (`export const sv`). The bundler makes one chunk per folder from this pattern.
+ */
 const lazyCatalogs: BackendModule = {
   type: 'backend',
   init: () => undefined,
   read: (language, _namespace, done) => {
-    if (language !== 'sv') return done(null, {})
-    import('./sv').then(({ sv }) => done(null, sv), (e: Error) => done(e, false))
+    if (!isLanguage(language) || language === SOURCE_LANGUAGE) return done(null, {})
+    const catalog = import(`./${language}/index.ts`) as Promise<Record<string, Messages>>
+    catalog.then((module) => done(null, withPluralForms(module[language], language)), (e: Error) => done(e, false))
   },
 }
 

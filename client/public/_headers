@@ -13,6 +13,10 @@
 /push-sw.js
   Cache-Control: no-cache
 
+# The push worker's texts per language (push-text/<code>.js), fetched with it.
+/push-text/*
+  Cache-Control: no-cache
+
 /manifest.webmanifest
   Content-Type: application/manifest+json
   Cache-Control: no-cache

@@ -3,9 +3,8 @@
 // Games are a reducer: (state, message, sender) → state, pure, so every player ends up with the same state.
 import '../../../protocol/activity-sdk.js'
 import { activities as en } from '../i18n/en/activities'
-import { activities as sv } from '../i18n/sv/activities'
-import { fnv1a } from './util'
-export { fmt, fnv1a, isId, isInt, isObject, isText, normalizeGuess } from './util'
+import { byLanguage, fnv1a, forLocale } from './util'
+export { fmt, fnv1a, forLocale, isId, isInt, isObject, isText, normalizeGuess } from './util'
 
 export interface Player {
   id: string
@@ -36,6 +35,9 @@ interface Sdk {
 const sdk = (globalThis as unknown as { iskra: Sdk }).iskra
 
 export type Games = typeof en.games
+
+// The games' texts in every language that has them: src/i18n/<code>/activities.ts.
+const STRINGS = byLanguage(import.meta.glob<{ games: unknown }>('../i18n/*/activities.ts', { eager: true, import: 'activities' }))
 
 export interface Ctx<S> {
   root: HTMLElement
@@ -151,10 +153,12 @@ function applyTheme(theme: Init['theme'], css: string) {
 /** Runs a game: waits for the app, applies the snapshot and every message in order, and keeps a snapshot for late joiners. */
 export async function run<S>(game: Game<S>, css: string): Promise<void> {
   const init = await sdk.ready()
-  const locale = init.locale?.toLowerCase().startsWith('sv') ? 'sv' : 'en'
+  // The app's language where the games have it, else English.
+  const wanted = String(init.locale ?? '').toLowerCase().split(/[-_]/)[0]
+  const locale = Object.hasOwn(STRINGS, wanted) ? wanted : 'en'
   document.documentElement.lang = locale
   applyTheme(init.theme, css)
-  const strings = (locale === 'sv' ? sv : en).games as Games
+  const strings = forLocale(STRINGS, locale).games as Games
   let players = init.players
   let state = (init.state !== null && init.state !== undefined ? game.parse(init.state) : null) ?? game.initial()
   const known = new Map(players.map((p) => [p.id, p.name]))
