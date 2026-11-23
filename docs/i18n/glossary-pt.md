@@ -212,3 +212,24 @@ extra terms decided for Portuguese. Rules: [`../translating.md`](../translating.
 | Report a bug | Relatar um bug | |
 | Desktop app / phone | App para computador / celular | "Computador", never "PC" except in "Bots neste PC" where short |
 | Tap / Click | Tocar ("Toque") / Clicar ("Clique") | |
+| Channel topic, stage topic | Assunto | "Tópico" is Thread only |
+| Transfer ownership | Transferir posse | |
+| Link a device | Vincular um dispositivo | Pairing code: código de pareamento |
+| Safety number | Número de segurança | |
+| Bug inbox / bug report (noun) | Caixa de bugs / relato de bug | |
+| Screenshot | Captura de tela | |
+| Invite label | Etiqueta | |
+| Spot (backup buddy), slot (LFG) | Vaga | |
+| Dismiss / Got it / Not now | Dispensar / Entendi / Agora não | |
+| Everyone | Todo mundo | |
+| Post (verb) | Postar | |
+| Staff | Equipe | |
+| Giveaway / Starboard / Counting | Sorteio / Mural de estrelas / Contagem | Built-in bots |
+| Audience / raise hand / go live (stage) | Plateia / levantar a mão / entrar ao vivo | |
+| Snooze / Schedule | Adiar / Agendar | |
+| Tray | Bandeja | |
+| Lock / close (forum post) | Trancar / fechar | |
+| Former member | Ex-membro | |
+| Appearance / Accent colour | Aparência / Cor de destaque | |
+| Noise suppression / Voice activity | Supressão de ruído / Detecção de voz | |
+| macOS System Settings | Ajustes do Sistema | As Apple writes it in pt-BR |
