@@ -44,7 +44,7 @@ export const feeds: Messages['feeds'] = {
     checked: 'Geprüft',
     every: 'alle {{count}} Min.',
     where: 'in #{{channel}}',
-    unknownChannel: 'einem gelöschten Kanal',
+    unknownChannel: 'gelöschter-kanal',
     status: {
       ok: 'Geprüft {{when}}',
       new: 'Noch nicht geprüft',

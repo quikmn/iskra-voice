@@ -51,7 +51,7 @@ export const catchup: Messages['catchup'] = {
     messages_other: '{{count}} Nachrichten',
     people_one: '{{count}} Person',
     people_other: '{{count}} Personen',
-    main: '{{messages}} von {{people}} in {{duration}}',
+    main: '{{messages}} von {{people}} innerhalb von {{duration}}',
     mainMoment: '{{messages}} von {{people}} in unter einer Minute',
     withExtras: '{{main}}; {{extras}}',
     mentions_one: '{{count}} Erwähnung von dir',

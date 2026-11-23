@@ -74,8 +74,8 @@ in [translating.md](../translating.md#glossary).
 | Backup & move | Backup & Umzug | |
 | Import from Discord | Von Discord importieren | |
 | Server updates | Server-Updates | |
-| Notifications | Benachrichtigungen | Short form in tight places: "Mitteilungen" is NOT used |
-| Recovery key | Wiederherstellungsschlüssel | Long but the established word; never shortened |
+| Notifications | Benachrichtigungen | Never "Mitteilungen" |
+| Recovery key | Wiederherstellungsschlüssel (the key); section label: Wiederherstellung | The key is never shortened in sentences. The settings section is "Wiederherstellung" so it fits the menu: "Meine Einstellungen → Wiederherstellung" |
 | App lock | App-Sperre | |
 
 ## Actions
@@ -91,8 +91,8 @@ in [translating.md](../translating.md#glossary).
 | Ban, unban | Bannen, Entbannen | Noun: "Bann"; "gebannt" |
 | Time out / timeout | Timeout geben / Timeout | "im Timeout" |
 | Slowmode | Slow-Modus | |
-| Mute (yourself) / Deafen | Mikrofon stummschalten (short: Stumm) / Ton ausschalten (short: Ton aus) | State: "stumm", "Ton aus" |
-| Mute (someone else, for you) / Server mute | Stummschalten / Server-Stummschaltung (verb: auf dem Server stummschalten) | |
+| Mute (yourself) / Deafen | Mikrofon ausschalten / Ton ausschalten (back on: "Mikrofon einschalten" / "Ton einschalten") | State: "Stumm", "Ton aus". Keybinds: "Mikrofon an/aus", "Ton an/aus". Verb forms so a button reads as an action, not a state |
+| Mute (someone else, for you) / Server mute | Für mich stummschalten / Für alle stummschalten ("von einem Moderator stummgeschaltet") | Mute a channel or server (notifications): "stummschalten", back: "wieder laut" |
 | Push to talk | Push-to-Talk | |
 | Pin, unpin | Anpinnen, Lösen | "angepinnte Nachrichten" |
 | Report (noun) | Meldung | Verb: melden |
@@ -133,7 +133,7 @@ in [translating.md](../translating.md#glossary).
 | Reaction | Reaktion | |
 | Inbox | Posteingang | |
 | Unread | Ungelesen | |
-| Voice (being in voice) | Sprachchat ("im Sprachchat") | |
+| Voice (being in voice) | Sprachchat ("im Sprachchat") | Section "Voice & audio": "Sprachchat & Audio", so it can't be confused with "Sprache" (Language). Channel type label: "Sprache" |
 | Call | Anruf | |
 | Screen share | Bildschirm teilen (noun: Bildschirmfreigabe) | |
 | Camera | Kamera | |
@@ -151,7 +151,7 @@ in [translating.md](../translating.md#glossary).
 | Status | Status | |
 | Online, Idle, Do not disturb, Invisible, Offline | Online, Abwesend, Nicht stören, Unsichtbar, Offline | |
 | Disappearing messages | Selbstlöschende Nachrichten | |
-| Bookmark / Saved messages | Lesezeichen / Gespeicherte Nachrichten | |
+| Saved messages | Gespeicherte Nachrichten (short label and tab: Gespeichert) | |
 | Reminder | Erinnerung | |
 | Draft | Entwurf | |
 | Webhook | Webhook | |
@@ -162,6 +162,7 @@ in [translating.md](../translating.md#glossary).
 | Hosting (rented server) | Hosting (gemieteter Server) | |
 | Assistant | Assistent | |
 | Join / Leave (server, call) | Beitreten / Verlassen | |
+| "{{role}} and up" | Ab {{role}} ("Ab Mitglied") | Short enough for the selects |
 | Settings | Einstellungen | |
 | Sign in / Sign-in | Anmelden / Anmeldung | |
 | Password | Passwort | |
@@ -170,4 +171,28 @@ in [translating.md](../translating.md#glossary).
 | Storage | Speicher | |
 | Bug report | Fehlerbericht | |
 | Keybinds / shortcuts | Tastenkürzel | |
-| Buddy list | Freundesliste | |
+| Backup buddy | Backup-Partner | Pairing code: Kopplungscode; recovery code: Wiederherstellungscode; spot: Platz |
+| AutoMod alert, alert channel | Alarm, Alarmkanal | Not "Meldung" (report) or "Warnung"/"Verwarnung" (moderator warning) |
+| Warning (moderation) | Verwarnung (verb: verwarnen) | |
+| Docs channel, page | Doku-Kanal, Seite | Channel kind label: "Doku" |
+| Media channel | Medienkanal | |
+| Giveaway | Verlosung | Reroll: neu auslosen |
+| Suggestion | Vorschlag | |
+| Tag (forum, /tag) | Tag (der Tag, die Tags) | |
+| Theme / Font | Design / Schrift | |
+| Captions | Untertitel | Transcript: Transkript |
+| Read aloud | Vorlesen | |
+| Priority speaker | Vorrang beim Sprechen | |
+| Account key / safety number / key log | Kontoschlüssel / Sicherheitsnummer / Schlüssel-Log | Key transparency: Schlüsseltransparenz |
+| Keychain | Schlüsselbund | |
+| Claim (a server), claim code | Übernehmen, Übernahmecode | |
+| Bug inbox | Fehler-Postfach | |
+| Join questions / roles on join | Beitrittsfragen / Rollen beim Beitritt | |
+| Public page | Öffentliche Seite | |
+| Lobby, room (join to create), host | Lobby, Raum, Host | "Raum" only for these rooms, never for a voice channel |
+| Queue (watch party) | Warteschlange | |
+| Favourites | Favoriten | |
+| Signing secret | Signatur-Secret | |
+| Timeout wording | "einen Timeout geben", "im Timeout" | Der Timeout |
+| Phone / computer | Handy / Computer | |
+| Draw & guess words | lower case | The game compares guesses in lower case and the tests require the list in lower case, so German nouns are written small there |

@@ -98,8 +98,8 @@ export const events: Messages['events'] = {
     label: 'Events',
     labelNone: 'Events: nichts geplant',
     labelUpcoming: 'Events: {{count}} geplant',
-    labelNoneLive: 'Events: nichts geplant, {{live}} laufen gerade',
-    labelUpcomingLive: 'Events: {{count}} geplant, {{live}} laufen gerade',
+    labelNoneLive: 'Events: nichts geplant, {{live}} live',
+    labelUpcomingLive: 'Events: {{count}} geplant, {{live}} live',
     live: 'Live',
   },
   toast: {

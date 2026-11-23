@@ -31,14 +31,14 @@ export const disappear: Messages['disappear'] = {
   managersOnly: 'Das kann nur ändern, wer Kanäle verwalten darf.',
   saving: 'Speichert…',
   line: {
-    on: '{{name}} hat eingestellt, dass neue Nachrichten nach {{duration}} verschwinden.',
+    on: '{{name}} hat selbstlöschende Nachrichten eingestellt: {{duration}}.',
     off: '{{name}} hat selbstlöschende Nachrichten ausgeschaltet.',
-    onYou: 'Du hast eingestellt, dass neue Nachrichten nach {{duration}} verschwinden.',
+    onYou: 'Du hast selbstlöschende Nachrichten eingestellt: {{duration}}.',
     offYou: 'Du hast selbstlöschende Nachrichten ausgeschaltet.',
   },
   expires: 'Verschwindet {{time}}',
   fallback: {
-    on: 'Ich habe eingestellt, dass neue Nachrichten nach {{duration}} verschwinden. (Aktualisiere Iskra, um die Zeit zu sehen.)',
+    on: 'Ich habe selbstlöschende Nachrichten eingestellt: {{duration}}. (Aktualisiere Iskra, um die Zeit zu sehen.)',
     off: 'Ich habe selbstlöschende Nachrichten ausgeschaltet.',
   },
 }

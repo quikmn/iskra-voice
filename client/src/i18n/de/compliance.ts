@@ -19,7 +19,7 @@ export const compliance: Messages['compliance'] = {
     intro: 'Deine Geräte sprechen mit deinen eigenen Servern. Alles andere steht hier: wann es passiert, was die Gegenseite sieht und wie du es ausschaltest.',
     servers: {
       who: 'Deine Server',
-      when: 'Immer: Nachrichten, Sprache, Dateien, Linkvorschauen, GIFs (normalerweise) und das Untertitel-Modell kommen alle von den Servern, denen du beitrittst.',
+      when: 'Immer: Nachrichten, Sprachchat, Dateien, Linkvorschauen, GIFs (normalerweise) und das Untertitel-Modell kommen alle von den Servern, denen du beitrittst.',
       off: 'Jeder Server sieht deine IP-Adresse, solange du verbunden bist. Verlasse einen Server, um das zu beenden.',
     },
     embeds: {

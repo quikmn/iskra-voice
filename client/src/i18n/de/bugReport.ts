@@ -14,7 +14,7 @@ export const bugReport: Messages['bugReport'] = {
   screenshotOf: 'Screenshot von',
   target: {
     main: 'Hauptfenster',
-    voice: 'Sprache: {{title}}',
+    voice: 'Sprachchat: {{title}}',
     stream: 'Video: {{title}}',
     chat: 'Kanal: {{title}}',
   },

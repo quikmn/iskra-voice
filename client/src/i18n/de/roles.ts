@@ -26,7 +26,7 @@ export const roles: Messages['roles'] = {
     customTitle: 'Eigene Rollen',
     badge: 'Fest',
     names: { owner: 'Besitzer', admin: 'Admin', trusted: 'Vertraut', member: 'Mitglied', guest: 'Gast' },
-    andUp: '{{role}} und höher',
+    andUp: 'Ab {{role}}',
     summary: {
       owner: 'Leitet den Server. Es gibt einen Besitzer, und er hat immer jede Berechtigung.',
       admin: 'Kümmert sich um den Server und alle darunter.',

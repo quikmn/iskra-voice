@@ -42,7 +42,7 @@ export const chat: Messages['chat'] = {
   },
   composer: {
     replyingTo: 'Antwort an <b>{{name}}</b>',
-    someone: 'jemanden',
+    someone: 'jemand',
     cancelReply: 'Antwort abbrechen',
     removeFile: '{{name}} entfernen',
     attach: 'Dateien anhängen',

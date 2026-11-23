@@ -31,7 +31,7 @@ export const whisper: Messages['whisper'] = {
   incomingChannel: '{{name}} flüstert an #{{channel}}',
   someone: 'Jemand',
   errors: {
-    emptyList: 'Flüsterliste {{n}} ist leer. Richte sie unter Meine Einstellungen → Sprache & Audio ein.',
+    emptyList: 'Flüsterliste {{n}} ist leer. Richte sie unter Meine Einstellungen → Sprachchat & Audio ein.',
     muted: 'Du bist stumm. Schalte dein Mikrofon ein, um zu flüstern.',
     start: 'Flüstern ließ sich nicht starten.',
   },

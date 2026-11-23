@@ -129,7 +129,7 @@ export const rental: Messages['rental'] = {
     join: 'Öffne den Server in Iskra und drück auf **Freunde einladen**: Das erstellt einen Link, den du ihnen schickst. Sie öffnen ihn in der Iskra-App oder im Browser. Du entscheidest, wer hereinkommt: Links können ablaufen oder nur einmal gelten, und Rollen legen fest, was jemand darf.',
     keysTitle: 'Deine Schlüssel und Wiederherstellung',
     keys:
-      '- Du bist der Besitzer. Dein Konto liegt auf deinen eigenen Geräten, nicht auf dem Server. Bewahre deinen **Wiederherstellungsschlüssel** (Meine Einstellungen → Wiederherstellungsschlüssel) sicher auf: Damit bekommst du dein Konto auf einem neuen Gerät zurück.\n' +
+      '- Du bist der Besitzer. Dein Konto liegt auf deinen eigenen Geräten, nicht auf dem Server. Bewahre deinen **Wiederherstellungsschlüssel** (Meine Einstellungen → Wiederherstellung) sicher auf: Damit bekommst du dein Konto auf einem neuen Gerät zurück.\n' +
       '- Der eigene Schlüssel und die Daten des Servers liegen auf dem Server in /opt/iskra/world (server.key, iskra.db, uploads/). Tägliche Backups davon liegen in /opt/iskra/world/backups.\n' +
       '- Die Werkzeuge für Besitzer sind in der App: Servereinstellungen (Mitglieder, Rollen, Backups, Updates).',
     costTitle: 'Was es kostet und wie du kündigst',

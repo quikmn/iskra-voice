@@ -4,7 +4,7 @@ export const productivity: Messages['productivity'] = {
   actions: {
     save: 'Nachricht speichern',
     unsave: 'Aus Gespeicherten entfernen',
-    saved: 'In Gespeicherte Nachrichten abgelegt',
+    saved: 'Nachricht gespeichert',
     removed: 'Aus Gespeicherten entfernt',
     remind: 'Daran erinnern',
     more: 'Mehr',
@@ -47,7 +47,7 @@ export const productivity: Messages['productivity'] = {
     toastLabel: 'Erinnerung',
   },
   saved: {
-    title: 'Gespeicherte Nachrichten',
+    title: 'Gespeichert',
     none: 'Noch nichts gespeichert. Wähle bei einer Nachricht „Nachricht speichern“, um sie hier zu behalten.',
     open: 'Öffnen',
     remove: 'Entfernen',

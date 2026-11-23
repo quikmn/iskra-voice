@@ -54,7 +54,7 @@ export const e2ee: Messages['e2ee'] = {
     error: 'Diese Nachricht ließ sich nicht entschlüsseln.',
     olderFormat: 'Älteres Format',
     olderFormatHint: 'Von einer älteren Version von Iskra gesendet: verschlüsselt und signiert, aber nicht an diesen Kanal oder Thread gebunden.',
-    afterRemoval: 'Gesendet, nachdem der Absender den Zugriff auf diesen Kanal verloren hatte ({{date}}). Sie stammt also vielleicht nicht wirklich von dort.',
+    afterRemoval: 'Gesendet, nachdem der Absender den Zugriff auf diesen Kanal verloren hatte ({{date}}). Sie stammt also vielleicht nicht wirklich von dieser Person.',
     notEncrypted: 'Nicht verschlüsselt, kann also nicht von einem Mitglied sein: Der Server hat sie gesendet. Sie wird nicht gezeigt.',
   },
   search: {
@@ -72,10 +72,10 @@ export const e2ee: Messages['e2ee'] = {
     noKey: 'Du kannst noch nicht beitreten: Dieses Gerät hat den Schlüssel des Kanals nicht.',
     badge: 'Verschlüsselter Sprachchat',
     pending: 'Verschlüsselt…',
-    explain: 'Sprache, Video und Bildschirmfreigaben werden hier auf jedem Gerät mit dem Schlüssel des Kanals verschlüsselt. Der Server reicht nur weiter, was er nicht entschlüsseln kann. Den Schlüssel haben nur die, die diesen Kanal sehen können, und er ändert sich, sobald sich dieser Kreis ändert.',
+    explain: 'Ton, Video und Bildschirmfreigaben werden hier auf jedem Gerät mit dem Schlüssel des Kanals verschlüsselt. Der Server reicht nur weiter, was er nicht entschlüsseln kann. Den Schlüssel haben nur die, die diesen Kanal sehen können, und er ändert sich, sobald sich dieser Kreis ändert.',
     version: 'Schlüsselversion {{version}}',
     notEncrypted: '{{name}} sendet unverschlüsselt, deshalb hörst und siehst du davon nichts.',
-    createHint: 'Sprache, Video und Bildschirmfreigaben sind auch verschlüsselt. Bots, Watch-Partys, Flüstern, Teams bilden und Räume auf Zuruf sind dort aus.',
+    createHint: 'Ton, Video und Bildschirmfreigaben sind auch verschlüsselt. Bots, Watch-Partys, Flüstern, Teams bilden und Räume auf Zuruf sind dort aus.',
     watchOff: 'Watch-Partys sind in verschlüsselten Sprachkanälen aus: Der Server würde sehen, was läuft.',
   },
   errors: {

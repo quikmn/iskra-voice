@@ -169,7 +169,7 @@ export const organize: Messages['organize'] = {
     voice: 'Sprachchat',
     notSet: 'Nicht festgelegt',
     ptt: 'Push-to-Talk (halten)',
-    pttUnset: 'Push-to-Talk: Wähle eine Taste unter Meine Einstellungen → Sprache & Audio',
+    pttUnset: 'Push-to-Talk: Wähle eine Taste unter Meine Einstellungen → Sprachchat & Audio',
     more: 'Rechtsklick auf einen Kanal, eine Kategorie oder einen Server (oder am Handy gedrückt halten) zeigt mehr.',
   },
   unread: {

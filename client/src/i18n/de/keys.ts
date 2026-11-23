@@ -43,7 +43,7 @@ export const keys: Messages['keys'] = {
     warning: 'Wer diesen Schlüssel hat, kann dein Konto nutzen. Gib ihn nie weiter.',
   },
   dispute: {
-    body: '<b>Das Konto von {{name}} ist umstritten.</b> Zwei verschiedene Schlüssel haben es beansprucht, einer davon gehört also vielleicht jemandem mit einem gestohlenen Schlüssel. Frag {{name}} persönlich oder in einem Anruf, welcher Schlüssel der richtige ist (Meine Einstellungen → Wiederherstellungsschlüssel zeigt ihn), und behalte dann diesen.',
+    body: '<b>Das Konto von {{name}} ist umstritten.</b> Zwei verschiedene Schlüssel haben es beansprucht, einer davon gehört also vielleicht jemandem mit einem gestohlenen Schlüssel. Frag {{name}} persönlich oder in einem Anruf, welcher Schlüssel der richtige ist (Meine Einstellungen → Wiederherstellung zeigt ihn), und behalte dann diesen.',
     keep: '{{key}} behalten',
     giveTo: 'An {{key}} geben',
   },

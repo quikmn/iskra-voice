@@ -85,9 +85,9 @@ export const moderation: Messages['moderation'] = {
     none: 'Bisher nichts.',
   },
   ban: {
-    deleteLabel: 'Auch die Nachrichten der Person löschen aus',
+    deleteLabel: 'Auch Nachrichten der Person löschen',
     deleteNone: 'Nachrichten behalten',
-    deleteWindow: 'den letzten {{duration}}',
+    deleteWindow: '{{duration}} zurück',
   },
   departed: {
     title: 'Wer gegangen ist',
@@ -199,8 +199,8 @@ export const moderation: Messages['moderation'] = {
     },
     someone: 'Jemand',
     someoneLower: 'jemand',
-    aChannel: 'ein Kanal',
-    formerMember: 'ein Webhook oder ehemaliges Mitglied',
+    aChannel: '#unbekannt',
+    formerMember: 'einem Webhook oder ehemaligen Mitglied',
     aRule: 'eine Regel',
     kick: '{{actor}} hat {{target}} gekickt',
     ban: '{{actor}} hat {{target}} gebannt',

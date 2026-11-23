@@ -86,7 +86,7 @@ export const app: Messages['app'] = {
     iosTitle: 'Iskra zum Home-Bildschirm hinzufügen',
     iosSteps: 'Tippe auf <icon/> <b>Teilen</b>, dann auf <b>Zum Home-Bildschirm</b>. Benachrichtigungen auf dem iPhone funktionieren nur mit der App auf dem Home-Bildschirm.',
     iosSignIn: 'Sie hat eine eigene Anmeldung: Öffne sie und tippe auf „Ich nutze Iskra schon“.',
-    androidBody: 'Benachrichtigungen, Sprache und Video, direkt vom Startbildschirm.',
+    androidBody: 'Benachrichtigungen, Sprachchat und Video, direkt vom Startbildschirm.',
     android: 'Android-App holen',
     install: 'Installieren',
   },

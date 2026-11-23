@@ -1,10 +1,10 @@
 import type { Messages } from '../types'
 
 export const voice: Messages['voice'] = {
-  mute: 'Mikrofon aus',
-  unmute: 'Mikrofon an',
-  deafen: 'Ton aus',
-  undeafen: 'Ton an',
+  mute: 'Mikrofon ausschalten',
+  unmute: 'Mikrofon einschalten',
+  deafen: 'Ton ausschalten',
+  undeafen: 'Ton einschalten',
   speaker: 'Lautsprecher',
   flipCamera: 'Zwischen Front- und Rückkamera wechseln',
   flipShort: 'Drehen',

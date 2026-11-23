@@ -37,7 +37,7 @@ export const activities: Messages['activities'] = {
   settings: {
     intro: 'Spiele und Mini-Apps, die Leute zusammen in einem Sprachanruf starten. Was sie senden, geht nur an die Mitspielenden und wird nie gespeichert.',
     whoStarts: 'Wer Aktivitäten starten darf',
-    roles: { guest: 'Alle im Anruf', member: 'Mitglieder und höher', trusted: 'Vertraute und höher', admin: 'Nur Admins' },
+    roles: { guest: 'Alle im Anruf', member: 'Ab Mitglied', trusted: 'Ab Vertraut', admin: 'Nur Admins' },
     builtIns: 'Integrierte Aktivitäten',
     serverAdded: 'Von dir hinzugefügte Aktivitäten',
     add: 'Aktivität hinzufügen (.zip)',
