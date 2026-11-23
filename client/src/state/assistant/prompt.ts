@@ -1,5 +1,6 @@
 // What the model is told. Anything that came from other people (messages, names, topics, search results) goes to it
 // inside a marked data block, with the rule that it is data and never instructions. Approvals stay the real backstop.
+import { englishName, type Language } from '../../i18n/languages'
 
 export const DATA_TAG = 'iskra-data'
 
@@ -15,7 +16,7 @@ export function dataBlock(source: string, content: string): string {
 
 export interface PromptContext {
   /** The app's language, so the model answers in it. */
-  language: 'en' | 'sv'
+  language: Language
   server: { name: string; role: string } | null
   channel: { name: string; encrypted: boolean } | null
   categories: { moderation: boolean; admin: boolean }
@@ -44,7 +45,7 @@ export function systemPrompt(context: PromptContext): string {
   const off = [!context.categories.moderation && 'Moderation', !context.categories.admin && 'Server admin'].filter(Boolean)
   return [
     RULES,
-    `Answer in ${context.language === 'sv' ? 'Swedish' : 'English'} unless the user writes in another language.`,
+    `Answer in ${englishName(context.language)} unless the user writes in another language.`,
     where,
     off.length ? `These tool groups are turned off by the user: ${off.join(', ')}. If a task needs them, say the user can turn them on in My settings → Assistant.` : '',
     context.helpTopics.length ? `Help topics available through help_search: ${context.helpTopics.join('; ')}.` : '',

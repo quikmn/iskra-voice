@@ -38,93 +38,78 @@ function routeFor(data) {
 const clip = (value, max) => (typeof value === 'string' ? value.slice(0, max) : '')
 
 // Pushes are written in English and name their texts (`text: { title, body, args }`); the app registers this worker
-// with `?lang=` so they show in its language. Only Swedish needs a table: anything unknown shows the server's English.
-const SV = {
-  title: {
-    mention: '{{name}} i #{{channel}}',
-    reply: '{{name}} svarade i #{{channel}}',
-    encrypted: 'Nytt meddelande i #{{channel}}',
-    dm: 'Nytt meddelande från {{name}}',
-    calling: '{{name}} ringer',
-    groupCall: '{{name}} startade ett gruppsamtal',
-    reminder: 'Påminnelse',
-    scheduledFailed: 'Ditt schemalagda meddelande skickades inte',
-    eventLive: '{{title}} börjar nu',
-    eventSoon: 'Snart: {{title}}',
-    lfgJoined: '{{name}} gick med i din grupp för {{game}}',
-    lfgFull: 'Din grupp för {{game}} är full',
-    lfgPosted: '{{name}} söker {{slots}} till {{game}}',
-    digest: 'Medan det var tyst',
-  },
-  body: {
-    openToRead: 'Öppna Iskra för att läsa det.',
-    groupOpenToRead: 'I en gruppchatt. Öppna Iskra för att läsa det.',
-    attachment: 'Skickade en bilaga',
-    tapToAnswer: 'Tryck för att svara.',
-    tapToJoin: 'Tryck för att gå med.',
-    reminderGeneric: 'Du bad om en påminnelse om ett meddelande.',
-    happeningChannel: 'Pågår i {{channel}}',
-    happeningVoice: 'Pågår i en röstkanal',
-    happeningAt: 'Pågår: {{place}}',
-    happening: 'Pågår nu',
-    inMinutesChannel: 'Om {{minutes}} min, i {{channel}}',
-    inMinutesVoice: 'Om {{minutes}} min, i en röstkanal',
-    inMinutesAt: 'Om {{minutes}} min, {{place}}',
-    inMinutes: 'Om {{minutes}} min',
-    lfgIn: 'I #{{channel}}',
-    lfgTime: 'Dags att spela!',
-  },
-  dmCount: '{{count}} nya meddelanden från {{from}}',
-  groupCount: '{{count}} nya meddelanden i en gruppchatt',
-  more: ' (+{{n}} till)',
-  // The quiet hours summary's body ("digestBody"), built from its counts: [one, many] per kind, in the server's order.
-  digest: [
-    ['mentions', '1 omnämnande', '{{n}} omnämnanden'],
-    ['messages', '1 meddelande', '{{n}} meddelanden'],
-    ['keywords', '1 bevakat ord', '{{n}} bevakade ord'],
-    ['follows', '1 inlägg av någon du följer', '{{n}} inlägg av personer du följer'],
-    ['events', '1 evenemang', '{{n}} evenemang'],
-    ['reminders', '1 påminnelse', '{{n}} påminnelser'],
-  ],
+// with `?lang=` so they show in its language, from that language's table in push-text/<code>.js (push-text/en.js
+// lists every text). No table, or a text it doesn't have: the server's English.
+const DIGEST = ['mentions', 'messages', 'keywords', 'follows', 'events', 'reminders'] // the server's order
+const CODE = /^[a-z]{2,3}$/
+
+/** The language to show: the app's (`?lang=`), else the browser's first. */
+function language() {
+  const chosen = new URL(self.location.href).searchParams.get('lang')
+  if (chosen && CODE.test(chosen)) return chosen
+  const preferred = (self.navigator && self.navigator.languages) || []
+  const base = String(preferred[0] || 'en').toLowerCase().split('-')[0]
+  return CODE.test(base) ? base : 'en'
 }
+
+/** The language's table, or null for English and for a language without one. Scripts can only be imported as the worker starts. */
+function loadText(code) {
+  if (code === 'en') return null
+  try {
+    self.ISKRA_PUSH_TEXT = undefined
+    self.importScripts(new URL(`push-text/${code}.js`, APP_ROOT).href)
+    const table = self.ISKRA_PUSH_TEXT
+    return table && typeof table === 'object' && table.title && table.body ? table : null
+  } catch {
+    return null
+  }
+}
+
+const LANGUAGE = language()
+const TEXT = loadText(LANGUAGE)
+const PLURALS = (() => {
+  try {
+    return new Intl.PluralRules(LANGUAGE)
+  } catch {
+    return null
+  }
+})()
+
+const fill = (text, args) => text.replace(/\{\{(\w+)\}\}/g, (_, name) => (args && args[name] != null ? String(args[name]) : ''))
+
+/** A text that counts `n` things: one string, or the plural form the language uses for `n` (else its `other`). */
+function counted(entry, n, args) {
+  const form = entry && typeof entry === 'object' ? entry[PLURALS ? PLURALS.select(n) : 'other'] || entry.other : entry
+  return typeof form === 'string' ? fill(form, args) : ''
+}
+
+const own = (table, name) => !!table && typeof name === 'string' && Object.hasOwn(table, name) && typeof table[name] === 'string'
 
 /** "2 omnämnanden, 1 meddelande" from the summary's counts; empty if there are none. */
 function digestBody(args) {
   const parts = []
-  for (const [name, one, many] of SV.digest) {
+  for (const name of DIGEST) {
     const n = Number.isSafeInteger(args[name]) && args[name] > 0 ? args[name] : 0
-    if (n > 0) parts.push(n === 1 ? one : fill(many, { n }))
+    const part = n > 0 ? counted(TEXT.digest && TEXT.digest[name], n, { n }) : ''
+    if (part) parts.push(part)
   }
   return parts.join(', ')
 }
 
-function language() {
-  const chosen = new URL(self.location.href).searchParams.get('lang')
-  if (chosen === 'sv' || chosen === 'en') return chosen
-  const preferred = (self.navigator && self.navigator.languages) || []
-  for (const tag of preferred) {
-    const base = String(tag).toLowerCase().split('-')[0]
-    if (base === 'sv' || base === 'en') return base
-  }
-  return 'en'
-}
-
-const fill = (text, args) => text.replace(/\{\{(\w+)\}\}/g, (_, name) => (args && args[name] != null ? String(args[name]) : ''))
-
-/** The push's title and body in Swedish, or null to show the server's English. */
-function swedish(data) {
+/** The push's title and body in the app's language, or null to show the server's English. */
+function translated(data) {
   const text = data.text
-  if (!text || typeof text !== 'object' || typeof text.title !== 'string' || !Object.hasOwn(SV.title, text.title)) return null
+  if (!TEXT || !text || typeof text !== 'object' || !own(TEXT.title, text.title)) return null
   const args = text.args && typeof text.args === 'object' ? text.args : {}
   const count = Number.isSafeInteger(data.count) ? data.count : 1
   const digest = text.body === 'digestBody' ? digestBody(args) : ''
-  const own = typeof text.body === 'string' && (Object.hasOwn(SV.body, text.body) || digest !== '')
-  if (text.body != null && !own) return null
-  let title = fill(SV.title[text.title], args)
-  let body = digest || (own ? fill(SV.body[text.body], args) : String(data.body || '').replace(/ \(\+\d+ more\)$/, ''))
-  if (count > 1 && data.kind === 'dm') title = fill(SV.dmCount, { count, from: data.from })
-  else if (count > 1 && data.kind === 'group') title = fill(SV.groupCount, { count })
-  else if (count > 1) body += fill(SV.more, { n: count - 1 })
+  const known = own(TEXT.body, text.body) || digest !== ''
+  if (text.body != null && !known) return null
+  let title = fill(TEXT.title[text.title], args)
+  let body = digest || (known ? fill(TEXT.body[text.body], args) : String(data.body || '').replace(/ \(\+\d+ more\)$/, ''))
+  if (count > 1 && data.kind === 'dm') title = counted(TEXT.dmCount, count, { count, from: data.from }) || title
+  else if (count > 1 && data.kind === 'group') title = counted(TEXT.groupCount, count, { count }) || title
+  else if (count > 1) body += counted(TEXT.more, count - 1, { n: count - 1 })
   return { title, body }
 }
 
@@ -133,10 +118,10 @@ function notificationFor(data, server) {
   const valid = data && data.v === 1 && typeof data.server === 'string' && KEY.test(data.server) && (!server || data.server === server)
     && typeof data.title === 'string' && data.title.length > 0
   if (!valid) {
-    return { title: 'Iskra', options: { body: language() === 'sv' ? 'Du har ny aktivitet.' : 'You have new activity.', tag: 'iskra', icon: ICON, data: { route: '/' } } }
+    return { title: 'Iskra', options: { body: (TEXT && typeof TEXT.generic === 'string' && TEXT.generic) || 'You have new activity.', tag: 'iskra', icon: ICON, data: { route: '/' } } }
   }
   const call = data.kind === 'call'
-  const shown = (language() === 'sv' && swedish(data)) || data
+  const shown = translated(data) || data
   return {
     title: clip(shown.title, 120),
     options: {

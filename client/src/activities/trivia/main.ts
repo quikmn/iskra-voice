@@ -1,5 +1,5 @@
 // Quiz: the quizmaster's screen picks or writes questions and runs the round; everyone else answers with big buttons.
-import { fill, fmt, h, run, scoreRow, type Ctx } from '../kit'
+import { fill, fmt, forLocale, h, run, scoreRow, type Ctx } from '../kit'
 import { initialQuiz, MAX_OPTION, MAX_QUESTION, MAX_QUESTIONS, parseQuiz, ranking, reduceQuiz, shuffled, shuffleOptions, type QuizState } from './logic'
 import { QUESTIONS, type BankQuestion } from './questions'
 
@@ -110,7 +110,7 @@ function mount(ctx: Ctx<QuizState>) {
   const masterLobby = h('div', {},
     h('h2', {}, s.quick), h('p', { className: 'muted' }, s.quickHint),
     h('div', { className: 'row' }, h('label', {}, s.count, ' ', select),
-      h('button', { className: 'primary', onclick: () => startWith(shuffled(QUESTIONS[ctx.locale === 'sv' ? 'sv' : 'en']).slice(0, local.count)) }, s.startQuick)),
+      h('button', { className: 'primary', onclick: () => startWith(shuffled(forLocale(QUESTIONS, ctx.locale)).slice(0, local.count)) }, s.startQuick)),
     h('h2', {}, s.own), ownForm, ownList, ownStart)
   const lobbyBox = h('div', {}, waitText, masterLobby)
   const playBox = h('div', {})

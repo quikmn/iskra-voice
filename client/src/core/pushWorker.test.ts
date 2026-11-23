@@ -1,6 +1,20 @@
 // Runs the real public/push-sw.js against a fake service worker scope.
 import { describe, expect, it, vi } from 'vitest'
 import SOURCE from '../../public/push-sw.js?raw'
+import { LANGUAGES, PLURAL_FORMS, pluralForms, requiredPluralForms } from '../i18n/languages'
+
+// The per-language tables the worker imports (public/push-text/<code>.js), by code.
+const TABLE_SOURCES: Record<string, string> = Object.fromEntries(
+  Object.entries(import.meta.glob('../../public/push-text/*.js', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)
+    .map(([file, source]) => [file.replace(/^.*\/([^/]+)\.js$/, '$1'), source]),
+)
+
+type Table = Record<string, unknown>
+function table(source: string): Table {
+  const scope: { ISKRA_PUSH_TEXT?: Table } = {}
+  new Function('self', source)(scope)
+  return scope.ISKRA_PUSH_TEXT ?? {}
+}
 
 const SERVER = 'S'.repeat(43)
 const PEER = 'p'.repeat(43)
@@ -13,7 +27,7 @@ interface FakeClient {
   focus: ReturnType<typeof vi.fn>
 }
 
-function worker(windows: FakeClient[] = [], script = 'push-sw.js', scope = `${ORIGIN}/push/${SERVER}/`) {
+function worker(windows: FakeClient[] = [], script = 'push-sw.js', scope = `${ORIGIN}/push/${SERVER}/`, tables: Record<string, string> = TABLE_SOURCES, languages = ['en-US']) {
   const listeners: Record<string, (event: unknown) => void> = {}
   const shown: { title: string; options: Record<string, unknown> }[] = []
   const self = {
@@ -26,6 +40,15 @@ function worker(windows: FakeClient[] = [], script = 'push-sw.js', scope = `${OR
     clients: { matchAll: vi.fn(async () => windows), openWindow: vi.fn(async () => null) },
     addEventListener: (type: string, listener: (event: unknown) => void) => (listeners[type] = listener),
     skipWaiting: vi.fn(),
+    navigator: { languages },
+    imported: [] as string[],
+    // Like the browser: a script that isn't there throws.
+    importScripts(url: string) {
+      self.imported.push(url)
+      const code = /^https:\/\/app\.iskra\.foo\/push-text\/([a-z]+)\.js$/.exec(url)?.[1]
+      if (!code || !Object.hasOwn(tables, code)) throw new Error(`NetworkError: ${url}`)
+      new Function('self', tables[code])(self)
+    },
   }
   new Function('self', SOURCE)(self)
 
@@ -180,5 +203,111 @@ describe('push service worker', () => {
     const en = worker([], 'push-sw.js?lang=en')
     await en.push(digest)
     expect([en.shown[0].title, en.shown[0].options.body]).toEqual(['While it was quiet', '2 mentions, 1 message, 1 alert word'])
+  })
+})
+
+describe('push texts per language (public/push-text)', () => {
+  /** Every text by path; a plural text gives one entry per form ("digest.events#one"). */
+  function flatten(tree: unknown, prefix = '', out: Record<string, string> = {}): Record<string, string> {
+    for (const [key, value] of Object.entries(tree as Table)) {
+      const path = prefix ? `${prefix}.${key}` : key
+      const forms = value && typeof value === 'object' && Object.keys(value).every((k) => (PLURAL_FORMS as readonly string[]).includes(k))
+      if (typeof value === 'string') out[path] = value
+      else if (forms) for (const [form, text] of Object.entries(value as Table)) out[`${path}#${form}`] = String(text)
+      else flatten(value, path, out)
+    }
+    return out
+  }
+  const variables = (text: string) => [...text.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]).sort()
+  const english = flatten(table(TABLE_SOURCES.en))
+  const englishFor = (path: string) => english[path] ?? english[path.replace(/#\w+$/, '#other')] ?? english[path.replace(/#\w+$/, '')]
+  const names = (texts: Record<string, string>) => [...new Set(Object.keys(texts).map((path) => path.replace(/#\w+$/, '')))].sort()
+
+  it('has the English reference, and only tables for registered languages', () => {
+    expect(Object.keys(TABLE_SOURCES)).toContain('en')
+    for (const code of Object.keys(TABLE_SOURCES)) expect(LANGUAGES as readonly string[], `push-text/${code}.js`).toContain(code)
+    expect(names(english).length).toBeGreaterThanOrEqual(40)
+  })
+
+  it('says in English what the server says', () => {
+    const server = Object.values(import.meta.glob('../../../server/src/Iskra.Server/**/*.cs', { query: '?raw', import: 'default', eager: true }) as Record<string, string>).join('\n')
+    // Texts without a value in them are in the server's code word for word (the others are built there from parts).
+    const fixed = Object.entries(english).filter(([path, text]) => !text.includes('{{') && !path.startsWith('generic') && !/Voice$/.test(path))
+    expect(fixed.length).toBeGreaterThan(10)
+    expect(fixed.filter(([, text]) => !server.includes(`"${text}"`)).map(([path]) => path)).toEqual([])
+  })
+
+  for (const code of Object.keys(TABLE_SOURCES).filter((c) => c !== 'en')) {
+    it(`${code}: the same texts as English, none empty, the same {{variables}}, the plural forms the language needs`, () => {
+      const texts = flatten(table(TABLE_SOURCES[code]))
+      expect(names(texts)).toEqual(names(english))
+      const allowed = pluralForms(code) as string[]
+      const wrong: string[] = []
+      for (const [path, text] of Object.entries(texts)) {
+        const form = /#(\w+)$/.exec(path)?.[1]
+        if (!text.trim()) wrong.push(`${path} (empty)`)
+        if (form && !allowed.includes(form)) wrong.push(`${path} (never used in this language)`)
+        if (JSON.stringify(variables(text)) !== JSON.stringify(variables(englishFor(path)))) wrong.push(`${path} (variables)`)
+        if (englishFor(path).includes('Iskra') && !text.includes('Iskra')) wrong.push(`${path} (lost the name Iskra)`)
+        if (/^\s/.test(text) !== /^\s/.test(englishFor(path))) wrong.push(`${path} (the space in front)`)
+      }
+      // A text with plural forms has all the language needs.
+      for (const name of new Set(Object.keys(texts).filter((path) => path.includes('#')).map((path) => path.replace(/#\w+$/, '')))) {
+        for (const form of requiredPluralForms(code)) if (texts[`${name}#${form}`] === undefined) wrong.push(`${name}#${form} (missing)`)
+      }
+      expect(wrong).toEqual([])
+    })
+  }
+
+  it('loads only the table of the language it was registered with, and none for English', async () => {
+    expect(worker([], 'push-sw.js?lang=sv').self.imported).toEqual([`${ORIGIN}/push-text/sv.js`])
+    expect(worker([], 'push-sw.js?lang=en').self.imported).toEqual([])
+    expect(worker([], 'push-sw.js?lang=../x').self.imported).toEqual([])
+    expect(worker([], 'push-sw.js', undefined, undefined, ['sv-SE', 'en']).self.imported).toEqual([`${ORIGIN}/push-text/sv.js`])
+  })
+
+  it("shows the server's English for a language without a table", async () => {
+    const w = worker([], 'push-sw.js?lang=xx')
+    expect(w.self.imported).toEqual([`${ORIGIN}/push-text/xx.js`])
+    await w.push({ ...mention, text: { title: 'mention', body: null, args: { name: 'Alice', channel: 'general' } } })
+    await w.push(null)
+    expect(w.shown.map((n) => [n.title, n.options.body])).toEqual([['Alice in #general', 'hey @Bob'], ['Iskra', 'You have new activity.']])
+  })
+
+  it('picks plural forms by the language’s rules (a Russian table)', async () => {
+    const ru = `self.ISKRA_PUSH_TEXT = {
+      generic: 'Новая активность.',
+      title: { digest: 'Пока было тихо', dm: 'Новое сообщение от {{name}}', mention: '{{name}} в #{{channel}}' },
+      body: { openToRead: 'Откройте Iskra, чтобы прочитать.' },
+      dmCount: { one: '{{count}} новое сообщение от {{from}}', few: '{{count}} новых сообщения от {{from}}', many: '{{count}} новых сообщений от {{from}}', other: '{{count}} нового сообщения от {{from}}' },
+      more: ' (ещё {{n}})',
+      digest: {
+        mentions: { one: '{{n}} упоминание', few: '{{n}} упоминания', many: '{{n}} упоминаний', other: '{{n}} упоминания' },
+        messages: { one: '{{n}} сообщение', other: '{{n}} сообщения' },
+      },
+    }`
+    const w = worker([], 'push-sw.js?lang=ru', undefined, { ru })
+    const digest = (args: object) => ({ v: 1, kind: 'digest', server: SERVER, title: 'While it was quiet', body: 'x', tag: 'digest', count: 1, at: 1, text: { title: 'digest', body: 'digestBody', args } })
+    await w.push(digest({ mentions: 1, messages: 21 }))
+    await w.push(digest({ mentions: 3, messages: 5 }))
+    await w.push(digest({ mentions: 11, reminders: 2 }))
+    const dm = (count: number) => ({ ...mention, kind: 'dm', title: 'x', from: 'Alice', count, text: { title: 'dm', body: 'openToRead', args: { name: 'Alice' } } })
+    await w.push(dm(2))
+    await w.push(dm(5))
+    await w.push(dm(21))
+    await w.push({ ...mention, body: 'hey (+2 more)', count: 3, text: { title: 'mention', body: null, args: { name: 'Alice', channel: 'general' } } })
+    await w.push(null)
+    expect(w.shown.map((n) => [n.title, n.options.body])).toEqual([
+      ['Пока было тихо', '1 упоминание, 21 сообщение'],
+      // A form the table leaves out falls back to its `other`.
+      ['Пока было тихо', '3 упоминания, 5 сообщения'],
+      // A kind the table doesn't have is left out.
+      ['Пока было тихо', '11 упоминаний'],
+      ['2 новых сообщения от Alice', 'Откройте Iskra, чтобы прочитать.'],
+      ['5 новых сообщений от Alice', 'Откройте Iskra, чтобы прочитать.'],
+      ['21 новое сообщение от Alice', 'Откройте Iskra, чтобы прочитать.'],
+      ['Alice в #general', 'hey (ещё 2)'],
+      ['Iskra', 'Новая активность.'],
+    ])
   })
 })

@@ -1,9 +1,12 @@
 # Translation glossary
 
-One word per thing, in every language. Use these terms in the app's texts (`client/src/i18n/en` and `sv`), the
-desktop app (`desktop/src/i18n.ts`), the push worker (`client/public/push-sw.js`) and server messages that have a
-key. Swedish uses the friendly "du", sentence case in headings and buttons, and a normal Swedish word where one
-exists.
+One word per thing, in every language. This file holds the English terms and their Swedish. Every other language has
+its own file with the same English terms, `docs/i18n/glossary-<code>.md` (format and rules:
+[translating.md](translating.md#glossary)).
+
+Use these terms in the app's texts (`client/src/i18n/<code>/`), the desktop app (`desktop/src/text/<code>.ts`), the
+push worker's texts (`client/public/push-text/<code>.js`) and server messages that have a key. Swedish uses the
+friendly "du", sentence case in headings and buttons, and a normal Swedish word where one exists.
 
 ## People and places
 
@@ -106,5 +109,5 @@ exists.
 
 The server writes its errors in English with a `key` and `args` (see `protocol/PROTOCOL.md` → Errors); the app
 translates them in `errors.server` of each catalog. Pushes name their texts the same way (`text`), and the push
-worker holds the Swedish for them. Tests check that every key the server can send has a text in every language and
+worker has a table per language for them (`client/public/push-text/`). Tests check that every key the server can send has a text in every language and
 that the English text matches the server's own (`client/src/i18n/serverErrors.test.ts`).

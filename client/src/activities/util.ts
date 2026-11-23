@@ -24,3 +24,14 @@ export const isObject = (v: unknown): v is Record<string, unknown> => typeof v =
 export const isId = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= 32
 export const isInt = (v: unknown, min: number, max: number): v is number => typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max
 export const isText = (v: unknown, max: number): v is string => typeof v === 'string' && v.trim().length > 0 && v.length <= max
+
+/** Per-language content keyed by code, from a glob of `./<folder>/<code>.ts` files. */
+export function byLanguage<T>(files: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(Object.entries(files).map(([file, content]) => [file.replace(/^.*\/([^/]+)\.ts$/, '$1'), content]))
+}
+
+/** The content for a locale ("pt-BR" gives `pt`), or English where the language has none. */
+export function forLocale<T>(table: Record<string, T>, locale: string | null | undefined): T {
+  const code = String(locale ?? '').toLowerCase().split(/[-_]/)[0]
+  return Object.hasOwn(table, code) ? table[code] : table.en
+}

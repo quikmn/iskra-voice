@@ -2,15 +2,15 @@
 // state, and nothing a player sends out of turn (or malformed) changes anything.
 import { describe, expect, it } from 'vitest'
 import { COLS, initialFour, landingRow, parseFour, reduceFour, winningLine, type FourState } from './four/logic'
-import { BONUS, initialQuiz, parseQuiz, POINTS, ranking, reduceQuiz, shuffleOptions, type QuizState } from './trivia/logic'
+import { BONUS, initialQuiz, MAX_OPTION, MAX_QUESTION, parseQuiz, POINTS, ranking, reduceQuiz, shuffleOptions, type QuizState } from './trivia/logic'
 import {
   DRAWER_POINTS, drawerOf, guessPoints, hashOf, initialDraw, isRight, maskOf, MAX_POINTS, parseDraw, reduceDraw, type DrawState,
 } from './draw/logic'
 import { threeWords, WORDS } from './draw/words'
 import { QUESTIONS } from './trivia/questions'
-import { fmt, fnv1a, normalizeGuess } from './util'
+import { fmt, fnv1a, forLocale, normalizeGuess } from './util'
+import { LANGUAGES } from '../i18n/languages'
 import { en } from '../i18n/en'
-import { sv } from '../i18n/sv'
 
 function play<S>(reduce: (s: S, d: unknown, from: string) => S, state: S, moves: [string, unknown][]): S {
   return moves.reduce((s, [from, data]) => reduce(s, data, from), state)
@@ -124,17 +124,34 @@ describe('quiz', () => {
     expect(parseQuiz({ ...s, scores: { b: 'lots' } })).toBeNull()
   })
 
-  it('has bundled questions in both languages, each with its right answer among 2–4 options', () => {
-    for (const list of [QUESTIONS.en, QUESTIONS.sv]) {
-      expect(list.length).toBeGreaterThanOrEqual(20)
+  it('has bundled questions per language, each with its right answer among 2–4 different options', () => {
+    expect(QUESTIONS.en.length).toBeGreaterThanOrEqual(20)
+    for (const [lang, list] of Object.entries(QUESTIONS)) {
+      expect(LANGUAGES as readonly string[], `questions/${lang}.ts is not a registered language`).toContain(lang)
+      expect(list.length, lang).toBe(QUESTIONS.en.length)
+      expect(new Set(list.map((item) => item.text)).size, lang).toBe(list.length)
       for (const item of list) {
-        expect(item.options.length).toBeGreaterThanOrEqual(2)
-        expect(item.options.length).toBeLessThanOrEqual(4)
-        expect(item.options[item.correct]).toBeTruthy()
-        expect(item.text.length).toBeLessThanOrEqual(300)
+        expect(item.text.trim(), lang).toBe(item.text)
+        expect(item.text.length, lang).toBeGreaterThan(0)
+        expect(item.text.length, lang).toBeLessThanOrEqual(MAX_QUESTION)
+        expect(item.options.length, item.text).toBeGreaterThanOrEqual(2)
+        expect(item.options.length, item.text).toBeLessThanOrEqual(4)
+        expect(new Set(item.options).size, item.text).toBe(item.options.length)
+        for (const option of item.options) {
+          expect(option.trim(), item.text).toBe(option)
+          expect(option.length, item.text).toBeGreaterThan(0)
+          expect(option.length, item.text).toBeLessThanOrEqual(MAX_OPTION)
+        }
+        expect(item.options[item.correct], item.text).toBeTruthy()
       }
     }
-    expect(QUESTIONS.sv).toHaveLength(QUESTIONS.en.length)
+  })
+
+  it('falls back to the English questions for a language without its own', () => {
+    expect(forLocale(QUESTIONS, 'sv-SE')).toBe(QUESTIONS.sv)
+    expect(forLocale(QUESTIONS, 'xx')).toBe(QUESTIONS.en)
+    expect(forLocale(QUESTIONS, 'constructor')).toBe(QUESTIONS.en)
+    expect(forLocale(QUESTIONS, undefined)).toBe(QUESTIONS.en)
   })
 })
 
@@ -218,11 +235,20 @@ describe('draw & guess', () => {
     expect(reduceDraw(picking, { t: 'pick', mask: '___', hash: 'nothex!!', salt }, 'a')).toBe(picking)
   })
 
-  it('offers three different words in both languages', () => {
-    for (const list of [WORDS.en, WORDS.sv]) {
-      expect(new Set(threeWords(list)).size).toBe(3)
-      expect(list.length).toBeGreaterThan(80)
-      for (const word of list) expect(word.length).toBeLessThanOrEqual(40)
+  it('offers three different words in every language that has a list', () => {
+    expect(Object.keys(WORDS)).toContain('en')
+    expect(forLocale(WORDS, 'xx')).toBe(WORDS.en)
+    for (const [lang, list] of Object.entries(WORDS)) {
+      expect(LANGUAGES as readonly string[], `words/${lang}.ts is not a registered language`).toContain(lang)
+      expect(new Set(threeWords(list)).size, lang).toBe(3)
+      expect(list.length, lang).toBeGreaterThan(80)
+      expect(new Set(list.map(normalizeGuess)).size, lang).toBe(list.length)
+      for (const word of list) {
+        expect(word.length, word).toBeGreaterThan(0)
+        expect(word.length, word).toBeLessThanOrEqual(40)
+        // A guess is compared in lower case with single spaces, so the word is written that way.
+        expect(normalizeGuess(word), word).toBe(word)
+      }
     }
   })
 })
@@ -236,7 +262,7 @@ describe('shared helpers', () => {
     expect(fnv1a('a')).toBe('e40c292c')
   })
 
-  it('have the games’ texts in both languages', () => {
-    expect(Object.keys(sv.activities.games.draw).sort()).toEqual(Object.keys(en.activities.games.draw).sort())
+  it('have the games’ texts in English (the catalog test holds every other language to the same keys)', () => {
+    expect(Object.keys(en.activities.games.draw).length).toBeGreaterThan(5)
   })
 })

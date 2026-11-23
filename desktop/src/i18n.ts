@@ -3,192 +3,58 @@
 // Anything the shell *says* to the person (an update check's result, About, permissions) is worded by the page
 // itself (client/src/i18n), which gets a structured notice (notices.ts).
 
-export type DesktopLanguage = 'en' | 'sv'
+// One file per language in ./text/<code>.ts (`export const text: DesktopText`); a language without one shows English.
+import { readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { text as en, type DesktopText } from './text/en'
 
-const en = {
-  tray: {
-    open: 'Open Iskra',
-    about: 'About Iskra',
-    check: 'Check for updates',
-    checking: 'Checking for updates…',
-    downloading: (version: string) => `Downloading ${version}…`,
-    restart: (version: string) => `Restart to update to ${version}`,
-    download: (version: string) => `Download Iskra ${version}`,
-    quit: 'Quit Iskra',
-  },
-  updates: {
-    titleReady: 'Update ready',
-    titleAvailable: 'Update available',
-  },
-  menu: { view: 'View' },
-  recordings: {
-    pickTitle: 'Where should call recordings go?',
-  },
-  backup: {
-    pickTitle: 'Restore a server from a backup',
-    filter: 'Iskra backups',
-    notBackup: "That file isn't an Iskra backup.",
-  },
-  bots: {
-    pickTitle: 'Choose a bot you trust',
-    pickMessage: 'Only run bots you trust: a bot runs with your rights on this computer and can read and change your files.',
-    pickButton: 'Use this folder',
-    warnTitle: 'Only run bots you trust',
-    runQuestion: (name: string) => `Run "${name}" on this computer?`,
-    autostartQuestion: (name: string) => `Start "${name}" every time Iskra starts?`,
-    changedQuestion: (name: string) => `"${name}" changed since you last ran it. Run it anyway?`,
-    warnDetail: (folder: string) => `${folder}
+export type { DesktopText } from './text/en'
 
-This bot runs with your rights on this computer: it can read and change your files. Only run bots you trust.`,
-    run: 'Run it',
-    autostart: 'Start it with Iskra',
-    cancel: 'Cancel',
-  },
-  template: {
-    pickTitle: 'Start a server from a template file',
-    filter: 'Iskra templates',
-    tooBig: 'That file is too big for a template.',
-  },
-  host: {
-    defaultName: 'My server',
-    noServer: "This build doesn't include the server.",
-    stoppedEarly: 'The server stopped right after starting. Is its port in use?',
-    damaged: "The server's files are damaged, so it can't start. server.log in its folder says what's wrong; restoring a backup fixes it.",
-    couldntStart: (error: string) => `The server couldn't start: ${error}`,
-    couldntRun: (error: string) => `The server couldn't run: ${error}`,
-    restoreFailed: "The backup couldn't be restored.",
-    noPort: 'No free port found.',
-  },
-  keys: {
-    mouse: (button: number) => `Mouse ${button}`,
-    key: (code: number) => `Key ${code}`,
-  },
-  passkey: {
-    title: 'Iskra passkey',
-    waiting: 'Follow the prompt from your device or security key.',
-  },
-  splash: {
-    title: 'Iskra',
-    starting: 'Starting Iskra…',
-    servers: 'Starting your servers…',
-    connecting: 'Connecting…',
-    ready: 'Ready',
-    updatedTo: (version: string) => `Updated to ${version}`,
-    updating: (version: string) => `Updating Iskra to ${version}…`,
-    updatingDetail: "It'll be back in a few seconds.",
-  },
-  assistant: {
-    title: 'Iskra assistant',
-    question: (host: string) => `Let the assistant send your questions to ${host}?`,
-    detail: 'Only say yes if you entered this address yourself in My settings → Assistant. What you ask the assistant, and what it reads for you, will go there.',
-    yes: 'Yes, use it',
-    no: 'No',
-  },
-  digitalOcean: {
-    done: 'Connected to DigitalOcean. You can close this tab and go back to Iskra.',
-    denied: "Iskra wasn't connected to DigitalOcean. You can close this tab and go back to Iskra.",
-  },
+/** A language code as the page and the settings file give it ("sv", "pt"). It may have no desktop text: then English shows. */
+export type DesktopLanguage = string
+
+const CODE = /^[a-z]{2,3}$/
+
+/** Every language file next to this one, by code. */
+function loadTexts(): Record<string, DesktopText> {
+  const texts: Record<string, DesktopText> = { en }
+  let files: string[] = []
+  try {
+    files = readdirSync(join(__dirname, 'text'))
+  } catch {
+    // No folder (it can't be read): English only.
+  }
+  for (const file of files) {
+    const code = /^([a-z]{2,3})\.js$/.exec(file)?.[1]
+    if (!code || code === 'en') continue
+    try {
+      const loaded = (require(`./text/${code}.js`) as { text?: DesktopText }).text
+      if (loaded) texts[code] = loaded
+    } catch {
+      // A file that doesn't load: that language shows English.
+    }
+  }
+  return texts
 }
 
-export type DesktopText = typeof en
+export const DESKTOP_TEXT: Readonly<Record<string, DesktopText>> = loadTexts()
 
-const sv: DesktopText = {
-  tray: {
-    open: 'Öppna Iskra',
-    about: 'Om Iskra',
-    check: 'Sök efter uppdateringar',
-    checking: 'Söker efter uppdateringar…',
-    downloading: (version) => `Laddar ner ${version}…`,
-    restart: (version) => `Starta om och uppdatera till ${version}`,
-    download: (version) => `Ladda ner Iskra ${version}`,
-    quit: 'Avsluta Iskra',
-  },
-  updates: {
-    titleReady: 'Uppdatering klar',
-    titleAvailable: 'Uppdatering finns',
-  },
-  menu: { view: 'Visa' },
-  recordings: {
-    pickTitle: 'Var ska samtalsinspelningar sparas?',
-  },
-  backup: {
-    pickTitle: 'Återställ en server från en säkerhetskopia',
-    filter: 'Säkerhetskopior från Iskra',
-    notBackup: 'Den filen är ingen säkerhetskopia från Iskra.',
-  },
-  bots: {
-    pickTitle: 'Välj en bot du litar på',
-    pickMessage: 'Kör bara bottar du litar på: en bot körs med dina rättigheter på den här datorn och kan läsa och ändra dina filer.',
-    pickButton: 'Använd den här mappen',
-    warnTitle: 'Kör bara bottar du litar på',
-    runQuestion: (name: string) => `Köra "${name}" på den här datorn?`,
-    autostartQuestion: (name: string) => `Starta "${name}" varje gång Iskra startar?`,
-    changedQuestion: (name: string) => `"${name}" har ändrats sedan du körde den senast. Köra den ändå?`,
-    warnDetail: (folder: string) => `${folder}
+const hasText = (code: string): boolean => Object.hasOwn(DESKTOP_TEXT, code)
 
-Botten körs med dina rättigheter på den här datorn: den kan läsa och ändra dina filer. Kör bara bottar du litar på.`,
-    run: 'Kör den',
-    autostart: 'Starta den med Iskra',
-    cancel: 'Avbryt',
-  },
-  template: {
-    pickTitle: 'Starta en server från en mallfil',
-    filter: 'Mallar för Iskra',
-    tooBig: 'Den filen är för stor för en mall.',
-  },
-  host: {
-    defaultName: 'Min server',
-    noServer: 'Den här versionen innehåller inte servern.',
-    stoppedEarly: 'Servern stannade direkt efter start. Används porten redan?',
-    damaged: 'Serverns filer är skadade, så den kan inte starta. server.log i dess mapp berättar vad som är fel, och en säkerhetskopia löser det.',
-    couldntStart: (error) => `Servern kunde inte starta: ${error}`,
-    couldntRun: (error) => `Servern kunde inte köras: ${error}`,
-    restoreFailed: 'Säkerhetskopian kunde inte återställas.',
-    noPort: 'Hittade ingen ledig port.',
-  },
-  keys: {
-    mouse: (button) => `Mus ${button}`,
-    key: (code) => `Tangent ${code}`,
-  },
-  passkey: {
-    title: 'Lösenordsnyckel för Iskra',
-    waiting: 'Följ anvisningen från din enhet eller säkerhetsnyckel.',
-  },
-  splash: {
-    title: 'Iskra',
-    starting: 'Startar Iskra…',
-    servers: 'Startar dina servrar…',
-    connecting: 'Ansluter…',
-    ready: 'Klart',
-    updatedTo: (version) => `Uppdaterad till ${version}`,
-    updating: (version) => `Uppdaterar Iskra till ${version}…`,
-    updatingDetail: 'Iskra är tillbaka om några sekunder.',
-  },
-  assistant: {
-    title: 'Iskras assistent',
-    question: (host) => `Låta assistenten skicka dina frågor till ${host}?`,
-    detail: 'Säg bara ja om du själv skrev in adressen i Mina inställningar → Assistent. Det du frågar assistenten, och det den läser åt dig, skickas dit.',
-    yes: 'Ja, använd den',
-    no: 'Nej',
-  },
-  digitalOcean: {
-    done: 'Ansluten till DigitalOcean. Du kan stänga fliken och gå tillbaka till Iskra.',
-    denied: 'Iskra anslöts inte till DigitalOcean. Du kan stänga fliken och gå tillbaka till Iskra.',
-  },
-}
-
-export const DESKTOP_TEXT: Record<DesktopLanguage, DesktopText> = { en, sv }
-
-/** Swedish when the first language we have among the OS's preferred ones is Swedish, else English. */
+/** The first of the OS's preferred languages that we have text for, else English. */
 export function languageFromLocales(locales: readonly string[]): DesktopLanguage {
   for (const tag of locales) {
-    const base = tag.toLowerCase().split(/[-_]/)[0]
-    if (base === 'sv' || base === 'en') return base
+    const base = String(tag).toLowerCase().split(/[-_]/)[0]
+    if (hasText(base)) return base
   }
   return 'en'
 }
 
-export const parseLanguage = (value: unknown): DesktopLanguage | null => (value === 'en' || value === 'sv' ? value : null)
+/** A language code from the page or the settings file, or null for anything else. */
+export const parseLanguage = (value: unknown): DesktopLanguage | null => (typeof value === 'string' && CODE.test(value) ? value : null)
+
+/** The text for a language, or English where it has none. */
+export const textFor = (language: DesktopLanguage): DesktopText => (hasText(language) ? DESKTOP_TEXT[language] : en)
 
 let current: DesktopLanguage = 'en'
 
@@ -199,4 +65,4 @@ export function setDesktopLanguage(language: DesktopLanguage): void {
 export const desktopLanguage = (): DesktopLanguage => current
 
 /** The text in the current language. */
-export const text = (): DesktopText => DESKTOP_TEXT[current]
+export const text = (): DesktopText => textFor(current)

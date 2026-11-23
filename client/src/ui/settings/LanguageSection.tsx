@@ -1,7 +1,12 @@
 // My settings → Language: follow the system, or pick one. It applies right away. Also: what messages are translated into.
 import { useTranslation } from 'react-i18next'
 import { TranslateTargetField } from '../translate/Translate'
-import { LANGUAGE_NAMES, LANGUAGES, setLanguageChoice, useLanguageChoice, type LanguageChoice } from '../../i18n'
+import { LANGUAGE_NAMES, setLanguageChoice, SHIPPED_LANGUAGES, useLanguageChoice, type Language, type LanguageChoice } from '../../i18n'
+
+/** The languages on offer, each under its own name; a chosen one that isn't shipped yet stays listed so it can be seen and left. */
+export function pickerLanguages(choice: LanguageChoice): readonly Language[] {
+  return choice === 'auto' || SHIPPED_LANGUAGES.includes(choice) ? SHIPPED_LANGUAGES : [...SHIPPED_LANGUAGES, choice]
+}
 
 export function LanguageSection() {
   const { t } = useTranslation()
@@ -12,7 +17,7 @@ export function LanguageSection() {
       <label className="field">
         <select value={choice} aria-label={t('common.language.title')} onChange={(e) => setLanguageChoice(e.target.value as LanguageChoice)}>
           <option value="auto">{t('common.language.auto')}</option>
-          {LANGUAGES.map((language) => <option key={language} value={language} lang={language}>{LANGUAGE_NAMES[language]}</option>)}
+          {pickerLanguages(choice).map((language) => <option key={language} value={language} lang={language}>{LANGUAGE_NAMES[language]}</option>)}
         </select>
         {choice === 'auto' && <small className="muted">{t('common.language.autoHint')}</small>}
       </label>

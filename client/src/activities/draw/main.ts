@@ -1,6 +1,6 @@
 // Draw & guess: a shared canvas the drawer paints on (sent in small pieces), the word's shape and a guess box for
 // everyone else, a timer, and scores. The drawer's app holds the word and ends the round.
-import { fill, fmt, h, run, scoreRow, type Ctx } from '../kit'
+import { fill, fmt, forLocale, h, run, scoreRow, type Ctx } from '../kit'
 import {
   COLORS, drawerOf, hashOf, HEIGHT, initialDraw, isRight, maskOf, MAX_GUESS, MAX_POINTS, MAX_STROKE_POINTS, parseDraw, reduceDraw,
   ROUND_SECONDS, SIZES, WIDTH, type DrawState, type Stroke,
@@ -247,7 +247,7 @@ function mount(ctx: Ctx<DrawState>) {
       local.nexted = 0
     }
     if (state.phase === 'picking' && iDraw && !local.choices.length) {
-      local.choices = threeWords(WORDS[ctx.locale === 'sv' ? 'sv' : 'en'])
+      local.choices = threeWords(forLocale(WORDS, ctx.locale))
       local.ended = false
     }
     if (state.phase === 'drawing' && !local.startedAt) local.startedAt = Date.now()

@@ -133,6 +133,25 @@ test('turning on push registers a worker per server, subscribes, and reports foc
   await expect(page.getByRole('heading', { name: 'general' })).toBeVisible()
   expect(new URL(page.url()).hash).toBe('')
 
+  // In another language the worker is registered again with it, loads that language's texts (push-text/sv.js) and
+  // shows a push the server named in Swedish; one it doesn't know stays as the server wrote it.
+  const setLanguage = (language: string) => page.evaluate(async (l) => {
+    const path = '/src/i18n/index.ts' // the dev server's module, the same instance the app uses
+    ;((await import(/* @vite-ignore */ path)) as { setLanguageChoice(l: string): void }).setLanguageChoice(l)
+  }, language)
+  const activeScript = () => page.evaluate(async (scope) => (await navigator.serviceWorker.getRegistration(scope))?.active?.scriptURL ?? null, `/push/${serverKey}/`)
+  await setLanguage('sv')
+  await expect.poll(activeScript).toBe(`${new URL(page.url()).origin}/push-sw.js?lang=sv`)
+  const named = { ...payload, text: { title: 'reply', body: null, args: { name: 'Friend', channel: 'general' } } }
+  await expect
+    .poll(async () => {
+      await cdp.send('ServiceWorker.deliverPushMessage', { origin: new URL(page.url()).origin, registrationId, data: JSON.stringify(named) })
+      return page.evaluate(async (scope) => (await (await navigator.serviceWorker.getRegistration(scope))!.getNotifications()).map((n) => n.title), `/push/${serverKey}/`)
+    })
+    .toContain('Friend svarade i #general')
+  await setLanguage('en')
+  await expect.poll(activeScript).toBe(`${new URL(page.url()).origin}/push-sw.js?lang=en`)
+
   // Turning it off unsubscribes on the server and removes the worker.
   await page.getByRole('button', { name: 'My settings', exact: true }).click()
   await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Notifications' }).click()
