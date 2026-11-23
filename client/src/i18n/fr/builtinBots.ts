@@ -1,0 +1,60 @@
+import type { Messages } from '../types'
+
+export const builtinBots: Messages['builtinBots'] = {
+  badge: 'INTÉGRÉ',
+  badgeTitle: 'Géré par ce serveur : rien à installer',
+  names: {
+    // The bots' names (as they show in chat), the same in every language.
+    dice: 'Dice',
+    polls: 'Polls',
+    reminders: 'Reminders',
+    starboard: 'Starboard',
+    birthdays: 'Birthdays',
+    welcome: 'Welcome',
+    feeds: 'Feeds',
+    tags: 'Tags',
+    suggestions: 'Suggestions',
+    giveaways: 'Giveaways',
+    counting: 'Counting',
+  },
+  // The command words the bots read ("me in", "set") stay in English; dates are written 14/3, which every language can type.
+  about: {
+    dice: 'Lance des dés pour les jeux : /roll 2d6+3',
+    polls: 'Lance un sondage : /poll Pizza ou tacos ? | Pizza | Tacos',
+    reminders: 'Te fait un rappel plus tard : /remind me in 10m sortir la pizza',
+    starboard: 'Affiche dans un salon les messages qui ont reçu le plus d’étoiles',
+    birthdays: 'Souhaite leur anniversaire aux membres : /birthday set 14/3',
+    welcome: 'Accueille les personnes à leur arrivée',
+    feeds: 'Publie les nouveaux articles de blog, vidéos YouTube et directs Twitch',
+    tags: 'Publie des textes enregistrés : /tag regles',
+    suggestions: 'Recueille des idées avec des votes : /suggest Soirée film',
+    giveaways: 'Organise des tirages au sort équitables : /giveaway 1h Clé Steam',
+    counting: 'Un salon de comptage : un nombre chacun, à tour de rôle',
+  },
+  commands: {
+    roll: { description: 'Lancer des dés, par exemple 2d6+3', usage: '2d6+3' },
+    poll: { description: 'Lancer un sondage', usage: 'Question | Réponse | Réponse' },
+    remind: { description: 'Recevoir un rappel plus tard', usage: 'me in 10m quoi' },
+    birthday: { description: 'Partager ton anniversaire, ou voir ceux qui approchent', usage: 'set 14/3 | remove | list' },
+    tag: { description: 'Publier un texte enregistré', usage: 'nom | list' },
+    suggest: { description: 'Suggérer une idée', usage: 'ton idée' },
+    giveaway: { description: 'Lancer un tirage au sort', usage: '1h 2w lot | end | cancel | reroll' },
+  },
+  settings: {
+    title: 'Bots intégrés',
+    intro: 'Ils tournent à l’intérieur de ton serveur, il n’y a donc rien à installer. Actives-en un et tout le monde peut utiliser sa commande dans les salons qu’il peut voir. Ils ne peuvent pas lire les salons chiffrés.',
+    toggle: 'Activer {{name}}',
+    on: 'Activé',
+    off: 'Désactivé',
+  },
+  reply: {
+    roll: '🎲 {{name}} a lancé {{expression}}',
+    rollInvalid: '🎲 {{name}}, « {{input}} » n’est pas une notation de dés. Essaie /roll 2d6+3 ou /roll d20.',
+    pollUsage: '📊 {{name}}, lance un sondage comme ceci : /poll Pizza ou tacos ? | Pizza | Tacos',
+    remind: '⏰ OK {{name}}, je te le rappellerai : {{when}}.',
+    remindUsage: '⏰ {{name}}, programme un rappel comme ceci : /remind me in 10m sortir la pizza (de 1 minute à un an).',
+    error: '{{name}} : {{message}}',
+    total: 'Total',
+  },
+  encryptedHint: 'Les bots ne peuvent pas lire les salons chiffrés, les /commandes ne fonctionnent donc pas ici.',
+}
