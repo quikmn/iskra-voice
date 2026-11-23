@@ -76,6 +76,8 @@ button.inbox-row-main:hover { background: var(--hover); }
 @media (max-width: 760px) {
   .inbox-row { flex-wrap: wrap; }
   .inbox-row-actions { max-width: none; width: 100%; padding: 0 8px 8px 50px; justify-content: flex-start; }
+  /* Beside the date there is little room: "Alice mentioned you" takes a second line instead of being cut mid-word. */
+  .inbox-row-title { display: block; white-space: normal; overflow-wrap: anywhere; }
   .productivity-done { bottom: calc(88px + var(--safe-bottom)); }
 }
 
