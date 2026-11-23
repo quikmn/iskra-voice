@@ -72,7 +72,7 @@ export const events: Messages['events'] = {
   },
   dialog: {
     title: 'Wydarzenia',
-    on: 'na serwerze {{server}}',
+    on: '– {{server}}',
     schedule: 'Zaplanuj wydarzenie',
     empty: 'Nic jeszcze nie zaplanowano',
     emptyCreate: 'Zaplanuj wieczór gier, film albo spotkanie. Inni mogą zaznaczyć zainteresowanie i dostać przypomnienie przed początkiem.',

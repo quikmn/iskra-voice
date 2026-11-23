@@ -291,7 +291,7 @@ export const settings: Messages['settings'] = {
     programFile: 'Plik programu',
   },
   invite: {
-    title: 'Zaproś znajomych na serwer {{name}}',
+    title: 'Zaproś na serwer {{name}}',
     intro: 'Wyślij ten link znajomej osobie. Po otwarciu wybierze nazwę i dołączy.',
     creating: 'Tworzenie linku…',
     expiresAfter: 'Ważność',
