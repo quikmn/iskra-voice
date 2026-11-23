@@ -224,7 +224,7 @@ export const moderation: Messages['moderation'] = {
     timeout: '{{actor}} wysyła użytkownika {{target}} na przerwę ({{duration}})',
     timeoutRemove: '{{actor}} kończy przerwę użytkownika {{target}}',
     role: '{{actor}} zmienia rolę użytkownika {{target}}: {{from}} → {{to}}',
-    rolesBoth: '{{actor}} zmienia role użytkownika {{target}}: nadaje {{added}}, odbiera {{removed}} ({{target}})',
+    rolesBoth: '{{actor}} nadaje użytkownikowi {{target}} role: {{added}} i odbiera użytkownikowi {{target}} role: {{removed}}',
     rolesAdded: '{{actor}} nadaje użytkownikowi {{target}} role: {{added}}',
     rolesRemoved: '{{actor}} odbiera użytkownikowi {{target}} role: {{removed}}',
     rolesChanged: '{{actor}} zmienia role użytkownika {{target}}',

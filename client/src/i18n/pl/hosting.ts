@@ -40,7 +40,7 @@ export const hosting: Messages['hosting'] = {
     natPublic: 'Twój router ma własny publiczny adres internetowy ({{ip}}). To dobrze: po otwarciu portów znajomi połączą się z serwerem na tym komputerze.',
     natCgnat: 'Adres internetowy twojego routera ({{ip}}) jest współdzielony przez dostawcę z innymi klientami (carrier-grade NAT, 100.64.0.0/10).',
     natPrivate: 'Adres internetowy twojego routera ({{ip}}) jest prywatny: przed nim stoi inny router albo NAT dostawcy (podwójny NAT).',
-    natUnknown: 'Nie udało się zapytać routera o jego adres internetowy.',
+    natUnknown: 'Iskra nie zdołała zapytać routera o jego adres internetowy.',
     router: 'Router: {{model}}',
     routerRefused: 'Router odpowiedział, ale odmówił otwarcia części portów.',
     ports: 'Porty potrzebne znajomym',

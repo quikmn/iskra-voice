@@ -25,6 +25,7 @@ so it says "ty".
 - About `{{name}}`: the same. Prefer a noun or passive wording where the name follows a colon or "przez":
   "Przypięte przez: {{name}}", "Zaproszenie od: {{name}}". In running event lines use the present tense:
   "{{name}} dołącza do serwera", "{{name}} przypina wiadomość", "{{name}} dzwoni", "{{name}} pisze…".
+  The audit log is written this way too ("{{actor}} wyrzuca użytkownika {{target}}").
   Never "dołączył(a)", never "dołączył/a".
 - Role and person nouns keep their dictionary (masculine) form as labels: "Właściciel", "Moderator", "Członek",
   "Gość", "znajomy". Where a neutral word reads as well, prefer it: "osoba", "ktoś", "nikt".
@@ -61,7 +62,7 @@ are declined like ordinary words).
 
 **Typography.**
 
-- Quotation marks: „…” (U+201E, U+201D). Never "…" or '…' in visible text.
+- Quotation marks: „…” (U+201E, U+201D). Never "…" or '…' around words. Straight quotes stay only where the text shows literal code: JSON keys ("meta", "radius"), shell commands and file contents in the prompts for AI assistants.
 - Dash: " – " (en dash with spaces) between parts of a sentence. Hyphen only inside words ("GIF-y", "e-mail").
 - Ellipsis: "…" (one character), no space before it.
 - No space before `:` `?` `!` `;`.
@@ -125,7 +126,7 @@ never declined in a way that changes the word: write the sentence so it stays "I
 | Audit log (who changed what; never "activity log", which is games) | Dziennik zmian |
 | Sign-ins & security (never "security log" as a name) | Logowania i bezpieczeństwo |
 | Bots & webhooks | Boty i webhooki |
-| Internet access (section) / Open to the internet (its switch) | Dostęp z internetu / Otwórz na internet |
+| Internet access (section) / Open to the internet (its switch) | Dostęp z internetu / Pozwól znajomym dołączać z dowolnego miejsca (the switch's English text is "Let friends anywhere join"; the state is "otwarty na internet") |
 | Limits | Limity |
 | Backup & move | Kopia zapasowa i przenosiny |
 | Import from Discord | Import z Discorda |
@@ -230,6 +231,12 @@ Terms that aren't in the English glossary but come up often.
 | Game, round, score, lobby | Gra, runda, wynik, lobby | |
 | Quiz / trivia | Quiz | |
 | Draw & guess | Rysuj i zgaduj | |
+| Four in a row | Cztery w rzędzie | |
+| Built-in bots: Dice, Polls, Reminders, Starboard, Birthdays, Welcome, Feeds, Tags, Suggestions, Giveaways, Counting | Kości, Ankiety, Przypomnienia, Tablica gwiazdek, Urodziny, Powitania, Źródła, Tagi, Sugestie, Losowania, Liczenie | Command names and their keywords stay English: /giveaway end, /tag list, /remind me in 10m |
+| Giveaway, reroll | Losowanie, losuj ponownie | |
+| Suggestion; Suggest (button) | Sugestia; Zaproponuj | |
+| Docs: Start here page, sub-page | Strona „Zacznij tutaj”, podstrona | |
+| Sticky note (whiteboard) | Karteczka | |
 
 ### Voice and calls
 
@@ -245,7 +252,9 @@ Terms that aren't in the English glossary but come up often.
 | Noise suppression | Redukcja szumów | |
 | Captions | Napisy | Transcript: "transkrypcja" |
 | Recording | Nagranie; nagrywanie | "Nagraj", "Zatrzymaj nagrywanie" |
-| Speaker (on a stage), audience, listener | Mówca, publiczność, słuchacz | "Raise hand" → "Podnieś rękę" |
+| Speaker (on a stage), audience, listener | Mówca, publiczność, słuchacz | "Raise hand" → "Podnieś rękę"; "Ask to speak" → "Poproś o głos"; "Go live" → "Zacznij na żywo" |
+| Host (watch party) | Gospodarz | Quizmaster: "prowadzący" |
+| Hi-fi audio, echo cancellation, voice activity | Dźwięk hi-fi, usuwanie echa, aktywacja głosem | |
 | Priority speaker | Mówca priorytetowy | |
 | Whisper | Szept; "Szepcz" | Whisper key: "klawisz szeptu" |
 | AFK channel | Kanał AFK | |
@@ -284,6 +293,10 @@ Terms that aren't in the English glossary but come up often.
 | Privacy & safety | Prywatność i bezpieczeństwo | |
 | Appearance, theme | Wygląd, motyw | |
 | Assistant | Asystent | |
+| Key transparency, key log | Przejrzystość kluczy, dziennik kluczy | |
+| Keychain / keyring | Pęk kluczy | |
+| "I already use Iskra" (first-run choice) | „Mam już konto Iskra” | Quoted with this wording wherever another text points at it |
+| Profile picture / picture on this server | Zdjęcie profilowe / obraz na tym serwerze | |
 
 ### Moderation
 
@@ -297,8 +310,11 @@ Terms that aren't in the English glossary but come up often.
 | Join question | Pytanie na wejście | "pytania na wejście" |
 | Waiting to join / let in | "Czeka na wpuszczenie" / Wpuść | |
 | Raid | Rajd | |
-| Lockdown | Blokada serwera | |
-| Invite page | Strona zaproszenia | |
+| Pause / resume invites | Wstrzymaj / wznów zaproszenia | |
+| Revoke (an invite) | Unieważnij | |
+| Lock / close (a forum post) | Zablokuj odpowiedzi / zamknij post | "Zablokuj" alone means blocking a person |
+| Transfer ownership | Przekaż własność | The menu item is quoted with this exact wording elsewhere |
+| Ranked below you | "stoi niżej od ciebie", "niższa rola" | Never "ranga" |
 | Public page | Strona publiczna | |
 
 ### Hosting
@@ -312,7 +328,7 @@ Terms that aren't in the English glossary but come up often.
 | Claim a server, claim code | Przejmij serwer, kod przejęcia | |
 | Droplet (DigitalOcean) | droplet | DigitalOcean's own word |
 | Template | Szablon | |
-| Backup buddies | Zaufane kopie | A friend's server that keeps your encrypted backups; a buddy: "znajomy serwer" |
+| Backup buddies | Zaufane kopie | A friend's server that keeps your encrypted backups. One buddy: "zaufana kopia"; the other side: "serwer znajomych"; a spot: "miejsce"; pairing code: "kod parowania" |
 | Restore | Przywróć | |
 | Move (a server) | Przenieś | |
 | Update, restart | Aktualizacja / zaktualizuj, uruchom ponownie | |
@@ -324,6 +340,13 @@ Terms that aren't in the English glossary but come up often.
 | Export | Eksport, "Eksportuj" | |
 | Import | Import, "Importuj" | |
 | World (a server's data folder) | Folder serwera | |
+| Desktop app | Aplikacja na komputer | Never "aplikacja desktopowa" |
+| Tray | Zasobnik (systemowy) | |
+| Outgoing webhook | Webhook wychodzący | |
+| Signing secret | Sekret podpisywania | |
+| Build attestation | Poświadczenie kompilacji | |
+| Snapshot | Migawka | |
+| Setup text (User data) | Tekst konfiguracyjny | Provider UI labels stay English: "User data", "Droplets", "Generate New Token" |
 
 ### Common buttons
 
