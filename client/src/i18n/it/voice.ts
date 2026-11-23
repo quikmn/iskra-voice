@@ -1,10 +1,10 @@
 import type { Messages } from '../types'
 
 export const voice: Messages['voice'] = {
-  mute: 'Disattiva il microfono',
-  unmute: 'Attiva il microfono',
-  deafen: "Disattiva l'audio",
-  undeafen: "Attiva l'audio",
+  mute: 'Disattiva microfono',
+  unmute: 'Attiva microfono',
+  deafen: 'Disattiva audio',
+  undeafen: 'Attiva audio',
   speaker: 'Altoparlante',
   flipCamera: 'Passa dalla fotocamera anteriore a quella posteriore',
   flipShort: 'Gira',
@@ -16,10 +16,10 @@ export const voice: Messages['voice'] = {
   isSpeaking: '{{name}} sta parlando',
   inVoice: 'In vocale',
   hangUp: 'Riaggancia',
-  leave: 'Abbandona il vocale',
-  leaveCall: 'Abbandona la chiamata',
-  cameraOn: 'Attiva la videocamera',
-  cameraOff: 'Disattiva la videocamera',
+  leave: 'Abbandona vocale',
+  leaveCall: 'Abbandona chiamata',
+  cameraOn: 'Attiva video',
+  cameraOff: 'Disattiva video',
   stopSharing: 'Interrompi condivisione',
   bar: {
     reconnecting: 'Riconnessione…',
@@ -34,7 +34,7 @@ export const voice: Messages['voice'] = {
     voice: 'vocale',
     listeningOnly: 'Solo ascolto',
     otherDevice: "Chiamata spostata sull'altro tuo dispositivo.",
-    otherAccount: 'Hai abbandonato il vocale perché ci sei entrato come {{name}}.',
+    otherAccount: 'Hai abbandonato il vocale perché ora ci sei come {{name}}.',
     joinHere: 'Entra da qui',
   },
   stage: {

@@ -20,7 +20,7 @@ export const compliance: Messages['compliance'] = {
     servers: {
       who: 'I tuoi server',
       when: 'Sempre: messaggi, vocale, file, anteprime dei link, GIF (di norma) e il modello per i sottotitoli arrivano tutti dai server in cui entri.',
-      off: 'Ogni server vede il tuo indirizzo IP mentre sei connesso. Per smettere, abbandona il server.',
+      off: 'Ogni server vede il tuo indirizzo IP mentre lo usi. Per smettere, abbandona il server.',
     },
     embeds: {
       who: 'YouTube, Twitch, X e Reddit',
@@ -150,7 +150,7 @@ export const compliance: Messages['compliance'] = {
   },
   subjectExport: {
     title: 'Dati di una persona',
-    intro: 'Se qualcuno ti chiede i dati che questo server conserva su di lui, scaricali qui e inviaglieli in privato.',
+    intro: 'Se qualcuno ti chiede i dati che questo server conserva su quella persona, scaricali qui e inviali a lei in privato.',
     member: 'Membro',
     pick: 'Scegli un membro',
     accountKey: 'Oppure la chiave del suo account',

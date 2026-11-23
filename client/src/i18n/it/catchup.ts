@@ -2,8 +2,8 @@ import type { Messages } from '../types'
 
 export const catchup: Messages['catchup'] = {
   button: 'Rimettiti in pari',
-  buttonTitle: 'Cosa mi sono perso?',
-  title: 'Cosa ti sei perso',
+  buttonTitle: 'Cosa è successo?',
+  title: "Mentre non c'eri",
   in: 'In {{name}}',
   loading: 'Raccolta delle novità…',
   reading_one: 'Lettura di {{count}} messaggio…',

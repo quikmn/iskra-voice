@@ -63,7 +63,7 @@ export const alerts: Messages['alerts'] = {
     mentions: 'Lascia passare menzioni, risposte e messaggi diretti, senza suono',
     pushNote: 'I server che inviano notifiche a questo browser conservano una copia della tua programmazione, così anche le loro notifiche restano in silenzio.',
     digest: 'Riepilogo alla fine delle ore di silenzio',
-    digestHint: 'Una scheda mostra cosa ti sei perso, e i dispositivi con le notifiche attive ricevono una sola notifica con i conteggi.',
+    digestHint: 'Una scheda mostra cosa è successo nel frattempo, e i dispositivi con le notifiche attive ricevono una sola notifica con i conteggi.',
   },
   digest: {
     title: 'Durante il silenzio',

@@ -1,9 +1,9 @@
 import type { Messages } from '../types'
 
 export const popout: Messages['popout'] = {
-  popOutVoice: 'Apri il vocale in una finestra',
-  popOutVideo: 'Apri il video in una finestra',
-  popOutChannel: 'Apri il canale in una finestra',
+  popOutVoice: 'Apri vocale in finestra',
+  popOutVideo: 'Apri video in finestra',
+  popOutChannel: 'Apri canale in finestra',
   pictureInPicture: 'Picture-in-picture',
   popIn: "Riporta nell'app",
   alwaysOnTop: 'Sempre in primo piano',

@@ -33,7 +33,7 @@ export const productivity: Messages['productivity'] = {
   reminders: {
     notifyTitle: 'Promemoria',
     notifyBody: 'Hai chiesto un promemoria per un messaggio.',
-    upcoming: 'In arrivo',
+    upcoming: 'Prossimi',
     due: 'Da fare ora',
     none: 'Nessun promemoria. Usa «Ricordamelo» su qualsiasi messaggio.',
     at: 'Te lo ricorda {{when}}',

@@ -10,7 +10,7 @@ export const account: Messages['account'] = {
     existing: 'Uso già Iskra su un altro dispositivo',
     existingHint: 'Collega questo dispositivo al tuo account, oppure usa la chiave di recupero. I tuoi server, amici e messaggi vengono con te.',
     back: 'Indietro',
-    invitedTwice: 'Sei già qui da un altro dispositivo o browser? Scegli «Uso già Iskra». Un nuovo account compare sul server come una nuova persona.',
+    invitedTwice: 'Hai già usato questo server da un altro dispositivo o browser? Scegli «Uso già Iskra». Un nuovo account compare sul server come una nuova persona.',
   },
   signOut: {
     button: 'Esci da questo dispositivo',

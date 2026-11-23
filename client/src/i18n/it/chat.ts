@@ -183,7 +183,7 @@ export const chat: Messages['chat'] = {
     pin: 'Fissa',
     unpin: 'Non fissare più',
     pinMessage: 'Fissa messaggio',
-    unpinMessage: 'Non fissare più il messaggio',
+    unpinMessage: 'Non fissare più',
     pinned: 'Fissato',
     note: '<b>{{name}}</b> ha fissato <a>un messaggio</a>.',
   },

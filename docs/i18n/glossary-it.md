@@ -101,10 +101,10 @@ English terms as [`docs/i18n-glossary.md`](../i18n-glossary.md); format and rule
 | Ban, unban | Banna, revoca il ban | Noun: "ban"; banned people: "utenti bannati" / "Ban" as a list title |
 | Time out / timeout | Metti in timeout / timeout | Remove: "Togli il timeout" |
 | Slowmode | Modalità lenta | |
-| Mute (yourself) / Deafen | Disattiva il microfono / Disattiva l'audio | Unmute / undeafen: "Attiva il microfono" / "Attiva l'audio". States: "Microfono disattivato", "Audio disattivato" |
-| Mute (someone else, for you) / Server mute | Silenzia / Silenzia sul server | Also for muting a channel's, server's or chat's notifications: "Silenzia". Undo: "Riattiva l'audio" for a person, "Riattiva le notifiche" for a channel |
+| Mute (yourself) / Deafen | Disattiva il microfono / Disattiva l'audio | Unmute / undeafen: "Attiva il microfono" / "Attiva l'audio". On buttons, without the article: "Disattiva microfono", "Attiva audio". States: "Microfono disattivato", "Audio disattivato" |
+| Mute (someone else, for you) / Server mute | Silenzia / Silenzia sul server | Also for muting a channel's, server's or chat's notifications: "Silenzia". Undo: "Riattiva l'audio" for a person, "Riattiva notifiche" for a channel or server |
 | Push to talk | Premi per parlare | |
-| Pin, unpin | Fissa, non fissare più | Pinned messages: "messaggi fissati". Never "pinnare" |
+| Pin, unpin | Fissa, non fissare più | Pinned messages: "messaggi fissati". In a sentence about someone else: "ha tolto dai fissati". Never "pinnare" |
 | Report (noun) | Segnalazione | Verb: "Segnala" |
 | Upload | Carica | Noun: "caricamento". Download: "Scarica", "download" |
 | Preview | Anteprima | As a verb: "Mostra anteprima" |
@@ -226,7 +226,7 @@ English terms as [`docs/i18n-glossary.md`](../i18n-glossary.md); format and rule
 | Voice (place) | Vocale ("in vocale", "Abbandona il vocale") | |
 | Call, group call | Chiamata, chiamata di gruppo | "{{name}} is calling": "{{name}} ti sta chiamando" |
 | Hang up | Riaggancia | |
-| Camera | Videocamera | |
+| Camera | Videocamera | On the call buttons, where there is little room: "Attiva video" / "Disattiva video" |
 | Microphone / Speaker / Headphones | Microfono / Altoparlante / Cuffie | A person speaking on stage: "relatore" |
 | Share your screen / screen share | Condividi lo schermo / condivisione schermo | |
 | Stream, streamer mode | Diretta, modalità streamer | |
@@ -262,8 +262,42 @@ English terms as [`docs/i18n-glossary.md`](../i18n-glossary.md); format and rule
 | Feed | Feed | |
 | Assistant | Assistente | |
 | Doc (shared document) | Documento | |
-| Bug report | Segnalazione di bug | "Report a bug": "Segnala un bug" |
+| Bug report | Segnalazione di bug | "Report a bug": "Segnala un bug". Bug inbox: "casella dei bug" |
 | What's new | Novità | |
 | Data request, data export (compliance) | Richiesta dei dati, esportazione dei dati | |
-| Buddy (game buddies) | Compagno di gioco | |
+| Backup buddy | Amico di backup | The friend's server that keeps encrypted backups. Pairing code: "codice di abbinamento"; spot: "posto" |
 | Streamer mode | Modalità streamer | |
+| Let friends anywhere join (the switch in Internet access) | Fai entrare amici da ovunque | |
+| Lobby / room (join to create) | Lobby / stanza | "Stanza" only for these temporary voice rooms; a locked room is "chiusa" |
+| Host (watch party, room) | Host | Masculine, invariable: "l'host" |
+| Public page | Pagina pubblica | |
+| Giveaway | Giveaway | Masculine, invariable. Reroll: "ripeti il sorteggio" |
+| Suggestion | Suggerimento | |
+| Tag | Tag | Masculine, invariable |
+| Counting | Conteggio | Streak: "serie" |
+| Starboard | Starboard | The built-in bot's name |
+| Outgoing webhook | Webhook in uscita | Signing secret: "segreto di firma" |
+| Docs channel, page, Start here | Canale documenti, pagina, «Inizia da qui» | |
+| Media channel | Canale media | |
+| Key transparency, key log | Trasparenza delle chiavi, registro delle chiavi | |
+| Keychain | Portachiavi | |
+| Claim (a server), claim code | Rivendica, codice di rivendicazione | |
+| Hi-fi audio | Audio hi-fi | |
+| Captions | Sottotitoli | |
+| Warning (moderation) | Avvertimento | An alert (AutoMod, system): "avviso" |
+| Rank (roles) | Grado | "di grado inferiore al tuo" |
+| Inbox | In arrivo | |
+| Priority speaker | Voce prioritaria | |
+| Keybinds | Tasti rapidi | Keyboard shortcuts: "scorciatoie da tastiera" |
+| Tray | Area di notifica | |
+| Dismiss | Ignora | A handled report: "Archivia" |
+
+### Sentences built from parts
+
+- A text that puts "You" or a name in front of a verb (`{{who}} added {{targets}}`) can't be conjugated for both, so
+  the Italian is a passive with the agent at the end: "Nuovi partecipanti aggiunti da {{who}}: {{targets}}", "Gruppo
+  rinominato in {{name}} da {{who}}". The word for "you" in those keys is "te".
+- Log and list lines about a person use a noun instead of a participle: "Ingresso di {{name}}", "Ingresso:
+  {{invite}}", "Accesso non riuscito".
+- Bot commands keep their English words, which is what the server reads: `/birthday set 14/3`, `/remind me in 10m …`,
+  `/tag list`. Dates in examples are numeric (day/month), which the server accepts in every language.
