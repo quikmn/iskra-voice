@@ -125,7 +125,7 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 120px 24px 80px;
+    padding: 88px 24px 32px;
   }
 
   .hero-badge {
@@ -139,7 +139,7 @@
     font-size: 0.8rem;
     font-weight: 500;
     color: #a89fff;
-    margin-bottom: 32px;
+    margin-bottom: 20px;
     animation: fadeUp 0.6s ease both;
   }
 
@@ -157,7 +157,7 @@
   }
 
   .hero h1 {
-    font-size: clamp(3rem, 8vw, 6.5rem);
+    font-size: clamp(2.6rem, min(7vw, 9.5vh), 6rem);
     font-weight: 900;
     line-height: 1.0;
     letter-spacing: -0.04em;
@@ -175,10 +175,10 @@
   }
 
   .hero-sub {
-    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+    font-size: clamp(1.05rem, 2vw, 1.3rem);
     font-weight: 400;
     color: var(--muted);
-    margin-bottom: 48px;
+    margin-bottom: 28px;
     max-width: 760px;
     line-height: 1.5;
     text-wrap: balance;
@@ -197,7 +197,7 @@
   }
 
   .btn-hero {
-    padding: 14px 32px;
+    padding: 11px 28px;
     font-size: 1rem;
     border-radius: 10px;
   }
@@ -214,7 +214,7 @@
     font-weight: 500;
     color: #6ee7b7;
     text-decoration: none;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
     animation: fadeUp 0.6s ease both;
     transition: background 0.15s, border-color 0.15s;
   }
@@ -226,9 +226,9 @@
     align-items: center;
     gap: 24px;
     width: 100%;
-    max-width: 760px;
-    margin-top: 36px;
-    padding: 20px 24px;
+    max-width: 880px;
+    margin-top: 24px;
+    padding: 14px 20px;
     border-radius: 16px;
     border: 1px solid rgba(52,211,153,0.3);
     background: linear-gradient(135deg, rgba(52,211,153,0.10), rgba(124,111,255,0.06));
@@ -236,16 +236,17 @@
     animation: fadeUp 0.6s 0.5s ease both;
   }
   .hero-do-text { flex: 1; }
-  .hero-do-text strong { display: block; color: #fff; font-size: 1.05rem; margin-bottom: 4px; }
-  .hero-do-text p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.55; }
-  .hero-do-text small { display: block; margin-top: 8px; color: var(--muted); font-size: 0.75rem; opacity: 0.8; }
+  .hero-do-text strong { display: block; color: #fff; font-size: 1rem; margin-bottom: 2px; }
+  .hero-do-text p { margin: 0; color: var(--muted); font-size: 0.85rem; line-height: 1.45; }
+  .hero-do-text small { display: block; margin-top: 4px; color: var(--muted); font-size: 0.75rem; opacity: 0.8; }
   .hero-do .btn { flex-shrink: 0; white-space: nowrap; }
   @media (max-width: 640px) {
+    .hero-news { font-size: 0.78rem; padding: 6px 12px; }
     .hero-do { flex-direction: column; align-items: stretch; text-align: center; gap: 16px; padding: 18px; }
   }
 
   .hero-note {
-    margin-top: 20px;
+    margin-top: 14px;
     font-size: 0.8rem;
     color: var(--muted);
     animation: fadeUp 0.6s 0.4s ease both;
@@ -1249,7 +1250,7 @@
 <!-- HERO -->
 <div class="hero">
   <a class="hero-news" href="https://marketplace.digitalocean.com/apps/iskra?refcode=5ed476bab2ca" target="_blank" rel="noopener" title="Our referral link: Iskra gets a little DigitalOcean credit that helps pay for our own server. You pay DigitalOcean directly.">
-    <strong>New:</strong> Iskra is on the DigitalOcean Marketplace →
+    <strong>New:</strong> Iskra is on the DigitalOcean Marketplace&nbsp;→
   </a>
   <div class="hero-badge">
     <span class="dot"></span>
@@ -1286,8 +1287,8 @@
   <div class="hero-do">
     <div class="hero-do-text">
       <strong>We're happy to say Iskra is now on the DigitalOcean Marketplace</strong>
-      <p>One-click install: DigitalOcean sets up a server with Iskra on it, and you open it in the app as its owner. It stays up when your PC is off.</p>
-      <small>Our referral link: Iskra gets a little DigitalOcean credit that helps pay for our own server. You pay DigitalOcean directly.</small>
+      <p>One-click install: DigitalOcean sets up the server, you open it in the app as its owner.</p>
+      <small>Our referral link: Iskra gets a little DigitalOcean credit. You pay DigitalOcean directly.</small>
     </div>
     <a class="btn btn-primary" href="https://marketplace.digitalocean.com/apps/iskra?refcode=5ed476bab2ca&amp;action=deploy" target="_blank" rel="noopener">Deploy on DigitalOcean</a>
   </div>
