@@ -3,6 +3,9 @@
    slides under the navigation bar. */
 .org-sheet:has(> .message-menu) { overflow: hidden; }
 .org-sheet > .message-menu { background: none; border-radius: 0; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+/* The list scrolls; its groups keep their height. (They clip their corners, so a grid row may shrink below its rows and
+   hide the last ones: on a small phone Forward, Pin, Edit, Save, Remind and Mark as unread were gone.) */
+.org-sheet > .message-menu { grid-auto-rows: max-content; }
 
 /* The delete confirmation quotes the message, so it's clear which one goes. */
 .delete-message-dialog .modal-body > p { margin: 0 0 var(--sp-3); }

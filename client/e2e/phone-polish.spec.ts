@@ -2,7 +2,7 @@
 // the conversation, and a sideways phone whose notch covers nothing.
 import { join } from 'node:path'
 import { devices, expect, test, type Locator, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, send, SHOTS, startServer } from './helpers'
+import { createInviteLink, hasLiveKit, joinVia, longPress, send, SHOTS, startServer } from './helpers'
 
 const { defaultBrowserType: _p, ...pixel } = devices['Pixel 7']
 /** A small phone (360 × 640), as many Android phones still are. */
@@ -220,6 +220,31 @@ test('small phone: the newest message stays in view while a long message is type
     await expect(phone.getByRole('article').filter({ hasText: 'five' })).toBeVisible()
     await expect.poll(() => fromBottom(phone)).toBeLessThanOrEqual(2)
     expect((await dmBox.boundingBox())!.height, 'back to one line').toBeLessThanOrEqual(oneLine + 1)
+  } finally {
+    await server.stop()
+  }
+})
+
+test("small phone: a message's sheet scrolls, it doesn't cut rows out of its groups", async ({ browser }) => {
+  const server = await startServer('Sheet')
+  try {
+    const phone = await (await browser.newContext(small)).newPage()
+    await joinVia(phone, server.ownerLink(), 'Host')
+    await send(phone, 'hold me')
+    await expect(phone.locator('.message.sending')).toHaveCount(0) // the row is redrawn when the server confirms it
+    await longPress(phone, phone.locator('.message', { hasText: 'hold me' }).last())
+    const sheet = phone.locator('.action-sheet')
+    await expect(sheet).toBeVisible()
+    await phone.waitForTimeout(300)
+    // Every group is as tall as its rows: none is squeezed with a row hidden inside it.
+    const squeezed = await sheet.locator('.org-group').evaluateAll((groups) => groups.filter((g) => g.scrollHeight > g.clientHeight + 1).map((g) => g.textContent))
+    expect(squeezed).toEqual([])
+    // The rows a squeezed sheet lost: they are there, and the last one scrolls into view.
+    await expect(sheet.getByRole('menuitem', { name: 'Forward' })).toBeVisible()
+    const last = sheet.getByRole('menuitem').last()
+    await last.scrollIntoViewIfNeeded()
+    await expect(last).toBeInViewport({ ratio: 1 })
+    await phone.screenshot({ path: join(SHOTS, 'phone-polish-message-sheet.png'), animations: 'disabled' })
   } finally {
     await server.stop()
   }
