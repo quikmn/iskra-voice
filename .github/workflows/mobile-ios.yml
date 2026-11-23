@@ -70,7 +70,8 @@ jobs:
   # Build, cloud-sign and check (about 5 minutes); the signed .ipa and its version numbers become the artifact
   # iskra-ios-<ref>, which the upload jobs (below, or finalize's) take.
   build:
-    runs-on: macos-latest
+    # Apple requires the iOS 27 SDK for uploads from April 2027 (ITMS-90725); macos-latest only has Xcode 26.
+    runs-on: xcode-27
     timeout-minutes: 60
     outputs:
       artifact: ${{ steps.version.outputs.artifact }}
