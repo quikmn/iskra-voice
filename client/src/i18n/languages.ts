@@ -15,6 +15,7 @@ export interface LanguageInfo {
 // One line per language, sorted by code.
 export const LANGUAGE_REGISTRY = [
   { code: 'en', name: 'English', locale: 'en-US', shipped: true },
+  { code: 'ru', name: 'Русский', locale: 'ru-RU', shipped: true },
   { code: 'sv', name: 'Svenska', locale: 'sv-SE', shipped: true },
 ] as const satisfies readonly LanguageInfo[]
 
