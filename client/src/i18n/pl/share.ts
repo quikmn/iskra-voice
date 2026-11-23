@@ -1,0 +1,30 @@
+import type { Messages } from '../types'
+
+export const share: Messages['share'] = {
+  title: 'Udostępnij w…',
+  preview: 'Co udostępniasz',
+  message: 'Wiadomość',
+  messagePlaceholder: 'Dodaj wiadomość (opcjonalnie)',
+  skipped_one: 'Nie udało się dodać {{count}} pliku (za duży albo ponad limit 10).',
+  skipped_few: 'Nie udało się dodać {{count}} plików (za duże albo ponad limit 10).',
+  skipped_many: 'Nie udało się dodać {{count}} plików (za duże albo ponad limit 10).',
+  skipped_other: 'Nie udało się dodać {{count}} pliku (za duże albo ponad limit 10).',
+  sendToLabel: 'Wyślij do',
+  search: 'Szukaj kanałów, osób i grup',
+  places: 'Miejsca, w których możesz udostępnić',
+  recent: 'Ostatnie',
+  everywhere: 'Wszędzie',
+  nothing: 'Nic nie pasuje.',
+  loading: 'Łączenie z twoimi serwerami…',
+  noServers: 'Najpierw dołącz do serwera, a potem udostępnisz tutaj.',
+  dm: 'Wiadomość prywatna',
+  group: 'Grupa · {{server}}',
+  sendTo: 'Wyślij do: {{target}}',
+  sending: 'Wysyłanie… {{percent}}',
+  errors: {
+    empty: 'Nie ma nic do wysłania.',
+    offline: 'Ten serwer nie jest teraz połączony. Spróbuj ponownie za chwilę.',
+    tooBig: 'Plik {{name}} jest większy, niż pozwala ten serwer ({{max}}).',
+    fileGone: 'Plik {{name}} nie jest już dostępny. Udostępnij go ponownie.',
+  },
+}
