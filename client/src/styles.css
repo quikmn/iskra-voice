@@ -1195,3 +1195,16 @@ input[type='checkbox'], input[type='radio'] { width: auto; padding: 0; flex: non
 .terms-first .terms-hint { margin: 0; text-align: center; }
 .terms-hint.done { visibility: hidden; }
 .onboarding-question { margin-bottom: var(--sp-3); }
+
+/* ── Touch screens ───────────────────────────────────────────────────── */
+/* No grey or blue flash over what was tapped: buttons and rows show their own pressed and hover states. */
+html { -webkit-tap-highlight-color: transparent; }
+@media (pointer: coarse) {
+  /* Nobody presses Esc on a touch screen (a phone held sideways, a tablet). */
+  .room-esc { display: none; }
+}
+/* Wider than a phone (a phone held sideways, a tablet): iOS zooms the page in when a field whose text is under 16px
+   gets focus, and doesn't zoom back. Phones in portrait get 16px from the phone layout above. */
+@media (pointer: coarse) and (min-width: 761px) {
+  :root:root :is(input:not([type='checkbox'], [type='radio'], [type='range']), textarea, select) { font-size: 16px; }
+}

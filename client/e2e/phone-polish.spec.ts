@@ -104,7 +104,17 @@ test('a sideways phone: settings and toasts keep clear of the notch', async ({ b
       expect(box.x, 'clear of the left inset').toBeGreaterThanOrEqual(47)
       expect(box.x + box.width, 'clear of the right inset').toBeLessThanOrEqual(width - 47)
     }
+    // No "Esc" hint where there is no keyboard.
+    await expect(dialog.locator('.room-esc')).toBeHidden()
     await page.screenshot({ path: join(SHOTS, 'phone-polish-landscape-settings.png'), animations: 'disabled' })
+    // iOS zooms the page when a field with text under 16px gets focus: no field here is smaller.
+    const fieldSizes = async () => page.locator('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=hidden]), textarea, select')
+      .evaluateAll((els) => els.filter((el) => el.getClientRects().length).map((el) => parseFloat(getComputedStyle(el).fontSize)))
+    expect(Math.min(...(await fieldSizes()))).toBeGreaterThanOrEqual(16)
+    await dialog.getByRole('button', { name: 'Close' }).click()
+    await page.getByRole('button', { name: 'Invite friends' }).click()
+    await expect(page.locator('.copy-row input')).toBeVisible()
+    expect(Math.min(...(await fieldSizes()))).toBeGreaterThanOrEqual(16)
     await context.close()
   } finally {
     await server.stop()
