@@ -669,6 +669,6 @@ export const errors: Messages['errors'] = {
     record_none: 'Nikt nie prosi o nagrywanie tej rozmowy.',
     record_notice_delete: 'Nie możesz usunąć informacji o nagraniu tej rozmowy.',
   },
-  automodTimedOut: 'Masz przerwę na {{duration}}.',
+  automodTimedOut: 'Masz przerwę. Czas: {{duration}}.',
   generic: 'Coś poszło nie tak.',
 }
