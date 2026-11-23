@@ -2,7 +2,7 @@
 // The Capacitor packages are only imported inside the app, so the web build doesn't load them.
 
 import { accountLink, bootMode } from './accountBoot'
-import { withPlugin, type PluginListener } from './nativePlugin'
+import { enablePlugin, withPlugin, type PluginListener } from './nativePlugin'
 
 export type NativePlatform = 'ios' | 'android'
 
@@ -106,6 +106,7 @@ function listen<T>(event: string, callback: (data: T) => void): () => void {
 }
 
 function bridge(platform: NativePlatform): NativeBridge {
+  enablePlugin(platform === 'android')
   return {
     platform,
     onOpenUrl(callback) {

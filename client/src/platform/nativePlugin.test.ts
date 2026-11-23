@@ -23,8 +23,17 @@ describe('the phone app plugin', () => {
     expect(await settles(Promise.resolve().then(() => capacitorLikePlugin()))).toBe('pending')
   })
 
+  it('stays off until enabled (iOS), as before: nothing is called and nothing settles', async () => {
+    const { enablePlugin, withPlugin } = await import('./nativePlugin')
+    enablePlugin(false)
+    calls.length = 0
+    expect(await settles(withPlugin((p) => p.voiceStart({ title: 'x', call: false, video: false })))).toBe('pending')
+    expect(calls).toEqual([])
+  })
+
   it('reaches the native method', async () => {
-    const { withPlugin } = await import('./nativePlugin')
+    const { enablePlugin, withPlugin } = await import('./nativePlugin')
+    enablePlugin(true)
     calls.length = 0
     const options = { title: 'In voice: lounge', call: false, video: false }
     expect(await settles(withPlugin((p) => p.voiceStart(options)))).toBe('settled')

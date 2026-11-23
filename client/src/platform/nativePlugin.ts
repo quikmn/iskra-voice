@@ -22,8 +22,19 @@ export interface IskraNativePlugin {
 
 let loaded: Promise<{ plugin: IskraNativePlugin }> | null = null
 
-/** Runs `use` with the plugin and answers with its result. */
+// Android only for now. Until 2.0.0-alpha.46 the plugin was never reached on either platform; Android has been tried
+// in the emulator, the iOS side (CallKit, audio session, shares) has not run on a device yet. On iOS calls stay pending,
+// exactly as before, until it has been tried there.
+let enabled = false
+
+/** Turns the plugin on for this platform (native.ts, at start). */
+export function enablePlugin(on: boolean): void {
+  enabled = on
+}
+
+/** Runs `use` with the plugin and answers with its result. Never settles while the plugin is off. */
 export function withPlugin<T>(use: (plugin: IskraNativePlugin) => Promise<T> | T): Promise<T> {
+  if (!enabled) return new Promise<T>(() => undefined)
   loaded ??= import('@capacitor/core').then(({ registerPlugin }) => ({ plugin: registerPlugin<IskraNativePlugin>('IskraNative') }))
   return loaded.then(({ plugin }) => use(plugin))
 }
