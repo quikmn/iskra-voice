@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { openLayers } from '../layers'
 import { setDrawerControl, useBackHint } from './backNav'
-import { dragEndsOpen, dragProgress, swipeBlocked, swipeIntent, swipeTarget, type Drag, type Panel } from './navLogic'
+import { useVoice } from '../../state/voice'
+import { afterCallScreen, dragEndsOpen, dragProgress, swipeBlocked, swipeIntent, swipeTarget, type Drag, type Panel } from './navLogic'
 import './phone-nav.css'
 
 const PHONE = '(max-width: 760px)'
@@ -158,6 +159,31 @@ export function usePhoneNav(shell: RefObject<HTMLElement | null>, panel: Panel, 
   }, [shell])
 
   return dragging
+}
+
+/**
+ * Voice ended while its call screen was showing (`stage`: the Shell is showing it): a phone goes to the channels
+ * drawer (navLogic's afterCallScreen). If the call screen comes back by itself (a rejoin after a drop, a move by a
+ * moderator), the drawer this opened closes again.
+ */
+export function useCallEndNav(stage: boolean, panel: Panel, setPanel: (panel: Panel) => void): void {
+  const inVoice = useVoice((s) => !!s.session)
+  const was = useRef(stage)
+  const opened = useRef(false)
+  useEffect(() => {
+    if (panel !== 'nav') opened.current = false
+  }, [panel])
+  useEffect(() => {
+    const before = was.current
+    was.current = stage
+    if (before && !stage && !inVoice) {
+      if (afterCallScreen({ phone: matchMedia(PHONE).matches, reason: useVoice.getState().leftReason }) !== 'channels') return
+      setPanel('nav')
+      opened.current = true
+    } else if (!before && stage && opened.current) {
+      setPanel('none')
+    }
+  }, [stage, inVoice, setPanel])
 }
 
 /** "Press back again to leave": a short note after back on the channels drawer. */
