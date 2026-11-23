@@ -1,0 +1,33 @@
+import type { Messages } from '../types'
+
+// Ajustes del servidor → Vista general → Página pública (español).
+export const landing: Messages['landing'] = {
+  title: 'Página pública',
+  intro: 'Cuando alguien abre la dirección de este servidor en un navegador, ve una página. Mientras esté desactivada, la página solo dice que esto es un servidor de Iskra y dónde conseguir Iskra: sin nombre, imagen ni nada más sobre este servidor.',
+  enabled: 'Mostrar una página pública',
+  enabledOn: 'La página muestra el nombre, el ícono y el banner de este servidor, además de lo que elijas abajo.',
+  enabledOff: 'Desactivada: la página no dice qué servidor es este.',
+  description: 'Descripción',
+  descriptionPlaceholder: 'De qué trata este servidor, en una o dos frases',
+  descriptionHint: '{{length}} / {{max}} caracteres. Texto sin formato, visible para cualquiera que abra la página.',
+  saved: 'Descripción guardada.',
+  invite: 'Botón para unirse',
+  noInvite: 'Sin botón para unirse',
+  inviteHint: 'Cualquiera que abra la página puede usar esta invitación, así que elige una con un límite que te parezca bien. Aquí solo pueden ir invitaciones para miembros.',
+  inviteNone: 'Primero crea una invitación (Invitar amigos) y luego elígela aquí para agregar un botón para unirse.',
+  inviteGone: 'La invitación de la página ya no funciona, así que la página no tiene botón para unirse. Elige otra.',
+  invitesPaused: 'Las invitaciones están en pausa, así que la página dice que este servidor no acepta miembros nuevos por ahora.',
+  neverExpires: 'no vence nunca',
+  expires: 'vence el {{date}}',
+  usesOpen_one: '{{count}} uso',
+  usesOpen_other: '{{count}} usos',
+  usesOf_one: '{{count}} de {{max}} usado',
+  usesOf_other: '{{count}} de {{max}} usados',
+  approve: 'requiere aprobación',
+  showRules: 'Mostrar las reglas',
+  showCounts: 'Mostrar aproximadamente cuántos miembros hay y cuántos están en línea',
+  showCountsHint: 'Redondeado, para que la página nunca diga exactamente quién entra y quién sale.',
+  indexable: 'Permitir que los buscadores muestren esta página',
+  indexableHint: 'Desactivado: la página les pide a los buscadores que no la muestren.',
+  open: 'Abrir la página',
+}

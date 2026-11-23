@@ -1,0 +1,52 @@
+// Textos de las notificaciones push en español. Mismos nombres y {{variables}} que en.js.
+self.ISKRA_PUSH_TEXT = {
+  generic: 'Tienes actividad nueva.',
+  title: {
+    mention: '{{name}} en #{{channel}}',
+    reply: '{{name}} respondió en #{{channel}}',
+    encrypted: 'Mensaje nuevo en #{{channel}}',
+    dm: 'Mensaje nuevo de {{name}}',
+    calling: '{{name}} te está llamando',
+    groupCall: '{{name}} inició una llamada grupal',
+    reminder: 'Recordatorio',
+    scheduledFailed: 'Tu mensaje programado no se envió',
+    eventLive: '{{title}} empieza ahora',
+    eventSoon: 'Empieza pronto: {{title}}',
+    lfgJoined: '{{name}} se unió a tu grupo de {{game}}',
+    lfgFull: 'Tu grupo de {{game}} está completo',
+    lfgPosted: '{{name}} busca {{slots}} para {{game}}',
+    digest: 'Mientras había silencio',
+  },
+  body: {
+    openToRead: 'Abre Iskra para leerlo.',
+    groupOpenToRead: 'En un grupo. Abre Iskra para leerlo.',
+    attachment: 'Envió un archivo adjunto',
+    tapToAnswer: 'Toca para contestar.',
+    tapToJoin: 'Toca para unirte.',
+    reminderGeneric: 'Pediste que te recordáramos un mensaje.',
+    happeningChannel: 'Ahora en {{channel}}',
+    happeningVoice: 'Ahora en voz',
+    happeningAt: 'Ahora: {{place}}',
+    happening: 'Está pasando ahora',
+    inMinutesChannel: 'En {{minutes}} min, en {{channel}}',
+    inMinutesVoice: 'En {{minutes}} min, en voz',
+    inMinutesAt: 'En {{minutes}} min, {{place}}',
+    inMinutes: 'En {{minutes}} min',
+    lfgIn: 'En #{{channel}}',
+    lfgTime: '¡Hora de jugar!',
+  },
+  // Varios sin leer a la vez ({{count}} es 2 o más).
+  dmCount: '{{count}} mensajes nuevos de {{from}}',
+  groupCount: '{{count}} mensajes nuevos en un chat de grupo',
+  // Se añade tras el texto de un mensaje cuando llegaron más ({{n}} es 1 o más). El espacio inicial se conserva.
+  more: ' (+{{n}} más)',
+  // El resumen de las horas de silencio, unido con comas: "2 menciones, 1 mensaje".
+  digest: {
+    mentions: { one: '{{n}} mención', other: '{{n}} menciones' },
+    messages: { one: '{{n}} mensaje', other: '{{n}} mensajes' },
+    keywords: { one: '{{n}} palabra de alerta', other: '{{n}} palabras de alerta' },
+    follows: { one: '{{n}} publicación de alguien a quien sigues', other: '{{n}} publicaciones de personas a las que sigues' },
+    events: { one: '{{n}} evento', other: '{{n}} eventos' },
+    reminders: { one: '{{n}} recordatorio', other: '{{n}} recordatorios' },
+  },
+}

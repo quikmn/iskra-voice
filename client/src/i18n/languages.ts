@@ -16,6 +16,7 @@ export interface LanguageInfo {
 export const LANGUAGE_REGISTRY = [
   { code: 'de', name: 'Deutsch', locale: 'de-DE', shipped: true },
   { code: 'en', name: 'English', locale: 'en-US', shipped: true },
+  { code: 'es', name: 'Español', locale: 'es-ES', shipped: true },
   { code: 'fr', name: 'Français', locale: 'fr-FR', shipped: true },
   { code: 'it', name: 'Italiano', locale: 'it-IT', shipped: true },
   { code: 'pt', name: 'Português (Brasil)', locale: 'pt-BR', shipped: true },

@@ -1,0 +1,65 @@
+import type { Messages } from '../types'
+
+// Los bots integrados Destacados, Cumpleaños y Bienvenida (español).
+export const moreBots: Messages['moreBots'] = {
+  settings: {
+    show: 'Ajustes de {{name}}',
+    channel: 'Canal',
+    channelNone: 'Ninguno (en pausa)',
+    channelHint: 'El bot tiene que poder ver este canal. No necesita escribir en él.',
+    save: 'Guardar',
+    saved: 'Guardado',
+    loading: 'Cargando…',
+    invalid: {
+      threshold: 'Elige de 1 a 50 reacciones.',
+      emoji: 'Elige una reacción.',
+      time: 'Elige una hora como 09:00.',
+      template: 'Cada mensaje puede tener hasta 1000 caracteres.',
+    },
+    starboard: {
+      emoji: 'Reacción',
+      threshold: 'Reacciones necesarias',
+      hint: 'Un mensaje pasa al tablero cuando esta cantidad de personas reacciona con ella (sin contar a quien lo escribió ni a los bots). Los mensajes de canales más privados que el tablero nunca van ahí.',
+    },
+    birthdays: {
+      time: 'Hora del día',
+      timeZone: 'Zona horaria',
+      serverZone: 'La del servidor ({{zone}})',
+      hint: 'Los miembros comparten su cumpleaños con /birthday set 14/3 o en su perfil de este servidor. Solo el día y el mes, nunca el año.',
+    },
+    welcome: {
+      message: 'Mensaje de bienvenida',
+      messagePlaceholder: '👋 ¡Te damos la bienvenida a {server}, {name}!',
+      messageHint: 'Usa {name}, {server} y {memberCount}. Puedes usar Markdown. Déjalo vacío para el saludo estándar.',
+      privateMessage: 'Bienvenida privada (opcional)',
+      privatePlaceholder: '¡Hola, {name}! Primero échale un vistazo a #reglas.',
+      privateHint: 'Solo lo ve la persona recién llegada, una vez que entra.',
+      preview: 'Vista previa',
+      batchHint: 'Cuando se une mucha gente a la vez, reciben un solo saludo en conjunto en lugar de uno por persona.',
+    },
+  },
+  reply: {
+    star: '{{name}} en #{{channel}}',
+    jump: 'Ir al mensaje',
+    birthday: '🎂 ¡Hoy es el cumpleaños de {{names}}!',
+    birthdaySet: '🎂 Guardado: {{date}}. Solo se guardan el día y el mes.',
+    birthdayRemoved: '🎂 Tu cumpleaños se quitó de este servidor.',
+    birthdayList: '🎂 Próximos:',
+    birthdayListNone: '🎂 No hay cumpleaños en los próximos dos meses.',
+    birthdayUsage: '🎂 Prueba con /birthday set 14/3, /birthday remove o /birthday list. Solo el día y el mes, nunca el año.',
+    welcome: '👋 ¡Te damos la bienvenida a {{server}}, {{name}}!',
+    welcomeBatch: '👋 Se unieron {{count}} personas: {{names}}. ¡Les damos la bienvenida!',
+    more_one: '{{count}} más',
+    more_other: '{{count}} más',
+    onlyYou: 'Solo tú puedes ver esto',
+  },
+  profile: {
+    label: 'Cumpleaños',
+    hint: 'Se comparte con el bot Cumpleaños de este servidor, que te desea feliz cumpleaños. Solo el día y el mes, nunca el año.',
+    month: 'Mes',
+    day: 'Día',
+    save: 'Guardar cumpleaños',
+    saved: 'Guardado',
+    removed: 'Quitado',
+  },
+}
