@@ -8,6 +8,7 @@ import { useServerInfo } from '../state/serverName'
 import { InviteIcon } from './dialogs/JoinDialog'
 import { OpenInApp } from './OpenInApp'
 import { LinkJoin } from './LinkJoin'
+import { useEscapeLayer } from './layers'
 import { needsAcceptance, useTerms, useTermsAccepted } from '../state/terms'
 import { takeDeletedNotice } from '../state/accountDeletion'
 import { TermsFirst } from './safety/Terms'
@@ -33,6 +34,8 @@ export function Onboarding() {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [recoveryKey, setRecoveryKey] = useState('')
+  // Back (the phone's button, the browser's) goes up one step, like the Back links; the first step leaves as usual.
+  useEscapeLayer(() => setMode(mode === 'recovery' ? 'existing' : 'choose'), mode !== 'choose' && mode !== 'link', { backOnly: true })
   const restoring = mode === 'recovery'
   const trimmed = name.trim()
   const seed = restoring ? decodeRecoveryKey(recoveryKey) : null

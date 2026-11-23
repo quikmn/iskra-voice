@@ -1,5 +1,5 @@
 // Forum dialogs: writing a new post, and the admin's tag editor.
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import type { Channel, FileInfo, ForumTag } from '../../core/protocol'
@@ -28,11 +28,20 @@ interface Upload {
   abort: AbortController
 }
 
+/** A post being written, per forum: closing the dialog (back, Escape, a tap outside) keeps it for next time. */
+const unposted = new Map<string, { title: string; text: string; picked: number[] }>()
+
 export function NewPostDialog({ server, forum, tags, onClose }: { server: ServerState; forum: Channel; tags: ForumTag[]; onClose: () => void }) {
   const { t } = useTranslation()
-  const [title, setTitle] = useState('')
-  const [text, setText] = useState('')
-  const [picked, setPicked] = useState<number[]>([])
+  const draftKey = `${server.key}:${forum.id}`
+  const [kept] = useState(() => unposted.get(draftKey))
+  const [title, setTitle] = useState(kept?.title ?? '')
+  const [text, setText] = useState(kept?.text ?? '')
+  const [picked, setPicked] = useState<number[]>(() => (kept?.picked ?? []).filter((id) => tags.some((tag) => tag.id === id)))
+  useEffect(() => {
+    if (title || text || picked.length) unposted.set(draftKey, { title, text, picked })
+    else unposted.delete(draftKey)
+  }, [draftKey, title, text, picked])
   const [uploads, setUploads] = useState<Upload[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,6 +69,7 @@ export function NewPostDialog({ server, forum, tags, onClose }: { server: Server
     try {
       const body = encodeEmoji(encodeMentions(text.trim(), Object.values(server.members)), emojis)
       const created = await createPost(server.key, forum.id, title.trim(), body, picked, ready.map((f) => f.id))
+      unposted.delete(draftKey)
       openPost(server.key, created)
       onClose()
     } catch (e) {

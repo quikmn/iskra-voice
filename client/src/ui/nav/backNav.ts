@@ -1,6 +1,17 @@
 // The back button, one way everywhere: Android's back (button or edge gesture) in the phone app, and the browser's
 // back in the web app. Back closes the top layer (Escape's stack in layers.ts); with nothing open on a phone it shows
 // the channels drawer, and on the drawer it goes back to the channel; a second back within two seconds leaves.
+//
+// The rules, top first (navLogic.ts decides, this file acts):
+//   1. a full-screen video leaves full screen;
+//   2. the top layer closes: a menu, sheet, dialog, picker, viewer, thread or post, search, a drawer. A layer may go up
+//      a level instead (its `back`): a settings section to the list, a menu's or dialog's second page to its first, a
+//      sign-in step to the one before. A settings form with unsaved changes holds (kit/unsaved.ts);
+//   3. a phone shows the channels drawer (a call carries on in the voice bar);
+//   4. on the drawer, back returns to the channel and "Press back again to leave" shows; a second press leaves (the
+//      phone app goes to the background and voice keeps going; a browser steps back out of the page).
+// Typed text stays: message drafts per conversation (state/drafts.ts), a forum post being written (ForumDialogs).
+// When voice ends on a phone's call screen, the channels drawer shows (PhoneNav's useCallEndNav).
 import { create } from 'zustand'
 import { native } from '../../platform/native'
 import { accountLink } from '../../platform/accountBoot'
@@ -46,11 +57,14 @@ function disarm(): void {
 export function pressBack(): BackAction {
   const top = topLayer()
   const action = backAction({
-    top: !top ? 'none' : top.kind === 'nav' ? 'nav' : 'layer',
+    top: document.fullscreenElement ? 'fullscreen' : !top ? 'none' : top.kind === 'nav' ? 'nav' : 'layer',
     drawer: !!drawer && phoneWidth(),
     armed: useBackHint.getState().until > Date.now(),
   })
   switch (action) {
+    case 'exit-fullscreen':
+      void document.exitFullscreen().catch(() => undefined)
+      break
     case 'close-layer':
       top!.back()
       break
@@ -105,7 +119,7 @@ function onPopState(): void {
   if (/^#\/(open|join|link)\//.test(location.hash)) return
   // Wide windows have no drawer: with nothing open, back just leaves, as on any page.
   const wide = !drawer || !phoneWidth()
-  if ((wide && !topLayer()) || pressBack() === 'exit') return leavePage()
+  if ((wide && !topLayer() && !document.fullscreenElement) || pressBack() === 'exit') return leavePage()
   // Landing on the guard means an entry above it (a link that was opened) was popped: it's still in place.
   ensureGuard()
 }
@@ -125,7 +139,7 @@ export function installBackNav(): void {
     // Next to other accounts on this device the host page keeps the history entry and asks the account on screen.
     accountLink.setBack(() => {
       const wide = !drawer || !phoneWidth()
-      return (wide && !topLayer()) || pressBack() === 'exit' ? 'exit' : 'handled'
+      return (wide && !topLayer() && !document.fullscreenElement) || pressBack() === 'exit' ? 'exit' : 'handled'
     })
     return
   }

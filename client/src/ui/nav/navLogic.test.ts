@@ -1,6 +1,24 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
-import { backAction, dragEndsOpen, dragProgress, swipeBlocked, swipeIntent, swipeTarget } from './navLogic'
+import { VOICE_LEFT_REASONS } from '../../state/voiceLeft'
+import { afterCallScreen, backAction, dragEndsOpen, dragProgress, swipeBlocked, swipeIntent, swipeTarget } from './navLogic'
+
+describe('when voice ends on the call screen', () => {
+  it('a phone shows the channels, whoever ended it', () => {
+    for (const reason of VOICE_LEFT_REASONS.filter((r) => r !== 'switched')) {
+      expect(afterCallScreen({ phone: true, reason })).toBe('channels')
+    }
+    expect(afterCallScreen({ phone: true, reason: null })).toBe('channels')
+  })
+
+  it('moving to another channel or call opens nothing: that screen shows next', () => {
+    expect(afterCallScreen({ phone: true, reason: 'switched' })).toBe('stay')
+  })
+
+  it('wide windows stay as they are', () => {
+    for (const reason of VOICE_LEFT_REASONS) expect(afterCallScreen({ phone: false, reason })).toBe('stay')
+  })
+})
 
 describe('back', () => {
   it('closes the top layer first, whatever else is going on', () => {
@@ -20,6 +38,11 @@ describe('back', () => {
   it('leaves on a second press while armed', () => {
     expect(backAction({ top: 'none', drawer: true, armed: true })).toBe('exit')
     expect(backAction({ top: 'nav', drawer: true, armed: true })).toBe('exit')
+  })
+
+  it('leaves a full-screen video before anything else', () => {
+    expect(backAction({ top: 'fullscreen', drawer: true, armed: false })).toBe('exit-fullscreen')
+    expect(backAction({ top: 'fullscreen', drawer: false, armed: true })).toBe('exit-fullscreen')
   })
 
   it('without a drawer (wide screens, sign-in) arms, then leaves', () => {

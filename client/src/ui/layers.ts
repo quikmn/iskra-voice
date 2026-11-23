@@ -1,14 +1,18 @@
 // Escape closes only the top layer (modal, popover, sheet), however many are open.
 import { useEffect, useRef, useState, type RefObject } from 'react'
 
-/** `back`: what the phone's back button does on this layer (default: close). `kind: 'nav'` marks the channels drawer. */
-export interface LayerOptions { back?: () => void; kind?: 'nav' }
+/**
+ * `back`: what the phone's back button does on this layer (default: close). `kind: 'nav'` marks the channels drawer.
+ * `backOnly`: a step of a page rather than something open on top (a sign-in step): back goes up from it, Escape and
+ * swipes don't see it.
+ */
+export interface LayerOptions { back?: () => void; kind?: 'nav'; backOnly?: boolean }
 const stack: { close: () => void; options: () => LayerOptions | undefined }[] = []
 
 function onKey(e: KeyboardEvent) {
   // Something inside already handled it (an inline editor, a reply being cancelled).
   if (e.key !== 'Escape' || e.defaultPrevented) return
-  const top = stack.at(-1)
+  const top = stack.findLast((layer) => !layer.options()?.backOnly)
   if (!top) return
   e.preventDefault()
   top.close()
@@ -36,7 +40,7 @@ export function useEscapeLayer(onClose: () => void, active = true, options?: Lay
 }
 
 /** How many layers are open (for tests and global shortcuts that shouldn't fire under a dialog). */
-export const openLayers = () => stack.length
+export const openLayers = () => stack.filter((layer) => !layer.options()?.backOnly).length
 
 /** The top layer, for the back button: its kind and what back does on it. */
 export function topLayer(): { kind?: 'nav'; back: () => void } | null {

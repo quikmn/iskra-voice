@@ -59,6 +59,9 @@
 .k-savebar-note { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .k-savebar.saved .k-savebar-note { color: var(--green); font-weight: var(--fw-medium); }
 .k-savebar-actions { display: flex; gap: var(--sp-2); margin-left: auto; }
+/* Leaving with unsaved changes: the bar stands out (the colour stays when motion is reduced). */
+.k-savebar.nudge { border-color: var(--red); background: color-mix(in srgb, var(--red) 14%, var(--float)); animation: k-savebar-nudge 0.4s; }
+@keyframes k-savebar-nudge { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
 
 /* Badge: a small status tag. */
 .k-badge {

@@ -4,6 +4,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { parseLinkCode } from '../core/link'
 import { cancelLinkJoin, joinWithCode, useLinkJoin } from '../state/link'
 import { Spinner } from './bits'
+import { useEscapeLayer } from './layers'
 import { QrScanner } from './QrScanner'
 
 let autoStarted: string | null = null
@@ -28,6 +29,8 @@ export function LinkJoin({ initialCode, onBack, autoStart = true }: { initialCod
     cancelLinkJoin()
     onBack()
   }
+  // The phone's back button is the Back (or Cancel) link; while the history is coming over there's none, and back waits.
+  useEscapeLayer(() => { if (state.phase !== 'history' && state.phase !== 'finishing') back() }, true, { backOnly: true })
 
   if (state.phase === 'connecting') {
     return (

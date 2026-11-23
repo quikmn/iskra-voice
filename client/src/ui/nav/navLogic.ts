@@ -1,8 +1,8 @@
 // Phone navigation, the pure parts: what the back button does, and whether a touch is a drawer swipe.
 // The wiring (history, Capacitor's back button, touch events) is in backNav.ts and PhoneNav.tsx.
 
-/** What's on top when back is pressed. `nav`/`members`: that drawer and nothing above it. */
-export type BackTop = 'none' | 'layer' | 'nav'
+/** What's on top when back is pressed. `nav`: the channels drawer and nothing above it. `fullscreen`: a video filling the screen. */
+export type BackTop = 'none' | 'layer' | 'nav' | 'fullscreen'
 
 export interface BackState {
   top: BackTop
@@ -13,6 +13,7 @@ export interface BackState {
 }
 
 export type BackAction =
+  | 'exit-fullscreen' // a full-screen video: back to the app's own screen
   | 'close-layer' // the top menu, sheet, dialog, viewer, panel or settings page
   | 'open-nav' // in a channel: show the channels drawer
   | 'close-nav' // the drawer: back to the channel, and arm the exit
@@ -21,10 +22,24 @@ export type BackAction =
 
 /** One press of back. */
 export function backAction({ top, drawer, armed }: BackState): BackAction {
+  if (top === 'fullscreen') return 'exit-fullscreen'
   if (top === 'layer') return 'close-layer'
   if (armed) return 'exit'
   if (top === 'nav') return 'close-nav'
   return drawer ? 'open-nav' : 'arm'
+}
+
+// ── Where a phone lands when voice ends ──
+
+/**
+ * The call screen (a voice or stage channel, full screen on a phone) closed because voice ended. `reason` is
+ * VoiceLeftReason (state/voiceLeft.ts). On a phone the channels drawer opens, whoever ended it (you, a moderator, the
+ * server, the network): you pick where to go, and the voice bar there says why or offers "Join here". Not when voice
+ * only moves to another channel or call (`switched`): that screen shows next. Wide windows have the channels beside
+ * the chat already. DM and group calls end in their own conversation, so they never get here.
+ */
+export function afterCallScreen({ phone, reason }: { phone: boolean; reason: string | null }): 'channels' | 'stay' {
+  return phone && reason !== 'switched' ? 'channels' : 'stay'
 }
 
 /** How long "Press back again to leave" waits for the second press. */

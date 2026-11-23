@@ -16,6 +16,7 @@ import { usePendingJoins } from '../../state/joins'
 import { Avatar } from '../bits'
 import { Ban, Bell, Bot, Camera, ChevronLeft, ChevronRight, Close, EyeOff, Headphones, Info, Key, Languages, Lock, Monitor, Palette, Settings, ShieldCheck, Smartphone, Sparkles, User } from '../icons'
 import { useEscapeLayer, useFocusTrap } from '../layers'
+import { holdForUnsaved } from '../kit/unsaved'
 import { serverColor } from '../serverColor'
 import { desktop } from '../../platform/desktop'
 import { VoiceSettingsSection } from '../dialogs/VoiceSettings'
@@ -144,12 +145,15 @@ function Takeover<Id extends string>({ kind, label, style, band, crumb, groups, 
   const [picked, setPicked] = useState<Id | null>(initial && all.some((s) => s.id === initial) ? initial : isPhone() ? null : all[0]?.id ?? null)
   // A section can vanish (rights changed); wide screens always show one.
   const current = all.find((s) => s.id === picked) ?? (phone ? null : all[0] ?? null)
+  // Every way out of a section (back, Escape, close, another section) waits while its form has unsaved changes.
+  const close = () => { if (!holdForUnsaved()) onClose() }
+  const pick = (id: Id | null) => { if (id === current?.id || !holdForUnsaved()) setPicked(id) }
   // The back button (phone or browser) goes up a level from a phone section page, then closes.
-  useEscapeLayer(onClose, true, { back: () => (phone && current ? setPicked(null) : onClose()) })
+  useEscapeLayer(close, true, { back: () => (phone && current ? pick(null) : close()) })
   useFocusTrap(ref)
 
   const closeButton = (
-    <button className="icon-button room-close" onClick={onClose} aria-label={t('common.close')} title={t('settings.room.closeHint')}>
+    <button className="icon-button room-close" onClick={close} aria-label={t('common.close')} title={t('settings.room.closeHint')}>
       <Close />
     </button>
   )
@@ -163,7 +167,7 @@ function Takeover<Id extends string>({ kind, label, style, band, crumb, groups, 
               key={s.id}
               className={`settings-nav-item ${current?.id === s.id ? 'active' : ''}`}
               aria-current={current?.id === s.id ? 'page' : undefined}
-              onClick={() => setPicked(s.id)}
+              onClick={() => pick(s.id)}
             >
               {s.icon && <span className="settings-nav-icon" aria-hidden>{s.icon}</span>}
               <span className="settings-nav-label">{s.label}</span>
@@ -181,7 +185,7 @@ function Takeover<Id extends string>({ kind, label, style, band, crumb, groups, 
       role="dialog" aria-modal="true" aria-label={label} ref={ref} tabIndex={-1}>
       {phone && current ? (
         <header className="room-slim">
-          <button className="icon-button" onClick={() => setPicked(null)} aria-label={t('common.back')}><ChevronLeft /></button>
+          <button className="icon-button" onClick={() => pick(null)} aria-label={t('common.back')}><ChevronLeft /></button>
           {crumb.icon}
           {/* Only the section on a phone: the back button and icon say where it is, and with both names long
               languages cut each in half. Screen readers still hear the whole path. */}

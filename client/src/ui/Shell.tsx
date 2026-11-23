@@ -47,7 +47,7 @@ import { ClipLayer } from './clips/ClipControls'
 import { RecordingLayer } from './recording/Recording'
 import { PopoutLayer } from './popout/PopoutLayer'
 import { QuietDigestCard } from './quietDigest/QuietDigestCard'
-import { usePhoneNav } from './nav/PhoneNav'
+import { useCallEndNav, usePhoneNav } from './nav/PhoneNav'
 import { AssistantLayer } from './assistant/AssistantPanel'
 import { Spark } from './icons'
 
@@ -84,6 +84,8 @@ export function Shell() {
   // Phones: back opens the channels, swipes move the drawers.
   const shellRef = useRef<HTMLDivElement>(null)
   const dragging = usePhoneNav(shellRef, panel, setPanel, !!server)
+  // Phones: when voice ends on the call screen, the channels show.
+  useCallEndNav(!!stage, panel, setPanel)
 
   return (
     <div ref={shellRef} className={`shell panel-${panel} ${members ? '' : 'no-members'} ${dragging ? `swiping swiping-${dragging}` : ''}`}>
