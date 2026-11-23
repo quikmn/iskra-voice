@@ -52,7 +52,7 @@ friendly "du", sentence case in headings and buttons, and a normal Swedish word 
 | Audit log (who changed what; never "activity log", which is games) | Granskningslogg |
 | Sign-ins & security (never "security log" as a name) | Inloggningar och säkerhet |
 | Bots & webhooks | Bottar och webhooks |
-| Internet access (section) / Open to the internet (its switch) | Internetåtkomst / Öppna mot internet |
+| Internet access (section) / Let friends anywhere join (its switch) | Internetåtkomst / Låt vänner var som helst gå med |
 | Limits | Gränser |
 | Backup & move | Säkerhetskopia och flytt |
 | Import from Discord | Importera från Discord |

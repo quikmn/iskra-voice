@@ -86,7 +86,7 @@ export const profile: Messages['profile'] = {
     fontChip: 'Aa {{font}}',
     fontChipLabel: 'Indica la fuente {{font}}',
     contrast: {
-      title: 'Puede que algunos textos cuesten de leer (el contraste debería ser de al menos 4.5:1):',
+      title: 'Puede que algunos textos sean difíciles de leer (el contraste debería ser de al menos 4.5:1):',
       pair: '{{text}} sobre {{background}}: {{ratio}}:1',
       fix: 'Usar {{color}} para {{key}}',
     },
