@@ -73,7 +73,7 @@
 .gif-click-to-load .gif-note { font-size: var(--fs-xs); }
 .gif-click-wrap { display: grid; justify-items: start; gap: 2px; }
 .gif-always { font-size: var(--fs-sm); }
-.gif-mode .radio input { width: auto; flex: none; margin: 3px 0 0; }
+.gif-mode .radio input { flex: none; margin: 3px 0 0; }
 .gif-steps { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 12px; font-size: var(--fs-md); }
 .gif-steps > li > .copy-row, .gif-steps > li > .gif-mode { margin-top: 8px; }
 .gif-mode-more { margin-top: 8px; font-size: var(--fs-md); }
