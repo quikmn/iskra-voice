@@ -36,7 +36,6 @@
 .settings-room .settings-nav { padding: var(--sp-3) 10px var(--sp-5); gap: var(--sp-4); }
 /* Group headers are plain words in normal case. */
 .settings-room .settings-nav-title { text-transform: none; letter-spacing: 0; font-size: var(--fs-md); font-weight: var(--fw-medium); color: var(--muted); padding: 2px 10px 6px; }
-.room-server .settings-nav-item.active { box-shadow: inset 3px 0 0 var(--room-marker); }
 .settings-nav-count {
   flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r-pill); background: var(--danger-solid); color: #fff;
   font-size: var(--fs-sm); font-weight: var(--fw-bold); display: inline-grid; place-items: center;
@@ -57,7 +56,6 @@
   .room-tile.large { width: 48px; height: 48px; font-size: var(--fs-lg); }
   .room-body { grid-template-columns: minmax(0, 1fr); }
   .settings-room .settings-nav { padding: var(--sp-3) var(--sp-3) var(--sp-5); gap: var(--sp-5); }
-  .room-server .settings-nav-item.active { box-shadow: none; }
 }
 
 /* The server menu's title: the tile and the name. */
@@ -70,6 +68,7 @@
   display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; border: 0; border-radius: var(--r-sm);
   background: transparent; color: var(--text); text-align: left;
 }
+.room-member, .room-channel { transition: background var(--dur-fast) var(--ease); }
 .room-member:hover, .room-channel:hover { background: var(--surface-2); }
 .room-member-text { display: grid; min-width: 0; flex: 1; }
 .room-member-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

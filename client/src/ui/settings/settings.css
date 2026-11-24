@@ -13,15 +13,19 @@
 .settings-nav-item {
   position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 0 10px;
   border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-2); text-align: left; font-weight: 500;
-  transition: background var(--dur-fast), color var(--dur-fast);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 .settings-nav-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-nav-icon { flex: none; display: inline-grid; place-items: center; color: var(--muted); transition: color var(--dur-fast); }
 .settings-nav-icon svg { width: 16px; height: 16px; }
 .settings-nav-item:hover { background: var(--sidebar-hover); color: var(--text); }
 .settings-nav-item:hover .settings-nav-icon { color: var(--text-2); }
-/* Selected: a raised row and a 3px bar at the start (the server's colour in a server room). */
-.settings-nav-item.active { background: var(--surface-3); color: var(--text-strong); box-shadow: inset 3px 0 0 var(--accent); }
+/* Selected: a raised row with a short bar at its start (the server's colour in a server room). */
+.settings-nav-item.active { background: var(--surface-3); color: var(--text-strong); box-shadow: inset 0 0 0 1px var(--hairline), inset 0 1px 0 var(--edge-hi); }
+@media (--wide) {
+  .settings-nav-item.active::after { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
+  .room-server .settings-nav-item.active::after { background: var(--room-marker); }
+}
 .settings-nav-item.active .settings-nav-icon { color: var(--text-strong); }
 
 /* The pane: one centred column (720px at most), so a wide window doesn't leave the content pinned left. */
