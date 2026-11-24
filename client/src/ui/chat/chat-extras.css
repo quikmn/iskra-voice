@@ -7,9 +7,10 @@
 .icon-button.on { background: var(--surface-2); color: var(--text); }
 .header-search {
   display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px; margin-left: 6px;
-  background: var(--bg); border-radius: var(--r-sm); color: var(--muted); border: 1px solid transparent;
+  background: var(--bg); border-radius: var(--r-md); color: var(--muted); border: 1px solid transparent;
+  box-shadow: inset 0 0 0 1px var(--hairline); transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur) var(--ease), color var(--dur-fast);
 }
-.header-search:focus-within { border-color: var(--accent); color: var(--text-2); }
+.header-search:focus-within { border-color: var(--focus); color: var(--text-2); box-shadow: var(--ring); }
 label.header-search input, label.header-search input:focus {
   width: 150px; border: 0; background: transparent; padding: 0; font-size: var(--fs-md); outline: none; box-shadow: none;
   transition: width 0.15s;

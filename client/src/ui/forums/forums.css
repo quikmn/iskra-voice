@@ -5,7 +5,7 @@
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0 10px; height: 38px;
   background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); color: var(--muted);
 }
-.forum-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+.forum-search:focus-within { border-color: var(--focus); box-shadow: var(--ring); }
 .forum-search input, .forum-search input:focus { border: 0; box-shadow: none; background: transparent; padding: 0; height: 100%; }
 .forum-sort { width: auto; height: 38px; padding: 0 10px; }
 .forum-new { height: 38px; }
