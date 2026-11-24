@@ -5,7 +5,7 @@
 .assistant-panel {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 60; width: min(420px, 100vw);
   display: flex; flex-direction: column; background: var(--sidebar); border-left: 1px solid var(--border);
-  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.35);
+  box-shadow: -12px 0 32px var(--shadow-color);
 }
 .assistant-head { display: flex; align-items: center; gap: 8px; padding: 12px 12px 8px; color: var(--accent); }
 .assistant-head h2 { margin: 0; font-size: 16px; color: var(--text-strong); flex: 1; min-width: 0; }
@@ -71,7 +71,7 @@
 @media (--phone) {
   .assistant-panel {
     top: auto; left: 0; width: 100vw; height: min(88dvh, 100%); border-left: 0; border-top: 1px solid var(--border);
-    border-radius: calc(var(--radius) * 1.4) calc(var(--radius) * 1.4) 0 0; box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.45);
+    border-radius: calc(var(--radius) * 1.4) calc(var(--radius) * 1.4) 0 0; box-shadow: 0 -12px 32px var(--shadow-color);
     padding-bottom: env(safe-area-inset-bottom);
   }
   .assistant-head { flex-wrap: wrap; }
