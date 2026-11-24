@@ -1,4 +1,6 @@
-# actionlint (also run by scripts/workflows.test.mjs when it is installed): the home PC runner's label.
+# actionlint (also run by scripts/workflows.test.mjs when it is installed): the home PC runner's label, and
+# xcode-27, GitHub's preview macOS image with Xcode 27 (not yet in actionlint's list of hosted labels).
 self-hosted-runner:
   labels:
     - iskra-windows-signing
+    - xcode-27
