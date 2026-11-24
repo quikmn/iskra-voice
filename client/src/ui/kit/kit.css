@@ -88,9 +88,9 @@
   display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 30px; padding: 0 12px;
   border: 1px solid var(--border); border-radius: var(--r-pill); background: transparent; color: var(--text-2);
   font-size: var(--fs-md); font-weight: var(--fw-medium);
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), scale var(--dur-fast) var(--ease);
 }
-.k-chip:active:not(:disabled) { transform: scale(0.97); }
+.k-chip:active:not(:disabled) { scale: 0.97; }
 .k-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .k-chip:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
 .k-chip.on { background: var(--accent-subtle); border-color: var(--accent); color: var(--text-strong); }

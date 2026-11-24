@@ -197,10 +197,11 @@ kbd {
 .icon-button {
   border: 0; background: transparent; color: var(--text-2);
   width: 36px; height: 36px; border-radius: var(--r-md); display: inline-grid; place-items: center; flex: none;
-  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), scale var(--dur-fast) var(--ease);
 }
 .icon-button:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
-.icon-button:active:not(:disabled) { background: var(--surface-3); transform: scale(0.94); }
+/* Pressed: `scale`, not `transform`, which some icon buttons use to place themselves (a row's "⋯"). */
+.icon-button:active:not(:disabled) { background: var(--surface-3); scale: 0.94; }
 .icon-button:disabled { opacity: 0.4; cursor: default; }
 .icon-button.small { width: 24px; height: 24px; font-size: 16px; }
 .link { border: 0; background: none; padding: 0; color: var(--accent-2); text-decoration: underline; text-underline-offset: 2px; }
@@ -306,14 +307,14 @@ input:focus, textarea:focus, select:focus { border-color: var(--focus); box-shad
   position: relative; width: 48px; height: 48px; border-radius: 50%; border: 0; flex: none;
   background: var(--surface-2); font-weight: var(--fw-bold); font-size: 16px;
   box-shadow: inset 0 0 0 1px var(--hairline), inset 0 1px 0 var(--edge-hi);
-  transition: border-radius var(--dur) var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur-fast) var(--ease);
+  transition: border-radius var(--dur) var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), scale var(--dur-fast) var(--ease);
 }
 /* The corner the rail's tab is drawn around (see .server-icon.active::after), not the dialog corner. */
 .server-icon:hover, .server-icon.active {
   border-radius: calc(var(--radius) * 1.6); background: var(--accent); color: var(--on-accent);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent);
 }
-.server-icon:active { transform: scale(0.95); }
+.server-icon:active { scale: 0.95; }
 .server-icon.active::before {
   content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 4px; border-radius: 0 4px 4px 0; background: var(--text);
 }
@@ -744,10 +745,10 @@ button.e2e-badge:hover { background: color-mix(in srgb, var(--green) 18%, transp
 .reaction {
   display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--r-pill); font-size: 14px; min-height: 26px;
   border: 1px solid var(--border); background: var(--surface-2);
-  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), scale var(--dur-fast) var(--ease);
 }
 .reaction:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
-.reaction:active { transform: scale(0.95); }
+.reaction:active { scale: 0.95; }
 .reaction.mine { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .reaction .count { font-size: 12px; font-weight: 600; color: var(--text-2); }
 .message-actions.open { display: flex; }
@@ -1059,10 +1060,10 @@ button.e2e-badge:hover { background: color-mix(in srgb, var(--green) 18%, transp
 .choice-list { display: grid; gap: 10px; }
 .choice {
   display: grid; gap: 4px; text-align: left; padding: 14px 16px; border-radius: var(--r-lg); border: 1px solid var(--border); background: var(--bg);
-  box-shadow: var(--shadow-control); transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  box-shadow: var(--shadow-control); transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), scale var(--dur-fast) var(--ease);
 }
 .choice:hover:not(:disabled) { border-color: var(--accent); }
-.choice:active:not(:disabled) { transform: scale(0.99); box-shadow: none; }
+.choice:active:not(:disabled) { scale: 0.99; box-shadow: none; }
 .choice .muted { font-size: 13px; }
 .link-join { display: grid; gap: 12px; }
 .link-join .lead { margin: 0; display: flex; align-items: center; gap: 10px; }

@@ -28,9 +28,9 @@
 }
 .emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); }
 .emoji-cell { height: 38px; border: 0; border-radius: var(--r-sm); background: none; font-size: 24px; line-height: 1; display: grid; place-items: center; padding: 0; }
-.emoji-cell { transition: background var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease); }
+.emoji-cell { transition: background var(--dur-fast) var(--ease), scale var(--dur-fast) var(--ease); }
 .emoji-cell:hover, .emoji-cell:focus-visible { background: var(--surface-3); outline: none; }
-.emoji-cell:active { transform: scale(0.9); }
+.emoji-cell:active { scale: 0.9; }
 .emoji-cell .custom-emoji { width: 28px; height: 28px; }
 /* An emoji from another server on its way into this one. */
 .emoji-cell.busy { opacity: 0.5; animation: pulse 1s ease-in-out infinite; }
