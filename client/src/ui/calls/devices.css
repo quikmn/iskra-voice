@@ -10,9 +10,9 @@
 .call-pick > .call-caret::before { content: ''; position: absolute; inset: -10px; border-radius: 50%; }
 .call-pick > .call-caret[aria-expanded='true'] { color: var(--text-strong); border-color: var(--accent); }
 
-/* The voice bar: a narrow arrow right after the mic and the deafen button. */
+/* The voice bar: a narrow arrow right after the mic and the deafen button (24px wide, the smallest target allowed). */
 .voice-caret {
-  flex: none; width: 16px; height: 32px; margin-left: -4px; padding: 0; border: 0; border-radius: var(--r-sm, 6px);
+  flex: none; position: relative; width: 24px; height: 32px; margin: 0 -2px 0 -6px; padding: 0; border: 0; border-radius: var(--r-sm, 6px);
   background: none; color: var(--muted); display: inline-grid; place-items: center;
   transition: color var(--dur-fast), background var(--dur-fast);
 }
@@ -20,7 +20,7 @@
 /* Phones: the row is full already (finger-sized buttons), so the arrow takes no room of its own: it lies over the
    empty right edge of its button and a little past it. */
 @media (--phone) {
-  .voice-bar .voice-controls .voice-caret { position: relative; z-index: 1; width: 20px; height: 40px; margin: 0 -6px 0 -14px; }
+  .voice-bar .voice-controls .voice-caret { z-index: 1; width: 24px; height: 40px; margin: 0 -8px 0 -16px; }
 }
 
 /* The error row: the words, then its small actions; ✕ at the end. It takes its own row above the buttons. */
