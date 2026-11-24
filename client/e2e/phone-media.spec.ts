@@ -88,7 +88,19 @@ test.describe('calls on a phone', () => {
     try {
       const context = await browser.newContext({ ...pixel, permissions: ['microphone'] })
       // Phones hand out new device ids (after an update, or when the app's data is reset): the saved one no longer exists.
-      await context.addInitScript(() => localStorage.setItem('iskra.audio', JSON.stringify({ v: 3, inputDevice: 'a-microphone-that-is-gone' })))
+      await context.addInitScript(() => {
+        localStorage.setItem('iskra.audio', JSON.stringify({ v: 3, inputDevice: 'a-microphone-that-is-gone' }))
+        // Counts the microphones the app actually got.
+        const md = navigator.mediaDevices
+        const real = md.getUserMedia.bind(md)
+        const w = window as unknown as { micsOpened: number }
+        w.micsOpened = 0
+        md.getUserMedia = async (constraints) => {
+          const stream = await real(constraints)
+          if (stream.getAudioTracks().some((t) => t.readyState === 'live')) w.micsOpened++
+          return stream
+        }
+      })
       const phone = await context.newPage()
       await joinVia(phone, server.ownerLink(), 'Phone')
       await phone.getByRole('button', { name: 'Open channels' }).click()
@@ -98,8 +110,9 @@ test.describe('calls on a phone', () => {
       await phone.getByRole('button', { name: 'Create', exact: true }).click()
       await phone.getByTitle('Join talk').click()
       await expect(phone.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
-      // The mic is live: your own speaking ring follows the fake microphone's tone.
-      await expect(phone.locator('.me-avatar.speaking')).toBeVisible({ timeout: 15_000 })
+      // The call got a microphone (before the fix both tries asked for the gone one and failed), and says nothing about it.
+      await expect.poll(() => phone.evaluate(() => (window as unknown as { micsOpened: number }).micsOpened), { timeout: 15_000 }).toBeGreaterThan(0)
+      await expect(phone.locator('.voice-bar').getByRole('button', { name: 'Mute', exact: true })).toBeVisible()
       await expect(phone.locator('.voice-status')).not.toContainText('microphone')
     } finally {
       await server.stop()
