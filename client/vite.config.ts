@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 import { shortCommit } from './src/commit.ts'
 import { CSP } from './src/csp.ts'
+import { expandLayoutMedia } from './src/phoneLayout.ts'
 import { activities } from './activities.vite.ts'
 import { help } from './help.vite.ts'
 import { RELEASE_VERSION } from './src/links.ts'
@@ -16,6 +17,16 @@ const csp = (): Plugin => ({
   transformIndexHtml: (html) =>
     html.replace('<head>', `<head>
     <meta http-equiv="Content-Security-Policy" content="${CSP}" />`),
+})
+
+// Stylesheets say `@media (--phone)` and `@media (--wide)`; src/phoneLayout.ts says what those are.
+const layoutMedia = () => ({
+  postcssPlugin: 'iskra-layout-media',
+  AtRule: {
+    media: (rule: { params: string }) => {
+      if (rule.params.includes('(--')) rule.params = expandLayoutMedia(rule.params)
+    },
+  },
 })
 
 // The commit shown in My settings → About & legal (src/buildInfo.ts).
@@ -38,6 +49,7 @@ const WHATS_NEW = releaseNotesFor(RELEASE_VERSION, (file) => {
 
 export default defineConfig({
   plugins: [react(), csp(), activities(), help()],
+  css: { postcss: { plugins: [layoutMedia()] } },
   define: { __ISKRA_COMMIT__: JSON.stringify(COMMIT), __ISKRA_WHATS_NEW__: JSON.stringify(WHATS_NEW) },
   // Only workers import these: bundle them up front, or the dev server reloads the page when it finds them.
   optimizeDeps: { include: ['onnxruntime-web/wasm', '@mediapipe/tasks-vision', 'eld/extrasmall'] },

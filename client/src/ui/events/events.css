@@ -58,7 +58,7 @@
 
 /* Reminder toasts are ui/kit Toast (the corner lane). */
 
-@media (max-width: 760px) {
+@media (--phone) {
   .event-times, .event-repeat { grid-template-columns: 1fr; gap: 0; }
   .event-actions .button.small { padding: 7px 10px; }
 }

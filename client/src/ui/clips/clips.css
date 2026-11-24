@@ -25,7 +25,7 @@
 @media (hover: none) { .voice-chat-row-button { opacity: 1; } }
 /* Room for the row's ⋯ button, which sits over the right edge when it shows. */
 .org-row:hover .voice-chat-row-button, .org-row:focus-within .voice-chat-row-button { margin-right: 30px; }
-@media (max-width: 760px) { .org-row .voice-chat-row-button { margin-right: 30px; } }
+@media (--phone) { .org-row .voice-chat-row-button { margin-right: 30px; } }
 
 /* ── Clips ────────────────────────────────────────────────────────────────── */
 .clip-button.idle { color: var(--muted); }

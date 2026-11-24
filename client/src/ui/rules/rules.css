@@ -35,7 +35,7 @@
 .voice-limit { margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); padding: 1px 6px; border-radius: 6px; background: var(--bg); flex: none; }
 .voice-limit.full { color: var(--red); background: var(--danger-bg); }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .rules-modal .modal-footer { flex-direction: column-reverse; }
   .rules-modal .modal-footer .button { width: 100%; justify-content: center; }
   .rules-settings .rules-ask { margin-left: 0; }

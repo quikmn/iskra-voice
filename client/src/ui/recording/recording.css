@@ -48,7 +48,7 @@
 .icon-button.recording-stop-icon { color: var(--red); }
 .icon-button.recording-stop-icon:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
 @media (hover: none) { .recording-stop { height: 32px; padding: 0 12px 0 8px; } }
-@media (max-width: 760px) {
+@media (--phone) {
   /* One more button in the drawer's voice bar: they all give a little so the row still fits. */
   .voice-bar .voice-controls:has(.recording-stop-icon) .icon-button { width: 34px; height: 36px; }
 }

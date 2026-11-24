@@ -240,7 +240,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--focus); box-shad
 }
 .lead { color: var(--text-2); margin: 0 0 var(--sp-5); }
 .fine-print { font-size: var(--fs-sm); color: var(--muted); margin: 14px 0 0; text-align: center; }
-@media (max-width: 760px) { .onboarding-card { padding: var(--sp-5) var(--sp-4); } }
+@media (--phone) { .onboarding-card { padding: var(--sp-5) var(--sp-4); } }
 /* A choice that leads somewhere: an icon, the title over its hint, a chevron. */
 .choice.rich { grid-template-columns: 36px minmax(0, 1fr) 16px; column-gap: 14px; row-gap: 2px; align-items: center; transition: border-color var(--dur-fast), background var(--dur-fast); }
 .choice.rich > strong, .choice.rich > .muted { grid-column: 2; }
@@ -644,7 +644,7 @@ button.e2e-badge:hover { background: color-mix(in srgb, var(--green) 18%, transp
 .nudge-icon { flex: none; display: inline-grid; color: var(--amber); }
 .nudge .button.small { flex: none; }
 .nudge-later-icon { display: none; }
-@media (max-width: 760px) {
+@media (--phone) {
   .nudge { padding-left: var(--sp-3); gap: var(--sp-2); }
   .nudge p { font-size: var(--fs-md); line-height: var(--lh-tight); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .nudge-later { width: 32px; padding: 0; }
@@ -846,9 +846,9 @@ button.e2e-badge:hover { background: color-mix(in srgb, var(--green) 18%, transp
 @keyframes pop { from { opacity: 0; transform: scale(0.97) translateY(4px); } }
 @keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
 /* Phones: every dialog is a bottom sheet, full width, rounded on top, clear of the home indicator. */
-@media (max-width: 760px) {
+@media (--phone) {
   /* The one column is the screen's width, whatever is inside: a long title (it has an ellipsis) must not widen the sheet. */
-  .modal-backdrop:not(.switcher-backdrop) { place-items: end stretch; grid-template-columns: minmax(0, 1fr); padding: calc(12px + var(--safe-top)) 0 0; }
+  .modal-backdrop:not(.switcher-backdrop) { place-items: end stretch; grid-template-columns: minmax(0, 1fr); padding: calc(12px + var(--safe-top)) var(--safe-right) 0 var(--safe-left); }
   .modal-backdrop:not(.switcher-backdrop) > .modal {
     width: 100%; max-height: calc(100dvh - 12px - var(--safe-top)); border-bottom: 0; border-radius: var(--r-xl) var(--r-xl) 0 0;
     animation: sheet-up var(--dur-slow) var(--ease);
@@ -893,13 +893,13 @@ button.e2e-badge:hover { background: color-mix(in srgb, var(--green) 18%, transp
   .members-toggle { display: none; }
 }
 
-@media (max-width: 760px) {
+@media (--phone) {
   /* Segmented choices wrap instead of pushing a dialog wider than the screen (Create channel has five). */
   .segmented { flex-wrap: wrap; }
   .segmented button { flex: 1 1 auto; }
   body { font-size: 16px; } /* 16px inputs stop iOS from zooming in */
   /* Full-bleed: no frame, the chat fills the screen, the channel drawer is rounded against the rail only. */
-  .shell { grid-template-columns: minmax(0, 1fr); column-gap: 0; padding: 0; }
+  .shell, .shell.no-members { grid-template-columns: minmax(0, 1fr); column-gap: 0; padding: 0; }
   .main-column { border-radius: 0; }
   .channel-sidebar { border-radius: var(--panel-radius) 0 0 var(--panel-radius); }
   .mobile-only { display: inline-grid; }
@@ -949,10 +949,12 @@ button.e2e-badge:hover { background: color-mix(in srgb, var(--green) 18%, transp
    on one side). A transparent border, not padding: the layer's own background still reaches the screen edge, and
    what is placed absolutely inside (the viewers' arrows) moves in with the rest. */
 .settings-room, .lightbox, .media-viewer { border-left: var(--safe-left) solid transparent; border-right: var(--safe-right) solid transparent; }
-@media (max-width: 760px) { .nav-column { padding-left: var(--safe-left); } }
+/* Bottom sheets, on a phone held sideways. */
+.sheet-backdrop { padding-left: var(--safe-left); padding-right: var(--safe-right); }
+@media (--phone) { .nav-column { padding-left: var(--safe-left); } }
 @media (max-width: 1100px) { .members-column { padding-right: var(--safe-right); } }
-@media (max-width: 760px) { .nav-column { background: var(--rail); } }
-@media (min-width: 761px) { .nav-column { padding-top: 0; } }
+@media (--phone) { .nav-column { background: var(--rail); } }
+@media (--wide) { .nav-column { padding-top: 0; } }
 @media (min-width: 1101px) { .members-column { padding-top: 0; } }
 @media (display-mode: standalone) {
   body { overscroll-behavior: none; }
@@ -995,7 +997,7 @@ button.e2e-badge:hover { background: color-mix(in srgb, var(--green) 18%, transp
 .qr-scanner { border-radius: 12px; overflow: hidden; background: #000; }
 .qr-scanner video { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
 .qr-scanner .muted { background: var(--bg); margin: 0; padding: 14px; }
-@media (max-width: 760px) {
+@media (--phone) {
   .device-row { flex-wrap: wrap; }
   .onboarding-card { padding: 24px 18px; }
 }
@@ -1054,7 +1056,7 @@ button.e2e-badge:hover { background: color-mix(in srgb, var(--green) 18%, transp
 }
 .switcher-search-everywhere:hover, .switcher-search-everywhere:focus-visible { background: var(--hover); }
 .switcher-hint { display: flex; gap: 16px; padding: 10px 16px; font-size: 12px; border-top: 1px solid var(--border); background: var(--sidebar); }
-@media (max-width: 760px) {
+@media (--phone) {
   .switcher-backdrop { padding-top: calc(12px + var(--safe-top)); }
   .switcher-hint { display: none; }
 }
@@ -1127,7 +1129,7 @@ input.confirm-code::placeholder { color: var(--placeholder); }
 .join-pending-icon img { width: 100%; height: 100%; object-fit: cover; }
 .join-pending-wait { display: inline-flex; align-items: center; gap: var(--sp-2); margin: 0; }
 .join-name { width: min(320px, 100%); text-align: left; }
-@media (max-width: 760px) { .join-card { padding: var(--sp-5) var(--sp-4); border: 0; background: transparent; box-shadow: none; } }
+@media (--phone) { .join-card { padding: var(--sp-5) var(--sp-4); border: 0; background: transparent; box-shadow: none; } }
 
 /* ── UX fixes: a hovered or focused message keeps its time readable (the row's tint lowers the muted colour's contrast) ── */
 .message:hover .message-meta time, :root[data-input='keyboard'] .message:focus-within .message-meta time { color: var(--text-2); }
@@ -1162,7 +1164,7 @@ input.confirm-code::placeholder { color: var(--placeholder); }
 input[type='checkbox'], input[type='radio'] { width: auto; padding: 0; flex: none; }
 /* A checkbox between fields gets the same room as a field. */
 .checkbox + .field { margin-top: 14px; }
-@media (max-width: 760px) {
+@media (--phone) {
   /* Voice controls in the drawer: finger-sized. */
   .voice-bar .voice-controls .icon-button { width: 40px; height: 40px; }
 }
@@ -1203,8 +1205,8 @@ html { -webkit-tap-highlight-color: transparent; }
   /* Nobody presses Esc on a touch screen (a phone held sideways, a tablet). */
   .room-esc { display: none; }
 }
-/* Wider than a phone (a phone held sideways, a tablet): iOS zooms the page in when a field whose text is under 16px
-   gets focus, and doesn't zoom back. Phones in portrait get 16px from the phone layout above. */
-@media (pointer: coarse) and (min-width: 761px) {
+/* iOS zooms the page in when a field whose text is under 16px gets focus, and doesn't zoom back. The phone layout
+   has 16px text, but some fields set their own size (an invite link is 13px), and a tablet has the wide layout. */
+@media (pointer: coarse) {
   :root:root :is(input:not([type='checkbox'], [type='radio'], [type='range']), textarea, select) { font-size: 16px; }
 }

@@ -9,7 +9,7 @@
 .attachment-grid.n5 { grid-template-columns: repeat(3, 1fr); grid-auto-rows: 130px; }
 .attachment-grid:not(.n1) .grid-cell { width: 100%; height: 100%; border-radius: 0; }
 .attachment-grid:not(.n1) .grid-cell img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
-@media (max-width: 760px) {
+@media (--phone) {
   .attachment-grid.n2 { grid-auto-rows: 150px; }
   .attachment-grid.n4 { grid-auto-rows: 120px; }
   .attachment-grid.n5 { grid-auto-rows: 100px; }
@@ -43,7 +43,7 @@
 .lightbox-nav:hover { background: rgba(255, 255, 255, 0.16); }
 .lightbox-nav.prev { left: 10px; }
 .lightbox-nav.next { right: 10px; }
-@media (max-width: 760px) { .lightbox-nav { display: none; } }
+@media (--phone) { .lightbox-nav { display: none; } }
 
 .text-file { width: min(520px, 100%); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); overflow: hidden; }
 .text-file-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }

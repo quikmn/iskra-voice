@@ -38,7 +38,7 @@
 }
 .catchup-stretch:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .catchup-stretch-time { font-weight: 700; font-variant-numeric: tabular-nums; }
-@media (max-width: 760px) {
+@media (--phone) {
   .unread-bar .catchup-button { padding: 6px 10px; }
   .catchup-overview { font-size: 16px; }
 }

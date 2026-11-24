@@ -73,7 +73,7 @@ button.inbox-row-main:hover { background: var(--hover); }
 .history-item.current { border: 1px solid var(--accent); }
 .history-when { font-size: var(--fs-sm); color: var(--muted); }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .inbox-row { flex-wrap: wrap; }
   .inbox-row-actions { max-width: none; width: 100%; padding: 0 8px 8px 50px; justify-content: flex-start; }
   /* Beside the date there is little room: "Alice mentioned you" takes a second line instead of being cut mid-word. */

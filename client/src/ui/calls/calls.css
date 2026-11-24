@@ -60,19 +60,21 @@
 .call-log.missed svg { color: var(--red); }
 
 /* Desktop: a ringing call is a card in the corner; the rest of the app stays usable while it rings. */
-@media (min-width: 761px) {
+@media (--wide) {
   .incoming-call { inset: 16px 16px auto auto; padding: 0; display: block; background: none; backdrop-filter: none; pointer-events: none; }
   .incoming-card { pointer-events: auto; width: 300px; padding: 20px 20px 18px; }
   .incoming-card h2 { font-size: 19px; }
   .incoming-actions { gap: 40px; margin-top: 12px; }
 }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .call-panel, .call-panel.has-video { max-height: 58vh; }
   /* A short screen, or the keyboard open: the call gives way (its tiles get smaller, then its buttons are cut) before
      the conversation does, so the last lines and the message box stay on screen. */
   .chat > .call-panel { flex-shrink: 1; min-height: 0; overflow: hidden; }
   .chat > .call-panel ~ .messages { min-height: 64px; }
+  /* In a call the conversation has a few lines at most: they go to messages, not to "This is the start of…". */
+  .chat > .call-panel:not(.ended) ~ .messages > .channel-start { display: none; }
   .call-panel.has-video { height: 58vh; }
   .call-top { padding: 8px 10px 0; }
   .call-top .e2e-badge, .incoming-card .e2e-badge { display: inline-flex; }
@@ -84,4 +86,13 @@
     padding: 24px 16px calc(32px + var(--safe-bottom));
   }
   .incoming-actions { padding-top: 40px; }
+}
+
+/* A phone held sideways in a call: the call has the screen (turn the phone upright to write). */
+@media (--phone-sideways) {
+  .chat:has(> .call-panel:not(.ended)) > :not(.chat-header, .call-panel) { display: none; }
+  .chat > .call-panel:not(.ended), .chat > .call-panel.has-video:not(.ended), .chat > .call-panel.group-call:not(.ended) { flex: 1 1 auto; height: auto; max-height: none; }
+  /* Pictures side by side, not one above the other. */
+  .call-stage { flex-wrap: nowrap; }
+  .call-stage .video-tile { flex: 1 1 0; min-width: 0; }
 }

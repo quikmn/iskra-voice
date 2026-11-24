@@ -80,3 +80,6 @@
 .profile-status-label .status-dot.presence-dnd::after { left: 2px; right: 2px; top: 4px; }
 .dm-status { display: block; font-size: var(--fs-sm); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
 .dm-row-text { display: grid; min-width: 0; flex: 1; line-height: 1.25; }
+
+/* As a sheet on a short screen (a phone held sideways) the menu is taller than the screen: it scrolls. */
+.action-sheet.status-menu { overflow-y: auto; overscroll-behavior: contain; }

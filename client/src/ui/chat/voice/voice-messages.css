@@ -48,7 +48,7 @@
   color: var(--text-2); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
 }
 .voice-rate:hover { color: var(--text); border-color: var(--accent); }
-@media (max-width: 760px) {
+@media (--phone) {
   .voice-slide-hint { margin-right: 44px; }
   .voice-player { width: 100%; }
 }
@@ -69,7 +69,7 @@
 .voice-transcript .link { font-size: inherit; }
 .voice-transcript progress { width: min(160px, 100%); height: 4px; vertical-align: middle; }
 .voice-transcript-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-@media (max-width: 760px) {
+@media (--phone) {
   .voice-transcript { width: 100%; }
   /* Room for the transcript button on narrow phones. */
   .voice-player { gap: 6px; padding-right: 6px; }

@@ -187,7 +187,7 @@
 }
 
 /* Phones: the tree and the page are separate screens; the editor toggles between writing and the preview. */
-@media (max-width: 760px) {
+@media (--phone) {
   .docs-body { grid-template-columns: minmax(0, 1fr); }
   .docs-tree { border-right: 0; background: transparent; }
   .docs.docs-has-page .docs-tree { display: none; }

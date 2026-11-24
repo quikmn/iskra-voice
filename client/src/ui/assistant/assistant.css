@@ -68,7 +68,7 @@
 .assistant-command { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
 .assistant-command code { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; background: var(--bg); padding: 8px; border-radius: calc(var(--radius) * 0.7); overflow-wrap: anywhere; user-select: all; }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .assistant-panel {
     top: auto; left: 0; width: 100vw; height: min(88dvh, 100%); border-left: 0; border-top: 1px solid var(--border);
     border-radius: calc(var(--radius) * 1.4) calc(var(--radius) * 1.4) 0 0; box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.45);

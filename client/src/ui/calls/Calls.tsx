@@ -14,9 +14,10 @@ import { CallControls } from './CallControls'
 import './calls.css'
 import { useTranslation } from 'react-i18next'
 import { userMenuProps } from '../people/userMenuProps'
+import { PHONE_LAYOUT } from '../../phoneLayout'
 
 /** Phones show a ringing call full screen and focus Accept; elsewhere it's a card in the corner that leaves the app usable. */
-export const ringsFullScreen = () => window.matchMedia('(max-width: 760px)').matches
+export const ringsFullScreen = () => window.matchMedia(PHONE_LAYOUT).matches
 
 const myKey = () => {
   const identity = useApp.getState().identity

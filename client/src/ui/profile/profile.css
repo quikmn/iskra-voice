@@ -148,7 +148,7 @@ webview.page-frame, webview.page-preview { display: flex; overflow: hidden; }
 .theme-editor p { margin: 0; font-size: var(--fs-sm); }
 .theme-errors { margin: 10px 0 0; padding-left: 18px; font-size: var(--fs-md); }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .page-editor { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); height: 70dvh; }
   .page-frame { height: 65dvh; }
   .modal.wide .modal-body { padding: 12px; }

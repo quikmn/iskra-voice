@@ -27,7 +27,7 @@
 .outhook-log li.retry .outhook-log-state { color: var(--amber); }
 .outhook-log li.failed .outhook-log-state { color: var(--red); }
 .outgoing-hosts ul { margin: 2px 0 6px; padding-left: 18px; font-size: 13px; overflow-wrap: anywhere; }
-@media (max-width: 760px) {
+@media (--phone) {
   .outhook-log li { grid-template-columns: 1fr auto; }
   .outhook-log li > span:nth-child(2), .outhook-log li > span:nth-child(3) { grid-column: 1 / -1; }
 }

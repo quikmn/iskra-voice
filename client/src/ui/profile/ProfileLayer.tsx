@@ -28,6 +28,7 @@ import { CustomStatusLine } from '../presence/Presence'
 import { ActivityLine } from '../ActivityLine'
 import { PageWebview, pageWall, useLoading } from './PageView'
 import './profile.css'
+import { PHONE_LAYOUT } from '../../phoneLayout'
 
 export function ProfileLayer() {
   const card = useProfiles((s) => s.card)
@@ -71,7 +72,7 @@ export function cardPosition(rect: { top: number; left: number; right: number },
   return { left: Math.min(left, Math.max(GAP, vw - width - GAP)), top }
 }
 
-const narrow = () => window.matchMedia('(max-width: 760px)').matches
+const narrow = () => window.matchMedia(PHONE_LAYOUT).matches
 
 function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; member: Member; rect: DOMRect | null; onEdit: () => void }) {
   const { t } = useTranslation()

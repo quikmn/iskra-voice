@@ -17,6 +17,7 @@ import '../calls/calls.css'
 import { useTranslation } from 'react-i18next'
 import { groupText } from './groupText'
 import { userMenuProps } from '../people/userMenuProps'
+import { PHONE_LAYOUT } from '../../phoneLayout'
 
 const myKey = () => {
   const identity = useApp.getState().identity
@@ -24,7 +25,7 @@ const myKey = () => {
 }
 
 function useNarrow(): boolean {
-  const query = '(max-width: 760px)'
+  const query = PHONE_LAYOUT
   const [narrow, setNarrow] = useState(() => typeof matchMedia !== 'undefined' && matchMedia(query).matches)
   useEffect(() => {
     if (typeof matchMedia === 'undefined') return

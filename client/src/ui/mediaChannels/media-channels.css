@@ -90,7 +90,7 @@
 .media-picked .icon-button { position: absolute; top: 4px; right: 4px; background: rgba(0, 0, 0, 0.6); color: #fff; }
 .media-picked .media-badge { position: absolute; left: 4px; bottom: 4px; }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .media-channel .forum-toolbar { flex-wrap: wrap; }
   .media-channel .forum-search { flex-basis: 100%; }
   .media-channel .forum-sort { flex: 1; }

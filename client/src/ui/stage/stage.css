@@ -78,7 +78,7 @@
 .stage-moderators .member-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stage-moderators .role { font-size: var(--fs-sm); text-transform: capitalize; }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .stage-topic h2 { font-size: 19px; }
   .stage-speakers .stage-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stage-speakers .video-tile.big { min-height: 180px; }

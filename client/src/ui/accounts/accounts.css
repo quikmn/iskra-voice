@@ -24,7 +24,7 @@
 /* Level with the profile bar beside it: that bar is --bottom-bar tall and 16px (8px on phones) above the panel's
    bottom, the rail ends there too with 12px padding, and this button is 48px. */
 .server-icon.account-switch { margin-bottom: calc(16px + var(--bottom-bar) / 2 - 12px - 24px); }
-@media (max-width: 760px) { .server-icon.account-switch { margin-bottom: calc(8px + var(--bottom-bar) / 2 - 12px - 24px); } }
+@media (--phone) { .server-icon.account-switch { margin-bottom: calc(8px + var(--bottom-bar) / 2 - 12px - 24px); } }
 .server-icon.account-switch:hover, .server-icon.account-switch[aria-expanded='true'] { background: var(--surface-2); color: inherit; }
 .account-stack { position: relative; width: 40px; height: 40px; }
 .account-stack > .avatar { position: absolute; }

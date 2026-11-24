@@ -24,8 +24,9 @@ import { BackgroundNotice, CaptionsButton, CaptionsOverlay } from '../media/Call
 import { ResumeOffer } from '../ResumeOffer'
 import { trayAnchor } from './tray'
 import './controls.css'
+import { PHONE_LAYOUT } from '../../phoneLayout'
 
-const PHONE = '(max-width: 760px)'
+const PHONE = PHONE_LAYOUT
 
 function usePhone(): boolean {
   const [phone, setPhone] = useState(() => typeof matchMedia === 'function' && matchMedia(PHONE).matches)

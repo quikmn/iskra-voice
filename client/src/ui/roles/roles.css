@@ -59,7 +59,7 @@
 .member-role-icon { font-size: var(--fs-md); flex: none; }
 .voice-flag.server-muted { color: var(--red); }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .role-perms { grid-template-columns: minmax(0, 1fr); }
   .tri button { width: 40px; height: 34px; }
 }

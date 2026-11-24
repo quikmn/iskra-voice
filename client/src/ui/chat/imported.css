@@ -13,7 +13,7 @@
 }
 .imported-missing-name { font-weight: 600; overflow-wrap: anywhere; }
 
-@media (max-width: 760px) {
+@media (--phone) {
   /* Keep the name line short on phones: just the word. */
   .message-meta .imported-badge { font-size: 10px; padding: 2px 5px; }
 }

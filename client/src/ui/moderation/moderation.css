@@ -73,7 +73,7 @@
 .audit-entry time { font-size: var(--fs-sm); }
 .audit-list + .button { margin-top: 12px; }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .audit-filters .field { flex-basis: 100%; min-width: 0; }
   .timeout-form select, .timeout-form .button { flex: 1; }
 }

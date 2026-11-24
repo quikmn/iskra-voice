@@ -1,4 +1,5 @@
 import { useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react'
+import { PHONE_SIDEWAYS } from '../../phoneLayout'
 
 /**
  * Places a fixed-position panel next to its anchor: above if there's room, otherwise below, kept inside the window.
@@ -13,7 +14,8 @@ export function usePopoverPosition(anchor: HTMLElement | null, panel: RefObject<
     const place = () => {
       const el = panel.current
       if (!el) return
-      if (window.innerWidth <= 640 || !anchor) {
+      // Narrow, or a phone held sideways (too short for a panel beside its button): a sheet.
+      if (window.innerWidth <= 640 || window.matchMedia(PHONE_SIDEWAYS).matches || !anchor) {
         setSheet(true)
         setStyle({})
         return

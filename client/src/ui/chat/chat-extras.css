@@ -158,7 +158,7 @@ label.header-search.panel-search input, label.header-search.panel-search input:f
   label.header-search input:focus { width: 170px; }
 }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .desktop-search, .desktop-title, .side-panel-header .panel-close, .search-box-row { display: none; }
   .side-panel-header .panel-back { display: inline-grid; }
   .panel-search { display: flex; }
@@ -172,6 +172,6 @@ label.header-search.panel-search input, label.header-search.panel-search input:f
   .jump-present { margin: 0 8px 4px; }
 }
 @keyframes slide-in { from { transform: translateX(24px); } }
-@media (max-width: 760px) {
+@media (--phone) {
   .search-panel .side-panel-header .spacer { display: none; }
 }

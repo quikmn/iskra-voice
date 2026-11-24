@@ -17,6 +17,7 @@ import { native } from '../../platform/native'
 import { accountLink } from '../../platform/accountBoot'
 import { topLayer } from '../layers'
 import { backAction, EXIT_WINDOW_MS, type BackAction } from './navLogic'
+import { PHONE_LAYOUT } from '../../phoneLayout'
 
 /** The Shell's drawers, while a phone-width Shell is showing. */
 export interface DrawerControl {
@@ -33,7 +34,7 @@ export function setDrawerControl(control: DrawerControl): () => void {
   }
 }
 
-const PHONE = '(max-width: 760px)'
+const PHONE = PHONE_LAYOUT
 const phoneWidth = () => typeof window !== 'undefined' && window.matchMedia(PHONE).matches
 
 /** "Press back again to leave": showing until the time it expires. */

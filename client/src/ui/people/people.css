@@ -49,11 +49,11 @@
 .user-menu-nick { padding: 4px 8px 8px; width: 270px; max-width: 100%; box-sizing: border-box; }
 .user-menu-nick .muted { font-size: var(--fs-sm); margin: 8px 0 0; }
 .org-sheet .user-menu-nick { width: auto; padding: 4px 4px 8px; }
-@media (max-width: 760px) {
+@media (--phone) {
   .friends-header h1 { display: none; }
   .friend-line { margin-left: 16px; }
 }
-@media (max-width: 760px) {
+@media (--phone) {
   .friend-banner { margin: var(--sp-2) var(--sp-2) 0; }
 }
 

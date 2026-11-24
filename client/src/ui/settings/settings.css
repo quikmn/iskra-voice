@@ -63,7 +63,7 @@
 }
 .settings-danger p { margin: 2px 0 0; font-size: var(--fs-ui); }
 
-@media (max-width: 760px) {
+@media (--phone) {
   /* Phones: iOS-style inset groups with headers, 20px icons, 48px rows. */
   .settings-nav { border-right: 0; background: transparent; padding: var(--sp-2) var(--sp-3) var(--sp-5); gap: var(--sp-5); }
   .settings-nav-title { padding: 0 var(--sp-4) 6px; }

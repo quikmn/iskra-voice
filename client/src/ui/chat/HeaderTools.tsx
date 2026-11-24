@@ -31,6 +31,7 @@ import { ChannelSettingsDialog } from '../organize/Dialogs'
 import { PopInIcon, PopOutIcon } from '../popout/popoutIcons'
 import { HeaderMore, useHeaderFit, type HeaderFit, type MoreItem } from './HeaderMore'
 import './chat-extras.css'
+import { usePhoneLayout } from '../usePhoneLayout'
 import { resolveKey } from '../../state/keyMap'
 
 const INACTIVE_MS = 7 * 24 * 3600 * 1000
@@ -84,7 +85,9 @@ function HeaderTools({ server, channel, fit }: { server: ServerState; channel: C
   const canPop = isText && popoutModeFor('chat') === 'window'
   const canManage = has(server.me, roles, 'manageChannels')
   // The box needs room; without it the search panel has its own (chat-extras.css).
-  const searchBox = fit === 'wide'
+  // The phone layout searches on its own page, opened by a button, however wide the header is (a phone held sideways).
+  const phone = usePhoneLayout()
+  const searchBox = fit === 'wide' && !phone
   const pinsInline = fit !== 'narrow'
 
   const more: MoreItem[][] = [

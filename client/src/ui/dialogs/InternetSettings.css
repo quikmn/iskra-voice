@@ -48,7 +48,7 @@
 .internet-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 14px; font-size: var(--fs-md); }
 .internet-actions code { overflow-wrap: anywhere; }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .forward-table th, .forward-table td { padding: 4px 3px; }
 }
 

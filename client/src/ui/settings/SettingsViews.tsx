@@ -75,8 +75,9 @@ import { ServerImagesSection } from './ServerImagesSection'
 import { PublicPageSection } from './PublicPageSection'
 import './settings.css'
 import './room.css'
+import { PHONE_LAYOUT } from '../../phoneLayout'
 
-const PHONE = '(max-width: 760px)'
+const PHONE = PHONE_LAYOUT
 const isPhone = () => window.matchMedia(PHONE).matches
 
 function usePhone(): boolean {

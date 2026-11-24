@@ -18,7 +18,7 @@ function visitorOs(): DesktopOs {
 function onPhone(): boolean {
   if (typeof navigator === 'undefined') return false
   if (nativePlatform() || isPhoneOrTablet(navigator.userAgent, navigator.platform, navigator.maxTouchPoints)) return true
-  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse) and (max-width: 760px)').matches
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse) and (max-width: 760px), (pointer: coarse) and (max-height: 500px) and (max-width: 1000px)').matches
 }
 
 /** Chromium browsers can tell an Intel Mac from Apple silicon; others get Apple silicon first. */

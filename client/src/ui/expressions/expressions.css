@@ -37,10 +37,12 @@
 .emoji-preview-glyph .custom-emoji { width: 28px; height: 28px; vertical-align: middle; }
 .emoji-picker-layer.sheet { background: var(--scrim); animation: fade 0.14s ease-out; }
 .emoji-picker-layer.sheet .emoji-picker, .emoji-picker-layer.sheet .soundboard {
-  left: 0; right: 0; bottom: 0; top: auto; width: 100%; max-width: none; border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0;
+  left: var(--safe-left); right: var(--safe-right); bottom: 0; top: auto; width: auto; max-width: none; border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0;
   padding-bottom: var(--safe-bottom); animation: sheet-up 0.2s var(--ease);
 }
 .emoji-picker-layer.sheet .emoji-picker { height: min(70dvh, 480px); }
+/* A phone held sideways has little height: the sheet takes nearly all of it. */
+@media (--phone-sideways) { .emoji-picker-layer.sheet .emoji-picker { height: calc(100dvh - 24px); } }
 .emoji-picker-layer.sheet .emoji-cell { height: 44px; }
 .emoji-suggest .suggest-glyph { width: 24px; font-size: 20px; text-align: center; }
 .emoji-suggest .custom-emoji { width: 22px; height: 22px; vertical-align: middle; }
@@ -102,7 +104,7 @@
 .expression-fields { flex: 1; min-width: 0; display: grid; gap: 2px; font-size: 13px; }
 .sound-emoji-input { width: 52px; text-align: center; flex: none; }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .composer .attach-button { padding-left: 4px; padding-right: 4px; }
 }
 

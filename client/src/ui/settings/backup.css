@@ -63,7 +63,7 @@
 .import-warnings ul { margin: 6px 0 0; padding-left: 20px; font-size: var(--fs-md); color: var(--muted); }
 .import-note { margin-top: 20px; font-size: var(--fs-md); }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .move-steps li span:last-child { display: none; }
   .move-steps li.current span:last-child { display: inline; }
   .backup-maker { max-width: none; }

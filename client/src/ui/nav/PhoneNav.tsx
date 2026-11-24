@@ -7,8 +7,9 @@ import { setDrawerControl, useBackHint } from './backNav'
 import { useVoice } from '../../state/voice'
 import { afterCallScreen, dragEndsOpen, dragProgress, swipeBlocked, swipeIntent, swipeTarget, type Drag, type Panel } from './navLogic'
 import './phone-nav.css'
+import { PHONE_LAYOUT } from '../../phoneLayout'
 
-const PHONE = '(max-width: 760px)'
+const PHONE = PHONE_LAYOUT
 /** Up to this width the member list is a drawer too. */
 const MEMBERS_DRAWER = '(max-width: 1100px)'
 const COLUMN = { nav: '.nav-column', members: '.members-column' } as const

@@ -16,7 +16,7 @@
 .connection + .connection { border-top: 1px solid var(--border); }
 .connection .muted { font-size: var(--fs-md); }
 .connection-switch { margin-top: 8px; }
-@media (max-width: 760px) {
+@media (--phone) {
   .data-export-list li { flex-wrap: wrap; }
   .connection { padding: 10px 12px; }
 }

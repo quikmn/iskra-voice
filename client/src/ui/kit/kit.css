@@ -154,7 +154,7 @@
   bottom: calc(var(--notes-lane-bottom, 96px) + var(--safe-bottom)); left: 50%; transform: translateX(-50%); z-index: var(--z-notice);
   flex-direction: column-reverse; align-items: center; width: max-content; max-width: calc(100vw - 24px);
 }
-@media (max-width: 760px) {
+@media (--phone) {
   /* Phones: the passing notes keep the bottom; the cards that want a reaction drop in under the header. */
   .toast-lane.corner { left: 8px; right: 8px; width: auto; bottom: auto; top: calc(60px + var(--safe-top)); flex-direction: column; align-items: stretch; }
 }

@@ -69,7 +69,7 @@
 .jq-auto h3 { margin: 0; font-size: var(--fs-base); }
 .jq-auto p { margin: 0; }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .jq-answers { grid-template-columns: 1fr; }
   .jq-modal .jq-footer .button { flex: 1 1 auto; justify-content: center; }
   .jq-modal .jq-footer .spacer { display: none; }

@@ -8,6 +8,7 @@ import { goToPage, searchDocs } from '../../state/docs'
 import { closeSearch } from '../../state/search'
 import { highlighted } from './DocsView'
 import { PageIcon } from './icons'
+import { PHONE_LAYOUT } from '../../phoneLayout'
 
 const FILTER = /(^|\s)(from|in|has|before|after):/i
 
@@ -36,7 +37,7 @@ export function DocSearchHits({ server, query }: { server: ServerState; query: s
           <li key={hit.page.id}>
             <button className="result-card" onClick={() => {
               goToPage(server.key, hit.page.channelId, hit.page.id)
-              if (window.matchMedia('(max-width: 760px)').matches) closeSearch()
+              if (window.matchMedia(PHONE_LAYOUT).matches) closeSearch()
             }}>
               <span className="result-where">#{channelName(hit.page.channelId)}</span>
               <span className="result-row">

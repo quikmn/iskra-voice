@@ -92,7 +92,7 @@
 .legal-links { margin: 0 0 14px; padding-left: 18px; display: grid; gap: 6px; }
 .legal-links a { color: var(--accent-2); }
 .about-safety { margin-top: 18px; }
-@media (max-width: 760px) {
+@media (--phone) {
   .report-reasons { grid-template-columns: 1fr; }
   .report-actions .button { flex: 1; }
 }

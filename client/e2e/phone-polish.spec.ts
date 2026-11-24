@@ -87,35 +87,121 @@ test('phone: buttons, tabs, channel rows and small links are 44 px to a finger',
   }
 })
 
-test('a sideways phone: settings and toasts keep clear of the notch', async ({ browser }) => {
+/** Visible controls that reach under the side insets or the home indicator, or hang off the screen. */
+async function underInsets(page: Page, insets: { left: number; right: number; bottom: number }): Promise<string[]> {
+  return page.evaluate(({ left, right, bottom }) => {
+    const bad: string[] = []
+    for (const el of document.querySelectorAll<HTMLElement>('button, input:not([type=hidden]), textarea, select, a[href], [role=menuitem], [role=tab]')) {
+      const style = getComputedStyle(el)
+      if (style.visibility === 'hidden' || style.display === 'none') continue
+      const r = el.getBoundingClientRect()
+      let x1 = r.left, x2 = r.right, y1 = r.top, y2 = r.bottom
+      let scrolls = false
+      for (let p = el.parentElement; p; p = p.parentElement) {
+        const ps = getComputedStyle(p)
+        if (ps.overflowX !== 'visible' || ps.overflowY !== 'visible') {
+          const c = p.getBoundingClientRect()
+          x1 = Math.max(x1, c.left); x2 = Math.min(x2, c.right); y1 = Math.max(y1, c.top); y2 = Math.min(y2, c.bottom)
+          if (/(auto|scroll)/.test(ps.overflowY) && p.scrollHeight > p.clientHeight + 1) scrolls = true
+        }
+      }
+      x1 = Math.max(x1, 0); x2 = Math.min(x2, innerWidth); y1 = Math.max(y1, 0); y2 = Math.min(y2, innerHeight)
+      if (x2 - x1 < 1 || y2 - y1 < 1) continue
+      const top = document.elementFromPoint((x1 + x2) / 2, (y1 + y2) / 2)
+      if (!top || !(el.contains(top) || top.contains(el))) continue // under a layer above it
+      // A row at the end of a list that scrolls may pass under the home indicator: it scrolls up.
+      const low = y2 > innerHeight - bottom + 0.5 && !scrolls
+      if (x1 < left - 0.5 || x2 > innerWidth - right + 0.5 || low) bad.push(`${el.tagName.toLowerCase()} "${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 30)}" x${Math.round(x1)}-${Math.round(x2)} y${Math.round(y1)}-${Math.round(y2)}`)
+    }
+    return bad
+  }, insets)
+}
+
+const SIDEWAYS = { ...pixel, viewport: { width: 844, height: 390 }, screen: { width: 844, height: 390 } }
+const NOTCH = { left: 47, right: 47, bottom: 21 }
+
+test('a phone held sideways gets the phone layout, clear of the notch', async ({ browser }) => {
   const server = await startServer('Sideways')
   try {
-    const context = await browser.newContext({ ...pixel, viewport: { width: 844, height: 390 }, screen: { width: 844, height: 390 } })
+    const context = await browser.newContext(SIDEWAYS)
     const page = await context.newPage()
     await joinVia(page, server.ownerLink(), 'Ana')
-    await setInsets(page, { left: 47, right: 47, bottom: 21 })
-    await page.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: 'Settings' })
-    await expect(dialog).toBeVisible()
+    await setInsets(page, NOTCH)
+    for (let i = 0; i < 6; i++) await send(page, `message ${i}`)
+    await expect(page.locator('.message.sending')).toHaveCount(0)
+
+    // The chat has the screen: channels are a drawer, and search is the phone's button and page.
+    const openChannels = page.getByRole('button', { name: 'Open channels' })
+    await expect(openChannels).toBeVisible()
+    await expect(page.locator('.shell')).toHaveClass(/panel-none/)
+    const chat = (await page.locator('.messages').boundingBox())!
+    expect(chat.width).toBeGreaterThan(700)
+    expect(await underInsets(page, NOTCH)).toEqual([])
+    await page.screenshot({ path: join(SHOTS, 'phone-polish-sideways-chat.png'), animations: 'disabled' })
+    await page.getByRole('button', { name: 'Search messages' }).click()
+    await expect(page.getByRole('button', { name: 'Close search' })).toBeVisible()
+    await page.getByRole('button', { name: 'Close search' }).click()
+
+    // The drawer, and what opens from it: sheets and dialogs between the insets, none running off the bottom.
+    await openChannels.click()
     await page.waitForTimeout(300)
-    const width = page.viewportSize()!.width
-    for (const control of [dialog.getByRole('button', { name: 'Close' }), dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Profile', exact: true })]) {
-      const box = (await control.boundingBox())!
-      expect(box.x, 'clear of the left inset').toBeGreaterThanOrEqual(47)
-      expect(box.x + box.width, 'clear of the right inset').toBeLessThanOrEqual(width - 47)
-    }
-    // No "Esc" hint where there is no keyboard.
-    await expect(dialog.locator('.room-esc')).toBeHidden()
-    await page.screenshot({ path: join(SHOTS, 'phone-polish-landscape-settings.png'), animations: 'disabled' })
+    expect(await underInsets(page, NOTCH)).toEqual([])
+    await page.locator('.me-bar').getByRole('button', { name: /Set your status/ }).click()
+    const status = page.getByRole('menu', { name: 'Your status' })
+    await expect(status).toBeVisible()
+    await page.waitForTimeout(300)
+    expect(await underInsets(page, NOTCH)).toEqual([])
+    const statusBox = (await status.boundingBox())!
+    expect(statusBox.y + statusBox.height).toBeLessThanOrEqual(390.5)
+    await page.screenshot({ path: join(SHOTS, 'phone-polish-sideways-status.png'), animations: 'disabled' })
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'Invite friends' }).click()
+    await expect(page.locator('.copy-row input')).toBeVisible()
+    await page.waitForTimeout(300)
+    expect(await underInsets(page, NOTCH)).toEqual([])
     // iOS zooms the page when a field with text under 16px gets focus: no field here is smaller.
     const fieldSizes = async () => page.locator('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=hidden]), textarea, select')
       .evaluateAll((els) => els.filter((el) => el.getClientRects().length).map((el) => parseFloat(getComputedStyle(el).fontSize)))
     expect(Math.min(...(await fieldSizes()))).toBeGreaterThanOrEqual(16)
-    await dialog.getByRole('button', { name: 'Close' }).click()
-    await page.getByRole('button', { name: 'Invite friends' }).click()
-    await expect(page.locator('.copy-row input')).toBeVisible()
-    expect(Math.min(...(await fieldSizes()))).toBeGreaterThanOrEqual(16)
+    await page.keyboard.press('Escape')
+
+    // Settings: the phone's list, no "Esc" hint.
+    await page.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Settings' })
+    await expect(dialog).toBeVisible()
+    await page.waitForTimeout(300)
+    expect(await underInsets(page, NOTCH)).toEqual([])
+    await expect(dialog.locator('.room-esc')).toBeHidden()
+    await page.screenshot({ path: join(SHOTS, 'phone-polish-landscape-settings.png'), animations: 'disabled' })
     await context.close()
+  } finally {
+    await server.stop()
+  }
+})
+
+test('a tablet on its side and a short desktop window keep the wide layout', async ({ browser }) => {
+  const server = await startServer('Wide')
+  try {
+    const sizes = [
+      { name: 'tablet', options: { ...pixel, viewport: { width: 1180, height: 820 }, screen: { width: 1180, height: 820 } } },
+      { name: 'short desktop window', options: { viewport: { width: 900, height: 420 } } },
+    ]
+    let link = server.ownerLink()
+    for (const { name, options } of sizes) {
+      const context = await browser.newContext(options)
+      const page = await context.newPage()
+      await joinVia(page, link, name === 'tablet' ? 'Tab' : 'Desk')
+      if (name === 'tablet') link = await createInviteLink(page) // the owner link works once
+      // The channel list stands beside the chat; there is no drawer button.
+      await expect(page.locator('.channel-list'), name).toBeInViewport()
+      await expect(page.getByRole('button', { name: 'Open channels' }), name).toBeHidden()
+      const nav = (await page.locator('.nav-column').boundingBox())!
+      const main = (await page.locator('.main-column').boundingBox())!
+      expect(main.x, name).toBeGreaterThanOrEqual(nav.x + nav.width - 1)
+      // The tablet's fields are 16px all the same (iOS zoom).
+      if (name === 'tablet') expect(await page.getByPlaceholder('Message #general').evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16)
+      await context.close()
+    }
   } finally {
     await server.stop()
   }
@@ -171,6 +257,20 @@ test.describe('in a call', () => {
       await phone.screenshot({ path: join(SHOTS, 'phone-polish-call-keyboard.png'), animations: 'disabled' })
       // With a friend request and the recovery reminder above it, the call is what gets cut.
       await fits(380, 0, false)
+
+      // Held sideways the call has the screen: both pictures side by side, every control on screen.
+      await phone.setViewportSize({ width: 844, height: 390 })
+      await setInsets(phone, { left: 47, right: 47, bottom: 21 })
+      await expect(composer).toBeHidden()
+      const tiles = panel.locator('.video-tile')
+      await expect(tiles).toHaveCount(2)
+      await phone.waitForTimeout(300)
+      const [first, second] = [(await tiles.nth(0).boundingBox())!, (await tiles.nth(1).boundingBox())!]
+      expect(Math.abs(first.y - second.y), 'side by side').toBeLessThan(2)
+      expect(Math.min(first.height, second.height)).toBeGreaterThan(80)
+      const hangUp = (await panel.getByRole('button', { name: 'Hang up' }).boundingBox())!
+      expect(hangUp.y + hangUp.height).toBeLessThanOrEqual(390 - 21 + 0.5)
+      await phone.screenshot({ path: join(SHOTS, 'phone-polish-sideways-call.png'), animations: 'disabled' })
     } finally {
       await server.stop()
     }

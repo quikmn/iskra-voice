@@ -19,6 +19,7 @@ import { resolveKey } from '../../state/keyMap'
 import { DocSearchHits } from '../docs/DocSearchHits'
 import { Segmented } from '../kit'
 import { stripMarkdownPieces } from '../plainMarkdown'
+import { PHONE_LAYOUT } from '../../phoneLayout'
 
 const HINTS = [
   ['from:', 'chat.search.hints.from'],
@@ -29,7 +30,7 @@ const HINTS = [
   ['after:', 'chat.search.hints.after'],
 ] as const
 
-const isPhone = () => window.matchMedia('(max-width: 760px)').matches
+const isPhone = () => window.matchMedia(PHONE_LAYOUT).matches
 
 export function SearchPanel({ server }: { server: ServerState }) {
   const { scope, text, searched, results, total, totalCapped, hasMore, loading, error, groups } = useSearch()

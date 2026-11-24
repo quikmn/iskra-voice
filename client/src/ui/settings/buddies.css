@@ -37,7 +37,7 @@
 }
 .buddy-code-text.pairing { font-size: var(--fs-md); letter-spacing: 0; word-break: break-all; }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .buddy-row { flex-direction: column; }
   .buddy-actions { max-width: none; justify-content: flex-start; }
   .buddy-add, .buddy-spot-form { max-width: none; }

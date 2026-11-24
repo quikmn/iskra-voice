@@ -47,7 +47,7 @@
 
 /* One more button in the call: let the row wrap on narrow phones rather than overflow. */
 
-@media (max-width: 760px) {
+@media (--phone) {
   .caption-line { font-size: 14px; }
   .captions-overlay { margin-top: 6px; }
 }

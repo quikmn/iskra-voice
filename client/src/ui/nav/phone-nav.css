@@ -1,6 +1,6 @@
 /* ── Phone navigation: drawers that follow the finger, "Press back again to leave" ── */
 .nav-column:focus, .members-column:focus { outline: none; }
-@media (max-width: 760px) {
+@media (--phone) {
   /* While a drawer is dragged its scrim shows, faded with the drawer (the drag sets its opacity). */
   .shell.swiping .scrim { display: block; position: fixed; inset: 0; background: color-mix(in srgb, var(--scrim), #000 30%); z-index: calc(var(--z-drawer) - 1); animation: none; }
   .shell.swiping .nav-column, .shell.swiping .members-column { will-change: transform; }

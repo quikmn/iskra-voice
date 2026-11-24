@@ -80,7 +80,7 @@ button.tag-chip:disabled { opacity: 0.45; cursor: default; }
 .post-bar .button.small { padding: 4px 8px; gap: 5px; }
 .post-bar .button.on { background: var(--surface-3); color: var(--text); }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .forum-toolbar { flex-wrap: wrap; padding: 10px 10px 8px; }
   .forum-search { flex-basis: 100%; height: 42px; }
   .forum-sort { flex: 1; height: 40px; }

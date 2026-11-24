@@ -51,7 +51,7 @@
 .room-crumb { margin: 0; flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 700; white-space: nowrap; }
 .room-crumb > span { overflow: hidden; text-overflow: ellipsis; }
 
-@media (max-width: 760px) {
+@media (--phone) {
   .room-band { min-height: 76px; padding: var(--sp-3) var(--sp-2) var(--sp-3) var(--sp-4); }
   .room-identity { gap: 14px; }
   .room-tile.large { width: 48px; height: 48px; font-size: var(--fs-lg); }
@@ -79,6 +79,6 @@
 .room-category { margin-top: 18px; }
 .room-category-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 10px; }
 .room-category-head strong { font-size: var(--fs-md); color: var(--muted); }
-@media (max-width: 760px) {
+@media (--phone) {
   .room-member .role-chips { display: none; }
 }
