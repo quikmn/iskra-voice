@@ -2,25 +2,59 @@
 // service with an "In voice" notification). Nothing happens in a browser or the desktop app.
 import { create } from 'zustand'
 import { native } from '../platform/native'
+import { parseRoutes, type NativeRoute } from './deviceChoices'
 import { nameOf } from './dms'
 import { nativeVoiceInfo } from './nativeVoiceInfo'
 import { useApp } from './store'
 import { leaveVoice, toggleMute, useVoice } from './voice'
 
-/** Android: a call plays on the speaker (`on`) or the earpiece. The button shows in voice while no headset is in. */
-export const useSpeaker = create<{ shown: boolean; on: boolean }>(() => ({ shown: false, on: true }))
+/**
+ * Android: a call plays on the speaker (`on`) or the earpiece. The button shows in voice while no headset is in.
+ * `routes`: everything the call can play on right now (the list behind the button's arrow), `route` the one it plays
+ * on. Both stay empty in an app that can't list them.
+ */
+export const useSpeaker = create<{ shown: boolean; on: boolean; routes: NativeRoute[]; route: number | null }>(() => ({ shown: false, on: true, routes: [], route: null }))
+
+/** Picked from the list in this call. Null: the button's speaker or earpiece, and a headset when one is in. */
+let picked: number | null = null
+
+function gotRoutes(raw: unknown) {
+  if (!useVoice.getState().session) return
+  const { routes, current } = parseRoutes(raw)
+  const kind = routes.find((r) => r.id === current)?.kind
+  // The button follows a speaker or earpiece picked from the list.
+  useSpeaker.setState((s) => ({ routes, route: current, on: kind === 'speaker' ? true : kind === 'earpiece' ? false : s.on }))
+}
+
+export function refreshRoutes() {
+  const list = native?.voice.routes
+  if (list && useVoice.getState().session) void list().then(gotRoutes).catch(() => undefined)
+}
+
+/** Plays the call on one of `routes`. */
+export function pickRoute(id: number) {
+  const set = native?.voice.route
+  if (!set) return
+  picked = id
+  useSpeaker.setState({ route: id })
+  void set(id).then(gotRoutes).catch(() => undefined)
+}
 
 function routeTo(on: boolean) {
   const speaker = native?.voice.speaker
   if (!speaker) return
   void speaker(on)
-    .then(({ headset }) => { if (useVoice.getState().session) useSpeaker.setState({ shown: !headset }) })
+    .then(({ headset }) => {
+      if (useVoice.getState().session) useSpeaker.setState({ shown: !headset })
+      refreshRoutes()
+    })
     .catch(() => undefined)
 }
 
 export function toggleSpeaker() {
   const on = !useSpeaker.getState().on
   useSpeaker.setState({ on })
+  picked = null
   routeTo(on)
 }
 
@@ -37,7 +71,8 @@ export function startNativeVoice(): () => void {
     if (!session || !id) {
       if (active) void bridge.voice.stop().catch(() => undefined)
       active = null
-      useSpeaker.setState({ shown: false })
+      picked = null
+      useSpeaker.setState({ shown: false, routes: [], route: null })
       return
     }
     const server = useApp.getState().servers[session.serverKey]
@@ -48,6 +83,7 @@ export function startNativeVoice(): () => void {
       active = id
       lastTitle = info.title
       // Each call starts on the speaker, as on the iPhone.
+      picked = null
       useSpeaker.setState({ on: true })
       void bridge.voice.start({ ...info, video }).catch(() => undefined)
     } else if (info.title !== lastTitle) {
@@ -57,7 +93,8 @@ export function startNativeVoice(): () => void {
     // Once connected (and again after a reconnect), the call's audio is running: the choice is applied to it.
     if (session.state === 'connected' && routed !== session) {
       routed = session
-      routeTo(useSpeaker.getState().on)
+      if (picked !== null) pickRoute(picked)
+      else routeTo(useSpeaker.getState().on)
     }
   }
   sync()
@@ -85,6 +122,7 @@ export function startNativeVoice(): () => void {
 
   const stopRoute = bridge.voice.onRoute?.((headset) => {
     if (useVoice.getState().session) useSpeaker.setState({ shown: !headset })
+    refreshRoutes()
   })
 
   return () => {
@@ -92,7 +130,8 @@ export function startNativeVoice(): () => void {
     stopEnd()
     stopMute()
     stopRoute?.()
-    useSpeaker.setState({ shown: false })
+    picked = null
+    useSpeaker.setState({ shown: false, routes: [], route: null })
     if (awake) void bridge.voice.keepAwake(false).catch(() => undefined)
     if (active) void bridge.voice.stop().catch(() => undefined)
   }

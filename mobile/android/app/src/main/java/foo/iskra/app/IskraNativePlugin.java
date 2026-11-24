@@ -15,6 +15,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.WindowManager;
 import androidx.core.content.ContextCompat;
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
@@ -23,6 +24,8 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -36,6 +39,8 @@ public class IskraNativePlugin extends Plugin {
     private AudioFocusRequest focus;
     /** In voice, sound plays on the speaker (like the iPhone app) unless the person picked the earpiece; a headset wins. */
     private boolean speakerWanted = true;
+    /** The device picked from the call's list (its AudioDeviceInfo id), until it goes away or the call ends. */
+    private Integer pickedRoute;
     private AudioDeviceCallback deviceWatch;
     private AudioManager.OnModeChangedListener modeWatch;
     private final ExecutorService shareReader = Executors.newSingleThreadExecutor();
@@ -154,6 +159,7 @@ public class IskraNativePlugin extends Plugin {
         VoiceService.start(getContext(), call.getString("title", ""));
         requestFocus();
         speakerWanted = true;
+        pickedRoute = null;
         watchRoute();
         applyRoute();
         call.resolve();
@@ -206,10 +212,30 @@ public class IskraNativePlugin extends Plugin {
     @PluginMethod
     public void voiceSpeaker(PluginCall call) {
         speakerWanted = call.getBoolean("on", true);
+        // The button is the phone's own speaker or earpiece again (and a headset when one is in).
+        pickedRoute = null;
         applyRoute();
         JSObject result = new JSObject();
         result.put("headset", headsetIn());
         call.resolve(result);
+    }
+
+    /** What a call can play on right now, and which one it plays on (the list behind the speaker button's arrow). */
+    @PluginMethod
+    public void voiceRoutes(PluginCall call) {
+        call.resolve(routesNow());
+    }
+
+    /** Plays the call on one of them, by the id voiceRoutes gave. Answers with the list, as voiceRoutes does. */
+    @PluginMethod
+    public void voiceRoute(PluginCall call) {
+        Integer id = call.getInt("id");
+        // Only during a call: outside one, the choice belongs to other apps.
+        if (id != null && deviceWatch != null && findRoute(id) != null) {
+            pickedRoute = id;
+            applyRoute();
+        }
+        call.resolve(routesNow());
     }
 
     static void voiceEnded() {
@@ -251,8 +277,86 @@ public class IskraNativePlugin extends Plugin {
         return false;
     }
 
+    /** The devices a call can be sent to: the phone's speaker and earpiece, and any headset. */
+    private List<AudioDeviceInfo> routes() {
+        AudioManager audio = audioManager();
+        List<AudioDeviceInfo> found = new ArrayList<>();
+        if (Build.VERSION.SDK_INT >= 31) {
+            for (AudioDeviceInfo device : audio.getAvailableCommunicationDevices()) if (routeKind(device.getType()) != null) found.add(device);
+            return found;
+        }
+        // Before Android 12 the app can only turn the speaker on or off: off plays on a headset when one is in, else on
+        // the earpiece. So the earpiece is listed only without a headset.
+        boolean headset = headsetIn();
+        for (AudioDeviceInfo device : audio.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+            int type = device.getType();
+            if (type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER || (headset ? isHeadset(type) : type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE)) found.add(device);
+        }
+        return found;
+    }
+
+    /** The words the page has for a device ("speaker", "earpiece", "wired", "usb", "bluetooth", "hearingAid"); null: not listed. */
+    private static String routeKind(int type) {
+        if (type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) return "speaker";
+        if (type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) return "earpiece";
+        if (type == AudioDeviceInfo.TYPE_WIRED_HEADSET || type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES) return "wired";
+        if (type == AudioDeviceInfo.TYPE_USB_HEADSET || type == AudioDeviceInfo.TYPE_USB_DEVICE) return "usb";
+        if (type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || type == AudioDeviceInfo.TYPE_BLE_HEADSET || type == AudioDeviceInfo.TYPE_BLE_SPEAKER) return "bluetooth";
+        if (type == AudioDeviceInfo.TYPE_HEARING_AID) return "hearingAid";
+        return null;
+    }
+
+    private AudioDeviceInfo findRoute(int id) {
+        for (AudioDeviceInfo device : routes()) if (device.getId() == id) return device;
+        return null;
+    }
+
+    private JSObject routesNow() {
+        List<AudioDeviceInfo> devices = routes();
+        JSArray list = new JSArray();
+        Integer current = null;
+        Integer speaker = null;
+        Integer earpiece = null;
+        Integer headset = null;
+        for (AudioDeviceInfo device : devices) {
+            JSObject item = new JSObject();
+            item.put("id", device.getId());
+            item.put("kind", routeKind(device.getType()));
+            CharSequence name = device.getProductName();
+            item.put("name", name == null ? "" : name.toString());
+            list.put(item);
+            if (pickedRoute != null && pickedRoute == device.getId()) current = device.getId();
+            if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) speaker = device.getId();
+            else if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) earpiece = device.getId();
+            else if (headset == null) headset = device.getId();
+        }
+        if (current == null && headset != null) {
+            // A headset plays by Android's own choice: the one it names when there are several, else the first.
+            current = headset;
+            if (Build.VERSION.SDK_INT >= 31) {
+                AudioDeviceInfo chosen = audioManager().getCommunicationDevice();
+                if (chosen != null) for (AudioDeviceInfo device : devices) if (device.getId() == chosen.getId() && isHeadset(device.getType())) current = chosen.getId();
+            }
+        }
+        if (current == null) current = speakerWanted ? speaker : earpiece;
+        JSObject result = new JSObject();
+        result.put("routes", list);
+        if (current != null) result.put("current", current);
+        return result;
+    }
+
     private void applyRoute() {
         AudioManager audio = audioManager();
+        if (pickedRoute != null) {
+            AudioDeviceInfo picked = findRoute(pickedRoute);
+            if (picked != null) {
+                if (Build.VERSION.SDK_INT >= 31) audio.setCommunicationDevice(picked);
+                else audio.setSpeakerphoneOn(picked.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER);
+                return;
+            }
+            // It went away (unplugged, switched off): back to the speaker or earpiece, or another headset.
+            pickedRoute = null;
+        }
         boolean headset = headsetIn();
         if (Build.VERSION.SDK_INT >= 31) {
             // A headset: Android's own choice (it picks the headset).
@@ -302,6 +406,7 @@ public class IskraNativePlugin extends Plugin {
         AudioManager audio = audioManager();
         if (deviceWatch != null) audio.unregisterAudioDeviceCallback(deviceWatch);
         deviceWatch = null;
+        pickedRoute = null;
         if (Build.VERSION.SDK_INT >= 31) {
             if (modeWatch != null) audio.removeOnModeChangedListener(modeWatch);
             modeWatch = null;

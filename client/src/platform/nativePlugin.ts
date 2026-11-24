@@ -13,6 +13,10 @@ export interface IskraNativePlugin {
   voiceUpdate(options: { title: string }): Promise<void>
   voiceStop(): Promise<void>
   voiceSpeaker(options: { on: boolean }): Promise<{ headset?: unknown }>
+  /** Android: what a call can play on and which one it plays on (`{ routes: [{ id, kind, name }], current }`). */
+  voiceRoutes(): Promise<unknown>
+  /** Android: plays the call on this one; answers like voiceRoutes. */
+  voiceRoute(options: { id: number }): Promise<unknown>
   keepAwake(options: { on: boolean }): Promise<void>
   addListener(event: string, callback: (data: never) => void): Promise<PluginListener>
   /** The newest share from another app, once (none when there's none). */

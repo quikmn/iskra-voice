@@ -19,6 +19,12 @@ export interface NativeVoice {
   speaker?(on: boolean): Promise<{ headset: boolean }>
   /** Android: a headset came or went. */
   onRoute?(callback: (headset: boolean) => void): () => void
+  /**
+   * Android: what a call can play on (speaker, phone, headsets) and which one it plays on; `route` picks one by id.
+   * The answer is read by parseRoutes (state/deviceChoices.ts). An app from before these existed rejects both.
+   */
+  routes?(): Promise<unknown>
+  route?(id: number): Promise<unknown>
   /** The screen stays on (your camera is on in a call). */
   keepAwake(on: boolean): Promise<void>
 }
@@ -198,6 +204,8 @@ function bridge(platform: NativePlatform): NativeBridge {
         speaker: async (on: boolean) => ({ headset: (await withPlugin((p) => p.voiceSpeaker({ on }))).headset === true }),
         onRoute: (callback: (headset: boolean) => void) =>
           listen<{ headset?: unknown }>('voiceRoute', (data) => callback(data.headset === true)),
+        routes: () => withPlugin((p) => p.voiceRoutes()),
+        route: (id: number) => withPlugin((p) => p.voiceRoute({ id })),
       }),
     },
   }
