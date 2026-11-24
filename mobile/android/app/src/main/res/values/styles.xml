@@ -20,5 +20,8 @@
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <!-- Android 12+ draws its own splash (the icon on a plain colour) first: the app's dark background, not the
+             system's light or dark default. -->
+        <item name="windowSplashScreenBackground">@color/iskraBackground</item>
     </style>
 </resources>
