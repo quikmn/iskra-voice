@@ -74,4 +74,9 @@
   .friend-row .friend-chip { display: none; }
   .friend-actions .friend-answer { width: 40px; min-height: 40px; height: 40px; padding: 0; border-radius: 50%; justify-content: center; }
   .friend-actions .friend-answer-label { display: none; }
+  /* Cancel request, the same way, so "Outgoing friend request" has its line. It has no fill of its own. */
+  .friend-actions .friend-answer.ghost { background: color-mix(in srgb, var(--text) 7%, transparent); }
+  /* The line under the name is secondary text, at its size, and the list keeps less room at the sides. */
+  .friend-text .muted { font-size: var(--fs-ui); }
+  .friends { padding-left: var(--sp-2); padding-right: var(--sp-2); }
 }

@@ -65,7 +65,9 @@ export function FriendButtons({ accountKey, header, icon }: { accountKey: string
       {relation === 'outgoing' && (
         <>
           <span className="friend-chip">{t('friends.requestSent')}</span>
-          <button className={`button ghost ${small}`} disabled={busy} onClick={run(() => cancelFriendRequest(accountKey))}>{t('friends.cancel')}</button>
+          <button className={`button ghost ${small} ${header ? 'friend-answer' : ''}`} disabled={busy} onClick={run(() => cancelFriendRequest(accountKey))} aria-label={t('friends.cancel')}>
+            {header && <Close size={16} />}<span className="friend-answer-label">{t('friends.cancel')}</span>
+          </button>
         </>
       )}
       {relation === 'incoming' && (
