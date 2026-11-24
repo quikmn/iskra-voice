@@ -3,7 +3,7 @@
 .voice-chat-toggle { position: relative; }
 .voice-chat-toggle.on { color: var(--text-strong); background: var(--hover); }
 .voice-chat-toggle .chat-count {
-  position: absolute; top: 2px; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  position: absolute; top: 2px; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--r-md);
   background: var(--accent); color: var(--on-accent); font-size: 10px; font-weight: 700; display: grid; place-items: center;
   border: 2px solid var(--stage); box-sizing: content-box;
 }
@@ -31,7 +31,7 @@
 .clip-button.idle { color: var(--muted); }
 .clips-strip {
   display: flex; width: fit-content; align-items: center; gap: 8px; max-width: calc(100% - 32px);
-  margin: 6px auto -4px; padding: 4px 12px; border-radius: 99px; font-size: 12px; color: var(--text-2);
+  margin: 6px auto -4px; padding: 4px 12px; border-radius: var(--r-pill); font-size: 12px; color: var(--text-2);
   background: color-mix(in srgb, var(--red) 10%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--red) 30%, var(--border));
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: none;
 }
@@ -44,7 +44,7 @@
 
 /* "Saved a clip" notes are ui/kit ToastPill (the top lane). */
 
-.clip-dialog .clip-preview { width: 100%; max-height: 50vh; border-radius: 10px; background: #000; display: block; }
+.clip-dialog .clip-preview { width: 100%; max-height: 50vh; border-radius: var(--r-lg); background: #000; display: block; }
 .clip-dialog .clip-preview.audio-only { height: 54px; background: var(--surface-2); }
 .clip-trim { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
 .clip-trim input[type='range'] { width: 100%; }

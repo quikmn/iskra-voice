@@ -33,7 +33,7 @@
 .internet-callout {
   margin-top: 14px;
   padding: 12px 14px;
-  border-radius: var(--radius);
+  border-radius: var(--r-lg);
   background: var(--surface-2);
   border: 1px solid var(--border);
 }

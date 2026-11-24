@@ -13,7 +13,7 @@
 .when-presets { display: grid; gap: 6px; }
 .when-preset {
   display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; text-align: left;
-  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer;
 }
 .when-preset:hover, .when-preset.on { border-color: var(--accent); background: var(--accent-subtle); }
 .when-preset .muted { font-size: var(--fs-sm); white-space: nowrap; }
@@ -40,11 +40,11 @@
 .inbox-everyone { font-size: var(--fs-md); color: var(--text-2); margin: 4px 0 12px; }
 .inbox-heading { font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
 .inbox-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.inbox-row { display: flex; align-items: flex-start; gap: 8px; border-radius: var(--radius); padding: 2px; }
+.inbox-row { display: flex; align-items: flex-start; gap: 8px; border-radius: var(--r-lg); padding: 2px; }
 .inbox-row.unread { background: var(--accent-subtle); }
 .inbox-row-main {
   flex: 1; min-width: 0; display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 8px; border: 0; background: none; color: var(--text);
-  font: inherit; border-radius: var(--radius);
+  font: inherit; border-radius: var(--r-lg);
 }
 button.inbox-row-main { cursor: pointer; }
 button.inbox-row-main:hover { background: var(--hover); }
@@ -69,7 +69,7 @@ button.inbox-row-main:hover { background: var(--hover); }
 
 /* Edit history */
 .history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.history-item { padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); display: grid; gap: 4px; }
+.history-item { padding: 10px 12px; border-radius: var(--r-lg); background: var(--surface-2); display: grid; gap: 4px; }
 .history-item.current { border: 1px solid var(--accent); }
 .history-when { font-size: var(--fs-sm); color: var(--muted); }
 

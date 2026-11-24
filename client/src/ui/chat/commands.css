@@ -1,7 +1,7 @@
 /* ── Bot commands in the composer ─────────────────────────────────── */
 .command-suggest { max-height: min(360px, 50vh); overflow-y: auto; }
 .command-option {
-  display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border-radius: calc(var(--radius) * 0.6);
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border-radius: var(--r-sm);
   cursor: pointer; min-width: 0;
 }
 .command-option.active, .command-option:hover { background: var(--surface-3); }

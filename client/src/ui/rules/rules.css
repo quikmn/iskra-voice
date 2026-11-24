@@ -8,7 +8,7 @@
 .rules-welcome { margin: 0; color: var(--text-strong); font-size: 15px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .rules-lead { margin: 0; }
 .rules-text {
-  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px 16px;
   line-height: 1.55; overflow-wrap: anywhere; white-space: pre-wrap;
 }
 .rules-agreed { margin: 0; color: var(--green); }
@@ -22,7 +22,7 @@
 .rules-settings .rules-editor-head > span { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .rules-input {
   width: 100%; min-height: 180px; margin-top: 8px; resize: vertical; font: inherit; line-height: 1.5;
-  background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px;
+  background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 10px 12px;
 }
 .rules-input:focus { outline: 2px solid var(--focus); outline-offset: -1px; }
 .rules-preview { margin-top: 8px; min-height: 180px; }
@@ -32,7 +32,7 @@
 .rules-settings .rules-ask { margin-left: 26px; }
 .rules-settings .copy-row { margin-top: 14px; }
 
-.voice-limit { margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); padding: 1px 6px; border-radius: 6px; background: var(--bg); flex: none; }
+.voice-limit { margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); padding: 1px 6px; border-radius: var(--r-sm); background: var(--bg); flex: none; }
 .voice-limit.full { color: var(--red); background: var(--danger-bg); }
 
 @media (--phone) {

@@ -3,7 +3,7 @@
 .invite-summary .open-in-app { margin: 0; }
 .share-menu {
   position: fixed; width: 340px; max-width: calc(100vw - 16px); padding: 14px; display: grid; gap: 12px;
-  background: var(--float); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.2); box-shadow: var(--shadow-pop);
+  background: var(--float); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-pop);
   animation: pop 0.14s var(--ease);
 }
 .share-menu .field, .share-menu .segmented { margin: 0; }
@@ -11,13 +11,13 @@
 .share-menu .share-audio { padding: 0; }
 .emoji-picker-layer.sheet .share-menu {
   left: 0; right: 0; bottom: 0; top: auto; width: 100%; max-width: none; padding: 16px 16px calc(16px + var(--safe-bottom));
-  border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0; animation: sheet-up 0.2s var(--ease);
+  border-radius: var(--r-xl) var(--r-xl) 0 0; animation: sheet-up 0.2s var(--ease);
 }
 
 /* "Playing X" */
 .activity-line { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .activity-line strong { color: var(--text-2); font-weight: 600; }
-.profile-activity { margin: 8px 0 0; padding: 8px 10px; border-radius: calc(var(--radius) * 0.7); background: var(--surface-3); }
+.profile-activity { margin: 8px 0 0; padding: 8px 10px; border-radius: var(--r-sm); background: var(--surface-3); }
 .profile-activity .activity-line { font-size: 13px; }
 .custom-games { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; }
 .custom-games li { display: flex; align-items: center; gap: 8px; font-size: 14px; }

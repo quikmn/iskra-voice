@@ -23,7 +23,7 @@
 .quiet-days { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .quiet-days legend { padding: 0; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-2); }
 .quiet-day {
-  min-width: 46px; min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.7);
+  min-width: 46px; min-height: 34px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--r-sm);
   background: var(--surface-2); color: var(--text-2); font-size: 13px; text-transform: capitalize;
 }
 .quiet-day:hover { background: var(--hover); }

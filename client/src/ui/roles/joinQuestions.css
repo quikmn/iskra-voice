@@ -21,7 +21,7 @@
 .jq-answers { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 6px; }
 .jq-answer {
   display: flex; align-items: center; gap: 10px; text-align: left; min-height: 52px; padding: 10px 12px; min-width: 0;
-  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); color: var(--text); cursor: pointer;
 }
 .jq-answer:hover:not(:disabled) { border-color: var(--accent); }
 .jq-answer.on { border-color: var(--accent); background: var(--accent-subtle); }
@@ -48,7 +48,7 @@
 .jq-suggested h4 { margin: 0; font-size: var(--fs-md); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .jq-suggested ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .jq-channel {
-  display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; min-height: 44px; border-radius: var(--radius);
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; min-height: 44px; border-radius: var(--r-lg);
   border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 500; cursor: pointer; text-align: left;
 }
 .jq-channel:hover { border-color: var(--accent); }
@@ -58,7 +58,7 @@
 .jq-safety { align-items: flex-start; }
 .jq-safety p { margin: 0; flex: 1 1 260px; font-size: var(--fs-md); }
 .jq-answer-editors { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.jq-answer-editor { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.jq-answer-editor { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); min-width: 0; }
 .jq-answer-head { display: flex; gap: 6px; align-items: center; min-width: 0; }
 .jq-emoji-input { width: 52px; flex: none; text-align: center; }
 .jq-label-input { flex: 1; min-width: 0; }

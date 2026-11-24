@@ -1,9 +1,9 @@
 /* ── AutoMod: settings section and alert cards ───────────────────────── */
-.automod-master { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); margin-top: 12px; }
+.automod-master { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface-2); margin-top: 12px; }
 .automod-preset { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 12px 0 0; font-size: var(--fs-md); }
 .automod-note { margin: 10px 0 4px; font-size: var(--fs-md); }
 
-.automod-rule { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-top: 12px; transition: border-color var(--dur); }
+.automod-rule { border: 1px solid var(--border); border-radius: var(--r-lg); padding: 12px 14px; margin-top: 12px; transition: border-color var(--dur); }
 .automod-rule.on { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 .automod-rule-body { margin-top: 12px; display: grid; gap: 10px; }
 .automod-rule-body .field { margin-bottom: 0; }
@@ -34,7 +34,7 @@
 
 /* An alert in the chat. */
 .automod-alert {
-  margin-top: 2px; padding: 8px 12px; border-left: 3px solid var(--amber); border-radius: calc(var(--radius) * 0.6);
+  margin-top: 2px; padding: 8px 12px; border-left: 3px solid var(--amber); border-radius: var(--r-sm);
   background: var(--warning-bg); max-width: 640px; font-size: var(--fs-ui);
 }
 .automod-alert-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }

@@ -10,6 +10,6 @@
 .room-dialog .modal-body { display: flex; flex-direction: column; gap: 12px; }
 .room-invites { display: flex; flex-direction: column; gap: 8px; }
 .room-invites ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; }
-.room-invites li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: calc(var(--radius) * 0.6); min-height: 40px; }
+.room-invites li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: var(--r-sm); min-height: 40px; }
 .room-invites li .member-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .room-invites .room-invited-mark { font-size: var(--fs-sm); color: var(--accent); }

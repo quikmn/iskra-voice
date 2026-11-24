@@ -8,7 +8,7 @@
 .backup-progress progress { width: 100%; height: 8px; }
 .backup-done {
   display: flex; gap: 12px; align-items: flex-start; margin-top: 12px; padding: 14px 16px;
-  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface-2);
 }
 .backup-done p { margin: 4px 0 10px; }
 .backup-done strong { overflow-wrap: anywhere; }
@@ -19,7 +19,7 @@
 .backup-options { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin: 12px 0; }
 .backup-options .field { display: flex; align-items: center; gap: 10px; }
 .backup-options .field > span { margin: 0; }
-.backup-list { list-style: none; margin: 12px 0 4px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.backup-list { list-style: none; margin: 12px 0 4px; padding: 0; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
 .backup-list li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; font-size: var(--fs-ui); }
 .backup-list li + li { border-top: 1px solid var(--border); }
 .backup-list code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -41,7 +41,7 @@
 .move-pane > p:first-child { margin-top: 0; }
 .move-pane .guide-option h4 { margin: 0 0 6px; }
 .move-command {
-  margin: 0 0 8px; padding: 10px 12px; border-radius: calc(var(--radius) * 0.6); background: var(--bg); font-family: var(--mono);
+  margin: 0 0 8px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--bg); font-family: var(--mono);
   font-size: var(--fs-md); overflow-x: auto; white-space: pre;
 }
 .move-ok { color: var(--green-strong, var(--text)); font-weight: 600; }

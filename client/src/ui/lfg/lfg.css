@@ -1,9 +1,9 @@
 /* ── Looking for group: the post in a message, its dialog and toasts ── */
-.lfg-card { margin-top: 4px; padding: 12px 14px; max-width: 460px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
+.lfg-card { margin-top: 4px; padding: 12px 14px; max-width: 460px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-lg);
   display: flex; flex-direction: column; gap: 6px; }
 .lfg-card.closed { opacity: 0.75; }
 .lfg-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.lfg-tag { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 99px; background: var(--accent-subtle);
+.lfg-tag { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; padding: 2px 8px; border-radius: var(--r-pill); background: var(--accent-subtle);
   color: var(--mention-text); border: 1px solid var(--border); white-space: nowrap; }
 .lfg-game { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; min-width: 0; }
 .lfg-meta { display: flex; flex-wrap: wrap; gap: 4px; color: var(--text-2); font-size: var(--fs-ui); }

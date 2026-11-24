@@ -18,7 +18,7 @@
 .reactions-dialog { display: grid; gap: 10px; }
 .reaction-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .reaction-tabs button {
-  display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 14px; border: 1px solid var(--border);
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: var(--r-xl); border: 1px solid var(--border);
   background: var(--surface-2); color: var(--text-2); font-size: var(--fs-ui);
 }
 .reaction-tabs button.active { border-color: var(--accent); background: var(--accent-subtle); color: var(--text); }

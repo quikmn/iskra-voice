@@ -9,7 +9,7 @@
 
 .embeds { display: grid; gap: 6px; margin-top: 4px; }
 .embed {
-  max-width: 520px; padding: 10px 14px 12px; border-left: 4px solid var(--surface-3); border-radius: 6px; background: var(--surface-2);
+  max-width: 520px; padding: 10px 14px 12px; border-left: 4px solid var(--surface-3); border-radius: var(--r-sm); background: var(--surface-2);
   display: grid; gap: 6px; min-width: 0; overflow-wrap: anywhere;
 }
 .embed-author { font-size: 13px; font-weight: 600; color: var(--text-2); }
@@ -27,26 +27,26 @@
 /* Bots' cards may have pictures (from the server or data: URLs). */
 .embed.has-thumbnail { grid-template-columns: minmax(0, 1fr) auto; }
 .embed.has-thumbnail > :not(.embed-thumbnail) { grid-column: 1; }
-.embed-thumbnail { grid-column: 2; grid-row: 1 / span 4; width: 80px; height: 80px; object-fit: cover; border-radius: 6px; }
-.embed-image { max-width: 100%; max-height: 300px; border-radius: 6px; object-fit: contain; justify-self: start; }
+.embed-thumbnail { grid-column: 2; grid-row: 1 / span 4; width: 80px; height: 80px; object-fit: cover; border-radius: var(--r-sm); }
+.embed-image { max-width: 100%; max-height: 300px; border-radius: var(--r-sm); object-fit: contain; justify-self: start; }
 
 /* Integrations dialog */
 .integrations .segmented { margin-bottom: 14px; }
 .hook-list { display: grid; gap: 8px; margin: 0 0 12px; padding: 0; list-style: none; }
 .hook {
   display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center;
-  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg);
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--bg);
 }
 .hook .avatar, .hook .avatar-image { grid-row: span 2; }
 .hook-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hook-meta { font-size: 12px; color: var(--muted); }
 .hook-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .hook-actions .button { padding: 6px 10px; font-size: 13px; }
-.secret-box { display: grid; gap: 8px; padding: 12px; border-radius: 10px; border: 1px dashed rgba(251, 191, 36, 0.45); background: var(--bg); margin-bottom: 12px; }
+.secret-box { display: grid; gap: 8px; padding: 12px; border-radius: var(--r-lg); border: 1px dashed rgba(251, 191, 36, 0.45); background: var(--bg); margin-bottom: 12px; }
 .secret-box p { margin: 0; font-size: 13px; color: var(--amber); }
 .integrations .field { margin-bottom: 10px; }
 .integrations .checkbox { margin: 4px 0 12px; }
-.integrations pre { margin: 6px 0 0; padding: 10px; border-radius: 8px; background: var(--bg); font-family: var(--mono); font-size: 12px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.integrations pre { margin: 6px 0 0; padding: 10px; border-radius: var(--r-md); background: var(--bg); font-family: var(--mono); font-size: 12px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .bot-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 .bot-row .member-name { flex: 1; min-width: 0; }
 .integrations > .segmented { max-width: 360px; }
@@ -57,7 +57,7 @@
 .dice-line { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .dice-term, .dice-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .die {
-  display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 4px; border-radius: 6px;
+  display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 4px; border-radius: var(--r-sm);
   background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); font-weight: 600; font-variant-numeric: tabular-nums;
 }
 .die.max { box-shadow: inset 0 0 0 2px var(--green); }

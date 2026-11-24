@@ -1,7 +1,7 @@
 /* ── Settings → Updates, and the update notices ─────────────────────── */
 .update-card {
   display: grid; gap: 10px; margin: 4px 0 20px; padding: 14px 16px;
-  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface-2);
 }
 .update-card.has-update { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
 .update-card-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -10,7 +10,7 @@
 .update-version { font-family: var(--mono); font-size: var(--fs-base); overflow-wrap: anywhere; }
 .update-available {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px;
-  border-radius: calc(var(--radius) * 0.7); background: var(--bg);
+  border-radius: var(--r-sm); background: var(--bg);
 }
 .update-available .update-card-text { flex: 1; }
 .update-available a { font-size: var(--fs-md); }

@@ -10,13 +10,13 @@
 .emoji-picker-layer { position: fixed; inset: 0; z-index: var(--z-popover); }
 .emoji-picker, .soundboard {
   position: fixed; display: flex; flex-direction: column; width: 352px; max-width: calc(100vw - 16px);
-  background: var(--float); border: 1px solid var(--border); border-radius: calc(var(--radius) * 1.2); box-shadow: var(--shadow-pop); overflow: hidden;
+  background: var(--float); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-pop); overflow: hidden;
   animation: pop 0.14s var(--ease);
 }
 .emoji-picker { height: min(420px, calc(100dvh - 16px)); }
 .emoji-search { margin: 10px 10px 6px; width: auto; }
 .emoji-tabs { display: flex; gap: 2px; padding: 0 8px 6px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; flex: none; }
-.emoji-tabs button { flex: none; width: 32px; height: 30px; border: 0; border-radius: 6px; background: none; font-size: 18px; display: grid; place-items: center; }
+.emoji-tabs button { flex: none; width: 32px; height: 30px; border: 0; border-radius: var(--r-sm); background: none; font-size: 18px; display: grid; place-items: center; }
 .emoji-tabs button:hover { background: var(--surface-3); }
 @media (pointer: coarse) { .emoji-tabs button { height: 40px; } }
 .emoji-tabs .custom-emoji { width: 20px; height: 20px; }
@@ -26,7 +26,7 @@
   position: sticky; top: -4px; background: var(--float); padding: 2px 0; z-index: 1;
 }
 .emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); }
-.emoji-cell { height: 38px; border: 0; border-radius: 6px; background: none; font-size: 24px; line-height: 1; display: grid; place-items: center; padding: 0; }
+.emoji-cell { height: 38px; border: 0; border-radius: var(--r-sm); background: none; font-size: 24px; line-height: 1; display: grid; place-items: center; padding: 0; }
 .emoji-cell:hover, .emoji-cell:focus-visible { background: var(--surface-3); outline: none; }
 .emoji-cell .custom-emoji { width: 28px; height: 28px; }
 /* An emoji from another server on its way into this one. */
@@ -37,7 +37,7 @@
 .emoji-preview-glyph .custom-emoji { width: 28px; height: 28px; vertical-align: middle; }
 .emoji-picker-layer.sheet { background: var(--scrim); animation: fade 0.14s ease-out; }
 .emoji-picker-layer.sheet .emoji-picker, .emoji-picker-layer.sheet .soundboard {
-  left: var(--safe-left); right: var(--safe-right); bottom: 0; top: auto; width: auto; max-width: none; border-radius: calc(var(--radius) * 1.6) calc(var(--radius) * 1.6) 0 0;
+  left: var(--safe-left); right: var(--safe-right); bottom: 0; top: auto; width: auto; max-width: none; border-radius: var(--r-xl) var(--r-xl) 0 0;
   padding-bottom: var(--safe-bottom); animation: sheet-up 0.2s var(--ease);
 }
 .emoji-picker-layer.sheet .emoji-picker { height: min(70dvh, 480px); }
@@ -47,12 +47,12 @@
 .emoji-suggest .suggest-glyph { width: 24px; font-size: 20px; text-align: center; }
 .emoji-suggest .custom-emoji { width: 22px; height: 22px; vertical-align: middle; }
 
-.poll { margin-top: 4px; padding: 12px 14px; max-width: 460px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
+.poll { margin-top: 4px; padding: 12px 14px; max-width: 460px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-lg); }
 .poll-question { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
 .poll-hint { font-size: 12px; margin: 2px 0 10px; }
 .poll-options { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .poll-choice {
-  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border-radius: 8px; text-align: left;
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border-radius: var(--r-md); text-align: left;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
 }
 .poll-choice:hover:not(:disabled) { border-color: var(--accent); }
@@ -62,7 +62,7 @@
 .poll-choice.selected .poll-marker { border-color: var(--accent); background: var(--accent); }
 .poll-option-text { flex: 1; min-width: 0; overflow-wrap: anywhere; position: relative; }
 .poll-result {
-  position: relative; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 8px; overflow: hidden;
+  position: relative; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: var(--r-md); overflow: hidden;
   border: 1px solid var(--border); background: var(--surface);
 }
 .poll-bar { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 16%, transparent); transition: width 0.3s ease; }
@@ -87,7 +87,7 @@
 .soundboard-header .emoji-search { margin: 0; flex: 1; min-width: 0; }
 .soundboard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; padding: 8px 12px 12px; overflow-y: auto; }
 .sound-button {
-  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border-radius: var(--r-lg);
   border: 1px solid var(--border); background: var(--surface); color: var(--text); min-width: 0;
 }
 .sound-button:hover { border-color: var(--accent); background: var(--surface-3); }

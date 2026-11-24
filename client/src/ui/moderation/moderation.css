@@ -20,7 +20,7 @@
 .timeout-form input { flex: 1; min-width: 140px; }
 .member-timeout-line { display: inline-flex; align-items: center; gap: 5px; color: var(--amber); }
 
-.block-confirm { display: grid; gap: 8px; width: 100%; padding: 10px 12px; border-radius: var(--radius); background: var(--danger-bg); font-size: var(--fs-ui); }
+.block-confirm { display: grid; gap: 8px; width: 100%; padding: 10px 12px; border-radius: var(--r-lg); background: var(--danger-bg); font-size: var(--fs-ui); }
 
 /* Mod pack: selecting messages, warnings, notes, history, people who left. */
 .message .select-box { width: 18px; height: 18px; margin: 4px 0 0; accent-color: var(--accent); flex: none; cursor: pointer; }
@@ -32,7 +32,7 @@
 .warn-controls p, .mod-notes p, .mod-history p { margin: 0; font-size: var(--fs-ui); }
 .mod-tools { margin-top: 4px; }
 .mod-note-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.mod-note { display: grid; gap: 2px; padding: 8px 10px; border-radius: var(--radius); background: var(--surface-2); font-size: var(--fs-ui); }
+.mod-note { display: grid; gap: 2px; padding: 8px 10px; border-radius: var(--r-lg); background: var(--surface-2); font-size: var(--fs-ui); }
 .mod-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mod-history-list { margin: 0; }
 .mod-history-list .audit-entry { font-size: var(--fs-ui); }
@@ -57,8 +57,8 @@
 .field small { font-size: var(--fs-sm); }
 
 /* Settings: blocked people and the audit log. */
-.empty-note { color: var(--muted); font-size: var(--fs-ui); padding: 14px 16px; border: 1px dashed var(--border); border-radius: var(--radius); }
-.blocked-list, .audit-list { list-style: none; margin: 12px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.empty-note { color: var(--muted); font-size: var(--fs-ui); padding: 14px 16px; border: 1px dashed var(--border); border-radius: var(--r-lg); }
+.blocked-list, .audit-list { list-style: none; margin: 12px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
 .blocked-list li, .audit-entry { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
 .blocked-list li + li, .audit-entry + .audit-entry { border-top: 1px solid var(--border); }
 .blocked-name { flex: 1; min-width: 0; display: grid; gap: 2px; }

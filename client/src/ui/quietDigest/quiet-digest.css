@@ -31,7 +31,7 @@
 .quiet-digest-section ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .quiet-digest-row {
   display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 8px;
-  border: 0; border-radius: var(--radius); background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer;
+  border: 0; border-radius: var(--r-lg); background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer;
 }
 .quiet-digest-row:hover { background: var(--hover); }
 .quiet-digest-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }

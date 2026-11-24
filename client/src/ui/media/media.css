@@ -4,12 +4,12 @@
 .media-settings .segmented button:disabled { opacity: 0.45; cursor: not-allowed; }
 .media-settings .copy-row { align-items: center; gap: 14px; flex-wrap: wrap; }
 
-.camera-preview { margin: 4px 0 12px; max-width: 420px; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: var(--stage); border: 1px solid var(--border); }
+.camera-preview { margin: 4px 0 12px; max-width: 420px; aspect-ratio: 16 / 9; border-radius: var(--r-lg); overflow: hidden; background: var(--stage); border: 1px solid var(--border); }
 .camera-preview video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
 
 .backdrops { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 0 10px; }
 .backdrop {
-  width: 96px; height: 56px; border-radius: 8px; border: 2px solid var(--border); padding: 0; display: flex; align-items: flex-end;
+  width: 96px; height: 56px; border-radius: var(--r-md); border: 2px solid var(--border); padding: 0; display: flex; align-items: flex-end;
   justify-content: flex-start; overflow: hidden; cursor: pointer; color: #fff; font-size: 12px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 .backdrop span { padding: 3px 6px; }
@@ -29,12 +29,12 @@
     linear-gradient(#2a1b4a, #c2507a 45%, #f39a5b 75%, #f7c873);
 }
 .backdrop-color { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
-.backdrop-color input { width: 36px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: none; }
+.backdrop-color input { width: 36px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: var(--r-sm); background: none; }
 
 /* Captions: above the call controls, over the bottom of the stage. */
 .captions-overlay {
   position: relative; flex: none; align-self: center; width: min(720px, calc(100% - 24px)); margin: 8px auto 0;
-  padding: 10px 36px 10px 14px; border-radius: 12px; background: var(--scrim); color: #fff;
+  padding: 10px 36px 10px 14px; border-radius: var(--r-lg); background: var(--scrim); color: #fff;
   border: 1px solid color-mix(in srgb, #fff 12%, transparent);
 }
 .captions-lines { display: grid; gap: 4px; }

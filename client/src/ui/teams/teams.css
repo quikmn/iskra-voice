@@ -3,7 +3,7 @@
 .teams-options { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
 .teams-options .field { margin: 0; }
 .teams-game { flex: 1 1 200px; }
-.teams-stepper { display: flex; align-items: center; gap: 4px; background: var(--bg); border-radius: var(--radius); padding: 2px; }
+.teams-stepper { display: flex; align-items: center; gap: 4px; background: var(--bg); border-radius: var(--r-lg); padding: 2px; }
 .teams-stepper output { min-width: 28px; text-align: center; font-weight: 700; }
 .teams-stepper .icon-button { font-size: 18px; width: 36px; height: 36px; }
 .teams-skills summary { cursor: pointer; font-weight: 600; }
@@ -13,16 +13,16 @@
 .teams-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .teams-step { margin: 0 0 8px; font-weight: 600; }
 .teams-people { display: flex; flex-wrap: wrap; gap: 6px; }
-.teams-person { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px 6px 6px; border-radius: 99px; border: 1px solid var(--border);
+.teams-person { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px 6px 6px; border-radius: var(--r-pill); border: 1px solid var(--border);
   background: var(--surface-2); color: var(--text); max-width: 100%; min-height: 40px; }
 .teams-person:hover { background: var(--hover); }
 .teams-person.on { border-color: var(--accent); background: var(--accent-subtle); }
 .teams-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
-.teams-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; min-width: 0; }
+.teams-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 10px; min-width: 0; }
 .teams-card header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 .teams-card header strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .teams-card ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.teams-member { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 6px; border-radius: calc(var(--radius) * 0.6); border: 0; background: transparent;
+.teams-member { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 6px; border-radius: var(--r-sm); border: 0; background: transparent;
   color: var(--text); text-align: left; min-height: 36px; }
 button.teams-member:hover { background: var(--hover); }
 .teams-hint, .teams-empty { margin: 0; font-size: 13px; }

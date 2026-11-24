@@ -3,7 +3,7 @@
 .bot-component-row { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 .bot-button {
   border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
-  padding: 6px 12px; border-radius: calc(var(--radius) * 0.7); font-weight: 600; font-size: 14px;
+  padding: 6px 12px; border-radius: var(--r-sm); font-weight: 600; font-size: 14px;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 32px;
   display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
 }
@@ -16,7 +16,7 @@
 .bot-button.link { color: var(--accent-2); }
 .bot-button-host { font-weight: 400; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 .bot-select { max-width: 100%; min-height: 32px; }
-.bot-multiselect { display: grid; gap: 4px; border: 1px solid var(--border); border-radius: calc(var(--radius) * 0.7); padding: 6px 10px 10px; margin: 0; min-width: 0; }
+.bot-multiselect { display: grid; gap: 4px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 6px 10px 10px; margin: 0; min-width: 0; }
 .bot-multiselect legend { font-size: 13px; color: var(--text-2); padding: 0 4px; }
 .bot-multiselect .button { justify-self: start; padding: 6px 12px; }
 
@@ -24,7 +24,7 @@
 
 .interaction-tray { display: grid; gap: 6px; padding: 0 16px 6px; max-height: 45vh; overflow-y: auto; }
 .private-answer {
-  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius: var(--radius);
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius: var(--r-lg);
   background: var(--surface-2); padding: 8px 12px; min-width: 0; overflow-wrap: anywhere;
 }
 .private-answer header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; }

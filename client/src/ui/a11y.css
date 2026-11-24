@@ -9,7 +9,7 @@
 
 /* Skip link: hidden until focused with Tab. */
 .skip-link {
-  position: fixed; left: 12px; top: 12px; z-index: 1000; padding: 8px 14px; border-radius: calc(var(--radius) * 0.8);
+  position: fixed; left: 12px; top: 12px; z-index: 1000; padding: 8px 14px; border-radius: var(--r-md);
   background: var(--accent); color: var(--on-accent); font-weight: 700; text-decoration: none; transform: translateY(-200%);
 }
 .skip-link:focus, .skip-link:focus-visible { transform: none; outline: 2px solid var(--text-strong); outline-offset: 2px; }

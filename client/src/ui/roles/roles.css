@@ -9,7 +9,7 @@
 }
 
 /* Settings → Roles */
-.role-list, .builtin-role-list { list-style: none; margin: 14px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.role-list, .builtin-role-list { list-style: none; margin: 14px 0 0; padding: 0; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
 .role-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--surface); }
 .role-row + .role-row { border-top: 1px solid var(--border); }
 .role-row.selected { background: var(--surface-3); }
@@ -25,7 +25,7 @@
 /* The arrows are the keyboard's way to reorder: shown on hover and focus, always on touch. */
 .role-row:hover .role-move, .role-row:focus-within .role-move { opacity: 1; }
 @media (hover: none) { .role-move { opacity: 1; } }
-.role-editor { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); display: grid; gap: 10px; }
+.role-editor { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface-2); display: grid; gap: 10px; }
 .role-editor-fields { display: flex; flex-wrap: wrap; gap: 12px; }
 .role-editor-fields .field { flex: 1; min-width: 140px; margin-bottom: 0; }
 .role-editor-fields .role-icon-field { flex: 0 0 90px; min-width: 90px; }
@@ -45,7 +45,7 @@
 /* Channel settings: permissions by role */
 .channel-overrides { display: grid; gap: 10px; margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--border); }
 .channel-overrides p { margin: 0; font-size: var(--fs-md); }
-.override-row { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); }
+.override-row { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-lg); }
 .override-role { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .override-perm { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--fs-ui); }
 .tri { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; flex: none; }
@@ -80,7 +80,7 @@
 
 /* Pick your roles */
 .role-picker { display: grid; gap: 12px; }
-.role-picker-group { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; min-width: 0; display: grid; gap: 8px; }
+.role-picker-group { border: 1px solid var(--border); border-radius: var(--r-lg); padding: 12px 14px; min-width: 0; display: grid; gap: 8px; }
 .role-picker-group h3 { margin: 0; font-size: var(--fs-base); }
 .role-picker-group p { margin: 0; }
 .role-picker-options { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -93,12 +93,12 @@
 
 /* Settings → Onboarding */
 .onboarding-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
-.onboarding-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); flex-wrap: wrap; }
+.onboarding-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); flex-wrap: wrap; }
 .onboarding-text { min-width: 0; flex: 1 1 220px; }
 .onboarding-title { font-weight: 600; }
 .onboarding-roles { font-size: var(--fs-md); }
 .onboarding-row .spacer { flex: 1; }
-.onboarding-form { display: grid; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.onboarding-form { display: grid; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface-2); }
 .onboarding-form .field { margin-bottom: 0; }
 .onboarding-form .segmented { margin-bottom: 0; max-width: 320px; }
 .settings-section .onboarding-list + .copy-row, .settings-section .onboarding-form + .copy-row { margin-top: 14px; }

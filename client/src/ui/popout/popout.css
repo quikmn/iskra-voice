@@ -32,7 +32,7 @@
 
 /* Voice: who's here (talking ones ringed), then mute, deafen and leave. */
 .popout-people { list-style: none; margin: 0; padding: 6px; flex: 1; min-height: 0; overflow-y: auto; display: grid; gap: 2px; align-content: start; }
-.popout-person { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: calc(var(--radius) * 0.6); font-size: 13px; }
+.popout-person { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: var(--r-sm); font-size: 13px; }
 .popout-person .avatar { transition: box-shadow 0.12s; }
 .popout-person.speaking .avatar { box-shadow: 0 0 0 2px var(--green); }
 .popout-person-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

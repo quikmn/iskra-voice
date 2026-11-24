@@ -1,5 +1,5 @@
 /* ── Starter templates: the preview in Create a server, and Save as template ── */
-.template-details { display: grid; gap: 6px; margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); font-size: 13px; }
+.template-details { display: grid; gap: 6px; margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface-2); font-size: 13px; }
 .template-details h3 { margin: 0; }
 .template-details h4 { margin: 6px 0 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .template-details ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }

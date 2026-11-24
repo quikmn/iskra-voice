@@ -12,11 +12,11 @@
 .e2ee-member-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .e2ee-warn { color: var(--amber); }
 .e2ee-rekey { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
-.e2ee-create-note { margin-top: 4px; padding: 10px 12px; border-radius: var(--radius); background: var(--accent-subtle); }
+.e2ee-create-note { margin-top: 4px; padding: 10px 12px; border-radius: var(--r-lg); background: var(--accent-subtle); }
 .e2ee-create-note p { margin: 4px 0; }
 .composer.e2ee-waiting { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .search-local-note { display: flex; align-items: center; gap: 6px; margin: 6px 0; font-size: 0.85rem; color: var(--muted); }
-.e2ee-start-over { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--amber); }
+.e2ee-start-over { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r-lg); border: 1px solid var(--amber); }
 .e2ee-start-over h3, .e2ee-history h3 { margin: 10px 0 4px; font-size: 0.9rem; }
 .e2ee-start-over-warning { margin: 0 0 6px; font-weight: 600; color: var(--amber); }
 .e2ee-trust { font-size: 0.8rem; padding: 1px 6px; border-radius: 999px; background: var(--accent-subtle); white-space: nowrap; }
@@ -30,7 +30,7 @@
 /* ── Encrypted voice channels ── */
 .e2ee-voice-badge {
   display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 4px; white-space: nowrap; line-height: 1.4; justify-self: start; max-width: 100%; min-width: 0;
-  padding: 1px 8px; border: none; border-radius: 99px; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+  padding: 1px 8px; border: none; border-radius: var(--r-pill); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
   color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent);
 }
 .e2ee-voice-badge span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; }

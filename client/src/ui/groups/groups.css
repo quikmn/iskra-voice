@@ -28,7 +28,7 @@
 .system-line time { font-size: 12px; opacity: 0.8; white-space: nowrap; }
 .system-line span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
 .group-problem {
-  margin: 8px 16px; padding: 10px 12px; border-radius: var(--radius); display: flex; gap: 8px; align-items: center;
+  margin: 8px 16px; padding: 10px 12px; border-radius: var(--r-lg); display: flex; gap: 8px; align-items: center;
   background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); font-size: 14px;
 }
 .composer.read-only .link { margin-left: 8px; }
@@ -37,14 +37,14 @@
 .group-intro { margin-top: 0; }
 .people-picker { display: grid; gap: 8px; }
 .people-search {
-  display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: calc(var(--radius) * 0.8); background: var(--bg);
+  display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: var(--r-md); background: var(--bg);
   border: 1px solid var(--border); color: var(--muted);
 }
 .people-search input { border: 0; background: transparent; box-shadow: none; padding: 9px 0; flex: 1; min-width: 0; }
 .people-search input:focus { box-shadow: none; }
 .people-list { max-height: min(320px, 42vh); overflow-y: auto; display: grid; gap: 2px; }
 .person-pick {
-  display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: calc(var(--radius) * 0.7); cursor: pointer;
+  display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: var(--r-sm); cursor: pointer;
   transition: background 0.12s;
 }
 .person-pick:hover { background: var(--surface-2); }

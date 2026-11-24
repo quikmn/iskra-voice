@@ -2,7 +2,7 @@
 .afk-settings .afk-channel-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
 .afk-settings .afk-channel-row .field { flex: 1 1 220px; min-width: 0; }
 .afk-settings select { max-width: 100%; }
-.afk-settings .afk-talk { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px 12px; margin: 12px 0 0; min-width: 0; }
+.afk-settings .afk-talk { border: 1px solid var(--border); border-radius: var(--r-lg); padding: 10px 12px 12px; margin: 12px 0 0; min-width: 0; }
 .afk-settings .afk-talk legend { padding: 0 4px; font-weight: 600; }
 .afk-settings .afk-talk-group { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; }
 .afk-settings .afk-talk-group + .afk-talk-group { padding-top: 8px; border-top: 1px solid var(--border); }
@@ -13,7 +13,7 @@
 }
 .afk-forced-banner {
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 auto 8px; padding: 8px 12px; max-width: min(520px, calc(100% - 32px));
-  border-radius: var(--radius); background: var(--warning-bg); border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent); font-size: 13px;
+  border-radius: var(--r-lg); background: var(--warning-bg); border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent); font-size: 13px;
 }
 .afk-forced-banner strong { white-space: nowrap; }
 .afk-forced-banner span { flex: 1 1 240px; min-width: 0; color: var(--text-2); }
