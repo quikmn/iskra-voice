@@ -766,9 +766,10 @@ async function publishMic(current: Room): Promise<boolean> {
     try {
       tracks = await current.localParticipant.createTracks({ audio: options })
     } catch (e) {
-      // A remembered device that's gone: use the default one.
+      // A remembered device that's gone (phones hand out new device ids): use the default one. Not `undefined`:
+      // createTracks fills undefined keys from the room's audioCaptureDefaults, which name the same gone device.
       if (!options.deviceId) throw e
-      tracks = await current.localParticipant.createTracks({ audio: { ...options, deviceId: undefined } })
+      tracks = await current.localParticipant.createTracks({ audio: { ...options, deviceId: { ideal: 'default' } } })
     }
     const track = tracks.find((t): t is LocalAudioTrack => t instanceof LocalAudioTrack)
     if (!track) throw new Error('no microphone')

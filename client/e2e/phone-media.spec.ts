@@ -83,6 +83,29 @@ test.describe('calls on a phone', () => {
     }
   })
 
+  test('a remembered microphone that is gone: the call uses the default one, as the settings test does', async ({ browser }) => {
+    const server = await startServer('Phone old mic', true)
+    try {
+      const context = await browser.newContext({ ...pixel, permissions: ['microphone'] })
+      // Phones hand out new device ids (after an update, or when the app's data is reset): the saved one no longer exists.
+      await context.addInitScript(() => localStorage.setItem('iskra.audio', JSON.stringify({ v: 3, inputDevice: 'a-microphone-that-is-gone' })))
+      const phone = await context.newPage()
+      await joinVia(phone, server.ownerLink(), 'Phone')
+      await phone.getByRole('button', { name: 'Open channels' }).click()
+      await phone.getByRole('button', { name: 'Create voice channel' }).click()
+      await phone.getByRole('radio', { name: 'Voice' }).click()
+      await phone.getByLabel('Name').fill('talk')
+      await phone.getByRole('button', { name: 'Create', exact: true }).click()
+      await phone.getByTitle('Join talk').click()
+      await expect(phone.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
+      // The mic is live: your own speaking ring follows the fake microphone's tone.
+      await expect(phone.locator('.me-avatar.speaking')).toBeVisible({ timeout: 15_000 })
+      await expect(phone.locator('.voice-status')).not.toContainText('microphone')
+    } finally {
+      await server.stop()
+    }
+  })
+
   test("a microphone that won't open says so, not \"check your permissions\"", async ({ browser }) => {
     const server = await startServer('Phone mic', true)
     try {
