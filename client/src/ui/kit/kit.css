@@ -1,18 +1,23 @@
 /* ── UI kit (ui/kit): built only on the tokens in styles.css :root ──────────────────────────────────────────── */
 
-/* Switch: 40×24, the thumb slides; on = accent. */
+/* Switch: 40×24, the thumb slides; on = accent. The track is a well (shaded inside), the thumb a raised disc that
+   widens a little while pressed. */
 .switch {
   flex: none; position: relative; width: 40px; height: 24px; padding: 0; border-radius: var(--r-pill);
   border: 1px solid color-mix(in srgb, var(--text) 14%, transparent); background: var(--surface-3);
-  transition: background var(--dur-fast), border-color var(--dur-fast);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--shadow-color) 45%, transparent);
+  transition: background var(--dur) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .switch > span {
-  position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--text-2);
-  box-shadow: 0 1px 2px var(--shadow-color); transition: transform var(--dur) var(--ease), background var(--dur-fast);
+  position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: var(--r-pill); background: var(--text-2);
+  box-shadow: 0 1px 3px var(--shadow-color), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform var(--dur) var(--ease), width var(--dur-fast) var(--ease), background var(--dur-fast);
 }
 .switch:hover:not(:disabled) { border-color: color-mix(in srgb, var(--text) 26%, transparent); }
-.switch.on { background: var(--accent); border-color: transparent; }
+.switch:active:not(:disabled) > span { width: 21px; }
+.switch.on { background: var(--accent); border-color: transparent; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2); }
 .switch.on > span { transform: translateX(16px); background: var(--on-accent); }
+.switch.on:active:not(:disabled) > span { transform: translateX(13px); }
 .switch:disabled { opacity: 0.5; cursor: default; }
 .switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
@@ -82,15 +87,17 @@
 .k-chip {
   display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 30px; padding: 0 12px;
   border: 1px solid var(--border); border-radius: var(--r-pill); background: transparent; color: var(--text-2);
-  font-size: var(--fs-md); font-weight: var(--fw-medium); transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+  font-size: var(--fs-md); font-weight: var(--fw-medium);
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
+.k-chip:active:not(:disabled) { transform: scale(0.97); }
 .k-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .k-chip:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
 .k-chip.on { background: var(--accent-subtle); border-color: var(--accent); color: var(--text-strong); }
 .k-chip:disabled { opacity: 0.45; cursor: default; }
 
 /* ListRow: leading · title over sub · trailing actions. */
-.k-list-row { position: relative; display: flex; align-items: center; gap: var(--sp-2); border-radius: var(--r-md); transition: background var(--dur-fast); }
+.k-list-row { position: relative; display: flex; align-items: center; gap: var(--sp-2); border-radius: var(--r-md); transition: background var(--dur-fast) var(--ease); }
 .k-list-row:hover, .k-list-row.active { background: var(--surface-2); }
 .k-list-main {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-3); min-height: 56px;
@@ -109,7 +116,7 @@
 .k-empty { display: grid; justify-items: center; text-align: center; gap: var(--sp-2); padding: var(--sp-5) var(--sp-4); color: var(--muted); }
 .k-empty-icon {
   width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--text-2);
-  margin-bottom: var(--sp-1);
+  margin-bottom: var(--sp-1); box-shadow: inset 0 0 0 1px var(--hairline), inset 0 1px 0 var(--edge-hi);
 }
 .k-empty-title { margin: 0; font-size: var(--fs-base); font-weight: var(--fw-medium); color: var(--text); }
 .k-empty-body { margin: 0; font-size: var(--fs-md); max-width: 360px; line-height: var(--lh-body); }
@@ -119,20 +126,24 @@
 .k-empty.page .k-empty-title { font-size: var(--fs-xl); font-weight: var(--fw-bold); color: var(--text-strong); }
 .k-empty.page .k-empty-body { font-size: var(--fs-base); color: var(--text-2); max-width: 400px; }
 .k-empty.inline { display: flex; align-items: center; justify-content: flex-start; gap: var(--sp-2); text-align: left; padding: var(--sp-2) var(--sp-3); margin: 0; font-size: var(--fs-md); }
-.k-empty.inline .k-empty-icon { width: auto; height: auto; background: none; margin: 0; color: var(--muted); }
+.k-empty.inline .k-empty-icon { width: auto; height: auto; background: none; margin: 0; color: var(--muted); box-shadow: none; }
 
 /* Tabs: an underline bar for switching views. */
 .k-tabs { display: flex; gap: var(--sp-1); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
 .k-tabs > button {
   position: relative; display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 40px; padding: 0 var(--sp-3);
   border: 0; background: none; color: var(--muted); font-weight: var(--fw-medium); font-size: var(--fs-ui); border-radius: var(--r-sm) var(--r-sm) 0 0;
-  transition: color var(--dur-fast);
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .k-tabs > button:hover:not(:disabled) { color: var(--text); }
+.k-tabs > button:hover:not(:disabled, .on) { background: color-mix(in srgb, var(--text) 4%, transparent); }
 .k-tabs > button.on { color: var(--text-strong); }
-.k-tabs > button.on::after {
+/* The line under each tab is there all along and grows out from the middle when its tab is chosen. */
+.k-tabs > button::after {
   content: ''; position: absolute; left: var(--sp-2); right: var(--sp-2); bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--accent);
+  transform: scaleX(0); opacity: 0; transition: transform var(--dur) var(--ease), opacity var(--dur-fast);
 }
+.k-tabs > button.on::after { transform: none; opacity: 1; }
 .k-tabs > button:focus-visible { outline-offset: -2px; }
 .k-tab-count {
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-pill); display: inline-grid; place-items: center;
@@ -176,7 +187,7 @@
 .toast.tone-danger .toast-icon, .toast-pill.tone-danger .toast-icon { color: var(--red); }
 .toast-mark {
   flex: none; width: 34px; height: 34px; border-radius: var(--r-md); display: grid; place-items: center;
-  color: var(--on-accent); background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--on-accent); background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 .toast-text { flex: 1; min-width: 0; display: grid; gap: 2px; line-height: var(--lh-tight); }
 .toast-text strong { font-size: var(--fs-ui); color: var(--text-strong); overflow-wrap: anywhere; }
