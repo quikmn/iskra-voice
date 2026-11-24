@@ -1,0 +1,44 @@
+/* ── Choosing a device from the call's buttons, and the call's error row (ui/calls/DevicePicker.tsx) ─────────── */
+
+/* Phones: the arrow is a badge on the button's corner (holding the button opens the same list). */
+.call-pick { position: relative; display: inline-grid; flex: none; }
+.call-pick > .call-caret {
+  position: absolute; top: -6px; right: -10px; width: 24px; height: 24px; padding: 0; border-radius: 50%;
+  background: var(--float); border: 1px solid var(--border); color: var(--text-2); box-shadow: var(--shadow-pop);
+}
+/* A finger-sized target around the small badge. */
+.call-pick > .call-caret::before { content: ''; position: absolute; inset: -10px; border-radius: 50%; }
+.call-pick > .call-caret[aria-expanded='true'] { color: var(--text-strong); border-color: var(--accent); }
+
+/* The voice bar: a narrow arrow right after the mic and the deafen button. */
+.voice-caret {
+  flex: none; width: 16px; height: 32px; margin-left: -4px; padding: 0; border: 0; border-radius: var(--r-sm, 6px);
+  background: none; color: var(--muted); display: inline-grid; place-items: center;
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+.voice-caret:hover, .voice-caret[aria-expanded='true'] { color: var(--text-strong); background: var(--surface-2); }
+/* Phones: the row is full already (finger-sized buttons), so the arrow takes no room of its own: it lies over the
+   empty right edge of its button and a little past it. */
+@media (--phone) {
+  .voice-bar .voice-controls .voice-caret { position: relative; z-index: 1; width: 20px; height: 40px; margin: 0 -6px 0 -14px; }
+}
+
+/* The error row: the words, then its small actions; ✕ at the end. It takes its own row above the buttons. */
+.call-problem {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--sp-3); min-width: 0; flex: 1 1 100%;
+  position: relative; padding-right: 28px; font-size: var(--fs-sm); line-height: var(--lh-tight); color: var(--red);
+}
+.call-problem-text { min-width: 0; overflow-wrap: anywhere; }
+.call-problem-actions { display: inline-flex; flex-wrap: wrap; gap: 2px var(--sp-3); }
+.call-problem-actions .link { font-size: inherit; white-space: nowrap; }
+.call-problem-close { position: absolute; top: -4px; right: 0; }
+.voice-bar .call-problem { padding-left: 14px; }
+.call-problem.in-call {
+  flex: none; justify-content: center; text-align: center; margin: var(--sp-1) var(--sp-4) 0; padding: 0 28px; font-size: var(--fs-md);
+}
+@media (hover: none) {
+  /* Fingers: the two actions are taller, and sit on their own line. */
+  .call-problem-actions { flex-basis: 100%; }
+  .call-problem.in-call .call-problem-actions { justify-content: center; }
+  .call-problem-actions .link { min-height: 32px; }
+}

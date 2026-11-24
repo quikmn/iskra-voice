@@ -62,7 +62,6 @@ export function CallPanel({ peer }: { peer: string }) {
   const session = useVoice((s) => s.session)
   const tiles = useVoice((s) => s.tiles)
   const speaking = useVoice((s) => s.speaking)
-  const error = useVoice((s) => s.error)
   const [verify, setVerify] = useState(false)
   const active = call?.phase === 'active'
   const now = useTicker(active)
@@ -113,7 +112,6 @@ export function CallPanel({ peer }: { peer: string }) {
         ))}
       </div>
 
-      {error && inCall && <p className="call-error" role="alert">{error}</p>}
       {call.phase !== 'ended' && (inCall && session ? (
         <CallControls onLeave={() => void hangUp()} nameOf={nameOf} />
       ) : (

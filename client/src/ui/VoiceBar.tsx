@@ -6,6 +6,7 @@ import { leaveGroupCall } from '../state/groupCalls'
 import { openGroup, titleOf, useGroups } from '../state/groups'
 import { clearVoiceError, clearVoiceNotice, joinHere, leaveVoice, setStageOpen, toggleDeafen, toggleMute, useVoice } from '../state/voice'
 import { Close, Headphones, HeadphonesOff, Mic, MicOff, PhoneOff } from './icons'
+import { DeviceCaret, VoiceError } from './calls/DevicePicker'
 import { SoundboardButton } from './expressions/Soundboard'
 import { VoicePopoutButton } from './popout/PopoutButtons'
 import './afk/afk.css'
@@ -14,7 +15,10 @@ import { RoomButton } from './rooms/RoomBits'
 import { EncryptedVoiceBadge } from './e2ee/E2eeVoice'
 import { VoiceBarRecordingMark, VoiceBarStopRecording } from './recording/Recording'
 
-/** Shown above your name while you're in voice (or when joining failed). */
+/**
+ * Shown above your name while you're in voice (or when joining failed). The mic and deafen buttons each carry a small
+ * arrow that opens the list of microphones or speakers.
+ */
 export function VoiceBar() {
   const { t } = useTranslation()
   const session = useVoice((s) => s.session)
@@ -80,8 +84,8 @@ export function VoiceBar() {
         </button>
         {session.afk && session.state === 'connected' && <span className="afk-forced" data-testid="afk-forced">{t('afk.forced')}</span>}
         {!session.canSpeak && !session.afk && session.state === 'connected' && <span className="muted">{t('voice.bar.listeningOnly')}</span>}
-        {error && <span className="error-text">{error}</span>}
       </div>
+      <VoiceError />
       <div className="voice-controls">
         {session.canSpeak && (
           <button
@@ -91,6 +95,7 @@ export function VoiceBar() {
             {muted ? <MicOff /> : <Mic />}
           </button>
         )}
+        {session.canSpeak && <DeviceCaret kind="mic" className="voice-caret" />}
         {session.afk ? (
           <button className="icon-button off" disabled aria-label={t('afk.forced')} title={t('afk.forcedHint')}><HeadphonesOff /></button>
         ) : (
@@ -98,6 +103,7 @@ export function VoiceBar() {
             {deafened ? <HeadphonesOff /> : <Headphones />}
           </button>
         )}
+        <DeviceCaret kind="speaker" className="voice-caret" />
         <SoundboardButton variant="bar" />
         <RoomButton />
         <VoicePopoutButton />

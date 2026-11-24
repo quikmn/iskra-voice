@@ -46,6 +46,7 @@ import { VoiceRoom } from './clips/VoiceRoom'
 import { ClipLayer } from './clips/ClipControls'
 import { RecordingLayer } from './recording/Recording'
 import { PopoutLayer } from './popout/PopoutLayer'
+import { DevicePickerLayer } from './calls/DevicePicker'
 import { QuietDigestCard } from './quietDigest/QuietDigestCard'
 import { useCallEndNav, usePhoneNav } from './nav/PhoneNav'
 import { AssistantLayer } from './assistant/AssistantPanel'
@@ -153,6 +154,7 @@ export function Shell() {
       <ClipLayer />
       <RecordingLayer />
       <PopoutLayer />
+      <DevicePickerLayer />
       <QuietDigestCard />
       <AssistantLayer />
       {joining && <JoinDialog onClose={() => setJoining(false)} onCreate={() => { setJoining(false); setCreating(true) }} onClaim={() => { setJoining(false); setClaiming(true) }} />}

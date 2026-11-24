@@ -73,6 +73,8 @@ interface VoiceState {
   /** Per-person volume, 0–2 (1 = normal). Remembered on this device. */
   volumes: Record<string, number>
   error: string | null
+  /** The error is about your microphone or camera: the call offers "Choose microphone" (or camera) with it. */
+  errorDevice: 'mic' | 'camera' | null
   settings: VoiceSettings
   /** The push-to-talk key is held right now. */
   pttDown: boolean
@@ -142,6 +144,7 @@ export const useVoice = create<VoiceState>(() => ({
   speaking: {},
   volumes: loadVolumes(),
   error: null,
+  errorDevice: null,
   settings: loadSettings(),
   pttDown: false,
   localSpeaking: false,
@@ -272,6 +275,10 @@ let keyProvider: CallKeyProvider | null = null
 let mutedBeforeDeafen = false
 /** A stage speaker's mic is published the first time they open it (not the moment they're brought up). */
 let micDeferred = false
+/** The microphone didn't start in this call (its error is showing); `wasMuted`: you had muted yourself before that. */
+let micFailure: { wasMuted: boolean } | null = null
+/** A microphone or camera error, with which of the two it is about. */
+const mediaError = (device: 'mic' | 'camera', e: unknown) => ({ error: mediaErrorText(device, e, !!native), errorDevice: device })
 /** We're muting our own mic right now (so the event isn't taken for a moderator's mute). */
 let selfMuting = false
 const audioElements = new Map<string, HTMLMediaElement>()
@@ -348,14 +355,14 @@ function onEngine(engine: NoiseEngine | null): void {
   const settings = useAudio.getState()
   const wanted = settings.noise === 'ai' || settings.noise === 'strong'
   if (wanted && engine !== 'ai' && engine !== 'rnnoise' && capturedWithBrowserNs === false && captureOptions(settings, plannedEngine(settings.noise)).noiseSuppression) {
-    setTimeout(() => void recapture(settings), 0)
+    setTimeout(() => void recapture(), 0)
   }
 }
 
 /** AI noise removal can't keep up here: remember that, and rebuild the mic path (it picks RNNoise now). */
 function onSlow(): void {
   markSlow(true)
-  void recapture(useAudio.getState())
+  void recapture()
 }
 
 const micCallbacks = {
@@ -372,20 +379,55 @@ function micTrack(): LocalAudioTrack | null {
   return track instanceof LocalAudioTrack ? track : null
 }
 
-/** Gets the mic again with the current device and browser processing (the processor follows along). */
-async function recapture(settings: AudioSettings): Promise<void> {
+/**
+ * Gets the mic again with the current device and browser processing (the processor follows along). One at a time,
+ * each with the settings as they are when its turn comes: a capture asked for before you picked another microphone
+ * must not finish after the pick and put the old one back.
+ */
+let recapturing: Promise<void> = Promise.resolve()
+function recapture(): Promise<void> {
+  recapturing = recapturing.then(() => recaptureNow(useAudio.getState())).catch(() => undefined)
+  return recapturing
+}
+
+async function recaptureNow(settings: AudioSettings): Promise<void> {
   const track = micTrack()
   if (!track) return
   if (useVoice.getState().hifi !== hifiAllowed()) return republishMic()
   const options = captureOptions(settings, plannedEngine(settings.noise), useVoice.getState().hifi)
   capturedWithBrowserNs = options.noiseSuppression
+  let note: string | null = null
   try {
     await track.restartTrack(options)
-  } catch {
-    // The chosen device is gone: fall back to the default one.
-    if (settings.inputDevice) await track.restartTrack({ ...options, deviceId: undefined }).catch(() => undefined)
+  } catch (e) {
+    if (!settings.inputDevice) return void useVoice.setState(mediaError('mic', e))
+    // The chosen device is gone: fall back to the default one, and say so.
+    try {
+      await track.restartTrack({ ...options, deviceId: undefined })
+      note = t('voice.errors.micGoneDefault')
+    } catch (again) {
+      return void useVoice.setState(mediaError('mic', again))
+    }
   }
+  if (note) useVoice.setState({ error: note, errorDevice: 'mic' })
+  else if (useVoice.getState().errorDevice === 'mic') useVoice.setState({ error: null, errorDevice: null })
   await applyMic()
+}
+
+/**
+ * Another microphone was picked. With the mic running it is captured again; when it never started (its error is
+ * showing), it is started now, and comes on unless you had muted yourself.
+ */
+async function micPicked(): Promise<void> {
+  const current = room
+  if (micTrack() || !current || !micFailure || !useVoice.getState().session?.canSpeak) return recapture()
+  const { wasMuted } = micFailure
+  if (!(await publishMic(current)) || !micTrack()) return
+  if (!wasMuted && useVoice.getState().muted) {
+    useVoice.setState({ muted: false })
+    await applyMic()
+    reportFlags()
+  }
 }
 
 onAudioSettings((next, prev) => {
@@ -394,7 +436,7 @@ onAudioSettings((next, prev) => {
     void republishMic()
   } else if (next.noise !== prev.noise || next.echoCancellation !== prev.echoCancellation || next.autoGainControl !== prev.autoGainControl ||
     next.inputDevice !== prev.inputDevice) {
-    void recapture(next)
+    void (next.inputDevice !== prev.inputDevice ? micPicked() : recapture())
   } else if (next.inputVolume !== prev.inputVolume || next.threshold !== prev.threshold || next.aiStrength !== prev.aiStrength) {
     processor?.active?.update(next, pttMode())
   }
@@ -462,7 +504,7 @@ async function joinChannel(serverKey: string, channelId: number, stageOpen: bool
   try {
     groupKey = await channelVoiceKeys(serverKey, channelId)
   } catch {
-    useVoice.setState({ error: t('e2ee.voice.noKey') })
+    useVoice.setState({ error: t('e2ee.voice.noKey'), errorDevice: null })
     return false
   }
   return connect({ serverKey, channelId, state: 'connecting', canSpeak: false }, () => connection.request('voice.join', { channelId }),
@@ -532,7 +574,7 @@ async function connect(
 ): Promise<boolean> {
   voiceGate()
   useVoice.setState({
-    notice: null, noticeName: null, noticeWhere: null, session, error: null, speaking: {}, tiles: [], stageOpen: options.stageOpen ?? (!session.call && !session.group), camera: false, facing: 'user', screen: false,
+    notice: null, noticeName: null, noticeWhere: null, session, error: null, errorDevice: null, speaking: {}, tiles: [], stageOpen: options.stageOpen ?? (!session.call && !session.group), camera: false, facing: 'user', screen: false,
   })
 
   try {
@@ -609,10 +651,10 @@ async function connect(
       lastFailure = now
       if (now - failingSince >= 3000) {
         if (useVoice.getState().error !== DECRYPT_ERROR) log('WARN', 'e2ee', 'failed', 'E2E-110', [['op', 'decrypt']])
-        useVoice.setState({ error: DECRYPT_ERROR })
+        useVoice.setState({ error: DECRYPT_ERROR, errorDevice: null })
       }
       setTimeout(() => {
-        if (room === next && Date.now() - lastFailure >= 3000 && useVoice.getState().error === DECRYPT_ERROR) useVoice.setState({ error: null })
+        if (room === next && Date.now() - lastFailure >= 3000 && useVoice.getState().error === DECRYPT_ERROR) useVoice.setState({ error: null, errorDevice: null })
       }, 3100)
     }
 
@@ -737,7 +779,7 @@ async function connect(
   } catch (e) {
     logError('voice', 'connect', e, 'VOI-120', [['path', tunnelFor(session.serverKey) ? 'tunnel' : 'direct']])
     if (useVoice.getState().session === session) await cleanup('failed')
-    useVoice.setState({ error: (e as Error)?.message ? errorMessage(e) : t('voice.errors.join') })
+    useVoice.setState({ error: (e as Error)?.message ? errorMessage(e) : t('voice.errors.join'), errorDevice: null })
     return false
   }
 }
@@ -763,6 +805,7 @@ async function publishMic(current: Room): Promise<boolean> {
     const options = captureOptions(settings, plannedEngine(settings.noise), hifi)
     capturedWithBrowserNs = options.noiseSuppression
     let tracks
+    let usedDefault = false
     try {
       tracks = await current.localParticipant.createTracks({ audio: options })
     } catch (e) {
@@ -770,6 +813,7 @@ async function publishMic(current: Room): Promise<boolean> {
       // createTracks fills undefined keys from the room's audioCaptureDefaults, which name the same gone device.
       if (!options.deviceId) throw e
       tracks = await current.localParticipant.createTracks({ audio: { ...options, deviceId: { ideal: 'default' } } })
+      usedDefault = true
     }
     const track = tracks.find((t): t is LocalAudioTrack => t instanceof LocalAudioTrack)
     if (!track) throw new Error('no microphone')
@@ -798,10 +842,15 @@ async function publishMic(current: Room): Promise<boolean> {
     // Joining muted (you were, or the call is being recorded): nothing goes out until you unmute.
     if (useVoice.getState().muted) await track.mute().catch(() => undefined)
     await current.localParticipant.publishTrack(track, publish)
+    micFailure = null
+    // The call works; the note says which microphone it is on, with "Choose microphone" next to it.
+    if (usedDefault) useVoice.setState({ error: t('voice.errors.micGoneDefault'), errorDevice: 'mic' })
+    else if (useVoice.getState().errorDevice === 'mic') useVoice.setState({ error: null, errorDevice: null })
     await applyMic()
   } catch (e) {
     logError('media', 'publish-mic', e, 'MED-170')
-    useVoice.setState({ muted: true, error: mediaErrorText('mic', e, !!native) })
+    micFailure ??= { wasMuted: useVoice.getState().muted }
+    useVoice.setState({ muted: true, ...mediaError('mic', e) })
   }
   return room === current
 }
@@ -864,6 +913,9 @@ async function cleanup(reason: VoiceLeftReason = 'user', noticeName: string | nu
   void desktop?.p2p?.voice?.(false).catch(() => undefined) // back to a socket per adapter (a no-op unless voice was through a tunnel)
   e2eeWorker = null
   micDeferred = false
+  micFailure = null
+  // A microphone or camera problem belonged to the call that just ended.
+  if (useVoice.getState().errorDevice) useVoice.setState({ error: null, errorDevice: null })
   processor = null // LiveKit destroys it with the track
   capturedWithBrowserNs = null
   keyProvider = null
@@ -944,7 +996,7 @@ export async function toggleCamera(): Promise<void> {
     useVoice.setState({ camera: next })
   } catch (e) {
     logError('media', 'camera', e, 'MED-171')
-    useVoice.setState({ camera: false, error: mediaErrorText('camera', e, !!native) })
+    useVoice.setState({ camera: false, ...mediaError('camera', e) })
   }
   refreshTiles()
 }
@@ -959,7 +1011,7 @@ export async function flipCamera(): Promise<void> {
     useVoice.setState({ facing })
   } catch (e) {
     logError('voice', 'flip-camera', e)
-    useVoice.setState({ error: mediaErrorText('camera', e, !!native) })
+    useVoice.setState(mediaError('camera', e))
   }
   refreshTiles()
 }
@@ -975,7 +1027,7 @@ export async function toggleScreenShare(): Promise<void> {
     useVoice.setState({ screen: next })
   } catch (e) {
     // Cancelling the browser's picker isn't an error worth showing.
-    if ((e as Error).name !== 'NotAllowedError') useVoice.setState({ error: t('voice.errors.screen') })
+    if ((e as Error).name !== 'NotAllowedError') useVoice.setState({ error: t('voice.errors.screen'), errorDevice: null })
     useVoice.setState({ screen: false })
   }
   refreshTiles()
@@ -1085,7 +1137,7 @@ export function startPushToTalk(): () => void {
 }
 
 export function clearVoiceError(): void {
-  useVoice.setState({ error: null })
+  useVoice.setState({ error: null, errorDevice: null })
 }
 
 export function clearVoiceNotice(): void {

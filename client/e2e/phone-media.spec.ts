@@ -110,10 +110,18 @@ test.describe('calls on a phone', () => {
       await phone.getByRole('button', { name: 'Create', exact: true }).click()
       await phone.getByTitle('Join talk').click()
       await expect(phone.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
-      // The call got a microphone (before the fix both tries asked for the gone one and failed), and says nothing about it.
+      // The call got a microphone (before the fix both tries asked for the gone one and failed).
       await expect.poll(() => phone.evaluate(() => (window as unknown as { micsOpened: number }).micsOpened), { timeout: 15_000 }).toBeGreaterThan(0)
       await expect(phone.locator('.voice-bar').getByRole('button', { name: 'Mute', exact: true })).toBeVisible()
-      await expect(phone.locator('.voice-status')).not.toContainText('microphone')
+      // It says which one it is on, with a way to choose; picking one puts the note away.
+      const note = phone.locator('.stage').getByTestId('voice-error')
+      await expect(note).toContainText("The microphone you picked isn't available, so the default one is used.")
+      await note.getByRole('button', { name: 'Choose microphone' }).click()
+      const sheet = phone.getByRole('dialog', { name: 'Choose a microphone' })
+      await expect(sheet.getByRole('menuitemradio', { name: 'System default' })).toHaveAttribute('aria-checked', 'true')
+      await sheet.getByRole('menuitemradio', { name: 'Fake Audio Input 1' }).click()
+      await expect(note).toHaveCount(0)
+      await expect(phone.locator('.call-controls').getByRole('button', { name: 'Mute', exact: true })).toBeVisible()
     } finally {
       await server.stop()
     }
@@ -138,8 +146,9 @@ test.describe('calls on a phone', () => {
       await phone.getByRole('button', { name: 'Create', exact: true }).click()
       await phone.getByTitle('Join talk').click()
       await expect(phone.locator('.voice-status strong')).toHaveText('Voice connected', VOICE_JOIN)
-      await expect(phone.locator('.voice-status')).toContainText("Couldn't open your microphone. Another app may be using it.")
-      await expect(phone.locator('.voice-status')).not.toContainText('permissions')
+      const error = phone.locator('.stage').getByTestId('voice-error')
+      await expect(error).toContainText("Couldn't open your microphone. Another app may be using it.")
+      await expect(error).not.toContainText('permissions')
     } finally {
       await server.stop()
     }

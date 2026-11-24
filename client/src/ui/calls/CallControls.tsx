@@ -1,20 +1,18 @@
 // The call's control bar, used by voice channels, stages, DM calls and group calls. Three groups on one row:
 // you (mic, deafen, camera, screen), together (watch, whiteboard, activities, soundboard: one popover) and the call
-// (captions, more, hang up). Phones get five big buttons and a sheet for the rest.
+// (captions, more, hang up). Phones get five big buttons and a sheet for the rest. The mic, the speaker and the camera
+// carry a small arrow for choosing the device (DevicePicker.tsx).
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
 import { t as translate } from '../../i18n'
 import {
   canFlipCamera, canShareScreen, flipCamera, leaveVoice, toggleCamera, toggleDeafen, toggleMute, toggleScreenShare, useVoice,
 } from '../../state/voice'
-import { outputSelectable, updateAudio, useAudio } from '../../state/audio'
-import { switchCamera, useBackground } from '../../state/background'
 import { toggleSpeaker, useSpeaker } from '../../state/nativeVoice'
 import {
-  Camera, CameraOff, ChevronUp, Headphones, HeadphonesOff, Mic, MicOff, MoreHorizontal, Phone, PhoneOff, ScreenShare, ScreenShareOff, Sparkles,
+  Camera, CameraOff, Headphones, HeadphonesOff, Mic, MicOff, MoreHorizontal, Phone, PhoneOff, ScreenShare, ScreenShareOff, Sparkles,
   SwitchCamera, Volume,
 } from '../icons'
-import { Menu, MenuGroup, MenuItem, type MenuAnchor } from '../kit'
 import { useEscapeLayer } from '../layers'
 import { ScreenShareMenu } from '../ScreenShareMenu'
 import { SoundboardButton } from '../expressions/Soundboard'
@@ -22,6 +20,7 @@ import { ClipButton, ClipsStrip } from '../clips/ClipControls'
 import { RecordButton, RecordingStrip } from '../recording/Recording'
 import { BackgroundNotice, CaptionsButton, CaptionsOverlay } from '../media/CallMedia'
 import { ResumeOffer } from '../ResumeOffer'
+import { DeviceSplit, useHoldToPick, VoiceError } from './DevicePicker'
 import { trayAnchor } from './tray'
 import './controls.css'
 import { PHONE_LAYOUT } from '../../phoneLayout'
@@ -59,21 +58,25 @@ export function CallControls({ onLeave, me, together, nameOf }: {
   const bar = useRef<HTMLDivElement>(null)
   const speak = session.canSpeak
   useNotesLane(bar, phone)
+  // Touch: holding the mic or the speaker button opens its list, like the arrow on it.
+  const holdMic = useHoldToPick('mic')
+  const holdSpeaker = useHoldToPick('speaker')
 
   const mic = speak && (
-    <button className={`call-button ${muted ? 'off' : ''} ${localSpeaking && !muted ? 'talking' : ''}`} onClick={() => void toggleMute()} aria-pressed={muted} aria-label={muted ? t('voice.unmute') : t('voice.mute')} title={muted ? t('voice.unmute') : t('voice.mute')}>
+    <button {...holdMic} className={`call-button ${muted ? 'off' : ''} ${localSpeaking && !muted ? 'talking' : ''}`} onClick={() => void toggleMute()} aria-pressed={muted} aria-label={muted ? t('voice.unmute') : t('voice.mute')} title={muted ? t('voice.unmute') : t('voice.mute')}>
       {muted ? <MicOff /> : <Mic />}
     </button>
   )
-  const deafen = session.afk ? (
+  // The speaker's arrow sits on the speaker button where there is one (the Android app, no headset in), else on deafen.
+  const deafen = (hold: boolean) => session.afk ? (
     <button className="call-button off" disabled aria-label={t('afk.forced')} title={t('afk.forcedHint')}><HeadphonesOff /></button>
   ) : (
-    <button className={`call-button ${deafened ? 'off' : ''}`} onClick={() => void toggleDeafen()} aria-pressed={deafened} aria-label={deafened ? t('voice.undeafen') : t('voice.deafen')} title={deafened ? t('voice.undeafen') : t('voice.deafen')}>
+    <button {...(hold ? holdSpeaker : {})} className={`call-button ${deafened ? 'off' : ''}`} onClick={() => void toggleDeafen()} aria-pressed={deafened} aria-label={deafened ? t('voice.undeafen') : t('voice.deafen')} title={deafened ? t('voice.undeafen') : t('voice.deafen')}>
       {deafened ? <HeadphonesOff /> : <Headphones />}
     </button>
   )
   const speakerButton = speaker.shown && (
-    <button className={`call-button ${speaker.on ? 'on' : ''}`} onClick={toggleSpeaker} aria-pressed={speaker.on} aria-label={t('voice.speaker')} title={speaker.on ? t('voice.speakerOn') : t('voice.earpieceOn')} data-testid="speaker-button">
+    <button {...holdSpeaker} className={`call-button ${speaker.on ? 'on' : ''}`} onClick={toggleSpeaker} aria-pressed={speaker.on} aria-label={t('voice.speaker')} title={speaker.on ? t('voice.speakerOn') : t('voice.earpieceOn')} data-testid="speaker-button">
       {speaker.on ? <Volume /> : <Phone />}
     </button>
   )
@@ -109,19 +112,20 @@ export function CallControls({ onLeave, me, together, nameOf }: {
       <ClipsStrip />
       <RecordingStrip />
       <ResumeOffer />
+      <VoiceError inCall />
       {session.afk && (
         <p className="afk-forced-banner" role="status" data-testid="afk-forced-banner"><HeadphonesOff size={16} /><strong>{t('afk.forced')}</strong> <span>{t('afk.forcedHint')}</span></p>
       )}
       {phone ? (
         // Phones: mic, camera (and flip while it's on), speaker (or deafen), more, hang up. The rest is in the sheet.
         <div ref={bar} className="call-controls phone" role="toolbar" aria-label={t('voice.stage.controls')}>
-          {mic}
+          {mic && <DeviceSplit kind="mic" phone>{mic}</DeviceSplit>}
           {cameraButton}
           {flip}
-          {speakerButton || deafen}
+          <DeviceSplit kind="speaker" phone>{speakerButton || deafen(true)}</DeviceSplit>
           {me}
           <CallTray label={t('voice.tray.more')} icon={<MoreHorizontal />} sheet testId="call-more">
-            <TraySection label={t('voice.tray.you')}>{speakerButton && deafen}{share}</TraySection>
+            <TraySection label={t('voice.tray.you')}>{speakerButton && deafen(false)}{share}</TraySection>
             <TraySection label={t('voice.tray.together')}>{together}{soundboard}</TraySection>
             <TraySection label={t('voice.tray.call')}><CaptionsButton /><ClipButton /><RecordButton /></TraySection>
           </CallTray>
@@ -130,10 +134,10 @@ export function CallControls({ onLeave, me, together, nameOf }: {
       ) : (
         <div ref={bar} className="call-controls" role="toolbar" aria-label={t('voice.stage.controls')}>
           <div className="call-group" role="group" aria-label={t('voice.tray.you')}>
-            {mic && <span className="call-split">{mic}<AudioDevices /></span>}
-            {deafen}
-            {speakerButton}
-            {cameraButton && <span className="call-split">{cameraButton}<CameraDevices /></span>}
+            {mic && <DeviceSplit kind="mic">{mic}</DeviceSplit>}
+            {speakerButton ? deafen(false) : <DeviceSplit kind="speaker">{deafen(false)}</DeviceSplit>}
+            {speakerButton && <DeviceSplit kind="speaker">{speakerButton}</DeviceSplit>}
+            {cameraButton && <DeviceSplit kind="camera">{cameraButton}</DeviceSplit>}
             {flip}
             {share}
             {me}
@@ -258,104 +262,5 @@ function TraySection({ label, children }: { label: string; children: ReactNode }
       <div className="call-tray-label" aria-hidden>{label}</div>
       <div className="call-tray-items">{children}</div>
     </div>
-  )
-}
-
-// ── Devices: the ▴ next to the mic and the camera ───────────────────────
-
-function useDevices(kind: MediaDeviceKind, active: boolean): MediaDeviceInfo[] {
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
-  useEffect(() => {
-    const media = navigator.mediaDevices
-    if (!active || !media?.enumerateDevices) return
-    let alive = true
-    void media.enumerateDevices().then((list) => {
-      if (alive) setDevices(list.filter((d) => d.kind === kind && d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications'))
-    }, () => undefined)
-    return () => {
-      alive = false
-    }
-  }, [kind, active])
-  return devices
-}
-
-function DeviceCaret({ label, open, onOpen }: { label: string; open: boolean; onOpen: (anchor: MenuAnchor) => void }) {
-  return (
-    <button
-      className="call-caret" aria-label={label} title={label} aria-haspopup="dialog" aria-expanded={open}
-      onClick={(e) => {
-        const box = e.currentTarget.getBoundingClientRect()
-        onOpen({ x: box.left, y: box.top - 8 })
-      }}
-    >
-      <ChevronUp size={14} />
-    </button>
-  )
-}
-
-function AudioDevices() {
-  const { t } = useTranslation()
-  const [anchor, setAnchor] = useState<MenuAnchor | null>(null)
-  const inputs = useDevices('audioinput', !!anchor)
-  const outputs = useDevices('audiooutput', !!anchor && outputSelectable())
-  const { inputDevice, outputDevice } = useAudio()
-  const close = () => setAnchor(null)
-  const pick = (patch: { inputDevice?: string; outputDevice?: string }) => {
-    updateAudio(patch)
-    close()
-  }
-  return (
-    <>
-      <DeviceCaret label={t('voice.devices.audio')} open={!!anchor} onOpen={setAnchor} />
-      {anchor && (
-        <Menu anchor={anchor} label={t('voice.devices.audio')} onClose={close}>
-          <MenuGroup label={t('voice.devices.input')}>
-            <MenuItem checked={!inputs.some((d) => d.deviceId === inputDevice)} onClick={() => pick({ inputDevice: '' })}>{t('settings.audio.systemDefault')}</MenuItem>
-            {inputs.map((d, i) => (
-              <MenuItem key={d.deviceId} checked={d.deviceId === inputDevice} onClick={() => pick({ inputDevice: d.deviceId })}>
-                {d.label || t('settings.audio.micN', { n: i + 1 })}
-              </MenuItem>
-            ))}
-          </MenuGroup>
-          {outputSelectable() && (
-            <MenuGroup label={t('voice.devices.output')}>
-              <MenuItem checked={!outputs.some((d) => d.deviceId === outputDevice)} onClick={() => pick({ outputDevice: '' })}>{t('settings.audio.systemDefault')}</MenuItem>
-              {outputs.map((d, i) => (
-                <MenuItem key={d.deviceId} checked={d.deviceId === outputDevice} onClick={() => pick({ outputDevice: d.deviceId })}>
-                  {d.label || t('settings.audio.speakerN', { n: i + 1 })}
-                </MenuItem>
-              ))}
-            </MenuGroup>
-          )}
-        </Menu>
-      )}
-    </>
-  )
-}
-
-function CameraDevices() {
-  const { t } = useTranslation()
-  const [anchor, setAnchor] = useState<MenuAnchor | null>(null)
-  const cameras = useDevices('videoinput', !!anchor)
-  const chosen = useBackground((s) => s.settings.camera)
-  const close = () => setAnchor(null)
-  const pick = (id: string) => {
-    void switchCamera(id)
-    close()
-  }
-  return (
-    <>
-      <DeviceCaret label={t('voice.devices.camera')} open={!!anchor} onOpen={setAnchor} />
-      {anchor && (
-        <Menu anchor={anchor} label={t('voice.devices.camera')} onClose={close}>
-          <MenuGroup label={t('voice.devices.cameras')}>
-            <MenuItem checked={!cameras.some((d) => d.deviceId === chosen)} onClick={() => pick('')}>{t('settings.audio.systemDefault')}</MenuItem>
-            {cameras.map((d, i) => (
-              <MenuItem key={d.deviceId} checked={d.deviceId === chosen} onClick={() => pick(d.deviceId)}>{d.label || t('media.background.cameraN', { n: i + 1 })}</MenuItem>
-            ))}
-          </MenuGroup>
-        </Menu>
-      )}
-    </>
   )
 }

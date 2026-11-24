@@ -56,12 +56,24 @@ export const voice = {
     call: 'Call',
     more: 'More',
   },
+  // The small arrow next to the mic, speaker and camera buttons in a call: a list of devices to switch to.
   devices: {
-    audio: 'Microphone and speaker',
+    mic: 'Choose a microphone',
+    speaker: 'Choose where sound plays',
     input: 'Microphone',
     output: 'Speaker',
     camera: 'Choose a camera',
     cameras: 'Camera',
+    settings: 'Voice & audio settings',
+    // The Android app: what a call can play on. "Phone" is the earpiece, held to your ear.
+    route: {
+      speaker: 'Speaker',
+      earpiece: 'Phone',
+      wired: 'Wired headset',
+      usb: 'USB headset',
+      bluetooth: 'Bluetooth headset',
+      hearingAid: 'Hearing aid',
+    },
   },
   share: {
     title: 'Share your screen',
@@ -98,6 +110,13 @@ export const voice = {
     cameraApp: "Iskra isn't allowed to use the camera. Allow it in your phone's settings, under Apps, Iskra, Permissions.",
     micMissing: 'No microphone found.',
     cameraMissing: 'No camera found.',
+    micGone: "The microphone you picked isn't available. Pick another one.",
+    cameraGone: "The camera you picked isn't available. Pick another one.",
+    // The call goes on with the system's default microphone.
+    micGoneDefault: "The microphone you picked isn't available, so the default one is used.",
+    // Small buttons under a microphone or camera error in a call.
+    chooseMic: 'Choose microphone',
+    chooseCamera: 'Choose camera',
     micBusy: "Couldn't open your microphone. Another app may be using it.",
     cameraBusy: "Couldn't open your camera. Another app may be using it.",
     micConnection: "Your microphone works, but the connection to the voice server isn't getting through, so nobody can hear you. Check your network, then leave and join again.",

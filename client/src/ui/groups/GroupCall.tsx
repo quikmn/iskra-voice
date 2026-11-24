@@ -111,7 +111,6 @@ export function GroupCallPanel({ groupKey }: { groupKey: string }) {
   const session = useVoice((s) => s.session)
   const tiles = useVoice((s) => s.tiles)
   const speaking = useVoice((s) => s.speaking)
-  const voiceError = useVoice((s) => s.error)
   const narrow = useNarrow()
   const [focusId, setFocusId] = useState<string | null>(null)
   const me = myKey()
@@ -162,7 +161,7 @@ export function GroupCallPanel({ groupKey }: { groupKey: string }) {
           )
         })}
       </div>
-      {(voiceError || callError) && <p className="call-error" role="alert">{voiceError ?? groupText(callError!)}</p>}
+      {callError && <p className="call-error" role="alert">{groupText(callError)}</p>}
       {inCall && session ? (
         <CallControls onLeave={() => void leaveGroupCall()} nameOf={knownName} />
       ) : (

@@ -1,12 +1,15 @@
 // Why the microphone or camera didn't start in a call, and the words for it. Only a refusal is called a permission
-// problem; a missing or busy device, or a call whose media can't reach the voice server, says so.
+// problem; a missing or busy device, a chosen device that is gone, or a call whose media can't reach the voice server,
+// says so.
 import { t } from '../i18n'
 
-export type MediaErrorKind = 'blocked' | 'missing' | 'busy' | 'connection' | 'failed'
+export type MediaErrorKind = 'blocked' | 'missing' | 'gone' | 'busy' | 'connection' | 'failed'
 
 const NAMES: Record<string, MediaErrorKind> = {
   NotAllowedError: 'blocked', SecurityError: 'blocked', PermissionDeniedError: 'blocked',
-  NotFoundError: 'missing', DevicesNotFoundError: 'missing', OverconstrainedError: 'missing',
+  NotFoundError: 'missing', DevicesNotFoundError: 'missing',
+  // The device asked for by id isn't there: unplugged, or a phone that handed out new ids.
+  OverconstrainedError: 'gone', ConstraintNotSatisfiedError: 'gone',
   NotReadableError: 'busy', TrackStartError: 'busy', AbortError: 'busy',
   // LiveKit: the track was captured, publishing it didn't get through.
   PublishTrackError: 'connection', NegotiationError: 'connection', ConnectionError: 'connection',
@@ -34,6 +37,7 @@ export function mediaErrorText(device: 'mic' | 'camera', error: unknown, inApp: 
   switch (mediaErrorKind(error)) {
     case 'blocked': return t(inApp ? `voice.errors.${device}App` : `voice.errors.${device}`)
     case 'missing': return t(`voice.errors.${device}Missing`)
+    case 'gone': return t(`voice.errors.${device}Gone`)
     case 'busy': return t(`voice.errors.${device}Busy`)
     case 'connection': return t(`voice.errors.${device}Connection`)
     default: return t(`voice.errors.${device}Failed`, { reason: mediaErrorReason(error) })

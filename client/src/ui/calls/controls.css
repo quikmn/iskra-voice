@@ -108,14 +108,15 @@
   justify-content: space-evenly; align-items: flex-start; gap: var(--sp-1);
   padding: var(--sp-3) var(--sp-2) calc(var(--sp-2) + 2px);
 }
-.call-controls.phone > .call-button, .call-controls.phone > .call-tray > .call-tray-trigger { width: 52px; height: 52px; margin-bottom: 22px; }
-.call-controls.phone > .call-button::after, .call-controls.phone > .call-tray > .call-tray-trigger::before {
+.call-controls.phone > :is(.call-button, .call-pick), .call-controls.phone > .call-tray > .call-tray-trigger { width: 52px; height: 52px; margin-bottom: 22px; }
+.call-controls.phone > .call-pick > .call-button { width: 52px; height: 52px; }
+.call-controls.phone > .call-button::after, .call-controls.phone > .call-pick > .call-button::after, .call-controls.phone > .call-tray > .call-tray-trigger::before {
   content: attr(aria-label); position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%); width: 62px;
   font-size: var(--fs-xs); line-height: var(--lh-tight); color: var(--text-2); text-align: center; pointer-events: none;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .call-controls.phone > .call-button[data-short]::after { content: attr(data-short); }
-.call-controls.phone > .call-button.talking::after { color: var(--green); }
+.call-controls.phone > .call-button.talking::after, .call-controls.phone > .call-pick > .call-button.talking::after { color: var(--green); }
 
 .call-tray-scrim { position: fixed; inset: 0; z-index: calc(var(--z-popover) - 1); background: var(--scrim); animation: fade var(--dur) ease-out; }
 .call-tray.sheet > .call-tray-panel {

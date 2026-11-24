@@ -8,7 +8,8 @@ describe('why the microphone or camera did not start', () => {
     expect(mediaErrorKind(named('NotAllowedError'))).toBe('blocked')
     expect(mediaErrorKind(named('SecurityError'))).toBe('blocked')
     expect(mediaErrorKind(named('NotFoundError'))).toBe('missing')
-    expect(mediaErrorKind(named('OverconstrainedError'))).toBe('missing')
+    // The device asked for by id doesn't exist (any more): not the same as having none.
+    expect(mediaErrorKind(named('OverconstrainedError'))).toBe('gone')
     // Android's web view when the source can't be opened.
     expect(mediaErrorKind(named('NotReadableError', 'Could not start audio source'))).toBe('busy')
     expect(mediaErrorKind(named('AbortError'))).toBe('busy')
@@ -35,6 +36,8 @@ describe('why the microphone or camera did not start', () => {
     expect(mediaErrorText('mic', named('NotAllowedError'), true)).toMatch(/phone's settings/)
     expect(mediaErrorText('camera', named('NotAllowedError'), true)).toMatch(/camera.*phone's settings/)
     expect(mediaErrorText('mic', named('NotFoundError'), true)).toBe('No microphone found.')
+    expect(mediaErrorText('mic', named('OverconstrainedError'), true)).toBe("The microphone you picked isn't available. Pick another one.")
+    expect(mediaErrorText('camera', named('OverconstrainedError'), false)).toBe("The camera you picked isn't available. Pick another one.")
     expect(mediaErrorText('camera', named('NotReadableError'), false)).toMatch(/Another app may be using it/)
     expect(mediaErrorText('mic', named('PublishTrackError', 'timeout'), true)).toMatch(/connection to the voice server/)
     expect(mediaErrorText('mic', named('PublishTrackError', 'timeout'), true)).not.toMatch(/permission/i)
