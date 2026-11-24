@@ -5,6 +5,8 @@
 .audio-settings .segmented button:disabled { opacity: 0.45; cursor: not-allowed; }
 .mic-test-row { align-items: center; gap: 14px; flex-wrap: wrap; }
 .mic-test-row .checkbox { margin: 0; }
+/* The switch row takes the rest of the line (the whole next line on a phone): its switch ends at the right edge. */
+.mic-test-row > .k-row { flex: 1 1 220px; padding: 0; }
 
 .mic-meter-wrap { position: relative; display: grid; gap: 4px; padding: 4px 0; }
 .mic-meter { position: relative; height: 10px; border-radius: 99px; background: var(--bg); overflow: hidden; border: 1px solid var(--border); }

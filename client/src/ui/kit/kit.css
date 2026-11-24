@@ -226,9 +226,9 @@
    wider would spill past a pane's right edge and make it scroll sideways. `position: relative` is zero-specificity,
    so a button placed absolutely elsewhere stays where it is. */
 @media (pointer: coarse) {
-  :where(.icon-button, .switch, .k-chip, .button, .segmented button, .friends-tab, .vstatus-chip, .pin-actions .link) { position: relative; }
+  :where(.icon-button, .switch, .k-chip, .button, .segmented button, .friends-tab, .vstatus-chip, .pin-actions .link, .poll-footer .link, .reaction) { position: relative; }
   .icon-button::before, .switch::before, .k-chip::before, .button::before, .segmented button::before, .friends-tab::before,
-  .vstatus-chip::before, .pin-actions .link::before {
+  .vstatus-chip::before, .pin-actions .link::before, .poll-footer .link::before, .reaction::before {
     content: ''; position: absolute; inset: min(0px, calc((100% - var(--tap)) / 2)) 0;
   }
   .k-row-main { min-height: 48px; }
@@ -236,4 +236,9 @@
   .k-tabs > button { min-height: var(--tap); }
   /* Lists of rows with nothing between them can't borrow room from a neighbour: the rows themselves are taller. */
   .channel-list .channel { min-height: var(--tap); }
+  /* Reactions wrap onto several lines: 36px tall with 8px between lines, so each one's 44px tap area ends where the
+     next line's begins. The poll's footer gets the same room between its lines. */
+  :root:root .reaction { min-height: 36px; }
+  .reactions { gap: 8px 6px; margin-top: 6px; }
+  .poll-footer { row-gap: 12px; }
 }

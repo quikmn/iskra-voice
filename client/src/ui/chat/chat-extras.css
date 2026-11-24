@@ -87,6 +87,11 @@ label.header-search input:focus { width: 230px; }
 .panel-title { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .panel-title h2 { margin: 0; font-size: var(--fs-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .panel-title .muted { font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* An upright phone has room for the thread's name or for "in #channel", not both: the channel was cut to "in …".
+   Out of sight there, still read out. */
+@media (max-width: 480px) {
+  .panel-title .muted { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; clip-path: inset(50%); }
+}
 .side-panel-header .panel-back { display: none; }
 .panel-search { display: none; flex: 1; margin-left: 0; height: 36px; }
 label.header-search.panel-search input, label.header-search.panel-search input:focus { width: 100%; font-size: 16px; }

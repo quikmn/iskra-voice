@@ -1,8 +1,9 @@
 // Phones: things a finger and a small screen need. Tap targets a finger can hit (44 px), a call that leaves room for
 // the conversation, and a sideways phone whose notch covers nothing.
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, test, type Locator, type Page } from '@playwright/test'
-import { createInviteLink, hasLiveKit, joinVia, longPress, send, SHOTS, startServer } from './helpers'
+import { composerAction, createInviteLink, hasLiveKit, joinVia, longPress, send, SHOTS, startServer } from './helpers'
 
 const { defaultBrowserType: _p, ...pixel } = devices['Pixel 7']
 /** A small phone (360 × 640), as many Android phones still are. */
@@ -232,6 +233,9 @@ test.describe('in a call', () => {
       await expect(panel.locator('.call-status')).toHaveText(/^\d+:\d\d$/, { timeout: 20_000 })
       await expect(panel.locator('.video-tile video').first()).toBeVisible({ timeout: 15_000 })
 
+      // The few lines left for the conversation go to messages, not to "This is the start of…".
+      await expect(phone.locator('.chat > .messages > .channel-start')).toBeHidden()
+
       // A status bar and a 3-button navigation bar.
       await setInsets(phone, { top: 24, bottom: 48 })
       const composer = phone.locator('.composer')
@@ -330,6 +334,20 @@ test('small phone: the newest message stays in view while a long message is type
     await expect(phone.getByRole('article').filter({ hasText: 'five' })).toBeVisible()
     await expect.poll(() => fromBottom(phone)).toBeLessThanOrEqual(2)
     expect((await dmBox.boundingBox())!.height, 'back to one line').toBeLessThanOrEqual(oneLine + 1)
+
+    // Friends, Pending: "Outgoing friend request" is one line beside its buttons, on the full-height screen again.
+    await phone.setViewportSize({ width: 360, height: 640 })
+    await phone.getByRole('region', { name: 'Friend request' }).getByRole('button', { name: 'Add friend' }).click()
+    await phone.getByRole('button', { name: 'Open menu' }).click()
+    await phone.locator('.channel-list .channel', { hasText: 'Friends' }).click()
+    await phone.getByRole('tab', { name: 'Pending' }).click()
+    const row = phone.locator('.friend-row', { hasText: 'Friend' })
+    const sub = row.locator('.friend-text .muted')
+    await expect(sub).toHaveText('Outgoing friend request')
+    await phone.screenshot({ path: join(SHOTS, 'phone-polish-friends-pending.png'), animations: 'disabled' })
+    const lineHeight = await sub.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight))
+    expect((await sub.boundingBox())!.height, 'one line').toBeLessThan(lineHeight * 1.5)
+    await expect(row.getByRole('button', { name: 'Cancel request' })).toBeVisible()
   } finally {
     await server.stop()
   }
@@ -355,6 +373,87 @@ test("small phone: a message's sheet scrolls, it doesn't cut rows out of its gro
     await last.scrollIntoViewIfNeeded()
     await expect(last).toBeInViewport({ ratio: 1 })
     await phone.screenshot({ path: join(SHOTS, 'phone-polish-message-sheet.png'), animations: 'disabled' })
+  } finally {
+    await server.stop()
+  }
+})
+
+test('small phone: reactions and poll links a finger can hit, a picture viewer that covers the chat, a thread header without "in …"', async ({ browser }) => {
+  const server = await startServer('Bits')
+  try {
+    const phone = await (await browser.newContext(small)).newPage()
+    await joinVia(phone, server.ownerLink(), 'Host')
+
+    // A picture with a reaction.
+    await phone.locator('input[type=file]').first().setInputFiles({ name: 'icon.png', mimeType: 'image/png', buffer: readFileSync(join(process.cwd(), 'public', 'icons', 'icon-192.png')) })
+    await phone.getByPlaceholder('Message #general').fill('a picture')
+    await phone.getByPlaceholder('Message #general').press('Enter')
+    const picture = phone.locator('.attachment-image').first()
+    await expect(picture).toBeVisible({ timeout: 15_000 })
+    await expect(phone.locator('.message.sending')).toHaveCount(0)
+    await longPress(phone, phone.locator('.message', { hasText: 'a picture' }).last())
+    await phone.locator('.sheet-reactions button').first().click()
+    const reaction = phone.locator('.reaction').first()
+    await expect(reaction).toBeVisible()
+    expect(await tapHeight(reaction)).toBeGreaterThanOrEqual(43)
+
+    // The viewer: nothing of the chat or the recovery reminder shows through.
+    await expect(phone.locator('.nudge')).toBeVisible()
+    await picture.click()
+    const viewer = phone.locator('.lightbox')
+    await expect(viewer).toBeVisible()
+    await phone.waitForTimeout(300)
+    const background = await viewer.evaluate((el) => getComputedStyle(el).backgroundColor)
+    expect(background, 'an opaque colour').toMatch(/^rgb\(/)
+    await phone.screenshot({ path: join(SHOTS, 'phone-polish-viewer.png'), animations: 'disabled' })
+    await viewer.getByRole('button', { name: 'Close' }).click()
+
+    // A poll: "Show results" is a finger tall.
+    await composerAction(phone, 'Create a poll')
+    const dialog = phone.getByRole('dialog', { name: 'Create a poll' })
+    await dialog.getByLabel('Question').fill('Tonight?')
+    await dialog.getByRole('textbox', { name: 'Answer 1' }).fill('Yes')
+    await dialog.getByRole('textbox', { name: 'Answer 2' }).fill('No')
+    await dialog.getByRole('button', { name: 'Post poll' }).click()
+    const results = phone.locator('.poll').getByRole('button', { name: 'Show results' })
+    await expect(results).toBeVisible()
+    await phone.waitForTimeout(300)
+    expect(await tapHeight(results)).toBeGreaterThanOrEqual(43)
+
+    // A thread: its header has the name; "in #general" is not shown cut down to "in …", and is still there to read out.
+    await send(phone, 'thread me')
+    await expect(phone.locator('.message.sending')).toHaveCount(0)
+    await longPress(phone, phone.locator('.message', { hasText: 'thread me' }).last())
+    await phone.locator('.action-sheet').getByRole('menuitem', { name: 'Start a thread' }).click()
+    await phone.getByRole('button', { name: 'Create thread' }).click()
+    const crumb = phone.locator('.thread-panel .panel-title .muted')
+    await expect(crumb).toHaveText('in #general')
+    await phone.waitForTimeout(300)
+    const crumbBox = (await crumb.boundingBox())!
+    expect(crumbBox.width, 'not a cut-off stub').toBeLessThanOrEqual(2)
+    await expect(phone.locator('.thread-panel .panel-title')).toContainText('in #general')
+    await phone.screenshot({ path: join(SHOTS, 'phone-polish-thread-header.png'), animations: 'disabled' })
+  } finally {
+    await server.stop()
+  }
+})
+
+test('phone settings: the "Let me hear myself" switch is at the right edge, like the others', async ({ browser }) => {
+  const server = await startServer('Switches')
+  try {
+    const phone = await (await browser.newContext({ ...small, permissions: ['microphone'] })).newPage()
+    await joinVia(phone, server.ownerLink(), 'Host')
+    await phone.getByRole('button', { name: 'Open channels' }).click()
+    await phone.locator('.me-bar').getByRole('button', { name: 'My settings', exact: true }).click()
+    const dialog = phone.getByRole('dialog', { name: 'Settings' })
+    await dialog.getByRole('button', { name: 'Voice & audio', exact: true }).click()
+    const hear = dialog.getByRole('switch', { name: 'Let me hear myself' })
+    const auto = dialog.getByRole('switch', { name: 'Set automatically' })
+    await hear.scrollIntoViewIfNeeded()
+    await phone.waitForTimeout(300)
+    const right = async (l: Locator) => { const b = (await l.boundingBox())!; return b.x + b.width }
+    expect(Math.abs((await right(hear)) - (await right(auto)))).toBeLessThanOrEqual(1)
+    await phone.screenshot({ path: join(SHOTS, 'phone-polish-hear-myself.png'), animations: 'disabled' })
   } finally {
     await server.stop()
   }
