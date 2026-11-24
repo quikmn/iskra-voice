@@ -5,11 +5,19 @@
 }
 .call-controls:not(.phone) { container-type: inline-size; }
 .call-group { display: flex; align-items: center; gap: var(--sp-2); }
+/* Desktop: each group sits in a dock, a raised pill on the stage. The row keeps its height and width: the docks'
+   5px comes out of the row's own padding and the space between the groups. */
+.call-controls:not(.phone) { gap: var(--sp-3); padding: 7px var(--sp-4) 11px; }
+.call-controls:not(.phone) > .call-group {
+  padding: 5px; border-radius: var(--r-pill); background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--hairline), inset 0 1px 0 var(--edge-hi), var(--shadow-1);
+}
 
 .call-button {
   position: relative; flex: none; width: 48px; height: 48px; padding: 0; border-radius: 50%; border: 0;
   background: var(--surface-3); color: var(--text); display: grid; place-items: center;
-  transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast);
+  box-shadow: inset 0 1px 0 var(--edge-hi);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 .call-button > svg { width: 22px; height: 22px; }
 .call-button:hover:not(:disabled) { background: var(--hover); }
@@ -17,9 +25,9 @@
 .call-button:disabled { opacity: 0.5; cursor: default; }
 .call-button.off { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
 .call-button.off:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 26%, transparent); }
-.call-button.on { background: var(--accent); color: var(--on-accent); }
+.call-button.on { background: var(--accent); color: var(--on-accent); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 10px color-mix(in srgb, var(--accent) 30%, transparent); }
 .call-button.on:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, var(--text)); }
-.call-button.hang-up { background: var(--hangup); color: #fff; }
+.call-button.hang-up { background: var(--hangup); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 10px color-mix(in srgb, var(--hangup) 30%, transparent); }
 .call-button.hang-up:hover:not(:disabled) { background: var(--hangup-hover); }
 /* Leaving is the one wide button, at the end of the row. */
 .call-controls:not(.phone) .call-button.hang-up { width: 64px; border-radius: var(--r-pill); }
@@ -34,6 +42,7 @@
 
 /* Narrow call screens (the call chat open, small windows): tighter, still one row. */
 @container (max-width: 620px) {
+  .call-controls:not(.phone) > .call-group { padding: 3px; }
   .call-group { gap: var(--sp-1); }
   .call-button, .call-caret { height: 42px; }
   .call-button { width: 42px; }
@@ -69,7 +78,7 @@
 /* A list row: icon, then what it does (its accessible name, so the words always match). */
 .call-tray-panel .call-button {
   width: 100%; height: 40px; display: flex; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-3);
-  border-radius: var(--r-md); background: transparent; color: var(--text); font-size: var(--fs-ui); text-align: left;
+  border-radius: var(--r-md); background: transparent; color: var(--text); font-size: var(--fs-ui); text-align: left; box-shadow: none;
 }
 .call-tray-panel .call-button > svg { width: 18px; height: 18px; flex: none; color: var(--text-2); }
 .call-tray-panel .call-button::after { content: attr(aria-label); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
