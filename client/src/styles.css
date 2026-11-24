@@ -172,7 +172,7 @@ kbd {
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), opacity var(--dur-fast), transform var(--dur-fast) var(--ease);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; color: var(--text);
 }
-.button:hover:not(:disabled) { background: var(--surface-3); border-color: var(--hairline-strong); }
+.button:hover:not(:disabled) { background: var(--surface-3); }
 /* Pressed: the lit edge goes, the button sits in. */
 .button:active:not(:disabled) { transform: scale(0.98); box-shadow: inset 0 1px 2px color-mix(in srgb, var(--shadow-color) 55%, transparent); }
 .button:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
@@ -181,16 +181,16 @@ kbd {
   background: var(--accent); border-color: transparent; color: var(--on-accent);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.14), 0 1px 2px color-mix(in srgb, var(--shadow-color) 55%, transparent), 0 4px 14px color-mix(in srgb, var(--accent) 28%, transparent);
 }
-.button.primary:hover:not(:disabled) { background: var(--accent-strong); border-color: transparent; }
+.button.primary:hover:not(:disabled) { background: var(--accent-strong); }
 .button.danger {
   background: var(--danger-solid); border-color: transparent; color: #fff;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.14), 0 1px 2px color-mix(in srgb, var(--shadow-color) 55%, transparent);
 }
-.button.danger:hover:not(:disabled) { background: var(--hangup-hover); border-color: transparent; }
+.button.danger:hover:not(:disabled) { background: var(--hangup-hover); }
 .button:is(.primary, .danger):active:not(:disabled) { box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.22); }
 .button:is(.primary, .danger):disabled { box-shadow: none; }
 .button.ghost { background: transparent; border-color: transparent; color: var(--text-2); box-shadow: none; }
-.button.ghost:hover:not(:disabled) { background: var(--surface-2); border-color: transparent; color: var(--text); }
+.button.ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
 .button.danger-outline { background: transparent; border-color: color-mix(in srgb, var(--red) 40%, transparent); color: var(--red); box-shadow: none; }
 .button.danger-outline:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 10%, transparent); }
 .button.wide { width: 100%; }
@@ -214,7 +214,8 @@ input, textarea, select {
   background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); padding: 9px 12px; outline: none; width: 100%;
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur) var(--ease);
 }
-:where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']), textarea, select):hover:not(:focus, :disabled) { border-color: var(--hairline-strong); }
+/* Pointed at: a firmer edge. As weak as the rule above, so a field's own border colour (an error, a search box) wins. */
+:is(input, textarea, select):where(:hover:not(:focus, :disabled)):where(:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color'])) { border-color: var(--hairline-strong); }
 :where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']), select) { min-height: var(--control-h); }
 /* Native selects: the same box as an input, with our own chevron instead of the OS arrow. */
 select {
