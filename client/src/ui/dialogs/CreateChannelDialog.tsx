@@ -27,7 +27,7 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
   const [readRole, setReadRole] = useState<Role>('member')
   const [writeRole, setWriteRole] = useState<Role>('member')
   const [encrypted, setEncrypted] = useState(false)
-  const canEncrypt = kind === 'text' || kind === 'voice' || kind === 'whiteboard'
+  const canEncrypt = kind === 'text' || kind === 'voice' || kind === 'whiteboard' || kind === 'photos'
   const readers = encrypted && canEncrypt ? readersFor(server.key, readRole).length : 0
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

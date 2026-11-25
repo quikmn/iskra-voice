@@ -175,7 +175,7 @@ export function ThreadPanel({ server, threadId, embedded, bare }: { server: Serv
             server={server}
             channelId={threadId}
             thread
-            header={bare ? undefined : <ThreadStart server={server} root={shownRoot} createdBy={thread?.createdBy} post={isPost} hideFiles={embedded} />}
+            header={bare ? <div className="thread-start bare" /> : <ThreadStart server={server} root={shownRoot} createdBy={thread?.createdBy} post={isPost} hideFiles={embedded} />}
           />
           <TypingLine server={server} channelId={threadId} />
           {canWrite && thread && !blocked ? (
