@@ -40,7 +40,7 @@ test('the server room belongs to one server; My settings has no server sections'
   // One Notifications page holds the level, muting, the sound and LFG pings.
   await menu.getByRole('menuitem', { name: /^Notifications/ }).click()
   await expect(menu.getByRole('menuitemradio')).toHaveText(['All messages', 'Only @mentions', 'Nothing'])
-  await expect(menu.getByRole('menuitem')).toHaveText([/^Mute server/, /^Sound/, /^Notify me for LFG/])
+  await expect(menu.getByRole('menuitem')).toHaveText([/^Mute server/, /^Sound/, /^Notify me for LFG/, 'Mute several servers…'])
   await settled(host)
   await host.screenshot({ path: join(SHOTS, 'server-menu-notifications.png') })
   await menu.getByRole('button', { name: 'Back' }).click()
