@@ -52,3 +52,5 @@ android/.gradle/
 # Google Play graphics, made by client/e2e/play-store.spec.ts (PLAY_SHOTS=1)
 docs/store/play/screenshots/
 docs/store/play/graphics/
+
+site/.dev.vars
