@@ -73,7 +73,7 @@
 <main class="doc docs-main" id="top">
   <div class="doc-kicker">Docs</div>
   <h1>Who Iskra talks to</h1>
-  <p class="updated">Last updated <time datetime="2026-11-03">3 November 2026</time></p>
+  <p class="updated">Last updated <time datetime="2026-11-25">25 November 2026</time></p>
   <details class="mobile-toc">
     <summary>On this page</summary>
     <ul class="toc-list"><li class="l2"><a href="#the-apps">The apps</a></li><li class="l2"><a href="#a-server">A server</a></li><li class="l2"><a href="#the-websites">The websites</a></li><li class="l2"><a href="#how-this-is-checked">How this is checked</a></li></ul>
@@ -308,6 +308,22 @@ when it happens, what the other side learns, and how to turn it off. The apps sh
 <td>My settings → Assistant</td>
 </tr>
 <tr>
+<td><strong>Calendar link (&quot;Add to my calendar&quot;)</strong></td>
+<td>Your calendar service (Google, Microsoft, Apple, or any app you give the link to) → your server, over HTTPS</td>
+<td>Only after you press &quot;Make my link&quot; in Events → Add to my calendar and add the link to a calendar; the service then fetches it on its own schedule (Google up to once a day, Outlook every few hours, Apple about hourly)</td>
+<td>Whoever has the link, so the calendar service you gave it to: the titles, times, places and descriptions of that server's events you can see, and the server's name and address. Never members' names, who is interested, or events in encrypted channels. The server sees the service's IP address</td>
+<td>Off until you make a link (the owner can turn links off for the whole server)</td>
+<td>Events → Add to my calendar → Turn off (or &quot;Make a new link&quot;): the old link stops working at once. Remove the calendar in your calendar app too</td>
+</tr>
+<tr>
+<td><strong>Events in your phone's calendar</strong></td>
+<td>none from Iskra: the phone app writes events into a calendar on the phone that you pick; the phone's own account sync (Google, Outlook/Exchange, iCloud) then copies that calendar to your account, as it does for every event on the phone</td>
+<td>Only after you turn on &quot;Put this server's events in my phone's calendar&quot; for a server and allow calendar access; the app updates them while it's open</td>
+<td>Your calendar account gets the titles, times, places and descriptions of that server's events you can see (never ones in encrypted channels). The app reads the list of calendars on the phone to let you pick one; it never reads your other events and only changes events it added</td>
+<td>Off</td>
+<td>Events → Add to my calendar → turn the switch off: the events Iskra added are removed. You can also take the calendar permission away in the phone's settings</td>
+</tr>
+<tr>
 <td><strong>Links you click</strong></td>
 <td>Your browser</td>
 <td>When you click</td>
@@ -460,6 +476,14 @@ OS updates), which Iskra doesn't control.</p>
 <td>The server's IP and that it follows that feed; never anything about members. Text only: images and thumbnails are never fetched (apps show link previews by their own rules). Only public addresses</td>
 <td>Off</td>
 <td>Server settings → Bots &amp; webhooks → Bots → Feeds (remove feeds, or turn the bot off)</td>
+</tr>
+<tr>
+<td><strong>Calendar links</strong></td>
+<td>Members' calendar services → server (<code>GET /calendar/&lt;token&gt;.ics</code>, HTTPS)</td>
+<td>When a member made a link and subscribed a calendar to it</td>
+<td>That member's view of the server's events (titles, times, places, descriptions); nothing about members</td>
+<td>Allowed; each member's link is off until they make one</td>
+<td>Server settings → Overview → Calendar links (ends every link)</td>
 </tr>
 <tr>
 <td><strong>Backup buddies</strong></td>
