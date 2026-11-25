@@ -48,6 +48,28 @@ export const settings = {
     sectionsLabel: 'Settings sections',
   },
   internetSwitch: 'Let friends anywhere join',
+  hiddenButtons: {
+    title: "Hide buttons I don't use",
+    intro: 'Take optional buttons off the screen on this device. Nothing is turned off: each row says where the feature is still found.',
+    hide: 'Hide: {{button}}',
+    showAll: 'Show all buttons again',
+    calls: 'Voice call and video call',
+    places: {
+      composer: 'Message box',
+      header: 'Top of a channel or conversation',
+      voice: 'Voice bar',
+    },
+    where: {
+      gif: 'Still in the "+" menu next to the message box.',
+      emoji: 'Still in the "+" menu. Typing : and a name works too.',
+      voiceMessage: 'The microphone in the message box. Still in the "+" menu.',
+      threads: 'Still in the channel\'s ⋯ menu.',
+      pins: 'Still in the channel\'s ⋯ menu.',
+      search: 'Still in the channel\'s ⋯ menu.',
+      calls: 'In direct messages and group chats. Still in the conversation\'s ⋯ menu; a call that is going on always shows Join.',
+      soundboard: 'In the bar above your name while you are in voice. Still in the call\'s own controls.',
+    },
+  },
   hiddenServers: {
     title: 'Hidden servers',
     intro: "Servers you hid stay off your server list on all your devices. You're still a member; they stay quiet until you show them again.",

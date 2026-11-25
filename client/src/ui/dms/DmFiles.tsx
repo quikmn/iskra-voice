@@ -1,5 +1,6 @@
 // End-to-end encrypted attachments in DMs: the composer (attach, paste, drop, voice) and how attachments show.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useButtonHidden } from '../../state/hiddenButtons'
 import { useTranslation } from 'react-i18next'
 import { t as translate } from '../../i18n'
 import { formatNumber } from '../../i18n/format'
@@ -77,6 +78,8 @@ export function DmComposer({ peer, placeholder, group, bot = false }: {
   const canSend = !!route && !uploading && (text.trim().length > 0 || ready.length > 0)
   const canQueue = !!route && uploading
   const micInstead = !text.trim() && uploads.length === 0 && voiceRecordingSupported()
+  const emojiHidden = useButtonHidden('emoji')
+  const micHidden = useButtonHidden('voiceMessage')
   // Bumped when the "+" menu asks for a voice message: the mic button starts recording.
   const [voiceStart, setVoiceStart] = useState(0)
   const queue = useQueuedSend(uploads.map((u) => ({ done: !!u.result, failed: !!u.error })), () => submit())
@@ -196,11 +199,13 @@ export function DmComposer({ peer, placeholder, group, bot = false }: {
           }}
         />
         {/* Standard emoji only: custom ones belong to a server, and the other side may not share it. */}
-        <button className="icon-button attach-button emoji-button" onClick={(e) => setPicker(e.currentTarget)} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emoji')}>
-          <Smile />
-        </button>
-        {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!route} startSignal={voiceStart} />}
-        <button className={`send-button ${micInstead ? 'idle' : ''}`} onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
+        {!emojiHidden && (
+          <button className="icon-button attach-button emoji-button" onClick={(e) => setPicker(e.currentTarget)} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emoji')}>
+            <Smile />
+          </button>
+        )}
+        {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!route} startSignal={voiceStart} hideIdle={micHidden} />}
+        <button className={`send-button ${micInstead && !micHidden ? 'idle' : ''}`} onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
           <Send />
         </button>
       </div>

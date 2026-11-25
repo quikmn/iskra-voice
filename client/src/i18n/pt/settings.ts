@@ -49,6 +49,28 @@ export const settings: Messages['settings'] = {
     sectionsLabel: 'Seções das configurações',
   },
   internetSwitch: 'Deixar amigos de qualquer lugar entrarem',
+  hiddenButtons: {
+    title: 'Ocultar botões que não uso',
+    intro: 'Tire da tela os botões opcionais neste dispositivo. Nada é desativado: cada linha diz onde o recurso continua disponível.',
+    hide: 'Ocultar: {{button}}',
+    showAll: 'Mostrar todos os botões de novo',
+    calls: 'Chamada de voz e chamada de vídeo',
+    places: {
+      composer: 'Caixa de mensagem',
+      header: 'Topo de um canal ou conversa',
+      voice: 'Barra de voz',
+    },
+    where: {
+      gif: 'Continua no menu "+" ao lado da caixa de mensagem.',
+      emoji: 'Continua no menu "+". Digitar : e um nome também funciona.',
+      voiceMessage: 'O microfone na caixa de mensagem. Continua no menu "+".',
+      threads: 'Continua no menu ⋯ do canal.',
+      pins: 'Continua no menu ⋯ do canal.',
+      search: 'Continua no menu ⋯ do canal.',
+      calls: 'Em mensagens diretas e conversas em grupo. Continua no menu ⋯ da conversa; uma chamada em andamento sempre mostra Entrar.',
+      soundboard: 'Na barra acima do seu nome enquanto você está em voz. Continua nos controles da chamada.',
+    },
+  },
   hiddenServers: {
     title: 'Servidores ocultos',
     intro: 'Os servidores que você ocultou ficam fora da sua lista em todos os seus dispositivos. Você continua como membro; eles ficam quietos até você mostrá-los de novo.',

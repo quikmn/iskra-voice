@@ -34,6 +34,7 @@ import { InternetSection } from '../dialogs/InternetSettings'
 import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expressions/ExpressionSettings'
 import { JoinSoundSettingsSection, ServerJoinSoundsOption } from '../expressions/JoinSounds'
 import { PrivateNamesSection } from '../people/PrivateName'
+import { HiddenButtonsSection } from './HiddenButtons'
 import { StickerSection } from '../chat/Stickers'
 import { GifSettings, GifViewerSettings } from '../chat/GifSettings'
 import { BotDmSettings } from './BotDmSettings'
@@ -256,7 +257,7 @@ export function MySettings({ section, onClose }: { section?: MySectionId; onClos
 function MySection({ id }: { id: MySectionId }) {
   switch (id) {
     case 'profile': return <ProfileSection />
-    case 'appearance': return <><AppearanceSection /><HiddenServersSection /></>
+    case 'appearance': return <><AppearanceSection /><HiddenButtonsSection /><HiddenServersSection /></>
     case 'language': return <LanguageSection />
     case 'devices': return <DevicesSection />
     // Everything about your account key together: the recovery key, rotating the key, and checking the key logs.

@@ -49,6 +49,28 @@ export const settings: Messages['settings'] = {
     sectionsLabel: 'Einstellungsbereiche',
   },
   internetSwitch: 'Freunde von überall beitreten lassen',
+  hiddenButtons: {
+    title: 'Buttons ausblenden, die ich nicht nutze',
+    intro: 'Nimm optionale Buttons auf diesem Gerät vom Bildschirm. Nichts wird abgeschaltet: Jede Zeile sagt, wo die Funktion weiterhin zu finden ist.',
+    hide: 'Ausblenden: {{button}}',
+    showAll: 'Alle Buttons wieder zeigen',
+    calls: 'Sprachanruf und Videoanruf',
+    places: {
+      composer: 'Nachrichtenfeld',
+      header: 'Oben in einem Kanal oder Gespräch',
+      voice: 'Sprachleiste',
+    },
+    where: {
+      gif: 'Weiterhin im „+“-Menü neben dem Nachrichtenfeld.',
+      emoji: 'Weiterhin im „+“-Menü. Auch : und ein Name funktioniert.',
+      voiceMessage: 'Das Mikrofon im Nachrichtenfeld. Weiterhin im „+“-Menü.',
+      threads: 'Weiterhin im ⋯-Menü des Kanals.',
+      pins: 'Weiterhin im ⋯-Menü des Kanals.',
+      search: 'Weiterhin im ⋯-Menü des Kanals.',
+      calls: 'In Direktnachrichten und Gruppenchats. Weiterhin im ⋯-Menü des Gesprächs; ein laufender Anruf zeigt immer „Beitreten“.',
+      soundboard: 'In der Leiste über deinem Namen, während du im Sprachkanal bist. Weiterhin in den Bedienelementen des Anrufs.',
+    },
+  },
   hiddenServers: {
     title: 'Ausgeblendete Server',
     intro: 'Server, die du ausgeblendet hast, bleiben auf allen deinen Geräten aus der Serverliste. Du bist weiter Mitglied; sie bleiben still, bis du sie wieder einblendest.',

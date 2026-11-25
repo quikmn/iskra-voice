@@ -50,6 +50,28 @@ export const settings: Messages['settings'] = {
     sectionsLabel: 'Secciones de ajustes',
   },
   internetSwitch: 'Permitir que amigos de cualquier lugar se unan',
+  hiddenButtons: {
+    title: 'Ocultar los botones que no uso',
+    intro: 'Quita de la pantalla los botones opcionales en este dispositivo. No se desactiva nada: cada fila dice dónde sigue estando la función.',
+    hide: 'Ocultar: {{button}}',
+    showAll: 'Mostrar todos los botones de nuevo',
+    calls: 'Llamada de voz y videollamada',
+    places: {
+      composer: 'Cuadro de mensaje',
+      header: 'Parte superior de un canal o conversación',
+      voice: 'Barra de voz',
+    },
+    where: {
+      gif: 'Sigue en el menú «+» junto al cuadro de mensaje.',
+      emoji: 'Sigue en el menú «+». También funciona escribir : y un nombre.',
+      voiceMessage: 'El micrófono del cuadro de mensaje. Sigue en el menú «+».',
+      threads: 'Sigue en el menú ⋯ del canal.',
+      pins: 'Sigue en el menú ⋯ del canal.',
+      search: 'Sigue en el menú ⋯ del canal.',
+      calls: 'En mensajes directos y chats de grupo. Sigue en el menú ⋯ de la conversación; una llamada en curso siempre muestra Unirse.',
+      soundboard: 'En la barra sobre tu nombre mientras estás en voz. Sigue en los controles de la llamada.',
+    },
+  },
   hiddenServers: {
     title: 'Servidores ocultos',
     intro: 'Los servidores que ocultaste no aparecen en tu lista de servidores en ninguno de tus dispositivos. Sigues siendo miembro; se quedan en silencio hasta que los vuelvas a mostrar.',

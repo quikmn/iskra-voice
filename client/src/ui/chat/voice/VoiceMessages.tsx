@@ -30,7 +30,13 @@ function micError(e: unknown): string {
  * (also what keyboard users get). Stops and sends by itself at 5 minutes.
  */
 /** `startSignal`: each change (not the value it mounts with) starts a recording, as a tap would (the phone "+" menu). */
-export function VoiceRecordButton({ onSend, disabled, startSignal = 0 }: { onSend: (recording: Recording) => Promise<void>; disabled?: boolean; startSignal?: number }) {
+export function VoiceRecordButton({ onSend, disabled, startSignal = 0, hideIdle = false }: {
+  onSend: (recording: Recording) => Promise<void>
+  disabled?: boolean
+  startSignal?: number
+  /** The person hid the mic button: nothing shows until a recording starts from the "+" menu. */
+  hideIdle?: boolean
+}) {
   const [mode, setMode] = useState<Mode>('idle')
   const [error, setError] = useState<string | null>(null)
   const [levels, setLevels] = useState<number[]>([])
@@ -147,6 +153,7 @@ export function VoiceRecordButton({ onSend, disabled, startSignal = 0 }: { onSen
     <>
       <button
         className={`icon-button attach-button voice-record-button ${mode === 'holding' ? 'holding' : ''}`}
+        style={hideIdle && mode === 'idle' ? { display: 'none' } : undefined}
         aria-label={t('chat.voice.record')}
         title={t('chat.voice.recordTitle')}
         disabled={disabled}

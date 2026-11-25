@@ -1,4 +1,5 @@
 import { DisappearLine, ExpiryBadge } from './disappear/Disappear'
+import { useButtonHidden } from '../state/hiddenButtons'
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { errorMessage } from '../i18n/errors'
@@ -560,6 +561,10 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const micInstead = !text.trim() && uploads.length === 0 && voiceRecordingSupported()
   // Bumped when the phone "+" menu asks for a voice message: the mic button starts recording.
   const [voiceStart, setVoiceStart] = useState(0)
+  // Buttons the person hid (My settings → Appearance): the "+" menu has them instead.
+  const gifHidden = useButtonHidden('gif')
+  const emojiHidden = useButtonHidden('emoji')
+  const micHidden = useButtonHidden('voiceMessage')
   const queue = useQueuedSend(uploads.map((u) => ({ done: !!u.result, failed: !!u.error })), () => submit())
 
   function startUpload(item: PendingUpload) {
@@ -803,18 +808,20 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
           }
         }}
       />
-      {!isEncrypted(server.key, channelId) && (
+      {!isEncrypted(server.key, channelId) && !gifHidden && (
         <button className="icon-button attach-button gif-button" onClick={(e) => openPicker(e.currentTarget, 'gifs')} aria-label={t('chat.composer.gifs')} title={t('chat.composer.gifs')} disabled={!online}>
           <GifIcon size={20} />
         </button>
       )}
-      <button className="icon-button attach-button emoji-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emojiTitle')}>
-        <Smile />
-      </button>
+      {!emojiHidden && (
+        <button className="icon-button attach-button emoji-button" onClick={(e) => openPicker(e.currentTarget, 'emoji')} aria-label={t('chat.composer.emoji')} title={t('chat.composer.emojiTitle')}>
+          <Smile />
+        </button>
+      )}
       <SlowmodeChip seconds={slowmode.seconds} wait={slowmode.wait} />
       {/* Nothing typed: the mic stands where Send goes (Send comes back with the first letter). */}
-      {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!online} startSignal={voiceStart} />}
-      <button className={`send-button ${micInstead ? 'idle' : ''}`} onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
+      {micInstead && <VoiceRecordButton onSend={sendVoice} disabled={!online} startSignal={voiceStart} hideIdle={micHidden} />}
+      <button className={`send-button ${micInstead && !micHidden ? 'idle' : ''}`} onClick={submit} disabled={!canSend && !canQueue} aria-label={t('common.send')} {...later.sendProps}>
         <Send />
       </button>
     </div>

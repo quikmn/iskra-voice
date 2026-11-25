@@ -49,6 +49,28 @@ export const settings: Messages['settings'] = {
     sectionsLabel: 'Sekcje ustawień',
   },
   internetSwitch: 'Pozwól znajomym dołączać z dowolnego miejsca',
+  hiddenButtons: {
+    title: 'Ukryj przyciski, których nie używam',
+    intro: 'Zdejmij z ekranu opcjonalne przyciski na tym urządzeniu. Nic nie zostaje wyłączone: każdy wiersz mówi, gdzie nadal znajdziesz daną funkcję.',
+    hide: 'Ukryj: {{button}}',
+    showAll: 'Pokaż znów wszystkie przyciski',
+    calls: 'Rozmowa głosowa i rozmowa wideo',
+    places: {
+      composer: 'Pole wiadomości',
+      header: 'Góra kanału lub rozmowy',
+      voice: 'Pasek głosowy',
+    },
+    where: {
+      gif: 'Nadal w menu „+” obok pola wiadomości.',
+      emoji: 'Nadal w menu „+”. Działa też wpisanie : i nazwy.',
+      voiceMessage: 'Mikrofon w polu wiadomości. Nadal w menu „+”.',
+      threads: 'Nadal w menu ⋯ kanału.',
+      pins: 'Nadal w menu ⋯ kanału.',
+      search: 'Nadal w menu ⋯ kanału.',
+      calls: 'W wiadomościach prywatnych i czatach grupowych. Nadal w menu ⋯ rozmowy; trwająca rozmowa zawsze pokazuje Dołącz.',
+      soundboard: 'Na pasku nad twoją nazwą, gdy jesteś na kanale głosowym. Nadal w elementach sterujących rozmowy.',
+    },
+  },
   hiddenServers: {
     title: 'Ukryte serwery',
     intro: 'Ukryte serwery nie pokazują się na liście serwerów na żadnym z twoich urządzeń. Nadal jesteś ich członkiem; są cicho, dopóki nie pokażesz ich ponownie.',

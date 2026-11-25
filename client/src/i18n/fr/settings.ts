@@ -49,6 +49,28 @@ export const settings: Messages['settings'] = {
     sectionsLabel: 'Sections des paramètres',
   },
   internetSwitch: 'Ouvrir aux amis de partout',
+  hiddenButtons: {
+    title: 'Masquer les boutons que je n’utilise pas',
+    intro: 'Retire de l’écran des boutons facultatifs sur cet appareil. Rien n’est désactivé : chaque ligne indique où la fonction se trouve encore.',
+    hide: 'Masquer : {{button}}',
+    showAll: 'Afficher à nouveau tous les boutons',
+    calls: 'Appel vocal et appel vidéo',
+    places: {
+      composer: 'Zone de message',
+      header: 'Haut d’un salon ou d’une conversation',
+      voice: 'Barre vocale',
+    },
+    where: {
+      gif: 'Toujours dans le menu « + » à côté de la zone de message.',
+      emoji: 'Toujours dans le menu « + ». Taper : et un nom fonctionne aussi.',
+      voiceMessage: 'Le micro de la zone de message. Toujours dans le menu « + ».',
+      threads: 'Toujours dans le menu ⋯ du salon.',
+      pins: 'Toujours dans le menu ⋯ du salon.',
+      search: 'Toujours dans le menu ⋯ du salon.',
+      calls: 'Dans les messages privés et les discussions de groupe. Toujours dans le menu ⋯ de la conversation ; un appel en cours affiche toujours Rejoindre.',
+      soundboard: 'Dans la barre au-dessus de ton nom quand tu es en vocal. Toujours dans les commandes de l’appel.',
+    },
+  },
   hiddenServers: {
     title: 'Serveurs masqués',
     intro: 'Les serveurs que tu as masqués restent hors de ta liste de serveurs sur tous tes appareils. Tu en es toujours membre ; ils restent discrets jusqu’à ce que tu les réaffiches.',

@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { useButtonHidden } from '../state/hiddenButtons'
 import { selectServer, useApp } from '../state/store'
 import { hangUp, useCalls } from '../state/calls'
 import { nameOf, openConversation } from '../state/dms'
@@ -21,6 +22,7 @@ import { VoiceBarRecordingMark, VoiceBarStopRecording } from './recording/Record
  */
 export function VoiceBar() {
   const { t } = useTranslation()
+  const soundboardHidden = useButtonHidden('soundboard') // still in the call's own controls
   const session = useVoice((s) => s.session)
   const muted = useVoice((s) => s.muted)
   const deafened = useVoice((s) => s.deafened)
@@ -104,7 +106,7 @@ export function VoiceBar() {
           </button>
         )}
         <DeviceCaret kind="speaker" className="voice-caret" />
-        <SoundboardButton variant="bar" />
+        {!soundboardHidden && <SoundboardButton variant="bar" />}
         <RoomButton />
         <VoicePopoutButton />
         <VoiceBarStopRecording />

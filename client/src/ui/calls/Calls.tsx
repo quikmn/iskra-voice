@@ -1,5 +1,6 @@
 // DM call UI: the call buttons, the call panel above a conversation, the incoming-call screen and call log rows.
 import { useEffect, useState } from 'react'
+import type { MoreItem } from '../chat/HeaderMore'
 import { b64u } from '../../core/crypto'
 import { asLog, callLogText, endMessage, formatDuration, isBusy } from '../../state/callMachine'
 import { acceptCall, callServers, declineCall, hangUp, startCall, useCalls } from '../../state/calls'
@@ -22,6 +23,18 @@ export const ringsFullScreen = () => window.matchMedia(PHONE_LAYOUT).matches
 const myKey = () => {
   const identity = useApp.getState().identity
   return identity ? b64u(identity.account.publicKey) : ''
+}
+
+/** The same two as entries for the ⋯ menu, when the person hid the call buttons (My settings → Appearance). */
+export function useCallItems(peer: string): MoreItem[] {
+  const { t } = useTranslation()
+  const call = useCalls((s) => s.call)
+  useApp((s) => s.servers)
+  if (callServers(peer).length === 0 || isBusy(call)) return []
+  return [
+    { key: 'call-voice', label: t('calls.startVoice'), icon: <Phone />, onSelect: () => void startCall(peer, false) },
+    { key: 'call-video', label: t('calls.startVideo'), icon: <Video />, onSelect: () => void startCall(peer, true) },
+  ]
 }
 
 /** Voice and video call buttons for a DM header. */

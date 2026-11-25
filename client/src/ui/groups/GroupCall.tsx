@@ -1,5 +1,6 @@
 // Group call UI: the call buttons, the "call in progress" banner, the call itself (2–10 tiles) and the ring card.
 import { useEffect, useState } from 'react'
+import type { MoreItem } from '../chat/HeaderMore'
 import { b64u } from '../../core/crypto'
 import { formatDuration, isBusy } from '../../state/callMachine'
 import { useCalls } from '../../state/calls'
@@ -47,8 +48,26 @@ function useTicker(on: boolean): number {
   return now
 }
 
-/** Start a voice or video call, or join the one going on. */
-export function GroupCallButtons({ groupKey }: { groupKey: string }) {
+/** Starting a call as entries for the ⋯ menu, when the person hid the call buttons (My settings → Appearance). */
+export function useGroupCallItems(groupKey: string): MoreItem[] {
+  const { t } = useTranslation()
+  const g = useGroups((s) => s.groups[groupKey])
+  const call = useGroupCalls((s) => s.calls[groupKey])
+  const joined = useGroupCalls((s) => s.joined)
+  const dmCall = useCalls((s) => s.call)
+  const voiceAvailable = useApp((s) => (g ? s.servers[g.serverKey]?.voiceAvailable : false))
+  if (call || joined || isBusy(dmCall) || cannotSend(g) || !voiceAvailable) return []
+  return [
+    { key: 'call-voice', label: t('calls.startVoice'), icon: <Phone />, onSelect: () => void startGroupCall(groupKey, false) },
+    { key: 'call-video', label: t('calls.startVideo'), icon: <Video />, onSelect: () => void startGroupCall(groupKey, true) },
+  ]
+}
+
+/**
+ * Start a voice or video call, or join the one going on. `startHidden`: the person hid the call buttons, so only
+ * "Join call" shows here (a call going on is never hidden) and starting one is in the ⋯ menu.
+ */
+export function GroupCallButtons({ groupKey, startHidden = false }: { groupKey: string; startHidden?: boolean }) {
   const { t } = useTranslation()
   const g = useGroups((s) => s.groups[groupKey])
   const call = useGroupCalls((s) => s.calls[groupKey])
@@ -64,6 +83,7 @@ export function GroupCallButtons({ groupKey }: { groupKey: string }) {
       </button>
     )
   }
+  if (startHidden) return null
   const blocked = cannotSend(g)
   const reason = (blocked && groupText(blocked)) ?? (!voiceAvailable ? t('groups.call.unavailable') : busy ? t('calls.alreadyInCall') : null)
   return (

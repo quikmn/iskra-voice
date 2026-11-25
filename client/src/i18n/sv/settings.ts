@@ -49,6 +49,28 @@ export const settings: Messages['settings'] = {
     sectionsLabel: 'Inställningsavsnitt',
   },
   internetSwitch: 'Låt vänner var som helst gå med',
+  hiddenButtons: {
+    title: 'Dölj knappar jag inte använder',
+    intro: 'Ta bort valfria knappar från skärmen på den här enheten. Inget stängs av: varje rad säger var funktionen fortfarande finns.',
+    hide: 'Dölj: {{button}}',
+    showAll: 'Visa alla knappar igen',
+    calls: 'Röstsamtal och videosamtal',
+    places: {
+      composer: 'Meddelanderutan',
+      header: 'Överst i en kanal eller konversation',
+      voice: 'Röstfältet',
+    },
+    where: {
+      gif: 'Finns kvar i ”+”-menyn bredvid meddelanderutan.',
+      emoji: 'Finns kvar i ”+”-menyn. Det går också att skriva : och ett namn.',
+      voiceMessage: 'Mikrofonen i meddelanderutan. Finns kvar i ”+”-menyn.',
+      threads: 'Finns kvar i kanalens ⋯-meny.',
+      pins: 'Finns kvar i kanalens ⋯-meny.',
+      search: 'Finns kvar i kanalens ⋯-meny.',
+      calls: 'I direktmeddelanden och gruppchattar. Finns kvar i konversationens ⋯-meny; ett pågående samtal visar alltid Gå med.',
+      soundboard: 'I fältet ovanför ditt namn när du är i röst. Finns kvar i samtalets egna kontroller.',
+    },
+  },
   hiddenServers: {
     title: 'Dolda servrar',
     intro: 'Servrar du har dolt syns inte i din serverlista på någon av dina enheter. Du är fortfarande medlem; de håller tyst tills du visar dem igen.',

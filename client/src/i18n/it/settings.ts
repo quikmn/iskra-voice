@@ -49,6 +49,28 @@ export const settings: Messages['settings'] = {
     sectionsLabel: 'Sezioni delle impostazioni',
   },
   internetSwitch: 'Fai entrare amici da ovunque',
+  hiddenButtons: {
+    title: 'Nascondi i pulsanti che non uso',
+    intro: 'Togli dallo schermo i pulsanti facoltativi su questo dispositivo. Non viene disattivato nulla: ogni riga dice dove si trova ancora la funzione.',
+    hide: 'Nascondi: {{button}}',
+    showAll: 'Mostra di nuovo tutti i pulsanti',
+    calls: 'Chiamata vocale e videochiamata',
+    places: {
+      composer: 'Casella del messaggio',
+      header: 'Parte alta di un canale o di una conversazione',
+      voice: 'Barra vocale',
+    },
+    where: {
+      gif: 'Resta nel menu «+» accanto alla casella del messaggio.',
+      emoji: 'Resta nel menu «+». Funziona anche scrivere : e un nome.',
+      voiceMessage: 'Il microfono nella casella del messaggio. Resta nel menu «+».',
+      threads: 'Resta nel menu ⋯ del canale.',
+      pins: 'Resta nel menu ⋯ del canale.',
+      search: 'Resta nel menu ⋯ del canale.',
+      calls: 'Nei messaggi diretti e nelle chat di gruppo. Resta nel menu ⋯ della conversazione; una chiamata in corso mostra sempre Partecipa.',
+      soundboard: 'Nella barra sopra il tuo nome mentre sei in vocale. Resta nei controlli della chiamata.',
+    },
+  },
   hiddenServers: {
     title: 'Server nascosti',
     intro: 'I server che hai nascosto restano fuori dal tuo elenco su tutti i tuoi dispositivi. Ne fai ancora parte; restano in silenzio finché non li mostri di nuovo.',

@@ -2,6 +2,7 @@
 // there's room); everything else sits in "⋯" (HeaderMore.tsx), except tools that are showing a state: a timer that's
 // on, auto-translate that's on, read-aloud that's on, a popped-out window.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useButtonHidden } from '../../state/hiddenButtons'
 import { prepareChannel, readable } from '../../state/e2eeChannels'
 import { useTranslation } from 'react-i18next'
 import type { Channel, Pin, Thread } from '../../core/protocol'
@@ -87,12 +88,17 @@ function HeaderTools({ server, channel, fit }: { server: ServerState; channel: C
   // The box needs room; without it the search panel has its own (chat-extras.css).
   // The phone layout searches on its own page, opened by a button, however wide the header is (a phone held sideways).
   const phone = usePhoneLayout()
+  // Buttons the person hid (My settings → Appearance) are in the ⋯ menu instead.
+  const threadsHidden = useButtonHidden('threads')
+  const searchHidden = useButtonHidden('search')
   const searchBox = fit === 'wide' && !phone
-  const pinsInline = fit !== 'narrow'
+  const pinsInline = fit !== 'narrow' && !useButtonHidden('pins')
 
   const more: MoreItem[][] = [
     [
+      ...(isText && threadsHidden ? [{ key: 'threads', label: t('chat.header.threads'), icon: <ThreadIcon />, onSelect: () => setOpen('threads') }] : []),
       ...(!pinsInline ? [{ key: 'pins', label: t('chat.header.pins'), icon: <PinIcon />, onSelect: () => setOpen('pins') }] : []),
+      ...(searchHidden ? [{ key: 'search', label: t('chat.search.searchMessages'), icon: <SearchIcon />, onSelect: () => openSearch(server.key) }] : []),
       ...(timer.item ? [timer.item] : []),
       ...(isText && !translate.on ? [translate.item] : []),
       ...(speechSupported() && !readingAloud
@@ -119,7 +125,7 @@ function HeaderTools({ server, channel, fit }: { server: ServerState; channel: C
           <PopInIcon />
         </button>
       )}
-      {isText && (
+      {isText && !threadsHidden && (
         <button className={`icon-button ${open === 'threads' ? 'on' : ''}`} onClick={() => toggle('threads')} aria-label={t('chat.header.threads')} title={t('chat.header.threads')} aria-expanded={open === 'threads'}>
           <ThreadIcon />
         </button>
@@ -129,7 +135,7 @@ function HeaderTools({ server, channel, fit }: { server: ServerState; channel: C
           <PinIcon />
         </button>
       )}
-      {searchBox ? (
+      {searchHidden ? null : searchBox ? (
         <label className="header-search desktop-search">
           <SearchIcon size={15} />
           <input

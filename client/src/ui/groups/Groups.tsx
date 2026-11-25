@@ -1,5 +1,6 @@
 // Group DMs: the sidebar rows, the conversation, and the dialogs to make a group, add people and manage it.
 import { DisappearLine, ExpiryBadge } from '../disappear/Disappear'
+import { useButtonHidden } from '../../state/hiddenButtons'
 import { usePrivateNames } from '../../state/privateNames'
 import { useGroupTimerTool } from '../disappear/Timers'
 import { HeaderMore, useHeaderFit } from '../chat/HeaderMore'
@@ -27,7 +28,7 @@ import { DmAttachments, DmComposer } from '../dms/DmFiles'
 import { usePrivateMessageTools } from '../productivity/MessageTools'
 import { groupTarget, privateRowId } from '../../state/messageRefs'
 import type { Panel } from '../Shell'
-import { GroupCallButtons, GroupCallPanel, OngoingCallBanner } from './GroupCall'
+import { GroupCallButtons, GroupCallPanel, OngoingCallBanner, useGroupCallItems } from './GroupCall'
 import { openJoinDialog } from '../dialogs/JoinDialog'
 import './groups.css'
 import { Trans, useTranslation } from 'react-i18next'
@@ -381,6 +382,8 @@ function GroupHeader({ groupKey, members, title, member, canChange, onNav, onMem
   const [ref, fit] = useHeaderFit<HTMLElement>()
   const timer = useGroupTimerTool(groupKey, canChange)
   const translate = useAutoTranslateTool(convKey.group(groupKey))
+  const callsHidden = useButtonHidden('calls')
+  const callItems = useGroupCallItems(groupKey)
   return (
     <header className={`chat-header fit-${fit}`} ref={ref}>
       <button className="icon-button mobile-only" onClick={onNav} aria-label={t('groups.openMenu')}><Menu /></button>
@@ -391,8 +394,8 @@ function GroupHeader({ groupKey, members, title, member, canChange, onNav, onMem
       <div className="header-tools">
         {timer.button}
         {translate.on && translate.button}
-        {member && <GroupCallButtons groupKey={groupKey} />}
-        <HeaderMore label={t('chat.header.moreConversation')} groups={[[...(timer.item ? [timer.item] : []), ...(translate.on ? [] : [translate.item])]]} />
+        {member && <GroupCallButtons groupKey={groupKey} startHidden={callsHidden} />}
+        <HeaderMore label={t('chat.header.moreConversation')} groups={[member && callsHidden ? callItems : [], [...(timer.item ? [timer.item] : []), ...(translate.on ? [] : [translate.item])]]} />
         <button className="icon-button" onClick={onMembers} aria-label={t('groups.groupMembers')} title={t('groups.membersTitle')}>
           <Users />
         </button>

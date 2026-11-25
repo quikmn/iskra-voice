@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { BarChart, Clock, Mic, Paperclip, Plus, Smile } from '../icons'
 import { MenuGroup, MenuItem, OrgMenu, type MenuAnchor } from '../organize/OrgMenu'
 import { GifIcon } from './extraIcons'
+import { useButtonHidden } from '../../state/hiddenButtons'
 
 export interface ComposerActions {
   attach: () => void
@@ -28,6 +29,9 @@ export function ComposerMenu({ actions, disabled }: { actions: ComposerActions; 
   const { t } = useTranslation()
   const [open, setOpen] = useState<{ anchor: MenuAnchor; compact: boolean } | null>(null)
   const button = useRef<HTMLButtonElement>(null)
+  // Buttons the person hid (My settings → Appearance) are found here instead.
+  const gifHidden = useButtonHidden('gif')
+  const emojiHidden = useButtonHidden('emoji')
   const run = (action: () => void) => () => {
     setOpen(null)
     action()
@@ -55,8 +59,8 @@ export function ComposerMenu({ actions, disabled }: { actions: ComposerActions; 
             <MenuGroup>
               <MenuItem icon={<Paperclip />} disabled={disabled} onClick={run(actions.attach)}>{t('chat.composer.attach')}</MenuItem>
               {actions.poll && <MenuItem icon={<BarChart />} disabled={disabled} onClick={run(actions.poll)}>{t('chat.composer.poll')}</MenuItem>}
-              {open.compact && actions.gifs && <MenuItem icon={<GifIcon />} disabled={disabled} onClick={run(() => actions.gifs!(button.current!))}>{t('chat.composer.gifs')}</MenuItem>}
-              {open.compact && <MenuItem icon={<Smile />} onClick={run(() => actions.emoji(button.current!))}>{t('chat.composer.emoji')}</MenuItem>}
+              {(open.compact || gifHidden) && actions.gifs && <MenuItem icon={<GifIcon />} disabled={disabled} onClick={run(() => actions.gifs!(button.current!))}>{t('chat.composer.gifs')}</MenuItem>}
+              {(open.compact || emojiHidden) && <MenuItem icon={<Smile />} onClick={run(() => actions.emoji(button.current!))}>{t('chat.composer.emoji')}</MenuItem>}
               {actions.voice && <MenuItem icon={<Mic />} disabled={disabled} onClick={run(actions.voice)}>{t('chat.voice.record')}</MenuItem>}
             </MenuGroup>
             {actions.later && (

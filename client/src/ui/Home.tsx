@@ -25,7 +25,8 @@ import { Lock, Menu, Settings, ShieldCheck, Users } from './icons'
 import { openMySettings } from './settings/open'
 import { ForwardedFiles, ForwardedLine } from './organize/ForwardDialog'
 import type { Panel } from './Shell'
-import { CallButtons, CallLogLine, CallPanel } from './calls/Calls'
+import { CallButtons, CallLogLine, CallPanel, useCallItems } from './calls/Calls'
+import { useButtonHidden } from '../state/hiddenButtons'
 import { asLog } from '../state/callMachine'
 import { VoiceBar } from './VoiceBar'
 import { AccountAvatar, AccountStatusText, MeStatusButton } from './presence/Presence'
@@ -144,6 +145,8 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
   const identity = useApp((s) => s.identity)
   useApp((s) => s.servers)
   const [verify, setVerify] = useState(false)
+  const callsHidden = useButtonHidden('calls')
+  const callItems = useCallItems(peer)
   const [dragging, setDragging] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
   const myKey = identity ? b64u(identity.account.publicKey) : ''
@@ -201,8 +204,9 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
         <div className="header-tools">
           {timer.button}
           {translate.on && translate.button}
-          {!blocked && !peerBot.bot && <CallButtons peer={peer} />}
+          {!blocked && !peerBot.bot && !callsHidden && <CallButtons peer={peer} />}
           <HeaderMore label={t('chat.header.moreConversation')} groups={[
+            !blocked && !peerBot.bot && callsHidden ? callItems : [],
             [...(timer.item && !peerBot.bot ? [timer.item] : []), ...(translate.on ? [] : [translate.item])],
             [{ key: 'verify', label: t('app.home.verifyNumber'), icon: <ShieldCheck />, onSelect: () => setVerify(true), testId: 'verify-item' }],
           ]} />
