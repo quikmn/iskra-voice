@@ -19,6 +19,7 @@
 		A15C0DE0000000000000000C /* IskraNative.swift in Sources */ = {isa = PBXBuildFile; fileRef = A15C0DE00000000000000001 /* IskraNative.swift */; };
 		A15C0DE0000000000000000D /* IskraViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A15C0DE00000000000000002 /* IskraViewController.swift */; };
 		A15C0DE0000000000000000E /* CallManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A15C0DE00000000000000003 /* CallManager.swift */; };
+		CA1E0DA000000000000000B1 /* PhoneCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1E0DA000000000000000F1 /* PhoneCalendar.swift */; };
 		5E4AE00000000000000000B1 /* ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E4AE00000000000000000F1 /* ShareInbox.swift */; };
 		5E4AE00000000000000000B2 /* ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E4AE00000000000000000F1 /* ShareInbox.swift */; };
 		5E4AE00000000000000000B3 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E4AE00000000000000000F2 /* ShareViewController.swift */; };
@@ -64,6 +65,7 @@
 		A15C0DE00000000000000001 /* IskraNative.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IskraNative.swift; sourceTree = "<group>"; };
 		A15C0DE00000000000000002 /* IskraViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IskraViewController.swift; sourceTree = "<group>"; };
 		A15C0DE00000000000000003 /* CallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallManager.swift; sourceTree = "<group>"; };
+		CA1E0DA000000000000000F1 /* PhoneCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneCalendar.swift; sourceTree = "<group>"; };
 		5E4AE00000000000000000F1 /* ShareInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInbox.swift; sourceTree = "<group>"; };
 		5E4AE00000000000000000F2 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		5E4AE00000000000000000F3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -118,6 +120,7 @@
 				A15C0DE00000000000000001 /* IskraNative.swift */,
 				A15C0DE00000000000000002 /* IskraViewController.swift */,
 				A15C0DE00000000000000003 /* CallManager.swift */,
+				CA1E0DA000000000000000F1 /* PhoneCalendar.swift */,
 				5E4AE00000000000000000F1 /* ShareInbox.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -256,6 +259,7 @@
 				A15C0DE0000000000000000C /* IskraNative.swift in Sources */,
 				A15C0DE0000000000000000D /* IskraViewController.swift in Sources */,
 				A15C0DE0000000000000000E /* CallManager.swift in Sources */,
+				CA1E0DA000000000000000B1 /* PhoneCalendar.swift in Sources */,
 				5E4AE00000000000000000B1 /* ShareInbox.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -57,6 +57,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- A server's events in the phone's calendar (PhoneCalendar.swift). Full access: the app has to find an event it
+	     added again to change or delete it. The second key is for iOS 16. -->
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Iskra puts your servers' events into the calendar you choose and keeps them up to date. It only changes events it added itself.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Iskra puts your servers' events into the calendar you choose and keeps them up to date. It only changes events it added itself.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Iskra uses the camera for video in voice channels and calls, and to scan QR codes when linking a device.</string>
 	<key>NSLocalNetworkUsageDescription</key>
