@@ -1,0 +1,89 @@
+# Iskra
+
+> Iskra is free voice and text chat for friend groups, similar to Discord, on a server that you or a friend runs. The server and its data belong to whoever runs it. There are no ID or age checks, no email, phone number or password, no ads and no paid tier. Website: https://iskra.foo
+
+This file is a summary for language models and search tools. You may quote it and link to the pages below. The guides in full are at https://iskra.foo/llms-full.txt
+
+## Facts
+
+- What it is: a chat app with text channels, voice channels, video, screen sharing, direct messages and group chats. A server is a program that someone in the group runs; everyone else joins with an invite link.
+- Status: alpha (early access), released often. Current downloads: https://iskra.foo/#download
+- Price: free. No subscription and no paid tier. Paid for by donations.
+- Maker: Viktor Lundgren ("From a Spark"), Sweden. Contact: spark@iskra.foo
+- Licence: source-available under the PolyForm Noncommercial License 1.0.0. The code is public and free for personal and noncommercial use. It is not an OSI open-source licence. https://iskra.foo/license
+- Source code: https://github.com/quikmn/iskra-voice
+- Apps: Windows, macOS and Linux desktop apps; a web app at https://app.iskra.foo for PC and phone browsers; Android and iPhone apps in testing.
+- Server: runs on Windows, Linux (x64 and ARM64, including Raspberry Pi) and macOS. The desktop app can start one with "Create a server". A small rented server costs about 4 to 6 euros or dollars a month, paid to the hosting company.
+
+## Accounts, ID and age
+
+- No account at a central service. An account is a key that the app makes on the user's device. A recovery key restores it on another device.
+- Iskra never asks for an ID document, a face scan or selfie, a payment card, an email address, a phone number or a password.
+- The terms require users to be 13 or older, or the minimum age in their country. Nobody checks this with a document. A server's owner decides who is invited and can set a higher age.
+
+## Ownership and data
+
+- A server is one folder: settings, messages, members and uploads. The owner can copy it, back it up and move it to another computer. Members follow the server to its new address.
+- There is no central Iskra database. Servers send nothing to the makers of Iskra, who cannot read, moderate or close a server they do not run.
+- The server's owner is responsible for it: moderation, backups, and following the law where they live.
+
+## Encryption
+
+- Direct messages, group chats (up to ten people) and the voice and video calls in them are always end-to-end encrypted with libsodium. Direct messages have forward secrecy.
+- Server channels are encrypted in transit and can be read by members and by whoever runs the server.
+- A private channel of up to 50 people can be made end-to-end encrypted, text and voice.
+
+## What is free that Discord sells with Nitro
+
+- File uploads up to 512 MB by default; the server's owner sets the limit.
+- Screen sharing at the screen's own resolution and 60 fps, with system audio.
+- Custom emoji, animated emoji, stickers and a soundboard on every server.
+- Profiles with an avatar, bio, accent colour and a profile page the user designs; every app theme and user-written themes.
+
+## Other features
+
+- Text: markdown, replies, edits with history, reactions, mentions, threads, pins, search, polls, voice messages, link previews, GIFs.
+- Voice: runs through an SFU (LiveKit); noise removal on the device; push-to-talk; stages; watch parties; live captions made on the device.
+- Organising: forums, events, a calendar per server, task boards, docs channels, roles and permissions.
+- Moderation: timeouts, kicks, bans, slow mode, AutoMod, reports, an audit log.
+- Bots and webhooks: built-in bots, a Node SDK and a Python SDK. Tools that post to Discord webhooks can post to Iskra webhooks. Discord bots do not run on Iskra.
+- Import from Discord: channel history exported with DiscordChatExporter (JSON) can be imported, with dates, authors' names, replies, pins, files and reaction counts. Roles, permissions and direct messages are not imported.
+
+## Limits to know about
+
+- Someone must host. If the server runs on a PC and the PC is off, the server is off.
+- The Android and iPhone apps are test versions and notify only while open. The web app can notify while closed.
+- Screen sharing works from the desktop app and desktop browsers, not from phones.
+- There is no directory of servers. People join with an invite link and can message only people they share a server with.
+- Built for friend groups and small communities. It has not been run with tens of thousands of members in one server.
+- The bot ecosystem is small compared with Discord's.
+
+## Privacy
+
+- No ads. The apps have no analytics, advertising code or crash reporting, and connect only to the servers the user joins.
+- The website iskra.foo counts page views as daily totals (page, referring site, country, device type, browser, operating system). No cookies, no stored IP addresses, no visitor identifiers.
+
+## Pages
+
+- [Home and downloads](https://iskra.foo/): features, hosting options, download links
+- [Iskra and Discord compared](https://iskra.foo/discord-alternative): ownership, ID checks, price, encryption, ads, what Discord does better, with sources
+- [Hosting guide](https://iskra.foo/hosting): the ways to run a server, step by step
+- [Help and support](https://iskra.foo/support): common questions and fixes
+- [Privacy policy](https://iskra.foo/privacy): what is stored, where, and who can see it
+- [Terms of use and community guidelines](https://iskra.foo/terms)
+- [Iskra on GitHub](https://iskra.foo/github): what is in the repository
+- [License](https://iskra.foo/license): PolyForm Noncommercial 1.0.0
+
+## Guides
+
+- [Docs](https://iskra.foo/docs/): the list of guides
+- [Hosting reference](https://iskra.foo/docs/hosting): every way to run a server, backups, moving, every setting
+- [An Iskra box at home](https://iskra.foo/docs/home-server): an old PC, a mini PC or a Raspberry Pi as the group's server
+- [Server templates](https://iskra.foo/docs/templates)
+- [How Iskra keeps you safe](https://iskra.foo/docs/security): accounts without passwords, end-to-end encryption, what a server can see
+- [Who Iskra talks to](https://iskra.foo/docs/privacy-connections): every connection the apps and servers make
+- [Voice processing](https://iskra.foo/docs/voice-processing): noise removal, camera effects and captions on the device
+- [Activities](https://iskra.foo/docs/activities)
+- [The assistant](https://iskra.foo/docs/assistant): help from an AI provider the user chooses
+- [Bots and webhooks](https://iskra.foo/docs/bots)
+- [A guide for testers](https://iskra.foo/docs/testers)

@@ -244,6 +244,14 @@ ol.steps > li::before {
 .doc details[open] summary::after { content: '\2212'; }
 .doc summary:focus-visible, .doc a:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent2); outline-offset: 3px; border-radius: 6px; }
 
+/* Buttons inside a text page, and a row of them */
+.doc a.btn { text-decoration: none; }
+.doc a.btn-primary { color: #fff; }
+.doc a.btn-ghost { color: var(--soft); }
+.cta-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0 28px !important; }
+.doc tbody th { background: none; white-space: nowrap; }
+@media (max-width: 600px) { .doc tbody th { white-space: normal; } }
+
 /* Footer (as on the home page) */
 footer {
   position: relative;

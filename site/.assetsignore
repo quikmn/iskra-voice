@@ -1,3 +1,4 @@
 wrangler.toml
-worker.js
 .wrangler/
+migrations/
+.dev.vars

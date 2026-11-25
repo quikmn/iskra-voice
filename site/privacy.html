@@ -6,6 +6,17 @@
 <title>Privacy Policy - Iskra</title>
 <meta name="description" content="What Iskra stores, where, and who can see it: your keys stay on your devices, servers are run by their owners, DMs and calls are end-to-end encrypted, and there are no ads or tracking.">
 <link rel="canonical" href="https://iskra.foo/privacy">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Iskra">
+<meta property="og:title" content="Privacy Policy - Iskra">
+<meta property="og:description" content="What Iskra stores, where, and who can see it: your keys stay on your devices, servers are run by their owners, DMs and calls are end-to-end encrypted, and there are no ads or tracking.">
+<meta property="og:url" content="https://iskra.foo/privacy">
+<meta property="og:image" content="https://iskra.foo/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Iskra: voice and text chat on a server you own. No ID checks, no ads, nothing behind a paywall.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://iskra.foo/og.png">
 <meta name="theme-color" content="#0b0b14">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -30,6 +41,7 @@
     Iskra
   </a>
   <div class="nav-links">
+    <a class="btn btn-ghost nav-hide-sm" href="/discord-alternative">Iskra vs Discord</a>
     <a class="btn btn-ghost nav-hide-sm" href="/support">Help</a>
     <a class="btn btn-ghost nav-hide-sm" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
     <a class="btn btn-primary" href="/#download">Download</a>
@@ -39,14 +51,14 @@
 <main class="doc">
   <div class="doc-kicker">Privacy</div>
   <h1>Privacy <span class="grad">Policy</span></h1>
-  <p class="updated">Last updated 3 November 2026</p>
+  <p class="updated">Last updated 25 November 2026</p>
 
   <p class="lead">Iskra is built so that as little as possible about you ends up anywhere. This page explains what is stored, where, who can see it, and how to get rid of it.</p>
 
   <div class="box ok">
     <div class="box-title">The short version</div>
     <ul>
-      <li><strong>No ads, no analytics, no tracking.</strong> Not in the apps, not on the websites.</li>
+      <li><strong>No ads and no tracking.</strong> The apps have no analytics. The website iskra.foo counts page views as daily totals, without cookies and without anything that identifies you. <a href="#sites">What it counts</a>.</li>
       <li><strong>Your devices talk to your own servers.</strong> Nothing loads from YouTube, Twitch, X, Reddit or anyone else until you click, and GIFs go through your server. <a href="#third">Who Iskra talks to</a> lists every exception.</li>
       <li><strong>No email, no phone number, no password.</strong> Your account is a key on your devices.</li>
       <li><strong>There's no central Iskra database.</strong> Each server you join stores your profile and what you post there, and is run by its owner.</li>
@@ -182,9 +194,19 @@
   <p>That's the complete list. The apps load no fonts, scripts or images from other sites, and contain no analytics, advertising or crash-reporting services. The on-device models for noise removal, voice detection and background effects ship inside the apps.</p>
 
   <h2 id="sites">9. The websites</h2>
-  <p><strong>iskra.foo</strong> and <strong>app.iskra.foo</strong> are static sites hosted on <strong>Cloudflare Pages</strong>. Like any web host, Cloudflare processes your IP address and request details to deliver the pages and protect them from attacks, and keeps short-lived logs. We don't add analytics, cookies or trackers to either site.</p>
+  <p><strong>iskra.foo</strong> and <strong>app.iskra.foo</strong> are static sites hosted on <strong>Cloudflare Pages</strong>. Like any web host, Cloudflare processes your IP address and request details to deliver the pages and protect them from attacks, and keeps short-lived logs. Neither site sets cookies, shows ads or loads trackers.</p>
+  <p id="counting"><strong>iskra.foo counts page views.</strong> We want to know how many people find Iskra and which pages help them. Our own code on Cloudflare adds one to a daily total when a page is opened. Each total is a day, a value and a number. These are the values:</p>
   <ul>
-    <li><strong>iskra.foo</strong> loads nothing from other sites.</li>
+    <li>which page was opened;</li>
+    <li>which site sent you: only its name, such as <code>reddit.com</code>, never the page you came from;</li>
+    <li>the <code>utm_source</code> or <code>ref</code> word in the link you followed, if it has one;</li>
+    <li>your country, as Cloudflare works it out from the connection;</li>
+    <li>whether you use a phone, a tablet or a computer, and which browser and operating system family (for example "Firefox" and "Linux");</li>
+    <li>which kind of download you clicked (for example "Windows installer").</li>
+  </ul>
+  <p>Nothing that identifies you is stored: no IP address, no cookie, no visitor number, no fingerprint, no full browser details and no record of single visits. We can't tell whether two page views came from the same person, and nobody can look you up in the totals. They stay with us on Cloudflare and are not shared or sold. The code is public: <a href="https://github.com/quikmn/iskra-voice/blob/main/site/_worker.js">site/_worker.js</a>. <strong>app.iskra.foo</strong> counts nothing.</p>
+  <ul>
+    <li><strong>iskra.foo</strong> loads nothing from other sites, and no script from anyone but us.</li>
     <li><strong>app.iskra.foo</strong> only delivers the web app's files. Once loaded, the app talks straight to the servers you join; Cloudflare doesn't see your chats.</li>
     <li>Links to Ko-fi, PayPal and GitHub take you to those sites, under their own privacy policies.</li>
   </ul>
@@ -233,6 +255,7 @@
   <span>© 2026 Viktor Lundgren · <a href="/license">PolyForm Noncommercial 1.0.0</a></span>
   <div class="footer-links">
     <a href="/github">GitHub</a>
+    <a href="/discord-alternative">Iskra vs Discord</a>
     <a href="/hosting">Hosting guide</a>
     <a href="/docs/">Docs</a>
     <a href="/docs/security">Security</a>

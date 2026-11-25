@@ -71,7 +71,7 @@ OS updates), which Iskra doesn't control.
 
 ## The websites
 
-- **iskra.foo**: static, on Cloudflare Pages; self-hosted fonts; no analytics; nothing loads from other sites.
+- **iskra.foo**: on Cloudflare Pages; self-hosted fonts; nothing loads from other sites; no cookies. It counts page views as daily totals (page, referring site, country, device type, browser, operating system, download clicks) and stores nothing that identifies a visitor: see the [privacy policy](https://iskra.foo/privacy#sites).
 - **app.iskra.foo**: the web app's files, on Cloudflare Pages. After it loads, it talks only to the servers you join.
 
 ## How this is checked

@@ -1,2 +1,13 @@
+# Local development and tests only (npx wrangler pages dev . from site/). deploy.yml does not upload this file:
+# in production the D1 binding DB and the secret STATS_PASSWORD are set on the Pages project iskra-hero-page.
 name = "iskra-hero-page"
 pages_build_output_dir = "."
+compatibility_date = "2026-01-01"
+
+# Visitor statistics (daily totals, see migrations/0001_counts.sql). The id below is a placeholder: local
+# development makes its own database under .wrangler/. Put the real id here to run wrangler d1 commands against it.
+[[d1_databases]]
+binding = "DB"
+database_name = "iskra-stats"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
