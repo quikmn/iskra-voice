@@ -51,6 +51,7 @@ public sealed class Router
         OrganizeFeature.Register(this);
         WatchFeature.Register(this);
         GroupFeature.Register(this);
+        ReceiptFeature.Register(this);
         GroupCallFeature.Register(this);
         BackupFeature.Register(this, backups);
         LimitsFeature.Register(this);

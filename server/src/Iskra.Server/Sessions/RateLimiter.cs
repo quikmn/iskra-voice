@@ -27,6 +27,8 @@ public sealed class RateLimiter(TimeProvider time)
         ["poll.vote"] = (10, 2),
         ["sound.play"] = (3, 0.5),
         ["joinsound.set"] = (5, 0.5),
+        ["dm.receipt"] = (10, 1),
+        ["group.receipt"] = (10, 1),
         ["voice.clip"] = (3, 0.1),
         ["stage.hand"] = (5, 0.5),
         ["watch.start"] = (8, 0.5),

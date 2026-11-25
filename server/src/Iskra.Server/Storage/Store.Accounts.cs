@@ -70,6 +70,8 @@ public sealed partial class Store
                 DELETE FROM device_revocations WHERE account_key = $k;
                 DELETE FROM rotation_handovers WHERE new_key = $k;
                 DELETE FROM dms WHERE from_key = $k OR to_key = $k;
+                DELETE FROM dm_receipts WHERE from_key = $k OR to_key = $k;
+                DELETE FROM group_receipts WHERE from_key = $k;
                 DELETE FROM dm_file_access WHERE account_key = $k;
                 DELETE FROM dm_files WHERE uploader = $k;
                 DELETE FROM group_messages WHERE from_key = $k;

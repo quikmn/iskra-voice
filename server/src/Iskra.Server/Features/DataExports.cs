@@ -201,6 +201,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("botConversations", $"SELECT bot_key, account_key, person_wrote, started_at FROM bot_dm_peers WHERE account_key {Mine} OR bot_key {Mine};");
         Section("dmPrivacy", $"SELECT account_key, who, at FROM dm_privacy WHERE account_key {Mine};");
         Section("dmRequests", $"SELECT account_key, peer_key, state, at FROM dm_contacts WHERE account_key {Mine};");
+        Section("readReceiptsSent", $"SELECT from_key, to_key, at, length(envelope) AS bytes FROM dm_receipts WHERE from_key {Mine};");
+        Section("groupReadReceiptsSent", $"SELECT group_id, from_key, at, length(envelope) AS bytes FROM group_receipts WHERE from_key {Mine};");
         Section("groups", $"SELECT group_id, account_key FROM group_members WHERE account_key {Mine};");
         Section("groupMessagesSent", $"SELECT id, group_id, from_key, created_at FROM group_messages WHERE from_key {Mine} ORDER BY id;");
         Section("disappearingTimers", $"""
@@ -300,6 +302,9 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         - directMessages, groups, groupMessagesSent: your direct messages and group chats are end-to-end encrypted, so the
           server only knows who wrote to whom and when. Their content is on your devices: in the app, use
           Settings -> Privacy & data -> Download data on this device.
+        - readReceiptsSent, groupReadReceiptsSent: if you turned read receipts on, the newest receipt you sent in each
+          conversation: to whom (or which group), when, and its size. What it says (which message you had read) is
+          end-to-end encrypted.
         - disappearingTimers: disappearing message timers you set, and the ones of your DMs and groups (scope, which
           conversation, seconds, who set it and when). Messages that disappeared are gone from the server and aren't listed.
         - reminders, scheduledMessages, inbox: your reminders (what each is about is sealed by your devices: "data"), messages

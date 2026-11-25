@@ -395,7 +395,10 @@ public sealed partial class Store : IDisposable
         ("tasks-1", TasksMigration),
         // Calendar: event change counters for calendar feeds, members' feed tokens (hashed), and the owner's switch.
         ("calendar-1", CalendarMigration),
+        // Join sounds: each member's pick, and the owner's switch.
         ("join-sounds-1", JoinSoundsMigration),
+        // Read receipts for DMs and group DMs: the newest sealed receipt per reader and conversation.
+        ("receipts-1", ReceiptsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

@@ -46,6 +46,7 @@ internal static class Participation
         // Private conversations (DMs and group DMs), as before: their own privacy and block rules apply.
         "dm.conversations", "dm.devices", "dm.history", "dm.send", "dm.upload.begin", "dm.file.url", "dm.privacy.get",
         "dm.privacy.set", "dm.bots.get", "dm.bots.set", "dm.requests.list", "dm.requests.accept", "dm.requests.ignore",
+        "dm.receipt", "dm.receipts", "group.receipt", "group.receipts",
         "group.list", "group.get", "group.history", "group.send", "group.create", "group.change",
     }.ToFrozenSet(StringComparer.Ordinal);
 
