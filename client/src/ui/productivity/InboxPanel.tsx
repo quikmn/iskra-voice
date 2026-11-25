@@ -10,6 +10,7 @@ import { nameOf, openConversation } from '../../state/dms'
 import { openGroup, titleOf, useGroups } from '../../state/groups'
 import { acceptFriend, ignoreFriend } from '../../state/friends'
 import { jumpToMessage } from '../../state/jump'
+import { goToTask } from '../../state/tasks'
 import {
   closeInbox, loadMoreInbox, markAllInboxRead, markEntryRead, setInboxFilter, setIncludeEveryone, useInbox, useInboxEntries, type InboxTab,
 } from '../../state/inbox'
@@ -161,6 +162,17 @@ function InboxRow({ entry }: { entry: InboxEntry }) {
             <button className="button small" onClick={() => void ignoreFriend(entry.peer)}>{t('productivity.inbox.ignore')}</button>
           </>
         )} />
+    )
+  }
+  if (entry.type === 'task') {
+    const server = servers[entry.server]
+    const name = server?.members[entry.by]?.name ?? t('common.someone')
+    const board = server?.channels.find((c) => c.id === entry.channelId)
+    return (
+      <Row icon={<Avatar name={name} accountKey={entry.by} size={32} />} unread at={entry.at}
+        title={<><strong>{name}</strong> {t('tasks.inbox.assigned')}</>}
+        sub={server ? [board?.name, server.name].filter(Boolean).join(' · ') : ''} body={entry.title}
+        onOpen={go(() => goToTask(entry.server, entry.channelId, entry.taskId))} actions={markRead} />
     )
   }
   const reminder = reminders[`${entry.server}:${entry.id}`]

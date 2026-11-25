@@ -2,7 +2,7 @@
 import type { Channel, ExportJob } from '../core/protocol'
 
 /** Kinds the server exports (whiteboards can't be). */
-export const EXPORTABLE_KINDS: readonly Channel['kind'][] = ['text', 'voice', 'stage', 'forum', 'docs']
+export const EXPORTABLE_KINDS: readonly Channel['kind'][] = ['text', 'voice', 'stage', 'forum', 'docs', 'tasks']
 
 /** Whether a channel can be exported from the server: encrypted ones only from a member's device. */
 export function exportability(channel: Channel & { e2ee?: unknown }): 'ok' | 'encrypted' | 'kind' {

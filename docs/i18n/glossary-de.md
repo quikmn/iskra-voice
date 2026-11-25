@@ -196,3 +196,16 @@ in [translating.md](../translating.md#glossary).
 | Timeout wording | "einen Timeout geben", "im Timeout" | Der Timeout |
 | Phone / computer | Handy / Computer | |
 | Draw & guess words | lower case | The game compares guesses in lower case and the tests require the list in lower case, so German nouns are written small there |
+
+## Task boards
+
+| English | Deutsch | Notes |
+|---|---|---|
+| Task board (the channel kind "Tasks") | Aufgaben-Board (short: Board) | Channel kind label: "Aufgaben". "auf dem Board", "aufs Board" |
+| Task | Aufgabe | Plural "Aufgaben" |
+| To do / Doing / Done (the columns) | Offen / In Arbeit / Erledigt | Lower case in running text |
+| Assign, assigned to, "Assign me" | Zuweisen, Zugewiesen an, „Mir zuweisen“ | Unassign me: "Mich austragen" |
+| Label (on a task; a forum has tags) | Label (das Label, die Labels) | Never "Tag" (forum) |
+| Due (a task's due day) | Fällig ("Fällig am {{date}}") | No due day: "Kein Termin" |
+| Archive, archived (a done task put away) | Archivieren, archiviert | Put back: "Zurück aufs Board" |
+| Comment (on a task) | Kommentar | Plural "Kommentare" |

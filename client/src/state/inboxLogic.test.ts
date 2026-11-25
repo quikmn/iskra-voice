@@ -39,6 +39,18 @@ describe('inbox', () => {
     expect(filterInbox(entries, 'requests')).toHaveLength(1)
   })
 
+  it('lists tasks someone just assigned to you, and counts them on the bell', () => {
+    const entries = buildInbox(sources({
+      reminders: [{ server: S, id: 4, firedAt: 200 }],
+      tasks: [{ server: S, channelId: 8, taskId: 31, title: 'Bring snacks', by: P, at: 300 }],
+    }))
+    expect(entries.map((e) => e.key)).toEqual([`t:${S}:31`, `r:${S}:4`])
+    expect(entries[0]).toMatchObject({ type: 'task', channelId: 8, taskId: 31, title: 'Bring snacks', by: P, at: 300 })
+    expect(inboxBadge(entries)).toBe(2)
+    expect(filterInbox(entries, 'all')).toHaveLength(2)
+    expect(filterInbox(entries, 'mentions')).toHaveLength(0)
+  })
+
   it('can leave @everyone and @here out', () => {
     const pings = [{ server: S, conv: 'c', item: item(1, 'everyone') }, { server: S, conv: 'c', item: item(2, 'role') }]
     expect(buildInbox(sources({ pings })).length).toBe(2)

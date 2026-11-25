@@ -104,6 +104,16 @@ describe('push service worker', () => {
     expect(w.shown[1].options.data).toEqual({ route: `/open/${SERVER}` })
   })
 
+  it('routes a task you were assigned to the task on its board', async () => {
+    const w = worker()
+    await w.push({ ...mention, kind: 'task', title: 'Rob assigned you a task', body: 'Bring snacks', tag: 'task:31', channelId: 7, task: 31 })
+    await w.push({ ...mention, kind: 'task', title: 'Rob assigned you a task', body: 'Bring snacks', tag: 'task:32', channelId: 7, task: 'x' })
+    expect(w.shown[0].title).toBe('Rob assigned you a task')
+    expect(w.shown[0].options.body).toBe('Bring snacks')
+    expect(w.shown[0].options.data).toEqual({ route: `/open/${SERVER}/c/7/t/31` })
+    expect(w.shown[1].options.data).toEqual({ route: `/open/${SERVER}/c/7` })
+  })
+
   it('falls back to a generic notification for anything unexpected', async () => {
     const w = worker()
     await w.push({ ...mention, server: 'X'.repeat(43) }) // another server's payload in this registration

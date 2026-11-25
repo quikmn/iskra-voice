@@ -74,7 +74,7 @@ export const settings: Messages['settings'] = {
     edit: '{{name}} bearbeiten',
     renameCategory: '{{name}} umbenennen',
     emptyCategory: 'Hier gibt es noch keine Kanäle.',
-    kinds: { text: 'Text', voice: 'Sprache', forum: 'Forum', stage: 'Bühne', docs: 'Doku', whiteboard: 'Whiteboard', media: 'Medien' },
+    kinds: { text: 'Text', voice: 'Sprache', forum: 'Forum', stage: 'Bühne', docs: 'Doku', whiteboard: 'Whiteboard', media: 'Medien', tasks: 'Aufgaben' },
   },
   overview: {
     name: 'Name',

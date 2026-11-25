@@ -74,6 +74,7 @@ import { share } from './share'
 import { recording } from './recording'
 import { kit } from './kit'
 import { shell } from './shell'
+import { tasks } from './tasks'
 
 export const sv: Messages = {
   common,
@@ -150,4 +151,5 @@ export const sv: Messages = {
   recording,
   kit,
   shell,
+  tasks,
 }

@@ -262,3 +262,16 @@ terms decided for French. Rules: [translating.md](../translating.md).
 | Screenshot | Capture d’écran | |
 | Starter template | Modèle de départ | |
 | Folder / file | Dossier / fichier | |
+
+## Task boards
+
+| English | Français | Notes |
+|---|---|---|
+| Task board (the channel kind "Tasks") | Tableau de tâches (kind: « Tâches ») | Short: "tableau" ("Retour au tableau"). The whiteboard stays "tableau blanc" |
+| Task | Tâche | Feminine: "Créée par", "modifiée", "archivée" agree with it |
+| To do / Doing / Done (the columns) | À faire / En cours / Terminé | "Terminé" stays invariable as a column and status name; in a sentence "les tâches terminées" |
+| Assign, assigned to, "Assign me" | Attribuer, attribuée à, « Me l’attribuer » | Never "assigner". Unassign me: "Me retirer". "{{name}} t’a attribué une tâche" |
+| Label (on a task; a forum has tags) | Étiquette | The same word as a forum's tag: it is what French task boards call it. "Libellé" is only an invite's label |
+| Due (a task's due day) | Échéance | "Pour le {{date}}", "Pour aujourd’hui"; passed: "C’était pour le {{date}}"; none: "Pas d’échéance" |
+| Archive, archived (a done task put away) | Archiver, archivée | Put back: "Remettre sur le tableau" |
+| Comment (on a task) | Commentaire | |

@@ -4,24 +4,25 @@ import { accountSlot } from './accountSlot'
 
 export type OpenTarget =
   | { server: string; kind: 'server' }
-  | { server: string; kind: 'channel'; channelId: number; messageId?: number; pageId?: number }
+  | { server: string; kind: 'channel'; channelId: number; messageId?: number; pageId?: number; taskId?: number }
   | { server: string; kind: 'dm'; peer: string }
   | { server: string; kind: 'group'; group: string }
   | { server: string; kind: 'reminder'; id: number }
 
 const KEY = '[A-Za-z0-9_-]{43}'
 const ID = '[1-9][0-9]{0,15}'
-const ROUTE = new RegExp(`^#?/open/(${KEY})(?:/c/(${ID})(?:/m/(${ID})|/p/(${ID}))?|/dm/(${KEY})|/g/([A-Za-z0-9_-]{22})|/r/(${ID}))?/?$`)
+const ROUTE = new RegExp(`^#?/open/(${KEY})(?:/c/(${ID})(?:/m/(${ID})|/p/(${ID})|/t/(${ID}))?|/dm/(${KEY})|/g/([A-Za-z0-9_-]{22})|/r/(${ID}))?/?$`)
 
 export function parseOpenRoute(route: string): OpenTarget | null {
   const match = ROUTE.exec(route)
   if (!match) return null
-  const [, server, channel, message, page, peer, group, reminder] = match
+  const [, server, channel, message, page, task, peer, group, reminder] = match
   if (channel) {
     const channelId = Number(channel)
     const messageId = message ? Number(message) : undefined
     if (!Number.isSafeInteger(channelId) || (messageId !== undefined && !Number.isSafeInteger(messageId))) return null
     if (page) return Number.isSafeInteger(Number(page)) ? { server, kind: 'channel', channelId, pageId: Number(page) } : null
+    if (task) return Number.isSafeInteger(Number(task)) ? { server, kind: 'channel', channelId, taskId: Number(task) } : null
     return messageId ? { server, kind: 'channel', channelId, messageId } : { server, kind: 'channel', channelId }
   }
   if (peer) return { server, kind: 'dm', peer }
@@ -38,6 +39,11 @@ export function messageLink(appBase: string, server: string, channelId: number, 
 /** A link to a docs page: opens the app (or this one) at the page. */
 export function pageLink(appBase: string, server: string, channelId: number, pageId: number): string {
   return `${appBase.replace(/\/+$/, '')}/#/open/${server}/c/${channelId}/p/${pageId}`
+}
+
+/** A link to a task on a board: opens the app (or this one) at the task. */
+export function taskLink(appBase: string, server: string, channelId: number, taskId: number): string {
+  return `${appBase.replace(/\/+$/, '')}/#/open/${server}/c/${channelId}/t/${taskId}`
 }
 
 /**

@@ -14,7 +14,7 @@ export interface Member extends PublicProfile {
 export interface Channel {
   id: number
   name: string
-  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media'
+  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media' | 'tasks'
   position: number
   readRole: Role
   writeRole: Role
@@ -147,7 +147,7 @@ export interface Requests {
   'chat.delete': [{ id: number }, Record<string, never>]
   'chat.history': [{ channelId: number; before?: number; after?: number; around?: number; limit?: number }, { messages: Message[]; hasMore: boolean; hasNewer?: boolean }]
   'chat.typing': [{ channelId: number }, Record<string, never>]
-  'channel.create': [{ name: string; kind?: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media'; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
+  'channel.create': [{ name: string; kind?: Channel['kind']; readRole?: Role; writeRole?: Role; slowmode?: number; categoryId?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
   'channel.update': [{ id: number; name?: string; readRole?: Role; writeRole?: Role; slowmode?: number; userLimit?: number; hifi?: boolean; topic?: string; lobby?: boolean }, { channel: Channel }]
   'channel.delete': [{ id: number }, Record<string, never>]
   'profile.update': [ProfileUpdate & ProfileStamp, { member: Member; stale?: boolean }]
@@ -3171,4 +3171,66 @@ export interface Requests {
   /** Without optOut: just what the server has. */
   'voice.record.optout': [{ optOut?: boolean }, { optOut: boolean }]
   'voice.record.consent': [{ channelId: number; agree: boolean }, Record<string, never>]
+}
+
+// ── task boards ──
+// See "Task boards" in PROTOCOL.md.
+
+export type TaskStatus = 'todo' | 'doing' | 'done'
+
+export interface Task {
+  /** Also the id of its thread: its comments are that thread's messages. */
+  id: number
+  channelId: number
+  title: string
+  /** Null in lists (task.list, task.mine); `hasDescription` says whether there is one. */
+  description: string | null
+  hasDescription: boolean
+  status: TaskStatus
+  /** Order within its column, lowest first. */
+  rank: number
+  assignees: string[]
+  labels: number[]
+  /** A calendar day, "YYYY-MM-DD". */
+  due: string | null
+  createdBy: string
+  createdAt: number
+  updatedAt: number
+  archived: boolean
+  comments: number
+}
+
+/** A task assigned to you: who did it and when. */
+export interface TaskAssignment {
+  task: Task
+  by: string
+  at: number
+}
+
+export interface TaskFields {
+  title?: string
+  description?: string
+  assignees?: string[]
+  due?: string | null
+  labels?: number[]
+}
+
+export interface Events {
+  'task.updated': { task: Task }
+  'task.deleted': { channelId: number; id: number }
+  'task.archived': { channelId: number; ids: number[] }
+  'task.labels': { channelId: number; labels: ForumTag[] }
+  'task.assigned': TaskAssignment
+}
+
+export interface Requests {
+  'task.list': [{ channelId: number; archived?: boolean }, { tasks: Task[]; labels: ForumTag[] }]
+  'task.get': [{ id: number }, { task: Task }]
+  'task.mine': [Record<string, never>, { tasks: TaskAssignment[] }]
+  'task.create': [TaskFields & { channelId: number; title: string; status?: TaskStatus }, { task: Task }]
+  'task.update': [TaskFields & { id: number; archived?: boolean }, { task: Task }]
+  'task.move': [{ id: number; status: TaskStatus; before?: number | null }, { task: Task }]
+  'task.delete': [{ id: number }, Record<string, never>]
+  'task.archiveDone': [{ channelId: number }, { ids: number[] }]
+  'task.labels.set': [{ channelId: number; labels: { id?: number; name: string; emoji?: string | null }[] }, { labels: ForumTag[] }]
 }

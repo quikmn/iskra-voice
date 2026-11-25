@@ -233,3 +233,16 @@ extra terms decided for Portuguese. Rules: [`../translating.md`](../translating.
 | Appearance / Accent colour | Aparência / Cor de destaque | |
 | Noise suppression / Voice activity | Supressão de ruído / Detecção de voz | |
 | macOS System Settings | Ajustes do Sistema | As Apple writes it in pt-BR |
+
+## Task boards
+
+| English | Português | Notes |
+|---|---|---|
+| Task board (the channel kind "Tasks") | Quadro de tarefas (channel kind: "Tarefas") | "o quadro" in running text. Never "kanban" or "painel" |
+| Task | Tarefa | Feminine: "atribuída", "arquivada", "criada por" |
+| To do / Doing / Done (the columns) | A fazer / Fazendo / Concluído | Tasks in the last column: "tarefas concluídas" |
+| Assign, assigned to, "Assign me" | Atribuir, atribuída a, "Atribuir a mim" | "{{name}} atribuiu uma tarefa a você". Unassign me: "Sair da tarefa" |
+| Label (on a task; a forum has tags) | Etiqueta | "Tag" is for forums only |
+| Due (a task's due day) | Prazo | "Prazo: {{date}}", "Vence hoje", "Venceu em {{date}}", "Sem prazo" |
+| Archive, archived (a done task put away) | Arquivar, arquivada | Put back: "Devolver ao quadro" |
+| Comment (on a task) | Comentário | Verb: comentar |

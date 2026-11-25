@@ -6,6 +6,7 @@ import { DocsIcon } from './docs/icons'
 import { StageIcon } from './stage/stageIcons'
 import { BoardIcon } from './whiteboard/icons'
 import { MediaIcon } from './mediaChannels/icons'
+import { TasksIcon } from './tasks/icons'
 
 export function ChannelKindIcon({ kind, size = 16 }: { kind: Channel['kind']; size?: number }) {
   switch (kind) {
@@ -15,6 +16,7 @@ export function ChannelKindIcon({ kind, size = 16 }: { kind: Channel['kind']; si
     case 'docs': return <DocsIcon size={size} />
     case 'whiteboard': return <BoardIcon size={size} />
     case 'media': return <MediaIcon size={size} />
+    case 'tasks': return <TasksIcon size={size} />
     default: return <Hash size={size} />
   }
 }

@@ -11,6 +11,8 @@ import { ForumView } from '../forums/ForumView'
 import { DocsView } from '../docs/DocsView'
 import { WhiteboardView } from '../whiteboard/WhiteboardView'
 import { MediaView } from '../mediaChannels/MediaView'
+import { TasksView } from '../tasks/TasksView'
+import { TaskPanel } from '../tasks/TaskPanel'
 import './chat-extras.css'
 
 export function ChatArea({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -24,6 +26,8 @@ export function ChatArea({ server, onToggle }: { server: ServerState; onToggle: 
   const board = server.channels.find((c) => c.id === channelId && c.kind === 'whiteboard')
   // A media channel shows its open post in its own viewer, with the comments beside the picture.
   const media = server.channels.find((c) => c.id === channelId && c.kind === 'media')
+  // A task board shows its open task (a thread) in its own panel.
+  const tasks = server.channels.find((c) => c.id === channelId && c.kind === 'tasks')
 
   // A thread belongs to its channel: going to another channel closes it.
   useEffect(() => {
@@ -36,8 +40,10 @@ export function ChatArea({ server, onToggle }: { server: ServerState; onToggle: 
         : forum ? <ForumView key={forum.id} server={server} channel={forum} onToggle={onToggle} />
         : docs ? <DocsView key={docs.id} server={server} channel={docs} onToggle={onToggle} />
         : board ? <WhiteboardView key={board.id} server={server} channel={board} onToggle={onToggle} />
+        : tasks ? <TasksView key={tasks.id} server={server} channel={tasks} onToggle={onToggle} />
         : <ChatView server={server} onToggle={onToggle} />}
-      {threadOpen && !media ? <ThreadPanel key={open.id} server={server} threadId={open.id} /> : searching ? <SearchPanel server={server} /> : null}
+      {threadOpen && tasks ? <TaskPanel key={open.id} server={server} channel={tasks} taskId={open.id} />
+        : threadOpen && !media ? <ThreadPanel key={open.id} server={server} threadId={open.id} /> : searching ? <SearchPanel server={server} /> : null}
     </div>
   )
 }

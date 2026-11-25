@@ -292,6 +292,19 @@ English terms as [`docs/i18n-glossary.md`](../i18n-glossary.md); format and rule
 | Tray | Area di notifica | |
 | Dismiss | Ignora | A handled report: "Archivia" |
 
+## Task boards
+
+| English | Italiano | Notes |
+|---|---|---|
+| Task board (the channel kind "Tasks") | Bacheca dei compiti (kind: "Compiti") | In running text "la bacheca". The Starboard's board is also "bacheca"; say "bacheca dei compiti" where the two could be mixed up |
+| Task | Compito | Never "attività" (attività = games and activities) |
+| To do / Doing / Done (the columns) | Da fare / In corso / Fatto | Done tasks in a sentence: "i compiti fatti" |
+| Assign, assigned to, "Assign me" | Assegna, assegnato a, "Assegna a me" | Unassign me: "Toglimi dal compito". "{{name}} ti ha assegnato un compito" |
+| Label (on a task; a forum has tags) | Etichetta | Feminine: "un'etichetta". Never "tag" on a board |
+| Due (a task's due day) | Scadenza | "Scadenza: {{date}}", "Scade oggi", passed: "Scaduto: {{date}}", none: "Senza scadenza" |
+| Archive, archived (a done task put away) | Archivia, archiviato | Put back: "Rimetti in bacheca" |
+| Comment (on a task) | Commento | Verb: "commentare" |
+
 ### Sentences built from parts
 
 - A text that puts "You" or a name in front of a verb (`{{who}} added {{targets}}`) can't be conjugated for both, so

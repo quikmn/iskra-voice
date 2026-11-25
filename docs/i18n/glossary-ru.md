@@ -281,3 +281,16 @@ LiveKit, Windows), `AutoMod`, file formats (PNG, GIF, ZIP), slash commands (`/ro
 | Dismiss / Got it | Скрыть / Понятно | |
 | AI | ИИ | |
 | Iskra (grammar) | Feminine agreement: «Iskra заблокирована» | |
+
+## Task boards
+
+| English | Русский | Notes |
+|---|---|---|
+| Task board (the channel kind "Tasks") | Доска задач (channel kind: «Задачи») | «Доска» alone only inside the board's own screens; elsewhere «доска задач», because a bare «доска» is the whiteboard |
+| Task | Задача | Its name: «название» |
+| To do / Doing / Done (the columns) | Сделать / В работе / Готово | A column: «колонка». Done tasks: «готовые задачи» |
+| Assign, assigned to, "Assign me" | Назначить, «Исполнители» (one: «исполнитель»), «Назначить меня» | Undo: «Снять с меня». After a name: «{{name}} назначает вам задачу» |
+| Label (on a task; a forum has tags) | Метка | Never «тег» on a board |
+| Due (a task's due day) | Срок | «Срок: {{date}}», «Срок сегодня», «Без срока»; passed: «Срок прошёл: {{date}}» |
+| Archive, archived (a done task put away) | В архив (button), отправить в архив; «в архиве» | Back: «Вернуть на доску» |
+| Comment (on a task) | Комментарий | Verb: «комментировать», «написать комментарий» |

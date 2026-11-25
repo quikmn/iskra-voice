@@ -104,7 +104,7 @@ export const AUDIT_ACTIONS = [
   'member.kick', 'member.ban', 'member.unban', 'member.timeout', 'member.timeout.remove', 'member.role', 'member.roles',
   'role.create', 'role.update', 'role.delete', 'role.reorder', 'role.group.create', 'role.group.update', 'role.group.delete',
   'role.base', 'role.base.powers', 'channel.overrides', 'voice.mute', 'voice.move', 'voice.disconnect', 'voice.status.clear',
-  'channel.create', 'channel.update', 'channel.delete', 'message.delete', 'thread.delete', 'message.pin', 'message.unpin',
+  'channel.create', 'channel.update', 'channel.delete', 'message.delete', 'thread.delete', 'task.delete', 'message.pin', 'message.unpin',
   'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
   'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
   'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'buginbox.update', 'afk.update', 'notify.default', 'server.template.export',
@@ -123,7 +123,7 @@ type Underscored<S extends string> = S extends `${infer A}.${infer B}` ? `${A}_$
 export const auditActionLabel = (action: AuditFilter): string =>
   t(`moderation.audit.filters.${action.replace(/\./g, '_') as Underscored<AuditFilter>}`)
 
-const AUTOMOD_WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch', 'page', 'voicestatus'] as const
+const AUTOMOD_WHAT = ['message', 'edit', 'poll', 'post', 'thread', 'event', 'watch', 'page', 'task', 'voicestatus'] as const
 
 const START_ROLES = ['guest', 'member', 'trusted', 'admin'] as const
 const RECORD_ENDS = ['left', 'permission', 'max', 'declined', 'timeout', 'encrypted', 'channel', 'unavailable'] as const
@@ -222,6 +222,7 @@ export function auditText(e: AuditEntry): string {
     case 'message.delete':
       return t('moderation.audit.messageDelete', { actor, target: e.targetName ?? t('moderation.audit.formerMember'), channel: channel(d.channelName) })
     case 'thread.delete': return t('moderation.audit.threadDelete', { actor, target, name: str(d.name), channel: channel(d.channelName) })
+    case 'task.delete': return t('moderation.audit.taskDelete', { actor, target, title: str(d.title), channel: channel(d.channelName) })
     case 'message.pin':
       return e.targetName
         ? t('moderation.audit.pinBy', { actor, target: e.targetName, channel: channel(d.channelName) })

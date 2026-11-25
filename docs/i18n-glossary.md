@@ -105,6 +105,19 @@ friendly "du", sentence case in headings and buttons, and a normal Swedish word 
 | Decrypt | Dekryptera |
 | Backup | Säkerhetskopia |
 
+## Task boards
+
+| English | Svenska |
+|---|---|
+| Task board (the channel kind "Tasks") | Uppgiftstavla, kort "tavla" (kanaltypen "Uppgifter") |
+| Task | Uppgift |
+| To do / Doing / Done (the columns) | Att göra / Pågår / Klart |
+| Assign, assigned to, "Assign me" | Tilldela, tilldelad, "Tilldela mig" |
+| Label (on a task; a forum has tags) | Etikett (ett forum har taggar) |
+| Due (a task's due day) | Klar senast ("Klar senast {{date}}"; passerad dag: "Skulle vara klar {{date}}") |
+| Archive, archived (a done task put away) | Arkivera, arkiverad |
+| Comment (on a task) | Kommentar |
+
 ## Server messages
 
 The server writes its errors in English with a `key` and `args` (see `protocol/PROTOCOL.md` → Errors); the app

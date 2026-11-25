@@ -5,7 +5,7 @@ import type { Channel, Role } from '../../../core/protocol'
 import { BODY_FONTS, COLOR_KEYS, MONO_FONTS, validateTheme, type ThemeFile } from '../../../theme/theme'
 import { categoryOf, channelOf, optStr, SERVER_ARG, str, ToolError, type Prepared, type ToolDef } from './registry'
 
-const KINDS: Channel['kind'][] = ['text', 'voice', 'forum', 'stage', 'docs', 'whiteboard', 'media']
+const KINDS: Channel['kind'][] = ['text', 'voice', 'forum', 'stage', 'docs', 'whiteboard', 'media', 'tasks']
 const NONE = new Set(['none', 'no category', ''])
 
 export const ORGANIZE_TOOLS: ToolDef[] = [

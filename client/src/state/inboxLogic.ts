@@ -11,6 +11,7 @@ export type InboxEntry =
   | { type: 'group'; key: string; conv: string; group: string; count: number; at: number }
   | { type: 'request'; key: string; peer: string; at: number }
   | { type: 'reminder'; key: string; server: string; id: number; at: number }
+  | { type: 'task'; key: string; server: string; channelId: number; taskId: number; title: string; by: string; at: number }
 
 export interface InboxSources {
   pings: { server: string; conv: string; item: InboxItem }[]
@@ -18,6 +19,8 @@ export interface InboxSources {
   requests: { peer: string; at: number }[]
   /** Fired reminders still waiting for you. */
   reminders: { server: string; id: number; firedAt: number }[]
+  /** Tasks someone assigned to you that you haven't opened yet. */
+  tasks?: { server: string; channelId: number; taskId: number; title: string; by: string; at: number }[]
   includeEveryone: boolean
 }
 
@@ -41,6 +44,7 @@ export function buildInbox(src: InboxSources): InboxEntry[] {
   }
   for (const r of src.requests) entries.push({ type: 'request', key: `f:${r.peer}`, peer: r.peer, at: r.at })
   for (const r of src.reminders) entries.push({ type: 'reminder', key: `r:${r.server}:${r.id}`, server: r.server, id: r.id, at: r.firedAt })
+  for (const a of src.tasks ?? []) entries.push({ type: 'task', key: `t:${a.server}:${a.taskId}`, ...a })
   return entries.sort((a, b) => b.at - a.at)
 }
 
@@ -54,9 +58,9 @@ export function filterInbox(entries: InboxEntry[], filter: InboxFilter): InboxEn
   }
 }
 
-/** The bell's number: unread pings, reminders waiting and friend requests (unread DMs already badge Home). */
+/** The bell's number: unread pings, reminders waiting, friend requests and newly assigned tasks (unread DMs already badge Home). */
 export function inboxBadge(entries: InboxEntry[]): number {
-  return entries.filter((e) => (e.type === 'ping' && e.unread) || e.type === 'reminder' || e.type === 'request').length
+  return entries.filter((e) => (e.type === 'ping' && e.unread) || e.type === 'reminder' || e.type === 'request' || e.type === 'task').length
 }
 
 /** Keeps the newest copy per message, newest first, at most `max`. */

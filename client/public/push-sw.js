@@ -30,7 +30,10 @@ function routeFor(data) {
   if (data.kind === 'reminder' && Number.isSafeInteger(data.reminder) && data.reminder > 0) return `${base}/r/${data.reminder}`
   if (typeof data.group === 'string' && GROUP.test(data.group)) return `${base}/g/${data.group}`
   if (data.kind === 'dm' && typeof data.peer === 'string' && KEY.test(data.peer)) return `${base}/dm/${data.peer}`
-  if (Number.isSafeInteger(data.channelId) && data.channelId > 0) return `${base}/c/${data.channelId}`
+  if (Number.isSafeInteger(data.channelId) && data.channelId > 0) {
+    if (data.kind === 'task' && Number.isSafeInteger(data.task) && data.task > 0) return `${base}/c/${data.channelId}/t/${data.task}`
+    return `${base}/c/${data.channelId}`
+  }
   if (typeof data.peer === 'string' && KEY.test(data.peer)) return `${base}/dm/${data.peer}`
   return base
 }

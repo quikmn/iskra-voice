@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { messageLink, parseOpenRoute, pushScope, pushSupport, serverOfScope, slotOfScope } from './pushRoute'
+import { messageLink, parseOpenRoute, pushScope, pushSupport, serverOfScope, slotOfScope, taskLink } from './pushRoute'
 
 const S = 'A'.repeat(43)
 const P = 'b'.repeat(42) + '_'
@@ -11,6 +11,14 @@ describe('push routes', () => {
     expect(parseOpenRoute(`/open/${S}`)).toEqual({ server: S, kind: 'server' })
     expect(parseOpenRoute(`/open/${S}/g/${'g'.repeat(22)}`)).toEqual({ server: S, kind: 'group', group: 'g'.repeat(22) })
     expect(parseOpenRoute(`/open/${S}/r/7`)).toEqual({ server: S, kind: 'reminder', id: 7 })
+  })
+
+  it('reads and writes links to a task on a board', () => {
+    expect(parseOpenRoute(`#/open/${S}/c/12/t/31`)).toEqual({ server: S, kind: 'channel', channelId: 12, taskId: 31 })
+    expect(taskLink('https://app.iskra.foo/', S, 12, 31)).toBe(`https://app.iskra.foo/#/open/${S}/c/12/t/31`)
+    const link = taskLink('https://chat.example/app', S, 12, 31)
+    expect(parseOpenRoute(link.slice(link.indexOf('#')))).toEqual({ server: S, kind: 'channel', channelId: 12, taskId: 31 })
+    for (const bad of [`/open/${S}/c/12/t/0`, `/open/${S}/c/12/t/x`, `/open/${S}/c/12/t/3/m/4`, `/open/${S}/t/3`]) expect(parseOpenRoute(bad), bad).toBeNull()
   })
 
   it('rejects anything else', () => {

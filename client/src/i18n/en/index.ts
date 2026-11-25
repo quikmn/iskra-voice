@@ -73,6 +73,7 @@ import { share } from './share'
 import { recording } from './recording'
 import { kit } from './kit'
 import { shell } from './shell'
+import { tasks } from './tasks'
 
 export const en = {
   common,
@@ -149,4 +150,5 @@ export const en = {
   recording,
   kit,
   shell,
+  tasks,
 } as const

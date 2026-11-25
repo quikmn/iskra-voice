@@ -210,6 +210,11 @@ export function openTarget(target: OpenTarget): void {
     void import('./docs').then(({ goToPage }) => goToPage(server, channelId, pageId))
     return
   }
+  if (target.taskId !== undefined) {
+    const { server, channelId, taskId } = target
+    void import('./tasks').then(({ goToTask }) => goToTask(server, channelId, taskId))
+    return
+  }
   if (target.messageId === undefined) return selectChannel(target.server, target.channelId)
   // A message link: jump once this server is connected.
   const { server, channelId, messageId } = target

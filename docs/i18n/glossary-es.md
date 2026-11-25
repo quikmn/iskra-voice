@@ -227,6 +227,19 @@ terms as [`docs/i18n-glossary.md`](../i18n-glossary.md); rules in [translating.m
 | Key transparency, key log | Transparencia de claves, registro de claves | |
 | Keychain (of the system) | Llavero | |
 
+## Task boards
+
+| English | Español | Notes |
+|---|---|---|
+| Task board (the channel kind "Tasks") | Tablero de tareas (channel kind: "Tareas") | Short: "tablero" |
+| Task | Tarea | Feminine: what agrees with it is feminine ("Asignada a", "Creada por", "modificada") |
+| To do / Doing / Done (the columns) | Por hacer / En curso / Hecho | Done tasks in running text: "tareas hechas" |
+| Assign, assigned to, "Assign me" | Asignar, asignada a, "Asignarme" | The participle agrees with the task, never with the person. Unassign me: "Quitarme" |
+| Label (on a task; a forum has tags) | Etiqueta | The same word as a forum's tag |
+| Due (a task's due day) | Vence ("Vence el {{date}}", "Vence hoy"; passed: "Venció el {{date}}") | No due day: "Sin fecha" |
+| Archive, archived (a done task put away) | Archivar, archivada | Put back: "Devolver al tablero" |
+| Comment (on a task) | Comentario | Verb: "comentar" |
+
 ## Notes for whoever edits these texts
 
 - **"You" inside a sentence.** Some texts get either a name or the word for "you" in `{{who}}` (group chat system

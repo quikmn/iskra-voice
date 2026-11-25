@@ -11,6 +11,7 @@ import { ForumIcon } from '../forums/icons'
 import { DocsIcon } from '../docs/icons'
 import { BoardIcon } from '../whiteboard/icons'
 import { MediaIcon } from '../mediaChannels/icons'
+import { TasksIcon } from '../tasks/icons'
 import { createEncryptedChannel, readersFor } from '../../state/e2eeChannels'
 import { MAX_CHANNEL_MEMBERS } from '../../core/channelChain'
 import { EncryptedCreateNote, e2eeText } from '../e2ee/E2ee'
@@ -21,7 +22,7 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
   const categories = useCategories(server.key)
   const [categoryId, setCategoryId] = useState<number | null>(initialCategory)
   const [name, setName] = useState('')
-  const [kind, setKind] = useState<'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media'>('text')
+  const [kind, setKind] = useState<'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media' | 'tasks'>('text')
   const [readRole, setReadRole] = useState<Role>('member')
   const [writeRole, setWriteRole] = useState<Role>('member')
   const [encrypted, setEncrypted] = useState(false)
@@ -42,7 +43,7 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
       const channel = encrypted && (kind === 'text' || kind === 'voice' || kind === 'whiteboard')
         ? await createEncryptedChannel(server.key, { ...spec, kind })
         : (await connectionFor(server.key)!.request('channel.create', spec)).channel
-      if (channel.kind === 'text' || channel.kind === 'forum' || channel.kind === 'docs' || channel.kind === 'whiteboard' || channel.kind === 'media') selectChannel(server.key, channel.id)
+      if (channel.kind === 'text' || channel.kind === 'forum' || channel.kind === 'docs' || channel.kind === 'whiteboard' || channel.kind === 'media' || channel.kind === 'tasks') selectChannel(server.key, channel.id)
       onClose()
     } catch (e) {
       setError(e2eeText(errorMessage(e)))
@@ -73,6 +74,7 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
           if (ROLES.indexOf(writeRole) < ROLES.indexOf('trusted')) setWriteRole('trusted')
         }}><DocsIcon size={16} /> {t('docs.channel.kind')}</button>
         <button role="radio" aria-checked={kind === 'whiteboard'} className={kind === 'whiteboard' ? 'on' : ''} onClick={() => setKind('whiteboard')}><BoardIcon size={16} /> {t('whiteboard.kind')}</button>
+        <button role="radio" aria-checked={kind === 'tasks'} className={kind === 'tasks' ? 'on' : ''} onClick={() => setKind('tasks')}><TasksIcon size={16} /> {t('tasks.channel.kind')}</button>
       </div>
       <label className="field">
         <span>{t('settings.overview.name')}</span>
@@ -84,9 +86,10 @@ export function CreateChannelDialog({ server, categoryId: initialCategory = null
       {kind === 'stage' && <p className="muted">{t('settings.channel.stageHint')}</p>}
       {kind === 'docs' && <p className="muted">{t('docs.channel.hint')}</p>}
       {kind === 'whiteboard' && <p className="muted">{t('whiteboard.channelHint')}</p>}
+      {kind === 'tasks' && <p className="muted">{t('tasks.channel.hint')}</p>}
       <div className="options-row">
         <RolePicker label={t('settings.channel.whoCanSee')} value={readRole} onChange={setReadRole} />
-        <RolePicker label={kind === 'voice' ? t('settings.channel.whoCanSpeak') : kind === 'stage' ? t('settings.channel.whoCanAsk') : kind === 'docs' ? t('docs.channel.whoCanEdit') : kind === 'whiteboard' ? t('whiteboard.whoCanDraw') : t('settings.channel.whoCanPost')} value={writeRole} onChange={setWriteRole} min={readRole} />
+        <RolePicker label={kind === 'voice' ? t('settings.channel.whoCanSpeak') : kind === 'stage' ? t('settings.channel.whoCanAsk') : kind === 'docs' ? t('docs.channel.whoCanEdit') : kind === 'whiteboard' ? t('whiteboard.whoCanDraw') : kind === 'tasks' ? t('tasks.channel.whoCanEdit') : t('settings.channel.whoCanPost')} value={writeRole} onChange={setWriteRole} min={readRole} />
       </div>
       <label className="checkbox">
         <input type="checkbox" checked={encrypted && canEncrypt} disabled={!canEncrypt} onChange={(e) => setEncrypted(e.target.checked)} data-testid="e2ee-toggle" />

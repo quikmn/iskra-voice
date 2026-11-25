@@ -9,6 +9,7 @@ import { useFriends } from './friends'
 import { deleteReminder, splitReminders, useReminders } from './reminders'
 import { buildInbox, inboxBadge, mergeItems, missedItems, withAlertHits, type InboxEntry, type InboxFilter } from './inboxLogic'
 import { useAlerts } from './alerts'
+import { markAssignmentsSeen, unseenAssignments, useTasks } from './tasks'
 
 const SEEN_KEY = 'iskra.inbox.seen'
 const EVERYONE_KEY = 'iskra.inbox.everyone'
@@ -80,7 +81,9 @@ export function inboxEntries(): InboxEntry[] {
     .flatMap(([server, list]) => list.map((item) => ({ server, conv: convOf(server, item), item })))
   const requests = Object.entries(useFriends.getState().peers).filter(([, p]) => p.relation === 'incoming').map(([peer, p]) => ({ peer, at: p.since }))
   const reminders = splitReminders(useReminders.getState().all).due.map((r) => ({ server: r.server, id: r.id, firedAt: r.firedAt ?? r.dueAt }))
-  return buildInbox({ pings, convs: useReads.getState().convs, requests, reminders, includeEveryone })
+  const tasks = unseenAssignments().filter((a) => servers[a.server]).map(({ server, assignment: a }) =>
+    ({ server, channelId: a.task.channelId, taskId: a.task.id, title: a.task.title, by: a.by, at: a.at }))
+  return buildInbox({ pings, convs: useReads.getState().convs, requests, reminders, tasks, includeEveryone })
 }
 
 /** Re-renders with any of the inbox's sources. */
@@ -91,6 +94,8 @@ export function useInboxEntries(): InboxEntry[] {
   useReads((s) => s.convs)
   useFriends((s) => s.peers)
   useReminders((s) => s.all)
+  useTasks((s) => s.mine)
+  useTasks((s) => s.seen)
   useApp((s) => s.servers)
   return inboxEntries()
 }
@@ -99,6 +104,7 @@ export const useInboxBadge = () => inboxBadge(useInboxEntries())
 
 export function markEntryRead(entry: InboxEntry): void {
   if (entry.type === 'ping' || entry.type === 'dm' || entry.type === 'group') markConversationRead(entry.conv)
+  if (entry.type === 'task') markAssignmentsSeen(entry.server, [entry.taskId])
   if (entry.type === 'reminder') {
     const reminder = useReminders.getState().all[`${entry.server}:${entry.id}`]
     if (reminder) void deleteReminder(reminder).catch(() => undefined)

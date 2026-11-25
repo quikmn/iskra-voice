@@ -371,3 +371,16 @@ Terms that aren't in the English glossary but come up often.
 | Couldn't … | Nie udało się … |
 | Something went wrong | Coś poszło nie tak |
 | Learn more | Dowiedz się więcej |
+
+## Task boards
+
+| English | Polski | Notes |
+|---|---|---|
+| Task board (the channel kind "Tasks") | Tablica zadań | Kind label: "Zadania". Short "tablica" only inside the board itself, where it can't be taken for a whiteboard ("Tablica"); in a header: "Zadanie na kanale {{name}}" |
+| Task | Zadanie | "zadania", "zadań" |
+| To do / Doing / Done (the columns) | Do zrobienia / W toku / Gotowe | |
+| Assign, assigned to, "Assign me" | Przypisz, "Przypisane do" (label) / "Przypisane: {{names}}", "Przypisz mnie" | Undo: "Wypisz mnie". Event line: "{{name}} przypisuje ci zadanie" |
+| Label (on a task; a forum has tags) | Etykieta | Never "tag" on a task |
+| Due (a task's due day) | Termin | "Termin: {{date}}", "Termin: dziś", passed: "Po terminie: {{date}}", none: "Bez terminu" |
+| Archive, archived (a done task put away) | Archiwizuj, zarchiwizowane | The place: "archiwum"; back: "Przywróć na tablicę" |
+| Comment (on a task) | Komentarz | Forum posts have "odpowiedzi" |

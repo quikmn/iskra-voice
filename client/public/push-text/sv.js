@@ -15,6 +15,7 @@ self.ISKRA_PUSH_TEXT = {
     lfgJoined: '{{name}} gick med i din grupp för {{game}}',
     lfgFull: 'Din grupp för {{game}} är full',
     lfgPosted: '{{name}} söker {{slots}} till {{game}}',
+    taskAssigned: '{{name}} gav dig en uppgift',
     digest: 'Medan det var tyst',
   },
   body: {
