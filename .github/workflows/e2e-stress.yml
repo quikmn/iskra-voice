@@ -58,13 +58,13 @@ jobs:
         run: node ../scripts/e2e-shards.mjs list ${{ matrix.shard }} 4 "$RUNNER_TEMP/e2e-shard.txt"
       - run: npx playwright install --with-deps chromium
       - id: livekit
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .tools/livekit-server
           key: livekit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get-livekit.sh') }}
       - if: steps.livekit.outputs.cache-hit != 'true'
         run: bash ../scripts/get-livekit.sh
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: client/.models
           key: models-${{ hashFiles('client/src/state/captions/model.json', 'client/src/state/translate/models.json') }}
