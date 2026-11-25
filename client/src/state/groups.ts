@@ -297,7 +297,9 @@ async function openMessage(key: string, wire: WireGroupMessage): Promise<GroupMs
     const view = useGroups.getState().groups[key]?.view
     try {
       if (!view) throw new GroupBehindError('Group not loaded yet.')
-      const { text, header, call, group, files, disappear } = decryptGroup(identity, wire.envelope, routed, view)
+      const { text, header, call, group, files, disappear, receipt } = decryptGroup(identity, wire.envelope, routed, view)
+      // Read receipts travel on group.receipt only: one that arrives as a message is not shown as one.
+      if (receipt) throw new DmError('Unsupported message content.')
       const expiresAt = localExpiry(wire.expiresAt, header, wire.createdAt)
       return {
         id: header.id, from: wire.from, text, sentAt: orderTime(header.sentAt, wire.createdAt), call, group, ...(files ? { files } : {}),

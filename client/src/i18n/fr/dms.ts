@@ -19,6 +19,13 @@ export const dms: Messages['dms'] = {
     noAccount: 'Aucun compte sur cet appareil.',
     noSharedServer: 'Tu n’as aucun serveur en ligne en commun avec cette personne pour le moment.',
   },
+  receipts: {
+    seen: 'Vu',
+    seenBy: 'Vu par {{names}}',
+    settingTitle: 'Accusés de lecture',
+    settingLabel: 'Envoyer des accusés de lecture',
+    settingHint: 'Dans les messages privés et les discussions de groupe. Les personnes qui envoient aussi des accusés de lecture voient quand tu as lu leurs messages, et tu vois quand elles ont lu les tiens. Tant que c’est désactivé, tu n’en envoies aucun et n’en vois aucun. Un serveur qui transporte la discussion peut savoir que tu as lu une conversation et quand, pas quel message.',
+  },
   bot: {
     start: 'C’est le début de ta conversation avec {{name}}, un bot. Les messages sont chiffrés de bout en bout jusqu’au bot, la personne qui le fait tourner peut donc les lire. Saisis / pour voir ce qu’il sait faire.',
     builtin: 'Les bots intégrés n’acceptent pas les messages privés. Utilise leurs commandes dans un salon.',

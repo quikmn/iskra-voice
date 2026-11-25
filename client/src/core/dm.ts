@@ -68,6 +68,11 @@ export interface DmContent {
   kt?: Record<string, unknown>
   /** A disappearing messages timer change (seconds, 0 = off); `text` is the fallback for older apps. */
   disappear?: { seconds: number }
+  /**
+   * A read receipt: the newest message of the conversation, from someone else, that the sender has read. Only ever
+   * sent on `dm.receipt` / `group.receipt`, never as a message; an envelope with one that arrives as a message is refused.
+   */
+  receipt?: { id: string; sentAt: number }
 }
 
 export interface DmForward {
@@ -281,7 +286,10 @@ export function openContent(identity: Identity, envelope: Pick<DmEnvelope, 'v' |
   const disappear = d && typeof d === 'object' && isTimer(d.seconds) ? { disappear: { seconds: d.seconds as number } } : {}
   const forward = content.forward === undefined ? null : cleanForward(content.forward)
   const files = checkFiles(content.files)
-  return { text: content.text, ...call, ...group, ...friend, ...kt, ...disappear, ...(forward ? { forward } : {}), ...(files.length ? { files } : {}) }
+  const r = content.receipt as { id?: unknown; sentAt?: unknown } | undefined
+  const receipt = r && typeof r === 'object' && typeof r.id === 'string' && r.id.length > 0 && r.id.length <= 64 && Number.isSafeInteger(r.sentAt) && (r.sentAt as number) >= 0
+    ? { receipt: { id: r.id, sentAt: r.sentAt as number } } : {}
+  return { text: content.text, ...call, ...group, ...friend, ...kt, ...disappear, ...receipt, ...(forward ? { forward } : {}), ...(files.length ? { files } : {}) }
 }
 
 /**

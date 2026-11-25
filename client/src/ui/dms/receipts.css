@@ -1,0 +1,9 @@
+/* "Seen" under your own message in a DM or group DM: small and quiet, right-aligned like a footnote. */
+.seen-line {
+  display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+  padding: 0 18px 2px; margin-top: -2px;
+  font-size: 11px; line-height: 16px; color: var(--muted);
+}
+.seen-avatars { display: inline-flex; align-items: center; }
+.seen-avatars > * + * { margin-left: -4px; }
+.seen-more { margin-left: 4px; }

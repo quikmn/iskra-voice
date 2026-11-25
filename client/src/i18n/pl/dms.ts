@@ -19,6 +19,13 @@ export const dms: Messages['dms'] = {
     noAccount: 'Na tym urządzeniu nie ma konta.',
     noSharedServer: 'Nie masz teraz z tą osobą wspólnego serwera online.',
   },
+  receipts: {
+    seen: 'Wyświetlono',
+    seenBy: 'Wyświetlili: {{names}}',
+    settingTitle: 'Potwierdzenia przeczytania',
+    settingLabel: 'Wysyłaj potwierdzenia przeczytania',
+    settingHint: 'W wiadomościach prywatnych i czatach grupowych. Osoby, które też wysyłają potwierdzenia przeczytania, widzą, kiedy przeczytasz ich wiadomości, a ty widzisz, kiedy one przeczytają twoje. Gdy to jest wyłączone, nie wysyłasz ich i żadnych nie widzisz. Serwer, przez który idzie czat, może ustalić, że przeczytano rozmowę i kiedy, ale nie którą wiadomość.',
+  },
   bot: {
     start: 'To początek twojej rozmowy z botem {{name}}. Wiadomości są szyfrowane end-to-end dla bota, więc może je czytać ten, kto go prowadzi. Wpisz /, żeby zobaczyć, co bot potrafi.',
     builtin: 'Wbudowane boty nie przyjmują wiadomości prywatnych. Używaj ich poleceń na kanale.',

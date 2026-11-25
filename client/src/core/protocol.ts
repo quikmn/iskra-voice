@@ -3287,3 +3287,35 @@ export interface Requests {
   'calendar.feed.remove': [Record<string, never>, { feed: CalendarFeedState }]
   'calendar.settings.update': [{ feeds: boolean }, { feed: CalendarFeedState }]
 }
+
+// ── read receipts (DMs and group DMs) ──
+
+/** A read receipt as the server relays and keeps it: sealed like a message of that conversation. */
+export interface WireDmReceipt {
+  from: string
+  to: string
+  envelope: import('./dm').DmEnvelope
+  at: number
+}
+
+export interface WireGroupReceipt {
+  group: string
+  from: string
+  version: number
+  envelope: import('./group').GroupEnvelope
+  at: number
+}
+
+export interface Events {
+  'dm.receipt': WireDmReceipt
+  'group.receipt': WireGroupReceipt
+}
+
+export interface Requests {
+  'dm.receipt': [{ accountKey: string; envelope: import('./dm').DmEnvelope }, Record<string, never>]
+  /** The newest receipt each person sent you. */
+  'dm.receipts': [Record<string, never>, { receipts: WireDmReceipt[] }]
+  'group.receipt': [{ groupId: string; version: number; envelope: import('./group').GroupEnvelope }, Record<string, never>]
+  /** The newest receipt of each other member of a group you are in. */
+  'group.receipts': [{ groupId: string }, { receipts: WireGroupReceipt[] }]
+}

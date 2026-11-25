@@ -2,6 +2,7 @@
 import { DisappearLine, ExpiryBadge } from '../disappear/Disappear'
 import { useButtonHidden } from '../../state/hiddenButtons'
 import { usePrivateNames } from '../../state/privateNames'
+import { SeenLine, useGroupReceiptSender, useGroupSeen } from '../dms/Receipts'
 import { useGroupTimerTool } from '../disappear/Timers'
 import { HeaderMore, useHeaderFit } from '../chat/HeaderMore'
 import { useAlertPattern } from '../../state/alerts'
@@ -424,6 +425,10 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
   }, [items.length])
   useFollowNewest(scroller, `${groupKey}:${g ? 1 : 0}`) // the list is only drawn once the group is known
 
+  // Read receipts, when you send them yourself: who has seen your messages, and yours for what you are looking at.
+  const seen = useGroupSeen(groupKey, me)
+  useGroupReceiptSender(groupKey, g?.messages.at(-1)?.id, !!g?.view)
+
   const divider = dividerOf(useRead(groupConv(groupKey)))
   const firstNew = divider && dividerTarget(g?.messages ?? [], divider.from, (m) => (m.pending || m.from === me ? null : { id: m.id, at: m.sentAt }))
   useAnnounceNew(g?.messages, (m) => (m.pending ? null : `${m.from}:${m.id}`),
@@ -493,6 +498,7 @@ export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: 
           <Fragment key={item.kind === 'change' ? `c${item.change.version}` : `${item.message.from}:${item.message.id}`}>
             {item.kind === 'message' && item.message === firstNew && <UnreadDivider />}
             {groupItem(item, i)}
+            {item.kind === 'message' && item.message.from === me && <SeenLine readers={seen[item.message.id]} group />}
           </Fragment>
         ))}
       </div>

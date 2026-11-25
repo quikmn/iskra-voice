@@ -19,6 +19,13 @@ export const dms: Messages['dms'] = {
     noAccount: 'Kein Konto auf diesem Gerät.',
     noSharedServer: 'Du hast mit dieser Person gerade keinen gemeinsamen Server, der online ist.',
   },
+  receipts: {
+    seen: 'Gesehen',
+    seenBy: 'Gesehen von {{names}}',
+    settingTitle: 'Lesebestätigungen',
+    settingLabel: 'Lesebestätigungen senden',
+    settingHint: 'In Direktnachrichten und Gruppenchats. Wer ebenfalls Lesebestätigungen sendet, sieht, wann du seine Nachrichten gelesen hast, und du siehst, wann er deine gelesen hat. Solange dies aus ist, sendest und siehst du keine. Ein Server, über den der Chat läuft, erkennt, dass und wann du eine Unterhaltung gelesen hast, nicht welche Nachricht.',
+  },
   bot: {
     start: 'Hier beginnt deine Unterhaltung mit {{name}}, einem Bot. Nachrichten sind Ende-zu-Ende-verschlüsselt bis zum Bot; wer ihn betreibt, kann sie also lesen. Tippe /, um zu sehen, was er kann.',
     builtin: 'Integrierte Bots nehmen keine Direktnachrichten an. Nutze ihre Befehle in einem Kanal.',

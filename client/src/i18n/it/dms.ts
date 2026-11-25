@@ -19,6 +19,13 @@ export const dms: Messages['dms'] = {
     noAccount: 'Nessun account su questo dispositivo.',
     noSharedServer: 'Al momento non hai un server online in comune con questa persona.',
   },
+  receipts: {
+    seen: 'Visualizzato',
+    seenBy: 'Visualizzato da {{names}}',
+    settingTitle: 'Conferme di lettura',
+    settingLabel: 'Invia conferme di lettura',
+    settingHint: 'Nei messaggi diretti e nelle chat di gruppo. Chi invia a sua volta le conferme di lettura vede quando hai letto i suoi messaggi, e tu vedi quando ha letto i tuoi. Finché è disattivato non ne invii e non ne vedi. Un server che trasporta la chat può capire che hai letto una conversazione e quando, non quale messaggio.',
+  },
   bot: {
     start: 'Qui inizia la tua conversazione con {{name}}, un bot. I messaggi sono crittografati end-to-end verso il bot, quindi chi lo gestisce può leggerli. Scrivi / per vedere cosa sa fare.',
     builtin: 'I bot integrati non accettano messaggi diretti. Usa i loro comandi in un canale.',

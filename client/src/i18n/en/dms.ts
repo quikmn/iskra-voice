@@ -18,6 +18,13 @@ export const dms = {
     noAccount: 'No account on this device.',
     noSharedServer: "You don't share an online server with this person right now.",
   },
+  receipts: {
+    seen: 'Seen',
+    seenBy: 'Seen by {{names}}',
+    settingTitle: 'Read receipts',
+    settingLabel: 'Send read receipts',
+    settingHint: 'In direct messages and group chats. People who also send read receipts see when you have read their messages, and you see when they have read yours. While this is off you send none and see none. A server that carries the chat can tell that you read a conversation and when, not which message.',
+  },
   bot: {
     start: "This is the start of your conversation with {{name}}, a bot. Messages are end-to-end encrypted to the bot, so whoever runs it can read them. Type / to see what it can do.",
     builtin: "Built-in bots don't take direct messages. Use their commands in a channel.",

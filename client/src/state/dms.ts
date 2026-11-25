@@ -150,7 +150,9 @@ function open(wire: WireDm): Dm {
   const identity = useApp.getState().identity!
   try {
     // Messages sent to or from an earlier key of the same person (a checked rotation) belong to their current key.
-    const { text, header, call, forward, files, friend: rawFriend, kt, disappear } = decryptDm(identity, wire.envelope, wire.from, wire.to, sameAccount)
+    const { text, header, call, forward, files, friend: rawFriend, kt, disappear, receipt } = decryptDm(identity, wire.envelope, wire.from, wire.to, sameAccount)
+    // Read receipts travel on dm.receipt only: one that arrives as a message is not shown as one.
+    if (receipt) throw new DmError('Unsupported message content.')
     const expiresAt = localExpiry(wire.expiresAt, header, wire.createdAt)
     if (kt) gossip?.receive(wire.from, wire.to, kt)
     // A friend action must carry a good signature from the sender; never shown as plain text if it doesn't.

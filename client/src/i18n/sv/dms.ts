@@ -19,6 +19,13 @@ export const dms: Messages['dms'] = {
     noAccount: 'Det finns inget konto på den här enheten.',
     noSharedServer: 'Ni har ingen gemensam server online just nu.',
   },
+  receipts: {
+    seen: 'Sett',
+    seenBy: 'Sett av {{names}}',
+    settingTitle: 'Läskvitton',
+    settingLabel: 'Skicka läskvitton',
+    settingHint: 'I direktmeddelanden och gruppchattar. De som också skickar läskvitton ser när du har läst deras meddelanden, och du ser när de har läst dina. När det här är av skickar du inga och ser inga. En server som förmedlar chatten kan se att du har läst en konversation och när, inte vilket meddelande.',
+  },
   bot: {
     start: 'Här börjar din konversation med {{name}}, som är en bot. Meddelandena är totalsträckskrypterade till botten, så den som kör den kan läsa dem. Skriv / för att se vad den kan.',
     builtin: 'Inbyggda bottar tar inte emot direktmeddelanden. Använd deras kommandon i en kanal.',

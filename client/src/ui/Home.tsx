@@ -1,6 +1,7 @@
 import { DisappearLine, ExpiryBadge } from './disappear/Disappear'
 import { useDmTimerTool } from './disappear/Timers'
 import { usePrivateNames } from '../state/privateNames'
+import { SeenLine, useDmReceiptSender, useDmSeen } from './dms/Receipts'
 import { HeaderMore, useHeaderFit } from './chat/HeaderMore'
 import { useAlertPattern } from '../state/alerts'
 import { matchesAlert } from '../state/alertsLogic'
@@ -165,6 +166,10 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
   }, [messages.length])
   useFollowNewest(scroller, peer)
 
+  // Read receipts, when you send them yourself: "Seen" under your message, and yours for what you are looking at.
+  const seen = useDmSeen(peer, myKey)
+  useDmReceiptSender(peer, messages.at(-1)?.id)
+
   const divider = dividerOf(useRead(dmConv(peer)))
   const firstNew = divider && dividerTarget(messages, divider.from, (m) => (m.pending || m.notice || m.friend || m.from === myKey ? null : { id: m.id, at: m.sentAt }))
   useAnnounceNew(conversation?.messages, (m) => (m.pending ? null : `${m.from}:${m.id}`),
@@ -235,6 +240,7 @@ function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => 
             <Fragment key={`${dm.from}:${dm.id}`}>
               {dm === firstNew && <UnreadDivider />}
               <DmRow dm={dm} grouped={grouped && dm !== firstNew} peer={peer} mine={dm.from === myKey} held={held && dm.from !== myKey} />
+              {dm.from === myKey && <SeenLine readers={seen[dm.id]} />}
             </Fragment>
           )
         })}
