@@ -236,19 +236,114 @@ public class PhotoTests
     [InlineData("screenshot.png", "image/png", true, "e13a12ae4444c46faea8a0ca3090994f15cab1f141efc956188adb5d6c76c9c6")]
     [InlineData("clip.mp4", "video/mp4", true, "0972284705233ff86b1f1a6b6315b49bf07d920ec4f570c0bcbd3a97afdab909")]
     [InlineData("clip.mp4", "video/mp4", false, "83037acc02d5b5d3219e4980712d4e3262f619ef008b5995225d7ff1228a4b3a")]
+    [InlineData("iphone.heic", "image/heic", true, "2cc4a56303205d6f19fc7c241fb9707e4a937394a00c39e93a557ae93ad54021")]
+    [InlineData("iphone.heic", "image/heic", false, "c8c396e399f560a81a18e98099242b2bdec0fceec287031e2051697b85da0f98")]
+    [InlineData("pixel.avif", "image/avif", true, "2112f6159365cc512592ff9a3dc2093d7c75b35f413ba21cb84a16c8ce02c475")]
+    [InlineData("clip.gif", "image/gif", true, "fe8f90e6e1a45a7c9be8abdb09b7b2f60be642cd3cc2cabe63d34b19d38c53b3")]
     public void The_server_and_the_app_clean_a_file_to_the_same_bytes(string name, string type, bool keepDate, string sha256)
     {
-        var original = File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(Repo.ProtocolFile("PROTOCOL.md"))!, "..", "client", "e2e", "fixtures", "photos", name));
+        var original = Fixture(name);
+        Assert.Equal(type, FileSniffer.Sniff(original.AsSpan(0, Math.Min(original.Length, 64 * 1024))).Type);
         byte[] cleaned;
-        if (type == "video/mp4")
+        if (type == "video/mp4" || HeifMetadata.IsHeif(type))
         {
             cleaned = (byte[])original.Clone();
             using var stream = new MemoryStream(cleaned);
-            Mp4Metadata.Apply(stream, Mp4Metadata.Plan(stream, keepDate));
+            Mp4Metadata.Apply(stream, type == "video/mp4" ? Mp4Metadata.Plan(stream, keepDate) : HeifMetadata.Plan(stream, keepDate));
+            using var again = new MemoryStream(cleaned);
+            Assert.Empty(type == "video/mp4" ? Mp4Metadata.Plan(again, keepDate) : HeifMetadata.Plan(again, keepDate));
         }
         else cleaned = PhotoMetadata.Clean(original, type, keepDate);
         Assert.Equal(sha256, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(cleaned)));
-        foreach (var secret in new[] { "SecretCam", "SecretPhone", "Secret Owner", "SN-SECRET", "59.3293", "Secret title" }) Assert.False(Has(cleaned, secret), secret);
+        foreach (var secret in new[] { "SecretCam", "SecretPhone", "Secret Owner", "SN-SECRET", "59.3293", "Secret title", "secret comment", "xmpmeta" }) Assert.False(Has(cleaned, secret), secret);
+        if (type == "image/gif") Assert.True(Has(cleaned, "NETSCAPE2.0"));
+    }
+
+    private static byte[] Fixture(string name) =>
+        File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(Repo.ProtocolFile("PROTOCOL.md"))!, "..", "client", "e2e", "fixtures", "photos", name));
+
+    [Fact]
+    public async Task A_heic_keeps_its_original_and_needs_a_picture_every_app_can_show()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var alice = await server.JoinAsync("Alice");
+        using var bob = await server.JoinAsync("Bob");
+        var channel = await Channel(admin);
+        var heic = Fixture("iphone.heic");
+        var display = Jpeg(320, 240, Tiff(), 0x51);
+        var thumb = Jpeg(32, 24, null, 0x52);
+
+        var ticket = (await alice.RequestAsync("photo.upload.begin", new { channelId = channel, name = "IMG_0001.HEIC", size = heic.Length, thumbSize = thumb.Length, displaySize = display.Length })).Body();
+        var http = server.CreateClient();
+        async Task<string> Put(string field, byte[] bytes)
+        {
+            using var response = await http.PutAsync(ticket.GetProperty(field).GetString(), new ByteArrayContent(bytes));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var file = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("file");
+            return file.GetProperty("id").GetString()!;
+        }
+        var (file, thumbId, displayId) = (await Put("url", heic), await Put("thumbUrl", thumb), await Put("displayUrl", display));
+
+        // Without the picture for display it is refused: Chromium (Windows, Android) can't draw HEIC.
+        Assert.Equal("photo_display_needed", Key(await alice.RequestAsync("photo.add", new { channelId = channel, items = new[] { new { file, thumb = thumbId } } })));
+        var added = await alice.RequestAsync("photo.add", new { channelId = channel, items = new[] { new { file, thumb = thumbId, display = displayId, width = 320, height = 240 } } });
+        Assert.Equal("result", added.Type());
+        var photo = added.Body().GetProperty("photos")[0];
+        Assert.Equal("image", photo.GetProperty("kind").GetString());
+        Assert.Equal("image/heic", photo.GetProperty("file").GetProperty("type").GetString());
+        Assert.Equal("image/jpeg", photo.GetProperty("display").GetProperty("type").GetString());
+
+        // The original is the uploader's file with its metadata overwritten, the same length; the display copy is cleaned too.
+        var stored = await Served(server, photo.GetProperty("file"));
+        Assert.Equal(heic.Length, stored.Length);
+        foreach (var secret in new[] { "SecretCam", "SN-SECRET", "Secret Owner", "59.3293", "xmpmeta" }) Assert.False(Has(stored, secret), secret);
+        Assert.True(Has(stored, "2023:12:24 15:00:00"));
+        Assert.False(Has(await Served(server, photo.GetProperty("display")), "SecretCam"));
+        // A HEIC is a download, never drawn inline by the server's say-so.
+        using var served = await http.GetAsync(photo.GetProperty("file").GetProperty("url").GetString());
+        Assert.Equal("image/heic", served.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("attachment", served.Content.Headers.ContentDisposition?.DispositionType);
+        Assert.Equal(heic.Length + (await Served(server, photo.GetProperty("thumb"))).Length + (await Served(server, photo.GetProperty("display"))).Length, photo.GetProperty("size").GetInt64());
+
+        // A display copy belongs to a HEIC or AVIF only; deleting the photo removes all three files.
+        var (jpeg, jpegThumb) = await Upload(server, alice, channel, Jpeg(400, 300, null, 0x53), "plain.jpg");
+        var (extra, _) = await Upload(server, alice, channel, Jpeg(400, 300, null, 0x54), "extra.jpg");
+        Assert.Equal("photo_display_type", Key(await alice.RequestAsync("photo.add", new { channelId = channel, items = new[] { new { file = jpeg, thumb = jpegThumb, display = extra } } })));
+        Assert.Equal("result", (await alice.RequestAsync("photo.delete", new { ids = new[] { Id(photo) } })).Type());
+        foreach (var name in new[] { "file", "thumb", "display" })
+            Assert.Equal(HttpStatusCode.NotFound, (await http.GetAsync(photo.GetProperty(name).GetProperty("url").GetString())).StatusCode);
+
+        // An animated GIF is taken as it is, minus its comments and other blocks.
+        var gif = await AddPhoto(server, bob, channel, "clip.gif", content: Fixture("clip.gif"));
+        var storedGif = await Served(server, gif.GetProperty("file"));
+        Assert.Equal("image/gif", gif.GetProperty("file").GetProperty("type").GetString());
+        Assert.False(Has(storedGif, "Secret Owner"));
+        Assert.True(Has(storedGif, "NETSCAPE2.0"));
+    }
+
+    [Fact]
+    public async Task The_newest_photo_of_each_channel_tells_an_app_what_it_missed()
+    {
+        using var server = new IskraServer();
+        using var admin = await server.JoinAsync("Admin", "admin");
+        using var alice = await server.JoinAsync("Alice");
+        using var guest = await server.JoinAsync("Guest", "guest");
+        var open = await Channel(admin, "open");
+        var empty = await Channel(admin, "empty");
+        var staff = await Channel(admin, "staff", new { readRole = "admin", writeRole = "admin" });
+        await AddPhoto(server, alice, open);
+        var newest = await AddPhoto(server, alice, open);
+        await AddPhoto(server, admin, staff);
+
+        var mine = (await alice.RequestAsync("photo.latest")).Body().GetProperty("channels").EnumerateArray().ToList();
+        var only = Assert.Single(mine);
+        Assert.Equal(open, only.GetProperty("channelId").GetInt64());
+        Assert.Equal(Id(newest), only.GetProperty("id").GetInt64());
+        Assert.Equal(alice.Key, only.GetProperty("by").GetString());
+        Assert.Equal(2, (await admin.RequestAsync("photo.latest")).Body().GetProperty("channels").GetArrayLength());
+        Assert.Equal(0, (await guest.RequestAsync("photo.latest")).Body().GetProperty("channels").GetArrayLength());
+        _ = empty;
     }
 
     // ── Helpers for the channel ────────────────────────────────────────────────
@@ -362,11 +457,12 @@ public class PhotoTests
         Assert.Equal("At the lake", (await bob.EventAsync("photo.updated")).Body().GetProperty("photo").GetProperty("caption").GetString());
 
         // Only what a photos channel takes, only your own unused uploads, only in photos channels.
-        var (gif, gifThumb) = await Upload(server, alice, channel, [.. "GIF89a"u8, 1, 0, 1, 0, 0, 0, 0], "anim.gif");
-        Assert.Equal("photo_type", Key(await alice.RequestAsync("photo.add", new { channelId = channel, items = new[] { new { file = gif, thumb = gifThumb } } })));
-        var heic = Box("ftyp", "heic"u8.ToArray(), U32(0), "mif1"u8.ToArray());
-        var (heicFile, heicThumb) = await Upload(server, alice, channel, heic, "IMG.heic");
-        Assert.Equal("photo_type", Key(await alice.RequestAsync("photo.add", new { channelId = channel, items = new[] { new { file = heicFile, thumb = heicThumb } } })));
+        var (webm, webmThumb) = await Upload(server, alice, channel, [0x1A, 0x45, 0xDF, 0xA3, 1, 2, 3, 4, 5, 6, 7, 8], "clip.webm");
+        Assert.Equal("photo_type", Key(await alice.RequestAsync("photo.add", new { channelId = channel, items = new[] { new { file = webm, thumb = webmThumb } } })));
+        var (text, textThumb) = await Upload(server, alice, channel, "just some text"u8.ToArray(), "notes.jpg");
+        Assert.Equal("photo_type", Key(await alice.RequestAsync("photo.add", new { channelId = channel, items = new[] { new { file = text, thumb = textThumb } } })));
+        var (broken, brokenThumb) = await Upload(server, alice, channel, [.. "GIF89a"u8, 1, 0, 1, 0, 0, 0, 0], "broken.gif");
+        Assert.Equal("photo_unclean", Key(await alice.RequestAsync("photo.add", new { channelId = channel, items = new[] { new { file = broken, thumb = brokenThumb } } })));
         var used = photo.GetProperty("file").GetProperty("id").GetString();
         Assert.Equal("photo_upload_unknown", Key(await bob.RequestAsync("photo.add", new { channelId = channel, items = new[] { new { file = used } } })));
         Assert.Equal("photo_upload_unknown", Key(await alice.RequestAsync("photo.add", new { channelId = channel, items = new[] { new { file = used } } })));

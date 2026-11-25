@@ -141,7 +141,8 @@ export const photos: Messages['photos'] = {
     allDone_other: '{{count}} filer tillagda',
     damaged: '”{{name}}” är skadad och kan inte läggas till.',
     uncleanable: '”{{name}}” kan inte läggas till: dess dolda data kan inte tas bort på ett säkert sätt.',
-    notTaken: '”{{name}}” är inte en JPEG-, PNG- eller WebP-bild eller en MP4- eller MOV-video.',
+    notTaken: '”{{name}}” är inte en bild eller video som en fotokanal tar emot (JPEG, PNG, WebP, GIF, HEIC, AVIF, MP4 eller MOV).',
+    undecodable: '”{{name}}” kan inte öppnas på den här enheten och kan därför inte läggas till härifrån.',
   },
   viewer: {
     label: 'Foto av {{name}}',

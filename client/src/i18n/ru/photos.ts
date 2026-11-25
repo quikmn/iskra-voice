@@ -172,7 +172,8 @@ export const photos: Messages['photos'] = {
     allDone_other: 'Добавлено {{count}} файла',
     damaged: 'Файл «{{name}}» повреждён, добавить его нельзя.',
     uncleanable: 'Файл «{{name}}» добавить нельзя: его скрытые данные не удаётся безопасно удалить.',
-    notTaken: 'Файл «{{name}}» — не изображение JPEG, PNG или WebP и не видео MP4 или MOV.',
+    notTaken: 'Файл «{{name}}» — не изображение и не видео, которые принимает канал с фото (JPEG, PNG, WebP, GIF, HEIC, AVIF, MP4 или MOV).',
+    undecodable: 'Файл «{{name}}» не открывается на этом устройстве, поэтому добавить его отсюда нельзя.',
   },
   viewer: {
     label: 'Фото, автор: {{name}}',

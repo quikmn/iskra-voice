@@ -6,24 +6,15 @@ namespace Iskra.Server.Files;
 
 public sealed partial class Uploads
 {
-    /// <summary>Brands of ISO files that are pictures (HEIC, AVIF), which <see cref="FileSniffer"/> reports as video/mp4.</summary>
-    private static readonly string[] PictureBrands = ["heic", "heix", "heim", "heis", "hevc", "hevx", "mif1", "msf1", "avif", "avis"];
-
     /// <summary>What a stored upload is to a photos channel: "image", "video", or null if it takes neither.</summary>
     public string? PhotoKind(StoredFile file)
     {
-        if (PhotoMetadata.IsPicture(file.Type)) return "image";
-        if (file.Type != "video/mp4") return null;
-        byte[] head;
-        try { head = ReadHead(PathFor(file.Sha256)); }
-        catch (IOException) { return null; }
-        if (head.Length < 12) return null;
-        var brand = System.Text.Encoding.Latin1.GetString(head, 8, 4);
-        return PictureBrands.Contains(brand) ? null : "video";
+        if (PhotoMetadata.IsPicture(file.Type) || HeifMetadata.IsHeif(file.Type)) return "image";
+        return file.Type == "video/mp4" ? "video" : null;
     }
 
     /// <summary>
-    /// The upload cleaned for a photos channel (<see cref="PhotoMetadata"/>, <see cref="Mp4Metadata"/>): the same record
+    /// The upload cleaned for a photos channel (<see cref="PhotoMetadata"/>, <see cref="HeifMetadata"/>, <see cref="Mp4Metadata"/>): the same record
     /// if it was clean already (the app cleans before uploading), else a new one with the cleaned content.
     /// Throws <see cref="ImageMetadata.Refused"/> or <see cref="Mp4Metadata.Refused"/> for files that can't be cleaned.
     /// </summary>
@@ -46,7 +37,8 @@ public sealed partial class Uploads
         }
 
         List<Mp4Metadata.Patch> patches;
-        using (var source = File.OpenRead(path)) patches = Mp4Metadata.Plan(source, keepDate);
+        using (var source = File.OpenRead(path))
+            patches = HeifMetadata.IsHeif(file.Type) ? HeifMetadata.Plan(source, keepDate) : Mp4Metadata.Plan(source, keepDate);
         if (patches.Count == 0) return file;
         var temp = NewTemp();
         try

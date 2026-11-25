@@ -22,7 +22,7 @@ import { openThread, rememberThreads } from './threads'
 import { show } from './notify'
 import { notifyFor } from './organize'
 import { shouldNotify } from './organizeLogic'
-import { channelConv, isOnScreen } from './readState'
+import { channelConv, isOnScreen, noteMessage, readOf, useReads } from './readState'
 import { senderRules } from './senderRules'
 import { NotAPhoto, preparePhoto, type PreparedPhoto } from './photoPrepare'
 import {
@@ -252,9 +252,19 @@ export function loadGallery(serverKey: string, channelId: number): Promise<void>
 
 const serverUrl = (serverKey: string) => useApp.getState().servers[serverKey]?.url ?? ''
 
-/** The URL of a photo's thumbnail or full file in a channel the server can read. */
-export function plainUrl(serverKey: string, photo: ShownPhoto, what: 'thumb' | 'file'): string | null {
-  const file = what === 'thumb' ? photo.thumb ?? (photo.kind === 'image' ? photo.file : undefined) : photo.file
+/** Which of a photo's files: its thumbnail, the picture or video as apps show it, or the original as it was added. */
+export type PhotoPart = 'thumb' | 'view' | 'file'
+
+/** What apps show for a photo: the copy made for display if it has one (a HEIC or AVIF original), else the original. */
+function partOf<T>(photo: { kind: 'image' | 'video' }, files: { file?: T; thumb?: T; display?: T }, what: PhotoPart): T | undefined {
+  if (what === 'file') return files.file
+  const view = files.display ?? files.file
+  return what === 'view' ? view : files.thumb ?? (photo.kind === 'image' ? view : undefined)
+}
+
+/** The URL of one of a photo's files in a channel the server can read. */
+export function plainUrl(serverKey: string, photo: ShownPhoto, what: PhotoPart): string | null {
+  const file = partOf(photo, photo, what)
   return file ? serverUrl(serverKey) + file.url : null
 }
 
@@ -295,16 +305,16 @@ const thumbs = new BlobCache(600)
 const originals = new BlobCache(4)
 
 /** Links for encrypted files are asked for many at a time: every thumbnail wanted within a moment shares one request. */
-const wanted = new Map<string, { serverKey: string; channelId: number; what: 'thumb' | 'file'; ids: Map<number, { resolve: (url: string) => void; reject: (e: unknown) => void }[]> }>()
+const wanted = new Map<string, { serverKey: string; channelId: number; what: 'thumb' | 'display' | 'file'; ids: Map<number, { resolve: (url: string) => void; reject: (e: unknown) => void }[]> }>()
 let linkTimer: ReturnType<typeof setTimeout> | null = null
 
-function linkFor(serverKey: string, channelId: number, photoId: number, what: 'thumb' | 'file'): Promise<string> {
+function linkFor(serverKey: string, channelId: number, photoId: number, what: 'thumb' | 'display' | 'file'): Promise<string> {
   return new Promise((resolve, reject) => {
     const tag = `${serverKey}:${channelId}:${what}`
     const group = wanted.get(tag) ?? { serverKey, channelId, what, ids: new Map() }
     wanted.set(tag, group)
     group.ids.set(photoId, [...(group.ids.get(photoId) ?? []), { resolve, reject }])
-    linkTimer ??= setTimeout(flushLinks, what === 'file' ? 0 : 30)
+    linkTimer ??= setTimeout(flushLinks, what === 'thumb' ? 30 : 0)
   })
 }
 
@@ -332,16 +342,18 @@ function flushLinks(): void {
   }
 }
 
-/** A blob: URL of an encrypted photo's thumbnail or full file, decrypted and checked on this device. */
-export function sealedUrl(serverKey: string, photo: ShownPhoto, what: 'thumb' | 'file', onProgress?: (fraction: number) => void): Promise<string> {
-  const file: DmFile | undefined = what === 'thumb' ? photo.sealed?.thumb ?? (photo.sealed?.kind === 'image' ? photo.sealed.file : undefined) : photo.sealed?.file
-  if (!file) return Promise.reject(new DmError(t('photos.viewer.cannotOpen')))
-  // A photo without a thumbnail shows its full picture in the grid too; that one counts as an original.
-  const full = file === photo.sealed?.file
-  return (full ? originals : thumbs).get(`${serverKey}:${file.id}`, async () => {
-    const link = await linkFor(serverKey, photo.channelId, photo.id, full ? 'file' : 'thumb')
+/** A blob: URL of one of an encrypted photo's files, decrypted and checked on this device. */
+export function sealedUrl(serverKey: string, photo: ShownPhoto, what: PhotoPart, onProgress?: (fraction: number) => void): Promise<string> {
+  const sealed = photo.sealed
+  const file: DmFile | undefined = sealed && partOf(sealed, sealed, what)
+  if (!sealed || !file) return Promise.reject(new DmError(t('photos.viewer.cannotOpen')))
+  // A photo without a thumbnail shows its full picture in the grid too; that one counts as a full-size file.
+  const which = file === sealed.thumb ? 'thumb' : file === sealed.display ? 'display' : 'file'
+  return (which === 'thumb' ? thumbs : originals).get(`${serverKey}:${file.id}`, async () => {
+    const link = await linkFor(serverKey, photo.channelId, photo.id, which)
     const opened = await downloadDmFile(file, link, onProgress)
-    if (!opened.inline) throw new DmError(t('photos.viewer.cannotOpen'))
+    // What is shown must be something apps draw; an original that is only downloaded (a HEIC) may be anything.
+    if (what !== 'file' && !opened.inline) throw new DmError(t('photos.viewer.cannotOpen'))
     return opened.blob
   })
 }
@@ -412,13 +424,14 @@ async function uploadOne(job: Job): Promise<void> {
   if (!server) throw new Error(t('errors.codes.disconnected'))
   const size = sealed ? encryptedSize(prepared.blob.size) : prepared.blob.size
   const thumbSize = prepared.thumb ? (sealed ? encryptedSize(prepared.thumb.size) : prepared.thumb.size) : undefined
+  const displaySize = prepared.display ? (sealed ? encryptedSize(prepared.display.size) : prepared.display.size) : undefined
   // Checked here first so nothing is uploaded that the channel has no room for; the server checks again.
   const usage = usePhotos.getState().galleries[galleryKey(serverKey, channelId)]?.usage
-  if (usage && !fits(usage, size + (thumbSize ?? 0))) {
+  if (usage && !fits(usage, size + (thumbSize ?? 0) + (displaySize ?? 0))) {
     throw new Error(usage.capBytes !== null && usage.count < usage.maxPhotos
       ? t('errors.server.photos_full', { mb: Math.round(usage.capBytes / 1024 / 1024) }) : t('errors.server.photos_max', { max: usage.maxPhotos }))
   }
-  const begun = await patient(() => connection(serverKey).request('photo.upload.begin', { channelId, size, name: prepared.name, ...(thumbSize ? { thumbSize } : {}) }), signal)
+  const begun = await patient(() => connection(serverKey).request('photo.upload.begin', { channelId, size, name: prepared.name, ...(thumbSize ? { thumbSize } : {}), ...(displaySize ? { displaySize } : {}) }), signal)
   patchUpload(id, { state: 'uploading', fraction: 0 })
   const progress = (fraction: number) => patchUpload(id, { fraction: Math.min(0.99, fraction) })
   const name = cleanName(prepared.name)
@@ -427,16 +440,22 @@ async function uploadOne(job: Job): Promise<void> {
   if (sealed) {
     const file = await uploadEncrypted(server.url + begun.url, begun.partBytes, prepared.blob, progress, signal)
     const thumb = prepared.thumb && begun.thumbUrl ? await uploadEncrypted(server.url + begun.thumbUrl, begun.partBytes, prepared.thumb, () => undefined, signal) : undefined
+    const display = prepared.display && begun.displayUrl ? await uploadEncrypted(server.url + begun.displayUrl, begun.partBytes, prepared.display, () => undefined, signal) : undefined
+    if (prepared.display && !display) throw new Error(t('errors.server.photo_display_needed'))
     const content: SealedPhoto = {
       file: { server: serverKey, ...file, name, type: prepared.type, size: prepared.blob.size },
       ...(thumb ? { thumb: { server: serverKey, ...thumb, name: 'thumbnail.jpg', type: 'image/jpeg', size: prepared.thumb!.size } } : {}),
+      ...(display ? { display: { server: serverKey, ...display, name: 'display.jpg', type: 'image/jpeg', size: prepared.display!.size } } : {}),
       kind: prepared.kind, name, ...base, caption: '',
     }
-    ready.push({ job, item: { file: file.id, ...(thumb ? { thumb: thumb.id } : {}) }, sealed: content })
+    ready.push({ job, item: { file: file.id, ...(thumb ? { thumb: thumb.id } : {}), ...(display ? { display: display.id } : {}) }, sealed: content })
   } else {
     const fileId = await put(server.url + begun.url, prepared.blob, progress, signal)
     const thumbId = prepared.thumb && begun.thumbUrl ? await put(server.url + begun.thumbUrl, prepared.thumb, () => undefined, signal) : undefined
-    ready.push({ job, item: { file: fileId, ...(thumbId ? { thumb: thumbId } : {}), ...base } })
+    const displayId = prepared.display && begun.displayUrl ? await put(server.url + begun.displayUrl, prepared.display, () => undefined, signal) : undefined
+    // An older server has no place for the copy: without it a HEIC can't be shown, so it isn't added.
+    if (prepared.display && !displayId) throw new Error(t('errors.server.photo_display_needed'))
+    ready.push({ job, item: { file: fileId, ...(thumbId ? { thumb: thumbId } : {}), ...(displayId ? { display: displayId } : {}), ...base } })
   }
   patchUpload(id, { state: 'adding', fraction: 0.99 })
 }
@@ -833,6 +852,9 @@ onServerEvent((serverKey, type, body) => {
     const event = body as Events['photo.added']
     void putPhotos(serverKey, event.channelId, event.photos, event.usage)
     notifyBatch(serverKey, event)
+    const newest = event.photos.reduce((best, p) => (p.id > best.id ? p : best), event.photos[0])
+    // One unread mark per batch, not per photo or per request of a batch.
+    if (newest) noteNewest(serverKey, event.channelId, newest.id, newest.createdAt, event.by, !event.batch || event.batch.first, true)
   } else if (type === 'photo.updated') {
     const { photo } = body as Events['photo.updated']
     void putPhotos(serverKey, photo.channelId, [photo])
@@ -866,7 +888,66 @@ onServerEvent((serverKey, type, body) => {
   }
 })
 
+// ── Unread ──────────────────────────────────────────────────────────────────
+// A photos channel is unread when someone else added photos since you last looked at it. Like all read state it is
+// kept on this device: the newest photo id seen per channel, and the newest one this device knows of.
+
+const SEEN_KEY = 'iskra.photos.seen'
+
+function loadSeen(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as Record<string, number>
+  } catch {
+    return {}
+  }
+}
+
+const seen = loadSeen()
+const newestKnown: Record<string, number> = {}
+
+function saveSeen(key: string, id: number): void {
+  if ((seen[key] ?? 0) >= id) return
+  seen[key] = id
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(seen))
+  } catch {
+    /* private mode */
+  }
+}
+
+/** The newest photo of a channel, as an event or photo.latest told it. `count`: whether it counts as a new unread batch. */
+function noteNewest(serverKey: string, channelId: number, id: number, at: number, by: string, count: boolean, live: boolean): void {
+  const key = galleryKey(serverKey, channelId)
+  if (id <= (newestKnown[key] ?? 0)) return
+  newestKnown[key] = id
+  const conv = channelConv(serverKey, channelId)
+  // Your own photos, photos you're looking at, and what was there when this device first met the channel aren't news.
+  if (by === myKey(serverKey) || isOnScreen(conv) || (!live && !(key in seen))) return saveSeen(key, id)
+  if (id > (seen[key] ?? 0) && (count || readOf(conv).unread === 0)) noteMessage(conv, { id, at }, false)
+}
+
+// Opening the channel (or marking it read) reads it: what this device knows of counts as seen from then on.
+useReads.subscribe((state, before) => {
+  if (state.convs === before.convs) return
+  for (const [key, id] of Object.entries(newestKnown)) {
+    if ((seen[key] ?? 0) >= id) continue
+    const at = key.lastIndexOf(':')
+    if (!state.convs[channelConv(key.slice(0, at), Number(key.slice(at + 1)))]?.unread) saveSeen(key, id)
+  }
+})
+
+/** After connecting: what was added to each photos channel while this device was away. */
+async function loadLatest(serverKey: string): Promise<void> {
+  try {
+    const { channels } = await connection(serverKey).request('photo.latest', {})
+    for (const c of channels) noteNewest(serverKey, c.channelId, c.id, c.at, c.by, true, false)
+  } catch {
+    /* an older server without photos channels */
+  }
+}
+
 onWelcomeHook((serverKey) => {
+  void loadLatest(serverKey)
   // What we had may be stale after a reconnect: a gallery on screen loads again (its view asks), the others when shown.
   usePhotos.setState((s) => ({
     galleries: Object.fromEntries(Object.entries(s.galleries).map(([k, g]) => (k.startsWith(`${serverKey}:`) ? [k, { ...g, loaded: false }] : [k, g]))),

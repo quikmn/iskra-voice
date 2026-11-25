@@ -9,7 +9,7 @@ import type { ServerState } from '../../state/store'
 import { useServerRoles } from '../../state/roles'
 import { canSendIn, has, outranks } from '../../state/permissions'
 import {
-  cancelUploads, createAlbum, dismissUploads, keepsDate, plainUrl, reactToPhoto, sealedUrl, setCap, setKeepsDate, usePhotos, type PhotoUpload,
+  cancelUploads, createAlbum, dismissUploads, keepsDate, plainUrl, reactToPhoto, sealedUrl, setCap, setKeepsDate, usePhotos, type PhotoPart, type PhotoUpload,
 } from '../../state/photos'
 import { capField, parseCapMb, queueSummary, usedFraction, type ShownAlbum, type ShownPhoto } from '../../state/photosLogic'
 import { errorMessage } from '../../i18n/errors'
@@ -30,8 +30,8 @@ export interface PhotoSource {
 }
 
 /** The URL to show a photo's thumbnail or full file from: the server's, or a blob: URL once this device decrypted it. */
-export function usePhotoUrl(serverKey: string, photo: ShownPhoto | undefined, what: 'thumb' | 'file'): PhotoSource {
-  const sealedId = photo?.sealed ? (what === 'thumb' ? photo.sealed.thumb?.id ?? photo.sealed.file.id : photo.sealed.file.id) : null
+export function usePhotoUrl(serverKey: string, photo: ShownPhoto | undefined, what: PhotoPart): PhotoSource {
+  const sealedId = photo?.sealed ? photo.id : null
   const [state, setState] = useState<PhotoSource & { tag: string | null }>({ tag: null, url: null, failed: false, progress: 0 })
   const tag = sealedId ? `${serverKey}:${sealedId}:${what}` : null
   useEffect(() => {

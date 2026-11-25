@@ -34,6 +34,9 @@ public static class FileSniffer
             var (w, h) = JpegSize(head);
             return new("image/jpeg", true, w, h);
         }
+        // HEIC and AVIF pictures share the MP4 container. Chromium can't draw HEIC, so that one is a download.
+        if (HeifMetadata.TypeOf(head) is { } picture)
+            return new(picture, picture == "image/avif");
         if (head.Length >= 12 && head[4..8].SequenceEqual("ftyp"u8))
             return new("video/mp4", true);
         if (head.StartsWith(Webm))

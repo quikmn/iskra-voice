@@ -20,7 +20,10 @@ public static class PhotoMetadata
     }
 
     /// <summary>The types a photos channel takes as pictures.</summary>
-    public static bool IsPicture(string type) => type is "image/jpeg" or "image/png" or "image/webp";
+    public static bool IsPicture(string type) => type is "image/jpeg" or "image/png" or "image/webp" or "image/gif";
+
+    /// <summary>What a thumbnail or a picture made for display may be: a still picture every app can draw.</summary>
+    public static bool IsStill(string type) => type is "image/jpeg" or "image/png" or "image/webp";
 
     /// <summary>The picture without its metadata (the same bytes if there was nothing to remove).</summary>
     public static byte[] Clean(byte[] data, string type, bool keepDate) => type switch
@@ -28,6 +31,7 @@ public static class PhotoMetadata
         "image/jpeg" => Jpeg(data, keepDate),
         "image/png" => ImageMetadata.Strip(data, type),
         "image/webp" => Webp(data, keepDate),
+        "image/gif" => Gif(data),
         _ => throw new ImageMetadata.Refused("Not a JPEG, PNG or WebP picture."),
     };
 
@@ -192,6 +196,67 @@ public static class PhotoMetadata
         exif.CopyTo(output, 12);
         stripped.AsSpan(2).CopyTo(output.AsSpan(12 + exif.Length));
         return output;
+    }
+
+    // ── GIF ──────────────────────────────────────────────────────────────────
+
+    private static readonly string[] Looping = ["NETSCAPE2.0", "ANIMEXTS1.0"];
+
+    /// <summary>
+    /// The GIF with its frames, their timing and its looping, and nothing else: comments, plain text and every
+    /// application extension but the looping one (XMP, ICC, tool marks) go. Frames are copied as they are.
+    /// </summary>
+    private static byte[] Gif(byte[] data)
+    {
+        if (data.Length < 13 || !(data.AsSpan(0, 6).SequenceEqual("GIF87a"u8) || data.AsSpan(0, 6).SequenceEqual("GIF89a"u8)))
+            throw new ImageMetadata.Refused("Not a GIF.");
+        static ImageMetadata.Refused Early() => new("The GIF ends early.");
+        static int Table(byte flags) => (flags & 0x80) != 0 ? 3 * (1 << ((flags & 7) + 1)) : 0;
+        // The end of a run of sub-blocks (each: a length byte, then that many bytes; a zero ends the run).
+        int Blocks(int at)
+        {
+            while (true)
+            {
+                if (at >= data.Length) throw Early();
+                var size = data[at];
+                at += 1 + size;
+                if (size == 0) return at;
+            }
+        }
+        var i = 13 + Table(data[10]);
+        if (i > data.Length) throw Early();
+        using var output = new MemoryStream(data.Length);
+        output.Write(data, 0, i);
+        var frames = 0;
+        while (true)
+        {
+            if (i >= data.Length) throw Early();
+            var kind = data[i];
+            if (kind == 0x3B) break;
+            if (kind == 0x2C)
+            {
+                if (i + 10 > data.Length) throw Early();
+                var end = Blocks(i + 10 + Table(data[i + 9]) + 1);
+                if (end > data.Length) throw Early();
+                output.Write(data, i, end - i);
+                frames++;
+                i = end;
+            }
+            else if (kind == 0x21)
+            {
+                if (i + 2 > data.Length) throw Early();
+                var label = data[i + 1];
+                var end = Blocks(i + 2);
+                if (end > data.Length) throw Early();
+                var keep = label == 0xF9 || (label == 0xFF && data[i + 2] == 11 && i + 14 <= data.Length && Looping.Contains(Encoding.Latin1.GetString(data, i + 3, 11)));
+                if (keep) output.Write(data, i, end - i);
+                i = end;
+            }
+            else throw new ImageMetadata.Refused("The GIF is damaged.");
+        }
+        if (frames == 0) throw new ImageMetadata.Refused("The GIF has no image data.");
+        output.WriteByte(0x3B);
+        return output.ToArray();
     }
 
     // ── WebP ─────────────────────────────────────────────────────────────────

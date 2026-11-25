@@ -30,6 +30,8 @@ export interface ShownPhoto {
   /** Channels the server can read. */
   file?: FileInfo
   thumb?: FileInfo
+  /** A full-size picture every app can draw, when the original is a HEIC or AVIF. */
+  display?: FileInfo
   /** Encrypted channels: the opened envelope (file keys), or why it couldn't be opened. */
   sealed?: SealedPhoto
   locked?: Locked
@@ -52,7 +54,7 @@ export function plainPhoto(p: Photo): ShownPhoto {
     id: p.id, channelId: p.channelId, albumId: p.albumId, uploader: p.uploader, createdAt: p.createdAt, sortAt: p.takenAt ?? p.createdAt,
     takenAt: p.takenAt, kind: p.kind === 'video' ? 'video' : 'image', name: p.file?.name ?? '', width: p.width, height: p.height,
     duration: p.duration, caption: p.caption, size: p.size, reactions: p.reactions, comments: p.comments, threadId: p.threadId,
-    ...(p.file ? { file: p.file } : {}), ...(p.thumb ? { thumb: p.thumb } : {}),
+    ...(p.file ? { file: p.file } : {}), ...(p.thumb ? { thumb: p.thumb } : {}), ...(p.display ? { display: p.display } : {}),
   }
 }
 

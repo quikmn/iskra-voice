@@ -39,6 +39,8 @@ export interface PhotoEnvelope {
 export interface SealedPhoto {
   file: DmFile
   thumb?: DmFile
+  /** A full-size picture every app can draw, when the original is a HEIC or AVIF. */
+  display?: DmFile
   kind: 'image' | 'video'
   name: string
   width: number
@@ -124,12 +126,13 @@ export function openPhoto(envelope: PhotoEnvelope, uploader: string, channel: nu
   if (!raw || typeof raw !== 'object') throw new DmError('Unsupported photo format.')
   const [file] = checkFiles([raw.file])
   const thumb = raw.thumb === undefined ? undefined : checkFiles([raw.thumb])[0]
+  const display = raw.display === undefined ? undefined : checkFiles([raw.display])[0]
   if (raw.kind !== 'image' && raw.kind !== 'video') throw new DmError('Unsupported photo format.')
   const caption = typeof raw.caption === 'string' ? raw.caption.slice(0, MAX_CAPTION) : ''
   const duration = size(raw.duration, 24 * 3600 * 1000)
   const takenAt = size(raw.takenAt, 8.64e15)
   return {
-    file, ...(thumb ? { thumb } : {}), kind: raw.kind, name: file.name, width: size(raw.width, 100_000), height: size(raw.height, 100_000),
+    file, ...(thumb ? { thumb } : {}), ...(display ? { display } : {}), kind: raw.kind, name: file.name, width: size(raw.width, 100_000), height: size(raw.height, 100_000),
     ...(raw.kind === 'video' && duration ? { duration } : {}), ...(takenAt ? { takenAt } : {}), caption,
   }
 }

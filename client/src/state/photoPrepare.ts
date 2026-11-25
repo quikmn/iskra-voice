@@ -3,7 +3,9 @@
 // talks to a server; state/photos.ts uploads the result.
 import { t } from '../i18n'
 import { cleanPicture, exifTime, isPictureType, PhotoRefused } from '../core/photoMetadata'
-import { cleanVideo, isVideoHead, VideoRefused } from '../core/mp4Metadata'
+import { cleanVideo, isVideoHead, patchedParts, VideoRefused, type ReadAt } from '../core/mp4Metadata'
+import { HeifRefused, planHeif } from '../core/heifMetadata'
+import { decodeHeif } from './heifDecode'
 import { sniff } from '../core/sniff'
 import { thumbSize } from './photosLogic'
 
@@ -21,6 +23,8 @@ export interface PreparedPhoto {
   takenAt?: number
   /** A small JPEG; missing when this device couldn't decode the file (some phone videos on a computer). */
   thumb?: Blob
+  /** HEIC and AVIF: a full-size JPEG every app can show, next to the original. */
+  display?: Blob
 }
 
 /** A file a photos channel doesn't take, with the reason in the app's language. */
@@ -32,9 +36,12 @@ async function head(file: Blob, bytes = 64): Promise<Uint8Array> {
   return new Uint8Array(await file.slice(0, bytes).arrayBuffer())
 }
 
-function toJpeg(canvas: HTMLCanvasElement): Promise<Blob | undefined> {
-  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob ?? undefined), 'image/jpeg', 0.82))
+function toJpeg(canvas: HTMLCanvasElement, quality = 0.82): Promise<Blob | undefined> {
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob ?? undefined), 'image/jpeg', quality))
 }
+
+/** The quality of the JPEG made from a HEIC or AVIF for apps that can't draw the original (which is kept as well). */
+const DISPLAY_QUALITY = 0.92
 
 function draw(source: CanvasImageSource, width: number, height: number): Promise<Blob | undefined> {
   const size = thumbSize(width, height)
@@ -123,6 +130,26 @@ export async function preparePhoto(file: File, keepDate: boolean): Promise<Prepa
     const shown = await pictureThumb(blob)
     const takenAt = keepDate ? exifTime(cleaned.kept) ?? fallbackDate : undefined
     return { blob, name: file.name, kind: 'image', type: kind.type, ...shown, ...(takenAt ? { takenAt } : {}) }
+  }
+  if (kind.type === 'image/heic' || kind.type === 'image/avif') {
+    let blob: Blob
+    let kept: Awaited<ReturnType<typeof planHeif>>['kept']
+    try {
+      const read: ReadAt = async (offset, length) => new Uint8Array(await file.slice(offset, Math.min(file.size, offset + length)).arrayBuffer())
+      const plan = await planHeif(read, file.size, keepDate)
+      kept = plan.kept
+      blob = plan.patches.length === 0 ? file.slice(0, file.size, kind.type) : new Blob(patchedParts(file, plan.patches) as BlobPart[], { type: kind.type })
+    } catch (e) {
+      if (e instanceof HeifRefused) throw new NotAPhoto(t('photos.upload.uncleanable', { name: file.name }))
+      throw e
+    }
+    // The original is kept as it is; a JPEG made here is what apps that can't draw HEIC show.
+    const canvas = await decodeHeif(blob)
+    const display = canvas ? await toJpeg(canvas, DISPLAY_QUALITY) : undefined
+    if (!canvas || !display) throw new NotAPhoto(t('photos.upload.undecodable', { name: file.name }))
+    const thumb = await draw(canvas, canvas.width, canvas.height)
+    const takenAt = keepDate ? exifTime(kept) ?? fallbackDate : undefined
+    return { blob, name: file.name, kind: 'image', type: kind.type, width: canvas.width, height: canvas.height, display, ...(thumb ? { thumb } : {}), ...(takenAt ? { takenAt } : {}) }
   }
   if (kind.type === 'video/mp4' && isVideoHead(first)) {
     let cleaned: Awaited<ReturnType<typeof cleanVideo>>

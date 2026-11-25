@@ -141,7 +141,8 @@ export const photos: Messages['photos'] = {
     allDone_other: '{{count}} file aggiunti',
     damaged: '«{{name}}» è danneggiato e non può essere aggiunto.',
     uncleanable: '«{{name}}» non può essere aggiunto: i suoi dati nascosti non possono essere rimossi in modo sicuro.',
-    notTaken: '«{{name}}» non è un\'immagine JPEG, PNG o WebP né un video MP4 o MOV.',
+    notTaken: "«{{name}}» non è un'immagine o un video accettato da un canale foto (JPEG, PNG, WebP, GIF, HEIC, AVIF, MP4 o MOV).",
+    undecodable: '«{{name}}» non può essere aperto su questo dispositivo, quindi non può essere aggiunto da qui.',
   },
   viewer: {
     label: 'Foto di {{name}}',

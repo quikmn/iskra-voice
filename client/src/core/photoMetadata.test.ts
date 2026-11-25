@@ -81,7 +81,7 @@ describe('cleaning a picture', () => {
     expect(jpegExif(bytes).length).toBe(0)
     expect(() => cleanPicture(ascii('not a jpeg'), 'image/jpeg', true)).toThrow(PhotoRefused)
     expect(() => cleanPicture(plain.slice(0, 200), 'image/jpeg', true)).toThrow(PhotoRefused)
-    expect(isPictureType('image/gif')).toBe(false)
+    expect(isPictureType('image/tiff')).toBe(false)
   })
 
   it('takes text out of a PNG', () => {

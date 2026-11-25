@@ -151,7 +151,8 @@ export const photos = {
     allDone_other: '{{count}} files added',
     damaged: "\"{{name}}\" is damaged and can't be added.",
     uncleanable: "\"{{name}}\" can't be added: its hidden data can't be removed safely.",
-    notTaken: "\"{{name}}\" isn't a JPEG, PNG or WebP picture or an MP4 or MOV video.",
+    notTaken: "\"{{name}}\" isn't a picture or video a photos channel takes (JPEG, PNG, WebP, GIF, HEIC, AVIF, MP4 or MOV).",
+    undecodable: "\"{{name}}\" can't be opened on this device, so it can't be added from here.",
   },
   viewer: {
     label: 'Photo by {{name}}',

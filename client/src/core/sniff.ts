@@ -2,6 +2,8 @@
 // Decrypted DM attachments are shown inline only when their bytes are one of these types; the sender's claimed type
 // is never trusted.
 
+import { heifType } from './heifMetadata'
+
 export interface Sniffed {
   type: string
   inline: boolean
@@ -16,6 +18,9 @@ export function sniff(head: Uint8Array): Sniffed {
   if (starts(head, ascii('RIFF')) && starts(head, ascii('WEBP'), 8)) return { type: 'image/webp', inline: true }
   if (starts(head, ascii('RIFF')) && starts(head, ascii('WAVE'), 8)) return { type: 'audio/wav', inline: true }
   if (starts(head, [0xff, 0xd8, 0xff])) return { type: 'image/jpeg', inline: true }
+  // HEIC and AVIF pictures share the MP4 container. Chromium can't draw HEIC, so that one is a download.
+  const picture = heifType(head)
+  if (picture) return { type: picture, inline: picture === 'image/avif' }
   if (head.length >= 12 && starts(head, ascii('ftyp'), 4)) return { type: 'video/mp4', inline: true }
   if (starts(head, [0x1a, 0x45, 0xdf, 0xa3])) return { type: 'video/webm', inline: true }
   if (starts(head, ascii('OggS'))) return { type: 'audio/ogg', inline: true }

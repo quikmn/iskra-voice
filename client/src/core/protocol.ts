@@ -3340,6 +3340,8 @@ export interface Photo {
   kind: 'image' | 'video' | null
   file: FileInfo | null
   thumb: FileInfo | null
+  /** A full-size picture every app can draw, when the original is a HEIC or AVIF. */
+  display?: FileInfo | null
   /** As shown (after turning it upright); 0 if not given. */
   width: number
   height: number
@@ -3377,6 +3379,7 @@ export interface PhotoUsage {
 export interface PhotoItem {
   file: string
   thumb?: string
+  display?: string
   width?: number
   height?: number
   duration?: number
@@ -3399,14 +3402,15 @@ export interface Events {
 export interface Requests {
   'photo.info': [{ channelId: number }, { albums: PhotoAlbum[]; usage: PhotoUsage }]
   'photo.list': [{ channelId: number; after?: number; limit?: number }, { photos: Photo[]; hasMore: boolean }]
-  'photo.upload.begin': [{ channelId: number; size: number; thumbSize?: number; name?: string }, { url: string; thumbUrl: string | null; maxBytes: number; partBytes: number }]
+  'photo.upload.begin': [{ channelId: number; size: number; thumbSize?: number; displaySize?: number; name?: string }, { url: string; thumbUrl: string | null; displayUrl?: string | null; maxBytes: number; partBytes: number }]
+  'photo.latest': [Record<string, never>, { channels: { channelId: number; id: number; by: string; at: number }[] }]
   'photo.add': [{ channelId: number; albumId?: number; items: PhotoItem[]; batch?: string; total?: number; keepDate?: boolean; version?: number }, { photos: Photo[]; usage: PhotoUsage }]
   'photo.update': [{ id: number; caption?: string; takenAt?: number | null; version?: number; envelope?: unknown }, { photo: Photo }]
   'photo.move': [{ ids: number[]; albumId?: number }, { ids: number[] }]
   'photo.delete': [{ ids: number[] }, { ids: number[]; usage: PhotoUsage }]
   'photo.react': [{ id: number; emoji: string; on?: boolean }, Record<string, never>]
   'photo.comments': [{ id: number }, { thread: Thread | null }]
-  'photo.links': [{ channelId: number; ids: number[]; what?: 'thumb' | 'file' }, { links: Record<string, string> }]
+  'photo.links': [{ channelId: number; ids: number[]; what?: 'thumb' | 'display' | 'file' }, { links: Record<string, string> }]
   'photo.album.create': [{ channelId: number; name?: string; version?: number; envelope?: unknown }, { album: PhotoAlbum }]
   'photo.album.update': [{ id: number; name?: string; coverId?: number | null; version?: number; envelope?: unknown }, { album: PhotoAlbum }]
   'photo.album.delete': [{ id: number }, Record<string, never>]

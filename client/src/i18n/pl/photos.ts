@@ -171,7 +171,8 @@ export const photos: Messages['photos'] = {
     allDone_other: 'Dodano {{count}} pliku',
     damaged: 'Plik „{{name}}” jest uszkodzony i nie można go dodać.',
     uncleanable: 'Nie można dodać pliku „{{name}}”: jego ukrytych danych nie da się bezpiecznie usunąć.',
-    notTaken: 'Plik „{{name}}” nie jest obrazem JPEG, PNG lub WebP ani filmem MP4 lub MOV.',
+    notTaken: 'Plik „{{name}}” nie jest obrazem ani filmem, który przyjmuje kanał zdjęć (JPEG, PNG, WebP, GIF, HEIC, AVIF, MP4 lub MOV).',
+    undecodable: 'Pliku „{{name}}” nie da się otworzyć na tym urządzeniu, więc nie można go stąd dodać.',
   },
   viewer: {
     label: 'Zdjęcie od: {{name}}',

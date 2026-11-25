@@ -141,7 +141,8 @@ export const photos: Messages['photos'] = {
     allDone_other: '{{count}} Dateien hinzugefügt',
     damaged: '„{{name}}“ ist beschädigt und kann nicht hinzugefügt werden.',
     uncleanable: '„{{name}}“ kann nicht hinzugefügt werden: Die versteckten Daten lassen sich nicht sicher entfernen.',
-    notTaken: '„{{name}}“ ist kein JPEG-, PNG- oder WebP-Bild und kein MP4- oder MOV-Video.',
+    notTaken: '„{{name}}“ ist kein Bild oder Video, das ein Fotokanal annimmt (JPEG, PNG, WebP, GIF, HEIC, AVIF, MP4 oder MOV).',
+    undecodable: '„{{name}}“ lässt sich auf diesem Gerät nicht öffnen und kann deshalb von hier nicht hinzugefügt werden.',
   },
   viewer: {
     label: 'Foto von {{name}}',

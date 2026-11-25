@@ -11,6 +11,9 @@ namespace Iskra.Server.Storage;
 public sealed record Photo(long Id, long ChannelId, long? AlbumId, string FileId, string? ThumbId, string Uploader, long CreatedAt,
     long? TakenAt, string Kind, int Width, int Height, long? Duration, long Size, string Caption, string? Envelope, long? Version, long? ThreadId)
 {
+    /// <summary>A full-size picture every app can draw, made by the uploader's app when the original is a HEIC or AVIF.</summary>
+    public string? DisplayId { get; init; }
+
     /// <summary>What sorting by date uses: the date taken, else when it was added.</summary>
     public long SortAt => TakenAt ?? CreatedAt;
 }
@@ -23,7 +26,7 @@ public sealed record PhotoUsage(long Bytes, int Count, long? CapBytes);
 
 /// <summary>What <see cref="Store.AddPhoto"/> takes.</summary>
 public sealed record NewPhoto(string FileId, string? ThumbId, long? TakenAt, string Kind, int Width, int Height, long? Duration, long Size,
-    string Caption, string? Envelope, long? Version);
+    string Caption, string? Envelope, long? Version, string? DisplayId = null);
 
 /// <summary>Photos channels: photos, albums, reactions and the storage cap. Comments are a thread per photo, made on first use.</summary>
 public sealed partial class Store
@@ -76,13 +79,17 @@ public sealed partial class Store
         );
         """;
 
+    private const string Photos2Migration = """
+        ALTER TABLE photos ADD COLUMN display_id TEXT;
+        """;
+
     private const string PhotoColumns =
-        "id, channel_id, album_id, file_id, thumb_id, uploader, created_at, taken_at, kind, width, height, duration, size, caption, envelope, version, thread_id";
+        "id, channel_id, album_id, file_id, thumb_id, uploader, created_at, taken_at, kind, width, height, duration, size, caption, envelope, version, thread_id, display_id";
 
     private static Photo ReadPhoto(SqliteDataReader r) =>
         new(r.GetInt64(0), r.GetInt64(1), NullableLong(r, 2), r.GetString(3), r.IsDBNull(4) ? null : r.GetString(4), r.GetString(5), r.GetInt64(6),
             NullableLong(r, 7), r.GetString(8), r.GetInt32(9), r.GetInt32(10), NullableLong(r, 11), r.GetInt64(12), r.GetString(13),
-            r.IsDBNull(14) ? null : r.GetString(14), NullableLong(r, 15), NullableLong(r, 16));
+            r.IsDBNull(14) ? null : r.GetString(14), NullableLong(r, 15), NullableLong(r, 16)) { DisplayId = r.IsDBNull(17) ? null : r.GetString(17) };
 
     private const string AlbumSelect = """
         SELECT a.id, a.channel_id, a.name, a.cover_id, a.created_by, a.created_at,
@@ -116,7 +123,12 @@ public sealed partial class Store
 
     /// <summary>The photo that uses this file (as the picture or its thumbnail), if any.</summary>
     public bool PhotoUsesFile(string fileId) =>
-        Scalar("SELECT 1 FROM photos WHERE file_id = $f OR thumb_id = $f LIMIT 1;", ("$f", fileId)) is not null;
+        Scalar("SELECT 1 FROM photos WHERE file_id = $f OR thumb_id = $f OR display_id = $f LIMIT 1;", ("$f", fileId)) is not null;
+
+    /// <summary>channel → its newest photo (id, who added it, when), for the channels that have any.</summary>
+    public Dictionary<long, (long Id, string Uploader, long CreatedAt)> LatestPhotos() =>
+        Query("SELECT channel_id, id, uploader, created_at FROM photos WHERE id IN (SELECT MAX(id) FROM photos GROUP BY channel_id);",
+            r => (Channel: r.GetInt64(0), Id: r.GetInt64(1), Uploader: r.GetString(2), At: r.GetInt64(3))).ToDictionary(x => x.Channel, x => (x.Id, x.Uploader, x.At));
 
     public PhotoUsage PhotoUsage(long channelId)
     {
@@ -152,11 +164,11 @@ public sealed partial class Store
             foreach (var p in items)
             {
                 using var cmd = Command("""
-                    INSERT INTO photos (channel_id, album_id, file_id, thumb_id, uploader, created_at, taken_at, kind, width, height, duration, size, caption, envelope, version)
-                    VALUES ($c, $a, $f, $t, $u, $now, $taken, $kind, $w, $h, $d, $size, $caption, $env, $v) RETURNING id;
+                    INSERT INTO photos (channel_id, album_id, file_id, thumb_id, uploader, created_at, taken_at, kind, width, height, duration, size, caption, envelope, version, display_id)
+                    VALUES ($c, $a, $f, $t, $u, $now, $taken, $kind, $w, $h, $d, $size, $caption, $env, $v, $display) RETURNING id;
                     """, [("$c", channelId), ("$a", albumId), ("$f", p.FileId), ("$t", p.ThumbId), ("$u", uploader), ("$now", now), ("$taken", p.TakenAt),
                     ("$kind", p.Kind), ("$w", p.Width), ("$h", p.Height), ("$d", p.Duration), ("$size", p.Size), ("$caption", p.Caption),
-                    ("$env", p.Envelope), ("$v", p.Version)]);
+                    ("$env", p.Envelope), ("$v", p.Version), ("$display", p.DisplayId)]);
                 cmd.Transaction = tx;
                 ids.Add(Convert.ToInt64(cmd.ExecuteScalar()));
             }

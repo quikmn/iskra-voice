@@ -17,7 +17,7 @@ namespace Iskra.Server.Features;
 /// channel's read access; adding photos and making albums its write access. A photo is changed by whoever added it and
 /// deleted by them or a moderator. Each photo has reactions and, once someone comments, a thread.
 ///
-/// Uploads are cleaned of location and identifying metadata (Files/PhotoMetadata.cs, Files/Mp4Metadata.cs): by the app
+/// Uploads are cleaned of location and identifying metadata (Files/PhotoMetadata.cs, Files/HeifMetadata.cs, Files/Mp4Metadata.cs): by the app
 /// before it uploads, and again here for channels the server can read. In an end-to-end encrypted photos channel the
 /// server stores ciphertext files and one sealed envelope per photo and album; it can't clean, name or zip anything.
 /// Admins set a storage cap per channel; adding beyond it is refused.
@@ -46,6 +46,7 @@ public static class PhotoFeature
     {
         router.Add("photo.info", Info);
         router.Add("photo.list", List);
+        router.Add("photo.latest", Latest);
         router.Add("photo.upload.begin", BeginUpload);
         router.Add("photo.add", Add);
         router.Add("photo.update", Update);
@@ -80,7 +81,7 @@ public static class PhotoFeature
     private static List<object> Views(Store store, IReadOnlyList<Photo> photos)
     {
         var ids = photos.Select(p => p.Id).ToList();
-        var files = store.GetFiles(photos.Where(p => p.Envelope is null).SelectMany(p => new[] { p.FileId, p.ThumbId }).OfType<string>().ToList());
+        var files = store.GetFiles(photos.Where(p => p.Envelope is null).SelectMany(p => new[] { p.FileId, p.ThumbId, p.DisplayId }).OfType<string>().ToList());
         var reactions = store.PhotoReactions(ids);
         var comments = store.PhotoCommentCounts(ids);
         return photos.Select(object (p) => new
@@ -94,6 +95,7 @@ public static class PhotoFeature
             kind = p.Envelope is null ? p.Kind : null,
             file = p.Envelope is null && files.TryGetValue(p.FileId, out var file) ? Uploads.Public(file) : null,
             thumb = p.Envelope is null && p.ThumbId is not null && files.TryGetValue(p.ThumbId, out var thumb) ? Uploads.Public(thumb) : null,
+            display = p.Envelope is null && p.DisplayId is not null && files.TryGetValue(p.DisplayId, out var display) ? Uploads.Public(display) : null,
             width = p.Width,
             height = p.Height,
             duration = p.Duration,
@@ -224,7 +226,22 @@ public static class PhotoFeature
     }
 
     /// <summary>
-    /// Short-lived download links for the ciphertext of photos in an encrypted channel (<c>what</c>: "thumb" or "file"),
+    /// The newest photo of every photos channel you can read (its id, who added it and when), so an app can tell what was
+    /// added while it was away without loading the channels.
+    /// </summary>
+    private static object Latest(Session s, Member me, Body body)
+    {
+        var store = s.World.Store;
+        var latest = store.LatestPhotos();
+        return new
+        {
+            channels = store.AllChannels().Where(c => c.Kind == Kind && latest.ContainsKey(c.Id) && Permissions.CanRead(me, c))
+                .Select(c => new { channelId = c.Id, id = latest[c.Id].Id, by = latest[c.Id].Uploader, at = latest[c.Id].CreatedAt }),
+        };
+    }
+
+    /// <summary>
+    /// Short-lived download links for the ciphertext of photos in an encrypted channel (<c>what</c>: "thumb", "display" or "file"),
     /// for the photos whose files you may read: the ones added while you were in the channel's encryption.
     /// </summary>
     private static object Links(Session s, Member me, Body body)
@@ -233,13 +250,13 @@ public static class PhotoFeature
         var store = s.World.Store;
         if (store.GetE2ee(channel.Id) is null) throw RequestException.BadRequest("That channel isn't end-to-end encrypted.");
         var what = body.OptionalString("what", 8) ?? "thumb";
-        if (what is not ("thumb" or "file")) throw RequestException.BadRequest("'what' must be thumb or file.");
+        if (what is not ("thumb" or "display" or "file")) throw RequestException.BadRequest("'what' must be thumb, display or file.");
         var ids = LongArray(body, "ids", MaxPerBulk);
         var links = new Dictionary<string, string>();
         foreach (var photo in store.GetPhotos(ids))
         {
             if (photo.ChannelId != channel.Id) continue;
-            var fileId = what == "thumb" ? photo.ThumbId : photo.FileId;
+            var fileId = what == "thumb" ? photo.ThumbId : what == "display" ? photo.DisplayId : photo.FileId;
             if (fileId is null || !store.CanReadDmFile(fileId, me.AccountKey)) continue;
             links[photo.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)] = DmFileFeature.LinkFor(fileId, s.Now);
         }
@@ -263,7 +280,7 @@ public static class PhotoFeature
     // ── Uploading ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Tickets for one photo and its thumbnail, after checking that you may add here and that it would fit under the cap.
+    /// Tickets for one photo, its thumbnail and (for a HEIC or AVIF) the picture made for display, after checking that you may add here and that it would fit under the cap.
     /// In an encrypted channel the tickets are for ciphertext only the channel's members can fetch.
     /// </summary>
     private static object BeginUpload(Session s, Member me, Body body)
@@ -273,11 +290,14 @@ public static class PhotoFeature
         var store = s.World.Store;
         var size = body.OptionalLong("size", min: 1) ?? throw RequestException.BadRequest("'size' is required.");
         var thumbSize = body.OptionalLong("thumbSize", min: 1);
+        var displaySize = body.OptionalLong("displaySize", min: 1);
         if (size > s.Uploads.MaxBytes)
             throw RequestException.BadRequest($"Files can be up to {s.Uploads.MaxBytes / 1024 / 1024} MB on this server.", "file_size", new { mb = s.Uploads.MaxBytes / 1024 / 1024 });
         if (thumbSize > MaxThumbBytes) throw RequestException.BadRequest("The thumbnail is too large.", "photo_thumb_size");
+        if (displaySize > s.Uploads.MaxBytes)
+            throw RequestException.BadRequest($"Files can be up to {s.Uploads.MaxBytes / 1024 / 1024} MB on this server.", "file_size", new { mb = s.Uploads.MaxBytes / 1024 / 1024 });
         var usage = store.PhotoUsage(channel.Id);
-        if (usage.Count >= MaxPhotosPerChannel || (usage.CapBytes is { } cap && usage.Bytes + size + (thumbSize ?? 0) > cap)) throw Full(usage);
+        if (usage.Count >= MaxPhotosPerChannel || (usage.CapBytes is { } cap && usage.Bytes + size + (thumbSize ?? 0) + (displaySize ?? 0) > cap)) throw Full(usage);
 
         string[]? readers = null;
         if (store.GetE2ee(channel.Id) is not null)
@@ -293,10 +313,13 @@ public static class PhotoFeature
         var token = s.Uploads.Issue(me.AccountKey, me.Role, name, size, readers) ?? throw Quota();
         string? thumbToken = null;
         if (thumbSize is { } t) thumbToken = s.Uploads.Issue(me.AccountKey, me.Role, "thumbnail.jpg", t, readers) ?? throw Quota();
+        string? displayToken = null;
+        if (displaySize is { } d) displayToken = s.Uploads.Issue(me.AccountKey, me.Role, "display.jpg", d, readers) ?? throw Quota();
         return new
         {
             url = $"/upload/{token}",
             thumbUrl = thumbToken is null ? null : $"/upload/{thumbToken}",
+            displayUrl = displayToken is null ? null : $"/upload/{displayToken}",
             maxBytes = s.Uploads.MaxBytes,
             partBytes = Uploads.PartBytes,
         };
@@ -344,29 +367,39 @@ public static class PhotoFeature
                 var item = new Body(element);
                 var fileId = item.String("file", 64);
                 var thumbId = item.OptionalString("thumb", 64);
-                if (!seen.Add(fileId) || (thumbId is not null && !seen.Add(thumbId))) throw RequestException.BadRequest("Unknown upload.", "photo_upload_unknown");
+                var displayId = item.OptionalString("display", 64);
+                if (!seen.Add(fileId) || (thumbId is not null && !seen.Add(thumbId)) || (displayId is not null && !seen.Add(displayId)))
+                    throw RequestException.BadRequest("Unknown upload.", "photo_upload_unknown");
                 var file = OwnUpload(s, me, fileId, e2ee is not null);
                 var thumb = thumbId is null ? null : OwnUpload(s, me, thumbId, e2ee is not null);
+                var display = displayId is null ? null : OwnUpload(s, me, displayId, e2ee is not null);
                 if (thumb is not null && thumb.Size > MaxThumbBytes + 1024) throw RequestException.BadRequest("The thumbnail is too large.", "photo_thumb_size");
 
                 if (e2ee is not null)
                 {
                     var envelope = Sealed(me, channel, e2ee, version, item.Element("envelope"), "photo");
-                    items.Add(new NewPhoto(file.Id, thumb?.Id, null, "", 0, 0, null, file.Size + (thumb?.Size ?? 0), "", envelope, version));
+                    items.Add(new NewPhoto(file.Id, thumb?.Id, null, "", 0, 0, null, file.Size + (thumb?.Size ?? 0) + (display?.Size ?? 0), "", envelope, version, display?.Id));
                     continue;
                 }
                 if (item.Has("envelope")) throw RequestException.BadRequest("That channel isn't end-to-end encrypted.");
                 var kind = s.Uploads.PhotoKind(file)
-                    ?? throw RequestException.BadRequest("Photos channels take JPEG, PNG and WebP pictures and MP4 or MOV videos.", "photo_type");
-                if (thumb is not null && !PhotoMetadata.IsPicture(thumb.Type)) throw RequestException.BadRequest("The thumbnail must be a picture.", "photo_thumb_type");
+                    ?? throw RequestException.BadRequest("Photos channels take JPEG, PNG, WebP, GIF, HEIC and AVIF pictures and MP4 or MOV videos.", "photo_type");
+                if (thumb is not null && !PhotoMetadata.IsStill(thumb.Type)) throw RequestException.BadRequest("The thumbnail must be a picture.", "photo_thumb_type");
+                // Not every app can draw a HEIC or AVIF: the uploader's app sends a picture that every app can, next to the original.
+                var heif = HeifMetadata.IsHeif(file.Type);
+                if (heif && display is null)
+                    throw RequestException.BadRequest("A HEIC or AVIF picture needs a copy that every app can show. Update Iskra and add it again.", "photo_display_needed");
+                if (display is not null && (!heif || !PhotoMetadata.IsStill(display.Type)))
+                    throw RequestException.BadRequest("The picture made for display must be a JPEG, PNG or WebP next to a HEIC or AVIF original.", "photo_display_type");
                 var caption = item.OptionalString("caption", MaxCaptionLength * 2) is { } text ? Caption(text) : "";
                 if (caption.Length > 0) AutoModFeature.Check(s, me, channel, caption, "photo");
                 // The server trusts no app to have cleaned the files: it does it again (a cleaned file comes back as it is).
-                StoredFile cleanFile, cleanThumb;
+                StoredFile cleanFile, cleanThumb, cleanDisplay;
                 try
                 {
                     cleanFile = s.Uploads.CleanForPhotos(file, keepDate);
                     cleanThumb = thumb is null ? file : s.Uploads.CleanForPhotos(thumb, false);
+                    cleanDisplay = display is null ? file : s.Uploads.CleanForPhotos(display, false);
                 }
                 catch (Exception ex) when (ex is ImageMetadata.Refused or Mp4Metadata.Refused)
                 {
@@ -374,11 +407,13 @@ public static class PhotoFeature
                 }
                 if (cleanFile.Id != file.Id) replaced.Add(file.Id);
                 if (thumb is not null && cleanThumb.Id != thumb.Id) replaced.Add(thumb.Id);
+                if (display is not null && cleanDisplay.Id != display.Id) replaced.Add(display.Id);
                 var width = (int)(item.OptionalLong("width", 1, 100_000) ?? cleanFile.Width ?? 0);
                 var height = (int)(item.OptionalLong("height", 1, 100_000) ?? cleanFile.Height ?? 0);
                 var duration = kind == "video" ? item.OptionalLong("duration", 0, 24L * 3600 * 1000) : null;
                 items.Add(new NewPhoto(cleanFile.Id, thumb is null ? null : cleanThumb.Id, keepDate ? TakenAt(s, item) : null, kind, width, height, duration,
-                    cleanFile.Size + (thumb is null ? 0 : cleanThumb.Size), caption, null, null));
+                    cleanFile.Size + (thumb is null ? 0 : cleanThumb.Size) + (display is null ? 0 : cleanDisplay.Size), caption, null, null,
+                    display is null ? null : cleanDisplay.Id));
             }
 
             var ids = store.AddPhotos(channel.Id, albumId, me.AccountKey, items, s.Now, MaxPhotosPerChannel) ?? throw Full(store.PhotoUsage(channel.Id), items.Count);
@@ -402,6 +437,7 @@ public static class PhotoFeature
             {
                 if (!store.PhotoUsesFile(item.FileId)) s.Uploads.DeleteIfUnused(item.FileId);
                 if (item.ThumbId is not null && !store.PhotoUsesFile(item.ThumbId)) s.Uploads.DeleteIfUnused(item.ThumbId);
+                if (item.DisplayId is not null && !store.PhotoUsesFile(item.DisplayId)) s.Uploads.DeleteIfUnused(item.DisplayId);
             }
             throw;
         }
@@ -486,6 +522,7 @@ public static class PhotoFeature
             }
             s.Uploads.DeleteIfUnused(photo.FileId);
             if (photo.ThumbId is not null) s.Uploads.DeleteIfUnused(photo.ThumbId);
+            if (photo.DisplayId is not null) s.Uploads.DeleteIfUnused(photo.DisplayId);
         }
         if (photos.Any(p => p.Envelope is not null)) store.ForgetDeletedDmFiles();
         var usage = UsageView(store.PhotoUsage(channel.Id));

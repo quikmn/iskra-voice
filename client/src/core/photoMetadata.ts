@@ -19,7 +19,7 @@ export interface Kept {
 
 const NOTHING: Kept = { orientation: 1, date: null, offset: null }
 
-export const PICTURE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+export const PICTURE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const
 export type PictureType = (typeof PICTURE_TYPES)[number]
 export const isPictureType = (type: string): type is PictureType => (PICTURE_TYPES as readonly string[]).includes(type)
 
@@ -335,11 +335,62 @@ function cleanWebp(data: Uint8Array, keepDate: boolean): { bytes: Uint8Array; ke
   return { bytes, kept }
 }
 
+// ── GIF ─────────────────────────────────────────────────────────────────────
+
+const LOOPING = ['NETSCAPE2.0', 'ANIMEXTS1.0']
+
+/**
+ * The GIF with its frames, their timing and its looping, and nothing else: comments, plain text and every application
+ * extension but the looping one (XMP, ICC, tool marks) go. Frames are copied as they are, so it still animates.
+ */
+function cleanGif(data: Uint8Array): Uint8Array {
+  const head = text(data.subarray(0, 6))
+  if (data.length < 13 || (head !== 'GIF87a' && head !== 'GIF89a')) throw new PhotoRefused('Not a GIF.')
+  const early = () => new PhotoRefused('The GIF ends early.')
+  const table = (flags: number) => (flags & 0x80 ? 3 * (1 << ((flags & 7) + 1)) : 0)
+  /** The end of a run of sub-blocks starting at `at` (each: a length byte, then that many bytes; a zero ends the run). */
+  const blocks = (at: number) => {
+    for (;;) {
+      if (at >= data.length) throw early()
+      const size = data[at]
+      at += 1 + size
+      if (size === 0) return at
+    }
+  }
+  let i = 13 + table(data[10])
+  if (i > data.length) throw early()
+  const out: Uint8Array[] = [data.subarray(0, i)]
+  let frames = 0
+  for (;;) {
+    if (i >= data.length) throw early()
+    const kind = data[i]
+    if (kind === 0x3b) break
+    if (kind === 0x2c) {
+      if (i + 10 > data.length) throw early()
+      const end = blocks(i + 10 + table(data[i + 9]) + 1)
+      out.push(data.subarray(i, end))
+      frames++
+      i = end
+    } else if (kind === 0x21) {
+      if (i + 2 > data.length) throw early()
+      const label = data[i + 1]
+      const end = blocks(i + 2)
+      const keep = label === 0xf9 || (label === 0xff && data[i + 2] === 11 && LOOPING.includes(text(data.subarray(i + 3, i + 14))))
+      if (keep) out.push(data.subarray(i, end))
+      i = end
+    } else throw new PhotoRefused('The GIF is damaged.')
+  }
+  if (frames === 0) throw new PhotoRefused('The GIF has no image data.')
+  out.push(Uint8Array.of(0x3b))
+  return concat(out)
+}
+
 /**
  * The picture without its metadata, and what its EXIF said about which way up it is and when it was taken.
  */
 export function cleanPicture(data: Uint8Array, type: PictureType, keepDate: boolean): { bytes: Uint8Array; kept: Kept } {
   if (type === 'image/jpeg') return cleanJpeg(data, keepDate)
   if (type === 'image/webp') return cleanWebp(data, keepDate)
+  if (type === 'image/gif') return { bytes: cleanGif(data), kept: NOTHING }
   return { bytes: cleanPng(data), kept: NOTHING }
 }

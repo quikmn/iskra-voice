@@ -32,7 +32,7 @@ import './photos.css'
 const NO_PHOTOS: ShownPhoto[] = []
 const NO_ALBUMS: ShownAlbum[] = []
 const GRID_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'])
-const ACCEPT = 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime,.jpg,.jpeg,.png,.webp,.mp4,.mov,.m4v'
+const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,image/avif,video/mp4,video/quicktime,.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.avif,.mp4,.mov,.m4v'
 
 type Dialog =
   | { kind: 'add'; files: File[] }

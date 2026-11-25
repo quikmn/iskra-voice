@@ -278,7 +278,8 @@ public sealed partial class Store
                 UNION SELECT file_id FROM member_avatars
                 UNION SELECT file_id FROM dm_files WHERE message_id IS NOT NULL
                 UNION SELECT file_id FROM photos
-                UNION SELECT thumb_id FROM photos WHERE thumb_id IS NOT NULL)
+                UNION SELECT thumb_id FROM photos WHERE thumb_id IS NOT NULL
+                UNION SELECT display_id FROM photos WHERE display_id IS NOT NULL)
             RETURNING sha256;
             """, r => r.GetString(0), ("$ids", JsonSerializer.Serialize(ids)), ("$keep", JsonSerializer.Serialize(keep)));
 
@@ -339,6 +340,7 @@ public sealed partial class Store
                 UNION SELECT file_id FROM dm_files WHERE message_id IS NOT NULL
                 UNION SELECT file_id FROM photos
                 UNION SELECT thumb_id FROM photos WHERE thumb_id IS NOT NULL
+                UNION SELECT display_id FROM photos WHERE display_id IS NOT NULL
                 UNION SELECT j.value FROM reports r, json_each(r.attachments) j WHERE r.attachments IS NOT NULL
                 UNION SELECT file_id FROM doc_files)
             RETURNING sha256;

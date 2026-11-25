@@ -401,6 +401,8 @@ public sealed partial class Store : IDisposable
         ("receipts-1", ReceiptsMigration),
         // Photos channels: photos, albums, reactions and the storage cap.
         ("photos-1", PhotosMigration),
+        // The full-size picture an app made for display when the original is a HEIC or AVIF.
+        ("photos-2", Photos2Migration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

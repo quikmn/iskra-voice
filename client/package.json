@@ -24,6 +24,7 @@
     "barcode-detector": "3.2.2",
     "eld": "2.1.0",
     "i18next": "26.4.3",
+    "libheif-js": "1.23.5",
     "libsodium-wrappers-sumo": "^0.8.4",
     "livekit-client": "2.22.4",
     "lowlight": "3.3.0",

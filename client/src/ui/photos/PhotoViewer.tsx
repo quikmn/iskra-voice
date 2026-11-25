@@ -10,7 +10,7 @@ import { photoLink } from '../../core/pushRoute'
 import type { ServerState } from '../../state/store'
 import { closeThread, useThreads } from '../../state/threads'
 import {
-  closePhotoViewer, deletePhotos, movePhotos, openComments, openPhotoViewer, reactToPhoto, setAlbumCover, setCaption, usePhotos,
+  closePhotoViewer, deletePhotos, movePhotos, openComments, openPhotoViewer, reactToPhoto, sealedUrl, setAlbumCover, setCaption, usePhotos,
 } from '../../state/photos'
 import { stepPhoto, type ShownAlbum, type ShownPhoto } from '../../state/photosLogic'
 import { errorMessage } from '../../i18n/errors'
@@ -65,7 +65,7 @@ export function PhotoViewer({ server, channel, photoId, order, albums, can }: {
   const album = photo?.albumId != null ? albums.find((a) => a.id === photo.albumId) : undefined
   const uploader = photo ? server.members[photo.uploader] : undefined
   const name = uploader?.name ?? t('common.someone')
-  const source = usePhotoUrl(server.key, photo, 'file')
+  const source = usePhotoUrl(server.key, photo, 'view')
   const ahead = order.find((p) => p.id === next)
   const fail = (e: unknown) => setError(errorMessage(e))
 
@@ -77,7 +77,7 @@ export function PhotoViewer({ server, channel, photoId, order, albums, can }: {
   useEffect(() => () => closeThread(), [])
 
   // The next picture is fetched ahead, so the arrow feels instant (encrypted ones only when asked for).
-  const aheadUrl = ahead && !ahead.sealed && ahead.kind === 'image' && ahead.file ? server.url + ahead.file.url : null
+  const aheadUrl = ahead && !ahead.sealed && ahead.kind === 'image' && (ahead.display ?? ahead.file) ? server.url + (ahead.display ?? ahead.file)!.url : null
   useEffect(() => {
     if (aheadUrl) new Image().src = aheadUrl
   }, [aheadUrl])
@@ -200,6 +200,23 @@ export function PhotoViewer({ server, channel, photoId, order, albums, can }: {
   }
 
   const original = photo && !photo.sealed && photo.file ? server.url + photo.file.url : source.url
+
+  /** An encrypted original that isn't what is shown (a HEIC next to its JPEG): decrypted when asked for, then saved. */
+  async function saveOriginal() {
+    if (!photo) return
+    setError(null)
+    try {
+      const url = await sealedUrl(server.key, photo, 'file')
+      const link = document.createElement('a')
+      link.href = url
+      link.download = photo.name || 'photo'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (e) {
+      fail(e)
+    }
+  }
   const shownAt = photo ? photo.takenAt ?? photo.createdAt : 0
 
   return createPortal(
@@ -229,7 +246,12 @@ export function PhotoViewer({ server, channel, photoId, order, albums, can }: {
               <button className="icon-button photo-zoom-button" onClick={() => setZoom((z) => clamp({ ...z, scale: z.scale * 1.5 }))} disabled={zoom.scale >= MAX_ZOOM} aria-label={t('photos.viewer.zoomIn')} title={t('photos.viewer.zoomIn')} data-testid="photo-zoom-in"><ZoomIn /></button>
             </>
           )}
-          {original && photo && (
+          {photo?.sealed?.display ? (
+            <button className="icon-button" onClick={() => void saveOriginal()} aria-label={t('photos.viewer.download')} data-testid="photo-download"
+              title={t('photos.viewer.downloadSize', { size: formatSize(photo.sealed.file.size) })}>
+              <DownloadIcon />
+            </button>
+          ) : original && photo && (
             <a className="icon-button" href={original} download={photo.name || undefined} target={photo.sealed ? undefined : '_blank'} rel="noopener noreferrer"
               aria-label={t('photos.viewer.download')} title={t('photos.viewer.downloadSize', { size: formatSize(photo.sealed?.file.size ?? photo.file?.size ?? photo.size) })} data-testid="photo-download">
               <DownloadIcon />
