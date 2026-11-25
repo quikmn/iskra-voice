@@ -1466,6 +1466,8 @@ Server channels trust the server, because a server is run by you or your friend;
 - The sender, recipient, time and message id are bound into the encryption, so a message can't be altered, replayed or moved to another conversation.
 - Device keys come with certificates signed by the account, so a server can't slip in a device of its own.
 - There's no unencrypted fallback: if a message can't be encrypted, it isn't sent.
+- **Read receipts** (off unless you turn them on, in DMs and group chats) are encrypted the same way as a message. They are mutual: only someone who sends them is shown other people's. The server keeps the newest one per conversation, so it can tell that you read a conversation and when, not which message. Whether you have them on is a setting only your devices can read.
+- **Private names** you give people are a setting only your devices can read. Servers, and the people you renamed, never get them.
 
 ### Pictures, files and voice messages in DMs and group chats
 
