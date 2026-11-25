@@ -30,7 +30,7 @@ public sealed record TemplateTag
 public sealed record TemplateChannel
 {
     public string Name { get; init; } = "";
-    /// <summary>"text" (default), "voice", "forum", "stage", "docs", "whiteboard" or "media".</summary>
+    /// <summary>"text" (default), "voice", "forum", "stage", "docs", "whiteboard", "media" or "tasks".</summary>
     public string Kind { get; init; } = "text";
     /// <summary>Voice only: how many people fit (0 = no limit).</summary>
     public int UserLimit { get; init; }
@@ -192,7 +192,7 @@ public static partial class ServerTemplates
     public const int MaxNameLength = 60;
     public const int MaxDescriptionLength = 300;
 
-    public static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs", "whiteboard", "media"];
+    public static readonly string[] Kinds = ["text", "voice", "forum", "stage", "docs", "whiteboard", "media", "tasks"];
     private static readonly string[] ChannelPermNames = ["view", "send", "connect", "speak"];
 
     private static readonly JsonSerializerOptions Options = new()

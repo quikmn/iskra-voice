@@ -11,7 +11,7 @@ namespace Iskra.Server.Features;
 /// </summary>
 public static class ChannelExportFeature
 {
-    private static readonly string[] Kinds = ["text", "voice", "stage", "forum", "docs"];
+    private static readonly string[] Kinds = ["text", "voice", "stage", "forum", "docs", TaskFeature.Kind];
 
     public static void Register(Router router)
     {

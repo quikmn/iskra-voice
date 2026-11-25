@@ -265,6 +265,8 @@ public static class ExportPage
             ["noPosts"] = "No posts in this range.", ["noPages"] = "No pages.", ["updated"] = "Updated by {0} on {1}",
             ["formerMember"] = "Former member", ["messages"] = "{0} messages", ["posts"] = "{0} posts", ["pages"] = "{0} pages",
             ["notIncluded"] = "not included", ["footer"] = "Exported from Iskra. Times are in {0}.",
+            ["noTasks"] = "No tasks.", ["todo"] = "To do", ["doing"] = "Doing", ["done"] = "Done", ["archived"] = "Archived",
+            ["assignedTo"] = "Assigned to {0}", ["due"] = "Due {0}", ["madeBy"] = "Made by {0} on {1}",
         },
         ["sv"] = new Dictionary<string, string>
         {
@@ -276,6 +278,8 @@ public static class ExportPage
             ["noPosts"] = "Inga inlägg i det här intervallet.", ["noPages"] = "Inga sidor.", ["updated"] = "Uppdaterad av {0} den {1}",
             ["formerMember"] = "Tidigare medlem", ["messages"] = "{0} meddelanden", ["posts"] = "{0} inlägg", ["pages"] = "{0} sidor",
             ["notIncluded"] = "inte med", ["footer"] = "Exporterad från Iskra. Tiderna är i {0}.",
+            ["noTasks"] = "Inga uppgifter.", ["todo"] = "Att göra", ["doing"] = "Pågår", ["done"] = "Klart", ["archived"] = "Arkiverad",
+            ["assignedTo"] = "Tilldelad {0}", ["due"] = "Ska vara klar {0}", ["madeBy"] = "Skapad av {0} den {1}",
         },
     };
 

@@ -13,7 +13,7 @@ namespace Iskra.Server.Push;
 /// <summary>What one push says. <see cref="Tag"/> groups pushes about the same conversation (they replace each other).</summary>
 public sealed record PushNote(string Kind, string Tag, string Title, string Body, string FromName,
     long? ChannelId = null, long? MessageId = null, string? Peer = null, bool Coalesce = true, int TtlSeconds = 24 * 3600, string? Group = null, long? Reminder = null,
-    PushText? Text = null, bool Silent = false);
+    PushText? Text = null, bool Silent = false, long? Task = null);
 
 /// <summary>
 /// Names for a push's English title and body (and the values in them), so the app can show them in its own language.
@@ -369,6 +369,7 @@ public sealed partial class PushService
             peer = note.Peer,
             group = note.Group,
             reminder = note.Reminder,
+            task = note.Task,
             text = note.Text is null ? null : new { title = note.Text.Title, body = note.Text.Body, args = note.Text.Args },
             count,
             silent = note.Silent ? true : (bool?)null, // quiet hours: show it without a sound

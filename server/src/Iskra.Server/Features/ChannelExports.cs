@@ -278,6 +278,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
         {
             job.Cancel.Token.ThrowIfCancellationRequested();
             if (plan.Channel.Kind == "docs") items += store.DocPageCount(plan.Channel.Id);
+            else if (plan.Channel.Kind == TaskFeature.Kind) items += store.TaskCount(plan.Channel.Id);
             else items += store.ExportMessageCount(plan.Channel.Id, from, to);
             items += plan.Threads.Sum(t => store.ExportMessageCount(t.Id, from, to));
             if (_r.Attachments)
@@ -369,7 +370,8 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
     private List<ThreadInfo> Threads(Channel c, long from, long to)
     {
         if (c.Kind == "docs") return [];
-        if (!_r.Threads && c.Kind != "forum") return [];
+        // A forum's posts and a board's task comments are the channel itself, not an extra.
+        if (!_r.Threads && c.Kind is not ("forum" or TaskFeature.Kind)) return [];
         return store.ThreadIds(c.Id).Select(store.GetThread).OfType<ThreadInfo>()
             .Where(t => store.ExportMessageCount(t.Id, from, to) > 0 || (store.GetMessage(t.RootId) is { } root && InRange(root, from, to)))
             .OrderBy(t => t.RootId).ToList();
@@ -569,7 +571,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
         w.WriteEndArray();
 
         w.WriteStartArray("threads");
-        if (c.Kind != "forum")
+        if (c.Kind is not ("forum" or TaskFeature.Kind))
             foreach (var thread in plan.Threads)
             {
                 w.WriteStartObject();
@@ -629,6 +631,37 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
                 w.WriteEndObject();
                 Step();
             }
+        w.WriteEndArray();
+
+        w.WriteStartArray("tasks");
+        if (c.Kind == TaskFeature.Kind)
+        {
+            var labels = store.ForumTags(c.Id).ToDictionary(x => x.Id, x => ctx.P(x.Name));
+            foreach (var task in store.ExportTasks(c.Id))
+            {
+                w.WriteStartObject();
+                w.WriteNumber("id", task.Id);
+                w.WriteString("title", ctx.P(task.Title));
+                w.WriteString("description", ExportMarkdown.PlainMentions(task.Description ?? "", ctx));
+                w.WriteString("status", task.Status);
+                w.WriteBoolean("archived", task.ArchivedAt is not null);
+                if (task.Due is { } due) w.WriteString("due", due); else w.WriteNull("due");
+                w.WriteStartArray("assignees");
+                foreach (var key in task.Assignees) w.WriteStringValue(ctx.AuthorOf(key));
+                w.WriteEndArray();
+                w.WriteStartArray("labels");
+                foreach (var label in task.Labels) if (labels.TryGetValue(label, out var name)) w.WriteStringValue(name);
+                w.WriteEndArray();
+                w.WriteString("author", ctx.AuthorOf(task.CreatedBy));
+                w.WriteNumber("createdAt", task.CreatedAt);
+                w.WriteNumber("updatedAt", task.UpdatedAt);
+                w.WriteStartArray("comments");
+                foreach (var m in Messages(task.Id, from, to)) { WriteMessage(w, View(ctx, m)); Step(); }
+                w.WriteEndArray();
+                w.WriteEndObject();
+                Step();
+            }
+        }
         w.WriteEndArray();
 
         w.WriteStartObject("authors");
@@ -763,7 +796,7 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
         var c = plan.Channel;
         static string E(string s) => ExportMarkdown.Escape(s);
         var serverName = ctx.P(_r.ServerName);
-        var prefix = c.Kind is "docs" or "forum" ? "" : "#";
+        var prefix = c.Kind is "docs" or "forum" or TaskFeature.Kind ? "" : "#";
         w.Write(ExportPage.Head(_r.Lang, $"{prefix}{c.Name} · {serverName}"));
         w.Write("<header class=\"top\"><div class=\"wrap\"><div class=\"server\">");
         w.Write(E(serverName));
@@ -796,6 +829,32 @@ internal sealed class ExportWriter(Store store, Files.Uploads uploads, ChannelEx
                 if (comments.Count > 0) w.Write($"<h3>{E(ctx.Word("comments"))}</h3>");
                 foreach (var m in comments) { WriteHtmlMessage(w, ctx, View(ctx, m), null); Step(); }
                 w.Write("</section>\n");
+            }
+        }
+        else if (c.Kind == TaskFeature.Kind)
+        {
+            var labels = store.ForumTags(c.Id).ToDictionary(x => x.Id, x => ctx.P(x.Name));
+            var tasks = store.ExportTasks(c.Id);
+            if (tasks.Count == 0) w.Write($"<p class=\"empty\">{E(ctx.Word("noTasks"))}</p>");
+            foreach (var task in tasks)
+            {
+                w.Write($"<section class=\"post\" id=\"t{task.Id}\"><h2>{E(ctx.P(task.Title))}</h2><p class=\"head\">");
+                w.Write($"<span class=\"tag\">{E(ctx.Word(task.Status))}</span> ");
+                if (task.ArchivedAt is not null) w.Write($"<span class=\"tag\">{E(ctx.Word("archived"))}</span> ");
+                foreach (var label in task.Labels) if (labels.TryGetValue(label, out var name)) w.Write($"<span class=\"tag\">{E(name)}</span> ");
+                w.Write("</p>");
+                var facts = new List<string>();
+                if (task.Assignees.Length > 0)
+                    facts.Add(string.Format(ctx.Word("assignedTo"), string.Join(", ", task.Assignees.Select(k => ctx.NameOfId(ctx.AuthorOf(k))))));
+                if (task.Due is { } due) facts.Add(string.Format(ctx.Word("due"), due));
+                facts.Add(string.Format(ctx.Word("madeBy"), ctx.NameOfId(ctx.AuthorOf(task.CreatedBy)), ctx.FormatTime(task.CreatedAt)));
+                w.Write($"<p class=\"muted\">{E(string.Join(" · ", facts))}</p>");
+                if (task.Description is { Length: > 0 } text) w.Write($"<div class=\"text\">{ExportMarkdown.ToHtml(text, ctx)}</div>");
+                var comments = Messages(task.Id, from, to).ToList();
+                if (comments.Count > 0) w.Write($"<h3>{E(ctx.Word("comments"))}</h3>");
+                foreach (var m in comments) { WriteHtmlMessage(w, ctx, View(ctx, m), null); Step(); }
+                w.Write("</section>\n");
+                Step();
             }
         }
         else if (c.Kind == "docs")

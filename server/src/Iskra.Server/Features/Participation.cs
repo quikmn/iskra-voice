@@ -15,7 +15,7 @@ internal static class Participation
         "ping",
         // Reading.
         "chat.history", "chat.edits", "pin.list", "search", "thread.get", "thread.list", "forum.posts", "forum.post.get",
-        "event.list", "docs.home.get", "docs.page.get", "docs.page.history", "docs.pages", "docs.search", "wb.boards", "wb.get",
+        "event.list", "task.list", "task.get", "task.mine", "docs.home.get", "docs.page.get", "docs.page.history", "docs.pages", "docs.search", "wb.boards", "wb.get",
         "emoji.list", "sticker.list", "sound.list", "role.list", "tags.list", "teams.list", "act.list", "disappear.list",
         "inbox.list", "rules.get", "member.timeout.status", "stage.audience", "bot.commands.available", "builtin.cards.mine",
         "gif.status", "gif.search", "gif.trending", "gif.categories", "link.preview", "translate.config",

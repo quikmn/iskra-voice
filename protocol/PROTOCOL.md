@@ -11,7 +11,7 @@ Version 1. This is the reference that the server (`server/`), the client (`clien
 - **Voice:** [Voice channels](#voice) · [Soundboard](#soundboard) · [Stage channels](#stage-channels) · [Watch parties](#watch-parties) · [Voice channel chat and clips](#voice-channel-chat-and-clips) · [Hi-fi voice channels](#hi-fi-voice-channels) · [Voice bots](#voice-bots) · [AFK channel](#afk-channel) · [Whisper and priority speakers](#whisper-and-priority-speakers) · [Encrypted voice channels](#encrypted-voice-channels) · [Activities](#activities)
 - **Private:** [Direct messages](#direct-messages-end-to-end-encrypted) · [Devices and device linking](#devices-and-device-linking) · [Calls](#calls-voice-and-video-in-dms-end-to-end-encrypted) · [Group DMs and group calls](#group-dms-and-group-calls-end-to-end-encrypted) · [Encrypted channels](#end-to-end-encrypted-channels) · [Friends](#friends) · [Who can message me and message requests](#who-can-message-me-and-message-requests)
 - **People and integrations:** [Profiles](#profiles) · [Profile sync](#profile-sync) · [Activity status](#activity-status) · [Push notifications](#push-notifications-web-push) · [Bots and webhooks](#bots-and-webhooks) · [Bot interactions](#bot-interactions) · [Bot DMs](#bot-dms) · [Presence and voice messages](#presence-and-voice-messages) · [Quiet hours digest](#quiet-hours-digest)
-- **Community:** [Forum channels](#forum-channels) · [Media channels](#media-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group) · [Whiteboards](#whiteboards)
+- **Community:** [Forum channels](#forum-channels) · [Media channels](#media-channels) · [Scheduled events](#scheduled-events) · [Voice user limits and server rules](#voice-user-limits-and-server-rules) · [Docs channels](#docs-channels) · [Teams and looking for group](#game-nights-teams-and-looking-for-group) · [Whiteboards](#whiteboards) · [Task boards](#task-boards)
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Public page](#public-page) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports)
 
 - **Running a server:** [Hosting](#hosting) (HTTPS, internet hosting) · [HTTP endpoints](#http-endpoints) · [Live captions model](#live-captions-model) · [Translation models](#translation-models) · [Owner claim (rented servers)](#owner-claim-rented-servers) · [Server updates and health](#server-updates-and-health) · [Backups, moving and imports](#backups-moving-and-imports) · [Backup buddies](#backup-buddies)
@@ -190,7 +190,7 @@ Over the limit: `error` with `code: "rate_limited"`; the session stays open. HTT
 ```jsonc
 Member  { "accountKey": "<b64u>", "name": "Viktor", "role": "member", "online": true, "bot": false,
           ...profile fields (see Profiles) }
-Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "forum" | "stage" | "docs" | "whiteboard", "position": 0, "readRole": "member", "writeRole": "member",
+Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "forum" | "stage" | "docs" | "whiteboard" | "media" | "tasks", "position": 0, "readRole": "member", "writeRole": "member",
           "createdAt": 1760000000000 }                                  // ms; 0 for the first #general
 Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "createdAt": 1760000000000, "editedAt": null,
           "attachments": [File], "replyTo": ..., "reactions": [...],   // Files, replies and reactions
@@ -229,7 +229,7 @@ Servers before this rule may send no `createdAt`; then only a missing channel co
 | `chat.delete` | `id` | | the author, or an admin who outranks the author |
 | `chat.history` | `channelId, before? \| after? \| around?, limit? (1–100, default 50)` | `{ messages (oldest first), hasMore }` | channel readers |
 | `chat.typing` | `channelId` | | channel writers |
-| `channel.create` | `name, kind? (text\|voice\|forum\|stage\|docs\|whiteboard), readRole?, writeRole?` | `{ channel }` | admin+ |
+| `channel.create` | `name, kind? (text\|voice\|forum\|stage\|docs\|whiteboard\|media\|tasks), readRole?, writeRole?` | `{ channel }` | admin+ |
 | `channel.update` | `id, name?, readRole?, writeRole?` | `{ channel }` | admin+ |
 | `channel.delete` | `id` | | admin+ |
 | `profile.update` | `name` and the fields in [Profiles](#profiles) | `{ member }` | anyone |
@@ -639,8 +639,8 @@ Each server sends Web Push messages to its members' devices that aren't looking 
 - `@everyone` (all members) and `@here` (members online now) only ping when the author is trusted or above; from anyone else the text is shown but nobody is pushed, and clients don't count it as a mention either.
 - Incoming-call pushes ring at once (no merging) but at most once per caller and callee per 15 s window.
 - No pushes to a device whose session reported `focused: true` (a new session starts unfocused), to the author, to people who can't read the channel, or to non-members. Per device and conversation the first push goes out at once; more within 15 s become one follow-up push with a `count`.
-- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call"|"event", server, serverName, title, body, tag, from, channelId?, messageId?, peer?, count, at, text? }` (`from`: the sender's display name). Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". Calls say "X is calling". Event reminders ([Scheduled events](#scheduled-events)) say "Starting soon: …" or "… is starting now". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
-- `title` and `body` are English. `text: { title, body, args }` names them so the web worker can show them in the app's language (it's registered as `/push-sw.js?lang=<code>` and loads that language's table from `/push-text/<code>.js`): titles `mention`, `reply`, `encrypted`, `dm`, `calling`, `groupCall`, `reminder`, `scheduledFailed`, `eventLive`, `eventSoon`; bodies `openToRead`, `groupOpenToRead`, `attachment`, `tapToAnswer`, `tapToJoin`, `reminderGeneric`, `happening` / `inMinutes` (each also with `Channel`, `Voice` or `At`); `body: null` means the body is content, shown as is. `args` holds `name`, `channel`, `title`, `minutes`, `place` as the text needs. A worker that doesn't know a name shows `title`/`body`.
+- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call"|"event"|"task", server, serverName, title, body, tag, from, channelId?, messageId?, peer?, task?, count, at, text? }` (`from`: the sender's display name). Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". Calls say "X is calling". Event reminders ([Scheduled events](#scheduled-events)) say "Starting soon: …" or "… is starting now". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
+- `title` and `body` are English. `text: { title, body, args }` names them so the web worker can show them in the app's language (it's registered as `/push-sw.js?lang=<code>` and loads that language's table from `/push-text/<code>.js`): titles `mention`, `reply`, `encrypted`, `dm`, `calling`, `groupCall`, `reminder`, `scheduledFailed`, `eventLive`, `eventSoon`, `taskAssigned`; bodies `openToRead`, `groupOpenToRead`, `attachment`, `tapToAnswer`, `tapToJoin`, `reminderGeneric`, `happening` / `inMinutes` (each also with `Channel`, `Voice` or `At`); `body: null` means the body is content, shown as is. `args` holds `name`, `channel`, `title`, `minutes`, `place` as the text needs. A worker that doesn't know a name shows `title`/`body`.
 - **Phone apps** don't subscribe: they show notifications while the app is open, from the WebSocket. There is no push relay, so `kind: "native"` (sent by older phone apps) is refused with `bad_request`, and subscriptions stored at the old relay (`https://push.iskra.foo/…`) are deleted on upgrade.
 - Web client: one service worker registration of `/push-sw.js` per server (scope `/push/<serverKey>/`), since every server has its own VAPID key and a registration holds one subscription. A notification click focuses the app (message `{ type: "iskra.open", route }`) or opens `/#/open/<serverKey>/c/<channelId>` / `/#/open/<serverKey>/dm/<accountKey>`. The desktop app uses native notifications and doesn't subscribe.
 
@@ -4993,3 +4993,55 @@ connections, exactly like a second device; servers can't tell that two accounts 
   to tray, hotkeys' key hook, game activity), the assistant's provider address (set again before each account's request)
   and the local MCP bridge, which serves the account on screen: when another account comes on screen, connected MCP
   clients are dropped and must connect again. Pop-out window names carry the slot, so accounts never share a pop-out.
+
+## Task boards
+
+A task board is a channel of kind `tasks` (`channel.create` with `kind: "tasks"`; listed in `channels` like any channel, same `readRole`/`writeRole`). It holds **tasks** in three columns: `todo`, `doing` and `done`. A task is a [thread](#threads) under the board: its id is the thread id and its title the thread name, so its **comments** are the thread's messages (`chat.send`, `chat.history`, `chat.typing` and the rest with the task id as `channelId`; mentions, the inbox, unread counts and search work as in any thread). The thread has no first message: its `rootId` is minus the task id, and `thread.get` answers `root: null`. `chat.send` doesn't work in the board itself, and `thread.update` and `thread.delete` don't work on a task's thread (`bad_request`).
+
+```jsonc
+Task  { "id": 31, "channelId": 8, "title": "Book the venue",
+        "description": "Ask **Mia** first." | null,   // the message syntax; null in lists (task.list, task.mine)
+        "hasDescription": true,
+        "status": "todo" | "doing" | "done",
+        "rank": 3.5,                                  // order within its column, lowest first (ties: lowest id first)
+        "assignees": ["<accountKey>"],                // current members only, in the order they were assigned
+        "labels": [labelId], "due": "2026-12-24" | null,
+        "createdBy": "<accountKey>", "createdAt": 0, "updatedAt": 0, "archived": false,
+        "comments": 2 }
+Label { "id": 1, "name": "Bug", "emoji": "🐛" | null }   // a forum Tag, kept per board
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `task.list` | `channelId, archived?` (default false) | `{ tasks, labels }`: the tasks on the board (by rank), or the archived ones (most recently archived first) | board readers |
+| `task.get` | `id` | `{ task }` | board readers |
+| `task.mine` | | `{ tasks: [{ task, by, at }] }`: tasks assigned to you that are neither done nor archived, on boards you can read (`by`, `at`: who assigned you and when; at most 200, newest first) | anyone |
+| `task.create` | `channelId, title` (1–100 chars, one line), `description?` (≤ 4000 chars, newlines allowed), `status?` (default `todo`), `assignees?` (≤ 10 account keys), `due?` (`YYYY-MM-DD`), `labels?` (≤ 5 of the board's label ids) | `{ task }` (at the end of its column) | board writers; ≤ 500 tasks per board, archived ones included |
+| `task.update` | `id` and any of `title`, `description` (`""` clears), `assignees`, `due` (`null` clears), `labels`, `archived` | `{ task }` | board writers |
+| `task.move` | `id, status, before?` (a task in that column to put it before; without it: last) | `{ task }` | board writers; not for an archived task |
+| `task.delete` | `id` | | a board writer who made the task, is assigned to it, or can [pin](#pins) there (trusted+ or `manageMessages`) |
+| `task.archiveDone` | `channelId` | `{ ids }` | board writers: archives every task in `done` |
+| `task.labels.set` | `channelId, labels: [{ id?, name (1–20), emoji? }]` (≤ 20; the rules of `forum.tags.set`) | `{ labels }` | admin+ (the built-in role ability for forum tags) |
+
+- **Access:** reading follows the board's read access (anything else is `not_found`), every change its write access (`forbidden`, key `tasks_edit`). Any writer may edit, move, assign and archive any task. Members who are timed out, or who must still agree to the [rules](#server-rules), can read (`task.list`, `task.get`, `task.mine`) and nothing else.
+- **Assignees** must be members who can read the board (`bad_request`, key `task_assignee_access`). `task.update` with `assignees` replaces the list. Someone who leaves the server is no longer listed.
+- **Due** is a calendar day without a time or a zone. The server sends no reminder for it.
+- **Order:** `task.move` gives the task a `rank` between its new neighbours, so only that task changes. When two neighbours have no room left between them, the column is renumbered and every task in it is sent again.
+- **Archived** tasks are off the board and keep their status, comments and everything else. `task.update` with `archived: false` puts one back at the end of its column.
+- **Labels:** `task.labels.set` replaces the board's list like `forum.tags.set`: entries with an `id` keep it, labels left out come off every task.
+- **Text:** titles and descriptions are normalized like messages (NFC, trimmed, no control or invisible formatting characters). [AutoMod](#automod) checks the title and description of every create and of every update that changes them.
+- **Deleting** a task deletes its comments. Deleting the board deletes its tasks. Deleting a task someone else made leaves an audit entry `task.delete` `{ channelId, channelName, taskId, title }`.
+- **Rate limits** per connection: `task.create` 1/s (burst 20), `task.update` 2/s (burst 20), `task.move` 4/s (burst 30), `task.archiveDone` 0.2/s (burst 5), `task.labels.set` 0.5/s (burst 5).
+
+| event | body | sent to |
+|---|---|---|
+| `task.updated` | `{ task }` (with its description) | board readers: created, edited, moved, assigned, archived or brought back |
+| `task.deleted` | `{ channelId, id }` | board readers (followed by `thread.deleted` for the same id) |
+| `task.archived` | `{ channelId, ids }` | board readers, after `task.archiveDone` |
+| `task.labels` | `{ channelId, labels }` | board readers, after `task.labels.set` |
+| `task.assigned` | `{ task, by, at }` | every session of a member who was just assigned by someone else (not across a block) |
+
+- **Notifications:** with `task.assigned` the member's devices get a [push](#push-notifications-web-push) of kind `task` (`title` "X assigned you a task", `body` the task's title, `channelId` the board, `task` the task id; not merged with other pushes). A comment that mentions you notifies as any message does. `thread.updated` keeps `comments` current (`messageCount`).
+- **Bots** that can't read all messages are refused `task.list`, `task.get`, `task.mine`, `task.create`, `task.update` and `task.move`, and get no `task.updated`.
+- **Your data:** `data.export` includes `tasks` (tasks you made, with their descriptions) and `taskAssignments` (who assigned which task to whom, where you are either). Comments are messages. **Channel export** writes a board's tasks (`tasks` in the JSON: title, description, status, archived, due, assignees, labels, author, comments). **Deleting an account** removes its assignments; tasks it made stay under its key, like its threads. Message retention applies to comments, not to tasks.
+- **Links:** apps link to a board with `#/open/<serverKey>/c/<channelId>` and to a task with `#/open/<serverKey>/c/<channelId>/t/<taskId>` (like message links), which opens the task in the app.

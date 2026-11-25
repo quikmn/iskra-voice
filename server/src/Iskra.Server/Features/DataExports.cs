@@ -169,6 +169,18 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             SELECT r.page_id, p.title AS page_title, r.version, r.title, r.text, r.author, r.created_at, r.restored_from
             FROM doc_revisions r LEFT JOIN doc_pages p ON p.id = r.page_id WHERE r.author {Mine} ORDER BY r.page_id, r.version;
             """);
+        // Task boards: tasks you made, and assignments to you or made by you. Comments are messages.
+        Section("tasks", $"""
+            SELECT k.task_id AS id, k.board_id AS channel_id, b.name AS channel_name, c.name AS title, k.description, k.status, k.due,
+                t.created_by, t.created_at, k.updated_at, k.archived_at
+            FROM tasks k JOIN channels c ON c.id = k.task_id JOIN threads t ON t.channel_id = k.task_id LEFT JOIN channels b ON b.id = k.board_id
+            WHERE t.created_by {Mine} ORDER BY k.task_id;
+            """);
+        Section("taskAssignments", $"""
+            SELECT a.task_id, c.name AS title, a.account_key, a.assigned_by, a.assigned_at
+            FROM task_assignees a LEFT JOIN channels c ON c.id = a.task_id
+            WHERE a.account_key {Mine} OR a.assigned_by {Mine} ORDER BY a.task_id, a.assigned_at;
+            """);
         // Whiteboards: batches not yet folded into a snapshot (folded ones keep no author). Encrypted ones only by size.
         Section("whiteboardBatches", $"""
             SELECT b.channel_id, c.name AS channel_name, b.seq, b.created_at, CASE WHEN b.version IS NULL THEN b.data END AS ops,
@@ -277,6 +289,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
           app signed there. Their content is on your devices.
         - docsPages, docsRevisions: docs pages you made or last edited, and every saved version of a page you wrote
           (older versions may have gone: the server keeps 50 per page).
+        - tasks, taskAssignments: tasks you made on task boards (with their descriptions), and who assigned which task to
+          whom where you are either of the two. Comments on tasks are in messages.
         - whiteboardBatches: changes you drew on whiteboards that the server hasn't folded into the board's snapshot yet
           (encrypted boards only by channel, time, key version and size). Folded changes keep no author.
         - directMessages, groups, groupMessagesSent: your direct messages and group chats are end-to-end encrypted, so the

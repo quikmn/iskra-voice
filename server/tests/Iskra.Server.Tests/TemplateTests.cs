@@ -136,7 +136,7 @@ public class TemplateTests : IDisposable
     }
 
     [Theory]
-    [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "vioce" } ] }""", "'kind' must be one of text, voice, forum, stage, docs, whiteboard, media, not \"vioce\"")]
+    [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "vioce" } ] }""", "'kind' must be one of text, voice, forum, stage, docs, whiteboard, media, tasks, not \"vioce\"")]
     [InlineData("""{ "name": "x", "chanels": [] }""", "unknown field at $.chanels")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "kind": "voice", "userLimit": 100 } ] }""", "'userLimit' must be 0 (no limit) to 99")]
     [InlineData("""{ "name": "x", "channels": [ { "name": "a", "userLimit": 3 } ] }""", "only voice channels have a 'userLimit'")]

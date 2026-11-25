@@ -391,6 +391,8 @@ public sealed partial class Store : IDisposable
         ("recording-1", RecordingMigration),
         // The rank people left with (moderators may only act on people who left if they outranked them).
         ("modpack-2", ModPackRankMigration),
+        // Task boards: tasks (threads under a "tasks" channel), who they are assigned to, and their labels.
+        ("tasks-1", TasksMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

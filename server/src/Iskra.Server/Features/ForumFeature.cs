@@ -315,7 +315,14 @@ public static class ForumFeature
     {
         var forum = ReadableForum(s, me, body.Long("channelId"));
         if (!BaseRoles.Allows(me, BaseAbility.ForumTags)) throw RequestException.Forbidden("Only admins can change a forum's tags.", "admins_forum_tags");
-        var element = body.Element("tags");
+        var saved = s.World.Store.SetForumTags(forum.Id, ParseTags(s, forum, body.Element("tags"))).Select(TagView).ToList();
+        s.Hub.BroadcastToReaders(forum, Frames.Event("forum.tags", new { channelId = forum.Id, tags = saved }));
+        return new { tags = saved };
+    }
+
+    /// <summary>A new tag list for a channel, checked (task boards keep their labels the same way).</summary>
+    internal static List<(long? Id, string Name, string? Emoji)> ParseTags(Session s, Channel forum, JsonElement element)
+    {
         if (element.ValueKind != JsonValueKind.Array || element.GetArrayLength() > MaxTags)
             throw RequestException.BadRequest($"A forum can have up to {MaxTags} tags.", "forum_tags_max", new { max = MaxTags });
         var known = s.World.Store.ForumTags(forum.Id).Select(t => t.Id).ToHashSet();
@@ -338,9 +345,7 @@ public static class ForumFeature
                 : null;
             tags.Add((id, name, emoji));
         }
-        var saved = s.World.Store.SetForumTags(forum.Id, tags).Select(TagView).ToList();
-        s.Hub.BroadcastToReaders(forum, Frames.Event("forum.tags", new { channelId = forum.Id, tags = saved }));
-        return new { tags = saved };
+        return tags;
     }
 
     /// <summary>Where a post sits in the list: pinned first, then by the sort key, newest first. Also the paging cursor.</summary>

@@ -110,6 +110,7 @@ public static class ThreadFeature
     private static object Update(Session s, Member me, Body body)
     {
         var (thread, _) = ReadableThread(s, me, body.Long("id"));
+        TaskFeature.CheckThreadChange(s, thread);
         RequireManager(s, me, thread);
         if (s.World.Store.GetE2ee(thread.ParentId) is not null) throw RequestException.BadRequest("Threads in encrypted channels have no name.");
         var name = ThreadName(body);
@@ -123,6 +124,7 @@ public static class ThreadFeature
     private static object? Delete(Session s, Member me, Body body)
     {
         var (thread, _) = ReadableThread(s, me, body.Long("id"));
+        TaskFeature.CheckThreadChange(s, thread);
         RequireManager(s, me, thread);
         var parent = s.World.Store.GetChannel(thread.ParentId);
         if (thread.CreatedBy != me.AccountKey)
