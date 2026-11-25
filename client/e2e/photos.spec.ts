@@ -403,3 +403,99 @@ test('photos on a phone: the grid, adding from the phone and the viewer fit the 
   const a11y = await new AxeBuilder({ page: host }).include('[data-testid="photos-channel"]').analyze()
   expect(a11y.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious').map((v) => v.id)).toEqual([])
 })
+
+test('HEIC, AVIF and GIF, a video this browser cannot decode, the unread mark with its notification, and the share sheet', async ({ browser }) => {
+  test.setTimeout(180_000)
+  const host = await (await browser.newContext()).newPage()
+  await joinVia(host, server.ownerLink(), 'Host')
+  const friendContext = await browser.newContext()
+  // Desktop notifications are recorded instead of shown.
+  await friendContext.addInitScript(() => {
+    const shown: { title: string; body?: string }[] = []
+    ;(window as unknown as { shownNotifications: typeof shown }).shownNotifications = shown
+    class Recorded {
+      static permission = 'granted'
+      static requestPermission = async () => 'granted'
+      onclick: (() => void) | null = null
+      constructor(title: string, options?: { body?: string }) {
+        shown.push({ title, body: options?.body })
+      }
+      close() {}
+    }
+    ;(window as unknown as { Notification: unknown }).Notification = Recorded
+  })
+  const friend = await friendContext.newPage()
+  await joinVia(friend, await createInviteLink(host), 'Friend')
+  await createPhotosChannel(host, 'holiday')
+  const row = friend.locator('.channel-list .channel', { hasText: 'holiday' })
+  await expect(row).toBeVisible()
+  await expect(row).not.toHaveClass(/unread/)
+
+  // An iPhone photo (HEIC), an AVIF, an animated GIF and an HEVC video, which this browser can't decode.
+  await addPhotos(host, ['iphone.heic', 'pixel.avif', 'clip.gif', 'hevc.mp4'])
+  await expect(grid(host)).toHaveAttribute('data-count', '4', { timeout: 30_000 })
+  await expect(host.getByTestId('photos-uploads-summary')).toHaveText('4 files added')
+
+  // The friend is elsewhere: the channel turns unread and one notification says what happened.
+  await expect(row).toHaveClass(/unread/)
+  const notes = () => friend.evaluate(() => (window as unknown as { shownNotifications: { title: string; body?: string }[] }).shownNotifications)
+  await expect.poll(notes).toEqual([{ title: expect.stringContaining('Host in #holiday'), body: 'Added 4 photos' }])
+  await row.click()
+  await expect(grid(friend)).toHaveAttribute('data-count', '4')
+  await expect(row).not.toHaveClass(/unread/)
+  // Three thumbnails drew; the video nobody here can decode shows a play tile instead of a broken picture.
+  await expect.poll(() => tiles(friend).locator('img').evaluateAll((imgs) => imgs.filter((i) => (i as HTMLImageElement).naturalWidth > 0).length)).toBe(3)
+  const playTile = friend.locator('.photo-tile.video')
+  await expect(playTile.locator('.photo-blank svg')).toBeVisible()
+  await expect(playTile.locator('img')).toHaveCount(0)
+  await expect(playTile.locator('.photo-badge.video')).toHaveText('Video')
+  await friend.screenshot({ path: join(SHOTS, 'photos-formats.png') })
+
+  // Back in #general, a second batch right after marks the channel unread again without another notification.
+  await friend.locator('.channel-list .channel', { hasText: 'general' }).click()
+  await addPhotos(host, ['wide.jpg'])
+  await expect(grid(host)).toHaveAttribute('data-count', '5')
+  await expect(row).toHaveClass(/unread/)
+  expect(await notes()).toHaveLength(1)
+
+  // Stored: the HEIC and AVIF originals and the GIF, all without what identified them.
+  const stored = storedUploads()
+  for (const secret of [...SECRETS, 'xmpmeta', 'XMP Data']) expect(stored.some((bytes) => bytes.includes(secret)), secret).toBe(false)
+  expect(stored.filter((bytes) => bytes.subarray(4, 12).toString('latin1') === 'ftypheic')).toHaveLength(1)
+  expect(stored.filter((bytes) => bytes.subarray(4, 12).toString('latin1') === 'ftypavif')).toHaveLength(1)
+  expect(stored.filter((bytes) => bytes.subarray(0, 6).toString('latin1') === 'GIF89a' && bytes.includes('NETSCAPE2.0'))).toHaveLength(1)
+
+  // The viewer shows the JPEG made for display; the download is the original HEIC or AVIF. The GIF is shown as it is.
+  await host.locator('.photo-month', { hasText: 'December 2023' }).scrollIntoViewIfNeeded()
+  await tiles(host).last().locator('.photo-open').click()
+  const viewer = host.getByTestId('photo-viewer')
+  const image = viewer.getByTestId('photo-viewer-image')
+  await expect(image).toHaveAttribute('src', /display\.jpg$/)
+  await expect.poll(() => image.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBe(320)
+  await expect(viewer.getByTestId('photo-download')).toHaveAttribute('href', /\.(heic|avif)$/i)
+  await expect(viewer.getByTestId('photo-viewer-date')).toContainText('2023')
+  let sawGif = false
+  for (let i = 0; i < 4 && !sawGif; i++) {
+    await host.keyboard.press('ArrowLeft')
+    sawGif = await viewer.getByTestId('photo-viewer-image').getAttribute('src', { timeout: 2000 }).then((src) => /clip\.gif$/.test(src ?? ''), () => false)
+  }
+  expect(sawGif).toBe(true)
+  await host.getByTestId('photo-viewer-close').click()
+
+  // "Share to Iskra" from another app: a photos channel takes the picture as a photo.
+  await friend.waitForFunction(() => typeof (window as { iskraShare?: unknown }).iskraShare === 'function')
+  await friend.evaluate(async () => {
+    const canvas = new OffscreenCanvas(480, 320)
+    const g = canvas.getContext('2d')!
+    g.fillStyle = '#e0703c'
+    g.fillRect(0, 0, 480, 320)
+    const blob = await canvas.convertToBlob({ type: 'image/png' })
+    ;(window as unknown as { iskraShare: (raw: unknown) => boolean }).iskraShare({ id: 'p1', files: [{ name: 'from-gallery.png', type: 'image/png', size: blob.size, url: URL.createObjectURL(blob) }] })
+  })
+  const picker = friend.getByRole('dialog', { name: 'Share to…' })
+  await picker.getByRole('radio', { name: /^#holiday/ }).click()
+  await picker.getByRole('button', { name: 'Send to #holiday' }).click()
+  await expect(picker).toHaveCount(0)
+  await expect(grid(friend)).toHaveAttribute('data-count', '6')
+  await expect(grid(host)).toHaveAttribute('data-count', '6')
+})

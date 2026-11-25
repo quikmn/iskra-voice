@@ -435,7 +435,9 @@ async function uploadOne(job: Job): Promise<void> {
   patchUpload(id, { state: 'uploading', fraction: 0 })
   const progress = (fraction: number) => patchUpload(id, { fraction: Math.min(0.99, fraction) })
   const name = cleanName(prepared.name)
-  const base = { width: prepared.width, height: prepared.height, ...(prepared.duration ? { duration: prepared.duration } : {}), ...(prepared.takenAt ? { takenAt: prepared.takenAt } : {}) }
+  // A file this device couldn't decode has no known size: the grid then draws it as a square.
+  const sized = prepared.width > 0 && prepared.height > 0
+  const base = { ...(sized ? { width: prepared.width, height: prepared.height } : {}), ...(prepared.duration ? { duration: prepared.duration } : {}), ...(prepared.takenAt ? { takenAt: prepared.takenAt } : {}) }
 
   if (sealed) {
     const file = await uploadEncrypted(server.url + begun.url, begun.partBytes, prepared.blob, progress, signal)
@@ -446,7 +448,7 @@ async function uploadOne(job: Job): Promise<void> {
       file: { server: serverKey, ...file, name, type: prepared.type, size: prepared.blob.size },
       ...(thumb ? { thumb: { server: serverKey, ...thumb, name: 'thumbnail.jpg', type: 'image/jpeg', size: prepared.thumb!.size } } : {}),
       ...(display ? { display: { server: serverKey, ...display, name: 'display.jpg', type: 'image/jpeg', size: prepared.display!.size } } : {}),
-      kind: prepared.kind, name, ...base, caption: '',
+      kind: prepared.kind, name, width: 0, height: 0, ...base, caption: '',
     }
     ready.push({ job, item: { file: file.id, ...(thumb ? { thumb: thumb.id } : {}), ...(display ? { display: display.id } : {}) }, sealed: content })
   } else {

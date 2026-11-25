@@ -101,6 +101,8 @@ function videoThumb(blob: Blob): Promise<{ width: number; height: number; durati
     video.preload = 'auto'
     video.onerror = () => finish({ width: 0, height: 0 })
     video.onloadedmetadata = () => {
+      // Sound but no picture: this device can't decode the video track, so there is no frame to wait for.
+      if (!video.videoWidth) return finish(known())
       video.currentTime = Math.min(1, (Number.isFinite(video.duration) ? video.duration : 0) / 2)
     }
     video.onseeked = () => {
