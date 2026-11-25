@@ -68,8 +68,14 @@ public static class DmFileFeature
         var file = s.World.Store.GetFile(id);
         if (file is null || s.World.Store.GetDmFile(id) is null || !s.World.Store.CanReadDmFile(id, me.AccountKey))
             throw RequestException.NotFound("File");
-        var expires = s.Now + (long)LinkLifetime.TotalMilliseconds;
-        return new { url = $"/dmfiles/{id}?exp={expires}&sig={Sign(id, expires)}", size = file.Size };
+        return new { url = LinkFor(id, s.Now), size = file.Size };
+    }
+
+    /// <summary>A short-lived download link for an encrypted file. The caller has checked that the asker may read it.</summary>
+    internal static string LinkFor(string id, long now)
+    {
+        var expires = now + (long)LinkLifetime.TotalMilliseconds;
+        return $"/dmfiles/{id}?exp={expires}&sig={Sign(id, expires)}";
     }
 
     private static string Sign(string id, long expires) =>

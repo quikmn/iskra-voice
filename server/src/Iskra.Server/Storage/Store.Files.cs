@@ -15,6 +15,11 @@ public sealed partial class Store
     public StoredFile? GetFile(string id) =>
         Query($"SELECT {FileColumns} FROM files WHERE id = $id;", ReadFile, ("$id", id)).FirstOrDefault();
 
+    /// <summary>The file records among <paramref name="ids"/>, by id.</summary>
+    public Dictionary<string, StoredFile> GetFiles(IReadOnlyCollection<string> ids) =>
+        ids.Count == 0 ? [] : Query($"SELECT {FileColumns} FROM files WHERE id IN (SELECT value FROM json_each($ids));", ReadFile,
+            ("$ids", System.Text.Json.JsonSerializer.Serialize(ids))).ToDictionary(f => f.Id);
+
     // ── Reactions ────────────────────────────────────────────────────────────
 
     public bool SetReaction(long messageId, string accountKey, string emoji, bool on, long now)

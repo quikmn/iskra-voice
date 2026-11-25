@@ -73,6 +73,7 @@ public sealed class Router
         ProductivityFeature.Register(this);
         DocsFeature.Register(this);
         TaskFeature.Register(this);
+        PhotoFeature.Register(this);
         ComplianceFeature.Register(this, exports);
         ClipFeature.Register(this);
         KeyLogFeature.Register(this);

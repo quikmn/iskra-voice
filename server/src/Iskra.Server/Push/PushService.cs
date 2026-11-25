@@ -184,6 +184,29 @@ public sealed partial class PushService
         }
     }
 
+    /// <summary>
+    /// A batch of new photos in a photos channel: one push per batch for the people whose notification level for the
+    /// channel is "all messages", as for a message. Mutes and each person's settings decide; no pictures or captions go out.
+    /// </summary>
+    public void PhotosAdded(Channel channel, Member by, int count)
+    {
+        var store = _world.Store;
+        var defaultLevel = Features.NotifyFeature.DefaultFor(store);
+        var everyone = defaultLevel == Features.NotifyFeature.All ? store.AllMembers().Select(m => m.AccountKey) : [];
+        var name = store.DisplayName(by);
+        var settingsChannel = store.SettingsChannelOf(channel.Id);
+        var now = _time.GetUtcNow().ToUnixTimeMilliseconds();
+        foreach (var accountKey in store.AccountsWithLevel(Features.NotifyFeature.All).Concat(everyone).Distinct().ToList())
+        {
+            if (accountKey == by.AccountKey || store.GetMember(accountKey) is not { } target || !Permissions.CanRead(target, channel)) continue;
+            if (store.IsBot(accountKey) || store.EitherBlocked(accountKey, by.AccountKey)) continue;
+            var level = Features.NotifyFeature.EffectiveLevel(store.NotifySettings(accountKey), settingsChannel, now, defaultLevel);
+            if (level != Features.NotifyFeature.All) continue;
+            Notify(accountKey, new PushNote("photos", $"c:{channel.Id}", $"{name} in #{channel.Name}", count == 1 ? "Added a photo" : $"Added {count} photos", name,
+                ChannelId: channel.Id, Text: new PushText("mention", count == 1 ? "photoAdded" : "photosAdded", new { name, channel = channel.Name, count })));
+        }
+    }
+
     /// <summary>A direct message. The server can't read DMs, and the push never claims to: it only says who it's from.</summary>
     public void DirectMessage(Member from, Member to)
     {

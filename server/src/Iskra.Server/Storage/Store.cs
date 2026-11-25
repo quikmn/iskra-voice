@@ -399,6 +399,8 @@ public sealed partial class Store : IDisposable
         ("join-sounds-1", JoinSoundsMigration),
         // Read receipts for DMs and group DMs: the newest sealed receipt per reader and conversation.
         ("receipts-1", ReceiptsMigration),
+        // Photos channels: photos, albums, reactions and the storage cap.
+        ("photos-1", PhotosMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

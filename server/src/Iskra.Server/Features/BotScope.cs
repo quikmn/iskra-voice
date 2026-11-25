@@ -22,11 +22,13 @@ public static class BotScope
         "docs.pages", "docs.page.get", "docs.page.history", "docs.search", "docs.home.get", "chat.forward", "inbox.list",
         "docs.page.save", "docs.page.restore", "docs.home.set", "forum.post.update", "forum.post.set", "report.list", "push.subscribe",
         "task.list", "task.get", "task.mine", "task.create", "task.update", "task.move",
+        "photo.list", "photo.info", "photo.add", "photo.update", "photo.album.create", "photo.album.update", "photo.album.zip",
     ];
 
     /// <summary>Events that carry other people's content and that such a bot never needs.</summary>
     private static readonly HashSet<string> DroppedEvents =
-        ["chat.typing", "docs.page.updated", "docs.home", "forum.post.updated", "watch.chat", "task.updated"];
+        ["chat.typing", "docs.page.updated", "docs.home", "forum.post.updated", "watch.chat", "task.updated",
+         "photo.added", "photo.updated", "photo.album.updated"];
 
     public static void Register(Router router) => router.Add("bot.scope.set", Set);
 

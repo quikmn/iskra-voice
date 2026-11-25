@@ -356,6 +356,7 @@ app.MapMethods("/upload/{token}", ["OPTIONS"], (HttpContext context) =>
 app.MapGet("/files/{id}/{**name}", (HttpContext context, string id, Uploads uploads) => uploads.Serve(context, id));
 app.MapGet("/gifs/media", (HttpContext context, Iskra.Server.Gifs.GifService gifs, Iskra.Server.Gifs.IGifUpstream upstream, Hub hub) =>
     GifFeature.ServeMedia(context, gifs, upstream, hub));
+app.MapGet("/photos/zip/{channelId:long}", (HttpContext context, long channelId, Uploads uploads, World w) => PhotoFeature.ServeZip(context, w, uploads, channelId));
 app.MapGet("/dmfiles/{id}", (HttpContext context, string id, Uploads uploads, World w) => DmFileFeature.Serve(context, w, uploads, id));
 app.MapGet("/pages/{id}", (HttpContext context, string id, World w) => ProfilePages.Serve(context, w, id));
 app.MapGet("/activities/{id}/{**path}", (HttpContext context, string id, string path, World w, Hub hub) => ActivitiesFeature.Serve(context, w, hub, id, path));

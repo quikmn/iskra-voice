@@ -193,7 +193,7 @@ Over the limit: `error` with `code: "rate_limited"`; the session stays open. HTT
 ```jsonc
 Member  { "accountKey": "<b64u>", "name": "Viktor", "role": "member", "online": true, "bot": false,
           ...profile fields (see Profiles) }
-Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "forum" | "stage" | "docs" | "whiteboard" | "media" | "tasks", "position": 0, "readRole": "member", "writeRole": "member",
+Channel { "id": 1, "name": "general", "kind": "text" | "voice" | "forum" | "stage" | "docs" | "whiteboard" | "media" | "tasks" | "photos", "position": 0, "readRole": "member", "writeRole": "member",
           "createdAt": 1760000000000 }                                  // ms; 0 for the first #general
 Message { "id": 42, "channelId": 1, "author": "<accountKey>", "text": "hi", "createdAt": 1760000000000, "editedAt": null,
           "attachments": [File], "replyTo": ..., "reactions": [...],   // Files, replies and reactions
@@ -232,7 +232,7 @@ Servers before this rule may send no `createdAt`; then only a missing channel co
 | `chat.delete` | `id` | | the author, or an admin who outranks the author |
 | `chat.history` | `channelId, before? \| after? \| around?, limit? (1–100, default 50)` | `{ messages (oldest first), hasMore }` | channel readers |
 | `chat.typing` | `channelId` | | channel writers |
-| `channel.create` | `name, kind? (text\|voice\|forum\|stage\|docs\|whiteboard\|media\|tasks), readRole?, writeRole?` | `{ channel }` | admin+ |
+| `channel.create` | `name, kind? (text\|voice\|forum\|stage\|docs\|whiteboard\|media\|tasks\|photos), readRole?, writeRole?` | `{ channel }` | admin+ |
 | `channel.update` | `id, name?, readRole?, writeRole?` | `{ channel }` | admin+ |
 | `channel.delete` | `id` | | admin+ |
 | `profile.update` | `name` and the fields in [Profiles](#profiles) | `{ member }` | anyone |
@@ -676,8 +676,8 @@ Each server sends Web Push messages to its members' devices that aren't looking 
 - `@everyone` (all members) and `@here` (members online now) only ping when the author is trusted or above; from anyone else the text is shown but nobody is pushed, and clients don't count it as a mention either.
 - Incoming-call pushes ring at once (no merging) but at most once per caller and callee per 15 s window.
 - No pushes to a device whose session reported `focused: true` (a new session starts unfocused), to the author, to people who can't read the channel, or to non-members. Per device and conversation the first push goes out at once; more within 15 s become one follow-up push with a `count`.
-- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call"|"event"|"task", server, serverName, title, body, tag, from, channelId?, messageId?, peer?, task?, count, at, text? }` (`from`: the sender's display name). Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". Calls say "X is calling". Event reminders ([Scheduled events](#scheduled-events)) say "Starting soon: …" or "… is starting now". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
-- `title` and `body` are English. `text: { title, body, args }` names them so the web worker can show them in the app's language (it's registered as `/push-sw.js?lang=<code>` and loads that language's table from `/push-text/<code>.js`): titles `mention`, `reply`, `encrypted`, `dm`, `calling`, `groupCall`, `reminder`, `scheduledFailed`, `eventLive`, `eventSoon`, `taskAssigned`; bodies `openToRead`, `groupOpenToRead`, `attachment`, `tapToAnswer`, `tapToJoin`, `reminderGeneric`, `happening` / `inMinutes` (each also with `Channel`, `Voice` or `At`); `body: null` means the body is content, shown as is. `args` holds `name`, `channel`, `title`, `minutes`, `place` as the text needs. A worker that doesn't know a name shows `title`/`body`.
+- Payload (JSON, after decryption): `{ v: 1, kind: "mention"|"reply"|"dm"|"call"|"event"|"task"|"photos", server, serverName, title, body, tag, from, channelId?, messageId?, peer?, task?, count, at, text? }` (`from`: the sender's display name). Mentions and replies carry a ≤ 140-character excerpt; **DMs never carry content**: "New message from X". Calls say "X is calling". Event reminders ([Scheduled events](#scheduled-events)) say "Starting soon: …" or "… is starting now". The `Topic` header is derived from `tag`, so a push service replaces undelivered pushes about the same conversation.
+- `title` and `body` are English. `text: { title, body, args }` names them so the web worker can show them in the app's language (it's registered as `/push-sw.js?lang=<code>` and loads that language's table from `/push-text/<code>.js`): titles `mention`, `reply`, `encrypted`, `dm`, `calling`, `groupCall`, `reminder`, `scheduledFailed`, `eventLive`, `eventSoon`, `taskAssigned`; bodies `openToRead`, `groupOpenToRead`, `attachment`, `photoAdded`, `photosAdded`, `tapToAnswer`, `tapToJoin`, `reminderGeneric`, `happening` / `inMinutes` (each also with `Channel`, `Voice` or `At`); `body: null` means the body is content, shown as is. `args` holds `name`, `channel`, `title`, `minutes`, `place`, `count` as the text needs. A worker that doesn't know a name shows `title`/`body`.
 - **Phone apps** don't subscribe: they show notifications while the app is open, from the WebSocket. There is no push relay, so `kind: "native"` (sent by older phone apps) is refused with `bad_request`, and subscriptions stored at the old relay (`https://push.iskra.foo/…`) are deleted on upgrade.
 - Web client: one service worker registration of `/push-sw.js` per server (scope `/push/<serverKey>/`), since every server has its own VAPID key and a registration holds one subscription. A notification click focuses the app (message `{ type: "iskra.open", route }`) or opens `/#/open/<serverKey>/c/<channelId>` / `/#/open/<serverKey>/dm/<accountKey>`. The desktop app uses native notifications and doesn't subscribe.
 
@@ -2295,7 +2295,7 @@ Someone removed at version n keeps the epoch keys of the versions before n and t
 
 ### How other features behave
 
-- **Not available** (refused with `bad_request`, so no plaintext ever reaches the server): webhooks, polls, scheduled messages, forwarding to or from the channel, clips, AutoMod alerts posted there, stickers and GIFs. Bots never count as readers and can't send there (they hold no keys). Docs, forum and stage channels can't be encrypted; whiteboard channels can (see [Whiteboards](#encrypted-boards)).
+- **Not available** (refused with `bad_request`, so no plaintext ever reaches the server): webhooks, polls, scheduled messages, forwarding to or from the channel, clips, AutoMod alerts posted there, stickers and GIFs. Bots never count as readers and can't send there (they hold no keys). Docs, forum and stage channels can't be encrypted; whiteboard channels can (see [Whiteboards](#encrypted-boards)), and so can photos channels (see [Photos channels](#encrypted-photos-channels)).
 - **Threads** work, encrypted under the parent channel's chain and epoch keys; their name is always `"thread"` (`thread.update` is refused).
 - **Reactions, pins, replies, deletes and read state** work as usual; they are metadata the server sees (which emoji on which message, which message is pinned or replied to).
 - **Search:** the server leaves encrypted channels out; apps search the messages they decrypted, on the device.
@@ -5144,3 +5144,86 @@ and live ones, and ended or cancelled ones for the 30 days they're kept) that th
   Occurrences that are over or were skipped are plain events of their own, so nothing is listed twice.
 - Never: members' names or keys, who is interested, cover images, or events in an end-to-end encrypted channel.
 
+## Photos channels
+
+A photos channel is a channel of kind `photos` (`channel.create` with `kind: "photos"`; listed in `channels` like any channel, same `readRole`/`writeRole`). It holds **photos**: pictures (JPEG, PNG, WebP) and videos (MP4, QuickTime MOV), each in one **album** or in none. A photo has a full-size file and a small thumbnail the uploader's app made, a caption, reactions and, once someone comments, a [thread](#threads). `chat.send` to the channel itself is refused (`cant_send_there`). A photos channel can be [end-to-end encrypted](#encrypted-photos-channels).
+
+```jsonc
+Photo { "id": 12, "channelId": 8, "albumId": 3 | null, "uploader": "<accountKey>", "createdAt": 0,
+        "size": 1834201,                              // bytes stored for it: the file plus its thumbnail
+        "kind": "image" | "video",                    // null in an encrypted channel, like file and thumb
+        "file": File, "thumb": File | null,           // as in chat attachments; served from /files/
+        "width": 3024, "height": 4032,                // as shown (after turning it upright); 0 if not given
+        "duration": 5400 | null,                      // videos: milliseconds
+        "takenAt": 1784000000000 | null,              // the date taken, if the uploader kept it
+        "caption": "At the lake",                     // "" for none; ≤ 500 chars
+        "e2ee": { "version": 4, "envelope": { … } } | null,   // encrypted channels: everything above from kind to caption is in here
+        "reactions": [{ "emoji": "❤️", "accounts": ["<accountKey>"] }],
+        "threadId": 44 | null, "comments": 2 }
+Album { "id": 3, "channelId": 8, "name": "Summer 2026", "coverId": 12 | null,   // null: apps show the album's newest photo
+        "createdBy": "<accountKey>" | "", "createdAt": 0, "count": 14,
+        "e2ee": { "version": 4, "envelope": { … } } | null }                     // encrypted channels: the name is in here, "name" is ""
+Usage { "bytes": 52428800, "count": 61, "capBytes": 1073741824 | null, "maxPhotos": 50000 }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `photo.info` | `channelId` | `{ albums, usage }` | channel readers |
+| `photo.list` | `channelId, after?` (a photo id), `limit?` (1–500, default 500) | `{ photos, hasMore }`: in the order they were added (by id), after `after` | channel readers |
+| `photo.upload.begin` | `channelId, size, thumbSize?` (≤ 512 KB), `name?` | `{ url, thumbUrl, maxBytes, partBytes }`: upload tickets as from `upload.begin` (the file may go up in parts, see [Files](#files-replies-and-reactions)) | channel writers; refused with `photos_full` if `size + thumbSize` doesn't fit under the cap, `file_size` over the server's upload limit, `upload_quota` over your daily quota |
+| `photo.add` | `channelId, albumId?, items` (1–20), `batch?` (≤ 32 chars), `total?`, `keepDate?` (default true); each item: `file` (file id), `thumb?` (file id), `width?, height?, duration?, takenAt?, caption?` | `{ photos, usage }` | channel writers; your own uploads that nothing uses yet |
+| `photo.update` | `id` and any of `caption` (`""` clears), `takenAt` (`null` clears) | `{ photo }` | whoever added the photo |
+| `photo.move` | `ids` (1–200, one channel), `albumId?` (without it: no album) | `{ ids }` (the ones that moved) | your own photos; anyone's with `manageMessages` if you outrank them |
+| `photo.delete` | `ids` (1–200, one channel) | `{ ids, usage }` | your own photos; anyone's with `manageMessages` if you outrank them |
+| `photo.react` | `id, emoji, on?` (default true) | | channel writers; ≤ 20 different emoji per photo; emoji as for `chat.react` |
+| `photo.comments` | `id` | `{ thread }`: the photo's comment thread, made now if it has none (`null` if it has none and you can't write) | channel readers |
+| `photo.album.create` | `channelId, name` (1–80 chars, one line) | `{ album }` | channel writers; ≤ 500 albums per channel |
+| `photo.album.update` | `id` and any of `name`, `coverId` (a photo in the album; `null`: back to the newest) | `{ album }` | whoever made the album; anyone with `manageMessages` who outranks them |
+| `photo.album.delete` | `id` | | as `photo.album.update`. The album's photos stay in the channel, in no album |
+| `photo.album.zip` | `channelId` and `albumId` (that album), nothing (the photos in no album) or `all: true` (the whole channel) | `{ url, count, bytes }` | channel readers; not in an encrypted channel (`photo_zip_encrypted`) |
+| `photo.cap.set` | `channelId, mb` (1–4194304, or `null` for no cap) | `{ usage }` | `manageChannels` |
+| `photo.links` | `channelId, ids` (1–200), `what?` (`thumb`, the default, or `file`) | `{ links: { "<photoId>": url } }` | encrypted channels only, see below |
+
+- **Access:** reading follows the channel's read access (anything else is `not_found`), adding photos, reacting and making albums its write access (`forbidden`, key `photos_write`). Members who are timed out, or who must still agree to the [rules](#server-rules), can read (`photo.info`, `photo.list`, `photo.links`, `photo.album.zip`) and nothing else.
+- **Uploading:** the app asks for tickets with `photo.upload.begin`, PUTs the file and the thumbnail, then lists them in `photo.add`. An upload that never reaches `photo.add` is deleted after a day like any unused upload. Limits: 50 000 photos per channel (`photos_max`).
+- **What a photos channel takes** is decided from the bytes, never the name: `image/jpeg`, `image/png`, `image/webp` and `video/mp4` (which covers MOV). GIF, WebM, HEIC and AVIF are refused (`photo_type`); a thumbnail must be a JPEG, PNG or WebP (`photo_thumb_type`).
+- **Metadata is removed** before a photo is stored, by the app before it uploads and again by the server in `photo.add` (so an app that didn't clean can't leave any; a file that was already clean is kept as it is). Nothing is re-encoded: pixels, sound and quality are exactly the uploader's.
+  - **JPEG:** only the segments needed to draw the picture stay (frame, tables, scan data, the ICC colour profile, the Adobe colour transform, the JFIF header without its thumbnail). The EXIF block is replaced by a new one of at most three fields: `Orientation` (when the picture isn't upright), and with `keepDate` `DateTimeOriginal` and `OffsetTimeOriginal`. GPS, make, model, serial numbers, lens, software, owner, copyright, maker notes, XMP, IPTC, comments and embedded thumbnails go.
+  - **PNG:** only `IHDR`, `PLTE`, `IDAT`, `IEND`, `tRNS`, `cHRM`, `gAMA`, `iCCP`, `sBIT`, `sRGB`, `cICP`, `bKGD`, `pHYs` stay (text, time, EXIF and animation chunks go; an animated PNG keeps its first frame).
+  - **WebP:** `VP8X`, `VP8 `, `VP8L`, `ALPH`, `ICCP`, `ANIM` and `ANMF` stay; `EXIF` is replaced as for JPEG, `XMP ` and unknown chunks go.
+  - **MP4 / MOV:** changed in place, the file keeps its length. In the movie header, `udta`, `meta` and `uuid` boxes (location, make, model, software, XMP) become `free` boxes of zeros, at the top level of the file too; handler names are blanked; every track that isn't video, audio or a timecode (timed metadata such as GPS tracks, subtitles) becomes a `free` box and its samples in the file are overwritten with zeros. Creation and modification times (`mvhd`, `tkhd`, `mdhd`) are zeroed unless `keepDate`. A file that can't be cleaned (no movie header, such a track in a fragmented file) is refused (`photo_unclean`).
+  - **`keepDate: false`** also drops `takenAt` from the items. With it, `takenAt` is what the uploader's app read from the file (or the file's own date) and is only used for sorting and display.
+- **The cap:** `photo.cap.set` limits the bytes a channel's photos (files and thumbnails) may take. `photo.upload.begin` and `photo.add` refuse what doesn't fit (`bad_request`, key `photos_full`, `args.mb`). Lowering the cap below what is used deletes nothing. A change leaves an audit entry `photo.cap` `{ channelId, channelName, from, to }` (MB).
+- **Deleting** a photo deletes its files, reactions and comment thread. Deleting someone else's leaves an audit entry `photo.delete` `{ channelId, channelName, count }` per uploader; deleting someone else's album `photo.album.delete` `{ channelId, channelName, name, count }`. Deleting the channel deletes everything in it.
+- **Comments:** the thread from `photo.comments` works like any thread (`chat.send`, `chat.history` and the rest with its id as `channelId`). It has no first message (`rootId` is minus its id), its name is the caption when it was made (or "Photo"), and `thread.update`/`thread.delete` are refused for it (`photo_thread`). `thread.updated` carries the new `messageCount`.
+- **Text:** captions and album names are normalized like messages and checked by [AutoMod](#automod) (`what: "photo"`).
+- **The zip:** `photo.album.zip` answers a link that works for 10 minutes: `GET /photos/zip/<channelId>?album=…&by=…&exp=…&sig=…` streams a zip (stored, not compressed) of the originals as the server has them, each under its file name (a second file of the same name gets ` (2)`), dated by `takenAt` or the upload time. Access is checked again when the link is opened. 5 links at once, then one every 20 s per account.
+- **Rate limits** per connection: `photo.upload.begin` 8/s (burst 200), `photo.add` 4/s (burst 40), `photo.update` 2/s (burst 20), `photo.move` and `photo.delete` 1/s (burst 10), `photo.react` 5/s (burst 20), `photo.links` 10/s (burst 40), `photo.album.create` 0.5/s (burst 10), `photo.album.update` 1/s (burst 10), `photo.cap.set` 0.5/s (burst 5). Per account: 200 photos at once, then 4 a second (`photo.upload.begin`).
+
+| event | body | sent to |
+|---|---|---|
+| `photo.added` | `{ channelId, photos, usage, by, batch: { id, total, first } \| null }` | channel readers |
+| `photo.updated` | `{ photo }` | channel readers: caption, date, envelope or first comment |
+| `photo.moved` | `{ channelId, ids, albumId, albums }` | channel readers |
+| `photo.deleted` | `{ channelId, ids, usage, albums }` | channel readers (with `thread.deleted` for each comment thread) |
+| `photo.reactions` | `{ channelId, id, reactions }` | channel readers |
+| `photo.album.updated` | `{ album }` | channel readers: made, renamed, new cover |
+| `photo.album.deleted` | `{ channelId, id }` | channel readers |
+| `photo.usage` | `{ channelId, usage }` | channel readers, after `photo.cap.set` |
+
+- **Notifications:** an upload of many photos is one batch: the app sends the same `batch` id (and `total`, how many it means to add) with every `photo.add` of it. The first `photo.added` of a batch has `batch.first: true`, at most once per uploader and channel in 30 seconds, and with it the server sends a [push](#push-notifications-web-push) of kind `photos` ("X in #channel", "Added 12 photos"; `channelId`, never a picture or caption) to the members whose notification level for the channel is `all`, as for a message (mutes, do not disturb and quiet hours apply; never across a block). Apps notify the same way for `batch.first`. Comments notify as messages do.
+- **Bots** that can't read all messages are refused `photo.list`, `photo.info`, `photo.add`, `photo.update`, `photo.album.create`, `photo.album.update` and `photo.album.zip`, and get no `photo.added`, `photo.updated` or `photo.album.updated`.
+- **Your data:** `data.export` includes `photos` (photos you added; their files are in `uploads`), `photoAlbums` (albums you made) and `photoReactions`. **Deleting an account** removes its reactions and its name from albums it made; with its messages, its photos are deleted too. Message retention applies to comments, never to photos. Photos channels aren't part of [channel export](#channel-export): use the zip.
+- **Links:** apps link to a photos channel with `#/open/<serverKey>/c/<channelId>` and to a photo with `#/open/<serverKey>/c/<channelId>/ph/<photoId>`.
+
+### Encrypted photos channels
+
+`channel.create` with `kind: "photos"` takes `e2ee` like a text channel ([End-to-end encrypted channels](#end-to-end-encrypted-channels): the same chain, epoch keys and 50-reader limit). In such a channel:
+
+- **Files** are encrypted by the app like [encrypted DM attachments](#encrypted-dm-attachments) (one random key per file) after the app removed their metadata and made the thumbnail. `photo.upload.begin` hands out tickets for ciphertext that only the chain's members at that moment may fetch; the server never sniffs, cleans or serves them from `/files/`. `photo.links` answers short-lived `/dmfiles/` links (10 minutes) for the photos whose files you may fetch.
+- **A photo** is one envelope, sealed under the current epoch key and signed by the sender's device, like a board envelope ([Encrypted boards](#encrypted-boards)): `{ v: 1, kind: "photo", header: { from, chain, version, sentAt, id, channel, what: "photo" }, sender, nonce, ct, sig }`, signing context `iskra/photo/v1`, associated data the JSON array `["iskra/photo/v1", from, chain, version, head, sentAt, id, channel, what]`. The plaintext is `{ file, thumb?, kind, name, width, height, duration?, takenAt?, caption }` where `file` and `thumb` are encrypted-attachment descriptors (`id`, `key`, `hash`, `size`, `type`, `name`). `photo.add` takes `version` and, per item, `file`, `thumb?` and `envelope` (≤ 8192 chars) and nothing readable; `photo.update` takes `version` and a new `envelope`.
+- **An album**'s name is an envelope with `what: "album"` and plaintext `{ name }` (`photo.album.create` / `photo.album.update` with `version` and `envelope`).
+- **The server checks** only the routing: sealed by you, a chain member, for the current version (`conflict`, key `e2ee_members_changed` otherwise), this channel and purpose. Apps verify the chain, the signature and that `header.from` is the photo's `uploader` (the album's last editor is not recorded, so any member's valid envelope names an album).
+- **What the server still sees:** who added how many photos when, each file's size, which album a photo is in, reactions, the comment threads (their messages are encrypted like any thread's), and the cap.
+- **Not available:** `photo.album.zip` (apps download, decrypt and build the zip on the device), AutoMod on captions and album names, the server-side metadata check (the app's cleaning is the only one), and bots.
+- **New members** see photos added from the epoch they joined in; earlier envelopes and files stay unreadable to them, as with messages.

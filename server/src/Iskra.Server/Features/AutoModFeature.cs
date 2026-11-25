@@ -202,7 +202,7 @@ public static class AutoModFeature
     // ── Enforcement ──────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Checks text a member is about to post (<paramref name="what"/>: message, edit, poll, post, thread, event, watch, page, task) and
+    /// Checks text a member is about to post (<paramref name="what"/>: message, edit, poll, post, thread, event, watch, page, task, photo) and
     /// throws <c>automod</c> if a rule blocks it, after timing out, auditing and alerting as configured. Messages, polls
     /// and forum posts also count towards the flood and repeat rules. <paramref name="channel"/> is null for events.
     /// </summary>

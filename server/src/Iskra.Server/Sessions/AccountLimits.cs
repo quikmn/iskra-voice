@@ -36,6 +36,9 @@ public sealed class AccountLimits(TimeProvider time)
         ["room.rename"] = (5, 0.2),                // renaming a room you host (it shows in everyone's channel list)
         ["lfg.created"] = (3, 1 / 30.0),           // LFG posts that go ahead: 3, then one every 30 s
         ["teams.created"] = (3, 0.1),              // team splits that go ahead: 3, then one every 10 s
+        ["photo.upload"] = (200, 4),               // photos for a photos channel (each with its thumbnail): an album at once, then 4 a second
+        ["photo.thread"] = (10, 0.2),              // first comments on photos (each makes a thread)
+        ["photo.zip"] = (5, 0.05),                 // album downloads: 5, then one every 20 s
     };
 
     private const int PruneAbove = 10_000;

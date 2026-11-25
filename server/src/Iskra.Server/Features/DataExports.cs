@@ -188,6 +188,18 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
                 b.version, length(b.data) AS bytes
             FROM wb_batches b LEFT JOIN channels c ON c.id = b.channel_id WHERE b.author {Mine} ORDER BY b.channel_id, b.seq;
             """);
+        // Photos channels: photos you added (encrypted ones only by channel, time, key version and size), albums you made, your reactions.
+        Section("photos", $"""
+            SELECT p.id, p.channel_id, c.name AS channel_name, p.album_id, a.name AS album_name, p.file_id, p.created_at, p.taken_at, p.kind,
+                p.width, p.height, p.duration, p.size, p.caption, p.version
+            FROM photos p LEFT JOIN channels c ON c.id = p.channel_id LEFT JOIN photo_albums a ON a.id = p.album_id
+            WHERE p.uploader {Mine} ORDER BY p.id;
+            """);
+        Section("photoAlbums", $"""
+            SELECT a.id, a.channel_id, c.name AS channel_name, a.name, a.created_at, a.version
+            FROM photo_albums a LEFT JOIN channels c ON c.id = a.channel_id WHERE a.created_by {Mine} ORDER BY a.id;
+            """);
+        Section("photoReactions", $"SELECT photo_id, account_key, emoji, created_at FROM photo_reactions WHERE account_key {Mine} ORDER BY created_at;");
         Section("reactions", $"SELECT message_id, account_key, emoji, created_at FROM reactions WHERE account_key {Mine} ORDER BY created_at;");
         Section("botCommandsUsed", $"SELECT message_id, interaction_id, user_key, command FROM bot_interaction_messages WHERE user_key {Mine} ORDER BY message_id;");
         Section("pollVotes", $"SELECT message_id, account_key, option, created_at FROM poll_votes WHERE account_key {Mine};");
@@ -297,6 +309,10 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
           (older versions may have gone: the server keeps 50 per page).
         - tasks, taskAssignments: tasks you made on task boards (with their descriptions), and who assigned which task to
           whom where you are either of the two. Comments on tasks are in messages.
+        - photos, photoAlbums, photoReactions: photos and videos you added to photos channels (their files are in uploads:
+          "file_id"), albums you made and your reactions to photos. In end-to-end encrypted photos channels the server has
+          only the channel, the time, the key version and the size: names, captions and dates taken are on your devices.
+          Comments on photos are in messages.
         - whiteboardBatches: changes you drew on whiteboards that the server hasn't folded into the board's snapshot yet
           (encrypted boards only by channel, time, key version and size). Folded changes keep no author.
         - directMessages, groups, groupMessagesSent: your direct messages and group chats are end-to-end encrypted, so the

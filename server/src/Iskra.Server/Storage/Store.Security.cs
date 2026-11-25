@@ -39,7 +39,9 @@ public sealed partial class Store
                 UNION SELECT image_file FROM events WHERE image_file IS NOT NULL
                 UNION SELECT avatar_file FROM imported_authors WHERE avatar_file IS NOT NULL
                 UNION SELECT file_id FROM server_images
-                UNION SELECT file_id FROM dm_files WHERE message_id IS NOT NULL)
+                UNION SELECT file_id FROM dm_files WHERE message_id IS NOT NULL
+                UNION SELECT file_id FROM photos
+                UNION SELECT thumb_id FROM photos WHERE thumb_id IS NOT NULL)
             RETURNING sha256;
             """, r => r.GetString(0), ("$cutoff", cutoff), ("$keep", System.Text.Json.JsonSerializer.Serialize(keep)));
 

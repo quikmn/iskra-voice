@@ -28,6 +28,8 @@ public sealed class Hub(World world, TimeProvider time)
     public Features.FeedService? Feeds { get; set; }
     /// <summary>Which whiteboard each session is viewing (Features/WhiteboardFeature.cs).</summary>
     public Features.BoardRegistry Boards { get; } = new();
+    /// <summary>Which upload batch last notified in each photos channel (Features/PhotoFeature.cs).</summary>
+    public Features.PhotoBatches PhotoBatches { get; } = new();
     /// <summary>Running activities in voice channels (Features/ActivitiesFeature.cs).</summary>
     public Features.ActivityRooms ActivityRooms { get; } = new();
 

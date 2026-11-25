@@ -74,6 +74,16 @@ public sealed class RateLimiter(TimeProvider time)
         ["task.move"] = (30, 4),
         ["task.archiveDone"] = (5, 0.2),
         ["task.labels.set"] = (5, 0.5),
+        ["photo.upload.begin"] = (200, 8),
+        ["photo.add"] = (40, 4),
+        ["photo.update"] = (20, 2),
+        ["photo.move"] = (10, 1), // up to 200 photos each
+        ["photo.delete"] = (10, 1), // up to 200 photos each
+        ["photo.react"] = (20, 5),
+        ["photo.links"] = (40, 10), // up to 200 links each
+        ["photo.album.create"] = (10, 0.5),
+        ["photo.album.update"] = (10, 1),
+        ["photo.cap.set"] = (5, 0.5),
         ["wb.update"] = (20, 8),
         ["wb.live"] = (10, 8),
         ["wb.get"] = (20, 5),
