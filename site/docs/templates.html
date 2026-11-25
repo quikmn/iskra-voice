@@ -73,7 +73,7 @@
 <main class="doc docs-main" id="top">
   <div class="doc-kicker">Docs</div>
   <h1>Server templates</h1>
-  <p class="updated">Last updated <time datetime="2026-11-03">3 November 2026</time></p>
+  <p class="updated">Last updated <time datetime="2026-11-25">25 November 2026</time></p>
   <details class="mobile-toc">
     <summary>On this page</summary>
     <ul class="toc-list"><li class="l2"><a href="#adding-a-template-to-a-server-in-use">Adding a template to a server in use</a></li><li class="l2"><a href="#the-format">The format</a></li><li class="l2"><a href="#the-built-in-templates">The built-in templates</a></li></ul>
@@ -193,7 +193,7 @@ version of Iskra says so. Files can be up to 256 KB, with up to 500 channels.</p
 </tr>
 <tr>
 <td><code>kind</code></td>
-<td><code>text</code> (default), <code>voice</code>, <code>forum</code>, <code>stage</code>, <code>docs</code> or <code>whiteboard</code></td>
+<td><code>text</code> (default), <code>voice</code>, <code>forum</code>, <code>stage</code>, <code>docs</code>, <code>whiteboard</code>, <code>media</code> or <code>tasks</code> (a task board)</td>
 </tr>
 <tr>
 <td><code>readRole</code></td>
@@ -201,7 +201,7 @@ version of Iskra says so. Files can be up to 256 KB, with up to 500 channels.</p
 </tr>
 <tr>
 <td><code>writeRole</code></td>
-<td>the lowest built-in role that can post (text, forums), speak (voice), ask to speak (stage), edit (docs) or draw (whiteboards). Default: the same as <code>readRole</code>; for docs <code>trusted</code></td>
+<td>the lowest built-in role that can post (text, forums), speak (voice), ask to speak (stage), edit (docs), draw (whiteboards) or change tasks (task boards). Default: the same as <code>readRole</code>; for docs <code>trusted</code></td>
 </tr>
 <tr>
 <td><code>overrides</code></td>

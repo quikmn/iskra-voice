@@ -581,7 +581,7 @@ file is deleted from the server.
 In the zip, each channel has its own folder with:
 
 - `channel.html`: open it in any browser to read the channel as it looked: names, times, replies, reactions, pins,
-  polls, threads, forum posts and docs pages, with images shown inline. It works offline and loads nothing from the
+  polls, threads, forum posts, docs pages and task boards (tasks with their comments), with images shown inline. It works offline and loads nothing from the
   internet (it has no scripts at all, and a strict content security policy).
 - `channel.json`: the same content for programs, in a documented, versioned format (see "Channel export" in
   [the protocol reference](../protocol/PROTOCOL.md#channel-export)).
@@ -714,7 +714,7 @@ shorter range for bigger channels. One export runs at a time per server.
 | `exports/` | "Download my data" files while their 10-minute link lasts (never in backups) |
 | `models/` | The live-captions speech model, once someone has used captions (about 78 MB; never in backups, fetched again when needed) |
 
-Profile pages, polls, threads, pins, forums, events, roles, groups (their encrypted messages), webhooks (only a hash of each secret), outgoing webhooks (with their signing secrets), built-in bots and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
+Profile pages, polls, threads, pins, forums, task boards, events, roles, groups (their encrypted messages), webhooks (only a hash of each secret), outgoing webhooks (with their signing secrets), built-in bots and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
 
 On Linux and macOS the server creates the folder (and `certs/`) readable by its own user only, writes secrets as `0600`, and tightens older secret files to `0600` when it starts.
 

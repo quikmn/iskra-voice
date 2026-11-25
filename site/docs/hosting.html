@@ -73,7 +73,7 @@
 <main class="doc docs-main" id="top">
   <div class="doc-kicker">Docs</div>
   <h1>Hosting an Iskra server</h1>
-  <p class="updated">Last updated <time datetime="2026-11-22">22 November 2026</time></p>
+  <p class="updated">Last updated <time datetime="2026-11-25">25 November 2026</time></p>
   <details class="mobile-toc">
     <summary>On this page</summary>
     <ul class="toc-list"><li class="l2"><a href="#1-from-the-desktop-app">1. From the desktop app</a></li><li class="l2"><a href="#2-the-standalone-server">2. The standalone server</a></li><li class="l2"><a href="#reaching-your-server-from-the-internet">Reaching your server from the internet</a></li><li class="l2"><a href="#backups-moving-and-importing">Backups, moving and importing</a></li><li class="l2"><a href="#serverjson-reference">server.json reference</a></li><li class="l2"><a href="#whats-in-the-folder">What's in the folder</a></li><li class="l2"><a href="#logs">Logs</a></li><li class="l2"><a href="#public-page">Public page</a></li><li class="l2"><a href="#server-icon-and-banner">Server icon and banner</a></li><li class="l2"><a href="#roles-and-moderation">Roles and moderation</a></li></ul>
@@ -675,7 +675,7 @@ file is deleted from the server.</p>
 <p>In the zip, each channel has its own folder with:</p>
 <ul>
 <li><code>channel.html</code>: open it in any browser to read the channel as it looked: names, times, replies, reactions, pins,
-polls, threads, forum posts and docs pages, with images shown inline. It works offline and loads nothing from the
+polls, threads, forum posts, docs pages and task boards (tasks with their comments), with images shown inline. It works offline and loads nothing from the
 internet (it has no scripts at all, and a strict content security policy).</li>
 <li><code>channel.json</code>: the same content for programs, in a documented, versioned format (see &quot;Channel export&quot; in
 <a href="https://github.com/quikmn/iskra-voice/blob/main/protocol/PROTOCOL.md#channel-export" target="_blank" rel="noopener">the protocol reference</a>).</li>
@@ -864,7 +864,7 @@ shorter range for bigger channels. One export runs at a time per server.</p>
 </tr>
 </tbody>
 </table></div>
-<p>Profile pages, polls, threads, pins, forums, events, roles, groups (their encrypted messages), webhooks (only a hash of each secret), outgoing webhooks (with their signing secrets), built-in bots and push subscriptions are all in <code>iskra.db</code> too, so copying the folder takes everything along.</p>
+<p>Profile pages, polls, threads, pins, forums, task boards, events, roles, groups (their encrypted messages), webhooks (only a hash of each secret), outgoing webhooks (with their signing secrets), built-in bots and push subscriptions are all in <code>iskra.db</code> too, so copying the folder takes everything along.</p>
 <p>On Linux and macOS the server creates the folder (and <code>certs/</code>) readable by its own user only, writes secrets as <code>0600</code>, and tightens older secret files to <code>0600</code> when it starts.</p>
 <p>Uploads that nothing uses (no message, direct message, avatar, emoji, sticker, sound, webhook, event cover, profile page or running watch party) are deleted after a day.</p>
 <p><strong>Security log and retention:</strong> the owner reads the server's security log in <strong>Server settings → Sign-ins &amp; security</strong> (failed sign-ins, new members and devices, key changes, account deletions, backups, moves, data downloads; IP addresses only if you turn that on) and sets how long messages, files, the audit log and the security log are kept. Deleting happens every hour and can't be undone. Members download what the server keeps about them in <strong>Settings → Privacy &amp; data</strong>; if someone asks you instead, use <strong>Someone's data</strong> in Server settings → Sign-ins &amp; security.</p>
