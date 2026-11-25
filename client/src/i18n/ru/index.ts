@@ -16,6 +16,7 @@ import { roles } from './roles'
 import { rules } from './rules'
 import { automod } from './automod'
 import { events } from './events'
+import { calendar } from './calendar'
 import { forums } from './forums'
 import { calls } from './calls'
 import { groups } from './groups'
@@ -150,4 +151,5 @@ export const ru: Messages = {
   recording,
   kit,
   shell,
+  calendar,
 }

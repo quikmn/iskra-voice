@@ -79,6 +79,11 @@ export const compliance: Messages['compliance'] = {
       when: 'Tylko gdy wynajmujesz serwer na DigitalOcean z aplikacji na komputer: przycisk otwiera DigitalOcean z linkiem polecającym Iskra (Iskra dostaje niewielki bonus), logujesz się tam w przeglądarce (albo wklejasz token), a aplikacja tworzy serwer i jego zaporę oraz usuwa je, jeśli konfiguracja się nie uda. Nowy serwer pobiera oprogramowanie Iskra z GitHuba, a aplikacja sprawdza go pod jego adresem sslip.io.',
       off: 'DigitalOcean widzi twój adres IP i to, co aplikacja tworzy na twoim koncie. Aplikacja trzyma klucz tylko w pamięci i zapomina go po konfiguracji. Nic się nie dzieje, dopóki tego nie uruchomisz.',
     },
+    calendar: {
+      who: 'Twoja usługa kalendarza (Google, Outlook, Apple), tylko jeśli dodasz do niej kalendarz serwera (domyślnie wyłączone)',
+      when: 'Gdy utworzysz link do kalendarza w Wydarzenia → Dodaj do mojego kalendarza i go zasubskrybujesz, twoja usługa kalendarza pobiera z serwera wydarzenia tego serwera: tytuły, godziny, miejsca i opisy wydarzeń, które widzisz. Nigdy nazwy członków, nigdy nic z szyfrowanych kanałów. W aplikacji na telefon opcja „Dodawaj wydarzenia z tego serwera do kalendarza w moim telefonie” zapisuje to samo w kalendarzu w telefonie, a telefon synchronizuje go z twoim własnym kontem.',
+      off: 'Wyłącz link (albo utwórz nowy) w Wydarzenia → Dodaj do mojego kalendarza, a od razu przestanie działać. Wyłączenie przełącznika w telefonie usuwa wydarzenia dodane przez aplikację Iskra.',
+    },
     assistant: {
       who: 'Dostawca AI, którego wybierzesz dla asystenta (domyślnie wyłączone)',
       when: 'Tylko gdy klikniesz „Wyślij” w asystencie: twoje pytanie, dotychczasowa rozmowa i to, co jego narzędzia odczytały dla tego pytania (nazwy, listy kanałów, ostatnie wiadomości z kanału, który możesz czytać). Nigdy szyfrowane czaty, klucze ani linki z zaproszeniem.',

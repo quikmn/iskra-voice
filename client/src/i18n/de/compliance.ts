@@ -79,6 +79,11 @@ export const compliance: Messages['compliance'] = {
       when: 'Nur während du aus der Desktop-App einen Server bei DigitalOcean mietest: Der Button öffnet DigitalOcean mit dem Empfehlungslink von Iskra (Iskra bekommt ein kleines Guthaben), du meldest dich dort im Browser an (oder fügst ein Token ein), und die App erstellt den Server und seine Firewall und löscht sie, falls die Einrichtung scheitert. Der neue Server lädt Iskra von GitHub, und die App prüft ihn unter seiner sslip.io-Adresse.',
       off: 'DigitalOcean sieht deine IP-Adresse und was die App in deinem Konto erstellt. Die App behält ihren Schlüssel nur im Arbeitsspeicher und vergisst ihn nach der Einrichtung. Nichts passiert, solange du es nicht startest.',
     },
+    calendar: {
+      who: 'Dein Kalenderdienst (Google, Outlook, Apple), nur wenn du ihm den Kalender eines Servers hinzufügst (standardmäßig aus)',
+      when: 'Nachdem du unter Events → Zu meinem Kalender hinzufügen einen Kalenderlink erstellt und abonniert hast, ruft dein Kalenderdienst die Events dieses Servers vom Server ab: Titel, Zeiten, Orte und Beschreibungen der Events, die du sehen kannst. Nie Namen von Mitgliedern, nie etwas aus verschlüsselten Kanälen. In der Handy-App schreibt „Events dieses Servers in den Kalender meines Handys eintragen“ dasselbe in einen Kalender auf deinem Handy, den dein Handy mit deinem eigenen Konto synchronisiert.',
+      off: 'Schalte den Link unter Events → Zu meinem Kalender hinzufügen aus (oder erstelle einen neuen), dann funktioniert er sofort nicht mehr. Wenn du den Schalter am Handy ausschaltest, werden die Events entfernt, die Iskra eingetragen hat.',
+    },
     assistant: {
       who: 'Der KI-Anbieter, den du für den Assistenten wählst (standardmäßig aus)',
       when: 'Nur wenn du im Assistenten auf Senden drückst: deine Frage, die bisherige Unterhaltung und was seine Werkzeuge für diese Frage lesen (Namen, Kanallisten, letzte Nachrichten eines Kanals, den du lesen kannst). Nie verschlüsselte Chats, Schlüssel oder Einladungslinks.',

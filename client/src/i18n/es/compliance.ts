@@ -80,6 +80,11 @@ export const compliance: Messages['compliance'] = {
       when: 'Solo mientras alquilas un servidor en DigitalOcean desde la app de escritorio: el botón abre DigitalOcean con el enlace de referido de Iskra (Iskra recibe un poco de crédito), inicias sesión ahí en tu navegador (o pegas un token), y la app crea el servidor y su firewall, y los elimina si la instalación falla. El servidor nuevo descarga Iskra desde GitHub, y la app lo comprueba en su dirección de sslip.io.',
       off: 'DigitalOcean ve tu dirección IP y lo que la app crea en tu cuenta. La app guarda su clave solo en memoria y la olvida después de la instalación. No pasa nada a menos que tú lo inicies.',
     },
+    calendar: {
+      who: 'Tu servicio de calendario (Google, Outlook, Apple), solo si le agregas el calendario de un servidor (desactivado de forma predeterminada)',
+      when: 'Después de crear un enlace de calendario en Eventos → Agregar a mi calendario y suscribirte a él, tu servicio de calendario obtiene del servidor los eventos de ese servidor: títulos, horarios, lugares y descripciones de los eventos que puedes ver. Nunca nombres de miembros, nunca nada de los canales cifrados. En la app del teléfono, “Poner los eventos de este servidor en el calendario de mi teléfono” escribe lo mismo en un calendario de tu teléfono, que tu teléfono sincroniza con tu propia cuenta.',
+      off: 'Desactiva el enlace (o crea uno nuevo) en Eventos → Agregar a mi calendario, y deja de funcionar al instante. Al desactivar el interruptor del teléfono se quitan los eventos que agregó Iskra.',
+    },
     assistant: {
       who: 'El proveedor de IA que elijas para el asistente (desactivado de forma predeterminada)',
       when: 'Solo cuando presionas Enviar en el asistente: tu pregunta, la conversación hasta ese momento y lo que sus herramientas leen para esa pregunta (nombres, listas de canales, mensajes recientes de un canal que puedes leer). Nunca chats cifrados, claves ni enlaces de invitación.',
