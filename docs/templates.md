@@ -113,9 +113,9 @@ version of Iskra says so. Files can be up to 256 KB, with up to 500 channels.
 | field | meaning |
 |---|---|
 | `name` | 1–32 characters |
-| `kind` | `text` (default), `voice`, `forum`, `stage`, `docs`, `whiteboard`, `media` or `tasks` (a task board) |
+| `kind` | `text` (default), `voice`, `forum`, `stage`, `docs`, `whiteboard`, `media`, `tasks` (a task board) or `photos` (photo albums) |
 | `readRole` | the lowest built-in role that can see it: `guest`, `member` (default), `trusted`, `admin` or `owner` |
-| `writeRole` | the lowest built-in role that can post (text, forums), speak (voice), ask to speak (stage), edit (docs), draw (whiteboards) or change tasks (task boards). Default: the same as `readRole`; for docs `trusted` |
+| `writeRole` | the lowest built-in role that can post (text, forums), speak (voice), ask to speak (stage), edit (docs), draw (whiteboards), change tasks (task boards) or add photos (photos channels). Default: the same as `readRole`; for docs `trusted` |
 | `overrides` | for the template's own roles: `{ "role": "Moderator", "allow": [...], "deny": [...] }` with `view`, `send`, `connect`, `speak`. Denies apply first, then allows |
 | `userLimit` | voice only: 0 (no limit) to 99 |
 | `hifi` | voice only: hi-fi audio allowed |

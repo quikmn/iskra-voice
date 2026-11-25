@@ -714,7 +714,7 @@ shorter range for bigger channels. One export runs at a time per server.
 | `exports/` | "Download my data" files while their 10-minute link lasts (never in backups) |
 | `models/` | The live-captions speech model, once someone has used captions (about 78 MB; never in backups, fetched again when needed) |
 
-Profile pages, polls, threads, pins, forums, task boards, events, roles, groups (their encrypted messages), webhooks (only a hash of each secret), outgoing webhooks (with their signing secrets), built-in bots and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
+Profile pages, polls, threads, pins, forums, task boards, photos channels (their albums, captions and reactions; the pictures and videos are files in `uploads/`), events, roles, groups (their encrypted messages), webhooks (only a hash of each secret), outgoing webhooks (with their signing secrets), built-in bots and push subscriptions are all in `iskra.db` too, so copying the folder takes everything along.
 
 On Linux and macOS the server creates the folder (and `certs/`) readable by its own user only, writes secrets as `0600`, and tightens older secret files to `0600` when it starts.
 
