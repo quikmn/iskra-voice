@@ -220,5 +220,7 @@ export const compliance: Messages['compliance'] = {
     buddy_spot_deleted: 'Eliminó las copias de un amigo tras el período de gracia',
     buddy_auth_failed: 'Se rechazó una solicitud de otro servidor (firma incorrecta)',
     webhook_bad_signature: 'Se rechazó una publicación de webhook (firma ausente o incorrecta)',
+    calendar_feed_created: 'Creó un enlace de calendario',
+    calendar_feed_removed: 'Desactivó su enlace de calendario',
   },
 }

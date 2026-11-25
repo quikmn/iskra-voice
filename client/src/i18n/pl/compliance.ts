@@ -221,5 +221,7 @@ export const compliance: Messages['compliance'] = {
     buddy_spot_deleted: 'Usunięcie kopii zapasowych znajomych po okresie karencji',
     buddy_auth_failed: 'Odrzucenie żądania z innego serwera (zły podpis)',
     webhook_bad_signature: 'Odrzucenie wpisu webhooka (brak podpisu albo zły podpis)',
+    calendar_feed_created: 'Utworzono link do kalendarza',
+    calendar_feed_removed: 'Wyłączono własny link do kalendarza',
   },
 }

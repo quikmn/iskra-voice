@@ -16,8 +16,10 @@ export function CalendarFeedsSection({ server }: { server: ServerState }) {
 
   useEffect(() => {
     if (!owner || !online) return
-    loadFeed(server.key).catch((e: unknown) => setError(errorMessage(e)))
-  }, [server.key, owner, online])
+    setError(null)
+    // A server that just moved answers `moved`: the app follows it, and this asks again once it's back online there.
+    loadFeed(server.key).catch((e: unknown) => { if ((e as { code?: string } | null)?.code !== 'moved') setError(errorMessage(e)) })
+  }, [server.key, server.directUrl, owner, online])
 
   // Nothing on a server too old to have feeds.
   if (!owner || !feed) return null

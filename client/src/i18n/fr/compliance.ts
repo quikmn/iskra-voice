@@ -219,5 +219,7 @@ export const compliance: Messages['compliance'] = {
     buddy_spot_deleted: 'Sauvegardes d’un ami supprimées après le délai de grâce',
     buddy_auth_failed: 'Requête d’un autre serveur refusée (signature incorrecte)',
     webhook_bad_signature: 'Publication de webhook refusée (signature absente ou incorrecte)',
+    calendar_feed_created: 'A créé un lien de calendrier',
+    calendar_feed_removed: 'A désactivé son lien de calendrier',
   },
 }

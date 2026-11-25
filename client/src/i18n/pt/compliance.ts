@@ -219,5 +219,7 @@ export const compliance: Messages['compliance'] = {
     buddy_spot_deleted: 'Excluiu os backups de um amigo após o período de tolerância',
     buddy_auth_failed: 'Recusou uma solicitação de outro servidor (assinatura inválida)',
     webhook_bad_signature: 'Recusou um envio de webhook (assinatura ausente ou errada)',
+    calendar_feed_created: 'Criou um link de calendário',
+    calendar_feed_removed: 'Desativou o próprio link de calendário',
   },
 }

@@ -218,5 +218,7 @@ export const compliance = {
     buddy_spot_deleted: "Deleted a friend's backups after the grace period",
     buddy_auth_failed: 'Refused a request from another server (bad signature)',
     webhook_bad_signature: 'Refused a webhook post (missing or wrong signature)',
+    calendar_feed_created: 'Made a calendar link',
+    calendar_feed_removed: 'Turned their calendar link off',
   },
 } as const

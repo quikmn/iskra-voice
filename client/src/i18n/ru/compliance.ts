@@ -221,5 +221,7 @@ export const compliance: Messages['compliance'] = {
     buddy_spot_deleted: 'Резервные копии друга удалены после льготного срока',
     buddy_auth_failed: 'Отклонён запрос другого сервера (неверная подпись)',
     webhook_bad_signature: 'Отклонён запрос вебхука (подпись отсутствует или неверна)',
+    calendar_feed_created: 'Создана ссылка на календарь',
+    calendar_feed_removed: 'Ссылка на календарь отключена',
   },
 }
