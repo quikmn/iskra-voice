@@ -226,6 +226,31 @@ public class PhotoTests
         Assert.Throws<Mp4Metadata.Refused>(() => Mp4Metadata.Plan(new MemoryStream(Box("ftyp", "isom"u8.ToArray())), true));
     }
 
+    /// <summary>
+    /// The fixtures the app's tests clean too (client/src/core/photoMetadata.test.ts has the same hashes): the server and
+    /// the app must write the same bytes, so a file the app cleaned passes through the server unchanged.
+    /// </summary>
+    [Theory]
+    [InlineData("gps.jpg", "image/jpeg", true, "4ede4a1beb081d03ce7fdee76946cc6bfa1f038b90957f8f7544a5c2eff75f98")]
+    [InlineData("gps.jpg", "image/jpeg", false, "15d98e762c0f219ee0cfe9ca7dbee81aecd6059952f4d9073f81294a542af6a0")]
+    [InlineData("screenshot.png", "image/png", true, "e13a12ae4444c46faea8a0ca3090994f15cab1f141efc956188adb5d6c76c9c6")]
+    [InlineData("clip.mp4", "video/mp4", true, "0972284705233ff86b1f1a6b6315b49bf07d920ec4f570c0bcbd3a97afdab909")]
+    [InlineData("clip.mp4", "video/mp4", false, "83037acc02d5b5d3219e4980712d4e3262f619ef008b5995225d7ff1228a4b3a")]
+    public void The_server_and_the_app_clean_a_file_to_the_same_bytes(string name, string type, bool keepDate, string sha256)
+    {
+        var original = File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(Repo.ProtocolFile("PROTOCOL.md"))!, "..", "client", "e2e", "fixtures", "photos", name));
+        byte[] cleaned;
+        if (type == "video/mp4")
+        {
+            cleaned = (byte[])original.Clone();
+            using var stream = new MemoryStream(cleaned);
+            Mp4Metadata.Apply(stream, Mp4Metadata.Plan(stream, keepDate));
+        }
+        else cleaned = PhotoMetadata.Clean(original, type, keepDate);
+        Assert.Equal(sha256, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(cleaned)));
+        foreach (var secret in new[] { "SecretCam", "SecretPhone", "Secret Owner", "SN-SECRET", "59.3293", "Secret title" }) Assert.False(Has(cleaned, secret), secret);
+    }
+
     // ── Helpers for the channel ────────────────────────────────────────────────
 
     private static string? Key(JsonElement frame) => frame.Body().TryGetProperty("key", out var key) ? key.GetString() : null;
@@ -422,7 +447,7 @@ public class PhotoTests
         Assert.Equal(bob.Key, audit.GetProperty("target").GetString());
 
         // Deleting an album leaves its photos in the channel.
-        Assert.Equal("photo_album_owner", Key(await bob.RequestAsync("photo.album.delete", new { id = Id(album) })));
+        Assert.Equal("photo_album_delete_owner", Key(await bob.RequestAsync("photo.album.delete", new { id = Id(album) })));
         Assert.Equal("result", (await alice.RequestAsync("photo.album.delete", new { id = Id(album) })).Type());
         Assert.Equal(Id(album), (await bob.EventAsync("photo.album.deleted")).Body().GetProperty("id").GetInt64());
         var left = Assert.Single(await Listed(bob, channel));

@@ -370,7 +370,7 @@ public static class PhotoFeature
                 }
                 catch (Exception ex) when (ex is ImageMetadata.Refused or Mp4Metadata.Refused)
                 {
-                    throw RequestException.BadRequest($"\"{file.Name}\" can't be added: its metadata couldn't be removed. {ex.Message}", "photo_unclean", new { name = file.Name });
+                    throw RequestException.BadRequest($"\"{file.Name}\" can't be added: its metadata couldn't be removed.", "photo_unclean", new { name = file.Name, why = ex.Message });
                 }
                 if (cleanFile.Id != file.Id) replaced.Add(file.Id);
                 if (thumb is not null && cleanThumb.Id != thumb.Id) replaced.Add(thumb.Id);
@@ -601,7 +601,7 @@ public static class PhotoFeature
         RequireWriter(me, channel);
         var store = s.World.Store;
         if (album.CreatedBy != me.AccountKey && !Moderates(store, me, album.CreatedBy))
-            throw RequestException.Forbidden("Only whoever made this album, or a moderator, can delete it.", "photo_album_owner");
+            throw RequestException.Forbidden("Only whoever made this album, or a moderator, can delete it.", "photo_album_delete_owner");
         if (album.CreatedBy != me.AccountKey)
             Audit.Record(s, "photo.album.delete", album.CreatedBy.Length > 0 ? album.CreatedBy : null,
                 details: new { channelId = channel.Id, channelName = channel.Name, name = album.Name, count = album.Count });
