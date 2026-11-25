@@ -91,8 +91,9 @@ function HeaderTools({ server, channel, fit }: { server: ServerState; channel: C
   // Buttons the person hid (My settings → Appearance) are in the ⋯ menu instead.
   const threadsHidden = useButtonHidden('threads')
   const searchHidden = useButtonHidden('search')
+  const pinsHidden = useButtonHidden('pins')
   const searchBox = fit === 'wide' && !phone
-  const pinsInline = fit !== 'narrow' && !useButtonHidden('pins')
+  const pinsInline = fit !== 'narrow' && !pinsHidden
 
   const more: MoreItem[][] = [
     [
