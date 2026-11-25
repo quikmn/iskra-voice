@@ -106,6 +106,8 @@ export const errors: Messages['errors'] = {
     backup_copy_failed: 'La copie de la sauvegarde quotidienne a échoué : {{reason}}',
     backup_copy_passphrase: 'Choisis une phrase secrète d’au moins {{min}} caractères pour les copies de sauvegarde : elles sont chiffrées avec.',
     owner_limits: 'Seul le propriétaire peut changer les limites de ce serveur.',
+    owner_join_sounds: 'Seul le propriétaire peut activer ou désactiver les sons d’arrivée.',
+    join_sound_long: 'Un son d’arrivée peut durer {{seconds}} secondes au maximum.',
     owner_bug_inbox: 'Seul le propriétaire peut changer la réception des rapports de bugs.',
     owner_landing: 'Seul le propriétaire peut changer la page publique.',
     landing_description: 'La description peut faire jusqu’à {{max}} caractères, sans caractères invisibles.',

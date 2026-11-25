@@ -103,6 +103,8 @@ export const errors: Messages['errors'] = {
     backup_copy_failed: 'Das Kopieren des täglichen Backups ist fehlgeschlagen: {{reason}}',
     backup_copy_passphrase: 'Wähle für die Backup-Kopien eine Passphrase mit mindestens {{min}} Zeichen: Damit werden sie verschlüsselt.',
     owner_limits: 'Nur der Besitzer kann die Limits dieses Servers ändern.',
+    owner_join_sounds: 'Nur der Besitzer kann Beitrittssounds ein- oder ausschalten.',
+    join_sound_long: 'Ein Beitrittssound darf höchstens {{seconds}} Sekunden lang sein.',
     owner_bug_inbox: 'Nur der Besitzer kann das Fehler-Postfach ändern.',
     owner_landing: 'Nur der Besitzer kann die öffentliche Seite ändern.',
     landing_description: 'Die Beschreibung darf bis zu {{max}} Zeichen haben, ohne unsichtbare Zeichen.',

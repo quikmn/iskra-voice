@@ -107,7 +107,7 @@ export const AUDIT_ACTIONS = [
   'channel.create', 'channel.update', 'channel.delete', 'message.delete', 'thread.delete', 'task.delete', 'message.pin', 'message.unpin',
   'invite.create', 'invite.revoke', 'webhook.create', 'webhook.update', 'webhook.regenerate', 'webhook.delete', 'bot.invite',
   'emoji.create', 'emoji.rename', 'emoji.delete', 'sound.create', 'sound.update', 'sound.delete',
-  'profile.page.remove', 'server.pages', 'server.internet', 'limits.update', 'buginbox.update', 'afk.update', 'notify.default', 'server.template.export',
+  'profile.page.remove', 'server.pages', 'server.joinSounds', 'server.internet', 'limits.update', 'buginbox.update', 'afk.update', 'notify.default', 'server.template.export',
   'server.images', 'automod.block', 'automod.update',
   'report.resolve', 'owner.transfer', 'docs.page.create', 'docs.page.delete', 'docs.page.restore', 'docs.home.set',
   'member.join', 'join.approve', 'join.decline', 'invites.pause', 'invites.resume', 'join.newcomers', 'landing.update',
@@ -254,6 +254,7 @@ export function auditText(e: AuditEntry): string {
     case 'sound.delete': return t('moderation.audit.soundDelete', { actor, name: str(d.name) })
     case 'profile.page.remove': return t('moderation.audit.pageRemove', { actor, target })
     case 'server.pages': return t(d.enabled ? 'moderation.audit.pagesOn' : 'moderation.audit.pagesOff', { actor })
+    case 'server.joinSounds': return t(d.enabled ? 'moderation.audit.joinSoundsOn' : 'moderation.audit.joinSoundsOff', { actor })
     case 'server.internet': return t(d.enabled ? 'moderation.audit.internetOn' : 'moderation.audit.internetOff', { actor })
     case 'limits.update': return t('moderation.audit.limits', { actor })
     case 'buginbox.update': return t(d.enabled ? 'moderation.audit.bugInboxOn' : 'moderation.audit.bugInboxOff', { actor })

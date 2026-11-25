@@ -103,6 +103,8 @@ export const errors: Messages['errors'] = {
     backup_copy_failed: 'Copia del backup giornaliero non riuscita: {{reason}}',
     backup_copy_passphrase: 'Scegli una frase segreta di almeno {{min}} caratteri per le copie di backup: vengono crittografate con quella.',
     owner_limits: 'Solo il proprietario può cambiare i limiti di questo server.',
+    owner_join_sounds: 'Solo il proprietario può attivare o disattivare i suoni di ingresso.',
+    join_sound_long: 'Un suono di ingresso può durare al massimo {{seconds}} secondi.',
     owner_bug_inbox: 'Solo il proprietario può cambiare la casella dei bug.',
     owner_landing: 'Solo il proprietario può cambiare la pagina pubblica.',
     landing_description: 'La descrizione può avere al massimo {{max}} caratteri, senza caratteri invisibili.',

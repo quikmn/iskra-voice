@@ -25,6 +25,7 @@ import { streamerOn } from './streamer'
 import { playPartials, tone } from './sounds/synth'
 import { playNotifySound } from './sounds'
 import type { SoundKind } from './sounds/soundLogic'
+import { joinToneNeeded } from './joinSoundLogic'
 
 interface NotifySettings {
   desktop: boolean
@@ -134,6 +135,12 @@ const me = () => {
 
 const lastVoice = new Map<string, Set<string>>()
 
+/** When someone's join sound last played here (state/joinSounds.ts): the join tone is left out for them. */
+const joinSoundAt = new Map<string, number>()
+export function noteJoinSound(serverKey: string, channelId: number, accountKey: string): void {
+  joinSoundAt.set(`${serverKey}:${channelId}:${accountKey}`, Date.now())
+}
+
 let inEncrypted: (serverKey: string, channelId: number) => boolean = () => false
 /** state/e2eeChannels.ts says which channels (and threads) are end-to-end encrypted on this device. */
 export function setNotifyEncryptedCheck(check: (serverKey: string, channelId: number) => boolean): void {
@@ -191,9 +198,11 @@ onServerEvent((serverKey, type, body) => {
       const session = useVoice.getState().session
       if (!before || session?.serverKey !== serverKey || session.channelId !== channelId || session.state !== 'connected') return
       const myKey = me()
-      const joined = [...now].some((k) => !before.has(k) && k !== myKey)
+      const joined = [...now].filter((k) => !before.has(k) && k !== myKey)
       const left = [...before].some((k) => !now.has(k) && k !== myKey)
-      if (joined) playTone('join')
+      if (joined.length) {
+        if (joinToneNeeded(joined, (k) => joinSoundAt.get(`${tag}:${k}`), Date.now())) playTone('join')
+      }
       else if (left) playTone('leave')
     })
   }

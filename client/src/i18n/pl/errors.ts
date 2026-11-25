@@ -103,6 +103,8 @@ export const errors: Messages['errors'] = {
     backup_copy_failed: 'Nie udało się skopiować codziennej kopii zapasowej: {{reason}}',
     backup_copy_passphrase: 'Wybierz hasło do kopii zapasowych o długości co najmniej {{min}} znaków: kopie są nim szyfrowane.',
     owner_limits: 'Limity tego serwera może zmieniać tylko właściciel.',
+    owner_join_sounds: 'Tylko właściciel może włączyć lub wyłączyć dźwięki wejścia.',
+    join_sound_long: 'Dźwięk wejścia może trwać najwyżej {{seconds}} s.',
     owner_bug_inbox: 'Zgłoszenia błędów może zmieniać tylko właściciel.',
     owner_landing: 'Stronę publiczną może zmieniać tylko właściciel.',
     landing_description: 'Opis może mieć maks. {{max}} znaków, bez niewidocznych znaków.',

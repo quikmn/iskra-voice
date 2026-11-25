@@ -32,6 +32,7 @@ import { ProfileSection, ServerPagesOption } from '../profile/ProfileSettings'
 import { AppearanceSection } from '../profile/AppearanceSettings'
 import { InternetSection } from '../dialogs/InternetSettings'
 import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expressions/ExpressionSettings'
+import { JoinSoundSettingsSection, ServerJoinSoundsOption } from '../expressions/JoinSounds'
 import { StickerSection } from '../chat/Stickers'
 import { GifSettings, GifViewerSettings } from '../chat/GifSettings'
 import { BotDmSettings } from './BotDmSettings'
@@ -262,7 +263,7 @@ function MySection({ id }: { id: MySectionId }) {
     case 'security': return <AppLockSection />
     case 'notifications': return <NotificationSettingsSection server={null} />
     case 'streamer': return <StreamerSection />
-    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><WhisperSettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><CaptionSettingsSection /><SpeechSettingsSection /><SoundboardSettingsSection /></>
+    case 'voice': return <><InputSettingsSection /><VoiceSettingsSection /><HotkeySettingsSection /><WhisperSettingsSection /><ClipSettingsSection /><ProcessingSettingsSection /><OutputSettingsSection /><CaptionSettingsSection /><SpeechSettingsSection /><SoundboardSettingsSection /><JoinSoundSettingsSection /></>
     case 'video': return <CameraSettingsSection />
     case 'blocked': return <BlockedSection />
     case 'desktop': return <DesktopSettingsSection />
@@ -326,7 +327,7 @@ function ServerSection({ id, server, onClose }: { id: ServerSectionId; server: S
     case 'channels': return <ChannelsSection server={server} />
     case 'emoji': return <><EmojiSection server={server} /><StickerSection server={server} /></>
     case 'gifs': return <GifsSection server={server} />
-    case 'sounds': return <SoundsSection server={server} />
+    case 'sounds': return <><SoundsSection server={server} /><ServerJoinSoundsOption server={server} /></>
     case 'pages': return <PagesSection server={server} />
     case 'rules': return <RulesSection server={server} />
     case 'onboarding': return <OnboardingSection server={server} />

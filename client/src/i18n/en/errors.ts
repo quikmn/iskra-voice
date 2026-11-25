@@ -105,6 +105,8 @@ export const errors = {
     backup_copy_failed: 'Copying the daily backup failed: {{reason}}',
     backup_copy_passphrase: "Choose a passphrase of at least {{min}} characters for the backup copies: they're encrypted with it.",
     owner_limits: "Only the owner can change this server's limits.",
+    owner_join_sounds: 'Only the owner can turn join sounds on or off.',
+    join_sound_long: 'A join sound can be at most {{seconds}} seconds long.',
     owner_bug_inbox: 'Only the owner can change the bug inbox.',
     owner_landing: 'Only the owner can change the public page.',
     landing_description: 'The description can be up to {{max}} characters, with no invisible characters.',

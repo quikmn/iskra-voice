@@ -103,6 +103,8 @@ export const errors: Messages['errors'] = {
     backup_copy_failed: 'Kopieringen av den dagliga säkerhetskopian misslyckades: {{reason}}',
     backup_copy_passphrase: 'Välj en lösenfras på minst {{min}} tecken för kopiorna: de krypteras med den.',
     owner_limits: 'Bara ägaren kan ändra serverns gränser.',
+    owner_join_sounds: 'Bara ägaren kan slå på eller av ljud vid inträde.',
+    join_sound_long: 'Ett ljud vid inträde får vara högst {{seconds}} sekunder långt.',
     owner_bug_inbox: 'Bara ägaren kan ändra felrapportinkorgen.',
     owner_landing: 'Bara ägaren kan ändra den offentliga sidan.',
     landing_description: 'Beskrivningen får vara högst {{max}} tecken, utan osynliga tecken.',

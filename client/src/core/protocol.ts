@@ -88,6 +88,8 @@ export interface Welcome {
   you: Member
   server: {
     name: string; key: string; appUrl: string; publicUrl?: string | null; profilePages?: boolean; moved?: MoveNotice | null
+    /** Whether join sounds are played on this server (the owner's switch). Missing from older servers: they have none. */
+    joinSounds?: boolean
     /** server.json BugInbox.Accept: only the server that receives Iskra's bug reports (Server settings → Bug inbox). */
     bugInbox?: boolean
     /** The p2p secret members put in invite links while friends may connect without port forwarding (see "p2p" below). */
@@ -466,6 +468,19 @@ export interface Events {
   'emoji.updated': { emojis: CustomEmoji[]; external?: CustomEmoji[] }
   'sounds.updated': { sounds: Sound[] }
   'sound.played': { channelId: number; accountKey: string; sound: Sound }
+  /** Someone entered the voice channel you're in: play their join sound. */
+  'joinsound.played': { channelId: number; accountKey: string; sound: Sound }
+  /** Your own choice changed on another device. */
+  'joinsound.updated': JoinSoundChoice
+  /** The owner turned join sounds on or off. */
+  'joinsound.enabled': { enabled: boolean }
+}
+
+/** Your join sound on one server: the sound's id (null: none), whether the server plays join sounds, and the longest allowed. */
+export interface JoinSoundChoice {
+  soundId: string | null
+  enabled: boolean
+  maxMs: number
 }
 
 export interface Requests {
@@ -482,6 +497,9 @@ export interface Requests {
   'sound.update': [{ id: string; name: string; emoji?: string | null }, { sound: Sound }]
   'sound.delete': [{ id: string }, Record<string, never>]
   'sound.play': [{ id: string }, Record<string, never>]
+  'joinsound.get': [Record<string, never>, JoinSoundChoice]
+  'joinsound.set': [{ id?: string | null }, JoinSoundChoice]
+  'joinsound.configure': [{ enabled: boolean }, Record<string, never>]
 }
 
 // ── hosting ──

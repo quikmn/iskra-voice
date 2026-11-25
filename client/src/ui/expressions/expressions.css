@@ -124,3 +124,10 @@ img.custom-emoji.loading { position: absolute; width: 1px; height: 1px; opacity:
 .emoji-chip.big { flex: none; max-width: 8em; }
 /* In a picker cell, a tab or a suggestion row there's room for a few letters; the cell's own label has the whole name. */
 .emoji-cell .emoji-chip, .emoji-tabs .emoji-chip, .suggest-glyph .emoji-chip, .emoji-preview-glyph .emoji-chip { max-width: 100%; padding: 0 2px; font-size: 9px; }
+
+/* Join sounds (My settings → Voice & audio): one row per server. */
+.join-sound-list { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
+.join-sound-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.join-sound-fields { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.join-sound-server { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.join-sound-fields select { max-width: 100%; }

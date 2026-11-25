@@ -134,14 +134,18 @@ export function stopSounds(): void {
   for (const audio of [...playing]) finish(audio)
 }
 
-/** Plays a sound locally (a received soundboard sound, or a preview) to its end, or until stopped. */
-export function playUrl(url: string, volume = useExpressions.getState().settings.volume): void {
+/**
+ * Plays a sound locally (a received soundboard sound, or a preview) to its end, or until stopped. With `maxMs` it is
+ * cut off there (join sounds).
+ */
+export function playUrl(url: string, volume = useExpressions.getState().settings.volume, maxMs?: number): void {
   try {
     const audio = new Audio(url)
     audio.volume = Math.min(1, Math.max(0, volume))
     const sink = useAudio.getState().outputDevice
     if (sink && 'setSinkId' in audio) void audio.setSinkId(sink).catch(() => undefined)
     audio.onended = audio.onerror = () => finish(audio)
+    if (maxMs) setTimeout(() => finish(audio), maxMs)
     playing.add(audio)
     playingChanged()
     void audio.play().catch(() => finish(audio))
