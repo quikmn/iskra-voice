@@ -73,6 +73,7 @@ import { MY_GROUPS, mySections, SERVER_GROUPS, serverSections, type MySectionId,
 import { SaveAsTemplate } from '../templates/SaveAsTemplate'
 import { ServerImagesSection } from './ServerImagesSection'
 import { PublicPageSection } from './PublicPageSection'
+import { CalendarFeedsSection } from './CalendarFeedsSection'
 import './settings.css'
 import './room.css'
 import { PHONE_LAYOUT } from '../../phoneLayout'
@@ -364,6 +365,7 @@ function OverviewSection({ server }: { server: ServerState }) {
       </dl>
       <ServerImagesSection server={server} />
       <PublicPageSection server={server} />
+      <CalendarFeedsSection server={server} />
       <SaveAsTemplate server={server} />
     </section>
   )

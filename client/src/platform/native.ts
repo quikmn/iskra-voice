@@ -29,8 +29,27 @@ export interface NativeVoice {
   keepAwake(on: boolean): Promise<void>
 }
 
+/**
+ * The phone's own calendar, which the phone syncs to the person's Google, Outlook or iCloud account itself
+ * (state/phoneCalendar.ts). The native side only ever changes events it added.
+ */
+export interface NativeCalendar {
+  /** Whether the app may use the phone's calendars; `ask` shows the system's question when it's undecided. */
+  access(ask: boolean): Promise<boolean>
+  /** The calendars events can go into, as the phone lists them (read by parseCalendars). */
+  list(): Promise<unknown>
+  /** Adds an event (or changes `eventId`); answers with the phone calendar's id for it. */
+  save(event: {
+    calendarId: string; eventId?: string; ref: string; title: string; description: string; location: string
+    startMs: number; endMs: number; timeZone: string; rrule?: string
+  }): Promise<string>
+  remove(eventIds: string[]): Promise<void>
+}
+
 export interface NativeBridge {
   platform: NativePlatform
+  /** Android for now: the iPhone app's plugin isn't switched on yet (nativePlugin.ts). */
+  calendar?: NativeCalendar
   /** Links that open the app (Universal Links on app.iskra.foo, iskra://), including the one that started it. */
   onOpenUrl(callback: (url: string) => void): () => void
   /** Hands a file to the share sheet (Save to Files, AirDrop, ...). False when the person cancels. */
@@ -189,6 +208,20 @@ function bridge(platform: NativePlatform): NativeBridge {
     shareDone(id) {
       void withPlugin((p) => p.shareDone({ id })).catch(() => undefined)
     },
+    ...(platform === 'android' && {
+      calendar: {
+        access: async (ask: boolean) => (await withPlugin((p) => p.calendarAccess({ ask }))).granted === true,
+        list: () => withPlugin((p) => p.calendarList()),
+        save: async (event) => {
+          const id = (await withPlugin((p) => p.calendarSave(event))).eventId
+          if (typeof id !== 'string' || !id) throw new Error('calendar_failed')
+          return id
+        },
+        remove: async (eventIds: string[]) => {
+          if (eventIds.length > 0) await withPlugin((p) => p.calendarDelete({ eventIds }))
+        },
+      } satisfies NativeCalendar,
+    }),
     voice: {
       start: (options) => withPlugin((p) => p.voiceStart(options)),
       update: (options) => withPlugin((p) => p.voiceUpdate(options)),

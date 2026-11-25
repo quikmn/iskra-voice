@@ -22,6 +22,17 @@ export interface IskraNativePlugin {
   /** The newest share from another app, once (none when there's none). */
   takeShare(): Promise<{ share?: unknown }>
   shareDone(options: { id: string }): Promise<void>
+  /** The phone's own calendar (PhoneCalendar.java / PhoneCalendar.swift). `ask` shows the system's question if it's undecided. */
+  calendarAccess(options: { ask: boolean }): Promise<{ granted?: unknown }>
+  /** The calendars events can be written to: `{ calendars: [{ id, name, account, primary }] }`. */
+  calendarList(): Promise<unknown>
+  /** Adds an event, or changes the one with `eventId` if it's still there and Iskra's (its `ref` marker). */
+  calendarSave(options: {
+    calendarId: string; eventId?: string; ref: string; title: string; description: string; location: string
+    startMs: number; endMs: number; timeZone: string; rrule?: string
+  }): Promise<{ eventId?: unknown }>
+  /** Deletes the ones that are still there and Iskra's. */
+  calendarDelete(options: { eventIds: string[] }): Promise<{ deleted?: unknown }>
 }
 
 let loaded: Promise<{ plugin: IskraNativePlugin }> | null = null
