@@ -106,6 +106,9 @@ describe('markdown', () => {
     expect(encodeMentions('hey @Alice Cooper and @Alice!', members)).toBe(`hey <@${bob}> and <@${alice}>!`)
     expect(encodeMentions('mail me at x@Alice.com', members)).toBe('mail me at x@Alice.com')
     expect(encodeMentions('@Alicea is someone else', members)).toBe('@Alicea is someone else')
+    // Someone you gave a private name: both that name and the one everyone sees become the mention, never text.
+    const renamed = [{ accountKey: alice, name: 'Ally', publicName: 'Alice' }]
+    expect(encodeMentions('hey @Ally and @Alice', renamed)).toBe(`hey <@${alice}> and <@${alice}>`)
     expect(decodeMentions(`hi <@${alice}>`, (k) => (k === alice ? 'Alice' : null))).toBe('hi @Alice')
   })
 })

@@ -1,6 +1,7 @@
 // The Friends page (Online, All, Pending), friend buttons for profiles and the DM header, and the small
 // "sent you a friend request" line in a DM.
 import { useState, type MouseEvent, type ReactNode } from 'react'
+import { usePrivateNames } from '../../state/privateNames'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { isOnline, nameOf, openConversation, sharedServers, type Dm } from '../../state/dms'
@@ -148,6 +149,7 @@ const STATUS_ORDER = ['online', 'dnd', 'idle', 'offline'] as const
 export function FriendsView({ onToggle, start }: { onToggle: (panel: Panel) => void; start?: ReactNode }) {
   const { t } = useTranslation()
   const peers = useFriends((s) => s.peers)
+  usePrivateNames((s) => s.settings) // names shown here follow your private names
   const unsent = useFriends((s) => s.unsent)
   const incoming = useIncomingCount()
   useApp((s) => s.servers) // presence and names

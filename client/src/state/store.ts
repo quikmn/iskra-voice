@@ -313,6 +313,11 @@ export async function boot(): Promise<void> {
   if (first) useApp.setState({ activeServer: first.serverKey })
 }
 
+/** A member as shown to you (privateNames.ts fills this in: your private name for them instead of theirs). */
+export const memberHooks = {
+  shown: (member: Member): Member => member,
+}
+
 /** Hidden servers (rail.ts fills these in; the store can't import it). */
 export const railHooks = {
   isHidden: (_key: string): boolean => false,
@@ -488,7 +493,7 @@ function onWelcome(key: string, welcome: Welcome): void {
     name: welcome.server.name,
     joining: false,
     me: welcome.you,
-    members: Object.fromEntries(welcome.members.map((m) => [m.accountKey, m])),
+    members: Object.fromEntries(welcome.members.map((m) => [m.accountKey, memberHooks.shown(m)])),
     voice: Object.fromEntries(welcome.voice.map((v) => [v.channelId, v.participants])),
     voiceAvailable: welcome.voiceAvailable,
     appUrl: welcome.server.appUrl ?? null,
@@ -614,7 +619,7 @@ function onEvent<K extends keyof Events>(key: string, type: K, body: Events[K]):
     case 'member.updated': {
       const { member } = body as Events['member.updated']
       patchServer(key, (s) => ({
-        members: { ...s.members, [member.accountKey]: member },
+        members: { ...s.members, [member.accountKey]: memberHooks.shown(member) },
         me: s.me?.accountKey === member.accountKey ? member : s.me,
       }))
       return

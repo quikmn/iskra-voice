@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { RealNameLine } from '../people/PrivateName'
 import { errorMessage } from '../../i18n/errors'
 import { fingerprint } from '../../core/connection'
 import { Secret } from '../streamer/StreamerBits'
@@ -59,7 +60,8 @@ export function MemberDialog({ server, member, onClose }: { server: ServerState;
         <Avatar name={member.name} accountKey={member.accountKey} size={64} status={presence.status} />
         <div>
           <strong className="member-card-name">{member.name}</strong> {member.bot && <BotBadge builtin={!!member.builtin} />}
-          {member.nick && member.profileName && member.profileName !== member.name && <div className="muted">{t('profile.nameLine', { name: member.profileName })}</div>}
+          <RealNameLine accountKey={member.accountKey} serverKey={server.key} className="muted" />
+          {member.nick && member.profileName && member.profileName !== member.name && member.profileName !== member.publicName && <div className="muted">{t('profile.nameLine', { name: member.profileName })}</div>}
           <div className="muted">{[member.pronouns, t(`common.roles.${member.role}`), STATUS_LABELS[presence.status].toLowerCase()].filter(Boolean).join(' · ')}</div>
           <div className="muted">{t('settings.member.id')} <code><Secret value={fingerprint(member.accountKey)} /></code></div>
           <RoleChips server={server} member={member} />

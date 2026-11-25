@@ -20,6 +20,8 @@ import { ensurePrekeys, ownRevokedDevices } from './devices'
 import { keysReady, resolveKey, sameAccount } from './keyMap'
 import type { Rotation } from '../core/rotation'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
+import { movePrivateNames, privateNameOf } from './privateNames'
+import { ownNameOf } from './privateNamesLogic'
 import { dmConv, moveConversation, noteMessage, seeConversation } from './readState'
 
 /** The English texts of core's DmErrors (core can't translate: the bot SDK shares it), by key. */
@@ -114,10 +116,15 @@ export function sharedServers(peer: string): string[] {
 
 /** The best display name we know for someone, from any server. */
 export function nameOf(accountKey: string): string {
+  return privateNameOf(accountKey) ?? publicNameOfAccount(accountKey)
+}
+
+/** The same without your private name for them: for anything kept as "their name" or sent to someone else. */
+export function publicNameOfAccount(accountKey: string): string {
   const { servers } = useApp.getState()
   for (const server of Object.values(servers)) {
     const member = server.members[accountKey]
-    if (member) return member.profileName ?? member.name // DMs aren't on a server: their own name, not a nickname
+    if (member) return ownNameOf(member) // DMs aren't on a server: their own name, not a nickname
   }
   return useDms.getState().friends[accountKey]?.name ?? t('common.someone')
 }
@@ -466,6 +473,7 @@ export function onKeyChanges(listener: (resolve: (key: string) => string) => voi
 
 export function applyKeyChanges(resolve: (key: string) => string, changes: (Rotation & { disputed?: boolean })[]): void {
   for (const listener of keyListeners) listener(resolve)
+  movePrivateNames(resolve)
   const mine = me()
   const before = useDms.getState()
   const moved: string[] = []

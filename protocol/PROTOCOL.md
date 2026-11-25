@@ -1400,7 +1400,7 @@ NotifySetting { "channelId": 1 | null /* null = whole server */, "level": "all" 
 
 ### Synced preferences
 
-Small per-account settings that follow you across devices (today: `rail`, the server rail's order and folders).
+Small per-account settings that follow you across devices: `rail` (the server rail's order and folders), `alerts`, `favorites`, `saved`, `sounds`, `streamer`, the profile, and `names` (private names you gave people: `{ v: 1, updatedAt, names: { <accountKey>: <name ≤ 32 chars> } }`, at most 100; shown only in your own apps, never sent to the people named).
 
 | type | body | result | who |
 |---|---|---|---|

@@ -3,6 +3,7 @@ import type { Retention, SecurityEvent } from '../core/protocol'
 import * as storage from '../core/storage'
 import { b64u } from '../core/crypto'
 import { connectionFor, useApp } from './store'
+import { usePrivateNames } from './privateNames'
 import { t } from '../i18n'
 import type { en } from '../i18n/en'
 
@@ -99,6 +100,8 @@ interface DeviceExportInput {
   groups: storage.StoredGroup[]
   /** Saved messages (state/saved.ts), as kept on this device. */
   saved?: unknown[]
+  /** Private names you gave people (state/privateNames.ts): account key → name. */
+  privateNames?: Record<string, string>
 }
 
 /** A DM as exported: what was said and when; attachment keys and call internals stay on the device. */
@@ -132,6 +135,7 @@ export function buildDeviceExport(input: DeviceExportInput) {
     servers: input.servers.map((s) => ({ name: s.name, url: s.url, serverKey: s.serverKey })),
     friends: input.friends.map((f) => ({ accountKey: f.accountKey, name: f.name, addedAt: f.addedAt })),
     blocks: input.blocks,
+    privateNames: Object.entries(input.privateNames ?? {}).map(([accountKey, name]) => ({ accountKey, name })),
     directMessages: Object.entries(input.dms).map(([peer, messages]) => ({ peer, messages: messages.map(plainMessage) })),
     groups: input.groups.map((g) => ({
       serverKey: g.serverKey,
@@ -167,6 +171,7 @@ export async function collectDeviceExport(now = Date.now()) {
     dms,
     groups,
     saved: Array.isArray(saved) ? saved : [],
+    privateNames: usePrivateNames.getState().settings.names,
   })
 }
 

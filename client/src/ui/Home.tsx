@@ -1,5 +1,6 @@
 import { DisappearLine, ExpiryBadge } from './disappear/Disappear'
 import { useDmTimerTool } from './disappear/Timers'
+import { usePrivateNames } from '../state/privateNames'
 import { HeaderMore, useHeaderFit } from './chat/HeaderMore'
 import { useAlertPattern } from '../state/alerts'
 import { matchesAlert } from '../state/alertsLogic'
@@ -68,6 +69,7 @@ function HomeMeBar() {
 export function HomeSidebar({ onNavigate }: { onNavigate: () => void }) {
   const { t } = useTranslation()
   const conversations = useDms((s) => s.conversations)
+  usePrivateNames((s) => s.settings) // names shown here follow your private names
   const open = useDms((s) => s.open)
   const reads = useReads((s) => s.convs)
   useApp((s) => s.servers) // re-render when names or presence change
@@ -138,6 +140,7 @@ export function HomeMain({ onToggle, start }: { onToggle: (panel: Panel) => void
 function DmView({ peer, onToggle }: { peer: string; onToggle: (panel: Panel) => void }) {
   const { t } = useTranslation()
   const conversation = useDms((s) => s.conversations[peer])
+  usePrivateNames((s) => s.settings) // names shown here follow your private names
   const identity = useApp((s) => s.identity)
   useApp((s) => s.servers)
   const [verify, setVerify] = useState(false)

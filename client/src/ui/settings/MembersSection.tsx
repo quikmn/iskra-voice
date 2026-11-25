@@ -21,7 +21,7 @@ export function MembersSection({ server }: { server: ServerState }) {
   const joins = useMemberJoins(server)
   const members = Object.values(server.members)
     .filter(joins.passes)
-    .filter((m) => !needle || m.name.toLowerCase().includes(needle) || (m.profileName ?? '').toLowerCase().includes(needle))
+    .filter((m) => !needle || m.name.toLowerCase().includes(needle) || (m.profileName ?? '').toLowerCase().includes(needle) || (m.publicName ?? '').toLowerCase().includes(needle))
     .sort((a, b) => roleRank(b.role) - roleRank(a.role) || a.name.localeCompare(b.name))
   return (
     <section className="settings-section">

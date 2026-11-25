@@ -612,7 +612,7 @@ export function Composer({ server, channelId, channelName, thread, placeholder }
   const mentionableRoles = roles.filter((r) => canMentionRole(server.me ?? undefined, r, roles))
   const suggestions: { key: string; name: string; member?: Member; color?: string | null }[] = query === undefined ? [] : [
     ...Object.values(server.members)
-      .filter((m) => [m.name, m.profileName ?? m.name].some((n) => n.toLowerCase().startsWith(query.toLowerCase())) && m.accountKey !== server.me?.accountKey)
+      .filter((m) => [m.name, m.profileName ?? m.name, m.publicName ?? m.name].some((n) => n.toLowerCase().startsWith(query.toLowerCase())) && m.accountKey !== server.me?.accountKey)
       .sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name))
       .slice(0, 6)
       .map((m) => ({ key: m.accountKey, name: m.name, member: m })),

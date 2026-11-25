@@ -34,7 +34,7 @@ function RoomDialog({ server, channel }: { server: ServerState; channel: Channel
     const needle = search.trim().toLowerCase()
     return Object.values(server.members)
       .filter((m) => m.accountKey !== server.me?.accountKey && !m.bot)
-      .filter((m) => invited.includes(m.accountKey) || (needle.length > 0 && (m.name.toLowerCase().includes(needle) || (m.profileName ?? '').toLowerCase().includes(needle))))
+      .filter((m) => invited.includes(m.accountKey) || (needle.length > 0 && (m.name.toLowerCase().includes(needle) || (m.profileName ?? '').toLowerCase().includes(needle) || (m.publicName ?? '').toLowerCase().includes(needle))))
       .sort((a, b) => Number(invited.includes(b.accountKey)) - Number(invited.includes(a.accountKey)) || a.name.localeCompare(b.name))
       .slice(0, 30)
   }, [server.members, server.me?.accountKey, invited, search])
@@ -93,7 +93,7 @@ function RoomDialog({ server, channel }: { server: ServerState; channel: Channel
               return (
                 <li key={m.accountKey}>
                   <Avatar name={m.name} accountKey={m.accountKey} size={24} />
-                  <span className="member-name">{m.profileName ?? m.name}</span>
+                  <span className="member-name">{m.publicName ? m.name : (m.profileName ?? m.name)}</span>
                   {on && <span className="room-invited-mark">{t('rooms.settings.invited')}</span>}
                   <button className="button small" onClick={() => void invite(m.accountKey, !on)}>{on ? t('rooms.settings.remove') : t('rooms.settings.add')}</button>
                 </li>

@@ -32,6 +32,12 @@ describe('forwarding to a DM', () => {
     expect(forward).toEqual({ from: null, files: [{ name: 'a.png', url: 'https://iskra.example/files/f/a.png', size: 5, type: 'image/png' }] })
   })
 
+  it('never sends your private name for someone', () => {
+    const renamed = { ...server, members: { ...server.members, [M]: { ...member(M, 'member', 'Momo'), publicName: 'Mo' } } } as unknown as ServerState
+    const message: Message = { id: 9, channelId: 1, author: 'x', text: `hi <@${M}>`, createdAt: 1, editedAt: null, replyTo: null, reactions: [], attachments: [] }
+    expect(dmForward(renamed, message, P).text).toBe('hi @Mo')
+  })
+
   it('accepts only clean forwards from other devices', () => {
     expect(cleanForward({ from: '#x', files: [{ name: 'a', url: 'https://h/f', size: 1, type: 'x' }] })).not.toBeNull()
     expect(cleanForward({ from: null, files: [{ name: 'a', url: 'javascript:alert(1)', size: 1, type: 'x' }] })).toBeNull()

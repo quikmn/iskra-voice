@@ -8,6 +8,7 @@ import { pageUrl, wrapperDocument } from '../../core/profile'
 import { roleRank, type Member } from '../../core/protocol'
 import { openConversation } from '../../state/dms'
 import { FriendButtons } from '../people/Friends'
+import { RealNameLine } from '../people/PrivateName'
 import {
   closeMemberDetails, closeProfileCard, closeProfilePage, openMemberDetails, openProfilePage, removeMemberPage, useProfiles,
 } from '../../state/profile'
@@ -138,7 +139,8 @@ function ProfileCard({ server, member, rect, onEdit }: { server: ServerState; me
           </div>
           <div className="profile-body">
             <h2 className="profile-name">{member.name}</h2>
-            {member.nick && member.profileName && member.profileName !== member.name && <div className="profile-realname">{t('profile.nameLine', { name: member.profileName })}</div>}
+            <RealNameLine accountKey={member.accountKey} serverKey={server.key} />
+            {member.nick && member.profileName && member.profileName !== member.name && member.profileName !== member.publicName && <div className="profile-realname">{t('profile.nameLine', { name: member.profileName })}</div>}
             <div className="profile-sub">
               {member.pronouns && <span>{member.pronouns}</span>}
               <span className={`role-chip role-${member.role}`}>{t(`common.roles.${member.role}`)}</span>

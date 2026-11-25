@@ -15,7 +15,7 @@ import { isTimer, localExpiry } from '../core/disappear'
 import * as storage from '../core/storage'
 import { ensurePrekeys, ownRevokedDevices } from './devices'
 import { mergeDm, orderTime } from './dmMerge'
-import { bundleOf, nameOf, useDms } from './dms'
+import { bundleOf, nameOf, publicNameOfAccount, useDms } from './dms'
 import { groupTitle, type GroupMsg } from './groupLogic'
 import { show } from './notify'
 import { isBlocked, useBlocks } from './moderation'
@@ -81,7 +81,7 @@ function namesFor(g: GroupConv): Record<string, string> {
   const names = { ...g.names }
   const people = new Set([...(g.view?.changes.flatMap((c) => [c.by, ...c.targets]) ?? []), ...g.messages.map((m) => m.from)])
   for (const k of people) {
-    const name = nameOf(k)
+    const name = publicNameOfAccount(k) // the group remembers their own name; a private name is looked up when shown
     if (!isUnnamed(name)) names[k] = name.slice(0, 32)
   }
   return names

@@ -822,6 +822,8 @@ export interface Member {
   nick?: string | null
   /** Their own profile name. */
   profileName?: string
+  /** Never sent by a server. Set by this app while `name` holds your private name for them: the name everyone else sees. */
+  publicName?: string
   /** A picture for this server only (`avatar` already shows it; the profile picture is underneath). URL or null. */
   serverAvatar?: string | null
 }

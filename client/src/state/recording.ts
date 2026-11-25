@@ -12,6 +12,7 @@ import { desktop, type RecordingsBridge } from '../platform/desktop'
 import { log } from '../core/log'
 import { lk } from './livekit'
 import { connectionFor, onServerEvent, onWelcomeHook, useApp } from './store'
+import { publicNameOf } from './privateNamesLogic'
 import { activeRoom, rawMicTrack, toggleMute, useVoice, type VoiceSession } from './voice'
 import { playTone } from './notify'
 import { CallRecorder, recordingSupported, type RecordSink, type WantedTrack } from './recording/recorder'
@@ -314,7 +315,7 @@ async function begin(session: VoiceSession, mark: CallRecording): Promise<void> 
     const rec = new CallRecorder(sinkFor(bridge, begun.id), { mixed: useRecording.getState().mixed, onFail: (why) => void fail(why, session) })
     await rec.begin()
     about = {
-      server: server?.name ?? '', channel: channelName, by: server?.members[mark.by]?.name ?? t('common.someone'), encrypted: mark.encrypted, at: Date.now(),
+      server: server?.name ?? '', channel: channelName, by: server?.members[mark.by] ? publicNameOf(server.members[mark.by]) : t('common.someone'), encrypted: mark.encrypted, at: Date.now(),
     }
     recorder = rec
     useRecording.setState({ local: { serverKey: session.serverKey, channelId: session.channelId, id: begun.id, folder: begun.folder, startedAt: rec.startedAt } })
@@ -399,7 +400,8 @@ function syncTracks(): void {
   if (!server) return
   // Offline from the server: nobody (it can't see opt-outs meanwhile); new files start when it's back.
   const recorded = recordedNow(server.voice[session.channelId] ?? [], mark, server.status.state === 'online')
-  const name = (key: string) => server.members[key]?.name ?? t('common.someone')
+  // File names can be shared: the names everyone sees, not your private ones.
+  const name = (key: string) => (server.members[key] ? publicNameOf(server.members[key]) : t('common.someone'))
   const { Track } = lk()
   const wanted: WantedTrack[] = []
   const self = server.me?.accountKey

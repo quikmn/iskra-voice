@@ -4,6 +4,7 @@ import { roleRank, type Channel, type Member, type Message } from '../core/proto
 import type { DmForward } from '../core/dm'
 import { connectionFor, type ServerState } from './store'
 import { sendDm } from './dms'
+import { publicNameOf } from './privateNamesLogic'
 import { t } from '../i18n'
 
 export async function forwardToChannel(serverKey: string, message: Message, channelId: number): Promise<void> {
@@ -22,8 +23,8 @@ export function dmForward(server: ServerState, message: Message, peerKey: string
   const base = server.publicUrl ?? server.directUrl
   const source = server.channels.find((c) => c.id === message.channelId)
   const files = message.attachments.map((f) => ({ name: f.name, url: base + f.url, size: f.size, type: f.type }))
-  // Mentions read as names: the recipient may not know these people.
-  const text = message.text.replace(/<@([A-Za-z0-9_-]{43})>/g, (_, k: string) => `@${server.members[k]?.name ?? t('chat.composer.someone')}`)
+  // Mentions read as names: the recipient may not know these people. Never your private names for them.
+  const text = message.text.replace(/<@([A-Za-z0-9_-]{43})>/g, (_, k: string) => `@${server.members[k] ? publicNameOf(server.members[k]) : t('chat.composer.someone')}`)
   return {
     text: text || files.map((f) => f.name).join(', ') || t('chat.forward.fallback'),
     forward: { from: forwardLabel(server, source, server.members[peerKey]), files },

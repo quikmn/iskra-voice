@@ -115,6 +115,9 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
   and kept only on that device (as short mono audio, not the original file) until removed, and never sent anywhere.
 - Favorite channels are a synced setting (sealed like the others, so servers can't see which channels a person
   starred), with a copy on the device until removed.
+- Private names (a name a person gives someone else, shown only to that person) are a synced setting (sealed like the
+  others: servers and the people named can't read them), with a copy on the device until removed. They are in the
+  device export.
 - Apps keep keys, decrypted DMs, settings and the server list on the device until the user signs out, deletes the
   account or removes the app. Disappearing messages are deleted from the device (screen, storage, notifications) when
   their time is up, also if the app was closed then (on its next start). "Download data on this device" (Settings → Privacy & data) exports it.

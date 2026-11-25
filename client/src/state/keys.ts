@@ -13,7 +13,7 @@ import {
 import { keyMap, keysReady, knownRotations, remember, replaceRotation, resolveKey } from './keyMap'
 import * as storage from '../core/storage'
 import { applyKeyChanges, devicesOf } from './dms'
-import { connectionFor, onServerEvent, onWelcomeHook, patchServer, reconnectAll, setAuthRotations, useApp } from './store'
+import { connectionFor, memberHooks, onServerEvent, onWelcomeHook, patchServer, reconnectAll, setAuthRotations, useApp } from './store'
 
 export interface Dispute {
   serverKey: string
@@ -242,7 +242,7 @@ onServerEvent((serverKey, type, body) => {
       patchServer(serverKey, (s) => {
         const members = { ...s.members }
         delete members[rotation.oldKey]
-        members[member.accountKey] = member
+        members[member.accountKey] = memberHooks.shown(member)
         return { members }
       })
       void learn(serverKey, rotation)
@@ -258,7 +258,7 @@ onServerEvent((serverKey, type, body) => {
       patchServer(serverKey, (s) => {
         const members = { ...s.members }
         delete members[previousKey]
-        members[member.accountKey] = member
+        members[member.accountKey] = memberHooks.shown(member)
         return { members }
       })
       // Settled: the dispute was filed under whoever held the account then, which may be the losing key.

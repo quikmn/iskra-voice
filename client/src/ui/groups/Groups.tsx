@@ -1,5 +1,6 @@
 // Group DMs: the sidebar rows, the conversation, and the dialogs to make a group, add people and manage it.
 import { DisappearLine, ExpiryBadge } from '../disappear/Disappear'
+import { usePrivateNames } from '../../state/privateNames'
 import { useGroupTimerTool } from '../disappear/Timers'
 import { HeaderMore, useHeaderFit } from '../chat/HeaderMore'
 import { useAlertPattern } from '../../state/alerts'
@@ -63,6 +64,7 @@ export function GroupAvatar({ members, size = 28 }: { members: string[]; size?: 
 /** The "Groups" part of the DM sidebar. */
 export function GroupRows({ onNavigate }: { onNavigate: () => void }) {
   const { t } = useTranslation()
+  usePrivateNames((s) => s.settings) // names shown here follow your private names
   const groups = useGroups((s) => s.groups)
   const open = useDms((s) => s.open)
   const reads = useReads((s) => s.convs)
@@ -403,6 +405,7 @@ function GroupHeader({ groupKey, members, title, member, canChange, onNav, onMem
 
 export function GroupChat({ groupKey, onToggle }: { groupKey: string; onToggle: (panel: Panel) => void }) {
   const { t } = useTranslation()
+  usePrivateNames((s) => s.settings) // names shown here follow your private names
   const g = useGroups((s) => s.groups[groupKey])
   useApp((s) => s.servers)
   const joined = useGroupCalls((s) => s.joined)

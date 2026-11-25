@@ -33,6 +33,7 @@ import { AppearanceSection } from '../profile/AppearanceSettings'
 import { InternetSection } from '../dialogs/InternetSettings'
 import { EmojiSection, SoundboardSettingsSection, SoundsSection } from '../expressions/ExpressionSettings'
 import { JoinSoundSettingsSection, ServerJoinSoundsOption } from '../expressions/JoinSounds'
+import { PrivateNamesSection } from '../people/PrivateName'
 import { StickerSection } from '../chat/Stickers'
 import { GifSettings, GifViewerSettings } from '../chat/GifSettings'
 import { BotDmSettings } from './BotDmSettings'
@@ -270,7 +271,7 @@ function MySection({ id }: { id: MySectionId }) {
     case 'pcBots': return <PcBotsSection />
     case 'account': return <AccountSection />
     case 'assistant': return <AssistantSettingsSection />
-    case 'privacy': return <><PrivacySection /><GifViewerSettings /><DmPrivacySettings /><BotDmSettings /></>
+    case 'privacy': return <><PrivacySection /><GifViewerSettings /><DmPrivacySettings /><BotDmSettings /><PrivateNamesSection /></>
     case 'about': return <AboutSection />
   }
 }

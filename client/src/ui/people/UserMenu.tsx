@@ -29,6 +29,9 @@ import { setRoomInvite } from '../../state/rooms'
 import { hostedRoom } from '../../state/roomsLogic'
 import '../organize/organize.css'
 import './people.css'
+import { PrivateNameField } from './PrivateName'
+import { usePrivateNames } from '../../state/privateNames'
+import { ownNameOf } from '../../state/privateNamesLogic'
 
 export function UserMenuLayer() {
   const target = useUserMenu((s) => s.target)
@@ -36,7 +39,7 @@ export function UserMenuLayer() {
   return <UserMenu key={`${target.accountKey}:${target.serverKey}`} target={target} />
 }
 
-type View = 'main' | 'nick' | 'block' | 'remove' | 'kick' | 'ban' | 'timeout' | 'move' | 'roles' | 'transfer'
+type View = 'main' | 'nick' | 'private' | 'block' | 'remove' | 'kick' | 'ban' | 'timeout' | 'move' | 'roles' | 'transfer'
 
 /** Whether you hear this person right now: a DM call, a group call or a voice channel you're both in. */
 function useHears(accountKey: string, server: ServerState | undefined): boolean {
@@ -55,6 +58,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   const servers = useApp((s) => s.servers)
   useDms((s) => s.conversations) // names
   useFriends((s) => s.peers)
+  usePrivateNames((s) => s.settings)
   const [view, setView] = useState<View>('main')
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
@@ -140,6 +144,8 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
     )
   } else if (view === 'nick' && server && member) {
     body = <div className="user-menu-nick"><NicknameField server={server} member={member} onDone={closeUserMenu} /></div>
+  } else if (view === 'private') {
+    body = <div className="user-menu-nick"><PrivateNameField accountKey={accountKey} serverKey={server?.key} onDone={closeUserMenu} /></div>
   } else if (view === 'timeout') {
     body = (
       <div className="org-list" role="menu">
@@ -183,8 +189,9 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
         {canMessage && <MenuItem onClick={go(() => openConversation(accountKey))}>{t('friends.menu.message')}</MenuItem>}
         {canCall && <MenuItem onClick={go(() => void startCall(accountKey, false))}>{t('friends.menu.call')}</MenuItem>}
         {member && canEditNickname(me, member) && (
-          <MenuItem onClick={() => setView('nick')}>{self ? t('friends.menu.nickname') : t('friends.menu.nicknameFor', { name: member.profileName ?? member.name })}</MenuItem>
+          <MenuItem onClick={() => setView('nick')}>{self ? t('friends.menu.nickname') : t('friends.menu.nicknameFor', { name: ownNameOf(member) })}</MenuItem>
         )}
+        {!self && <MenuItem onClick={() => setView('private')}>{t('friends.menu.privateName')}</MenuItem>}
         {here && (
           <MenuItem onClick={run(() => { if (!setFollowing({ server: server!.key, member: accountKey, channel: here.id }, !following)) throw new Error(t('alerts.follow.full', { max: 50 })) })}>
             {following ? t('alerts.follow.unfollowHere', { channel: here.name }) : t('alerts.follow.followHere', { channel: here.name })}
@@ -252,7 +259,7 @@ function UserMenu({ target }: { target: UserMenuTarget }) {
   }
 
   const titles: Partial<Record<View, string>> = {
-    nick: t('organize.nick.label'), timeout: t('moderation.timeout.title'), move: t('roles.moveLabel'), roles: t('roles.memberRoles'),
+    nick: t('organize.nick.label'), private: t('friends.privateName.label'), timeout: t('moderation.timeout.title'), move: t('roles.moveLabel'), roles: t('roles.memberRoles'),
   }
   return (
     <OrgMenu anchor={target.anchor} label={t('friends.menu.label', { name })} onClose={closeUserMenu}>

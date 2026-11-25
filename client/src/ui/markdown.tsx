@@ -318,9 +318,11 @@ export function plainText(text: string, ctx: MarkdownContext): string {
 }
 
 /** Turns "@Name" into mention tokens for members (and roles) with that exact name (longest names first; members win a tie). */
-export function encodeMentions(text: string, members: { accountKey: string; name: string }[], roles: { id: number; name: string }[] = []): string {
+export function encodeMentions(text: string, members: { accountKey: string; name: string; publicName?: string }[], roles: { id: number; name: string }[] = []): string {
   const targets = [
     ...members.map((m) => ({ name: m.name, token: `<@${m.accountKey}>` })),
+    // Someone you gave a private name is still found by the name everyone sees.
+    ...members.filter((m) => m.publicName && m.publicName !== m.name).map((m) => ({ name: m.publicName!, token: `<@${m.accountKey}>` })),
     ...roles.map((r) => ({ name: r.name, token: `<@&${r.id}>` })),
   ].sort((a, b) => b.name.length - a.name.length)
   let out = text

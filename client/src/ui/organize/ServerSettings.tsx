@@ -1,6 +1,7 @@
 // "This server" pieces for settings: your notification level and mute here, nicknames, and the per-server picture.
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ownNameOf } from '../../state/privateNamesLogic'
 import { errorMessage } from '../../i18n/errors'
 import { roleRank, type Member, type NotifyDefault, type NotifyLevel } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
@@ -115,7 +116,7 @@ export function NicknameField({ server, member: given, onDone }: { server: Serve
       <div className="org-nick-row">
         <label className="field">
           <span>{t('organize.nick.label')}</span>
-          <input value={value} maxLength={32} placeholder={member.profileName ?? member.name}
+          <input value={value} maxLength={32} placeholder={ownNameOf(member)}
             onChange={(e) => { setValue(e.target.value); setSaved(false) }}
             onKeyDown={(e) => e.key === 'Enter' && changed && void save(trimmed)} />
         </label>
@@ -123,7 +124,7 @@ export function NicknameField({ server, member: given, onDone }: { server: Serve
         {member.nick && <button className="button" onClick={() => void save('')}>{t(isSelf ? 'organize.nick.useMine' : 'organize.nick.useTheirs')}</button>}
       </div>
       <p className="muted">
-        {saved ? t('organize.nick.saved') : t(isSelf ? 'organize.nick.hintYours' : 'organize.nick.hintTheirs', { server: server.name, name: member.profileName ?? member.name })}
+        {saved ? t('organize.nick.saved') : t(isSelf ? 'organize.nick.hintYours' : 'organize.nick.hintTheirs', { server: server.name, name: ownNameOf(member) })}
       </p>
       {error && <p className="error-text">{error}</p>}
     </div>

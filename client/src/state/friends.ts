@@ -9,7 +9,7 @@ import { DmError } from '../core/dm'
 import { friendFallback, signFriend, type FriendAction, type FriendKind } from '../core/friend'
 import * as storage from '../core/storage'
 import { t } from '../i18n'
-import { encryptFor, nameOf, onDmOpened, onKeyChanges, openFriends, sharedServers, useDms, type Dm, type Friend } from './dms'
+import { encryptFor, nameOf, publicNameOfAccount, onDmOpened, onKeyChanges, openFriends, sharedServers, useDms, type Dm, type Friend } from './dms'
 import { actionFor, addEvent, quietKind, relationOf, sinceOf, type FriendEvent, type Relation } from './friendMachine'
 import { keysReady, resolveKey } from './keyMap'
 import { isBlocked, setBlocked, useBlocks } from './moderation'
@@ -43,8 +43,9 @@ const me = () => {
   return identity ? b64u(identity.account.publicKey) : ''
 }
 
+// The name kept with a friend is their own, never your private name for them (that is looked up when shown).
 const knownName = (accountKey: string, fallback?: string) => {
-  const name = nameOf(accountKey)
+  const name = publicNameOfAccount(accountKey)
   return name === t('common.someone') && fallback ? fallback : name
 }
 
@@ -234,7 +235,7 @@ function onFriendDms(peer: string, dms: Dm[], live: boolean): void {
     // They lost track of us (a new device, a reset): we're still friends here, so say so again.
     if (action.kind === 'request' && before === 'friends') void send(peer, 'accept').catch(() => undefined)
     if (!live) continue
-    const name = knownName(peer)
+    const name = nameOf(peer)
     const serverKey = sharedServers(peer)[0] ?? ''
     if (after === 'incoming' && before !== 'incoming') show(serverKey, t('friends.notify.requestTitle'), t('friends.notify.request', { name }), openFriends)
     else if (after === 'friends' && before === 'outgoing') show(serverKey, t('friends.notify.acceptedTitle'), t('friends.notify.accepted', { name }), openFriends)

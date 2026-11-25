@@ -15,10 +15,16 @@ vi.mock('./store', () => ({
   connectionFor: () => undefined,
 }))
 
+vi.mock('./privateNames', () => ({
+  usePrivateNames: { getState: () => ({ settings: { names: { bob: 'Bobby' } } }) },
+}))
+
 describe('collectDeviceExport', () => {
   it("uses the server's live name when the saved list hasn't caught up", async () => {
     const { collectDeviceExport } = await import('./compliance')
     const exported = await collectDeviceExport(1)
     expect(exported.servers.map((s) => s.name)).toEqual(['Data Night'])
+    // Private names are yours: they are in the export.
+    expect(exported.privateNames).toEqual([{ accountKey: 'bob', name: 'Bobby' }])
   })
 })

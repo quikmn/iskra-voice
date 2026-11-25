@@ -35,7 +35,7 @@ export function MemberList({ server, onClose }: { server: ServerState; onClose?:
   const [query, setQuery] = useState<string | null>(null)
   const needle = query?.trim().toLocaleLowerCase() ?? ''
   const everyone = Object.values(server.members)
-  const members = everyone.filter((m) => !needle || m.name.toLocaleLowerCase().includes(needle))
+  const members = everyone.filter((m) => !needle || m.name.toLocaleLowerCase().includes(needle) || !!m.publicName?.toLocaleLowerCase().includes(needle))
   // One order for the column and the phone drawer: hoisted roles, then levels, offline last (state/memberOrder.ts).
   const groups = memberGroups(members, roles)
   const row = (m: Member) => (
