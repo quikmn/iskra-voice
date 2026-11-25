@@ -84,6 +84,7 @@ The connection is one WebSocket per server at `wss://<host>/ws`. It uses text fr
        "server": { "name": "Gaming", "key": "<b64u>", "appUrl": "https://app.iskra.foo",
                    "publicUrl": "https://..." | null,   // see Internet hosting
                    "profilePages": true,                // see Profiles
+                   "joinSounds": true,                  // see Join sounds; missing from servers without them
                    "images": { "icon": File | null, "banner": File | null } },  // see Server icon and banner
        "channels": [Channel...],   // only the ones you can read
        "members": [Member...],
@@ -164,6 +165,7 @@ Rate limits are token buckets per connection. Every request takes from the gener
 | `link.preview` | 1/s | 10 |
 | `poll.create` | 1 every 5 s | 5 |
 | `sound.play` | 1 every 2 s | 3 |
+| `joinsound.set` | 1 every 2 s | 5 |
 | `stage.hand` | 1 every 2 s | 5 |
 | `watch.start` | 1 every 2 s | 8 |
 | `watch.control` | 4/s | 10 |
@@ -407,6 +409,22 @@ Voice runs on a LiveKit server that `iskra-server` starts next to itself (config
 - `sound.play`: being in voice comes from LiveKit's webhooks only; you need the channel's write role.
 - Event `sound.played` `{ channelId, accountKey, sound }` only to the people in that voice channel. Each client plays it locally, with its own soundboard volume and mute setting.
 - Event `sounds.updated` `{ sounds }` to everyone after any change.
+
+### Join sounds
+
+A member picks one soundboard sound per server. When the member enters a voice channel there, the others in it are told to play it.
+
+| type | body | result | who |
+|---|---|---|---|
+| `joinsound.get` | | `{ soundId, enabled, maxMs }` | anyone |
+| `joinsound.set` | `id?` (a sound's id, ≤ 64 chars; missing or null: none) | `{ soundId, enabled, maxMs }` | anyone |
+| `joinsound.configure` | `enabled` | | owner |
+
+- `soundId` is your own choice (null: none), `enabled` the owner's switch for the server (on by default), `maxMs` the longest sound that can be picked (5000).
+- `joinsound.set` refuses a sound longer than `maxMs` plus the soundboard's 0.15 s of slack (`join_sound_long`). The choice goes when the sound is deleted or the member leaves. Event `joinsound.updated` `{ soundId, enabled, maxMs }` to your other sessions.
+- `joinsound.configure`: audit action `server.joinSounds` `{ enabled }`; event `joinsound.enabled` `{ enabled }` to everyone. `welcome.server.joinSounds` carries the same switch (missing from servers without join sounds). Choices are kept while it is off.
+- Event `joinsound.played` `{ channelId, accountKey, sound }` to the other people in the voice channel (never to the person who entered), sent just before the `voice.state` that shows them in it. Sent only when all of this holds: the switch is on; LiveKit's webhook reported the person entering (a repeated `participant_joined` after a reconnect is not entering); the channel is a `voice` channel (not a stage, not the AFK channel); the person has the channel's write role and is not server-muted; their last join sound was played more than 30 s ago.
+- Clients play it locally and stop at `maxMs`. They apply the listener's own settings: nothing when the listener turned join sounds off, muted the soundboard, is deafened or blocked the person; otherwise the soundboard volume times the listener's volume for that person (never above 100%). A client that plays a join sound leaves out its own "someone joined" tone for that person.
 
 ## Direct messages (end-to-end encrypted)
 
@@ -1164,7 +1182,7 @@ AuditEntry { "id": 7, "at": 1760000000000, "action": "member.timeout", "actor": 
 ```
 
 - Names are recorded with the entry, so it stays readable after people leave. Entries older than 90 days are deleted.
-- Actions and their `details`: `member.kick`, `member.ban`, `member.unban`, `member.role` `{ from, to }`, `member.timeout` `{ durationMs, until }`, `member.timeout.remove`, `channel.create` `{ channelId, name, kind, readRole, writeRole, slowmode }`, `channel.update` `{ channelId, name, changes: { name?, readRole?, writeRole?, slowmode?: { from, to } } }`, `channel.delete` `{ channelId, name, kind }`, `message.delete` (by someone other than the author; the target is the author) `{ channelId, channelName, messageId, author }`, `thread.delete` (by someone other than its creator), `message.pin` / `message.unpin` `{ channelId, channelName, messageId }`, `webhook.create` / `webhook.update` / `webhook.regenerate` / `webhook.delete` `{ id, name, channelId }`, `bot.invite` `{ role, expiresAt, readAll }`, `bot.scope` (target: the bot) `{ readAll }`, `emoji.create` / `emoji.rename` / `emoji.delete`, `sound.create` / `sound.update` / `sound.delete`, `invite.create` `{ role, maxUses, expiresAt }`, `invite.revoke` `{ role, uses }`, `profile.page.remove` (someone else's), `server.pages` `{ enabled }`, `server.internet` `{ enabled }`. Invite codes and message text are never recorded.
+- Actions and their `details`: `member.kick`, `member.ban`, `member.unban`, `member.role` `{ from, to }`, `member.timeout` `{ durationMs, until }`, `member.timeout.remove`, `channel.create` `{ channelId, name, kind, readRole, writeRole, slowmode }`, `channel.update` `{ channelId, name, changes: { name?, readRole?, writeRole?, slowmode?: { from, to } } }`, `channel.delete` `{ channelId, name, kind }`, `message.delete` (by someone other than the author; the target is the author) `{ channelId, channelName, messageId, author }`, `thread.delete` (by someone other than its creator), `message.pin` / `message.unpin` `{ channelId, channelName, messageId }`, `webhook.create` / `webhook.update` / `webhook.regenerate` / `webhook.delete` `{ id, name, channelId }`, `bot.invite` `{ role, expiresAt, readAll }`, `bot.scope` (target: the bot) `{ readAll }`, `emoji.create` / `emoji.rename` / `emoji.delete`, `sound.create` / `sound.update` / `sound.delete`, `invite.create` `{ role, maxUses, expiresAt }`, `invite.revoke` `{ role, uses }`, `profile.page.remove` (someone else's), `server.pages` `{ enabled }`, `server.joinSounds` `{ enabled }`, `server.internet` `{ enabled }`. Invite codes and message text are never recorded.
 
 ## Roles and permissions
 
@@ -3756,6 +3774,7 @@ How the other voice features behave in an encrypted voice channel:
 | Captions, noise removal, translation | Work: they run on each device, after decryption |
 | Clips | Work: recorded on the device as always; the "saved a clip" notice goes to the room as an (encrypted) data message on topic `iskra.clips` instead of the chat (`voice.clip` is refused), and sharing a clip uploads it encrypted. Who has clips on still shows (`voice.state` `clips`) |
 | Soundboard | Works: the server relays which sound was played (`sound.played`, as everywhere); the sounds are the server's own files, not your media |
+| Join sounds | Work the same way (`joinsound.played`): the server knows who entered and which sound they picked |
 | Whiteboard in the call | Encrypted ([Encrypted boards](#encrypted-boards)) |
 | Pop-outs, phones, the desktop app | Work (the frames are decrypted in the app's own worker) |
 | Watch parties and listen together | Off: every `watch.*` request is `bad_request`, key `watch_e2ee` (the server would see what's played, titles and the chat). Apps show the button dimmed; a tap says why |

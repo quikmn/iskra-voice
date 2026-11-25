@@ -253,6 +253,7 @@ public sealed class Session
             logId = LogId,
             server = new { name = _world.Settings.Name, key = Ed25519.ToB64u(_world.ServerPublicKey), appUrl = _world.Settings.AppUrl, publicUrl = _world.InternetUrl,
                 profilePages = ProfileFeature.PagesEnabled(_world.Store),
+                joinSounds = _world.Store.JoinSoundsEnabled(),
                 bugInbox = _world.Settings.BugInbox.Accept,
                 moved = _world.Moved is { } moved ? MoveFeature.View(moved) : null,
                 p2p = P2pFeature.SecretForMembers(_world),

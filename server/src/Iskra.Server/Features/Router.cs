@@ -39,6 +39,7 @@ public sealed class Router
         PollFeature.Register(this);
         EmojiFeature.Register(this);
         SoundboardFeature.Register(this);
+        JoinSoundFeature.Register(this);
         PushFeature.Register(this);
         HostFeature.Register(this, internet);
         ProfileFeature.Register(this);

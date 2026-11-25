@@ -16,7 +16,7 @@ internal static class Participation
         // Reading.
         "chat.history", "chat.edits", "pin.list", "search", "thread.get", "thread.list", "forum.posts", "forum.post.get",
         "event.list", "task.list", "task.get", "task.mine", "docs.home.get", "docs.page.get", "docs.page.history", "docs.pages", "docs.search", "wb.boards", "wb.get",
-        "emoji.list", "sticker.list", "sound.list", "role.list", "tags.list", "teams.list", "act.list", "disappear.list",
+        "emoji.list", "sticker.list", "sound.list", "joinsound.get", "role.list", "tags.list", "teams.list", "act.list", "disappear.list",
         "inbox.list", "rules.get", "member.timeout.status", "stage.audience", "bot.commands.available", "builtin.cards.mine",
         "gif.status", "gif.search", "gif.trending", "gif.categories", "link.preview", "translate.config",
         "translate.models.link", "captions.model.link", "echan.get", "echan.keys", "profile.page.get", "onboarding.mine",
@@ -36,7 +36,7 @@ internal static class Participation
         "prefs.get", "prefs.set", "notify.set", "alerts.get", "alerts.set", "lfg.notify.get", "lfg.notify.set",
         "push.focus", "push.status", "push.subscribe", "push.unsubscribe", "block.list", "block.sync",
         "presence.set", "presence.idle", "activity.set", "profile.update", "profile.page.set", "profile.page.remove",
-        "member.avatar", "member.nick", "birthday.get", "birthday.set", "birthday.remove", "roles.self", "onboarding.answer",
+        "member.avatar", "member.nick", "joinsound.set", "birthday.get", "birthday.set", "birthday.remove", "roles.self", "onboarding.answer",
         "reminder.list", "reminder.create", "reminder.update", "reminder.delete", "scheduled.list", "scheduled.delete",
         // Saying no, stepping back and leaving.
         "rules.accept", "report.create", "member.leave", "chat.delete", "lfg.leave", "lfg.close", "act.leave", "wb.leave",

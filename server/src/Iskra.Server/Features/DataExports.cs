@@ -123,6 +123,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         Section("joinRequest", $"SELECT account_key, name, substr(invite_code, -6) AS invite_tail, role, requested_at, declined_at FROM join_requests WHERE account_key {Mine};");
         Section("nickname", $"SELECT account_key, nick FROM nicknames WHERE account_key {Mine};");
         Section("serverAvatar", $"SELECT account_key, file_id, set_at FROM member_avatars WHERE account_key {Mine};");
+        Section("joinSound", $"SELECT account_key, sound_id, set_at FROM join_sounds WHERE account_key {Mine};");
         Section("customRoles", $"SELECT mr.account_key, r.id, r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.account_key {Mine};");
         Section("profile", $"SELECT account_key, bio, pronouns, accent, avatar_file FROM profiles WHERE account_key {Mine};");
         Section("profilePage", $"SELECT account_key, page_id, html, updated_at FROM profile_pages WHERE account_key {Mine};");
@@ -270,6 +271,7 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
         data.json holds everything this server keeps about your account, by section:
 
         - membership, nickname, customRoles, profile, profilePage, presence: who you are on this server.
+        - joinSound: the soundboard sound you picked to be played when you enter a voice channel here.
         - joinRequest: if you asked to join through an invite that needs a moderator's approval and they haven't decided
           (or turned you away in the last day): your name, the last characters of the invite, its role, when you asked.
         - joinedVia: the invite you joined with, as moderators see it: its id (not the link), label, who made it, its

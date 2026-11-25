@@ -395,6 +395,7 @@ public sealed partial class Store : IDisposable
         ("tasks-1", TasksMigration),
         // Calendar: event change counters for calendar feeds, members' feed tokens (hashed), and the owner's switch.
         ("calendar-1", CalendarMigration),
+        ("join-sounds-1", JoinSoundsMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

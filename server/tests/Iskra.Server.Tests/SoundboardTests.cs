@@ -98,7 +98,7 @@ public class SoundboardTests
         Assert.Equal("audio/wav", FileSniffer.Sniff(Wav(10)).Type);
     }
 
-    private static async Task<JsonElement> AddSound(IskraServer server, User user, byte[] audio, string name = "airhorn", string? emoji = "📯") =>
+    internal static async Task<JsonElement> AddSound(IskraServer server, User user, byte[] audio, string name = "airhorn", string? emoji = "📯") =>
         await user.RequestAsync("sound.create", new { name, emoji, fileId = await EmojiTests.Upload(server, user, audio, name + ".bin") });
 
     private static void InVoice(IskraServer server, long channelId, User user) =>

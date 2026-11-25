@@ -256,14 +256,21 @@ public sealed class VoiceRegistry
     {
         var room = _rooms.GetOrAdd(channelId, _ => new());
         if (room.IsEmpty) log.Info("voice", "opened", ("chan", channelId));
+        // LiveKit repeats participant_joined after a reconnect: that is not entering the channel.
+        var entered = !room.ContainsKey(accountKey);
         room[accountKey] = new VoiceMember(accountKey, false, false, now);
         log.Info("voice", "joined", ("chan", channelId), ("acct", LogIds.Account(world, accountKey)), ("count", room.Count));
         // Into the AFK channel: LiveKit gets the forced state again (the setting may have changed since the token).
         var afk = world.Store.Afk();
         if (afk.ChannelId == channelId) ApplyAfk(afk, channelId, accountKey, force: true);
         else _afkForced.TryRemove(accountKey, out _);
+        // Before the new voice state, so apps know a join sound is coming and leave out their own join tone.
+        if (entered) Features.JoinSoundFeature.Entered(world, hub, this, _joinSoundAt, channelId, accountKey, now);
         Publish(channelId);
     }
+
+    /// <summary>When each person's join sound was last played (JoinSoundFeature's cooldown).</summary>
+    private readonly ConcurrentDictionary<string, long> _joinSoundAt = new();
 
     public void Left(long channelId, string accountKey)
     {
