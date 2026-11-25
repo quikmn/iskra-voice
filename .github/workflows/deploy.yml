@@ -67,9 +67,12 @@ jobs:
         run: |
           npm ci --no-audit --no-fund --ignore-scripts
           node scripts/build-site-docs.mjs --check
-      # Only the site's own files (every page, the stylesheets, docs/ and img/, fonts/, .well-known/ (security.txt),
-      # worker.js, .assetsignore; never wrangler.toml or .wrangler/),
-      # from a folder outside git, so Pages deploys to production as deploy-hero.ps1 did. Pages serves terms.html at /terms.
+      # Only the site's own files (every page, the stylesheets, og.png, robots.txt, llms.txt, llms-full.txt, sitemap.xml,
+      # docs/ and img/, fonts/, .well-known/ (security.txt), _worker.js with _routes.json, .assetsignore; never
+      # wrangler.toml, migrations/ or .wrangler/), from a folder outside git, so Pages deploys to production as
+      # deploy-hero.ps1 did. Pages serves terms.html at /terms, runs _worker.js for every path _routes.json doesn't
+      # exclude, and answers unknown paths with 404.html. The worker's D1 binding (DB) and its secret (STATS_PASSWORD)
+      # are set on the Pages project, not here; without them it only serves the files (docs/ci-cd.md, "Site statistics").
       - name: Deploy iskra.foo (Pages project iskra-hero-page)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -77,7 +80,7 @@ jobs:
         run: |
           out="$RUNNER_TEMP/site"
           mkdir -p "$out"
-          cp site/*.html site/*.css site/*.svg site/*.ico site/*.png site/worker.js site/.assetsignore "$out/"
+          cp site/*.html site/*.css site/*.svg site/*.ico site/*.png site/*.txt site/*.xml site/_worker.js site/_routes.json site/.assetsignore "$out/"
           cp -r site/fonts site/.well-known site/docs site/img "$out/"
           ls -la "$out"
           cd "$out"
@@ -94,9 +97,9 @@ jobs:
       - name: Check the other pages
         run: |
           # Every site/<page>.html must be served at https://iskra.foo/<page> (terms, privacy, support, hosting, docs/..., ...).
-          # Pages answers unknown paths with index.html and 200, so look for the page's own canonical link.
-          # docs/<page>.html is served at /docs/<page>, docs/index.html at /docs/.
-          pages="$(cd site && ls *.html docs/*.html | sed 's/\.html$//' | grep -vx index | sed 's#^docs/index$#docs/#')"
+          # Look for the page's own canonical link, so another page served in its place doesn't pass.
+          # docs/<page>.html is served at /docs/<page>, docs/index.html at /docs/. 404.html is the not-found page (next step).
+          pages="$(cd site && ls *.html docs/*.html | sed 's/\.html$//' | grep -vx -e index -e 404 | sed 's#^docs/index$#docs/#')"
           for page in $pages; do
             for i in $(seq 1 8); do
               if curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "https://iskra.foo/$page?deploy=$GITHUB_RUN_ID-$i" | grep -F "<link rel=\"canonical\" href=\"https://iskra.foo/$page\">" >/dev/null; then
@@ -106,6 +109,29 @@ jobs:
             done
             echo "::error::iskra.foo/$page isn't served after 2 minutes"; exit 1
           done
+      - name: Check the worker, the not-found page and the files for crawlers
+        run: |
+          # /stats is answered by _worker.js: 401 (password needed) or 503 (statistics not set up), never a page.
+          # An unknown path must be a 404, not the home page. robots.txt names the sitemap, the sitemap lists the
+          # comparison page, llms.txt is ours, and og.png is a picture.
+          check() {
+            code="$(curl -sS -o "$RUNNER_TEMP/body" -w '%{http_code} %{content_type}' --max-time 20 -H 'Cache-Control: no-cache' "https://iskra.foo$1?deploy=$GITHUB_RUN_ID-$i" || true)"
+            case "$code" in $2) ;; *) echo "iskra.foo$1 answered $code"; return 1 ;; esac
+            [ -z "$3" ] || grep -qF "$3" "$RUNNER_TEMP/body" || { echo "iskra.foo$1 lacks: $3"; return 1; }
+          }
+          for i in $(seq 1 8); do
+            if check /stats '[45]0[13] text/plain*' '' \
+              && check "/no-such-page-$GITHUB_RUN_ID" '404 *' 'Page not found - Iskra' \
+              && check /robots.txt '200 text/plain*' 'Sitemap: https://iskra.foo/sitemap.xml' \
+              && check /sitemap.xml '200 *xml*' '<loc>https://iskra.foo/discord-alternative</loc>' \
+              && check /llms.txt '200 text/plain*' '# Iskra' \
+              && check /llms-full.txt '200 text/plain*' '# The guides in full' \
+              && check /og.png '200 image/png*' ''; then
+              echo "iskra.foo: the worker, 404, robots.txt, sitemap.xml, llms.txt and og.png answer"; exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::iskra.foo: the worker, the not-found page or a crawler file isn't served after 2 minutes"; exit 1
       - name: Check security.txt
         run: |
           # RFC 9116 contact file; its Canonical line names this host.
