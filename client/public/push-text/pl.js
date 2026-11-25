@@ -22,6 +22,8 @@ self.ISKRA_PUSH_TEXT = {
     openToRead: 'Otwórz aplikację Iskra, żeby ją przeczytać.',
     groupOpenToRead: 'W grupie. Otwórz aplikację Iskra, żeby ją przeczytać.',
     attachment: 'Załącznik',
+    photoAdded: 'Nowe zdjęcie',
+    photosAdded: 'Nowe zdjęcia: {{count}}',
     tapToAnswer: 'Stuknij, żeby odebrać.',
     tapToJoin: 'Stuknij, żeby dołączyć.',
     reminderGeneric: 'Przypomnienie o wiadomości, o które prosisz.',

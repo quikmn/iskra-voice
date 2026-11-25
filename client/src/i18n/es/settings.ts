@@ -97,7 +97,7 @@ export const settings: Messages['settings'] = {
     edit: 'Editar {{name}}',
     renameCategory: 'Cambiar nombre de {{name}}',
     emptyCategory: 'Aún no hay canales aquí.',
-    kinds: { text: 'Texto', voice: 'Voz', forum: 'Foro', stage: 'Escenario', docs: 'Documentos', whiteboard: 'Pizarra', media: 'Multimedia', tasks: 'Tareas' },
+    kinds: { text: 'Texto', voice: 'Voz', forum: 'Foro', stage: 'Escenario', docs: 'Documentos', whiteboard: 'Pizarra', media: 'Multimedia', tasks: 'Tareas', photos: 'Fotos' },
   },
   overview: {
     name: 'Nombre',

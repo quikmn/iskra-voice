@@ -22,6 +22,8 @@ self.ISKRA_PUSH_TEXT = {
     openToRead: 'Öppna Iskra för att läsa det.',
     groupOpenToRead: 'I en gruppchatt. Öppna Iskra för att läsa det.',
     attachment: 'Skickade en bilaga',
+    photoAdded: 'Lade till ett foto',
+    photosAdded: 'Lade till {{count}} foton',
     tapToAnswer: 'Tryck för att svara.',
     tapToJoin: 'Tryck för att gå med.',
     reminderGeneric: 'Du bad om en påminnelse om ett meddelande.',

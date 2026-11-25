@@ -9,6 +9,7 @@ import { discardShare, loadRecents, sendShare, useShareIn, useShareTargets } fro
 import { MAX_SHARE_TEXT, orderTargets, type IncomingShare, type ShareTarget } from '../../state/shareInLogic'
 import { Avatar, Modal } from '../bits'
 import { FileIcon, Hash, Lock, Users, Video } from '../icons'
+import { PhotosIcon } from '../photos/icons'
 import { formatSize } from '../chat/helpers'
 import './share.css'
 
@@ -26,14 +27,17 @@ function SharePicker({ share }: { share: IncomingShare }) {
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const hasServers = useApp((s) => s.order.length > 0)
-  const { targets, people } = useShareTargets()
+  const everywhere = useShareTargets()
+  const people = everywhere.people
+  // Photos channels take files only.
+  const targets = share.files.length > 0 ? everywhere.targets : everywhere.targets.filter((x) => !(x.kind === 'channel' && x.photos))
   const [recents] = useState(loadRecents)
   const { recent, rest } = orderTargets(targets, people, recents, query)
   const all = [...recent, ...rest]
   // A place that went away (left the server, lost the right to post) is no longer chosen.
   const target = [...targets, ...people].find((x) => x.id === chosen) ?? null
   const busy = progress !== null
-  const canSend = !!target && !busy && (text.trim().length > 0 || share.files.length > 0)
+  const canSend = !!target && !busy && (text.trim().length > 0 || share.files.length > 0) && !(target.kind === 'channel' && target.photos && share.files.length === 0)
 
   async function send() {
     if (!target) return
@@ -115,7 +119,7 @@ function TargetRow({ target, chosen, disabled, onPick }: { target: ShareTarget; 
       aria-label={`${targetLabel(target)}, ${sub}`}>
       {target.kind === 'dm'
         ? <Avatar name={target.name} accountKey={target.peer} size={28} />
-        : <span className="share-target-icon">{target.kind === 'group' ? <Users size={18} /> : target.encrypted ? <Lock size={16} /> : <Hash size={18} />}</span>}
+        : <span className="share-target-icon">{target.kind === 'group' ? <Users size={18} /> : target.photos ? <PhotosIcon size={18} /> : target.encrypted ? <Lock size={16} /> : <Hash size={18} />}</span>}
       <span className="share-target-text">
         <span className="share-target-name">{target.name}</span>
         <span className="muted share-target-sub">{sub}</span>

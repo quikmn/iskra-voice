@@ -22,6 +22,8 @@ self.ISKRA_PUSH_TEXT = {
     openToRead: 'Откройте Iskra, чтобы прочитать.',
     groupOpenToRead: 'В групповом чате. Откройте Iskra, чтобы прочитать.',
     attachment: 'Вложение',
+    photoAdded: 'Новое фото',
+    photosAdded: 'Новые фото: {{count}}',
     tapToAnswer: 'Нажмите, чтобы ответить.',
     tapToJoin: 'Нажмите, чтобы присоединиться.',
     reminderGeneric: 'Вы просили напомнить о сообщении.',

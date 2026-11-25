@@ -6,7 +6,7 @@ export const e2ee: Messages['e2ee'] = {
     toggle: 'Criptografado de ponta a ponta',
     hint: 'Só as pessoas que podem ver este canal conseguem lê-lo, nos próprios dispositivos. O servidor guarda mensagens que não consegue ler.',
     limits: 'Feito para canais privados pequenos (até {{max}} pessoas). Novos membros não conseguem ler mensagens de antes de entrarem, a busca só funciona no seu dispositivo, e webhooks, bots, enquetes, figurinhas, GIFs e encaminhamento não estão disponíveis. Não dá para desativar depois.',
-    kinds: 'Só canais de texto, de voz e de quadro branco podem ser criptografados.',
+    kinds: 'Só canais de texto, de voz, de quadro branco e de fotos podem ser criptografados.',
     count_one: '{{count}} pessoa vai poder ler.',
     count_other: '{{count}} pessoas vão poder ler.',
     tooMany: '{{count}} pessoas poderiam ver este canal, e em um canal criptografado cabem {{max}}. Escolha um “quem pode ver” mais alto.',

@@ -96,7 +96,7 @@ export const settings: Messages['settings'] = {
     edit: 'Modifica {{name}}',
     renameCategory: 'Rinomina {{name}}',
     emptyCategory: 'Qui non ci sono ancora canali.',
-    kinds: { text: 'Testuale', voice: 'Vocale', forum: 'Forum', stage: 'Palco', docs: 'Documenti', whiteboard: 'Lavagna', media: 'Media', tasks: 'Compiti' },
+    kinds: { text: 'Testuale', voice: 'Vocale', forum: 'Forum', stage: 'Palco', docs: 'Documenti', whiteboard: 'Lavagna', media: 'Media', tasks: 'Compiti', photos: 'Foto' },
   },
   overview: {
     name: 'Nome',

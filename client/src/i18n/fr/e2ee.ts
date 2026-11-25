@@ -7,7 +7,7 @@ export const e2ee: Messages['e2ee'] = {
     toggle: 'Chiffré de bout en bout',
     hint: 'Seules les personnes qui peuvent voir ce salon peuvent le lire, sur leurs propres appareils. Le serveur stocke des messages qu’il ne peut pas lire.',
     limits: 'Conçu pour de petits salons privés (jusqu’à {{max}} personnes). Les nouveaux membres ne peuvent pas lire les messages d’avant leur arrivée, la recherche ne fonctionne que sur ton appareil, et les webhooks, les bots, les sondages, les autocollants, les GIF et le transfert ne sont pas disponibles. Ce choix ne peut pas être annulé plus tard.',
-    kinds: 'Seuls les salons textuels, vocaux et de tableau blanc peuvent être chiffrés.',
+    kinds: 'Seuls les salons textuels, vocaux, de tableau blanc et photos peuvent être chiffrés.',
     count_one: '{{count}} personne pourra le lire.',
     count_other: '{{count}} personnes pourront le lire.',
     tooMany: '{{count}} personnes pourraient voir ce salon, et un salon chiffré en accueille {{max}}. Choisis un « qui peut le voir » plus élevé.',

@@ -13,6 +13,7 @@ import { WhiteboardView } from '../whiteboard/WhiteboardView'
 import { MediaView } from '../mediaChannels/MediaView'
 import { TasksView } from '../tasks/TasksView'
 import { TaskPanel } from '../tasks/TaskPanel'
+import { PhotosView } from '../photos/PhotosView'
 import './chat-extras.css'
 
 export function ChatArea({ server, onToggle }: { server: ServerState; onToggle: (panel: Panel) => void }) {
@@ -28,6 +29,8 @@ export function ChatArea({ server, onToggle }: { server: ServerState; onToggle: 
   const media = server.channels.find((c) => c.id === channelId && c.kind === 'media')
   // A task board shows its open task (a thread) in its own panel.
   const tasks = server.channels.find((c) => c.id === channelId && c.kind === 'tasks')
+  // A photos channel shows a photo's comments (a thread) in its own viewer.
+  const photos = server.channels.find((c) => c.id === channelId && c.kind === 'photos')
 
   // A thread belongs to its channel: going to another channel closes it.
   useEffect(() => {
@@ -35,15 +38,16 @@ export function ChatArea({ server, onToggle }: { server: ServerState; onToggle: 
   }, [open, thread, channelId])
 
   return (
-    <div className={`chat-area ${(threadOpen && !media) || searching ? 'has-panel' : ''}`}>
+    <div className={`chat-area ${(threadOpen && !media && !photos) || searching ? 'has-panel' : ''}`}>
       {media ? <MediaView key={media.id} server={server} channel={media} onToggle={onToggle} />
         : forum ? <ForumView key={forum.id} server={server} channel={forum} onToggle={onToggle} />
         : docs ? <DocsView key={docs.id} server={server} channel={docs} onToggle={onToggle} />
         : board ? <WhiteboardView key={board.id} server={server} channel={board} onToggle={onToggle} />
         : tasks ? <TasksView key={tasks.id} server={server} channel={tasks} onToggle={onToggle} />
+        : photos ? <PhotosView key={photos.id} server={server} channel={photos} onToggle={onToggle} />
         : <ChatView server={server} onToggle={onToggle} />}
       {threadOpen && tasks ? <TaskPanel key={open.id} server={server} channel={tasks} taskId={open.id} />
-        : threadOpen && !media ? <ThreadPanel key={open.id} server={server} threadId={open.id} /> : searching ? <SearchPanel server={server} /> : null}
+        : threadOpen && !media && !photos ? <ThreadPanel key={open.id} server={server} threadId={open.id} /> : searching ? <SearchPanel server={server} /> : null}
     </div>
   )
 }

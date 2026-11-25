@@ -240,6 +240,23 @@ terms as [`docs/i18n-glossary.md`](../i18n-glossary.md); rules in [translating.m
 | Archive, archived (a done task put away) | Archivar, archivada | Put back: "Devolver al tablero" |
 | Comment (on a task) | Comentario | Verb: "comentar" |
 
+## Photos channels
+
+| English | Español | Notes |
+|---|---|---|
+| Photos channel (the channel kind "Photos") | Canal de fotos (channel kind: "Fotos") |  |
+| Photo, video | Foto, video | "Foto" is feminine: what agrees with the photos is feminine ("seleccionadas", "Agregadas por"). Sentences that can be about a photo or a video avoid agreement ("Se agregó el {{date}}") |
+| Album / "No album" | Álbum / "Sin álbum" | Plural "álbumes". Audit log filter: "Álbumes de fotos" |
+| Add photos | Agregar fotos | Never "subir" for the action; "Subiendo" only for the upload step |
+| Date taken | Fecha de captura | "Se tomó el {{taken}}" |
+| Caption | Descripción | The same word as in a media channel. "Subtítulos" is only for live captions |
+| Storage / storage limit | Almacenamiento / límite de almacenamiento | "{{used}} de {{cap}} en uso". Raise the limit: "subir el límite" |
+| Cover (album cover) | Portada | "Usar como portada del álbum" |
+| Hidden data / metadata | Datos ocultos / metadatos | "Metadatos" only in the server error; the app says "datos ocultos" and names them (ubicación, datos de la cámara y del teléfono). Remove: "quitar" |
+| Select | Seleccionar | "{{count}} seleccionadas", "Seleccionar todas" |
+| Download album | Descargar álbum | All: "Descargar todo". The file: "el zip" |
+| Thumbnail | Miniatura |  |
+
 ## Notes for whoever edits these texts
 
 - **"You" inside a sentence.** Some texts get either a name or the word for "you" in `{{who}}` (group chat system

@@ -6,7 +6,7 @@ export const e2ee: Messages['e2ee'] = {
     toggle: 'Crittografia end-to-end',
     hint: 'Solo le persone che possono vedere questo canale possono leggerlo, sui propri dispositivi. Il server conserva messaggi che non può leggere.',
     limits: 'Pensata per piccoli canali privati (fino a {{max}} persone). I nuovi membri non possono leggere i messaggi precedenti al loro ingresso, la ricerca funziona solo sul tuo dispositivo, e webhook, bot, sondaggi, sticker, GIF e inoltro non sono disponibili. Non si può disattivare in seguito.',
-    kinds: 'Solo i canali testuali, vocali e lavagna possono essere crittografati.',
+    kinds: 'Solo i canali testuali, vocali, lavagna e foto possono essere crittografati.',
     count_one: 'Potrà leggerlo {{count}} persona.',
     count_other: 'Potranno leggerlo {{count}} persone.',
     tooMany: '{{count}} persone potrebbero vedere questo canale, e in un canale crittografato ce ne stanno {{max}}. Scegli un «chi può vederlo» più alto.',

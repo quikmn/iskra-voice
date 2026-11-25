@@ -22,6 +22,8 @@ self.ISKRA_PUSH_TEXT = {
     openToRead: 'Öffne Iskra, um sie zu lesen.',
     groupOpenToRead: 'In einer Gruppe. Öffne Iskra, um sie zu lesen.',
     attachment: 'Hat einen Anhang gesendet',
+    photoAdded: 'Hat ein Foto hinzugefügt',
+    photosAdded: 'Hat {{count}} Fotos hinzugefügt',
     tapToAnswer: 'Tippe, um anzunehmen.',
     tapToJoin: 'Tippe, um beizutreten.',
     reminderGeneric: 'Du wolltest an eine Nachricht erinnert werden.',

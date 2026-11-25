@@ -99,13 +99,26 @@ export async function uploadDmFile(
   const server = useApp.getState().servers[serverKey]
   const connection = connectionFor(serverKey)
   if (!server || !connection?.isOnline) throw new Error(t('errors.codes.disconnected'))
+  const begun = await connection.request('dm.upload.begin', { ...(typeof peer === 'string' ? { accountKey: peer } : peer), size: encryptedSize(file.size) })
+  const sent = await uploadEncrypted(server.url + begun.url, begun.partBytes, file, onProgress, signal)
+  return {
+    server: serverKey, ...sent, name: cleanName(file.name), type: (file.type || 'application/octet-stream').slice(0, 100), size: file.size,
+    ...(voice ? { voice } : {}),
+  }
+}
+
+/**
+ * Encrypts `file` and PUTs the ciphertext to an upload ticket for `encryptedSize(file.size)` bytes (in parts when the
+ * server takes them and the file needs it). Returns the file id with the key and the ciphertext's hash.
+ */
+export async function uploadEncrypted(
+  url: string, partLimit: number | undefined, file: Blob, onProgress: (fraction: number) => void, signal?: AbortSignal,
+): Promise<Pick<DmFile, 'id' | 'key' | 'hash'>> {
   const size = file.size
   const total = encryptedSize(size)
-  const begun = await connection.request('dm.upload.begin', { ...(typeof peer === 'string' ? { accountKey: peer } : peer), size: total })
-  const url = server.url + begun.url
   const encryptor = new FileEncryptor(size)
   // As much plaintext per part as fits the server's part limit (header included), at most PART_CHUNKS chunks.
-  const partBytes = typeof begun.partBytes === 'number' ? begun.partBytes : 0
+  const partBytes = typeof partLimit === 'number' ? partLimit : 0
   const chunksPerPart = Math.min(PART_CHUNKS, Math.floor((partBytes - 64) / (FILE_CHUNK + 17)))
   const plainPerPart = chunksPerPart * FILE_CHUNK
   let id: string | null = null
@@ -134,10 +147,7 @@ export async function uploadDmFile(
   }
   const { key, hash } = encryptor.finish()
   onProgress(1)
-  return {
-    server: serverKey, id, key, hash, name: cleanName(file.name), type: (file.type || 'application/octet-stream').slice(0, 100), size,
-    ...(voice ? { voice } : {}),
-  }
+  return { id, key, hash }
 }
 
 // ── Downloading ─────────────────────────────────────────────────────────────
@@ -153,12 +163,12 @@ interface Sink {
  * Downloads a file's ciphertext and decrypts it chunk by chunk into `sink`, in writes of a few MB. The FINAL chunk, the
  * length and the hash are checked before `sink.close()`; on any failure (or cancel) the sink is aborted.
  */
-async function streamDmFile(file: DmFile, sink: Sink, onProgress?: (fraction: number) => void, signal?: AbortSignal): Promise<void> {
+async function streamDmFile(file: DmFile, sink: Sink, onProgress?: (fraction: number) => void, signal?: AbortSignal, link?: string): Promise<void> {
   try {
     const server = useApp.getState().servers[file.server]
     const connection = connectionFor(file.server)
     if (!server || !connection?.isOnline) throw new DmError(t('dms.files.serverOffline'))
-    const { url } = await connection.request('dm.file.url', { id: file.id })
+    const url = link ?? (await connection.request('dm.file.url', { id: file.id })).url
     const response = await fetch(server.url + url, { signal })
     if (!response.ok || !response.body) throw new DmError(t('dms.files.downloadFailed'))
     const decryptor = new FileDecryptor(file)
@@ -220,6 +230,17 @@ function memorySink(): Sink & { blob(type: string): Blob; head(): Uint8Array } {
     abort: async () => void (parts.length = 0),
     blob: (type) => new Blob(parts, { type }),
   }
+}
+
+/**
+ * Downloads, verifies and decrypts a file into memory, once (nothing is kept for later). `link`: a download link the
+ * caller already has for it (photos channels ask for many at a time); without it one is requested.
+ */
+export async function downloadDmFile(file: DmFile, link?: string, onProgress?: (fraction: number) => void, signal?: AbortSignal): Promise<{ blob: Blob; type: string; inline: boolean }> {
+  const sink = memorySink()
+  await streamDmFile(file, sink, onProgress, signal, link)
+  const kind = sniff(sink.head())
+  return { blob: sink.blob(kind.inline ? kind.type : 'application/octet-stream'), type: kind.type, inline: kind.inline }
 }
 
 export interface OpenedFile {

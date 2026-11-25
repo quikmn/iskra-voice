@@ -758,7 +758,7 @@ export async function startOver(serverKey: string, channelId: number, offeredCha
 
 export interface NewChannel {
   name: string
-  kind: 'text' | 'voice' | 'whiteboard'
+  kind: 'text' | 'voice' | 'whiteboard' | 'photos'
   readRole: Role
   writeRole: Role
   categoryId?: number

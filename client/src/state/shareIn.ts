@@ -74,7 +74,10 @@ const lastActivity = (list: { sentAt?: number; createdAt?: number; pending?: unk
   return last?.sentAt ?? last?.createdAt ?? 0
 }
 
-/** Everywhere you can post right now: text channels you may write in, DMs you've had, your groups; and people to DM. */
+/**
+ * Everywhere you can post right now: text channels you may write in, photos channels you may add to (for a share
+ * with files), DMs you've had, your groups; and people to DM.
+ */
 export function useShareTargets(): { targets: ShareTarget[]; people: ShareTarget[] } {
   const servers = useApp((s) => s.servers)
   const order = useApp((s) => s.order)
@@ -91,10 +94,10 @@ export function useShareTargets(): { targets: ShareTarget[]; people: ShareTarget
     const server = servers[key]
     if (!server?.me) continue
     for (const c of server.channels) {
-      if (c.kind !== 'text' || !canSendIn(server.me, c, roles[key] ?? [])) continue
+      if ((c.kind !== 'text' && c.kind !== 'photos') || !canSendIn(server.me, c, roles[key] ?? [])) continue
       targets.push({
         kind: 'channel', id: channelTargetId(key, c.id), serverKey: key, channelId: c.id, name: c.name, serverName: server.name,
-        encrypted: isEncrypted(key, c.id), activity: lastActivity(server.messages[c.id]),
+        encrypted: isEncrypted(key, c.id), activity: lastActivity(server.messages[c.id]), ...(c.kind === 'photos' ? { photos: true } : {}),
       })
     }
   }
@@ -166,7 +169,16 @@ export async function sendShare(target: ShareTarget, text: string, files: Shared
   const total = files.reduce((n, f) => n + f.size, 0) || 1
   let done = 0
   const progress = (f: SharedFile) => (fraction: number) => onProgress(Math.min(1, (done + fraction * f.size) / total))
-  if (target.kind === 'channel') {
+  if (target.kind === 'channel' && target.photos) {
+    // A photos channel: the files go through its own upload (hidden data removed, thumbnails, one batch); it shows the progress.
+    if (target.encrypted) await prepareChannel(target.serverKey, target.channelId).catch(() => undefined)
+    const picked = []
+    for (const f of files) picked.push(await fileOf(f))
+    const { uploadPhotos, keepsDate } = await import('./photos')
+    selectServer(target.serverKey)
+    selectChannel(target.serverKey, target.channelId)
+    uploadPhotos(target.serverKey, target.channelId, picked, { albumId: null, keepDate: keepsDate() })
+  } else if (target.kind === 'channel') {
     if (target.encrypted) await prepareChannel(target.serverKey, target.channelId).catch(() => undefined)
     const attachments = []
     for (const f of files) {

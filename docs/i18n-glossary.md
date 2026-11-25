@@ -118,6 +118,21 @@ friendly "du", sentence case in headings and buttons, and a normal Swedish word 
 | Archive, archived (a done task put away) | Arkivera, arkiverad |
 | Comment (on a task) | Kommentar |
 
+## Photos channels
+
+| English | Svenska |
+|---|---|
+| Photos channel (the channel kind "Photos") | Fotokanal (kanaltypen "Foton") |
+| Album / "No album" | Album (ett album, flera album) / "Inget album" |
+| Add photos | Lägg till foton |
+| Date taken | Datumet då fotot togs ("Taget {{taken}}") |
+| Caption | Bildtext |
+| Storage / storage limit | Lagring / lagringsgräns (i loggen och i fel: "fotolagring") |
+| Cover (album cover) | Omslag (albumomslag) |
+| Hidden data / metadata | Dolda data / metadata ("metadata" bara i serverns felmeddelande) |
+| Select | Markera ("Markera alla", "{{count}} markerade") |
+| Download album | Ladda ner albumet (hela kanalen: "Ladda ner alla") |
+
 ## Server messages
 
 The server writes its errors in English with a `key` and `args` (see `protocol/PROTOCOL.md` → Errors); the app

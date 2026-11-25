@@ -70,7 +70,7 @@ export interface ServerTemplateInfo {
 
 export interface TemplateChannelInfo {
   name: string
-  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media' | 'tasks'
+  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media' | 'tasks' | 'photos'
   userLimit: number
   readRole?: string
   writeRole?: string

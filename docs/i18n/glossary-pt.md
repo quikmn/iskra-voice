@@ -246,3 +246,18 @@ extra terms decided for Portuguese. Rules: [`../translating.md`](../translating.
 | Due (a task's due day) | Prazo | "Prazo: {{date}}", "Vence hoje", "Venceu em {{date}}", "Sem prazo" |
 | Archive, archived (a done task put away) | Arquivar, arquivada | Put back: "Devolver ao quadro" |
 | Comment (on a task) | Comentário | Verb: comentar |
+
+## Photos channels
+
+| English | Português | Notes |
+|---|---|---|
+| Photos channel (the channel kind "Photos") | Canal de fotos (channel kind: "Fotos") | "Foto" is feminine: "adicionada", "selecionadas". A video in it: "vídeo" |
+| Album / "No album" | Álbum / "Sem álbum" | Plural "álbuns" |
+| Add photos | Adicionar fotos | |
+| Date taken | Data em que a foto foi tirada | "Tirada em {{taken}}"; when it was added: "Adicionada em {{date}}" |
+| Caption | Legenda | As in a media channel |
+| Storage / storage limit | Armazenamento / limite de armazenamento | In the audit log and errors: "armazenamento de fotos" |
+| Cover (album cover) | Capa (capa do álbum) | |
+| Hidden data / metadata | Dados ocultos / metadados | "Dados ocultos" in the app's own texts; "metadados" only in the server's error |
+| Select | Selecionar | "Selecionar tudo", "{{count}} selecionadas" |
+| Download album | Baixar álbum | All of a channel: "Baixar tudo" |

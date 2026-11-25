@@ -26,8 +26,11 @@ import { useForumPost } from '../forums/useForumPost'
 import { resolveKey } from '../../state/keyMap'
 import { userMenuProps } from '../people/userMenuProps'
 
-/** `embedded`: inside the media viewer, which shows the post's pictures itself. */
-export function ThreadPanel({ server, threadId, embedded }: { server: ServerState; threadId: number; embedded?: boolean }) {
+/**
+ * `embedded`: inside the media viewer, which shows the post's pictures itself. `bare`: a photo's comments (a thread
+ * with no first message, renamed and deleted with its photo): no starting message, no rename or delete.
+ */
+export function ThreadPanel({ server, threadId, embedded, bare }: { server: ServerState; threadId: number; embedded?: boolean; bare?: boolean }) {
   const thread = useThreads((s) => s.threads[server.key]?.[threadId])
   const [root, setRoot] = useState<Message | null | undefined>(undefined)
   const [missing, setMissing] = useState(false)
@@ -68,7 +71,7 @@ export function ThreadPanel({ server, threadId, embedded }: { server: ServerStat
   const roles = useServerRoles(server.key)
   const canWrite = !!parent && canSendIn(me, parent, roles)
   const creator = thread ? server.members[thread.createdBy] : undefined
-  const canManage = !!me && !!thread && (thread.createdBy === me.accountKey ||
+  const canManage = !bare && !!me && !!thread && (thread.createdBy === me.accountKey ||
     (has(me, roles, 'manageMessages') && (!creator || outranks(me, creator, roles))))
   // Prefer the live copy of the root message when its channel is loaded.
   const liveRoot = thread ? server.messages[thread.channelId]?.find((m) => m.id === thread.rootId && !m.tempId) : undefined
@@ -130,7 +133,7 @@ export function ThreadPanel({ server, threadId, embedded }: { server: ServerStat
           />
         ) : (
           <div className="panel-title">
-            <h2>{thread?.name ?? t('chat.threads.thread')}</h2>
+            <h2>{bare ? t('photos.viewer.commentsTitle') : thread?.name ?? t('chat.threads.thread')}</h2>
             {parent && <span className="muted">{t('chat.threads.inChannel', { name: parent.name })}</span>}
           </div>
         )}
@@ -172,7 +175,7 @@ export function ThreadPanel({ server, threadId, embedded }: { server: ServerStat
             server={server}
             channelId={threadId}
             thread
-            header={<ThreadStart server={server} root={shownRoot} createdBy={thread?.createdBy} post={isPost} hideFiles={embedded} />}
+            header={bare ? undefined : <ThreadStart server={server} root={shownRoot} createdBy={thread?.createdBy} post={isPost} hideFiles={embedded} />}
           />
           <TypingLine server={server} channelId={threadId} />
           {canWrite && thread && !blocked ? (

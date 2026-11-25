@@ -275,3 +275,20 @@ terms decided for French. Rules: [translating.md](../translating.md).
 | Due (a task's due day) | Échéance | "Pour le {{date}}", "Pour aujourd’hui"; passed: "C’était pour le {{date}}"; none: "Pas d’échéance" |
 | Archive, archived (a done task put away) | Archiver, archivée | Put back: "Remettre sur le tableau" |
 | Comment (on a task) | Commentaire | |
+
+## Photos channels
+
+| English | Français | Notes |
+|---|---|---|
+| Photos channel (the channel kind "Photos") | Salon photos (kind: « Photos ») | Like "salon média". Plural "salons photos" |
+| Photo, video | Photo, vidéo | Both feminine: "Ajoutée le", "sélectionnées", "Ajoutées par" agree with them. "Image" only for the file type and the pixels ("Les images elles-mêmes") |
+| Album / "No album" | Album / « Sans album » | Audit log filter: "Albums photo" |
+| Add photos | Ajouter des photos | Never "importer" for the action; "Import" only for the upload step |
+| Date taken | Date de prise de vue | "Prise le {{taken}}" |
+| Caption | Légende | The same word as in a media channel. "Sous-titres" is only for live captions |
+| Storage / storage limit | Stockage / limite de stockage | "{{used}} utilisés sur {{cap}}". Sizes in Mo, Go |
+| Cover (album cover) | Couverture | "Utiliser comme couverture de l’album" |
+| Hidden data / metadata | Données cachées / métadonnées | "Métadonnées" only in the server error; the app says "données cachées" and names them (le lieu, les informations sur l’appareil photo et le téléphone). Remove: "retirer" |
+| Select | Sélectionner | "{{count}} sélectionnées", "Tout sélectionner" |
+| Download album | Télécharger l’album | All: "Tout télécharger". The file: "le zip" |
+| Thumbnail | Miniature |  |

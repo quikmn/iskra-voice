@@ -215,6 +215,11 @@ export function openTarget(target: OpenTarget): void {
     void import('./tasks').then(({ goToTask }) => goToTask(server, channelId, taskId))
     return
   }
+  if (target.photoId !== undefined) {
+    const { server, channelId, photoId } = target
+    void import('./photos').then(({ goToPhoto }) => goToPhoto(server, channelId, photoId))
+    return
+  }
   if (target.messageId === undefined) return selectChannel(target.server, target.channelId)
   // A message link: jump once this server is connected.
   const { server, channelId, messageId } = target

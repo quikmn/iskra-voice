@@ -384,3 +384,18 @@ Terms that aren't in the English glossary but come up often.
 | Due (a task's due day) | Termin | "Termin: {{date}}", "Termin: dziś", passed: "Po terminie: {{date}}", none: "Bez terminu" |
 | Archive, archived (a done task put away) | Archiwizuj, zarchiwizowane | The place: "archiwum"; back: "Przywróć na tablicę" |
 | Comment (on a task) | Komentarz | Forum posts have "odpowiedzi" |
+
+## Photos channels
+
+| English | Polski | Notes |
+|---|---|---|
+| Photos channel (the channel kind "Photos") | Kanał zdjęć | Kind label: "Zdjęcia". One: "zdjęcie"; "zdjęcia", "zdjęć". A video in it: "film" |
+| Album / "No album" | Album / "Bez albumu" | "albumy", "albumów" |
+| Add photos | Dodaj zdjęcia | |
+| Date taken | Data wykonania | "Wykonano {{taken}}"; when it was added: "Dodano {{date}}" |
+| Caption | Podpis | As in a media channel. Never "napisy" (voice captions) |
+| Storage / storage limit | Miejsce na dane / limit miejsca | In the audit log and errors: "miejsce na zdjęcia", "limit miejsca na zdjęcia" |
+| Cover (album cover) | Okładka (okładka albumu) | |
+| Hidden data / metadata | Ukryte dane / metadane | "Ukryte dane" in the app's own texts; "metadane" only in the server's error |
+| Select | Zaznacz | "Zaznacz wszystkie", "Zaznaczono: {{count}}" |
+| Download album | Pobierz album | All of a channel: "Pobierz wszystko" |

@@ -209,3 +209,20 @@ in [translating.md](../translating.md#glossary).
 | Due (a task's due day) | Fällig ("Fällig am {{date}}") | No due day: "Kein Termin" |
 | Archive, archived (a done task put away) | Archivieren, archiviert | Put back: "Zurück aufs Board" |
 | Comment (on a task) | Kommentar | Plural "Kommentare" |
+
+## Photos channels
+
+| English | Deutsch | Notes |
+|---|---|---|
+| Photos channel (the channel kind "Photos") | Fotokanal (channel kind: "Fotos") | Plural "Fotokanäle". Like "Medienkanal" |
+| Photo, video | Foto, Video | Plural "Fotos", "Videos". "Bild" only for the file type ("JPEG-Bild") and the pixels ("Die Bilder selbst") |
+| Album / "No album" | Album / „Kein Album“ | Plural "Alben". "In Album verschieben", "Fotoalben" in the audit log filter |
+| Add photos | Fotos hinzufügen | Never "hochladen" for the action; "Lädt hoch" only for the upload step |
+| Date taken | Aufnahmedatum | "Aufgenommen am {{taken}}", "Hinzugefügt am {{added}}" |
+| Caption | Bildtext | The same word as in a media channel. "Untertitel" is only for live captions |
+| Storage / storage limit | Speicher / Speicherlimit | "{{used}} von {{cap}} belegt". Audit log: "Speicherlimit für Fotos" |
+| Cover (album cover) | Titelbild | "Als Titelbild des Albums verwenden" |
+| Hidden data / metadata | Versteckte Daten / Metadaten | "Metadaten" only in the server error; the app says "versteckte Daten" and names them (Standort, Angaben zu Kamera und Handy) |
+| Select | Auswählen | "{{count}} ausgewählt", "Alle auswählen" |
+| Download album | Album herunterladen | All: "Alle herunterladen". The file: "Zip-Datei" |
+| Thumbnail | Vorschaubild |  |

@@ -6,7 +6,7 @@ export const e2ee: Messages['e2ee'] = {
     toggle: 'Szyfrowanie end-to-end',
     hint: 'Czytać ten kanał mogą tylko osoby, które go widzą, na własnych urządzeniach. Serwer przechowuje wiadomości, których nie umie odczytać.',
     limits: 'Do małych prywatnych kanałów (maks. {{max}} osób). Nowi członkowie nie przeczytają wiadomości sprzed dołączenia, wyszukiwanie działa tylko na twoim urządzeniu, a webhooki, boty, ankiety, naklejki, GIF-y i przekazywanie dalej są niedostępne. Tego nie da się później wyłączyć.',
-    kinds: 'Szyfrować można tylko kanały tekstowe, głosowe i tablice.',
+    kinds: 'Szyfrować można tylko kanały tekstowe, głosowe, tablice i kanały zdjęć.',
     count_one: '{{count}} osoba będzie mogła go czytać.',
     count_few: '{{count}} osoby będą mogły go czytać.',
     count_many: '{{count}} osób będzie mogło go czytać.',

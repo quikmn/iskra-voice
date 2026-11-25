@@ -92,7 +92,9 @@ export function parseShare(raw: unknown, origin: string): IncomingShare | null {
 // ── Destinations ──────────────────────────────────────────────────────────
 
 export type ShareTarget =
-  | { kind: 'channel'; id: string; serverKey: string; channelId: number; name: string; serverName: string; encrypted: boolean; activity: number }
+  | { kind: 'channel'; id: string; serverKey: string; channelId: number; name: string; serverName: string; encrypted: boolean; activity: number;
+      /** A photos channel: it takes the share's pictures and videos (as photos), not its text. */
+      photos?: boolean }
   | { kind: 'dm'; id: string; peer: string; name: string; activity: number }
   | { kind: 'group'; id: string; key: string; name: string; serverName: string; activity: number }
 

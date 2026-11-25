@@ -305,6 +305,23 @@ English terms as [`docs/i18n-glossary.md`](../i18n-glossary.md); format and rule
 | Archive, archived (a done task put away) | Archivia, archiviato | Put back: "Rimetti in bacheca" |
 | Comment (on a task) | Commento | Verb: "commentare" |
 
+## Photos channels
+
+| English | Italiano | Notes |
+|---|---|---|
+| Photos channel (the channel kind "Photos") | Canale foto (kind: "Foto") | Like "canale media". Plural "canali foto" |
+| Photo, video | Foto, video | "Foto" is feminine and invariable ("le foto", "selezionate", "Aggiunte da"); "video" is masculine. Lines that can be about either use a noun ("Aggiunta: {{date}}", "Scatto: {{taken}}") |
+| Album / "No album" | Album / "Nessun album" | Invariable: "gli album". Audit log filter: "Album di foto" |
+| Add photos | Aggiungi foto | Never "carica" for the action; "Caricamento" only for the upload step |
+| Date taken | Data di scatto |  |
+| Caption | Didascalia | The same word as in a media channel. "Sottotitoli" is only for live captions |
+| Storage / storage limit | Spazio di archiviazione / limite di archiviazione | "{{used}} di {{cap}} in uso". Raise the limit: "alzare il limite" |
+| Cover (album cover) | Copertina | "Usa come copertina dell'album" |
+| Hidden data / metadata | Dati nascosti / metadati | "Metadati" only in the server error; the app says "dati nascosti" and names them (la posizione, i dati sulla fotocamera e sul telefono). Remove: "rimuovere" |
+| Select | Seleziona | "{{count}} selezionate", "Seleziona tutte" |
+| Download album | Scarica album | All: "Scarica tutto". The file: "lo zip" |
+| Thumbnail | Miniatura | "Anteprima" stays the word for a preview |
+
 ### Sentences built from parts
 
 - A text that puts "You" or a name in front of a verb (`{{who}} added {{targets}}`) can't be conjugated for both, so

@@ -96,7 +96,7 @@ export const settings: Messages['settings'] = {
     edit: 'Modifier {{name}}',
     renameCategory: 'Renommer {{name}}',
     emptyCategory: 'Pas encore de salon ici.',
-    kinds: { text: 'Textuel', voice: 'Vocal', forum: 'Forum', stage: 'Scène', docs: 'Documents', whiteboard: 'Tableau blanc', media: 'Média', tasks: 'Tâches' },
+    kinds: { text: 'Textuel', voice: 'Vocal', forum: 'Forum', stage: 'Scène', docs: 'Documents', whiteboard: 'Tableau blanc', media: 'Média', tasks: 'Tâches', photos: 'Photos' },
   },
   overview: {
     name: 'Nom',

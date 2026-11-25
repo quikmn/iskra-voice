@@ -294,3 +294,18 @@ LiveKit, Windows), `AutoMod`, file formats (PNG, GIF, ZIP), slash commands (`/ro
 | Due (a task's due day) | Срок | «Срок: {{date}}», «Срок сегодня», «Без срока»; passed: «Срок прошёл: {{date}}» |
 | Archive, archived (a done task put away) | В архив (button), отправить в архив; «в архиве» | Back: «Вернуть на доску» |
 | Comment (on a task) | Комментарий | Verb: «комментировать», «написать комментарий» |
+
+## Photos channels
+
+| English | Русский | Notes |
+|---|---|---|
+| Photos channel (the channel kind "Photos") | Канал с фото (channel kind: «Фото») | «Фото» is indeclinable and neuter: «{{count}} фото», «новое фото», «новых фото». Never «фотография», «фотка» or «снимок». A video in it: «видео» |
+| Album / "No album" | Альбом / «Без альбома» | In the audit log filter: «фотоальбом» |
+| Add photos | Добавить фото | |
+| Date taken | Дата съёмки | «Снято {{taken}}»; when it was added: «Добавлено {{date}}» |
+| Caption | Подпись | As in a media channel. Never «субтитры» (voice captions) |
+| Storage / storage limit | Хранилище / лимит хранилища | In the audit log and errors: «хранилище фото» |
+| Cover (album cover) | Обложка (обложка альбома) | |
+| Hidden data / metadata | Скрытые данные / метаданные | «Скрытые данные» in the app's own texts; «метаданные» only in the server's error. Location: «место съёмки» |
+| Select | Выбрать | «Выбрать все», «Выбрано: {{count}}» |
+| Download album | Скачать альбом | All of a channel: «Скачать все» |

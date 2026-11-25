@@ -7,7 +7,7 @@ export const e2ee: Messages['e2ee'] = {
     toggle: 'Cifrado de extremo a extremo',
     hint: 'Solo las personas que pueden ver este canal pueden leerlo, en sus propios dispositivos. El servidor guarda mensajes que no puede leer.',
     limits: 'Pensado para canales privados pequeños (hasta {{max}} personas). Los miembros nuevos no pueden leer los mensajes anteriores a su llegada, la búsqueda solo funciona en tu dispositivo, y no hay webhooks, bots, encuestas, stickers, GIFs ni reenvíos. Esto no se puede desactivar después.',
-    kinds: 'Solo se pueden cifrar los canales de texto, de voz y de pizarra.',
+    kinds: 'Solo se pueden cifrar los canales de texto, de voz, de pizarra y de fotos.',
     count_one: '{{count}} persona podrá leerlo.',
     count_other: '{{count}} personas podrán leerlo.',
     tooMany: '{{count}} personas podrían ver este canal, y en un canal cifrado caben {{max}}. Elige un rol más alto en “Quién puede verlo”.',

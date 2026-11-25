@@ -76,6 +76,7 @@ import { recording } from './recording'
 import { kit } from './kit'
 import { shell } from './shell'
 import { tasks } from './tasks'
+import { photos } from './photos'
 
 export const es: Messages = {
   common,
@@ -153,5 +154,6 @@ export const es: Messages = {
   kit,
   shell,
   tasks,
+  photos,
   calendar,
 }

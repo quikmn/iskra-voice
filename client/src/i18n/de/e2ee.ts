@@ -6,7 +6,7 @@ export const e2ee: Messages['e2ee'] = {
     toggle: 'Ende-zu-Ende-verschlüsselt',
     hint: 'Nur wer diesen Kanal sehen kann, kann ihn lesen, auf den eigenen Geräten. Der Server speichert Nachrichten, die er nicht lesen kann.',
     limits: 'Gedacht für kleine private Kanäle (bis {{max}} Personen). Neue Mitglieder können Nachrichten von vor ihrem Beitritt nicht lesen, die Suche funktioniert nur auf deinem Gerät, und Webhooks, Bots, Umfragen, Sticker, GIFs und Weiterleiten gibt es nicht. Das lässt sich später nicht ausschalten.',
-    kinds: 'Nur Text-, Sprach- und Whiteboard-Kanäle können verschlüsselt werden.',
+    kinds: 'Nur Text-, Sprach-, Whiteboard- und Fotokanäle können verschlüsselt werden.',
     count_one: '{{count}} Person wird ihn lesen können.',
     count_other: '{{count}} Personen werden ihn lesen können.',
     tooMany: '{{count}} Personen könnten diesen Kanal sehen, in einen verschlüsselten Kanal passen aber {{max}}. Wähle bei „Wer sehen darf“ eine höhere Rolle.',
