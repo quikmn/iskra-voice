@@ -869,7 +869,7 @@ Event { "id": 5, "title": "Game night", "description": "Bring snacks" | null, "s
 - **Timing:** the server moves an event to `live` at `startAt` and to `ended` at `endAt` (within about a second), and forgets ended and cancelled events after 30 days. Moving the start time re-arms the reminder.
 - **Reminders:** 15 minutes before the start (only for events created further ahead than that) and again when it goes live, every interested member who can see it gets `event.reminder` on their sessions and a [push](#push-notifications-web-push) of kind `event` (no `channelId`: a click opens the server).
 - **Repeating events** are a series of ordinary events (occurrences) sharing `seriesId` (the first one's id). The server keeps one open occurrence per series: when it ends, the next one is created (`event.updated`, a new id, same title, description, place, image, repeat and `until`, the same wall-clock time in `timeZone` a day, a week, two weeks or a month later; occurrences the server slept through are skipped) and the creator is interested in it. Interest, reminders and edits are per occurrence unless `scope` says otherwise: `event.update` with the default `scope: "series"` changes this occurrence and so everything after it (including `repeat` and `until`; `repeat: "none"` ends the series after this one); `scope: "one"` takes this occurrence out of the series (it becomes a one-off, `repeat` and `until` can't be sent) and creates the series' next occurrence right away. `event.cancel` with `scope: "series"` ends the series; `scope: "one"` skips this occurrence and creates the next one now. Nothing is created past `until`.
-- "Add to calendar" is client-side: an iCalendar (RFC 5545) file with UTC times, built from the event; a repeating event gets an `RRULE` (with `UNTIL`) and its start in `timeZone`.
+- "Add to calendar" is client-side: an iCalendar (RFC 5545) file with UTC times, built from the event; a repeating event gets an `RRULE` (with `UNTIL`) and its start in `timeZone`. A feed of all events for a calendar app, and the phone apps writing events into the phone's calendar: [Calendar](#calendar).
 
 | event | body | sent to |
 |---|---|---|
@@ -5047,3 +5047,60 @@ Label { "id": 1, "name": "Bug", "emoji": "🐛" | null }   // a forum Tag, kept 
 - **Bots** that can't read all messages are refused `task.list`, `task.get`, `task.mine`, `task.create`, `task.update` and `task.move`, and get no `task.updated`.
 - **Your data:** `data.export` includes `tasks` (tasks you made, with their descriptions) and `taskAssignments` (who assigned which task to whom, where you are either). Comments are messages. **Channel export** writes a board's tasks (`tasks` in the JSON: title, description, status, archived, due, assignees, labels, author, comments). **Deleting an account** removes its assignments; tasks it made stay under its key, like its threads. Message retention applies to comments, not to tasks.
 - **Links:** apps link to a board with `#/open/<serverKey>/c/<channelId>` and to a task with `#/open/<serverKey>/c/<channelId>/t/<taskId>` (like message links), which opens the task in the app.
+
+## Calendar
+
+The app shows a server's [events](#scheduled-events) as a calendar (a month or an agenda). It expands a repeating event
+itself, from the open occurrence on: the same wall-clock time in the event's `timeZone` a day, a week, two weeks or a
+month later, as the server will when it makes the next occurrence. Two things come from the server: the birthdays
+members shared, and each member's own **calendar feed**, an address a calendar app (Google, Outlook, Apple) fetches the
+events from.
+
+```jsonc
+CalendarFeed { "allowed": true, "on": false, "createdAt": 0 | null, "fetchedAt": 0 | null, "address": "https://chat.example.org" | null }
+```
+
+| type | body | result | who |
+|---|---|---|---|
+| `calendar.birthdays` | | `{ birthdays: [{ accountKey, month, day }] }`: what members shared with the [Birthdays bot](#starboard-birthdays-and-welcome) (the people `/birthday list` shows); empty while the bot is off | anyone; 1/s, burst 10 |
+| `calendar.feed.get` | | `{ feed: CalendarFeed }` | anyone (their own) |
+| `calendar.feed.create` | | `{ feed, path: "/calendar/<token>.ics" }`. Makes the member's feed, or replaces it: the token before stops working | anyone but bots (`bad_request`, key `calendar_feed_bot`), while the owner allows feeds (`forbidden`, key `calendar_feeds_off`); 5, then one every 20 s |
+| `calendar.feed.remove` | | `{ feed }` | anyone (their own) |
+| `calendar.settings.update` | `feeds` (bool) | `{ feed }` | owner (`forbidden`, key `owner_calendar`) |
+
+- **Off until the member makes one.** One feed per member. The token is 32 random bytes (base64url, 43 characters); the
+  server stores only its SHA-256 hash, so `path` is returned once, by `calendar.feed.create`, and never again.
+  `calendar.feed.remove`, leaving, being removed or deleting the account ends the feed. `fetchedAt` is when a calendar
+  app last fetched it (written at most every 10 minutes).
+- **The owner's switch.** `calendar.settings.update { feeds: false }` turns feeds off for the server and deletes every
+  feed (turning it on again doesn't bring them back); everyone gets the event `calendar.settings { feeds }`. Allowed by
+  default. Audit `calendar.settings` (`{ feeds }`); security log `calendar.feed.created` (`{ replaced }`) and
+  `calendar.feed.removed` for the member.
+- **`address`** is where calendar services on the internet reach the server: the internet hosting address, else
+  `PublicUrl`, else the HTTPS domain, and only when that is an `https://` address with a public host (not localhost, a
+  private or carrier-grade NAT address, a single-label name, or `.local`, `.lan`, `.internal`, `.home.arpa`, `.ts.net`).
+  `null` otherwise: the app then shows no link (it may still use the address it reaches the server at, by the same rule).
+
+### `GET /calendar/<token>.ics`
+
+No headers needed; the token is the credential. `200` with `text/calendar; charset=utf-8`, `Cache-Control: private,
+no-store`; `404` for an unknown, replaced or removed token (and while feeds are off); `429` with `Retry-After` past 12
+fetches at once, then one every 30 seconds per feed, and for wrong tokens past 20 at once, then one a second per client
+address (an IPv6 /64). Over plain HTTP from another machine the answer is `403` (as for [webhooks](#webhooks)): the
+token would already have crossed the network unencrypted.
+
+The body is an iCalendar object (RFC 5545: CRLF line ends, lines folded at 75 bytes, TEXT values escaped) with
+`METHOD:PUBLISH`, the server's name as `X-WR-CALNAME` and one `VEVENT` for every event the server still has (scheduled
+and live ones, and ended or cancelled ones for the 30 days they're kept) that the member can see right now:
+
+- `UID:event-<id>-<server key>@iskra`, the same for the life of the event. `SEQUENCE` counts its changes (edits, going
+  live, ending, cancelling), `LAST-MODIFIED` is the last one, `STATUS` is `CANCELLED` for a cancelled event and
+  `CONFIRMED` otherwise.
+- `SUMMARY` (title), `DESCRIPTION`, `LOCATION` (the place, or `<voice channel> · <server name>`), `DTSTART`/`DTEND`.
+- A one-off is in UTC. The open occurrence of a repeating event has `DTSTART;TZID=<timeZone>` and an `RRULE`
+  (`FREQ=DAILY`, `FREQ=WEEKLY`, `FREQ=WEEKLY;INTERVAL=2`, `FREQ=MONTHLY`; a monthly event on the 29th to 31st is
+  `FREQ=MONTHLY;BYMONTHDAY=28,…;BYSETPOS=-1`, the last day of a shorter month; `;UNTIL=` when the series has an end),
+  and the calendar carries a `VTIMEZONE` for each zone used (its clock changes from a year back to five years ahead).
+  Occurrences that are over or were skipped are plain events of their own, so nothing is listed twice.
+- Never: members' names or keys, who is interested, cover images, or events in an end-to-end encrypted channel.
+

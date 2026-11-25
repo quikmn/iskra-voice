@@ -393,6 +393,8 @@ public sealed partial class Store : IDisposable
         ("modpack-2", ModPackRankMigration),
         // Task boards: tasks (threads under a "tasks" channel), who they are assigned to, and their labels.
         ("tasks-1", TasksMigration),
+        // Calendar: event change counters for calendar feeds, members' feed tokens (hashed), and the owner's switch.
+        ("calendar-1", CalendarMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

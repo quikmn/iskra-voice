@@ -3,7 +3,8 @@ import Foundation
 import UIKit
 
 /// The app's own bridge to the web client (client/src/platform/native.ts, "IskraNative"): voice in the background,
-/// shares in (from the Share Extension, through the App Group: ShareInbox.swift).
+/// shares in (from the Share Extension, through the App Group: ShareInbox.swift), events into the phone's calendar
+/// (PhoneCalendar.swift).
 @objc(IskraNative)
 public class IskraNative: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "IskraNative"
@@ -15,6 +16,10 @@ public class IskraNative: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "keepAwake", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takeShare", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "shareDone", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "calendarAccess", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "calendarList", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "calendarSave", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "calendarDelete", returnType: CAPPluginReturnPromise),
     ]
 
     /** Posted when iskra://share opens the app (SceneDelegate). */
@@ -114,6 +119,59 @@ public class IskraNative: CAPPlugin, CAPBridgedPlugin {
         shareQueue.async {
             if (self.pendingShare?["id"] as? String) != id { ShareStore.remove(id) }
             call.resolve()
+        }
+    }
+
+    // ── Events in the phone's calendar (PhoneCalendar) ───────────────────────
+
+    /// Whether the app may read and write the phone's calendars. Only "ask" shows the system's question.
+    @objc func calendarAccess(_ call: CAPPluginCall) {
+        PhoneCalendar.access(ask: call.getBool("ask") ?? false) { granted in
+            call.resolve(["granted": granted])
+        }
+    }
+
+    /// The calendars events can be added to.
+    @objc func calendarList(_ call: CAPPluginCall) {
+        runCalendar(call) { ["calendars": try PhoneCalendar.list()] }
+    }
+
+    /// Adds an event, or changes the one with eventId in place.
+    @objc func calendarSave(_ call: CAPPluginCall) {
+        guard let startMs = call.getDouble("startMs"), let endMs = call.getDouble("endMs") else {
+            call.reject(PhoneCalendar.failed, PhoneCalendar.failed)
+            return
+        }
+        let event = PhoneCalendar.Event(
+            calendarId: call.getString("calendarId") ?? "",
+            eventId: call.getString("eventId"),
+            ref: call.getString("ref") ?? "",
+            title: call.getString("title") ?? "",
+            description: call.getString("description") ?? "",
+            location: call.getString("location") ?? "",
+            startMs: startMs,
+            endMs: endMs,
+            timeZone: call.getString("timeZone") ?? "",
+            rrule: call.getString("rrule"))
+        runCalendar(call) { ["eventId": try PhoneCalendar.save(event)] }
+    }
+
+    /// Deletes the events that still exist and were added by this app.
+    @objc func calendarDelete(_ call: CAPPluginCall) {
+        let ids = (call.getArray("eventIds") ?? []).compactMap { $0 as? String }
+        runCalendar(call) { ["deleted": try PhoneCalendar.delete(ids)] }
+    }
+
+    /** Runs the work on the calendar queue and settles the call. A failure reaches the page as its code only. */
+    private func runCalendar(_ call: CAPPluginCall, _ work: @escaping () throws -> [String: Any]) {
+        PhoneCalendar.queue.async {
+            do {
+                call.resolve(try work())
+            } catch let failure as PhoneCalendar.Failure {
+                call.reject(failure.code, failure.code)
+            } catch {
+                call.reject(PhoneCalendar.failed, PhoneCalendar.failed)
+            }
         }
     }
 }

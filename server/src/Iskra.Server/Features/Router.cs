@@ -16,7 +16,7 @@ public sealed class Router
 
     public Router(ILogger<Router> log, Hosting.InternetHost internet, Backups.BackupService backups, Import.ImportService imports,
         DataExports exports, Updates.UpdateService updates, Captions.CaptionModelService captions, Translate.TranslationModelService translations,
-        Hosting.TunnelListener tunnel, Voice.LiveKitHost livekit, Hosting.P2pSidecar sidecar)
+        Hosting.TunnelListener tunnel, Voice.LiveKitHost livekit, Hosting.P2pSidecar sidecar, CalendarFeeds calendarFeeds)
     {
         _log = log;
         Add("ping", (_, _, _) => new { });
@@ -109,6 +109,7 @@ public sealed class Router
         ChannelExportFeature.Register(this);
         DmPrivacyFeature.Register(this);
         RecordingFeature.Register(this);
+        CalendarFeature.Register(this, calendarFeeds);
     }
 
     public void Add(string type, Handler handler) => _handlers.Add(type, handler);

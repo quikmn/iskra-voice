@@ -79,6 +79,11 @@ export const compliance: Messages['compliance'] = {
       when: 'Seulement pendant que tu loues un serveur sur DigitalOcean depuis l’appli de bureau : le bouton ouvre DigitalOcean avec le lien de parrainage d’Iskra (Iskra reçoit un peu de crédit), tu t’y connectes dans ton navigateur (ou tu colles un jeton), et l’appli crée le serveur et son pare-feu, et les supprime si l’installation échoue. Le nouveau serveur télécharge Iskra depuis GitHub, et l’appli le vérifie à son adresse sslip.io.',
       off: 'DigitalOcean voit ton adresse IP et ce que l’appli crée dans ton compte. L’appli garde sa clé uniquement en mémoire et l’oublie après l’installation. Rien ne se passe si tu ne le lances pas.',
     },
+    calendar: {
+      who: 'Ton service de calendrier (Google, Outlook, Apple), seulement si tu y ajoutes le calendrier d’un serveur (désactivé par défaut)',
+      when: 'Une fois que tu as créé un lien de calendrier dans Événements → Ajouter à mon calendrier et que tu t’y es abonné, ton service de calendrier récupère les événements de ce serveur auprès du serveur : titres, horaires, lieux et descriptions des événements que tu peux voir. Jamais de noms de membres, jamais rien des salons chiffrés. Dans l’appli pour téléphone, « Mettre les événements de ce serveur dans le calendrier de mon téléphone » écrit la même chose dans un calendrier de ton téléphone, que ton téléphone synchronise avec ton propre compte.',
+      off: 'Désactive le lien (ou crées-en un nouveau) dans Événements → Ajouter à mon calendrier, et il cesse de fonctionner aussitôt. Si tu désactives l’option sur le téléphone, les événements ajoutés par Iskra sont retirés.',
+    },
     assistant: {
       who: 'Le fournisseur d’IA que tu choisis pour l’assistant (désactivé par défaut)',
       when: 'Seulement quand tu appuies sur Envoyer dans l’assistant : ta question, la conversation jusque-là, et ce que ses outils lisent pour cette question (noms, listes de salons, messages récents d’un salon que tu peux lire). Jamais les conversations chiffrées, les clés ni les liens d’invitation.',
@@ -214,5 +219,7 @@ export const compliance: Messages['compliance'] = {
     buddy_spot_deleted: 'Sauvegardes d’un ami supprimées après le délai de grâce',
     buddy_auth_failed: 'Requête d’un autre serveur refusée (signature incorrecte)',
     webhook_bad_signature: 'Publication de webhook refusée (signature absente ou incorrecte)',
+    calendar_feed_created: 'A créé un lien de calendrier',
+    calendar_feed_removed: 'A désactivé son lien de calendrier',
   },
 }

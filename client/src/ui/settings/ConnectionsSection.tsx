@@ -6,9 +6,9 @@ import { desktop, type DesktopSettings } from '../../platform/desktop'
 import { setAlwaysLoad, siteName, useSiteConsent } from '../../state/siteConsent'
 import { OutgoingHosts } from './OutgoingHosts'
 
-type Item = 'servers' | 'embeds' | 'watch' | 'gifs' | 'updates' | 'push' | 'webApp' | 'hosting' | 'previews' | 'translate' | 'stun' | 'digitalOcean' | 'outgoing' | 'feeds' | 'p2p' | 'bugReports' | 'assistant'
+type Item = 'servers' | 'embeds' | 'watch' | 'gifs' | 'updates' | 'push' | 'webApp' | 'hosting' | 'previews' | 'translate' | 'stun' | 'digitalOcean' | 'outgoing' | 'feeds' | 'p2p' | 'bugReports' | 'assistant' | 'calendar'
 
-const ITEMS: Item[] = ['servers', 'embeds', 'watch', 'gifs', 'updates', 'push', 'webApp', 'hosting', 'previews', 'translate', 'stun', 'digitalOcean', 'outgoing', 'feeds', 'p2p', 'bugReports', 'assistant']
+const ITEMS: Item[] = ['servers', 'embeds', 'watch', 'gifs', 'updates', 'push', 'webApp', 'hosting', 'previews', 'translate', 'stun', 'digitalOcean', 'outgoing', 'feeds', 'p2p', 'bugReports', 'assistant', 'calendar']
 
 export function ConnectionsSection() {
   const { t } = useTranslation()

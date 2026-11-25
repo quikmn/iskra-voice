@@ -1,34 +1,85 @@
-// The events dialog: upcoming and live events as cards (interested, add to calendar, join), and the create/edit form.
+// The events dialog: a server's calendar as a month or an agenda (upcoming and live events as cards: interested, add to
+// calendar, join), the create/edit form, and "Add to my calendar".
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { errorMessage } from '../../i18n/errors'
 import { formatDate } from '../../i18n/format'
 import { t as translate } from '../../i18n'
-import type { ServerEvent } from '../../core/protocol'
+import type { CalendarBirthday, ServerEvent } from '../../core/protocol'
 import type { ServerState } from '../../state/store'
 import { cancelEvent, canCreateEvent, canManageEvent, setInterested, useEvents } from '../../state/events'
-import { creatorTime, eventIcs, formatRange, icsFileName, localZone, openEvents, repeatText, startsIn } from '../../state/eventTime'
+import { loadBirthdays, useCalendar } from '../../state/calendar'
+import { addDays, agenda, dayOf, newEventStart } from '../../state/calendarLogic'
+import { creatorTime, eventIcs, formatClock, formatRange, icsFileName, localZone, openEvents, repeatText, startsIn } from '../../state/eventTime'
 import { joinVoice } from '../../state/voice'
 import { Avatar, Modal } from '../bits'
 import { Pencil, Plus, Volume } from '../icons'
-import { EmptyState } from '../kit'
+import { EmptyState, Segmented } from '../kit'
+import { usePhoneLayout } from '../usePhoneLayout'
+import { CalendarMonth } from './CalendarMonth'
+import { CalendarSubscribe } from './CalendarSubscribe'
 import { CalendarIcon, CalendarPlus, MapPin, RepeatIcon, StarIcon } from '../forums/icons'
 import { EventForm } from './EventForm'
 import { useNow } from './useNow'
 import { placeOf } from './place'
 
+const VIEW_KEY = 'iskra.eventsView'
+type View = 'month' | 'agenda'
+
+/** The view picked last on this device; else the month on a computer and the agenda on a phone. */
+function storedView(phone: boolean): View {
+  try {
+    const stored = localStorage.getItem(VIEW_KEY)
+    if (stored === 'month' || stored === 'agenda') return stored
+  } catch {
+    /* no storage: the default */
+  }
+  return phone ? 'agenda' : 'month'
+}
+
+/** How far ahead the agenda shows the later days of a series and birthdays. */
+const AGENDA_REPEAT_DAYS = 28
+const AGENDA_BIRTHDAY_DAYS = 60
+
+type Mode = { kind: 'view' } | { kind: 'form'; event?: ServerEvent; start?: number } | { kind: 'subscribe' }
+
 export function EventsDialog({ server, focus, onClose }: { server: ServerState; focus?: number; onClose: () => void }) {
   const { t } = useTranslation()
+  const phone = usePhoneLayout()
   const events = useEvents((s) => s.events[server.key])
-  const [mode, setMode] = useState<{ kind: 'list' } | { kind: 'form'; event?: ServerEvent }>({ kind: 'list' })
+  const birthdays = useCalendar((s) => s.birthdays[server.key]) ?? NO_BIRTHDAYS
+  const [mode, setMode] = useState<Mode>({ kind: 'view' })
+  // A reminder or a link to one event opens the agenda at that event.
+  const [view, setView] = useState<View>(() => (focus !== undefined ? 'agenda' : storedView(phone)))
+  const [focused, setFocused] = useState(focus)
   const now = useNow()
   const list = openEvents(Object.values(events ?? {}))
   const listRef = useRef<HTMLDivElement>(null)
+  const zone = localZone()
+  const today = dayOf(now, zone)
 
   useEffect(() => {
-    if (mode.kind !== 'list' || focus === undefined) return
-    listRef.current?.querySelector(`#event-${focus}`)?.scrollIntoView({ block: 'center' })
-  }, [focus, mode.kind])
+    void loadBirthdays(server.key)
+  }, [server.key])
+
+  useEffect(() => {
+    if (mode.kind !== 'view' || view !== 'agenda' || focused === undefined) return
+    listRef.current?.querySelector(`#event-${focused}`)?.scrollIntoView({ block: 'center' })
+  }, [focused, mode.kind, view])
+
+  function pickView(next: View) {
+    setView(next)
+    try {
+      localStorage.setItem(VIEW_KEY, next)
+    } catch {
+      /* not remembered */
+    }
+  }
+
+  function openEvent(id: number) {
+    setFocused(id)
+    setView('agenda')
+  }
 
   if (mode.kind === 'form') {
     const editing = mode.event ? events?.[mode.event.id] ?? mode.event : undefined
@@ -36,11 +87,26 @@ export function EventsDialog({ server, focus, onClose }: { server: ServerState; 
       <EventForm
         server={server}
         event={editing}
-        onBack={() => setMode({ kind: 'list' })}
+        start={mode.start}
+        onBack={() => setMode({ kind: 'view' })}
         onClose={onClose}
       />
     )
   }
+  if (mode.kind === 'subscribe') return <CalendarSubscribe server={server} onBack={() => setMode({ kind: 'view' })} onClose={onClose} />
+
+  // The agenda: every upcoming event as a card under its day, with birthdays and the next weeks' repeats between them.
+  const firstDay = list.length > 0 && dayOf(list[0].startAt, zone) < today ? dayOf(list[0].startAt, zone) : today
+  const days = view === 'agenda'
+    ? agenda(list, birthdays, firstDay, 400, zone).map((day) => ({
+      ...day,
+      items: day.items.filter((item) => item.kind === 'birthday'
+        ? day.day >= today && day.day <= addDays(today, AGENDA_BIRTHDAY_DAYS)
+        : !item.projected || day.day <= addDays(today, AGENDA_REPEAT_DAYS)),
+    })).filter((day) => day.items.length > 0)
+    : []
+
+  const dayNames = { today: t('calendar.today'), tomorrow: t('calendar.tomorrow') }
 
   return (
     <Modal
@@ -48,24 +114,65 @@ export function EventsDialog({ server, focus, onClose }: { server: ServerState; 
       heading={<>{t('events.dialog.title')} <span className="muted">{t('events.dialog.on', { server: server.name })}</span></>}
       onClose={onClose}
       wide
-      className="events-modal"
+      className={`events-modal ${view === 'month' ? 'calendar-wide' : ''}`}
       footer={canCreateEvent(server) ? (
         <button className="button primary" onClick={() => setMode({ kind: 'form' })}><Plus size={16} /> {t('events.dialog.schedule')}</button>
       ) : undefined}
     >
-      <div ref={listRef} className="event-list">
-        {list.length === 0 ? (
-          <EmptyState className="event-empty" icon={<CalendarIcon size={28} />} title={t('events.dialog.empty')}
-            body={canCreateEvent(server) ? t('events.dialog.emptyCreate') : t('events.dialog.emptyView')} />
-        ) : (
-          list.map((event) => (
-            <EventCard key={event.id} server={server} event={event} now={now} focused={event.id === focus}
-              onEdit={() => setMode({ kind: 'form', event })} onJoined={onClose} />
-          ))
-        )}
+      <div className="events-toolbar">
+        <Segmented
+          label={t('calendar.view.label')} value={view} onChange={pickView}
+          items={[{ id: 'month', label: t('calendar.view.month'), testId: 'events-view-month' }, { id: 'agenda', label: t('calendar.view.agenda'), testId: 'events-view-agenda' }]}
+        />
+        <button className="button small" onClick={() => setMode({ kind: 'subscribe' })} data-testid="calendar-subscribe-open">
+          <CalendarPlus size={14} /> {t('calendar.subscribe.button')}
+        </button>
       </div>
+      {view === 'month' ? (
+        <CalendarMonth
+          server={server} events={list} birthdays={birthdays} now={now} canCreate={canCreateEvent(server)}
+          onOpenEvent={openEvent} onCreate={(day) => setMode({ kind: 'form', start: newEventStart(day, zone) })}
+        />
+      ) : (
+        <div ref={listRef} className="event-list">
+          {days.length === 0 ? (
+            <EmptyState className="event-empty" icon={<CalendarIcon size={28} />} title={t('events.dialog.empty')}
+              body={canCreateEvent(server) ? t('events.dialog.emptyCreate') : t('events.dialog.emptyView')} />
+          ) : (
+            days.map(({ day, items }) => (
+              <section key={day} className="agenda-day" aria-label={agendaDay(day, today, dayNames)}>
+                <h3 className={day === today ? 'today' : ''}>{agendaDay(day, today, dayNames)}</h3>
+                {items.map((item, i) => item.kind === 'birthday' ? (
+                  <p key={`b${item.accountKey}`} className="agenda-row birthday">
+                    <span aria-hidden>🎂</span> {t('calendar.birthday', { name: server.members[item.accountKey]?.name ?? '?' })}
+                  </p>
+                ) : item.projected ? (
+                  <button key={`${item.event.id}-${i}`} className="agenda-row" onClick={() => openEvent(item.event.id)}>
+                    <time dateTime={new Date(item.startAt).toISOString()}>{formatClock(item.startAt)}</time>
+                    <strong>{item.event.title}</strong>
+                    <span className="muted cal-row-note"><RepeatIcon size={13} /> {t('calendar.repeatsThen')}</span>
+                  </button>
+                ) : (
+                  <EventCard key={item.event.id} server={server} event={item.event} now={now} focused={item.event.id === focused}
+                    onEdit={() => setMode({ kind: 'form', event: item.event })} onJoined={onClose} />
+                ))}
+              </section>
+            ))
+          )}
+        </div>
+      )}
     </Modal>
   )
+}
+
+const NO_BIRTHDAYS: CalendarBirthday[] = []
+
+/** "Today", "Tomorrow", or the day ("Saturday, October 24"; with the year when it isn't this one). */
+function agendaDay(day: string, today: string, names: { today: string; tomorrow: string }): string {
+  if (day === today) return names.today
+  if (day === addDays(today, 1)) return names.tomorrow
+  const [y, m, d] = day.split('-').map(Number)
+  return formatDate(Date.UTC(y, m - 1, d, 12), { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC', ...(day.slice(0, 4) !== today.slice(0, 4) ? { year: 'numeric' } : {}) })
 }
 
 function downloadIcs(server: ServerState, event: ServerEvent) {

@@ -80,6 +80,11 @@ export const compliance: Messages['compliance'] = {
       when: 'Bara medan du hyr en server hos DigitalOcean från skrivbordsappen: knappen öppnar DigitalOcean med Iskras värvningslänk (Iskra får en liten tillgodohavande), du loggar in där i webbläsaren (eller klistrar in en token), och appen skapar servern och dess brandvägg, och tar bort dem om uppsättningen misslyckas. Den nya servern hämtar Iskra från GitHub, och appen kollar den på dess sslip.io-adress.',
       off: 'DigitalOcean ser din IP-adress och vad appen skapar i ditt konto. Appen håller sin nyckel bara i minnet och glömmer den efter uppsättningen. Inget händer om du inte startar det själv.',
     },
+    calendar: {
+      who: 'Din kalendertjänst (Google, Outlook, Apple), bara om du lägger till en servers kalender i den (av som standard)',
+      when: 'När du har skapat en kalenderlänk i Evenemang → Lägg till i min kalender och prenumererar på den hämtar din kalendertjänst serverns evenemang från servern: titel, tid, plats och beskrivning för de evenemang du kan se. Aldrig namn på medlemmar, aldrig något från krypterade kanaler. I telefonappen skriver ”Lägg serverns evenemang i telefonens kalender” samma sak till en kalender på din telefon, som telefonen synkar till ditt eget konto.',
+      off: 'Stäng av länken (eller skapa en ny) i Evenemang → Lägg till i min kalender, så slutar den fungera direkt. Om du stänger av reglaget i telefonen tas evenemangen som Iskra lade till bort.',
+    },
     assistant: {
       who: 'AI-tjänsten du väljer för assistenten (av från början)',
       when: 'Bara när du trycker på Skicka i assistenten: din fråga, konversationen hittills och det dess verktyg läser för frågan (namn, kanallistor, senaste meddelanden i en kanal du kan läsa). Aldrig krypterade chattar, nycklar eller inbjudningslänkar.',
@@ -214,6 +219,8 @@ export const compliance: Messages['compliance'] = {
     buddy_spot_removed: 'Slutade spara en väns säkerhetskopior',
     buddy_spot_deleted: 'Raderade en väns säkerhetskopior efter respitiden',
     webhook_bad_signature: 'Avvisade ett webhook-inlägg (signatur saknas eller är fel)',
+    calendar_feed_created: 'Skapade en kalenderlänk',
+    calendar_feed_removed: 'Stängde av sin kalenderlänk',
     buddy_auth_failed: 'Nekade en begäran från en annan server (felaktig signatur)',
   },
 }

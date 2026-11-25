@@ -79,6 +79,11 @@ export const compliance: Messages['compliance'] = {
       when: "Solo mentre noleggi un server su DigitalOcean dall'app desktop: il pulsante apre DigitalOcean con il link referral di Iskra (Iskra riceve un po' di credito), tu accedi lì nel browser (oppure incolli un token), e l'app crea il server e il suo firewall, e li elimina se la configurazione non riesce. Il nuovo server scarica Iskra da GitHub, e l'app lo controlla al suo indirizzo sslip.io.",
       off: "DigitalOcean vede il tuo indirizzo IP e quello che l'app crea nel tuo account. L'app tiene la sua chiave solo in memoria e la dimentica dopo la configurazione. Non succede nulla se non lo avvii tu.",
     },
+    calendar: {
+      who: 'Il tuo servizio di calendario (Google, Outlook, Apple), solo se gli aggiungi il calendario di un server (disattivato per impostazione predefinita)',
+      when: "Dopo che hai creato un link del calendario in Eventi → Aggiungi al mio calendario e ti sei iscritto, il tuo servizio di calendario scarica dal server gli eventi di quel server: titoli, orari, luoghi e descrizioni degli eventi che puoi vedere. Mai nomi di membri, mai niente dai canali crittografati. Nell'app per telefono, «Metti gli eventi di questo server nel calendario del mio telefono» scrive le stesse cose in un calendario del tuo telefono, che il telefono sincronizza con il tuo account.",
+      off: "Disattiva il link (o creane uno nuovo) in Eventi → Aggiungi al mio calendario, e smette subito di funzionare. Se disattivi l'interruttore sul telefono, gli eventi aggiunti da Iskra vengono rimossi.",
+    },
     assistant: {
       who: "Il provider di IA che scegli per l'assistente (disattivo di norma)",
       when: "Solo quando premi Invia nell'assistente: la tua domanda, la conversazione fino a quel punto e quello che i suoi strumenti leggono per quella domanda (nomi, elenchi di canali, messaggi recenti di un canale che puoi leggere). Mai chat crittografate, chiavi o link d'invito.",
@@ -214,5 +219,7 @@ export const compliance: Messages['compliance'] = {
     buddy_spot_deleted: 'Backup di un amico eliminati dopo il periodo di tolleranza',
     buddy_auth_failed: "Rifiutata una richiesta da un altro server (firma non valida)",
     webhook_bad_signature: 'Rifiutato un post da webhook (firma mancante o errata)',
+    calendar_feed_created: 'Ha creato un link del calendario',
+    calendar_feed_removed: 'Ha disattivato il suo link del calendario',
   },
 }

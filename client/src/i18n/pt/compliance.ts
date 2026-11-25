@@ -79,6 +79,11 @@ export const compliance: Messages['compliance'] = {
       when: 'Só enquanto você aluga um servidor na DigitalOcean pelo app para computador: o botão abre a DigitalOcean com o link de indicação do Iskra (o Iskra ganha um pouco de crédito), você faz login lá no navegador (ou cola um token), e o app cria o servidor e o firewall dele, e os exclui se a configuração falhar. O novo servidor baixa o Iskra do GitHub, e o app o verifica no endereço sslip.io dele.',
       off: 'A DigitalOcean vê seu endereço IP e o que o app cria na sua conta. O app guarda a chave só na memória e a esquece depois da configuração. Nada acontece se você não começar.',
     },
+    calendar: {
+      who: 'Seu serviço de calendário (Google, Outlook, Apple), só se você adicionar a ele o calendário de um servidor (desativado por padrão)',
+      when: 'Depois que você cria um link de calendário em Eventos → Adicionar ao meu calendário e assina esse link, seu serviço de calendário busca no servidor os eventos daquele servidor: títulos, horários, locais e descrições dos eventos que você pode ver. Nunca nomes de membros, nunca nada de canais criptografados. No app de celular, “Colocar os eventos deste servidor no calendário do meu celular” grava a mesma coisa em um calendário do seu celular, que o celular sincroniza com a sua própria conta.',
+      off: 'Desative o link (ou crie um novo) em Eventos → Adicionar ao meu calendário, e ele para de funcionar na hora. Desativar a opção no celular remove os eventos que o Iskra adicionou.',
+    },
     assistant: {
       who: 'O provedor de IA que você escolher para o assistente (desativado por padrão)',
       when: 'Só quando você aperta Enviar no assistente: sua pergunta, a conversa até ali e o que as ferramentas dele leem para responder (nomes, listas de canais, mensagens recentes de um canal que você pode ler). Nunca conversas criptografadas, chaves ou links de convite.',
@@ -214,5 +219,7 @@ export const compliance: Messages['compliance'] = {
     buddy_spot_deleted: 'Excluiu os backups de um amigo após o período de tolerância',
     buddy_auth_failed: 'Recusou uma solicitação de outro servidor (assinatura inválida)',
     webhook_bad_signature: 'Recusou um envio de webhook (assinatura ausente ou errada)',
+    calendar_feed_created: 'Criou um link de calendário',
+    calendar_feed_removed: 'Desativou o próprio link de calendário',
   },
 }

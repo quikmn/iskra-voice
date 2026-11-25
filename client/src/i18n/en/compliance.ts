@@ -78,6 +78,11 @@ export const compliance = {
       when: 'Only while you rent a server on DigitalOcean from the desktop app: the button opens DigitalOcean with the Iskra referral link (Iskra gets a little credit), you sign in there in your browser (or paste a token), and the app creates the server and its firewall, and deletes them if setup fails. The new server downloads Iskra from GitHub, and the app checks it at its sslip.io address.',
       off: 'DigitalOcean sees your IP address and what the app creates in your account. The app keeps its key in memory only and forgets it after setup. Nothing happens unless you start it.',
     },
+    calendar: {
+      who: 'Your calendar service (Google, Outlook, Apple), only if you add a server\'s calendar to it (off by default)',
+      when: 'After you make a calendar link in Events → Add to my calendar and subscribe to it, your calendar service fetches that server\'s events from the server: titles, times, places and descriptions of the events you can see. Never names of members, never anything from encrypted channels. In the phone app, "Put this server\'s events in my phone\'s calendar" writes the same into a calendar on your phone, which your phone syncs to your own account.',
+      off: 'Turn the link off (or make a new one) in Events → Add to my calendar, and it stops working at once. Turning the phone switch off removes the events Iskra added.',
+    },
     assistant: {
       who: 'The AI provider you choose for the assistant (off by default)',
       when: 'Only when you press Send in the assistant: your question, the conversation so far, and what its tools read for that question (names, channel lists, recent messages of a channel you can read). Never encrypted chats, keys or invite links.',
@@ -213,5 +218,7 @@ export const compliance = {
     buddy_spot_deleted: "Deleted a friend's backups after the grace period",
     buddy_auth_failed: 'Refused a request from another server (bad signature)',
     webhook_bad_signature: 'Refused a webhook post (missing or wrong signature)',
+    calendar_feed_created: 'Made a calendar link',
+    calendar_feed_removed: 'Turned their calendar link off',
   },
 } as const

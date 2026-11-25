@@ -9,6 +9,7 @@ import { CalendarIcon } from '../forums/icons'
 import { EventsDialog } from './EventsDialog'
 import { useNow } from './useNow'
 import './events.css'
+import './calendar.css'
 
 export function EventsButton({ server, onNavigate }: { server: ServerState; onNavigate: () => void }) {
   const { t } = useTranslation()

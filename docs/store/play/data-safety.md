@@ -73,7 +73,7 @@ server) unless noted. Purpose for every type: **App functionality**; for Name an
 | Audio → **Music files** | No | | |
 | Audio → **Other audio files** | Yes | Optional | Soundboard sounds you add |
 | Files and docs | Yes | Optional | Files you upload to server channels; docs pages |
-| Calendar → Calendar events | No | | Iskra's events live on the server; "Add to calendar" only hands a file to your own calendar app |
+| Calendar → Calendar events | No | | Nothing is collected: the app never sends the phone's calendar anywhere and never reads your other events. Only if you turn on "Put this server's events in my phone's calendar" does it use the calendar permission (READ_CALENDAR, WRITE_CALENDAR): to list the phone's calendars so you can pick one, and to add, change and remove the events it added itself. "Add to calendar" on one event only hands a file to your own calendar app |
 | Contacts | No | | The app never reads the phone's contacts. Friends are Iskra accounts on your servers |
 | App activity → **Other user-generated content** | Yes | Optional | Reactions, polls and votes, pins, events you create or mark Interested, roles you pick for yourself, server rules you accept, reports you file, notes you write as a moderator |
 | App activity → **Other actions** | Yes | Required | Presence (online, idle, in voice: kept in memory only, so tick **processed ephemerally**), notification levels and your block list on each server; alert words and follows only if you tick "Also when Iskra is closed" |

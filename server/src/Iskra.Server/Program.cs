@@ -88,6 +88,7 @@ builder.Services.AddSingleton(_ => new Iskra.Server.Translate.TranslationUpstrea
 builder.Services.AddSingleton(Iskra.Server.Translate.TranslationPins.Pinned);
 builder.Services.AddSingleton<Iskra.Server.Translate.TranslationModelService>();
 builder.Services.AddSingleton<WebhookIngress>();
+builder.Services.AddSingleton<CalendarFeeds>();
 builder.Services.AddSingleton<BugInbox>();
 builder.Services.AddSingleton<OutgoingWebhooks>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<OutgoingWebhooks>());
@@ -259,6 +260,7 @@ if (https.Enabled)
             // Webhooks are refused even from 127.0.0.1 here: behind a proxy on port 80 everyone looks local, and a
             // redirect would hide that the secret just crossed the network unencrypted.
             if (context.Request.Path.StartsWithSegments("/hooks")) await WebhookIngress.WriteUseHttpsAsync(context);
+            else if (CalendarFeeds.IsFeedPath(context.Request.Path)) await CalendarFeeds.WriteUseHttpsAsync(context);
             else context.Response.Redirect($"{httpsUrl}{context.Request.Path}{context.Request.QueryString}");
             return;
         }
@@ -278,6 +280,7 @@ else
             && !context.Request.Path.StartsWithSegments("/.well-known"))
         {
             if (WebhookIngress.RefuseOverPlainHttp(context)) await WebhookIngress.WriteUseHttpsAsync(context);
+            else if (CalendarFeeds.RefuseOverPlainHttp(context)) await CalendarFeeds.WriteUseHttpsAsync(context);
             else context.Response.Redirect($"{publicUrl}{context.Request.Path}{context.Request.QueryString}", permanent: false, preserveMethod: true);
             return;
         }
@@ -359,6 +362,7 @@ app.MapGet("/activities/{id}/{**path}", (HttpContext context, string id, string 
 
 // Incoming webhooks: POST /hooks/{id}/{secret}.
 WebhookIngress.Map(app);
+CalendarFeeds.Map(app);
 BugInbox.Map(app);
 // The live-captions model's parts: GET /models/{dir}/{part}.
 Iskra.Server.Captions.CaptionModelFeature.Map(app);

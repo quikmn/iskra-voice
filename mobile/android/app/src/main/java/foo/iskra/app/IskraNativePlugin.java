@@ -29,10 +29,16 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** The app's own bridge to the web client (client/src/platform/native.ts, "IskraNative"): voice in the background, shares in. */
+/**
+ * The app's own bridge to the web client (client/src/platform/native.ts, "IskraNative"): voice in the background, shares
+ * in, events into the phone's calendar.
+ */
 @CapacitorPlugin(
     name = "IskraNative",
-    permissions = { @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS }) }
+    permissions = {
+        @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS }),
+        @Permission(alias = "calendar", strings = { Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR })
+    }
 )
 public class IskraNativePlugin extends Plugin {
     private static IskraNativePlugin instance;
@@ -49,6 +55,8 @@ public class IskraNativePlugin extends Plugin {
     private int shareGeneration;
     /** The id of the newest share read (its files are the ones in the cache folder). */
     private String lastShareId;
+    /** Calendar provider work, one call at a time and off the main thread. */
+    private final ExecutorService calendarWorker = Executors.newSingleThreadExecutor();
 
     @Override
     public void load() {
@@ -81,6 +89,7 @@ public class IskraNativePlugin extends Plugin {
         setKeepAwake(false);
         if (instance == this) instance = null;
         shareReader.shutdown();
+        calendarWorker.shutdown();
     }
 
     // ── Shares from other apps (ShareIntake) ─────────────────────────────────
@@ -126,6 +135,99 @@ public class IskraNativePlugin extends Plugin {
             ShareIntake.clear(getContext());
         });
         call.resolve();
+    }
+
+    // ── Events in the phone's calendar (PhoneCalendar) ───────────────────────
+
+    /** Whether the app may read and write the phone's calendars. Only "ask" shows Android's question. */
+    @PluginMethod
+    public void calendarAccess(PluginCall call) {
+        if (!PhoneCalendar.allowed(getContext()) && call.getBoolean("ask", false)) {
+            requestPermissionForAlias("calendar", call, "afterCalendarPermission");
+            return;
+        }
+        resolveCalendarAccess(call);
+    }
+
+    @PermissionCallback
+    private void afterCalendarPermission(PluginCall call) {
+        resolveCalendarAccess(call);
+    }
+
+    private void resolveCalendarAccess(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("granted", PhoneCalendar.allowed(getContext()));
+        call.resolve(result);
+    }
+
+    /** The calendars events can be added to. */
+    @PluginMethod
+    public void calendarList(PluginCall call) {
+        final Context context = getContext();
+        runCalendar(call, () -> {
+            JSObject result = new JSObject();
+            result.put("calendars", PhoneCalendar.list(context));
+            return result;
+        });
+    }
+
+    /** Adds an event, or changes the one with eventId in place. */
+    @PluginMethod
+    public void calendarSave(PluginCall call) {
+        final Context context = getContext();
+        final PhoneCalendar.Event event = new PhoneCalendar.Event();
+        event.calendarId = call.getString("calendarId", "");
+        event.eventId = call.getString("eventId", "");
+        event.ref = call.getString("ref", "");
+        event.title = call.getString("title", "");
+        event.description = call.getString("description", "");
+        event.location = call.getString("location", "");
+        // JSON numbers arrive as Integer, Long or Double depending on their size.
+        event.startMs = call.getData().optDouble("startMs");
+        event.endMs = call.getData().optDouble("endMs");
+        event.timeZone = call.getString("timeZone", "");
+        event.rrule = call.getString("rrule", "");
+        runCalendar(call, () -> {
+            JSObject result = new JSObject();
+            result.put("eventId", PhoneCalendar.save(context, event));
+            return result;
+        });
+    }
+
+    /** Deletes the events that still exist and were added by this app. */
+    @PluginMethod
+    public void calendarDelete(PluginCall call) {
+        final Context context = getContext();
+        final List<String> ids = new ArrayList<>();
+        JSArray given = call.getArray("eventIds", new JSArray());
+        for (int i = 0; i < given.length(); i++) ids.add(given.optString(i, ""));
+        runCalendar(call, () -> {
+            JSObject result = new JSObject();
+            result.put("deleted", PhoneCalendar.delete(context, ids));
+            return result;
+        });
+    }
+
+    private interface CalendarWork {
+        JSObject run() throws PhoneCalendar.Failure;
+    }
+
+    /** Runs the work on the calendar thread and settles the call. A failure reaches the page as its code only. */
+    private void runCalendar(PluginCall call, CalendarWork work) {
+        try {
+            calendarWorker.execute(() -> {
+                try {
+                    call.resolve(work.run());
+                } catch (PhoneCalendar.Failure failure) {
+                    call.reject(failure.code, failure.code);
+                } catch (RuntimeException other) {
+                    call.reject(PhoneCalendar.FAILED, PhoneCalendar.FAILED);
+                }
+            });
+        } catch (RuntimeException closing) {
+            // The activity is going away and the thread has stopped.
+            call.reject(PhoneCalendar.FAILED, PhoneCalendar.FAILED);
+        }
     }
 
     // ── Voice in the background ─────────────────────────────────────────────
