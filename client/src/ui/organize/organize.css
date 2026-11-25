@@ -182,3 +182,11 @@ kbd {
 /* A block whose rows all turned out not to apply (no rules, no rights) leaves no empty line behind. */
 .org-group:empty { display: none; }
 .org-group:empty + .org-group { margin-top: 0; padding-top: 0; border-top: 0; }
+/* Mute several servers: a checklist with rows tall enough to tap. */
+.mute-servers-tools { display: flex; gap: 8px; margin-bottom: 8px; }
+.mute-servers-list { list-style: none; margin: 0 0 14px; padding: 0; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden auto; max-height: 46vh; }
+.mute-servers-list li + li { border-top: 1px solid var(--border); }
+.mute-servers-row { align-items: center; padding: 10px 12px; min-height: 44px; box-sizing: border-box; }
+.mute-servers-row input { margin: 0; }
+.mute-servers-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.mute-servers-state { flex: none; font-size: var(--fs-sm); }

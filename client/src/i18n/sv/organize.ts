@@ -15,6 +15,18 @@ export const organize: Messages['organize'] = {
     muted: 'Tystad',
     until: 'Tystad till {{time}}',
   },
+  muteServers: {
+    title: 'Tysta servrar',
+    entry: 'Tysta flera servrar…',
+    settingsHint: 'Välj servrar i en lista och tysta dem, eller sluta tysta dem, på en gång.',
+    all: 'Välj alla',
+    clear: 'Rensa',
+    howLong: 'Hur länge',
+    mute: 'Tysta',
+    unmute: 'Sluta tysta',
+    none: 'Du är inte medlem i någon server än.',
+    failed: 'Går inte att nå just nu: {{servers}}. De är fortfarande ikryssade, så du kan försöka igen.',
+  },
   category: {
     rename: 'Byt namn på kategori',
     create: 'Skapa kategori',

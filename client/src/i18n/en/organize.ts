@@ -14,6 +14,18 @@ export const organize = {
     muted: 'Muted',
     until: 'Muted until {{time}}',
   },
+  muteServers: {
+    title: 'Mute servers',
+    entry: 'Mute several servers…',
+    settingsHint: 'Pick servers from a list and mute or unmute them together.',
+    all: 'Select all',
+    clear: 'Clear',
+    howLong: 'Mute for how long',
+    mute: 'Mute',
+    unmute: 'Unmute',
+    none: 'You are not a member of any server yet.',
+    failed: 'Not reachable right now: {{servers}}. They are still ticked, so you can try again.',
+  },
   category: {
     rename: 'Rename category',
     create: 'Create category',

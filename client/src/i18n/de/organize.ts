@@ -15,6 +15,18 @@ export const organize: Messages['organize'] = {
     muted: 'Stumm',
     until: 'Stumm bis {{time}}',
   },
+  muteServers: {
+    title: 'Server stummschalten',
+    entry: 'Mehrere Server stummschalten…',
+    settingsHint: 'Wähle Server aus einer Liste und schalte sie zusammen stumm oder wieder laut.',
+    all: 'Alle auswählen',
+    clear: 'Auswahl aufheben',
+    howLong: 'Wie lange stummschalten',
+    mute: 'Stummschalten',
+    unmute: 'Wieder laut',
+    none: 'Du bist noch auf keinem Server Mitglied.',
+    failed: 'Gerade nicht erreichbar: {{servers}}. Sie bleiben ausgewählt, du kannst es noch einmal versuchen.',
+  },
   category: {
     rename: 'Kategorie umbenennen',
     create: 'Kategorie erstellen',

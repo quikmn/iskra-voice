@@ -30,6 +30,7 @@ import { StreamerPill } from './streamer/StreamerBits'
 import { ProfileLayer } from './profile/ProfileLayer'
 import { UserMenuLayer } from './people/UserMenu'
 import { ServerActionLayer } from './organize/ServerMenu'
+import { MuteServersLayer } from './organize/MuteServers'
 import { SettingsLayer } from './settings/LazySettings'
 import { QuickSwitcher } from './QuickSwitcher'
 import { useEscapeLayer } from './layers'
@@ -144,6 +145,7 @@ export function Shell() {
       <ProfileLayer />
       <UserMenuLayer />
       <ServerActionLayer />
+      <MuteServersLayer />
       <SettingsLayer />
       <QuickSwitcher />
       <EventsLayer />

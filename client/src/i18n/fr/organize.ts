@@ -15,6 +15,18 @@ export const organize: Messages['organize'] = {
     muted: 'En sourdine',
     until: 'En sourdine jusqu’à {{time}}',
   },
+  muteServers: {
+    title: 'Mettre des serveurs en sourdine',
+    entry: 'Mettre plusieurs serveurs en sourdine…',
+    settingsHint: 'Choisis des serveurs dans une liste et mets-les en sourdine, ou réactive-les, en une fois.',
+    all: 'Tout sélectionner',
+    clear: 'Tout désélectionner',
+    howLong: 'Pendant combien de temps',
+    mute: 'Mettre en sourdine',
+    unmute: 'Réactiver',
+    none: 'Tu n’es encore membre d’aucun serveur.',
+    failed: 'Injoignables pour l’instant : {{servers}}. Ils restent cochés, tu peux réessayer.',
+  },
   category: {
     rename: 'Renommer la catégorie',
     create: 'Créer une catégorie',

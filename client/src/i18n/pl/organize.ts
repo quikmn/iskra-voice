@@ -15,6 +15,18 @@ export const organize: Messages['organize'] = {
     muted: 'Wyciszono',
     until: 'Wyciszono do {{time}}',
   },
+  muteServers: {
+    title: 'Wycisz serwery',
+    entry: 'Wycisz kilka serwerów…',
+    settingsHint: 'Wybierz serwery z listy i wycisz je albo wyłącz ich wyciszenie za jednym razem.',
+    all: 'Zaznacz wszystkie',
+    clear: 'Odznacz',
+    howLong: 'Na jak długo',
+    mute: 'Wycisz',
+    unmute: 'Wyłącz wyciszenie',
+    none: 'Nie należysz jeszcze do żadnego serwera.',
+    failed: 'Teraz niedostępne: {{servers}}. Pozostają zaznaczone, możesz spróbować ponownie.',
+  },
   category: {
     rename: 'Zmień nazwę kategorii',
     create: 'Utwórz kategorię',

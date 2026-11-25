@@ -5,7 +5,7 @@ import type { Category, Events, Member, NotifyDefault, NotifyLevel, NotifySettin
 import { connectionFor, onChannelsGone, onServerEvent, onWelcomeHook, uploadFile, useApp } from './store'
 import { knownThread } from './threads'
 import { t } from '../i18n'
-import { defaultLevel, effectiveNotify, nextMuteEnd, notifyKey, type EffectiveNotify, type NotifyMap } from './organizeLogic'
+import { defaultLevel, effectiveNotify, nextMuteEnd, notifyKey, splitSettled, type EffectiveNotify, type NotifyMap } from './organizeLogic'
 
 interface OrganizeState {
   categories: Record<string, Category[]>
@@ -178,6 +178,15 @@ export async function setNotifyLevel(serverKey: string, channelId: number | null
 export async function muteFor(serverKey: string, channelId: number | null, minutes: number): Promise<void> {
   const { setting } = await connection(serverKey).request('notify.set', { channelId, muteMinutes: minutes })
   saveSetting(serverKey, setting)
+}
+
+/**
+ * Mutes (or with 0 unmutes) several whole servers. Every server has its own connection and keeps its own mute, so one
+ * that is offline fails on its own: the result says which.
+ */
+export async function muteServers(serverKeys: string[], minutes: number): Promise<{ done: string[]; failed: string[] }> {
+  const keys = [...new Set(serverKeys)]
+  return splitSettled(keys, await Promise.allSettled(keys.map(async (key) => muteFor(key, null, minutes))))
 }
 
 export async function createCategory(serverKey: string, name: string): Promise<Category> {

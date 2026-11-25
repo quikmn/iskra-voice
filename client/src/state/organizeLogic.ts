@@ -159,6 +159,14 @@ export const MUTE_CHOICES = [
   { key: 'forever', minutes: -1 },
 ] as const
 
+/** Which of a batch of per-server requests worked: `results` are in the order of `keys` (Promise.allSettled). */
+export function splitSettled(keys: string[], results: PromiseSettledResult<unknown>[]): { done: string[]; failed: string[] } {
+  const done: string[] = []
+  const failed: string[] = []
+  keys.forEach((key, i) => (results[i]?.status === 'fulfilled' ? done : failed).push(key))
+  return { done, failed }
+}
+
 export const muteChoiceLabel = (choice: (typeof MUTE_CHOICES)[number]) => t(`organize.mute.${choice.key}`)
 
 /** "All messages", "Only @mentions", "Nothing". */

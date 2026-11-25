@@ -15,6 +15,18 @@ export const organize: Messages['organize'] = {
     muted: 'Silenziato',
     until: 'Silenziato fino alle {{time}}',
   },
+  muteServers: {
+    title: 'Silenzia server',
+    entry: 'Silenzia più server…',
+    settingsHint: 'Scegli i server da un elenco e silenziali o riattivali insieme.',
+    all: 'Seleziona tutti',
+    clear: 'Deseleziona',
+    howLong: 'Per quanto tempo',
+    mute: 'Silenzia',
+    unmute: 'Riattiva',
+    none: 'Non sei ancora membro di nessun server.',
+    failed: 'Non raggiungibili in questo momento: {{servers}}. Restano selezionati, puoi riprovare.',
+  },
   category: {
     rename: 'Rinomina categoria',
     create: 'Crea categoria',

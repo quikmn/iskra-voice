@@ -17,6 +17,7 @@ import { useReads } from '../state/readState'
 import { useThreads } from '../state/threads'
 import { MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './organize/OrgMenu'
 import { ServerMenu } from './organize/ServerMenu'
+import { openMuteServers } from './organize/MuteServers'
 import { FolderDialog } from './organize/FolderDialog'
 import { InboxButton } from './productivity/InboxButton'
 import { AssistantButton } from './assistant/AssistantPanel'
@@ -208,6 +209,7 @@ export function ServerRail({ onJoin, onNavigate }: { onJoin: () => void; onNavig
           <MenuTitle>{menuFolder.name || t('app.rail.folder')}</MenuTitle>
           <div className="org-list" role="menu">
             <MenuItem onClick={act(() => menuFolder.servers.forEach(markServerRead))}>{t('app.rail.markAllRead')}</MenuItem>
+            <MenuItem onClick={act(() => openMuteServers(menuFolder.servers))}>{t('organize.muteServers.entry')}</MenuItem>
             <MenuItem onClick={act(() => setEditing(menuFolder))}>{t('app.rail.folderSettings')}</MenuItem>
             <MenuItem onClick={act(() => setRail(updateFolder(layout, menuFolder.id, { collapsed: !menuFolder.collapsed })))}>
               {menuFolder.collapsed ? t('app.rail.openFolder') : t('app.rail.closeFolder')}

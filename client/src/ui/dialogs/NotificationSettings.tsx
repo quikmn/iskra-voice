@@ -6,7 +6,8 @@ import { ServerNotifySettings } from '../organize/ServerSettings'
 import { enableDesktopNotifications, notificationsSupported, updateNotify, useNotify } from '../../state/notify'
 import { playSound, useSounds } from '../../state/sounds'
 import { SoundSettings } from '../sounds/SoundSettings'
-import { SwitchRow } from '../kit'
+import { SettingRow, SwitchRow } from '../kit'
+import { openMuteServers } from '../organize/MuteServers'
 
 export function NotificationSettingsSection({ server }: { server?: ServerState | null }) {
   const { t } = useTranslation()
@@ -24,6 +25,8 @@ export function NotificationSettingsSection({ server }: { server?: ServerState |
           }} />
       {sounds && <SoundSettings />}
       {server?.me && <ServerNotifySettings server={server} />}
+      <SettingRow testId="mute-servers-entry" title={t('organize.muteServers.title')} help={t('organize.muteServers.settingsHint')}
+        control={<button className="button" onClick={() => openMuteServers()}>{t('organize.muteServers.entry')}</button>} />
       <AlertWordsSettings />
       <FollowSettings />
       <QuietHoursSettings />

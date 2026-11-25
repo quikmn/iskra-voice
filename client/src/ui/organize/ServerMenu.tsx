@@ -30,6 +30,7 @@ import { MenuGroup, MenuItem, MenuTitle, OrgMenu, type MenuAnchor } from './OrgM
 import { LfgNotifyItem } from '../teams/TeamsBits'
 import { NicknameField, ServerAvatarField } from './ServerSettings'
 import { BirthdayField } from './BirthdayField'
+import { openMuteServers } from './MuteServers'
 import { serverMenuLayout } from './serverMenuLayout'
 import { muteFor, setNotifyLevel, useNotifyFor, useOrganize } from '../../state/organize'
 import { levelLabel, muteLabel, notifyKey } from '../../state/organizeLogic'
@@ -175,6 +176,9 @@ function NotifyPage({ server, onBack, setView, run }: { server: ServerState; onB
           )}
           <SoundMenuRow server={server} channelId={null} open={() => setView('sound')} />
           <LfgNotifyItem server={server} run={run} icon />
+        </MenuGroup>
+        <MenuGroup>
+          <MenuItem icon={<BellOff />} onClick={run(() => openMuteServers([server.key]))}>{t('organize.muteServers.entry')}</MenuItem>
         </MenuGroup>
       </div>
     </>
