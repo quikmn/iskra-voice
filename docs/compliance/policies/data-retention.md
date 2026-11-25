@@ -144,7 +144,8 @@ The owner records the chosen `Retention` and `Backups` values here at each yearl
   server name, time; at most 200 entries) sealed on the device until cleared. Nothing of it reaches Iskra or the user's
   servers; what the user sends goes to the AI provider they chose, under that provider's retention.
 - iskra.foo and app.iskra.foo store nothing about visitors; Cloudflare's short-lived request logs follow
-  Cloudflare's retention.
+  Cloudflare's retention. iskra.foo keeps daily totals of page views and download clicks (no IP address, cookie or
+  visitor id; `site/_worker.js`), without a time limit.
 - Emails to spark@iskra.foo (support, safety, security, data requests): kept as long as needed to handle them, and
   reviewed yearly; data-request emails and the response: 2 years as evidence of handling.
 - Incident records: 5 years.

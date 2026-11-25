@@ -3,8 +3,93 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Iskra - Your server. Your rules.</title>
-<meta name="description" content="Iskra is free, source-available voice and text chat on a server you run. The alpha is out now: apps for Windows, macOS and Linux, a web app for PC and phone browsers, and servers for Windows, Linux and macOS. Own your data.">
+<title>Iskra: free voice and text chat on a server you own</title>
+<meta name="description" content="Free voice and text chat on a server you run. A Discord alternative with no ID checks, no email, no ads and no paywall. For Windows, Mac, Linux, web and phones.">
+<link rel="canonical" href="https://iskra.foo/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Iskra">
+<meta property="og:title" content="Iskra: free voice and text chat on a server you own">
+<meta property="og:description" content="Free voice and text chat on a server you run. A Discord alternative with no ID checks, no email, no ads and no paywall. For Windows, Mac, Linux, web and phones.">
+<meta property="og:url" content="https://iskra.foo/">
+<meta property="og:image" content="https://iskra.foo/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Iskra: voice and text chat on a server you own. No ID checks, no ads, nothing behind a paywall.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://iskra.foo/og.png">
+<meta name="theme-color" content="#0b0b14">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "name": "Iskra",
+      "alternateName": "From a Spark",
+      "url": "https://iskra.foo/",
+      "logo": "https://iskra.foo/apple-touch-icon.png",
+      "email": "spark@iskra.foo",
+      "founder": {
+        "@type": "Person",
+        "name": "Viktor Lundgren"
+      },
+      "sameAs": [
+        "https://github.com/quikmn/iskra-voice"
+      ]
+    },
+    {
+      "@type": "WebSite",
+      "url": "https://iskra.foo/",
+      "name": "Iskra",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Iskra",
+        "url": "https://iskra.foo/"
+      }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "Iskra",
+      "url": "https://iskra.foo/",
+      "description": "Free voice and text chat for friend groups on a server you run. No ID checks, no email, no phone number, no ads and no paid tier.",
+      "applicationCategory": "CommunicationApplication",
+      "applicationSubCategory": "Voice and text chat",
+      "operatingSystem": "Windows, macOS, Linux, Android, iOS, Web",
+      "softwareVersion": "2.0.0-alpha.51",
+      "downloadUrl": "https://iskra.foo/#download",
+      "image": "https://iskra.foo/og.png",
+      "license": "https://iskra.foo/license",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "Iskra",
+        "url": "https://iskra.foo/"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Iskra",
+        "url": "https://iskra.foo/"
+      },
+      "featureList": [
+        "Runs on a server you own",
+        "No ID or age verification, no email, no phone number, no password",
+        "End-to-end encrypted direct messages, group chats and calls",
+        "Voice channels, video and screen sharing at full resolution",
+        "File uploads up to 512 MB by default",
+        "Custom emoji, stickers and soundboard",
+        "Import channel history from Discord",
+        "Daily backups; a server is one folder",
+        "No ads, no analytics in the apps"
+      ]
+    }
+  ]
+}
+</script>
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -186,6 +271,29 @@
   }
 
   .hero-sub strong { color: var(--text); font-weight: 600; white-space: nowrap; }
+
+  .hero-own {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px 10px;
+    margin: -10px 0 28px;
+    font-size: 0.88rem;
+    animation: fadeUp 0.6s 0.25s ease both;
+  }
+  .hero-own span {
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(124,111,255,0.3);
+    background: rgba(124,111,255,0.08);
+    color: #c9c4ff;
+    font-weight: 500;
+  }
+  .hero-own a { padding: 5px 6px; color: var(--accent2); font-weight: 600; text-decoration: none; }
+  .hero-own a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .compare-more { text-align: center; margin-top: 28px; }
+  .compare-more .btn { white-space: normal; text-align: center; }
   .hero-sub span { display: block; }
 
   .hero-cta {
@@ -1236,6 +1344,7 @@
   </a>
   <div class="nav-links">
     <a class="btn btn-ghost nav-hide-sm" href="#features">Features</a>
+    <a class="btn btn-ghost nav-hide-sm" href="/discord-alternative">Iskra vs Discord</a>
     <a class="btn btn-ghost nav-hide-sm" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
       GitHub
@@ -1265,6 +1374,13 @@
   <p class="hero-sub">
     <span>Chat with your friends on a server you run. <strong>Own your data.</strong></span>
     <span>No email, no password, no subscriptions. Secure, fast and easy.</span>
+  </p>
+
+  <p class="hero-own">
+    <span>You own the server</span>
+    <span>No ID checks, no face scans</span>
+    <span>Nothing behind a paywall</span>
+    <a href="/discord-alternative">Iskra and Discord compared&nbsp;→</a>
   </p>
 
 
@@ -1319,6 +1435,10 @@
   <div class="strip-item">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
     No email, no password
+  </div>
+  <div class="strip-item">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    No ID checks
   </div>
   <div class="strip-item">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -2108,6 +2228,7 @@
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Your data lives on their servers</li>
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Screen share quality and big uploads locked behind $10/month Nitro</li>
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Email, password and an account for every single user</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Age groups for every account since September 2026; a face scan or ID if you have to prove you're an adult</li>
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Text DMs are not end-to-end encrypted</li>
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Profile themes, animated avatars and app themes are Nitro perks</li>
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Your server can be deleted with no warning</li>
@@ -2125,6 +2246,7 @@
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Your server, your machine, your folder</li>
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Free. No Nitro-style paywalls</li>
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> No email, no password. Pick a name and you're in</li>
+        <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> No ID, no face scan, no phone number</li>
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> DMs and calls end-to-end encrypted, always</li>
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Profiles, your own profile page and every theme, for everyone</li>
         <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Runs as long as you keep it running</li>
@@ -2133,6 +2255,8 @@
       </ul>
     </div>
   </div>
+
+  <p class="compare-more reveal"><a class="btn btn-outline" href="/discord-alternative">The full comparison, and what Discord does better</a></p>
 </section>
 
 <div class="glow-divider"></div>
@@ -2433,6 +2557,7 @@
   <span>© 2026 Viktor Lundgren · <a href="/license">PolyForm Noncommercial 1.0.0</a></span>
   <div class="footer-links">
     <a href="/github">GitHub</a>
+    <a href="/discord-alternative">Iskra vs Discord</a>
     <a href="/hosting">Hosting guide</a>
     <a href="/docs/">Docs</a>
     <a href="/docs/security">Security</a>
@@ -2616,5 +2741,19 @@
 })();
 </script>
 
+<script>
+// Download clicks. Tells this site which file was clicked (its name), so we can count downloads per platform.
+// Nothing about you is sent or stored: see https://iskra.foo/privacy#sites
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[href]');
+  if (!a || !navigator.sendBeacon) return;
+  var h = a.href, m = /\/releases\/download\/[^/]+\/([^/?#]+)$/.exec(h);
+  var what = m ? m[1]
+    : h.indexOf('https://app.iskra.foo') === 0 ? 'web-app'
+    : h.indexOf('https://play.google.com/') === 0 ? 'google-play'
+    : h.indexOf('https://testflight.apple.com/') === 0 ? 'testflight' : '';
+  if (what) navigator.sendBeacon('/count/download', what);
+});
+</script>
 </body>
 </html>

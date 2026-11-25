@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A Discord alternative you own: no ID checks, no Nitro - Iskra</title>
+<meta name="description" content="Iskra is free voice and text chat on a server you run. No ID or face scan, no email, no phone number, and nothing behind a subscription. Compared with Discord, point by point.">
+<link rel="canonical" href="https://iskra.foo/discord-alternative">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Iskra">
+<meta property="og:title" content="A Discord alternative you own: no ID checks, no Nitro - Iskra">
+<meta property="og:description" content="Iskra is free voice and text chat on a server you run. No ID or face scan, no email, no phone number, and nothing behind a subscription. Compared with Discord, point by point.">
+<meta property="og:url" content="https://iskra.foo/discord-alternative">
+<meta property="og:image" content="https://iskra.foo/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Iskra: voice and text chat on a server you own. No ID checks, no ads, nothing behind a paywall.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://iskra.foo/og.png">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/fonts.css">
+<link rel="stylesheet" href="/site.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Article",
+      "headline": "A Discord alternative you own: Iskra and Discord compared",
+      "description": "Iskra is free voice and text chat on a server you run. No ID or face scan, no email, no phone number, and nothing behind a subscription. Compared with Discord, point by point.",
+      "url": "https://iskra.foo/discord-alternative",
+      "image": "https://iskra.foo/og.png",
+      "datePublished": "2026-11-25",
+      "dateModified": "2026-11-25",
+      "author": { "@type": "Organization", "name": "Iskra", "url": "https://iskra.foo/" },
+      "publisher": { "@type": "Organization", "name": "Iskra", "url": "https://iskra.foo/", "logo": { "@type": "ImageObject", "url": "https://iskra.foo/apple-touch-icon.png" } }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Does Iskra ask for ID, a face scan or my age?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No. Iskra never asks for an ID document, a selfie, a payment card, an email address or a phone number. There is no central account to attach them to: your account is a key made on your own device. Iskra's terms say you must be 13 or older, or the minimum age in your country. Nobody checks that with a document. The owner of a server decides who gets an invite and can set a higher age for their server." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Iskra free? What does it cost to run a server?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The apps and the server are free and there is no paid tier. A server needs a computer that stays on. That can be your own Windows, Mac or Linux computer, which costs nothing extra, or a small rented server at about 4 to 6 euros or dollars a month, paid to the hosting company, not to Iskra." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Iskra open source?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Iskra is source-available. All the code is public on GitHub under the PolyForm Noncommercial License 1.0.0: you may read it, audit it, change it and run it for free for personal and noncommercial use. That licence is not an open-source licence as the Open Source Initiative defines it, because it does not allow commercial use." }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I move my Discord server to Iskra?",
+          "acceptedAnswer": { "@type": "Answer", "text": "You can bring the history of your channels: messages with their dates, replies, pins, files and reaction counts. Export the channels with the third-party tool DiscordChatExporter in JSON format and import them in Server settings, Import from Discord. Roles, permissions and direct messages do not come along. Members join the new server with an invite link and get a new Iskra identity." }
+        },
+        {
+          "@type": "Question",
+          "name": "Are Iskra messages end-to-end encrypted?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Direct messages, group chats and the voice and video calls in them are always end-to-end encrypted, with forward secrecy for direct messages. Server channels are encrypted on the way to the server and can be read by whoever runs that server. A private channel of up to 50 people can be made end-to-end encrypted, text and voice." }
+        },
+        {
+          "@type": "Question",
+          "name": "Who can read my messages on an Iskra server?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The members of the channel, and the person who runs the server, because channel messages are stored on their computer. The makers of Iskra cannot: there is no central Iskra database and servers send nothing to Iskra. Nobody but the people in the chat can read direct messages, group chats or end-to-end encrypted channels." }
+        },
+        {
+          "@type": "Question",
+          "name": "Do my friends need an account?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No. They open your invite link, pick a name and are in. The app makes a key on their device, and a recovery key lets them get back in on another device. There is no email, password or sign-up form." }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Iskra work on phones?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes, with limits. There are Android and iPhone apps in testing and a web app at app.iskra.foo that can be added to the home screen. The phone apps notify you only while they are open; the web app can notify you while it is closed. Phones cannot share their screen or host a server." }
+        }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="/">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#bolt)" stroke="none"/>
+      <defs>
+        <linearGradient id="bolt" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7c6fff"/>
+          <stop offset="100%" stop-color="#00cfff"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    Iskra
+  </a>
+  <div class="nav-links">
+    <a class="btn btn-ghost nav-hide-sm" href="/#features">Features</a>
+    <a class="btn btn-ghost nav-hide-sm" href="/support">Help</a>
+    <a class="btn btn-ghost nav-hide-sm" href="https://github.com/quikmn/iskra-voice" target="_blank" rel="noopener">GitHub</a>
+    <a class="btn btn-primary" href="/#download">Download</a>
+  </div>
+</nav>
+
+<main class="doc">
+  <div class="doc-kicker">Iskra and Discord compared</div>
+  <h1>A Discord alternative <span class="grad">you own</span></h1>
+  <p class="updated">Facts about Discord checked on <time datetime="2026-11-25">25 November 2026</time>, with <a href="#sources">sources</a></p>
+
+  <p class="lead">Iskra is voice and text chat for friend groups, like Discord, on a server that you or a friend runs. Nobody asks for your ID, your face, your email or your phone number, and nothing is sold as a subscription.</p>
+
+  <div class="box ok">
+    <div class="box-title">The short version</div>
+    <ul>
+      <li><strong>You own the server.</strong> It is a folder on your computer or on one you rent. Messages and files are stored there, not with a company.</li>
+      <li><strong>No ID checks.</strong> No ID document, no face scan, no email address, no phone number, no password.</li>
+      <li><strong>Nothing behind a paywall.</strong> Big uploads, full-quality screen sharing, custom emoji, the soundboard, profiles and themes are free for everyone.</li>
+      <li><strong>Private chats are end-to-end encrypted.</strong> Direct messages, group chats and the calls in them.</li>
+      <li><strong>No ads, and the apps have no analytics.</strong></li>
+      <li><strong>It is an alpha,</strong> and Discord is ahead in several ways. <a href="#honest">We list them below.</a></li>
+    </ul>
+  </div>
+
+  <p class="cta-row">
+    <a class="btn btn-primary" href="/#download">Download Iskra</a>
+    <a class="btn btn-ghost" href="https://app.iskra.foo" target="_blank" rel="noopener">Open it in your browser</a>
+    <a class="btn btn-ghost" href="/hosting">How hosting works</a>
+  </p>
+
+  <ul class="toc" aria-label="Contents">
+    <li><a href="#table">Side by side</a></li>
+    <li><a href="#id-checks">ID checks and face scans</a></li>
+    <li><a href="#free">What is free</a></li>
+    <li><a href="#own">Who owns the server and the data</a></li>
+    <li><a href="#encryption">Encryption</a></li>
+    <li><a href="#ads">Ads and analytics</a></li>
+    <li><a href="#source">Source code</a></li>
+    <li><a href="#move">Moving your group over</a></li>
+    <li><a href="#honest">What Discord does better</a></li>
+    <li><a href="#faq">Questions</a></li>
+    <li><a href="#sources">Sources</a></li>
+  </ul>
+
+  <h2 id="table">Side by side</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th scope="col"></th><th scope="col">Iskra</th><th scope="col">Discord</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">Who runs the server</th><td>You or a friend, on your own computer or a rented one.</td><td>Discord Inc., on its own servers.</td></tr>
+        <tr><th scope="row">Where messages and files are</th><td>In the server's folder. You can copy it, back it up and move it.</td><td>With Discord.</td></tr>
+        <tr><th scope="row">Account</th><td>A name. The app makes a key on your device. No email, phone number or password.</td><td>An email address and a password. Some servers also require a verified phone number.</td></tr>
+        <tr><th scope="row">Age and ID checks</th><td>None. No ID, face scan or card.</td><td>Since September 2026 every account is placed in an age group. Discord says more than 90% are placed automatically. Others confirm they are adults with a face scan, an ID or another method to open age-restricted content.</td></tr>
+        <tr><th scope="row">Price</th><td>Free. No paid tier. A rented server, if you want one, is about €4 to $6 a month, paid to the host.</td><td>Free, with Nitro Basic at $2.99 and Nitro at $9.99 a month in the US.</td></tr>
+        <tr><th scope="row">File uploads</th><td>Up to 512 MB per file by default. The server's owner sets the limit.</td><td>20 MB per file for free accounts, 50 MB with Nitro Basic, more with Nitro.</td></tr>
+        <tr><th scope="row">Screen sharing</th><td>Your screen's own resolution at 60 fps, for everyone.</td><td>HD streaming is a Nitro perk.</td></tr>
+        <tr><th scope="row">Custom emoji and stickers</th><td>Free. Emoji from your other servers work where a server's admins allow it.</td><td>Using a server's emoji in other servers needs Nitro or Nitro Basic.</td></tr>
+        <tr><th scope="row">Profiles and themes</th><td>Free: avatar, bio, accent colour, a profile page you design, every app theme.</td><td>Animated avatars, banners, profile themes and colour app themes are Nitro perks.</td></tr>
+        <tr><th scope="row">Direct messages</th><td>End-to-end encrypted, always.</td><td>Not end-to-end encrypted. Discord says it has no current plans to change that.</td></tr>
+        <tr><th scope="row">Voice and video calls</th><td>End-to-end encrypted in direct messages and group chats, and in channels you make end-to-end encrypted. Other voice channels are encrypted to your own server.</td><td>End-to-end encrypted, except stage channels.</td></tr>
+        <tr><th scope="row">Server channels</th><td>Readable by members and by whoever runs the server. Private channels of up to 50 people can be end-to-end encrypted.</td><td>Readable by members and by Discord.</td></tr>
+        <tr><th scope="row">Ads</th><td>None.</td><td>Sponsored Quests and video ads.</td></tr>
+        <tr><th scope="row">Source code</th><td>Public. Free for noncommercial use.</td><td>Closed.</td></tr>
+        <tr><th scope="row">Backups and moving</th><td>Daily backups. Move a server by restoring a backup on another computer.</td><td>No export of a whole server.</td></tr>
+        <tr><th scope="row">Maturity</th><td>Alpha. Phone apps are test versions.</td><td>Finished, on every platform, with a large bot and community ecosystem.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="id-checks">ID checks and face scans</h2>
+  <h3>Discord</h3>
+  <p>On 9 February 2026 Discord announced that every account would get a "teen-appropriate experience" by default, and that people would confirm they are adults with facial age estimation or an identity document. After criticism it postponed the change. The worldwide rollout began on 22 September 2026.</p>
+  <ul>
+    <li>Each account is placed in one of three groups: adult, teen or unconfirmed. Discord says more than 90% of accounts are placed automatically from account signals and never have to prove their age.</li>
+    <li>An account that is not confirmed as adult cannot open age-restricted servers and channels, sees sensitive images blurred, and cannot change some safety settings.</li>
+    <li>The ways to confirm include a video selfie processed on the device, a scan of an ID, a payment card, and the age range from the phone's app store. Discord says its partners return only an age group and delete what they receive.</li>
+    <li>In October 2025 Discord said that ID photos of about 70,000 users may have been exposed in a breach at a company that handled its customer support. Discord says it no longer works with that company.</li>
+  </ul>
+  <h3>Iskra</h3>
+  <p>Iskra has no ID check, and nothing to attach one to. There is no central account: your account is a key that the app makes on your device. Iskra never asks for an ID document, a selfie, a payment card, an email address or a phone number.</p>
+  <ul>
+    <li>Our <a href="/terms#age">terms</a> say you must be 13 or older, or the minimum age in your country. Nobody checks that with a document.</li>
+    <li>You get into a server with an invite link from someone in it. The owner decides who gets one, can ask questions before letting people in, and can set a higher age for their server.</li>
+    <li>If you run a server, you are responsible for it and for following the law where you live.</li>
+  </ul>
+
+  <h2 id="free">What is free</h2>
+  <p>Discord is free to use and sells two subscriptions. On <a href="https://discord.com/nitro" rel="noopener">discord.com/nitro</a> Nitro Basic costs $2.99 a month and Nitro $9.99 a month in the US. They add larger uploads (50 MB with Nitro Basic; the free limit rose from 10 MB to 20 MB on 13 August 2026), HD streaming, using a server's emoji anywhere, animated avatars, profile themes and more.</p>
+  <p>Iskra has no paid tier. Everything it can do is there for everyone:</p>
+  <ul>
+    <li><strong>Uploads</strong> up to 512 MB per file by default. The server's owner can raise or lower the limit, because it is their disk.</li>
+    <li><strong>Screen sharing</strong> at your screen's own resolution and 60 fps, with system audio.</li>
+    <li><strong>Custom emoji, animated emoji, stickers and a soundboard</strong> on every server.</li>
+    <li><strong>Profiles:</strong> avatar, bio, pronouns, accent colour and a profile page you design yourself.</li>
+    <li><strong>Every app theme,</strong> and you can write your own.</li>
+  </ul>
+  <p>Iskra is paid for by donations. A server needs a computer that stays on. Your own computer costs nothing extra. A small rented server costs about $6 a month at DigitalOcean or about €4 at Hetzner, paid to them. <a href="/hosting">The hosting guide</a> explains each way.</p>
+
+  <h2 id="own">Who owns the server and the data</h2>
+  <p>A Discord server is a space on Discord's computers. Discord stores its messages and files, sets the rules, and can change or close it.</p>
+  <p>An Iskra server is a program that you or a friend runs. Settings, messages, members and uploads are in one folder on that computer.</p>
+  <ul>
+    <li>Press <strong>Create a server</strong> in the desktop app and it runs on your computer, voice included.</li>
+    <li>The server makes a backup every day. You can download an encrypted backup, restore it on another computer, and members follow the server to its new address.</li>
+    <li>There is no central Iskra database. Servers send nothing to us, and we cannot read, moderate or close a server we don't run.</li>
+  </ul>
+
+  <h2 id="encryption">Encryption</h2>
+  <p>Discord made voice and video calls end-to-end encrypted for everyone in 2026: calls in direct messages, group chats and voice channels, and Go Live streams. Stage channels are the exception. Text messages are not end-to-end encrypted, and Discord has said it has no current plans to change that.</p>
+  <p>In Iskra:</p>
+  <ul>
+    <li><strong>Direct messages and group chats</strong> are always end-to-end encrypted, with their files, voice messages and calls. The server passes them along and cannot read them.</li>
+    <li><strong>Server channels</strong> are encrypted on the way and can be read by whoever runs the server: you or your friend. We say that plainly.</li>
+    <li><strong>A private channel</strong> of up to 50 people can be made end-to-end encrypted, text and voice. Then the server cannot read it either.</li>
+  </ul>
+  <p><a href="/docs/security">How Iskra keeps you safe</a> has the details.</p>
+
+  <h2 id="ads">Ads and analytics</h2>
+  <p>Discord sells advertising: sponsored Quests, video ads, and since 29 September 2026 an Ads Manager for advertisers.</p>
+  <p>Iskra has no ads. The apps contain no analytics, no advertising code and no crash reporting, and they connect only to the servers you join. <a href="/docs/privacy-connections">Who Iskra talks to</a> lists every connection. This website counts page views as daily totals, without cookies and without identifying anyone; the <a href="/privacy#sites">privacy policy</a> says exactly what is counted.</p>
+
+  <h2 id="source">Source code</h2>
+  <p>Discord's apps and servers are closed source.</p>
+  <p>All of Iskra's code is public <a href="/github">on GitHub</a>: the apps, the server and the protocol. It is <strong>source-available</strong> under the <a href="/license">PolyForm Noncommercial License 1.0.0</a>. You may read it, check it, change it and run it for free for personal and noncommercial use. It is not an open-source licence in the strict sense, because commercial use is not allowed.</p>
+
+  <h2 id="move">Moving your group over</h2>
+  <ol class="steps">
+    <li><strong>Start a server.</strong> Download the desktop app, press <strong>Create a server</strong> and pick a starting point. It runs on your computer. For a server that is always on, rent a small one from the same dialog.</li>
+    <li><strong>Bring your history, if you want it.</strong> Export your Discord channels with the third-party tool DiscordChatExporter in JSON format, then use <span class="path">Server settings → Import from Discord</span>. Messages keep their dates, authors' names and pictures, replies, pins, files and reaction counts, and are marked as imported.</li>
+    <li><strong>Set up roles.</strong> Roles and permissions can't be exported from Discord, so make them again. Direct messages are not imported.</li>
+    <li><strong>Send an invite link.</strong> Friends click it, pick a name and are in. No sign-up.</li>
+    <li><strong>Point your tools at it.</strong> Anything that posts to a Discord webhook can post to an Iskra webhook address. Discord bots do not run on Iskra; it has built-in bots and <a href="/docs/bots">its own bot SDK</a>.</li>
+  </ol>
+
+  <h2 id="honest">What Discord does better, and what Iskra doesn't have yet</h2>
+  <p>Iskra is an alpha made by one person. Discord is a finished product with a large team. Check this list before you move a group.</p>
+  <ul>
+    <li><strong>Nobody has to host Discord.</strong> An Iskra server needs a computer that stays on. If it runs on your PC and the PC is off, the server is off.</li>
+    <li><strong>Phones.</strong> Discord has finished phone apps with push notifications. Iskra's Android and iPhone apps are test versions and notify you only while they are open. For notifications while the app is closed, use the web app in your phone's browser, added to the home screen.</li>
+    <li><strong>Screen sharing from a phone.</strong> You can share your screen from the desktop app and from desktop browsers, not from a phone.</li>
+    <li><strong>Everyone is already on Discord.</strong> It has public communities, server discovery and one account for all of them. Iskra has no directory: you join a server with an invite link, and you can message people only if you share a server with them.</li>
+    <li><strong>Bots and integrations.</strong> Discord has a very large bot ecosystem, an app directory and game integrations on consoles. Iskra has a few built-in bots, webhooks and an SDK for writing your own.</li>
+    <li><strong>Size.</strong> Iskra is built for friend groups and small communities. It has not been run with tens of thousands of members in one server.</li>
+    <li><strong>Calls in public channels.</strong> On Discord every voice channel is end-to-end encrypted. On Iskra that is true for direct messages, group chats and channels you make end-to-end encrypted; other voice channels are encrypted to your own server.</li>
+    <li><strong>Moderation at scale.</strong> Discord has a trust and safety team. On Iskra the server's owner and moderators do it, with reports, AutoMod, timeouts, bans and an audit log.</li>
+    <li><strong>You are responsible for your server.</strong> Its backups, its uptime, and following the law where you live.</li>
+    <li><strong>Polish.</strong> Expect rough edges and bugs. Releases come often.</li>
+  </ul>
+
+  <h2 id="faq">Questions</h2>
+  <details>
+    <summary>Does Iskra ask for ID, a face scan or my age?</summary>
+    <p>No. Iskra never asks for an ID document, a selfie, a payment card, an email address or a phone number. There is no central account to attach them to: your account is a key made on your own device. Iskra's <a href="/terms#age">terms</a> say you must be 13 or older, or the minimum age in your country. Nobody checks that with a document. The owner of a server decides who gets an invite and can set a higher age for their server.</p>
+  </details>
+  <details>
+    <summary>Is Iskra free? What does it cost to run a server?</summary>
+    <p>The apps and the server are free and there is no paid tier. A server needs a computer that stays on. That can be your own Windows, Mac or Linux computer, which costs nothing extra, or a small rented server at about 4 to 6 euros or dollars a month, paid to the hosting company, not to Iskra.</p>
+  </details>
+  <details>
+    <summary>Is Iskra open source?</summary>
+    <p>Iskra is source-available. All the code is public on GitHub under the <a href="/license">PolyForm Noncommercial License 1.0.0</a>: you may read it, audit it, change it and run it for free for personal and noncommercial use. That licence is not an open-source licence as the Open Source Initiative defines it, because it does not allow commercial use.</p>
+  </details>
+  <details>
+    <summary>Can I move my Discord server to Iskra?</summary>
+    <p>You can bring the history of your channels: messages with their dates, replies, pins, files and reaction counts. Export the channels with the third-party tool DiscordChatExporter in JSON format and import them in <span class="path">Server settings → Import from Discord</span>. Roles, permissions and direct messages do not come along. Members join the new server with an invite link and get a new Iskra identity.</p>
+  </details>
+  <details>
+    <summary>Are Iskra messages end-to-end encrypted?</summary>
+    <p>Direct messages, group chats and the voice and video calls in them are always end-to-end encrypted, with forward secrecy for direct messages. Server channels are encrypted on the way to the server and can be read by whoever runs that server. A private channel of up to 50 people can be made end-to-end encrypted, text and voice.</p>
+  </details>
+  <details>
+    <summary>Who can read my messages on an Iskra server?</summary>
+    <p>The members of the channel, and the person who runs the server, because channel messages are stored on their computer. The makers of Iskra cannot: there is no central Iskra database and servers send nothing to Iskra. Nobody but the people in the chat can read direct messages, group chats or end-to-end encrypted channels.</p>
+  </details>
+  <details>
+    <summary>Do my friends need an account?</summary>
+    <p>No. They open your invite link, pick a name and are in. The app makes a key on their device, and a recovery key lets them get back in on another device. There is no email, password or sign-up form.</p>
+  </details>
+  <details>
+    <summary>Does Iskra work on phones?</summary>
+    <p>Yes, with limits. There are Android and iPhone apps in testing and a web app at <a href="https://app.iskra.foo">app.iskra.foo</a> that can be added to the home screen. The phone apps notify you only while they are open; the web app can notify you while it is closed. Phones cannot share their screen or host a server.</p>
+  </details>
+
+  <h2 id="sources">Sources</h2>
+  <p>What this page says about Discord comes from these pages, read on 25 November 2026. Discord changes its plans and prices; if something here is out of date, <a href="mailto:spark@iskra.foo?subject=Discord%20comparison">tell us</a> and we will fix it. Discord is a trademark of Discord Inc. Iskra is not affiliated with Discord.</p>
+  <ul>
+    <li>Discord, press release, 9 February 2026 (updated 24 February): <a href="https://discord.com/press-releases/discord-launches-teen-by-default-settings-globally" rel="noopener">Discord Launches Teen Default Experience Globally</a></li>
+    <li>Discord, blog, 24 February 2026: <a href="https://discord.com/blog/getting-global-age-assurance-right-what-we-got-wrong-and-whats-changing" rel="noopener">Getting global age assurance right</a></li>
+    <li>The Next Web, 27 September 2026: <a href="https://thenextweb.com/news/discord-global-age-checks-teen-default" rel="noopener">Discord rolls out global age checks that sort most users automatically</a></li>
+    <li>TechCrunch, 1 March 2026: <a href="https://techcrunch.com/2026/03/01/best-discord-alternatives-age-verification-identity-privacy" rel="noopener">the best Discord alternatives after the age verification announcement</a></li>
+    <li>Discord, press release, 3 October 2025 (updated 9 October): <a href="https://discord.com/press-releases/update-on-security-incident-involving-third-party-customer-service" rel="noopener">Update on a security incident involving third-party customer service</a></li>
+    <li>Discord, blog, 18 May 2026: <a href="https://discord.com/blog/every-voice-and-video-call-on-discord-is-now-end-to-end-encrypted" rel="noopener">Every voice and video call on Discord is now end-to-end encrypted</a></li>
+    <li>Discord: <a href="https://discord.com/nitro" rel="noopener">Nitro plans and prices</a></li>
+    <li>Gadget Review, 14 August 2026: <a href="https://www.gadgetreview.com/?p=402010" rel="noopener">Discord Raises Free Upload Limit to 20MB</a></li>
+    <li>Discord, press release, 29 September 2026: <a href="https://discord.com/press-releases/discord-opens-advertising-to-brands-of-all-sizes-with-ads-manager-and-video-quests" rel="noopener">Discord Opens Advertising to Brands of All Sizes With Ads Manager and Video Quests</a></li>
+  </ul>
+
+  <p class="cta-row">
+    <a class="btn btn-primary" href="/#download">Download Iskra</a>
+    <a class="btn btn-ghost" href="/#features">See every feature</a>
+    <a class="btn btn-ghost" href="/support">Help &amp; support</a>
+  </p>
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2026 Viktor Lundgren · <a href="/license">PolyForm Noncommercial 1.0.0</a></span>
+  <div class="footer-links">
+    <a href="/github">GitHub</a>
+    <a href="/discord-alternative" aria-current="page">Iskra vs Discord</a>
+    <a href="/hosting">Hosting guide</a>
+    <a href="/docs/">Docs</a>
+    <a href="/docs/security">Security</a>
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/privacy#third">Who Iskra talks to</a>
+    <a href="/support">Support</a>
+    <a href="/delete-account">Delete account</a>
+    <a href="https://ko-fi.com/vlundgren" target="_blank" rel="noopener">Ko-fi</a>
+    <a href="https://paypal.me/iskrafoo" target="_blank" rel="noopener">PayPal</a>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -16,14 +16,14 @@ recorded here.
 
 | | |
 |---|---|
-| Purpose | Information about Iskra, downloads, legal pages |
-| Legal basis | Legitimate interest (Art. 6(1)(f)): delivering and protecting the site |
+| Purpose | Information about Iskra, downloads, legal pages; counting page views to see how people find the site |
+| Legal basis | Legitimate interest (Art. 6(1)(f)): delivering and protecting the site, and knowing how much it is used |
 | Data subjects | Visitors |
 | Personal data | IP address, user agent, request details, processed by the host |
 | Recipients | Cloudflare (hosting, DDoS protection); GitHub when a visitor follows a download link |
 | Transfers outside the EEA | Cloudflare (US): DPF / SCCs |
-| Retention | Cloudflare's short-lived logs; the owner stores nothing (no analytics, cookies or trackers) |
-| Security | HTTPS only (Cloudflare), static files, no forms, deploys through `deploy.yml` in the protected `release` environment |
+| Retention | Cloudflare's short-lived logs. The owner stores only daily totals of page views (page, referring host, `utm_source`/`ref`, country, device class, browser and OS family, download clicks) in Cloudflare D1, kept without a time limit: no IP address, cookie, visitor id or per-visit row, so no personal data (`site/_worker.js`, `scripts/site-worker.test.mjs`) |
+| Security | HTTPS only (Cloudflare), static files and one worker (`site/_worker.js`), no forms, the statistics page `/stats` behind a password, deploys through `deploy.yml` in the protected `release` environment |
 
 ## 2. app.iskra.foo (web app delivery)
 

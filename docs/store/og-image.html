@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- The picture link previews show for iskra.foo (1200×630, site/og.png; every page's og:image).
+     Render: open this file in a 1200×630 browser window and save a screenshot to site/og.png.
+     Keep the text clear of the edges: some apps crop to a square or round the corners. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Iskra link preview picture</title>
+<style>
+  @font-face { font-family: 'Inter'; font-weight: 300 900; src: url(../../site/fonts/Inter-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; background: #0b0b14; }
+  body {
+    font-family: 'Inter', sans-serif; color: #e2e2f0; -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; justify-content: center; gap: 30px; padding: 0 96px;
+    background:
+      radial-gradient(620px 420px at 160px 120px, rgba(124, 111, 255, 0.30), transparent 70%),
+      radial-gradient(520px 360px at 1100px 600px, rgba(0, 207, 255, 0.16), transparent 70%),
+      #0b0b14;
+  }
+  .brand { display: flex; align-items: center; gap: 18px; font-size: 52px; font-weight: 800; letter-spacing: -0.03em; }
+  .brand svg { width: 64px; height: 64px; filter: drop-shadow(0 0 24px rgba(124, 111, 255, 0.55)); }
+  h1 { font-size: 78px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.04; max-width: 980px; }
+  h1 span { background: linear-gradient(135deg, #7c6fff, #00cfff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .chips { display: flex; flex-wrap: wrap; gap: 12px; font-size: 25px; font-weight: 600; color: #c9c4ff; }
+  .chips div { padding: 10px 20px; border-radius: 999px; border: 1px solid rgba(124, 111, 255, 0.4); background: rgba(124, 111, 255, 0.1); }
+  .url { font-size: 26px; font-weight: 600; color: #7878a0; }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M16 2L4 16h10l-2 10 14-16H16L18 2z" fill="url(#bolt)"/>
+      <defs>
+        <linearGradient id="bolt" x1="4" y1="2" x2="22" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#7c6fff"/>
+          <stop offset="100%" stop-color="#00cfff"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    Iskra
+  </div>
+  <h1>Voice and text chat<br>on <span>a server you own.</span></h1>
+  <div class="chips"><div>No ID checks</div><div>No ads</div><div>Nothing behind a paywall</div><div>Free</div></div>
+  <div class="url">iskra.foo</div>
+</body>
+</html>
