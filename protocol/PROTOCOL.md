@@ -166,6 +166,7 @@ Rate limits are token buckets per connection. Every request takes from the gener
 | `poll.create` | 1 every 5 s | 5 |
 | `sound.play` | 1 every 2 s | 3 |
 | `joinsound.set` | 1 every 2 s | 5 |
+| `dm.receipt`, `group.receipt` | 1/s | 10 |
 | `stage.hand` | 1 every 2 s | 5 |
 | `watch.start` | 1 every 2 s | 8 |
 | `watch.control` | 4/s | 10 |
@@ -482,6 +483,24 @@ Each device has an X25519 **prekey** (`crypto_box_keypair`), rotated every 7 day
 - Senders use the newest prekey per device whose signature checks out against that device's certificate and that is at most 60 days old; anything else falls back to a static slot. Revoked devices (verified revocations from `dm.devices`, plus the sender's own) get no slot.
 - Receivers find their slot, then the prekey secret by `prekey`. Clients keep decrypted messages locally; that local copy, not the server's envelopes, is the long-term history.
 - Why not a double ratchet: a conversation runs over any shared server, on several devices per person, often offline for days and with history merged from several servers. Per-device-pair ratchet state would have to survive all of that; signed prekeys give forward secrecy (within the rotation + grace window) without shared state that can break. There's no post-compromise security: a stolen device keeps reading new messages until it's revoked.
+
+### Read receipts
+
+Off by default, and mutual: a person who turns "Send read receipts" on tells the others in a DM or group DM how far they have read, and is shown the receipts of people who do the same. Someone who has it off sends none and is shown none. The switch is a synced preference (`receipts`: `{ v: 1, updatedAt, send }`, sealed like the others, see [Synced preferences](#synced-preferences)), so a server is not told about it directly; the mutual rule is kept by the apps.
+
+| type | body | result | who |
+|---|---|---|---|
+| `dm.receipt` | `accountKey`, `envelope` (JSON object, ≤ 32 KB) | | members, to another member (not yourself, no bots); refused where a `dm.send` to them would be blocked, a request or ignored (`forbidden`) |
+| `dm.receipts` | | `{ receipts: [DmReceipt] }` (the newest from each person to you, ≤ 500) | yourself |
+| `group.receipt` | `groupId, version, envelope` (JSON object, ≤ 56 KB) | | members of the group; `version` must be the current one (`conflict`) |
+| `group.receipts` | `groupId` | `{ receipts: [GroupReceipt] }` (the newest of each other current member) | members of the group |
+
+- `DmReceipt { from, to, envelope, at }`, `GroupReceipt { group, from, version, envelope, at }`. `at` is the server's time.
+- The envelope is an ordinary DM envelope (or group envelope) of that conversation whose content is `{ "text": "✓", "receipt": { "id", "sentAt" } }`: the id and `sentAt` of the newest message from someone else that the sender has read. Clients send one while the conversation is on screen in a focused window and something newer than their last receipt is there; never for a message request, an ignored or blocked person, or a bot.
+- Events: `dm.receipt` (a `DmReceipt`) to the recipient's sessions; `group.receipt` (a `GroupReceipt`) to the other members' sessions.
+- The server stores **one** receipt per reader and conversation (a new one replaces the last) so the other side gets it after being offline, and deletes them with the account (a group's with the group). It keeps no history.
+- **What the server learns:** that an account sends receipts (so it has them on), to whom or in which group, and when, which is about when it read that conversation. It does not learn which message was read; that is inside the envelope.
+- Clients: a mark never moves back (an older receipt replayed changes nothing). "Seen" is shown under the last message you sent at or before the marked message (by id; by `sentAt` when the message is not on the device). Receipts received while your own are off are dropped. Content with `receipt` that arrives as a `dm.message` or `group.message` is refused, never shown as a message.
 
 ## Devices and device linking
 
@@ -1400,7 +1419,7 @@ NotifySetting { "channelId": 1 | null /* null = whole server */, "level": "all" 
 
 ### Synced preferences
 
-Small per-account settings that follow you across devices: `rail` (the server rail's order and folders), `alerts`, `favorites`, `saved`, `sounds`, `streamer`, the profile, and `names` (private names you gave people: `{ v: 1, updatedAt, names: { <accountKey>: <name ≤ 32 chars> } }`, at most 100; shown only in your own apps, never sent to the people named).
+Small per-account settings that follow you across devices: `rail` (the server rail's order and folders), `alerts`, `favorites`, `saved`, `sounds`, `streamer`, the profile, `receipts` (whether you send read receipts), and `names` (private names you gave people: `{ v: 1, updatedAt, names: { <accountKey>: <name ≤ 32 chars> } }`, at most 100; shown only in your own apps, never sent to the people named).
 
 | type | body | result | who |
 |---|---|---|---|
@@ -1508,6 +1527,8 @@ GroupChange { "payload": "<b64u of UTF-8 JSON, ≤ 4096 chars>", "sig": "<b64u 6
 |---|---|---|
 | `group.changed` | `{ group, change }` | everyone in the group before or after the change (so someone removed hears it) |
 | `group.message` | `{ message }` | every session of every member |
+
+Read receipts in groups: `group.receipt` and `group.receipts`, see [Read receipts](#read-receipts).
 
 ### Group envelope
 
