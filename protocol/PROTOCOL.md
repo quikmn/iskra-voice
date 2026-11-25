@@ -4533,7 +4533,9 @@ changes meaning without a new version):
   "threads": [{ "id", "name", "rootId", "author", "createdAt", "messages": [ExportMessage] }],
   "posts": [{ "id", "title", "author", "createdAt", "tags": ["name"], "pinned", "closed", "locked",
               "message": ExportMessage | null, "comments": [ExportMessage] }],   // forum channels
-  "pages": [{ "id", "parentId", "title", "text", "createdAt", "updatedAt", "updatedBy" }] }   // docs channels
+  "pages": [{ "id", "parentId", "title", "text", "createdAt", "updatedAt", "updatedBy" }],   // docs channels
+  "tasks": [{ "id", "title", "description", "status", "archived", "due", "assignees": ["a1"], "labels": ["name"],
+              "author", "createdAt", "updatedAt", "comments": [ExportMessage] }] }   // task boards
 
 ExportMessage { "id", "author": "a1", "createdAt", "editedAt": null, "text": "hi @Sam",
   "replyTo": { "id", "author": "a2" | null, "excerpt" } | { "id", "deleted": true } | null,

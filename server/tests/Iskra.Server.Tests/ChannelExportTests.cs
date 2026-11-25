@@ -213,7 +213,7 @@ public class ChannelExportTests
         "messages[].reactions", "messages[].reactions[]", "messages[].reactions[].count", "messages[].reactions[].emoji",
         "messages[].replyTo", "messages[].replyTo.author", "messages[].replyTo.excerpt", "messages[].replyTo.id",
         "messages[].sticker", "messages[].text", "messages[].thread", "messages[].voiceMessage",
-        "pages", "posts", "range", "range.from", "range.to", "server", "server.name",
+        "pages", "posts", "range", "range.from", "range.to", "server", "server.name", "tasks",
         "threads", "threads[]", "threads[].author", "threads[].createdAt", "threads[].id", "threads[].messages", "threads[].messages[]",
         "threads[].messages[].attachments", "threads[].messages[].author", "threads[].messages[].createdAt", "threads[].messages[].editedAt",
         "threads[].messages[].embeds", "threads[].messages[].forwarded", "threads[].messages[].gif", "threads[].messages[].id",
