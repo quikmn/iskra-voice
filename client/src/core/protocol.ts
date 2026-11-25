@@ -14,7 +14,7 @@ export interface Member extends PublicProfile {
 export interface Channel {
   id: number
   name: string
-  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media' | 'tasks'
+  kind: 'text' | 'voice' | 'forum' | 'stage' | 'docs' | 'whiteboard' | 'media' | 'tasks' | 'photos'
   position: number
   readRole: Role
   writeRole: Role
@@ -3318,4 +3318,98 @@ export interface Requests {
   'group.receipt': [{ groupId: string; version: number; envelope: import('./group').GroupEnvelope }, Record<string, never>]
   /** The newest receipt of each other member of a group you are in. */
   'group.receipts': [{ groupId: string }, { receipts: WireGroupReceipt[] }]
+}
+
+// ── photos channels ──
+// See "Photos channels" in PROTOCOL.md.
+
+export interface PhotoReaction {
+  emoji: string
+  accounts: string[]
+}
+
+export interface Photo {
+  id: number
+  channelId: number
+  albumId: number | null
+  uploader: string
+  createdAt: number
+  /** Bytes stored for it: the file plus its thumbnail. */
+  size: number
+  /** Null in an encrypted channel, like `file` and `thumb`: they are inside `e2ee.envelope`. */
+  kind: 'image' | 'video' | null
+  file: FileInfo | null
+  thumb: FileInfo | null
+  /** As shown (after turning it upright); 0 if not given. */
+  width: number
+  height: number
+  /** Videos: milliseconds. */
+  duration: number | null
+  takenAt: number | null
+  caption: string
+  e2ee: { version: number; envelope: unknown } | null
+  reactions: PhotoReaction[]
+  threadId: number | null
+  comments: number
+}
+
+export interface PhotoAlbum {
+  id: number
+  channelId: number
+  /** "" in an encrypted channel (the name is inside `e2ee.envelope`). */
+  name: string
+  /** Null: apps show the album's newest photo. */
+  coverId: number | null
+  createdBy: string
+  createdAt: number
+  count: number
+  e2ee: { version: number; envelope: unknown } | null
+}
+
+export interface PhotoUsage {
+  bytes: number
+  count: number
+  capBytes: number | null
+  maxPhotos: number
+}
+
+/** One photo of a `photo.add`: plain fields, or `envelope` in an encrypted channel. */
+export interface PhotoItem {
+  file: string
+  thumb?: string
+  width?: number
+  height?: number
+  duration?: number
+  takenAt?: number
+  caption?: string
+  envelope?: unknown
+}
+
+export interface Events {
+  'photo.added': { channelId: number; photos: Photo[]; usage: PhotoUsage; by: string; batch: { id: string; total: number; first: boolean } | null }
+  'photo.updated': { photo: Photo }
+  'photo.moved': { channelId: number; ids: number[]; albumId: number | null; albums: PhotoAlbum[] }
+  'photo.deleted': { channelId: number; ids: number[]; usage: PhotoUsage; albums: PhotoAlbum[] }
+  'photo.reactions': { channelId: number; id: number; reactions: PhotoReaction[] }
+  'photo.album.updated': { album: PhotoAlbum }
+  'photo.album.deleted': { channelId: number; id: number }
+  'photo.usage': { channelId: number; usage: PhotoUsage }
+}
+
+export interface Requests {
+  'photo.info': [{ channelId: number }, { albums: PhotoAlbum[]; usage: PhotoUsage }]
+  'photo.list': [{ channelId: number; after?: number; limit?: number }, { photos: Photo[]; hasMore: boolean }]
+  'photo.upload.begin': [{ channelId: number; size: number; thumbSize?: number; name?: string }, { url: string; thumbUrl: string | null; maxBytes: number; partBytes: number }]
+  'photo.add': [{ channelId: number; albumId?: number; items: PhotoItem[]; batch?: string; total?: number; keepDate?: boolean; version?: number }, { photos: Photo[]; usage: PhotoUsage }]
+  'photo.update': [{ id: number; caption?: string; takenAt?: number | null; version?: number; envelope?: unknown }, { photo: Photo }]
+  'photo.move': [{ ids: number[]; albumId?: number }, { ids: number[] }]
+  'photo.delete': [{ ids: number[] }, { ids: number[]; usage: PhotoUsage }]
+  'photo.react': [{ id: number; emoji: string; on?: boolean }, Record<string, never>]
+  'photo.comments': [{ id: number }, { thread: Thread | null }]
+  'photo.links': [{ channelId: number; ids: number[]; what?: 'thumb' | 'file' }, { links: Record<string, string> }]
+  'photo.album.create': [{ channelId: number; name?: string; version?: number; envelope?: unknown }, { album: PhotoAlbum }]
+  'photo.album.update': [{ id: number; name?: string; coverId?: number | null; version?: number; envelope?: unknown }, { album: PhotoAlbum }]
+  'photo.album.delete': [{ id: number }, Record<string, never>]
+  'photo.album.zip': [{ channelId: number; albumId?: number; all?: boolean }, { url: string; count: number; bytes: number }]
+  'photo.cap.set': [{ channelId: number; mb: number | null }, { usage: PhotoUsage }]
 }

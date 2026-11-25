@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { messageLink, parseOpenRoute, pushScope, pushSupport, serverOfScope, slotOfScope, taskLink } from './pushRoute'
+import { messageLink, parseOpenRoute, pushScope, pushSupport, serverOfScope, slotOfScope, taskLink, photoLink } from './pushRoute'
 
 const S = 'A'.repeat(43)
 const P = 'b'.repeat(42) + '_'
@@ -19,6 +19,14 @@ describe('push routes', () => {
     const link = taskLink('https://chat.example/app', S, 12, 31)
     expect(parseOpenRoute(link.slice(link.indexOf('#')))).toEqual({ server: S, kind: 'channel', channelId: 12, taskId: 31 })
     for (const bad of [`/open/${S}/c/12/t/0`, `/open/${S}/c/12/t/x`, `/open/${S}/c/12/t/3/m/4`, `/open/${S}/t/3`]) expect(parseOpenRoute(bad), bad).toBeNull()
+  })
+
+  it('reads and writes links to a photo in a photos channel', () => {
+    expect(parseOpenRoute(`#/open/${S}/c/12/ph/31`)).toEqual({ server: S, kind: 'channel', channelId: 12, photoId: 31 })
+    const link = photoLink('https://chat.example/app/', S, 12, 31)
+    expect(link).toBe(`https://chat.example/app/#/open/${S}/c/12/ph/31`)
+    expect(parseOpenRoute(link.slice(link.indexOf('#')))).toEqual({ server: S, kind: 'channel', channelId: 12, photoId: 31 })
+    for (const bad of [`/open/${S}/c/12/ph/0`, `/open/${S}/c/12/ph/x`, `/open/${S}/ph/3`]) expect(parseOpenRoute(bad), bad).toBeNull()
   })
 
   it('rejects anything else', () => {
