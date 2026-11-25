@@ -15,6 +15,7 @@ test('a weekly event repeats, exports an RRULE, and one occurrence can be change
 
     // The host plans a weekly quiz.
     await host.locator('.events-button').click()
+    await host.getByTestId('events-view-agenda').click() // a computer opens on the month
     const dialog = host.getByRole('dialog', { name: 'Events' })
     await dialog.getByRole('button', { name: 'Schedule an event' }).click()
     const form = host.getByRole('dialog', { name: 'Schedule an event' })
@@ -31,6 +32,7 @@ test('a weekly event repeats, exports an RRULE, and one occurrence can be change
 
     // The friend sees the same, and the calendar file carries the rule.
     await friend.locator('.events-button').click()
+    await friend.getByTestId('events-view-agenda').click() // a computer opens on the month
     const friendCard = friend.locator('.event-card', { hasText: 'Weekly quiz' })
     await expect(friendCard).toContainText('Repeats: Every week')
     const download = friend.waitForEvent('download')

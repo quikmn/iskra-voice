@@ -3172,3 +3172,36 @@ export interface Requests {
   'voice.record.optout': [{ optOut?: boolean }, { optOut: boolean }]
   'voice.record.consent': [{ channelId: number; agree: boolean }, Record<string, never>]
 }
+
+// ── calendar ──
+
+/** A member's calendar feed, as their app sees it. The link itself is only in the answer to `calendar.feed.create`. */
+export interface CalendarFeedState {
+  /** The owner allows feeds on this server. */
+  allowed: boolean
+  on: boolean
+  createdAt: number | null
+  /** When a calendar app last fetched it. */
+  fetchedAt: number | null
+  /** The server's public https:// address, or null when calendar services on the internet can't reach it. */
+  address: string | null
+}
+
+export interface CalendarBirthday {
+  accountKey: string
+  month: number
+  day: number
+}
+
+export interface Events {
+  'calendar.settings': { feeds: boolean }
+}
+
+export interface Requests {
+  'calendar.birthdays': [Record<string, never>, { birthdays: CalendarBirthday[] }]
+  'calendar.feed.get': [Record<string, never>, { feed: CalendarFeedState }]
+  /** `path` ("/calendar/<token>.ics") goes after the server's address; the one before stops working. */
+  'calendar.feed.create': [Record<string, never>, { feed: CalendarFeedState; path: string }]
+  'calendar.feed.remove': [Record<string, never>, { feed: CalendarFeedState }]
+  'calendar.settings.update': [{ feeds: boolean }, { feed: CalendarFeedState }]
+}

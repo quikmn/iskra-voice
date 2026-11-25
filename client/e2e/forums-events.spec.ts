@@ -108,6 +108,7 @@ test('schedule an event, mark interest, add it to a calendar, edit and cancel it
 
     // Nothing planned yet; the host schedules one somewhere else (this server has no voice channels).
     await host.locator('.events-button').click()
+    await host.getByTestId('events-view-agenda').click() // a computer opens on the month
     const dialog = host.getByRole('dialog', { name: 'Events' })
     await expect(dialog.getByText('Nothing planned yet')).toBeVisible()
     await dialog.getByRole('button', { name: 'Schedule an event' }).click()
@@ -128,6 +129,7 @@ test('schedule an event, mark interest, add it to a calendar, edit and cancel it
     const button = friend.locator('.events-button')
     await expect(button.locator('.event-badge')).toHaveText('1')
     await button.click()
+    await friend.getByTestId('events-view-agenda').click()
     const friendCard = friend.locator('.event-card', { hasText: 'Board game night' })
     await friendCard.getByRole('button', { name: "I'm interested" }).click()
     await expect(friendCard.getByRole('button', { name: 'Interested' })).toHaveAttribute('aria-pressed', 'true')
