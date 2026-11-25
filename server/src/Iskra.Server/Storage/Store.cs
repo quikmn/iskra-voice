@@ -391,6 +391,8 @@ public sealed partial class Store : IDisposable
         ("recording-1", RecordingMigration),
         // The rank people left with (moderators may only act on people who left if they outranked them).
         ("modpack-2", ModPackRankMigration),
+        // Calendar: event change counters for calendar feeds, members' feed tokens (hashed), and the owner's switch.
+        ("calendar-1", CalendarMigration),
     ];
 
     // ── Plumbing ─────────────────────────────────────────────────────────────

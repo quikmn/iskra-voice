@@ -39,6 +39,8 @@ public sealed class RateLimiter(TimeProvider time)
         ["activity.change"] = (5, 0.1), // checked by ActivityFeature, only on real changes
         ["link.create"] = (3, 0.1),
         ["event.interest"] = (5, 1),
+        ["calendar.feed.create"] = (5, 0.05),
+        ["calendar.birthdays"] = (10, 1),
         ["presence.set"] = (10, 1),
         ["dm.upload.begin"] = (10, 2),
         ["dm.file.url"] = (40, 10),

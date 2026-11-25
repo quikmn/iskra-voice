@@ -205,6 +205,8 @@ public sealed class DataExports(TimeProvider time, ILogger<DataExports> log)
             """);
         // Your birthday, if you shared it with the Birthdays bot (day and month only), and the year it was last announced.
         Section("birthday", $"SELECT account_key, month, day, set_at, last_posted_year FROM birthdays WHERE account_key {Mine};");
+        // Your calendar link, if you made one: when, and when a calendar app last fetched it (never the link itself; only its hash is kept).
+        Section("calendarFeed", $"SELECT account_key, created_at, fetched_at FROM calendar_feeds WHERE account_key {Mine};");
         // Suggestions you made (anonymous ones too: the server keeps who made them), your votes, giveaways you entered or hosted, tags you last saved.
         Section("suggestionsMade", $"SELECT message_id, channel_id, anonymous, text, status, reason, decided_at, created_at FROM suggestions WHERE author_key {Mine} ORDER BY message_id;");
         Section("suggestionVotes", $"SELECT message_id, vote, at FROM suggestion_votes WHERE account_key {Mine} ORDER BY message_id;");

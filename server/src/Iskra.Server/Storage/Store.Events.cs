@@ -8,7 +8,8 @@ namespace Iskra.Server.Storage;
 /// </summary>
 public sealed record ServerEvent(long Id, string Title, string? Description, long StartAt, long EndAt, string TimeZone,
     string LocationKind, long? ChannelId, string? Location, string? ImageFile, string CreatedBy, long CreatedAt,
-    string Status, long? RemindedAt, string Repeat = "none", long? Until = null, long? SeriesId = null)
+    string Status, long? RemindedAt, string Repeat = "none", long? Until = null, long? SeriesId = null,
+    long? UpdatedAt = null, long Sequence = 0)
 {
     public bool IsOpen => Status is "scheduled" or "live";
     public bool Repeats => Repeat != "none";
@@ -50,12 +51,13 @@ public sealed partial class Store
         """;
 
     private const string EventColumns =
-        "id, title, description, start_at, end_at, time_zone, location_kind, channel_id, location, image_file, created_by, created_at, status, reminded_at, repeat, until, series_id";
+        "id, title, description, start_at, end_at, time_zone, location_kind, channel_id, location, image_file, created_by, created_at, status, reminded_at, repeat, until, series_id, updated_at, sequence";
 
     private static ServerEvent ReadEvent(Microsoft.Data.Sqlite.SqliteDataReader r) =>
         new(r.GetInt64(0), r.GetString(1), r.IsDBNull(2) ? null : r.GetString(2), r.GetInt64(3), r.GetInt64(4), r.GetString(5),
             r.GetString(6), NullableLong(r, 7), r.IsDBNull(8) ? null : r.GetString(8), r.IsDBNull(9) ? null : r.GetString(9),
-            r.GetString(10), r.GetInt64(11), r.GetString(12), NullableLong(r, 13), r.GetString(14), NullableLong(r, 15), NullableLong(r, 16));
+            r.GetString(10), r.GetInt64(11), r.GetString(12), NullableLong(r, 13), r.GetString(14), NullableLong(r, 15), NullableLong(r, 16),
+            NullableLong(r, 17), r.GetInt64(18));
 
     /// <summary>A repeating event without a <see cref="ServerEvent.SeriesId"/> starts a new series (its own id).</summary>
     public ServerEvent AddEvent(ServerEvent e)
@@ -66,7 +68,7 @@ public sealed partial class Store
             """, ("$title", e.Title), ("$desc", e.Description), ("$start", e.StartAt), ("$end", e.EndAt), ("$tz", e.TimeZone),
             ("$kind", e.LocationKind), ("$ch", e.ChannelId), ("$loc", e.Location), ("$img", e.ImageFile), ("$by", e.CreatedBy), ("$now", e.CreatedAt),
             ("$repeat", e.Repeat), ("$until", e.Repeats ? e.Until : null), ("$series", e.Repeats ? e.SeriesId : null)));
-        var added = e with { Id = id, Status = "scheduled", RemindedAt = null, Until = e.Repeats ? e.Until : null, SeriesId = e.Repeats ? e.SeriesId : null };
+        var added = e with { Id = id, Status = "scheduled", RemindedAt = null, UpdatedAt = null, Sequence = 0, Until = e.Repeats ? e.Until : null, SeriesId = e.Repeats ? e.SeriesId : null };
         if (added.Repeats && added.SeriesId is null)
         {
             Exec("UPDATE events SET series_id = id WHERE id = $id;", ("$id", id));
@@ -78,12 +80,18 @@ public sealed partial class Store
     public ServerEvent? GetEvent(long id) =>
         Query($"SELECT {EventColumns} FROM events WHERE id = $id;", ReadEvent, ("$id", id)).FirstOrDefault();
 
-    /// <summary>Everything the creator can change, plus the reminder mark (cleared when the start moves) and the series fields.</summary>
+    /// <summary>The wall clock in ms, in SQL: when an event last changed (calendar feeds' LAST-MODIFIED).</summary>
+    private const string SqlNowMs = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+
+    /// <summary>
+    /// Everything the creator can change, plus the reminder mark (cleared when the start moves) and the series fields.
+    /// Counts as a change for calendar feeds (sequence, updated_at).
+    /// </summary>
     public void UpdateEvent(ServerEvent e) =>
-        Exec("""
+        Exec($"""
             UPDATE events SET title = $title, description = $desc, start_at = $start, end_at = $end, time_zone = $tz,
                 location_kind = $kind, channel_id = $ch, location = $loc, image_file = $img, reminded_at = $rem,
-                repeat = $repeat, until = $until, series_id = $series
+                repeat = $repeat, until = $until, series_id = $series, sequence = sequence + 1, updated_at = {SqlNowMs}
             WHERE id = $id;
             """, ("$id", e.Id), ("$title", e.Title), ("$desc", e.Description), ("$start", e.StartAt), ("$end", e.EndAt), ("$tz", e.TimeZone),
             ("$kind", e.LocationKind), ("$ch", e.ChannelId), ("$loc", e.Location), ("$img", e.ImageFile), ("$rem", e.RemindedAt),
@@ -98,7 +106,7 @@ public sealed partial class Store
     {
         lock (_gate)
         {
-            using var cmd = Command("UPDATE events SET status = $to WHERE id = $id AND status IN (SELECT value FROM json_each($from));",
+            using var cmd = Command($"UPDATE events SET status = $to, sequence = sequence + 1, updated_at = {SqlNowMs} WHERE id = $id AND status IN (SELECT value FROM json_each($from));",
                 [("$id", id), ("$to", to), ("$from", System.Text.Json.JsonSerializer.Serialize(from))]);
             return cmd.ExecuteNonQuery() > 0;
         }
