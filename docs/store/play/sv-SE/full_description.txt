@@ -11,6 +11,8 @@ ALLT ETT KOMPISGÄNG BEHÖVER
 • Röstkanaler som flyter på även när många är med, där du kan stänga av mikrofonen eller ljudet, ställa volym per person och använda soundboarden
 • Slå på kameran i röstkanaler och samtal
 • Forum, evenemang med påminnelser och dokumentkanaler för husregler och guider
+• En gemensam kalender för varje server, så att gänget kan planera raidkvällen. Google Kalender, Outlook eller telefonens kalender kan följa den
+• Enkla uppgiftstavlor för små team: lägg till uppgifter, dela ut dem och dra dem till klart
 • Scener för föredrag och lyssningsfester, och gemensamma visningar där alla ser samma bildruta
 • Roller, behörigheter och moderering: timeouts, långsamt läge, AutoMod, anmälningar och en aktivitetslogg
 • Profiler du formger själv, vänner, status och egen status
@@ -28,6 +30,7 @@ I TELEFONEN
 • Stanna kvar i röstkanalen med skärmen avstängd: en avisering visar att du är i röst och låter dig lämna
 • Aviseringar, ljud och olästa-markeringar kommer medan appen är öppen. Vill du ha aviseringar när den är stängd, använd datorappen eller Iskra i webbläsaren
 • Inbjudningslänkar öppnas direkt i appen
+• Lägg in serverns evenemang i telefonens kalender om du vill
 • Skärmdelning och att starta en egen server gör du i datorappen
 
 Du behöver en inbjudningslänk till en server, eller datorappen för att starta en egen.

@@ -11,6 +11,8 @@ EVERYTHING A FRIEND GROUP NEEDS
 • Voice channels that stay smooth with many people, with mute, deafen, per-person volume and a soundboard
 • Turn on your camera in voice and calls
 • Forums, events with reminders, and docs channels for house rules and guides
+• A shared calendar for each server, so the group can plan raid night. Google Calendar, Outlook or your phone's calendar can follow it
+• Simple task boards for small teams: add tasks, hand them out, drag them to done
 • Stages for talks and listening parties, and watch parties that keep everyone on the same frame
 • Roles, permissions and moderation tools: timeouts, slow mode, AutoMod, reports and an activity log
 • Profiles you design yourself, friends, status and custom status
@@ -28,6 +30,7 @@ ON YOUR PHONE
 • Stay in voice with the screen off: a notification shows you're in voice and lets you leave
 • Notifications, sounds and unread markers arrive while the app is open. For notifications while it's closed, use the desktop app or Iskra in your browser
 • Invite links open straight in the app
+• Put a server's events in your phone's calendar if you want to
 • Screen sharing and starting your own server are on the desktop app
 
 You need an invite link to a server, or the desktop app to start your own.
