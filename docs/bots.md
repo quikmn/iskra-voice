@@ -21,6 +21,17 @@ For server owners: [hosting.md → Bots and webhooks](hosting.md#bots-and-webhoo
 
 Treat the URL like a password: anyone who has it can post in that channel. Use the `https://` address when your server has one.
 
+On the server's own computer you can do the same from the command line, also while the server runs. This is useful for scripts and setup:
+
+```
+iskra-server webhooks create <world-folder> general "GitHub"          # prints the URL once (add --json for scripts)
+iskra-server webhooks create <world-folder> ci "CI" --signing-secret-stdin < secret.txt
+iskra-server webhooks <world-folder>                                  # list them (ids, channel, last used)
+iskra-server webhooks delete <world-folder> <id>
+```
+
+The channel is a name (with or without `#`) or an id. `--mentions` lets its posts ping people. A webhook made this way shows up in **Bots & webhooks** like any other, made by the owner.
+
 ### Post a message
 
 ```sh

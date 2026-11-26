@@ -84,8 +84,10 @@ public static class WebhookFeature
         return hook;
     }
 
-    private static string Name(Body body) =>
-        Names.Normalize(body.String("name", 256))
+    private static string Name(Body body) => Name(body.String("name", 256));
+
+    internal static string Name(string raw) =>
+        Names.Normalize(raw)
         ?? throw RequestException.BadRequest($"Names must be 1–{Names.MaxLength} characters, with no invisible characters.", "name_length", new { max = Names.MaxLength });
 
     /// <summary>An avatar must be an image you uploaded yourself. Empty string means none.</summary>
@@ -98,7 +100,7 @@ public static class WebhookFeature
         return file.Id;
     }
 
-    private static (string Secret, string Hash) NewSecret()
+    internal static (string Secret, string Hash) NewSecret()
     {
         var secret = Ed25519.ToB64u(RandomNumberGenerator.GetBytes(32));
         return (secret, HashSecret(secret));

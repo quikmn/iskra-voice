@@ -85,7 +85,7 @@
 <main class="doc docs-main" id="top">
   <div class="doc-kicker">Docs</div>
   <h1>Bots and webhooks</h1>
-  <p class="updated">Last updated <time datetime="2026-11-03">3 November 2026</time></p>
+  <p class="updated">Last updated <time datetime="2026-11-26">26 November 2026</time></p>
   <details class="mobile-toc">
     <summary>On this page</summary>
     <ul class="toc-list"><li class="l2"><a href="#webhooks">Webhooks</a></li><li class="l2"><a href="#outgoing-webhooks">Outgoing webhooks</a></li><li class="l2"><a href="#built-in-bots">Built-in bots</a></li><li class="l2"><a href="#bots">Bots</a></li></ul>
@@ -124,6 +124,13 @@
 <li>Copy the URL. It's only shown once: the server keeps a hash of the secret, not the secret itself. Lost it? Click <strong>New URL</strong> (the old one stops working right away).</li>
 </ol>
 <p>Treat the URL like a password: anyone who has it can post in that channel. Use the <code>https://</code> address when your server has one.</p>
+<p>On the server's own computer you can do the same from the command line, also while the server runs. This is useful for scripts and setup:</p>
+<div class="code"><pre><code>iskra-server webhooks create &lt;world-folder&gt; general &quot;GitHub&quot;          # prints the URL once (add --json for scripts)
+iskra-server webhooks create &lt;world-folder&gt; ci &quot;CI&quot; --signing-secret-stdin &lt; secret.txt
+iskra-server webhooks &lt;world-folder&gt;                                  # list them (ids, channel, last used)
+iskra-server webhooks delete &lt;world-folder&gt; &lt;id&gt;
+</code></pre></div>
+<p>The channel is a name (with or without <code>#</code>) or an id. <code>--mentions</code> lets its posts ping people. A webhook made this way shows up in <strong>Bots &amp; webhooks</strong> like any other, made by the owner.</p>
 <h3 id="post-a-message">Post a message<a class="anchor" href="#post-a-message" aria-hidden="true" tabindex="-1">#</a></h3>
 <div class="code"><div class="code-lang">shell</div><pre><code class="language-sh">curl -H &quot;Content-Type: application/json&quot; \
   -d '{&quot;content&quot;: &quot;Build **passed** ✅&quot;}' \

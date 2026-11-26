@@ -19,14 +19,15 @@ namespace Iskra.Server;
 ///   iskra-server move &lt;world-folder&gt; &lt;new-address&gt;   publish "this server moved" (or --cancel)
 ///   iskra-server import-discord &lt;world-folder&gt; &lt;export&gt; [--read-only]
 ///   iskra-server templates [name-or-file] [--json]         list starter templates, or check one
+///   iskra-server webhooks [create|delete] &lt;world-folder&gt; ...  list, make or delete incoming webhooks
 ///   iskra-server install-autostart &lt;world-folder&gt;       start the server with the computer (remove-autostart undoes it)
 ///   iskra-server expect-restart &lt;world-folder&gt; [--eta &lt;s&gt;] [--reason update|restart]   the next stop is a restart
 ///   iskra-server version                                   print the version
 /// The passphrase comes from --passphrase-stdin (one line), $ISKRA_BACKUP_PASSPHRASE, or a prompt.
 /// </summary>
-public static class Cli
+public static partial class Cli
 {
-    private static readonly string[] Commands = ["restore", "restore-buddy", "backup", "move", "import-discord", "templates", "install-autostart", "remove-autostart", "expect-restart", "version", "--version", "help", "--help"];
+    private static readonly string[] Commands = ["restore", "restore-buddy", "backup", "move", "import-discord", "templates", "webhooks", "install-autostart", "remove-autostart", "expect-restart", "version", "--version", "help", "--help"];
 
     public static bool IsCommand(string? first) => first is not null && Commands.Contains(first);
 
@@ -45,6 +46,7 @@ public static class Cli
                 "import-discord" when rest.Length == 3 => ImportDiscord(rest[1], rest[2], flags),
                 "templates" when rest.Length == 4 && rest[1] == "apply" => MergeTemplate(rest[2], rest[3], flags.Contains("--apply")),
                 "templates" when rest.Length <= 2 => ListTemplates(rest.ElementAtOrDefault(1), flags.Contains("--json")),
+                "webhooks" => Webhooks(rest, flags),
                 "install-autostart" when rest.Length == 2 => InstallAutostart(rest[1], new RealAutostartSystem()),
                 "remove-autostart" when rest.Length == 2 => RemoveAutostart(rest[1], new RealAutostartSystem()),
                 "expect-restart" => ExpectRestart(args),
@@ -126,6 +128,10 @@ public static class Cli
               iskra-server templates apply <world-folder> <template>   add what a template has and the server doesn't (never
                 [--apply]                                              changes or removes anything); shows it, --apply does it.
                                                                        Stop the server first.
+              iskra-server webhooks <world-folder>                     list the incoming webhooks (works while it runs)
+              iskra-server webhooks create <world-folder> <channel> <name>   make one and print its secret URL once
+                [--mentions] [--signing-secret-stdin] [--json]
+              iskra-server webhooks delete <world-folder> <id>         delete one
               iskra-server install-autostart <world-folder>            start this server with the computer (no window)
               iskra-server remove-autostart <world-folder>             undo that
               iskra-server expect-restart <world-folder>               say the next stop is a restart (run it just before

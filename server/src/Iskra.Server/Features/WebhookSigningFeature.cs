@@ -19,18 +19,20 @@ public static class WebhookSigningFeature
     {
         WebhookFeature.RequireAdmin(me);
         var hook = WebhookFeature.Find(s, me, body);
-        var raw = body.OptionalString("secret", MaxLength * 2) ?? "";
-        string? secret = null;
-        if (raw.Length > 0)
-        {
-            // Printable ASCII (GitHub's own example has spaces), not starting or ending with a space.
-            if (raw.Length is < MinLength or > MaxLength || raw.Any(c => c is < ' ' or > '~') || raw.Trim().Length != raw.Length)
-                throw RequestException.BadRequest($"A signing secret is {MinLength}–{MaxLength} letters, digits, symbols or spaces (not at the start or end).",
-                    "webhook_signing_secret", new { min = MinLength, max = MaxLength });
-            secret = raw;
-        }
+        var secret = Check(body.OptionalString("secret", MaxLength * 2) ?? "");
         s.World.Store.SetWebhookSigningSecret(hook.Id, secret);
         Audit.Record(s, "webhook.update", details: new { id = hook.Id, name = hook.Name, channelId = hook.ChannelId, signed = secret is not null });
         return new { webhook = WebhookFeature.View(s.World.Store, hook) };
+    }
+
+    /// <summary>The secret to store: null for empty (no signing). Printable ASCII (GitHub's own example has spaces),
+    /// not starting or ending with a space.</summary>
+    internal static string? Check(string raw)
+    {
+        if (raw.Length == 0) return null;
+        if (raw.Length is < MinLength or > MaxLength || raw.Any(c => c is < ' ' or > '~') || raw.Trim().Length != raw.Length)
+            throw RequestException.BadRequest($"A signing secret is {MinLength}–{MaxLength} letters, digits, symbols or spaces (not at the start or end).",
+                "webhook_signing_secret", new { min = MinLength, max = MaxLength });
+        return raw;
     }
 }
